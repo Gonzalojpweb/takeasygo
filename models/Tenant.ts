@@ -15,7 +15,12 @@ export interface ITenant extends Document {
     borderRadius: 'sharp' | 'rounded' | 'pill'
     menuLayout: 'grid' | 'list'
     darkMode: boolean
-  }
+  },
+  mercadopago: {
+  accessToken: string | null
+  publicKey: string | null
+  isConfigured: boolean
+},
   createdAt: Date
   updatedAt: Date
 }
@@ -63,6 +68,11 @@ const TenantSchema = new Schema<ITenant>(
       },
       darkMode: { type: Boolean, default: false },
     },
+    mercadopago: {
+  accessToken: { type: String, default: null },
+  publicKey: { type: String, default: null },
+  isConfigured: { type: Boolean, default: false },
+  },
   },
   {
     timestamps: true,

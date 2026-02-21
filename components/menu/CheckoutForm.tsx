@@ -28,33 +28,46 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
 
   const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.name.trim()) return toast.error('El nombre es obligatorio')
-    setLoading(true)
+async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault()
+  if (!form.name.trim()) return toast.error('El nombre es obligatorio')
+  setLoading(true)
 
-    try {
-      const res = await fetch(`/api/${tenantSlug}/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          locationId,
-          customer: { name: form.name, phone: form.phone, email: form.email },
-          items: cart,
-          notes: form.notes,
-        }),
-      })
+  try {
+    // 1. Crear la orden
+    const orderRes = await fetch(`/api/${tenantSlug}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        locationId,
+        customer: { name: form.name, phone: form.phone, email: form.email },
+        items: cart,
+        notes: form.notes,
+      }),
+    })
+    if (!orderRes.ok) throw new Error('Error al crear el pedido')
+    const { order } = await orderRes.json()
 
-      if (!res.ok) throw new Error()
+    // 2. Crear preferencia de MP
+    const prefRes = await fetch(`/api/${tenantSlug}/payments/create-preference`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order._id }),
+    })
+    if (!prefRes.ok) throw new Error('Error al crear el pago')
+    const { sandboxInitPoint, initPoint } = await prefRes.json()
 
-      const { order } = await res.json()
-      sessionStorage.removeItem('cart')
-      router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
-    } catch {
-      toast.error('Error al crear el pedido')
-      setLoading(false)
-    }
+    sessionStorage.removeItem('cart')
+
+    // En desarrollo usamos sandbox, en producción initPoint
+    const redirectUrl = process.env.NODE_ENV === 'development' ? sandboxInitPoint : initPoint
+    window.location.href = redirectUrl
+
+  } catch (err: any) {
+    toast.error(err.message || 'Error al procesar el pedido')
+    setLoading(false)
   }
+}
 
   return (
     <div className="min-h-screen bg-white">
@@ -115,12 +128,12 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
             className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400 resize-none"
           />
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50">
-            {loading ? 'Enviando...' : 'Hacer pedido'}
-          </button>
+<button
+  type="submit"
+  disabled={loading}
+  className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50">
+  {loading ? 'Procesando...' : '💳 Pagar con MercadoPago'}
+</button>
         </form>
       </div>
     </div>

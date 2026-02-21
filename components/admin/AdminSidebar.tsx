@@ -67,7 +67,8 @@ export default function AdminSidebar({ tenantSlug, userRole, userName }: Props) 
     },
   ]
 
-  const visibleItems = navItems.filter(item => item.roles.includes(userRole))
+  const effectiveRole = userRole === 'superadmin' ? 'admin' : userRole
+  const visibleItems = navItems.filter(item => item.roles.includes(effectiveRole))
 
   return (
     <aside className="w-64 flex flex-col bg-zinc-950 border-r border-zinc-800">
