@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/apiAuth'
 
 export async function POST(
   request: NextRequest,
@@ -13,6 +14,9 @@ export async function POST(
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+
+      const authError = await requireAuth(request, tenant._id.toString())
+if (authError) return authError
 
     const { locationId, name, description, price } = await request.json()
 
@@ -41,6 +45,9 @@ export async function PUT(
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+
+      const authError = await requireAuth(request, tenant._id.toString())
+if (authError) return authError
 
     const { locationId, itemId, name, description, price, isAvailable } = await request.json()
 

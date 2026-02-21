@@ -4,12 +4,18 @@ import Tenant from '@/models/Tenant'
 import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
+    const ip = request.headers.get('x-forwarded-for') || 'unknown'
+const { success } = rateLimit(`payment:${ip}`, 10, 60_000)
+if (!success) {
+  return NextResponse.json({ error: 'Demasiadas solicitudes' }, { status: 429 })
+}
     const { tenant: tenantSlug } = await params
     await connectDB()
 

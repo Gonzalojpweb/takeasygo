@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/apiAuth'
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending:    ['confirmed', 'cancelled'],
@@ -24,6 +25,9 @@ export async function PATCH(
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
+
+      const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
 
     const { status } = await request.json()
 

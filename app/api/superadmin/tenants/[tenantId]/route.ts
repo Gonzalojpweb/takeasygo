@@ -1,12 +1,16 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ tenantId: string }> }
 ) {
   try {
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
+
     const { tenantId } = await params
     await connectDB()
 

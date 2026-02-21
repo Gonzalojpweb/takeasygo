@@ -1,9 +1,13 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function GET() {
   try {
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
+
     await connectDB()
     const tenants = await Tenant.find()
     return NextResponse.json({ tenants })
@@ -12,8 +16,11 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
+
     await connectDB()
     const body = await request.json()
     const tenant = await Tenant.create(body)

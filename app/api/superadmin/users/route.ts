@@ -2,9 +2,13 @@ import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
 import bcrypt from 'bcryptjs'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function POST(request: NextRequest) {
   try {
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
+
     await connectDB()
     const { name, email, password, role, tenantId } = await request.json()
 
