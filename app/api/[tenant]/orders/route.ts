@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { generateOrderNumber } from '@/lib/orderNumber'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/apiAuth'
 
 export async function GET(
   request: NextRequest,
@@ -11,14 +12,14 @@ export async function GET(
 ) {
   try {
     const { tenant: tenantSlug } = await params
+    await connectDB()
     const locationId = request.nextUrl.searchParams.get('locationId')
 
-    await connectDB()
+const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+    if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
 
     const filter: Record<string, any> = { tenantId: tenant._id }
     if (locationId) filter.locationId = locationId
