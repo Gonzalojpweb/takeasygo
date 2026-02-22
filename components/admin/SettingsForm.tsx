@@ -23,7 +23,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug }: Props) {
   async function handleSaveBranding() {
     setLoading(true)
     try {
-      const res = await fetch(`/api/superadmin/tenants/${tenant._id}`, {
+      const res = await fetch(`/api/${tenantSlug}/settings/branding`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ branding }),

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, ExternalLink, Settings } from 'lucide-react'
+import { Plus, ExternalLink, Settings, MapPin } from 'lucide-react'
 
 const PLAN_COLORS: Record<string, string> = {
   try:  'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
@@ -52,6 +52,11 @@ export default async function TenantsPage() {
                   <Link href={`/${tenant.slug}/admin`} target="_blank">
                     <Button size="sm" variant="ghost" className="text-zinc-400 hover:text-white h-8 w-8 p-0">
                       <ExternalLink size={14} />
+                    </Button>
+                  </Link>
+                  <Link href={`/superadmin/tenants/${tenant._id}/locations`}>
+                    <Button size="sm" variant="ghost" className="text-zinc-400 hover:text-white h-8 w-8 p-0" title="Sedes">
+                      <MapPin size={14} />
                     </Button>
                   </Link>
                   <Link href={`/superadmin/tenants/${tenant._id}/edit`}>

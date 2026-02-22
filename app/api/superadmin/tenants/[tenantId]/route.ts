@@ -31,3 +31,25 @@ export async function PUT(
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ tenantId: string }> }
+) {
+  try {
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
+
+    const { tenantId } = await params
+    await connectDB()
+
+    const tenant = await Tenant.findByIdAndDelete(tenantId)
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
+}
