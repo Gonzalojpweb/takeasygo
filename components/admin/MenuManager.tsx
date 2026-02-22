@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Check, X, Star } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Check, X, Star, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import ImportMenuModal from '@/components/menu/ImportMenuModal'
 
 interface Props {
   locations: any[]
@@ -28,9 +29,11 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [editingItem, setEditingItem] = useState<string | null>(null)
   const [editingItemData, setEditingItemData] = useState(EMPTY_ITEM)
   const [loading, setLoading] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const router = useRouter()
 
   const currentMenu = menus.find(m => m.locationId.toString() === selectedLocation)
+  const currentLocation = locations.find(l => l._id === selectedLocation)
 
   function toggleCategory(categoryId: string) {
     setExpandedCategories(prev =>
@@ -203,10 +206,16 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
             </Button>
           </div>
         ) : (
-          <Button size="sm" variant="outline" className="border-zinc-600 text-zinc-400 hover:text-white"
-            onClick={() => setShowAddCategory(true)}>
-            <Plus size={14} className="mr-2" /> Nueva categoría
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="border-zinc-600 text-zinc-400 hover:text-white"
+              onClick={() => setShowAddCategory(true)}>
+              <Plus size={14} className="mr-2" /> Nueva categoría
+            </Button>
+            <Button size="sm" variant="outline" className="border-zinc-600 text-zinc-400 hover:text-white"
+              onClick={() => setShowImport(true)}>
+              <Upload size={14} className="mr-2" /> Importar JSON
+            </Button>
+          </div>
         )}
       </div>
 
@@ -346,6 +355,16 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
               )
             })}
         </div>
+      )}
+
+      {showImport && currentLocation && (
+        <ImportMenuModal
+          tenantSlug={tenantSlug}
+          locationId={selectedLocation}
+          locationName={currentLocation.name}
+          onSuccess={() => router.refresh()}
+          onClose={() => setShowImport(false)}
+        />
       )}
     </div>
   )

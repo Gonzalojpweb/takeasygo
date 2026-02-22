@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { MapPin, Plus, ChevronUp, Pencil, Trash2, X, Check } from 'lucide-react'
+import { MapPin, Plus, ChevronUp, Pencil, Trash2, X, Check, Upload } from 'lucide-react'
+import ImportMenuModal from '@/components/menu/ImportMenuModal'
 
 type OrderMode = 'takeaway' | 'dine-in'
 
@@ -48,6 +49,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
     name: '', address: '', phone: '', orderModes: ['takeaway'],
   })
   const [editLoading, setEditLoading] = useState(false)
+  const [importingLocation, setImportingLocation] = useState<LocationItem | null>(null)
 
   function handleNameChange(name: string) {
     const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
@@ -281,6 +283,12 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                         {loc.hasMenu ? 'Con menú' : 'Sin menú'}
                       </span>
                       <button
+                        title="Importar menú JSON"
+                        onClick={() => setImportingLocation(loc)}
+                        className="p-1.5 rounded-lg text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
+                        <Upload size={13} />
+                      </button>
+                      <button
                         onClick={() => startEdit(loc)}
                         className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors">
                         <Pencil size={13} />
@@ -394,6 +402,20 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           </Card>
         )}
       </div>
+
+      {importingLocation && (
+        <ImportMenuModal
+          tenantSlug={tenantSlug}
+          locationId={importingLocation._id}
+          locationName={importingLocation.name}
+          onSuccess={() => {
+            setLocations(prev =>
+              prev.map(l => l._id === importingLocation._id ? { ...l, hasMenu: true } : l)
+            )
+          }}
+          onClose={() => setImportingLocation(null)}
+        />
+      )}
     </div>
   )
 }
