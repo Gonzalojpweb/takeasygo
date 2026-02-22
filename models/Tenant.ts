@@ -15,12 +15,21 @@ export interface ITenant extends Document {
     borderRadius: 'sharp' | 'rounded' | 'pill'
     menuLayout: 'grid' | 'list'
     darkMode: boolean
-  },
+  }
+  profile: {
+    menuDescription: string
+    about: string
+    social: {
+      instagram: string
+      facebook: string
+      twitter: string
+    }
+  }
   mercadopago: {
-  accessToken: string | null
-  publicKey: string | null
-  isConfigured: boolean
-},
+    accessToken: string | null
+    publicKey: string | null
+    isConfigured: boolean
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -68,11 +77,20 @@ const TenantSchema = new Schema<ITenant>(
       },
       darkMode: { type: Boolean, default: false },
     },
+    profile: {
+      menuDescription: { type: String, default: '' },
+      about: { type: String, default: '' },
+      social: {
+        instagram: { type: String, default: '' },
+        facebook: { type: String, default: '' },
+        twitter: { type: String, default: '' },
+      },
+    },
     mercadopago: {
-  accessToken: { type: String, default: null },
-  publicKey: { type: String, default: null },
-  isConfigured: { type: Boolean, default: false },
-  },
+      accessToken: { type: String, default: null },
+      publicKey: { type: String, default: null },
+      isConfigured: { type: Boolean, default: false },
+    },
   },
   {
     timestamps: true,

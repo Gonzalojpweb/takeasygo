@@ -6,6 +6,7 @@ export interface ILocation extends Document {
   slug: string
   address: string
   phone: string
+  hours: string
   isActive: boolean
   settings: {
     acceptsOrders: boolean
@@ -42,6 +43,11 @@ const LocationSchema = new Schema<ILocation>(
       trim: true,
     },
     phone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    hours: {
       type: String,
       trim: true,
       default: '',

@@ -3,7 +3,7 @@ import Tenant, { type ITenant } from '@/models/Tenant'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { notFound } from 'next/navigation'
-import MenuPublicView from '@/components/menu/MenuPublicView'
+import DineInMenuView from '@/components/menu/DineInMenuView'
 import type { Types } from 'mongoose'
 
 interface Props {
@@ -24,16 +24,11 @@ export default async function DineInMenuPage({ params }: Props) {
   const menuDoc = await Menu.findOne({ tenantId: tenantDoc._id, locationId, isActive: true }).lean()
   if (!menuDoc) notFound()
 
-  const tenant = JSON.parse(JSON.stringify(tenantDoc))
-  const location = JSON.parse(JSON.stringify(locationDoc))
-  const menu = JSON.parse(JSON.stringify(menuDoc))
-
   return (
-    <MenuPublicView
-      tenant={tenant}
-      location={location}
-      menu={menu}
-      mode="dine-in"
+    <DineInMenuView
+      tenant={JSON.parse(JSON.stringify(tenantDoc))}
+      location={JSON.parse(JSON.stringify(locationDoc))}
+      menu={JSON.parse(JSON.stringify(menuDoc))}
     />
   )
 }

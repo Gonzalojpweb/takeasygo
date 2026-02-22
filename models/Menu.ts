@@ -8,6 +8,7 @@ export interface IMenuItem {
   imageUrl: string
   isAvailable: boolean
   tags: string[]
+  isFeatured: boolean
 }
 
 export interface IMenuCategory {
@@ -55,6 +56,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
   tags: {
     type: [String],
     default: [],
+  },
+  isFeatured: {
+    type: Boolean,
+    default: false,
   },
 })
 
