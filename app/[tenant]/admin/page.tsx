@@ -1,15 +1,24 @@
 import { connectDB } from '@/lib/mongoose'
+import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import { headers } from 'next/headers'
+import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ShoppingBag, Clock, CheckCircle, XCircle } from 'lucide-react'
+import type { Types } from 'mongoose'
 
 export default async function AdminDashboard() {
   const headersList = await headers()
-  const tenantId = headersList.get('x-tenant-id')
+  const tenantSlug = headersList.get('x-tenant-slug')
 
   await connectDB()
+
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+    .lean<{ _id: Types.ObjectId }>()
+  if (!tenant) notFound()
+
+  const tenantId = tenant._id
 
   const [total, pending, confirmed, cancelled] = await Promise.all([
     Order.countDocuments({ tenantId }),

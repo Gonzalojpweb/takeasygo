@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ interface Props {
   tenantSlug: string
 }
 
-const EMPTY_ITEM = { name: '', description: '', price: '', tags: '', isFeatured: false }
+const EMPTY_ITEM = { name: '', description: '', price: '', tags: '', isFeatured: false, imageUrl: '' }
 
 export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [selectedLocation, setSelectedLocation] = useState(locations[0]?._id || '')
@@ -115,6 +115,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           price: parseFloat(newItem.price),
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
+          imageUrl: newItem.imageUrl,
         }),
       })
       if (!res.ok) throw new Error()
@@ -144,6 +145,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           price: parseFloat(editingItemData.price),
           tags: parseTags(editingItemData.tags),
           isFeatured: editingItemData.isFeatured,
+          imageUrl: editingItemData.imageUrl,
         }),
       })
       if (!res.ok) throw new Error()
@@ -154,6 +156,25 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       toast.error('Error al actualizar item')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleToggleFeatured(categoryId: string, itemId: string, current: boolean) {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: selectedLocation,
+          itemId,
+          isFeatured: !current,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(!current ? 'Marcado como destacado' : 'Quitado de destacados')
+      router.refresh()
+    } catch {
+      toast.error('Error al actualizar')
     }
   }
 
@@ -284,20 +305,26 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                         {category.items.map((item: any) => (
                           <div key={item._id} className="rounded-lg bg-zinc-700/50 p-3">
                             {editingItem === item._id ? (
-                              <ItemForm
-                                data={editingItemData}
-                                onChange={setEditingItemData}
-                                onSave={() => handleEditItem(category._id, item._id)}
-                                onCancel={() => setEditingItem(null)}
-                                loading={loading}
-                                mode="edit"
-                              />
+<ItemForm
+  data={editingItemData}
+  onChange={setEditingItemData}
+  onSave={() => handleEditItem(category._id, item._id)}
+  onCancel={() => setEditingItem(null)}
+  loading={loading}
+  mode="edit"
+  tenantSlug={tenantSlug}
+/>
                             ) : (
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
                                     <p className="text-white text-sm font-medium">{item.name}</p>
-                                    {item.isFeatured && <Star size={12} className="text-yellow-400 fill-yellow-400" />}
+                                    <button
+                                      title={item.isFeatured ? 'Quitar de destacados' : 'Marcar como destacado'}
+                                      onClick={() => handleToggleFeatured(category._id, item._id, item.isFeatured ?? false)}
+                                      className="transition-transform hover:scale-125">
+                                      <Star size={14} className={item.isFeatured ? 'text-yellow-400 fill-yellow-400' : 'text-zinc-600 hover:text-yellow-400'} />
+                                    </button>
                                   </div>
                                   {item.description && <p className="text-zinc-400 text-xs mt-0.5">{item.description}</p>}
                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -317,6 +344,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                         price: item.price.toString(),
                                         tags: (item.tags || []).join(', '),
                                         isFeatured: item.isFeatured ?? false,
+                                        imageUrl: item.imageUrl || '',
                                       })
                                     }}>
                                     <Pencil size={14} />
@@ -334,14 +362,15 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 
                       {showAddItem === category._id ? (
                         <div className="p-3 bg-zinc-700/30 rounded-lg">
-                          <ItemForm
-                            data={newItem}
-                            onChange={setNewItem}
-                            onSave={() => handleAddItem(category._id)}
-                            onCancel={() => { setShowAddItem(null); setNewItem(EMPTY_ITEM) }}
-                            loading={loading}
-                            mode="add"
-                          />
+<ItemForm
+  data={newItem}
+  onChange={setNewItem}
+  onSave={() => handleAddItem(category._id)}
+  onCancel={() => { setShowAddItem(null); setNewItem(EMPTY_ITEM) }}
+  loading={loading}
+  mode="add"
+  tenantSlug={tenantSlug}
+/>
                         </div>
                       ) : (
                         <Button size="sm" variant="ghost" className="text-zinc-500 hover:text-white"
@@ -371,7 +400,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 }
 
 function ItemForm({
-  data, onChange, onSave, onCancel, loading, mode,
+  data, onChange, onSave, onCancel, loading, mode, tenantSlug,
 }: {
   data: typeof EMPTY_ITEM
   onChange: (v: typeof EMPTY_ITEM) => void
@@ -379,8 +408,34 @@ function ItemForm({
   onCancel: () => void
   loading: boolean
   mode: 'add' | 'edit'
+  tenantSlug: string
 }) {
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
   const inputCls = 'w-full bg-zinc-800 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400'
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`/api/${tenantSlug}/upload`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) throw new Error()
+      const { url } = await res.json()
+      onChange({ ...data, imageUrl: url })
+      toast.success('Imagen subida')
+    } catch {
+      toast.error('Error al subir imagen')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
     <div className="space-y-2">
       <input className={inputCls} placeholder="Nombre *" value={data.name}
@@ -393,6 +448,31 @@ function ItemForm({
         <input className={inputCls} placeholder="Tags: Vegetariano, Thai..." value={data.tags}
           onChange={e => onChange({ ...data, tags: e.target.value })} />
       </div>
+
+      {/* Imagen */}
+      <div>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+        <div className="flex items-center gap-2">
+          <button type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-600 text-zinc-400 hover:text-white text-xs transition-colors disabled:opacity-50">
+            <Upload size={12} />
+            {uploading ? 'Subiendo...' : 'Subir imagen'}
+          </button>
+          {data.imageUrl && (
+            <div className="flex items-center gap-2">
+              <img src={data.imageUrl} alt="" className="w-8 h-8 rounded object-cover" />
+              <button type="button"
+                onClick={() => onChange({ ...data, imageUrl: '' })}
+                className="text-red-400 hover:text-red-300 text-xs">
+                Quitar
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       <label className="flex items-center gap-2 cursor-pointer select-none">
         <button type="button"
           onClick={() => onChange({ ...data, isFeatured: !data.isFeatured })}
@@ -405,8 +485,12 @@ function ItemForm({
         </span>
       </label>
       <div className="flex gap-2">
-        <Button size="sm" onClick={onSave} disabled={loading}>{mode === 'add' ? 'Agregar' : 'Guardar'}</Button>
-        <Button size="sm" variant="outline" className="border-zinc-600 text-zinc-400" onClick={onCancel}>Cancelar</Button>
+        <Button size="sm" onClick={onSave} disabled={loading || uploading}>
+          {mode === 'add' ? 'Agregar' : 'Guardar'}
+        </Button>
+        <Button size="sm" variant="outline" className="border-zinc-600 text-zinc-400" onClick={onCancel}>
+          Cancelar
+        </Button>
       </div>
     </div>
   )

@@ -1,10 +1,13 @@
 import { connectDB } from '@/lib/mongoose'
+import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import Location from '@/models/Location'
 import { headers } from 'next/headers'
+import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import OrderStatusButton from '@/components/admin/OrderStatusButton'
+import type { Types } from 'mongoose'
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
@@ -26,10 +29,15 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default async function OrdersPage() {
   const headersList = await headers()
-  const tenantId = headersList.get('x-tenant-id')
   const tenantSlug = headersList.get('x-tenant-slug')
 
   await connectDB()
+
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+    .lean<{ _id: Types.ObjectId }>()
+  if (!tenant) notFound()
+
+  const tenantId = tenant._id
 
   const orders = await Order.find({ tenantId })
     .sort({ createdAt: -1 })

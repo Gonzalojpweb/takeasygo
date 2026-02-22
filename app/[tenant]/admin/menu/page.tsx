@@ -1,17 +1,25 @@
 import { connectDB } from '@/lib/mongoose'
+import Tenant from '@/models/Tenant'
 import Menu from '@/models/Menu'
 import Location from '@/models/Location'
 import { headers } from 'next/headers'
+import { notFound } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import MenuManager from '@/components/admin/MenuManager'
 import { ExternalLink } from 'lucide-react'
+import type { Types } from 'mongoose'
 
 export default async function MenuPage() {
   const headersList = await headers()
-  const tenantId = headersList.get('x-tenant-id')
   const tenantSlug = headersList.get('x-tenant-slug')
 
   await connectDB()
+
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+    .lean<{ _id: Types.ObjectId }>()
+  if (!tenant) notFound()
+
+  const tenantId = tenant._id
 
   const locations = await Location.find({ tenantId, isActive: true }).lean<Array<{ _id: { toString(): string }; name: string }>>()
   const menus = await Menu.find({ tenantId, isActive: true }).lean()

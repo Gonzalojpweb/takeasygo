@@ -18,7 +18,7 @@ export async function POST(
       const authError = await requireAuth(request, tenant._id.toString())
 if (authError) return authError
 
-    const { locationId, name, description, price } = await request.json()
+    const { locationId, name, description, price, imageUrl, tags, isFeatured } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -26,7 +26,7 @@ if (authError) return authError
     const category = menu.categories.id(categoryId)
     if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
 
-    category.items.push({ name, description: description || '', price, isAvailable: true, imageUrl: '', tags: [] } as any)
+    category.items.push({ name, description: description || '', price, isAvailable: true, imageUrl: imageUrl || '', tags: tags || [], isFeatured: isFeatured || false } as any)
     await menu.save()
 
     return NextResponse.json({ menu }, { status: 201 })
@@ -49,7 +49,7 @@ export async function PUT(
       const authError = await requireAuth(request, tenant._id.toString())
 if (authError) return authError
 
-    const { locationId, itemId, name, description, price, isAvailable } = await request.json()
+    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -64,6 +64,9 @@ if (authError) return authError
     if (description !== undefined) item.description = description
     if (price !== undefined) item.price = price
     if (isAvailable !== undefined) item.isAvailable = isAvailable
+    if (imageUrl !== undefined) item.imageUrl = imageUrl
+    if (tags !== undefined) item.tags = tags
+    if (isFeatured !== undefined) item.isFeatured = isFeatured
 
     await menu.save()
 

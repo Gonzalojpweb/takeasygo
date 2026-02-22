@@ -48,7 +48,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
 
   const featuredItems = categories
     .flatMap((c: any) => c.items ?? [])
-    .filter((i: any) => i.isFeatured && i.imageUrl)
+    .filter((i: any) => i.isFeatured)
 
   // Detect which section is visible
   useEffect(() => {
@@ -246,8 +246,8 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                 <div className="w-1 h-1 rounded-full" style={{ backgroundColor: branding.primaryColor }} />
                 <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
               </div>
-              <p className="text-sm" style={{ color: '#94a3b8' }}>
-                Una selección de nuestras creaciones más aclamadas
+              <p className="text-sm max-w-sm mx-auto" style={{ color: '#94a3b8' }}>
+                Una selección de nuestras creaciones más aclamadas, donde la técnica se encuentra con la pasión
               </p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -256,11 +256,24 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                   key={item._id}
                   onClick={() => setModalItem(item)}
                   className="rounded-xl overflow-hidden aspect-square relative group">
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  />
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full flex flex-col items-center justify-center gap-2 p-3"
+                      style={{ backgroundColor: branding.primaryColor + '20', border: `1px solid ${branding.primaryColor}30` }}>
+                      <p className="text-xs font-bold text-center leading-tight" style={{ color: branding.primaryColor }}>
+                        {item.name}
+                      </p>
+                      <p className="text-xs font-bold" style={{ color: branding.primaryColor }}>
+                        ${item.price.toLocaleString('es-AR')}
+                      </p>
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
                     <p className="text-white text-xs font-bold text-left">{item.name}</p>
                   </div>

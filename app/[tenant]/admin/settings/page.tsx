@@ -7,13 +7,14 @@ import SettingsForm from '@/components/admin/SettingsForm'
 
 export default async function SettingsPage() {
   const headersList = await headers()
-  const tenantId = headersList.get('x-tenant-id')
   const tenantSlug = headersList.get('x-tenant-slug')
 
   await connectDB()
 
-  const tenant = await Tenant.findOne({ _id: tenantId }).lean() as any
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
   if (!tenant) notFound()
+
+  const tenantId = tenant._id
 
   const locations = await Location.find({ tenantId }).lean()
 

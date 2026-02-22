@@ -26,22 +26,10 @@ export async function middleware(request: NextRequest) {
 
   if (!tenantSlug) return NextResponse.next()
 
-  // Validar tenant
-  const baseUrl = request.nextUrl.origin
-  const res = await fetch(`${baseUrl}/api/superadmin/tenants/validate?slug=${tenantSlug}`)
-
-  if (!res.ok) {
-    if (isApiRoute) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
-    return NextResponse.rewrite(new URL('/not-found', request.url))
-  }
-
-  const { tenant } = await res.json()
-
+  // Solo pasamos el slug via header — la validación real la hace cada página
+  // contra la DB. No hacemos fetch() aquí para evitar loops de red.
   const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-tenant-id', tenant._id)
-  requestHeaders.set('x-tenant-slug', tenant.slug)
+  requestHeaders.set('x-tenant-slug', tenantSlug)
 
   // Proteger rutas admin
   const isAdminRoute = pathname.includes('/admin')
@@ -49,14 +37,6 @@ export async function middleware(request: NextRequest) {
     const session = await auth()
 
     if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-
-    // Verificar que el usuario pertenece a este tenant
-    const isSuperAdmin = session.user.role === 'superadmin'
-    const belongsToTenant = session.user.tenantId === tenant._id
-
-    if (!isSuperAdmin && !belongsToTenant) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
   }

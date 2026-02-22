@@ -1,17 +1,21 @@
 import { connectDB } from '@/lib/mongoose'
+import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import { headers } from 'next/headers'
+import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrendingUp, ShoppingBag, DollarSign, Users } from 'lucide-react'
-import mongoose from 'mongoose'
 
 export default async function ReportsPage() {
   const headersList = await headers()
-  const tenantIdStr = headersList.get('x-tenant-id')
+  const tenantSlug = headersList.get('x-tenant-slug')
 
   await connectDB()
 
-  const tenantId = new mongoose.Types.ObjectId(tenantIdStr!)
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean<{ _id: import('mongoose').Types.ObjectId }>()
+  if (!tenant) notFound()
+
+  const tenantId = tenant._id
 
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
