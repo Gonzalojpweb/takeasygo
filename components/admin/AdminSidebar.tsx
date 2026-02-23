@@ -71,17 +71,18 @@ export default function AdminSidebar({ tenantSlug, userRole, userName }: Props) 
   const visibleItems = navItems.filter(item => item.roles.includes(effectiveRole))
 
   return (
-    <aside className="w-64 flex flex-col bg-zinc-950 border-r border-zinc-800">
+    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300">
       {/* Logo */}
-      <div className="p-6">
-        <h1 className="text-white font-bold text-lg tracking-tight">Menu Platform</h1>
-        <p className="text-zinc-500 text-xs mt-1">{tenantSlug}</p>
+      <div className="p-8">
+        <h1 className="text-white font-bold text-xl tracking-tight leading-none">Menu Platform</h1>
+        <div className="flex items-center gap-2 mt-2">
+          <div className="h-1 w-4 bg-primary rounded-full" />
+          <p className="text-primary text-[10px] uppercase font-bold tracking-widest leading-none">{tenantSlug}</p>
+        </div>
       </div>
 
-      <Separator className="bg-zinc-800" />
-
       {/* Nav */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
         {visibleItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href
@@ -89,42 +90,47 @@ export default function AdminSidebar({ tenantSlug, userRole, userName }: Props) 
           return (
             <Link key={item.href} href={item.href}>
               <div className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors',
+                'flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all duration-300 group relative',
                 isActive
-                  ? 'bg-zinc-800 text-white'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                  ? 'bg-primary text-white shadow-xl shadow-primary/20 font-bold'
+                  : 'text-sidebar-foreground/70 hover:text-white hover:bg-white/5'
               )}>
-                <Icon size={16} />
-                <span>{item.label}</span>
-                {isActive && <ChevronRight size={14} className="ml-auto" />}
+                <Icon size={20} className={cn(
+                  'transition-all duration-300',
+                  isActive ? 'text-white' : 'text-primary'
+                )} />
+                <span className="tracking-wide">{item.label}</span>
+                {isActive && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white]" />
+                )}
               </div>
             </Link>
           )
         })}
       </nav>
 
-      <Separator className="bg-zinc-800" />
-
       {/* User */}
-      <div className="p-4 flex items-center gap-3">
-        <Avatar className="h-8 w-8">
-          <AvatarFallback className="bg-zinc-700 text-white text-xs">
-            {userName.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <p className="text-white text-sm font-medium truncate">{userName}</p>
-          <p className="text-zinc-500 text-xs">{userRole}</p>
+      <div className="p-4 bg-white/5 border-t border-white/5 mt-auto">
+        <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5">
+          <Avatar className="h-10 w-10 border-2 border-primary ring-2 ring-primary/20">
+            <AvatarFallback className="bg-primary text-white text-xs font-bold">
+              {userName.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-bold truncate leading-none">{userName}</p>
+            <p className="text-primary/70 text-[10px] uppercase font-bold mt-1.5 tracking-wider leading-none">{userRole}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white/40 hover:text-destructive hover:bg-destructive/10 h-9 w-9 rounded-lg transition-colors group"
+            onClick={() => signOut({ callbackUrl: '/login' })}
+          >
+            <LogOut size={18} className="group-hover:scale-110 transition-transform" />
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-zinc-400 hover:text-white h-8 w-8"
-          onClick={() => signOut({ callbackUrl: '/login' })}
-        >
-          <LogOut size={14} />
-        </Button>
       </div>
-    </aside>
+    </div>
   )
 }

@@ -1,56 +1,46 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { LayoutDashboard, Store, BarChart3, LogOut } from 'lucide-react'
-import { signOut } from '@/lib/auth'
+import { Menu } from 'lucide-react'
+import SuperAdminSidebar from '@/components/superadmin/SuperAdminSidebar'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
 
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session || session.user.role !== 'superadmin') redirect('/login')
 
   return (
-    <div className="flex h-screen bg-zinc-950">
-      <aside className="w-64 flex flex-col bg-zinc-950 border-r border-zinc-800">
-        <div className="p-6">
-          <h1 className="text-white font-bold text-lg tracking-tight">Menu Platform</h1>
-          <p className="text-zinc-500 text-xs mt-1">Super Admin</p>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-1">
-          {[
-            { href: '/superadmin', label: 'Dashboard', icon: LayoutDashboard },
-            { href: '/superadmin/tenants', label: 'Tenants', icon: Store },
-            { href: '/superadmin/analytics', label: 'Analytics', icon: BarChart3 },
-          ].map(item => {
-            const Icon = item.icon
-            return (
-              <Link key={item.href} href={item.href}>
-                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors">
-                  <Icon size={16} />
-                  <span>{item.label}</span>
-                </div>
-              </Link>
-            )
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-zinc-800">
-          <form action={async () => {
-            'use server'
-            await signOut({ redirectTo: '/login' })
-          }}>
-            <button type="submit"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-400 hover:text-white w-full transition-colors">
-              <LogOut size={16} />
-              <span>Cerrar sesión</span>
-            </button>
-          </form>
-        </div>
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex w-72 flex-col border-r border-border shrink-0">
+        <SuperAdminSidebar />
       </aside>
 
-      <main className="flex-1 overflow-y-auto bg-zinc-900">
-        <div className="p-6">{children}</div>
-      </main>
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header */}
+        <header className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <h1 className="text-foreground font-bold text-lg tracking-tight">Menu Platform</h1>
+          </div>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-muted-foreground">
+                <Menu size={24} />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-72 border-r border-border bg-sidebar">
+              <SuperAdminSidebar />
+            </SheetContent>
+          </Sheet>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto bg-background p-4 md:p-8 lg:p-10">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
