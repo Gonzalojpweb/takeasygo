@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Check, X, Star, Upload } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Check, X, Star, Upload, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
@@ -159,6 +159,28 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }
 
+  async function handleUploadCategoryImage(categoryId: string, file: File | undefined) {
+    if (!file) return
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploadRes = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
+      if (!uploadRes.ok) throw new Error()
+      const { url } = await uploadRes.json()
+
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locationId: selectedLocation, imageUrl: url }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Imagen de categoría actualizada')
+      router.refresh()
+    } catch {
+      toast.error('Error al subir imagen de categoría')
+    }
+  }
+
   async function handleToggleFeatured(categoryId: string, itemId: string, current: boolean) {
     try {
       const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
@@ -258,6 +280,12 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => toggleCategory(category._id)}>
                         {isExpanded ? <ChevronDown size={16} className="text-zinc-400" /> : <ChevronRight size={16} className="text-zinc-400" />}
+                        {/* Category image thumbnail */}
+                        {category.imageUrl ? (
+                          <img src={category.imageUrl} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-zinc-700 flex-shrink-0" />
+                        )}
                         {editingCategory === category._id ? (
                           <input
                             className="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1 focus:outline-none focus:border-zinc-400"
@@ -285,6 +313,19 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                           </>
                         ) : (
                           <>
+                            {/* Hidden file input for category image */}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              id={`cat-img-${category._id}`}
+                              onChange={e => handleUploadCategoryImage(category._id, e.target.files?.[0])}
+                            />
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-zinc-400 hover:text-blue-400"
+                              title="Imagen de categoría"
+                              onClick={() => document.getElementById(`cat-img-${category._id}`)?.click()}>
+                              <Camera size={14} />
+                            </Button>
                             <Button size="icon" variant="ghost" className="h-7 w-7 text-zinc-400 hover:text-white"
                               onClick={() => { setEditingCategory(category._id); setEditingCategoryName(category.name) }}>
                               <Pencil size={14} />

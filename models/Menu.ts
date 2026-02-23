@@ -15,6 +15,7 @@ export interface IMenuCategory {
   _id?: mongoose.Types.ObjectId
   name: string
   description: string
+  imageUrl: string
   isAvailable: boolean
   sortOrder: number
   items: IMenuItem[]
@@ -73,6 +74,10 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
     type: String,
     default: '',
     trim: true,
+  },
+  imageUrl: {
+    type: String,
+    default: '',
   },
   isAvailable: {
     type: Boolean,

@@ -27,6 +27,7 @@ if (authError) return authError
     if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
 
     category.items.push({ name, description: description || '', price, isAvailable: true, imageUrl: imageUrl || '', tags: tags || [], isFeatured: isFeatured || false } as any)
+    menu.markModified('categories')
     await menu.save()
 
     return NextResponse.json({ menu }, { status: 201 })
@@ -68,6 +69,7 @@ if (authError) return authError
     if (tags !== undefined) item.tags = tags
     if (isFeatured !== undefined) item.isFeatured = isFeatured
 
+    menu.markModified('categories')
     await menu.save()
 
     return NextResponse.json({ menu })
