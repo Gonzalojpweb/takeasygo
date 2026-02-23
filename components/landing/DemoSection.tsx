@@ -15,8 +15,8 @@ export default function DemoSection() {
     return (
         <section id="demo" className="bg-white py-32 overflow-hidden border-t border-zinc-100">
             <div className="max-w-7xl mx-auto px-6 mb-24 text-center">
-                <h2 className="text-5xl md:text-7xl font-bold text-zinc-900 tracking-tight mb-6">Schedule a Demo</h2>
-                <p className="text-zinc-400 text-xl font-medium">Boost loyalty. Drive sales.</p>
+                <h2 className="text-5xl md:text-7xl font-bold text-zinc-900 tracking-tight mb-6">Solicita Demo</h2>
+                <p className="text-zinc-400 text-xl font-medium">Aumenta la fidelidad. Impulsa las ventas.</p>
 
                 {/* Minimalist Linear Form */}
                 <div className="mt-20 max-w-5xl mx-auto flex flex-wrap gap-8 items-end justify-center">

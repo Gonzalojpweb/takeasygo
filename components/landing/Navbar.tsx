@@ -54,7 +54,7 @@ export default function Navbar() {
                         </Link>
                     ))}
                     <Link href="/login">
-                        <Button variant="ghost" className="text-zinc-900 font-bold border border-zinc-200 hover:bg-zinc-50 rounded-full px-6 transition-all h-9 text-[11px] uppercase tracking-wider">
+                        <Button variant="ghost" className="text-zinc-900 font-bold border border-zinc-200 hover:bg-[#f14722] hover:text-white rounded-full px-6 transition-all h-9 text-[11px] uppercase tracking-wider">
                             Iniciar Sesión
                         </Button>
                     </Link>

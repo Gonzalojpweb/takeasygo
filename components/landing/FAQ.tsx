@@ -9,20 +9,20 @@ import {
 
 const faqs = [
     {
-        q: 'How does the loyalty program work?',
+        q: '¿Cómo funciona el programa de fidelización?',
         a: 'Nuestra plataforma automatiza la acumulación de puntos por cada compra, permitiendo a los clientes canjear beneficios directos en tu local, fortaleciendo el vínculo emocional con tu marca.'
     },
     {
-        q: 'What types of businesses can use this system?',
+        q: '¿Qué tipos de empresas pueden utilizar este sistema?',
         a: 'Desde bares boutique hasta cadenas de restaurantes y dark kitchens. Nuestra flexibilidad permite adaptar el flujo a cualquier modelo operativo gastronómico.'
     },
     {
-        q: 'Which pricing plan is right for my business?',
+        q: '¿Qué plan de precios es el adecuado para mi negocio?',
         a: 'Si buscas escalabilidad con una inversión inicial baja, los planes mensuales son ideales. Para consolidar el sistema como un activo propio de tu empresa, recomendamos el modelo de Inversión Única.'
     },
     {
-        q: 'Can I try the program before committing?',
-        a: 'Sí, ofrecemos demostraciones personalizadas y periodos de prueba asistidos para asegurar que Takeasygo sea el motor que tu restaurante necesita.'
+        q: '¿Puedo probar el programa antes de comprometerme?',
+        a: 'Sí, ofrecemos demostraciones personalizadas y periodos de prueba asistidos: bajo costo, sin compromiso;  para asegurar que Takeasygo sea el motor que tu restaurante necesita.'
     }
 ]
 

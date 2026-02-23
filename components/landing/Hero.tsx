@@ -86,7 +86,7 @@ export default function Hero() {
                         }}
                     >
                         Una experiencia de venta <br />
-                        <em style={{ color: '#8a8280', fontStyle: 'italic' }}>superior para tu marca.</em>
+                        <em style={{ color: '#f14722', fontStyle: 'italic' }}>superior para tu marca.</em>
                     </motion.h1>
 
                     {/* Body */}
@@ -104,8 +104,7 @@ export default function Hero() {
                             marginBottom: 48,
                         }}
                     >
-                        No somos solo un menú digital. Somos el puente entre tu cocina y tus clientes,
-                        eliminando intermediarios y potenciando tu identidad.
+                        Menú digital → Pedidos takeaway → Pagos online. <br /> Con tu branding, tus colores y la identidad de tu restaurante.
                     </motion.p>
 
                     {/* CTAs */}
@@ -161,10 +160,10 @@ export default function Hero() {
                                 background: 'transparent',
                                 color: '#8a8280',
                                 border: 'none',
-                                borderBottom: '1px solid rgba(13,11,10,0.12)',
+                                borderBottom: '2px solid #f14722',
                                 fontFamily: "'DM Sans', sans-serif",
                                 fontSize: 11,
-                                fontWeight: 400,
+                                fontWeight: 600,
                                 letterSpacing: '0.06em',
                                 textTransform: 'uppercase',
                                 cursor: 'pointer',

@@ -30,7 +30,7 @@ const features = [
     {
         icon: Zap,
         title: 'Gestión Eficiente',
-        desc: 'Integración de pagos y sistematización de pedidos para que solo te enfoques en la cocina.',
+        desc: 'Integración de pagos con plataformas seguras como MercadoPoago y sistematización de pedidos para que solo te enfoques en la cocina.',
         num: '04',
     },
 ]
