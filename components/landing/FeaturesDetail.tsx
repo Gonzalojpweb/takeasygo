@@ -80,7 +80,7 @@ export default function FeaturesDetail() {
     }, { scope: containerRef })
 
     return (
-        <section ref={containerRef} className="h-screen w-full bg-white flex overflow-hidden border-t border-zinc-100">
+        <section id="features" ref={containerRef} className="h-screen w-full bg-white flex overflow-hidden border-t border-zinc-100">
             {/* Left Side: Text container animated by GSAP */}
             <div className="w-1/2 h-full relative px-20 flex flex-col items-center">
                 <div ref={leftRef} className="w-full flex flex-col">

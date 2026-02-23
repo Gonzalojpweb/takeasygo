@@ -375,7 +375,7 @@ export default function HowItWorks() {
                 }
             `}</style>
 
-            <div ref={sectionRef} className="hiw-section">
+            <div id="how-we-work" ref={sectionRef} className="hiw-section">
 
                 {/* ═══════════════════════════════════════════════════════════
                     ACTO 1 — Carrusel horizontal pinneado

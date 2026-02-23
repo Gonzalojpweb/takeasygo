@@ -12,6 +12,7 @@ export default function Hero() {
             `}</style>
 
             <section
+                id="what-we-do"
                 className="relative min-h-[90vh] flex items-center overflow-hidden px-6 md:px-20"
                 style={{ background: '#f7f4f1' }}
             >

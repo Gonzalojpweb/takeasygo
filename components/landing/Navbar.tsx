@@ -25,6 +25,11 @@ export default function Navbar() {
         return () => window.removeEventListener('scroll', handleScroll)
     }, [])
 
+    const scrollToTop = (e: React.MouseEvent) => {
+        e.preventDefault()
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
     return (
         <nav
             className={cn(
@@ -35,7 +40,7 @@ export default function Navbar() {
             )}
         >
             <div className="max-w-7xl mx-auto px-10 flex items-center justify-between">
-                <Link href="/" className="flex items-center gap-2 group">
+                <Link href="/" onClick={scrollToTop} className="flex items-center gap-2 group">
                     <div className="w-7 h-7 bg-zinc-900 rounded-md flex items-center justify-center transition-transform duration-300">
                         <span className="text-white font-bold text-sm italic">T</span>
                     </div>
@@ -45,13 +50,13 @@ export default function Navbar() {
                 {/* Desktop Links */}
                 <div className="hidden md:flex items-center gap-10">
                     {navLinks.map((link) => (
-                        <Link
+                        <a
                             key={link.name}
                             href={link.href}
                             className="text-zinc-500 hover:text-zinc-900 text-[11px] font-bold uppercase tracking-[0.15em] transition-colors"
                         >
                             {link.name}
-                        </Link>
+                        </a>
                     ))}
                     <Link href="/login">
                         <Button variant="ghost" className="text-zinc-900 font-bold border border-zinc-200 hover:bg-[#f14722] hover:text-white rounded-full px-6 transition-all h-9 text-[11px] uppercase tracking-wider">
@@ -75,14 +80,14 @@ export default function Navbar() {
                 mobileMenuOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
             )}>
                 {navLinks.map((link) => (
-                    <Link
+                    <a
                         key={link.name}
                         href={link.href}
                         onClick={() => setMobileMenuOpen(false)}
                         className="text-zinc-900 text-xl font-bold uppercase tracking-widest"
                     >
                         {link.name}
-                    </Link>
+                    </a>
                 ))}
                 <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                     <Button className="bg-zinc-900 text-white rounded-full px-10 py-5 text-sm font-bold uppercase tracking-widest">

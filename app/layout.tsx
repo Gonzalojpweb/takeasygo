@@ -1,13 +1,14 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import SmoothScroll from '@/components/SmoothScroll'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Menu Platform',
-  description: 'Gestión de menús digitales',
+  title: 'Takeasygo | Premium Dining Tech',
+  description: 'Infraestructura digital para la gastronomía',
 }
 
 export default function RootLayout({
@@ -18,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={geist.className}>
-        {children}
+        <SmoothScroll>
+          {children}
+        </SmoothScroll>
         <Toaster />
       </body>
     </html>
