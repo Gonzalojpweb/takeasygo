@@ -35,8 +35,8 @@ export default async function MenuPage() {
         <div className="flex gap-2 mb-6 flex-wrap">
           {locations.map((loc) => (
             <a
-              key={loc._id}
-              href={`/${tenantSlug}/menu/${loc._id}`}
+              key={loc._id.toString()}
+              href={`/${tenantSlug}/menu/${loc._id.toString()}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 text-sm transition-colors">
