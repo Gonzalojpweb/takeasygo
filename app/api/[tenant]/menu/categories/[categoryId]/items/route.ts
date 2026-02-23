@@ -45,21 +45,30 @@ export async function PUT(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado', tenantSlug }, { status: 404 })
 
-      const authError = await requireAuth(request, tenant._id.toString())
-if (authError) return authError
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
 
-    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, customizationGroups } = await request.json()
+    const body = await request.json()
+    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, customizationGroups } = body
+
+    console.log('[PUT items]', { tenantSlug, categoryId, locationId, itemId })
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
-    if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
+    if (!menu) return NextResponse.json({ error: 'Menú no encontrado', tenantId: tenant._id.toString(), locationId }, { status: 404 })
 
     const category = menu.categories.id(categoryId)
-    if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
+    if (!category) {
+      const ids = menu.categories.map((c: any) => c._id.toString())
+      return NextResponse.json({ error: 'Categoría no encontrada', categoryId, availableIds: ids }, { status: 404 })
+    }
 
     const item = category.items.id(itemId)
-    if (!item) return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
+    if (!item) {
+      const ids = category.items.map((i: any) => i._id.toString())
+      return NextResponse.json({ error: 'Item no encontrado', itemId, availableIds: ids }, { status: 404 })
+    }
 
     if (name !== undefined) item.name = name
     if (description !== undefined) item.description = description
