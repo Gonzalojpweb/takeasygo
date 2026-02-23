@@ -70,7 +70,7 @@ export default async function TenantsPage() {
                     <MapPin className="mr-2 h-3 w-3 group-hover/btn:scale-110 transition-transform" /> Sedes
                   </Button>
                 </Link>
-                <Link href={`/superadmin/tenants/${tenant._id}`}>
+                <Link href={`/superadmin/tenants/${tenant._id}/edit`}>
                   <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all">
                     <Settings className="h-4 w-4" />
                   </Button>
