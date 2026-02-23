@@ -4,15 +4,17 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, User as UserIcon, Mail, Shield, UserPlus, ShieldCheck, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
-const ROLE_COLORS: Record<string, string> = {
-  admin: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  manager: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  staff: 'bg-green-500/20 text-green-400 border-green-500/30',
-  cashier: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+const ROLE_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+  admin: { label: 'Admin', color: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20', icon: ShieldCheck },
+  manager: { label: 'Manager', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20', icon: Shield },
+  staff: { label: 'Staff', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20', icon: UserIcon },
+  cashier: { label: 'Cashier', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20', icon: UserIcon },
 }
 
 interface Props {
@@ -40,7 +42,7 @@ export default function UsersManager({ users, tenantSlug, tenantId }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al crear usuario')
-      toast.success('Usuario creado')
+      toast.success('Miembro del equipo agregado')
       setForm(EMPTY_FORM)
       setShowForm(false)
       router.refresh()
@@ -51,80 +53,164 @@ export default function UsersManager({ users, tenantSlug, tenantId }: Props) {
     }
   }
 
+  const labelCls = "text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50 mb-2 block"
+  const inputCls = "w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-2xl px-4 py-3 outline-none transition-all shadow-sm"
+
   return (
-    <div>
-      {/* Lista de usuarios */}
-      <Card className="bg-zinc-800 border-zinc-700 mb-4">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-white text-base">Equipo</CardTitle>
-          <Button size="sm" variant="outline"
-            className="border-zinc-600 text-zinc-400 hover:text-white"
-            onClick={() => setShowForm(true)}>
-            <Plus size={14} className="mr-2" /> Nuevo usuario
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {users.length === 0 ? (
-            <p className="text-zinc-500 text-sm">No hay usuarios todavía</p>
-          ) : (
-            <div className="space-y-3">
-              {users.map((user: any) => (
-                <div key={user._id}
-                  className="flex items-center justify-between py-2 border-b border-zinc-700 last:border-0">
-                  <div>
-                    <p className="text-white text-sm font-medium">{user.name}</p>
-                    <p className="text-zinc-500 text-xs">{user.email}</p>
+    <div className="space-y-8 pb-10">
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="px-4 py-1.5 border-2 border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
+            {users.length} Miembros
+          </Badge>
+          <p className="text-muted-foreground text-sm font-medium">Gestiona los accesos de tu equipo.</p>
+        </div>
+
+        <Button
+          onClick={() => setShowForm(true)}
+          className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl px-5 shadow-lg shadow-primary/20 transition-all active:scale-95"
+        >
+          <UserPlus size={16} className="mr-2 stroke-[3px]" /> Agregar usuario
+        </Button>
+      </div>
+
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+          >
+            <Card className="bg-card border-2 border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden">
+              <CardHeader className="p-8 border-b border-border/40 bg-muted/10 relative">
+                <button onClick={() => setShowForm(false)} className="absolute top-8 right-8 text-muted-foreground hover:text-foreground p-2 rounded-full hover:bg-muted transition-all">
+                  <X size={20} strokeWidth={3} />
+                </button>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <UserPlus size={24} strokeWidth={2.5} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={ROLE_COLORS[user.role] || ''}>
-                      {user.role}
-                    </Badge>
-                    <div className="w-2 h-2 rounded-full" style={{
-                      backgroundColor: user.isActive ? '#4ade80' : '#f87171'
-                    }} />
+                  <div>
+                    <CardTitle className="text-xl font-bold tracking-tight">Nuevo Miembro</CardTitle>
+                    <p className="text-xs text-muted-foreground font-medium">Completa los datos para habilitar el acceso.</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </CardHeader>
+              <CardContent className="p-8">
+                <form onSubmit={handleCreate} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className={labelCls}>Nombre Completo</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors">
+                          <UserIcon size={18} />
+                        </div>
+                        <input required placeholder="Ej: Juan Pérez" value={form.name}
+                          onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                          className={cn(inputCls, "pl-12")} />
+                      </div>
+                    </div>
 
-      {/* Form nuevo usuario */}
-      {showForm && (
-        <Card className="bg-zinc-800 border-zinc-700">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white text-base">Nuevo usuario</CardTitle>
-            <button onClick={() => setShowForm(false)}>
-              <X size={16} className="text-zinc-400" />
-            </button>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreate} className="space-y-3">
-              <input required placeholder="Nombre *" value={form.name}
-                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-zinc-400" />
-              <input required type="email" placeholder="Email *" value={form.email}
-                onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-zinc-400" />
-              <input required type="password" placeholder="Contraseña *" value={form.password}
-                onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-zinc-400" />
-              <select value={form.role}
-                onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-                className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-zinc-400">
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-                <option value="staff">Staff</option>
-                <option value="cashier">Cashier</option>
-              </select>
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? 'Creando...' : 'Crear usuario'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+                    <div className="space-y-2">
+                      <label className={labelCls}>Correo Electrónico</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors">
+                          <Mail size={18} />
+                        </div>
+                        <input required type="email" placeholder="juan@ejemplo.com" value={form.email}
+                          onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                          className={cn(inputCls, "pl-12")} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className={labelCls}>Contraseña Temporal</label>
+                      <input required type="password" placeholder="••••••••" value={form.password}
+                        onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                        className={inputCls} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className={labelCls}>Rol en el equipo</label>
+                      <select value={form.role}
+                        onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
+                        className={cn(inputCls, "appearance-none cursor-pointer")}>
+                        <option value="admin">Administrador (Control total)</option>
+                        <option value="manager">Mánager (Gestión de ventas)</option>
+                        <option value="staff">Personal (Visualización)</option>
+                        <option value="cashier">Cajero (Operativa)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-4">
+                    <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest px-10 h-14 rounded-2xl shadow-xl shadow-primary/20 transition-all active:scale-95 disabled:opacity-50">
+                      {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Crear Usuario'}
+                    </Button>
+                    <Button type="button" variant="ghost" className="text-muted-foreground font-bold px-8 h-14 rounded-2xl" onClick={() => setShowForm(false)}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {users.length === 0 ? (
+          <div className="col-span-full py-24 text-center border-2 border-dashed border-border/60 rounded-[3rem] bg-muted/10">
+            <p className="text-muted-foreground font-bold">Aún no has agregado miembros a tu equipo.</p>
+          </div>
+        ) : (
+          users.map((user: any, index: number) => {
+            const config = ROLE_CONFIG[user.role] || ROLE_CONFIG.staff
+            const Icon = config.icon
+            return (
+              <motion.div
+                key={user._id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card className="bg-card border-2 border-border/60 rounded-[2.5rem] overflow-hidden hover:border-primary/30 shadow-md hover:shadow-xl transition-all duration-300 group">
+                  <CardContent className="p-8">
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="w-14 h-14 rounded-2xl bg-muted group-hover:bg-primary/10 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-all duration-500">
+                        <UserIcon size={24} />
+                      </div>
+                      <Badge className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border-2", config.color)}>
+                        {config.label}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h4 className="text-lg font-black tracking-tight text-foreground truncate">{user.name}</h4>
+                      <p className="text-xs text-muted-foreground font-medium truncate flex items-center gap-1.5">
+                        <Mail size={12} className="opacity-40" /> {user.email}
+                      </p>
+                    </div>
+
+                    <div className="mt-8 pt-6 border-t border-border/40 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "w-2.5 h-2.5 rounded-full",
+                          user.isActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-muted-foreground/30"
+                        )} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          {user.isActive ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <Icon size={16} className="text-muted-foreground/20" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )
+          })
+        )}
+      </div>
     </div>
   )
 }

@@ -4,10 +4,16 @@ import { useState, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Check, X, Star, Upload, Camera } from 'lucide-react'
+import {
+  ChevronDown, Plus, Pencil, Trash2, Check, X,
+  Star, Upload, Camera, Settings2, Image as ImageIcon,
+  MoreVertical, Layers, LayoutGrid, List
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 interface Props {
   locations: any[]
@@ -253,212 +259,397 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   }
 
   return (
-    <div>
+    <div className="space-y-8 pb-10">
+      {/* Sede Selector */}
       {locations.length > 1 && (
-        <div className="flex gap-2 mb-6">
+        <div className="flex items-center gap-3 p-1.5 bg-muted/50 border border-border/60 rounded-2xl w-fit">
           {locations.map((loc: any) => (
-            <Button key={loc._id}
-              variant={selectedLocation === loc._id ? 'default' : 'outline'}
-              size="sm"
-              className={selectedLocation === loc._id ? 'bg-white text-zinc-900' : 'border-zinc-600 text-zinc-400 hover:text-white'}
-              onClick={() => setSelectedLocation(loc._id)}>
+            <button
+              key={loc._id}
+              onClick={() => setSelectedLocation(loc._id)}
+              className={cn(
+                "px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300",
+                selectedLocation === loc._id
+                  ? "bg-primary text-white shadow-lg shadow-primary/25"
+                  : "text-muted-foreground hover:bg-muted font-semibold"
+              )}
+            >
               {loc.name}
-            </Button>
+            </button>
           ))}
         </div>
       )}
 
-      <div className="mb-4">
-        {showAddCategory ? (
-          <div className="flex gap-2">
-            <input
-              className="flex-1 bg-zinc-800 border border-zinc-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-zinc-400"
-              placeholder="Nombre de la categoría"
-              value={newCategoryName}
-              onChange={e => setNewCategoryName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
-              autoFocus
-            />
-            <Button size="sm" onClick={handleAddCategory} disabled={loading}>Agregar</Button>
-            <Button size="sm" variant="outline" className="border-zinc-600 text-zinc-400"
-              onClick={() => { setShowAddCategory(false); setNewCategoryName('') }}>
-              Cancelar
-            </Button>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="border-zinc-600 text-zinc-400 hover:text-white"
-              onClick={() => setShowAddCategory(true)}>
-              <Plus size={14} className="mr-2" /> Nueva categoría
-            </Button>
-            <Button size="sm" variant="outline" className="border-zinc-600 text-zinc-400 hover:text-white"
-              onClick={() => setShowImport(true)}>
-              <Upload size={14} className="mr-2" /> Importar JSON
-            </Button>
-          </div>
-        )}
+      {/* Global Actions */}
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="px-4 py-1.5 border-2 border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
+            {currentMenu?.categories?.length || 0} Categorías
+          </Badge>
+          <p className="text-muted-foreground text-sm font-medium tabular-nums">
+            {currentMenu?.categories?.reduce((acc: number, cat: any) => acc + cat.items.length, 0) || 0} Items totales
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setShowImport(true)}
+            variant="outline"
+            className="border-2 border-border/80 rounded-xl font-bold text-xs px-5 hover:bg-muted transition-all"
+          >
+            <Upload size={14} className="mr-2" /> Importar
+          </Button>
+          <Button
+            onClick={() => setShowAddCategory(true)}
+            className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl px-5 shadow-lg shadow-primary/20 transition-all active:scale-95"
+          >
+            <Plus size={16} className="mr-2 stroke-[3px]" /> Nueva categoría
+          </Button>
+        </div>
       </div>
 
+      {/* Add Category Form */}
+      <AnimatePresence>
+        {showAddCategory && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -20, height: 0 }}
+            className="overflow-hidden"
+          >
+            <Card className="border-2 border-primary/30 bg-primary/5 rounded-2xl mb-6 shadow-xl shadow-primary/5">
+              <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-primary mb-2 block">Nombre de la categoría</label>
+                    <input
+                      className="w-full bg-white border-2 border-border/80 focus:border-primary text-foreground text-sm rounded-xl px-4 py-3 outline-none transition-all shadow-sm"
+                      placeholder="Ej: Plato Principal, Bebidas, Postres..."
+                      value={newCategoryName}
+                      onChange={e => setNewCategoryName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <Button onClick={handleAddCategory} disabled={loading} className="bg-primary hover:bg-primary/90 rounded-xl font-bold px-8 h-12 shadow-md shadow-primary/10">
+                      Crear categoría
+                    </Button>
+                    <Button variant="ghost" onClick={() => { setShowAddCategory(false); setNewCategoryName('') }} className="font-bold text-muted-foreground rounded-xl h-12 px-6">
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {!currentMenu ? (
-        <Card className="bg-zinc-800 border-zinc-700">
-          <CardContent className="py-12 text-center">
-            <p className="text-zinc-500">No hay menú para esta sede</p>
+        <Card className="border-2 border-dashed border-border/60 bg-muted/20 rounded-3xl">
+          <CardContent className="py-24 text-center">
+            <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <Plus className="text-muted-foreground" size={32} />
+            </div>
+            <p className="text-foreground text-lg font-bold">No hay menú configurado</p>
+            <p className="text-muted-foreground text-sm mt-1">Comienza agregando tu primera categoría.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-6">
           {currentMenu.categories
             .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
             .map((category: any) => {
               const isExpanded = expandedCategories.includes(category._id)
               return (
-                <Card key={category._id} className="bg-zinc-800 border-zinc-700">
-                  <CardHeader className="py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => toggleCategory(category._id)}>
-                        {isExpanded ? <ChevronDown size={16} className="text-zinc-400" /> : <ChevronRight size={16} className="text-zinc-400" />}
-                        {/* Category image thumbnail */}
-                        {category.imageUrl ? (
-                          <img src={category.imageUrl} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-zinc-700 flex-shrink-0" />
-                        )}
-                        {editingCategory === category._id ? (
-                          <input
-                            className="bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1 focus:outline-none focus:border-zinc-400"
-                            value={editingCategoryName}
-                            onChange={e => setEditingCategoryName(e.target.value)}
-                            onClick={e => e.stopPropagation()}
-                            autoFocus
-                          />
-                        ) : (
-                          <CardTitle className="text-white text-base">{category.name}</CardTitle>
-                        )}
-                        <Badge variant="outline" className="border-zinc-600 text-zinc-400 text-xs">
-                          {category.items.length} items
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {editingCategory === category._id ? (
-                          <>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-400 hover:text-green-300" onClick={() => handleEditCategory(category._id)}>
-                              <Check size={14} />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-zinc-400 hover:text-white" onClick={() => setEditingCategory(null)}>
-                              <X size={14} />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            {/* Hidden file input for category image */}
+                <Card
+                  key={category._id}
+                  className={cn(
+                    "border-2 transition-all duration-500 rounded-3xl overflow-hidden",
+                    isExpanded ? "border-primary/20 shadow-2xl shadow-primary/5" : "border-border/60 hover:border-primary/30 shadow-md transform-gpu"
+                  )}
+                >
+                  <CardHeader
+                    className={cn(
+                      "p-0 group cursor-pointer transition-colors",
+                      isExpanded ? "bg-muted/30" : "bg-card hover:bg-muted/10 text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => toggleCategory(category._id)}
+                  >
+                    <div className="p-6 flex items-center justify-between">
+                      <div className="flex items-center gap-5 flex-1 min-w-0">
+                        <div
+                          className={cn(
+                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm",
+                            isExpanded ? "bg-primary text-white scale-110" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                          )}
+                        >
+                          {category.imageUrl ? (
+                            <img src={category.imageUrl} alt="" className="w-full h-full object-cover rounded-2xl" />
+                          ) : (
+                            <Layers size={20} className={isExpanded ? "animate-pulse" : ""} />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          {editingCategory === category._id ? (
                             <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              id={`cat-img-${category._id}`}
-                              onChange={e => handleUploadCategoryImage(category._id, e.target.files?.[0])}
+                              className="bg-white border-2 border-primary focus:border-primary text-foreground text-lg font-bold rounded-xl px-4 py-1 outline-none w-full max-w-sm shadow-inner"
+                              value={editingCategoryName}
+                              onChange={e => setEditingCategoryName(e.target.value)}
+                              onClick={e => e.stopPropagation()}
+                              onKeyDown={e => e.key === 'Enter' && handleEditCategory(category._id)}
+                              autoFocus
                             />
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-zinc-400 hover:text-blue-400"
-                              title="Imagen de categoría"
-                              onClick={() => document.getElementById(`cat-img-${category._id}`)?.click()}>
-                              <Camera size={14} />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-zinc-400 hover:text-white"
-                              onClick={() => { setEditingCategory(category._id); setEditingCategoryName(category.name) }}>
-                              <Pencil size={14} />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-300"
-                              onClick={() => handleDeleteCategory(category._id)}>
-                              <Trash2 size={14} />
-                            </Button>
-                          </>
-                        )}
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <h3 className={cn(
+                                "text-xl tracking-tight transition-colors truncate",
+                                isExpanded ? "font-bold text-foreground" : "font-semibold"
+                              )}>
+                                {category.name}
+                              </h3>
+                              <Badge variant="secondary" className="bg-muted px-2 font-bold tabular-nums text-[10px] uppercase tracking-wide opacity-70">
+                                {category.items.length} items
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pr-2" onClick={e => e.stopPropagation()}>
+                        <AnimatePresence mode="wait">
+                          {editingCategory === category._id ? (
+                            <motion.div
+                              key="editing-actions"
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              className="flex gap-1"
+                            >
+                              <Button size="icon" variant="ghost" className="h-10 w-10 text-emerald-500 hover:bg-emerald-500/10 rounded-xl" onClick={() => handleEditCategory(category._id)}>
+                                <Check size={20} strokeWidth={3} />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:bg-muted/50 rounded-xl" onClick={() => setEditingCategory(null)}>
+                                <X size={20} strokeWidth={3} />
+                              </Button>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="normal-actions"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="flex gap-1"
+                            >
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                id={`cat-img-${category._id}`}
+                                onChange={e => handleUploadCategoryImage(category._id, e.target.files?.[0])}
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Cambiar imagen"
+                                className="h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl"
+                                onClick={() => document.getElementById(`cat-img-${category._id}`)?.click()}
+                              >
+                                <Camera size={18} />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
+                                onClick={() => { setEditingCategory(category._id); setEditingCategoryName(category.name) }}
+                              >
+                                <Pencil size={18} />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                                onClick={() => handleDeleteCategory(category._id)}
+                              >
+                                <Trash2 size={18} />
+                              </Button>
+                              <div className="w-px h-6 bg-border/60 mx-1" />
+                              <div className={cn(
+                                "h-10 w-10 flex items-center justify-center transition-transform duration-500",
+                                isExpanded ? "rotate-180 text-primary" : "text-muted-foreground"
+                              )}>
+                                <ChevronDown size={20} strokeWidth={3} />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </div>
                   </CardHeader>
 
-                  {isExpanded && (
-                    <CardContent className="pt-0">
-                      <div className="space-y-2 mb-3">
-                        {category.items.map((item: any) => (
-                          <div key={item._id} className="rounded-lg bg-zinc-700/50 p-3">
-                            {editingItem === item._id ? (
-<ItemForm
-  data={editingItemData}
-  onChange={setEditingItemData}
-  onSave={() => handleEditItem(category._id, item._id)}
-  onCancel={() => setEditingItem(null)}
-  loading={loading}
-  mode="edit"
-  tenantSlug={tenantSlug}
-/>
-                            ) : (
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-white text-sm font-medium">{item.name}</p>
-                                    <button
-                                      title={item.isFeatured ? 'Quitar de destacados' : 'Marcar como destacado'}
-                                      onClick={() => handleToggleFeatured(category._id, item._id, item.isFeatured ?? false)}
-                                      className="transition-transform hover:scale-125">
-                                      <Star size={14} className={item.isFeatured ? 'text-yellow-400 fill-yellow-400' : 'text-zinc-600 hover:text-yellow-400'} />
-                                    </button>
-                                  </div>
-                                  {item.description && <p className="text-zinc-400 text-xs mt-0.5">{item.description}</p>}
-                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                    <p className="text-white text-sm font-bold">${item.price.toLocaleString('es-AR')}</p>
-                                    {item.tags?.map((tag: string) => (
-                                      <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full border border-zinc-600 text-zinc-400">{tag}</span>
-                                    ))}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1 ml-2">
-                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-zinc-400 hover:text-white"
-                                    onClick={() => {
-                                      setEditingItem(item._id)
-                                      setEditingItemData({
-                                        name: item.name,
-                                        description: item.description || '',
-                                        price: item.price.toString(),
-                                        tags: (item.tags || []).join(', '),
-                                        isFeatured: item.isFeatured ?? false,
-                                        imageUrl: item.imageUrl || '',
-                                        customizationGroups: deserializeGroups(item.customizationGroups || []),
-                                      })
-                                    }}>
-                                    <Pencil size={14} />
-                                  </Button>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-300"
-                                    onClick={() => handleDeleteItem(category._id, item._id)}>
-                                    <Trash2 size={14} />
-                                  </Button>
-                                </div>
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                      >
+                        <CardContent className="p-6 pt-2 bg-muted/10 border-t border-border/40">
+                          <div className="space-y-4 mb-8">
+                            {category.items.length === 0 && !showAddItem && (
+                              <div className="py-12 text-center bg-muted/20 border-2 border-dashed border-border/40 rounded-3xl">
+                                <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest opacity-60">No hay items en esta categoría</p>
                               </div>
                             )}
-                          </div>
-                        ))}
-                      </div>
 
-                      {showAddItem === category._id ? (
-                        <div className="p-3 bg-zinc-700/30 rounded-lg">
-<ItemForm
-  data={newItem}
-  onChange={setNewItem}
-  onSave={() => handleAddItem(category._id)}
-  onCancel={() => { setShowAddItem(null); setNewItem(EMPTY_ITEM) }}
-  loading={loading}
-  mode="add"
-  tenantSlug={tenantSlug}
-/>
-                        </div>
-                      ) : (
-                        <Button size="sm" variant="ghost" className="text-zinc-500 hover:text-white"
-                          onClick={(e) => { e.stopPropagation(); setShowAddItem(category._id) }}>
-                          <Plus size={14} className="mr-1" /> Agregar item
-                        </Button>
-                      )}
-                    </CardContent>
-                  )}
+                            {category.items.map((item: any) => (
+                              <motion.div
+                                key={item._id}
+                                layout
+                                className={cn(
+                                  "rounded-3xl transition-all border-2",
+                                  editingItem === item._id ? "bg-white border-primary shadow-2xl p-6" : "bg-card border-border/40 hover:border-primary/30 p-2 pl-4"
+                                )}
+                              >
+                                {editingItem === item._id ? (
+                                  <ItemForm
+                                    data={editingItemData}
+                                    onChange={setEditingItemData}
+                                    onSave={() => handleEditItem(category._id, item._id)}
+                                    onCancel={() => setEditingItem(null)}
+                                    loading={loading}
+                                    mode="edit"
+                                    tenantSlug={tenantSlug}
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4 flex-1 min-w-0 py-2">
+                                      <div className="h-14 w-14 rounded-2xl bg-muted overflow-hidden flex-shrink-0 border border-border shadow-inner">
+                                        {item.imageUrl ? (
+                                          <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
+                                            <ImageIcon size={20} />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-foreground text-base font-bold tracking-tight">{item.name}</p>
+                                          {item.isFeatured && (
+                                            <Badge className="bg-amber-100 text-amber-600 hover:bg-amber-100 border-amber-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                              ★ Destacado
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <p className="text-muted-foreground text-xs font-medium truncate opacity-80">{item.description || 'Sin descripción'}</p>
+                                        <div className="flex items-center gap-3 mt-1.5">
+                                          <span className="text-primary font-bold tabular-nums text-sm">${item.price.toLocaleString('es-AR')}</span>
+                                          <div className="flex gap-1 flex-wrap">
+                                            {item.tags?.map((tag: string) => (
+                                              <span key={tag} className="text-[10px] font-bold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-lg border border-border/40">
+                                                {tag}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-1 pr-2">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className={cn(
+                                          "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                          item.isFeatured ? "text-amber-500 scale-105" : "text-muted-foreground hover:text-amber-500"
+                                        )}
+                                        onClick={() => handleToggleFeatured(category._id, item._id, item.isFeatured ?? false)}
+                                      >
+                                        <Star size={18} fill={item.isFeatured ? "currentColor" : "none"} />
+                                      </Button>
+
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
+                                        onClick={() => {
+                                          setEditingItem(item._id)
+                                          setEditingItemData({
+                                            name: item.name,
+                                            description: item.description || '',
+                                            price: item.price.toString(),
+                                            tags: (item.tags || []).join(', '),
+                                            isFeatured: item.isFeatured ?? false,
+                                            imageUrl: item.imageUrl || '',
+                                            customizationGroups: deserializeGroups(item.customizationGroups || []),
+                                          })
+                                        }}
+                                      >
+                                        <Pencil size={18} />
+                                      </Button>
+
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                                        onClick={() => handleDeleteItem(category._id, item._id)}
+                                      >
+                                        <Trash2 size={18} />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </motion.div>
+                            ))}
+                          </div>
+
+                          <div className="pt-2">
+                            <AnimatePresence>
+                              {showAddItem === category._id ? (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.98 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  className="p-8 bg-white border-2 border-primary rounded-[2.5rem] shadow-2xl relative overflow-hidden"
+                                >
+                                  <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+                                    <Plus size={160} strokeWidth={4} />
+                                  </div>
+                                  <h4 className="text-xl font-bold mb-6 flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                      <Plus size={18} strokeWidth={3} />
+                                    </div>
+                                    Nuevo plato para {category.name}
+                                  </h4>
+                                  <ItemForm
+                                    data={newItem}
+                                    onChange={setNewItem}
+                                    onSave={() => handleAddItem(category._id)}
+                                    onCancel={() => { setShowAddItem(null); setNewItem(EMPTY_ITEM) }}
+                                    loading={loading}
+                                    mode="add"
+                                    tenantSlug={tenantSlug}
+                                  />
+                                </motion.div>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  className="w-full h-16 border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary rounded-3xl font-bold transition-all group"
+                                  onClick={(e) => { e.stopPropagation(); setShowAddItem(category._id) }}
+                                >
+                                  <Plus size={20} className="mr-2 group-hover:scale-125 transition-transform" strokeWidth={3} />
+                                  Agregar nuevo item a {category.name}
+                                </Button>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </CardContent>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </Card>
               )
             })}
@@ -491,7 +682,9 @@ function ItemForm({
 }) {
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  const inputCls = 'w-full bg-zinc-800 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400'
+
+  const labelCls = "text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block"
+  const inputCls = 'w-full bg-muted/30 border-2 border-border/80 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-xl px-4 py-3 outline-none transition-all shadow-sm flex items-center gap-2'
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -507,7 +700,7 @@ function ItemForm({
       if (!res.ok) throw new Error()
       const { url } = await res.json()
       onChange({ ...data, imageUrl: url })
-      toast.success('Imagen subida')
+      toast.success('Imagen subida correctamente')
     } catch {
       toast.error('Error al subir imagen')
     } finally {
@@ -516,171 +709,301 @@ function ItemForm({
   }
 
   return (
-    <div className="space-y-2">
-      <input className={inputCls} placeholder="Nombre *" value={data.name}
-        onChange={e => onChange({ ...data, name: e.target.value })} autoFocus />
-      <input className={inputCls} placeholder="Descripción (opcional)" value={data.description}
-        onChange={e => onChange({ ...data, description: e.target.value })} />
-      <div className="grid grid-cols-2 gap-2">
-        <input className={inputCls} placeholder="Precio *" type="number" value={data.price}
-          onChange={e => onChange({ ...data, price: e.target.value })} />
-        <input className={inputCls} placeholder="Tags: Vegetariano, Thai..." value={data.tags}
-          onChange={e => onChange({ ...data, tags: e.target.value })} />
-      </div>
-
-      {/* Imagen */}
-      <div>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-        <div className="flex items-center gap-2">
-          <button type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-600 text-zinc-400 hover:text-white text-xs transition-colors disabled:opacity-50">
-            <Upload size={12} />
-            {uploading ? 'Subiendo...' : 'Subir imagen'}
-          </button>
-          {data.imageUrl && (
-            <div className="flex items-center gap-2">
-              <img src={data.imageUrl} alt="" className="w-8 h-8 rounded object-cover" />
-              <button type="button"
-                onClick={() => onChange({ ...data, imageUrl: '' })}
-                className="text-red-400 hover:text-red-300 text-xs">
-                Quitar
-              </button>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-8">
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className={labelCls}>Nombre del plato</label>
+              <input
+                className={inputCls}
+                placeholder="Ej: Burger House Special"
+                value={data.name}
+                onChange={e => onChange({ ...data, name: e.target.value })}
+                autoFocus
+              />
             </div>
-          )}
+            <div>
+              <label className={labelCls}>Precio (en pesos)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">$</span>
+                <input
+                  className={cn(inputCls, "pl-8 tabular-nums font-bold")}
+                  placeholder="0"
+                  type="number"
+                  value={data.price}
+                  onChange={e => onChange({ ...data, price: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Descripción detallada</label>
+            <textarea
+              rows={2}
+              className={cn(inputCls, "resize-none h-24")}
+              placeholder="Cuenta qué tiene este plato, ingredientes destacados, etc."
+              value={data.description}
+              onChange={e => onChange({ ...data, description: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>Etiquetas (separadas por coma)</label>
+            <input
+              className={inputCls}
+              placeholder="Ej: Vegetariano, Picante, Sin TACC"
+              value={data.tags}
+              onChange={e => onChange({ ...data, tags: e.target.value })}
+            />
+          </div>
+        </div>
+
+        {/* Media Side */}
+        <div className="space-y-6">
+          <div>
+            <label className={labelCls}>Imagen del producto</label>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            <div
+              onClick={() => !uploading && fileRef.current?.click()}
+              className={cn(
+                "w-full aspect-square rounded-3xl border-2 border-dashed flex flex-col items-center justify-center p-4 transition-all cursor-pointer relative group",
+                data.imageUrl ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/50"
+              )}
+            >
+              {data.imageUrl ? (
+                <>
+                  <img src={data.imageUrl} alt="" className="w-full h-full object-cover rounded-2xl" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
+                    <Camera className="text-white" size={24} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="text-muted-foreground/40 mb-3" size={32} />
+                  <p className="text-[10px] uppercase font-black text-muted-foreground/60 text-center leading-tight">
+                    {uploading ? 'Subiendo...' : 'Click para subir'}
+                  </p>
+                </>
+              )}
+            </div>
+            {data.imageUrl && (
+              <Button
+                variant="ghost"
+                className="w-full mt-2 text-destructive hover:bg-destructive/5 text-[10px] font-bold uppercase tracking-widest h-8"
+                onClick={(e) => { e.stopPropagation(); onChange({ ...data, imageUrl: '' }) }}
+              >
+                Eliminar imagen
+              </Button>
+            )}
+          </div>
+
+          <label className="flex items-center gap-3 p-4 bg-muted/40 border border-border/80 rounded-2xl cursor-pointer hover:bg-primary/5 transition-colors group">
+            <button
+              type="button"
+              onClick={() => onChange({ ...data, isFeatured: !data.isFeatured })}
+              className={cn(
+                "w-10 h-6 rounded-full transition-all duration-300 relative p-1",
+                data.isFeatured ? "bg-amber-500 shadow-lg shadow-amber-500/30" : "bg-muted-foreground/30"
+              )}
+            >
+              <div className={cn(
+                "w-4 h-4 rounded-full bg-white transition-transform duration-300",
+                data.isFeatured ? "translate-x-4" : "translate-x-0"
+              )} />
+            </button>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-foreground">Destacado</span>
+              <span className="text-[10px] text-muted-foreground">Aparece primero</span>
+            </div>
+          </label>
         </div>
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer select-none">
-        <button type="button"
-          onClick={() => onChange({ ...data, isFeatured: !data.isFeatured })}
-          className={`w-8 h-4 rounded-full transition-colors ${data.isFeatured ? 'bg-yellow-500' : 'bg-zinc-600'}`}>
-          <div className={`w-3 h-3 rounded-full bg-white mx-0.5 transition-transform ${data.isFeatured ? 'translate-x-4' : 'translate-x-0'}`} />
-        </button>
-        <span className="text-zinc-400 text-xs flex items-center gap-1">
-          <Star size={11} className={data.isFeatured ? 'text-yellow-400 fill-yellow-400' : 'text-zinc-500'} />
-          Plato destacado
-        </span>
-      </label>
-
       {/* ── Customization groups ── */}
-      <div className="border-t border-zinc-600 pt-3 mt-1">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-zinc-300 text-xs font-semibold uppercase tracking-wide">
-            Grupos de personalización
-          </span>
-          <button type="button"
+      <div className="pt-6 border-t border-border/60">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Settings2 size={18} />
+            </div>
+            <div>
+              <h5 className="text-sm font-bold text-foreground leading-none">Opciones de personalización</h5>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter opacity-70">
+                Agregados, guarniciones, términos de carne, etc.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={() => onChange({
               ...data,
               customizationGroups: [...data.customizationGroups, { ...EMPTY_CUSTOMIZATION_GROUP, options: [] }],
             })}
-            className="text-xs text-zinc-400 hover:text-white flex items-center gap-1">
-            <Plus size={11} /> Agregar grupo
-          </button>
+            className="border-2 border-primary/20 text-primary hover:bg-primary/5 font-bold rounded-xl active:scale-95 transition-all px-4"
+          >
+            <Plus size={14} className="mr-2" strokeWidth={3} /> Agregar grupo
+          </Button>
         </div>
 
-        {data.customizationGroups.map((group, gi) => (
-          <div key={gi} className="mb-3 p-2 bg-zinc-800 rounded-lg border border-zinc-600">
-            {/* Group header */}
-            <div className="flex items-center gap-2 mb-2">
-              <input
-                className="flex-1 bg-zinc-700 border border-zinc-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
-                placeholder="Nombre (ej: Guarnición)"
-                value={group.name}
-                onChange={e => {
-                  const updated = [...data.customizationGroups]
-                  updated[gi] = { ...updated[gi], name: e.target.value }
-                  onChange({ ...data, customizationGroups: updated })
-                }}
-              />
-              <select
-                className="bg-zinc-700 border border-zinc-600 text-white text-xs rounded px-1 py-1 focus:outline-none"
-                value={group.type}
-                onChange={e => {
-                  const updated = [...data.customizationGroups]
-                  updated[gi] = { ...updated[gi], type: e.target.value as 'single' | 'multiple' }
-                  onChange({ ...data, customizationGroups: updated })
-                }}>
-                <option value="single">1 opción</option>
-                <option value="multiple">Varias</option>
-              </select>
-              <button type="button"
-                onClick={() => {
-                  const updated = [...data.customizationGroups]
-                  updated[gi] = { ...updated[gi], required: !updated[gi].required }
-                  onChange({ ...data, customizationGroups: updated })
-                }}
-                className={`text-[10px] px-2 py-1 rounded font-semibold transition-colors ${group.required ? 'bg-red-500/20 text-red-400' : 'bg-zinc-700 text-zinc-400 hover:text-white'}`}>
-                {group.required ? 'Obligatorio' : 'Opcional'}
-              </button>
-              <button type="button"
+        <div className="grid grid-cols-1 gap-6">
+          {data.customizationGroups.map((group, gi) => (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              key={gi}
+              className="p-6 bg-muted/20 rounded-3xl border border-border/60 relative group/card"
+            >
+              <button
+                type="button"
                 onClick={() => {
                   const updated = data.customizationGroups.filter((_, i) => i !== gi)
                   onChange({ ...data, customizationGroups: updated })
                 }}
-                className="text-zinc-500 hover:text-red-400 transition-colors">
-                <X size={13} />
+                className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-border text-muted-foreground hover:text-white hover:bg-destructive hover:border-destructive shadow-sm opacity-0 group-hover/card:opacity-100 transition-all flex items-center justify-center"
+              >
+                <X size={14} strokeWidth={3} />
               </button>
-            </div>
 
-            {/* Options */}
-            <div className="space-y-1 ml-1">
-              {group.options.map((opt, oi) => (
-                <div key={oi} className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="flex-1">
+                  <label className={labelCls}>Nombre del grupo</label>
                   <input
-                    className="flex-1 bg-zinc-700 border border-zinc-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
-                    placeholder="Opción (ej: Papa fritas)"
-                    value={opt.name}
+                    className={cn(inputCls, "bg-white h-11 border-border/100 shadow-sm")}
+                    placeholder="Ej: ¿Qué guarnición prefieres?"
+                    value={group.name}
                     onChange={e => {
                       const updated = [...data.customizationGroups]
-                      updated[gi].options[oi] = { ...opt, name: e.target.value }
+                      updated[gi] = { ...updated[gi], name: e.target.value }
                       onChange({ ...data, customizationGroups: updated })
                     }}
                   />
-                  <input
-                    className="w-20 bg-zinc-700 border border-zinc-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
-                    placeholder="+ $precio"
-                    type="number"
-                    min="0"
-                    value={opt.extraPrice}
+                </div>
+                <div className="w-full sm:w-40">
+                  <label className={labelCls}>Tipo</label>
+                  <select
+                    className={cn(inputCls, "bg-white h-11 border-border/100 shadow-sm appearance-none cursor-pointer")}
+                    value={group.type}
                     onChange={e => {
                       const updated = [...data.customizationGroups]
-                      updated[gi].options[oi] = { ...opt, extraPrice: e.target.value }
+                      updated[gi] = { ...updated[gi], type: e.target.value as 'single' | 'multiple' }
                       onChange({ ...data, customizationGroups: updated })
-                    }}
-                  />
-                  <button type="button"
+                    }}>
+                    <option value="single">Selección única</option>
+                    <option value="multiple">Selección libre</option>
+                  </select>
+                </div>
+                <div className="w-full sm:w-32">
+                  <label className={labelCls}>Req.</label>
+                  <button
+                    type="button"
                     onClick={() => {
                       const updated = [...data.customizationGroups]
-                      updated[gi].options = updated[gi].options.filter((_, i) => i !== oi)
+                      updated[gi] = { ...updated[gi], required: !updated[gi].required }
                       onChange({ ...data, customizationGroups: updated })
                     }}
-                    className="text-zinc-500 hover:text-red-400 transition-colors flex-shrink-0">
-                    <X size={11} />
+                    className={cn(
+                      "w-full h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all",
+                      group.required
+                        ? "bg-primary/5 border-primary/40 text-primary"
+                        : "bg-muted text-muted-foreground border-transparent"
+                    )}
+                  >
+                    {group.required ? 'Obligatorio' : 'Opcional'}
                   </button>
                 </div>
-              ))}
-              <button type="button"
-                onClick={() => {
-                  const updated = [...data.customizationGroups]
-                  updated[gi].options.push({ name: '', extraPrice: '0' })
-                  onChange({ ...data, customizationGroups: updated })
-                }}
-                className="text-zinc-500 hover:text-zinc-300 text-xs flex items-center gap-1 mt-1 transition-colors">
-                <Plus size={10} /> Agregar opción
-              </button>
-            </div>
-          </div>
-        ))}
+              </div>
+
+              {/* Options */}
+              <div className="space-y-3 pl-2 border-l-2 border-border/60 ml-1">
+                <div className="flex items-center gap-4 mb-2">
+                  <span className={labelCls}>Opciones y precios adicionales</span>
+                </div>
+                {group.options.map((opt, oi) => (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    key={oi}
+                    className="flex items-center gap-3 group/opt"
+                  >
+                    <div className="flex-1 relative">
+                      <input
+                        className={cn(inputCls, "bg-white border-border/80 h-10")}
+                        placeholder="Ej: Papas fritas"
+                        value={opt.name}
+                        onChange={e => {
+                          const updated = [...data.customizationGroups]
+                          updated[gi].options[oi] = { ...opt, name: e.target.value }
+                          onChange({ ...data, customizationGroups: updated })
+                        }}
+                      />
+                    </div>
+                    <div className="w-28 relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
+                      <input
+                        className={cn(inputCls, "bg-white border-border/80 h-10 pl-7 tabular-nums")}
+                        placeholder="Precio"
+                        type="number"
+                        min="0"
+                        value={opt.extraPrice}
+                        onChange={e => {
+                          const updated = [...data.customizationGroups]
+                          updated[gi].options[oi] = { ...opt, extraPrice: e.target.value }
+                          onChange({ ...data, customizationGroups: updated })
+                        }}
+                      />
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0 opacity-40 group-hover/opt:opacity-100 transition-opacity"
+                      onClick={() => {
+                        const updated = [...data.customizationGroups]
+                        updated[gi].options = updated[gi].options.filter((_, i) => i !== oi)
+                        onChange({ ...data, customizationGroups: updated })
+                      }}
+                    >
+                      <X size={12} strokeWidth={4} />
+                    </Button>
+                  </motion.div>
+                ))}
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const updated = [...data.customizationGroups]
+                    updated[gi].options.push({ name: '', extraPrice: '0' })
+                    onChange({ ...data, customizationGroups: updated })
+                  }}
+                  className="text-primary hover:bg-primary/5 text-[10px] font-black uppercase tracking-widest mt-2 px-4 h-9 rounded-lg"
+                >
+                  <Plus size={12} className="mr-1.5" strokeWidth={4} /> Agregar opción
+                </Button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </div>
 
-      <div className="flex gap-2">
-        <Button size="sm" onClick={onSave} disabled={loading || uploading}>
-          {mode === 'add' ? 'Agregar' : 'Guardar'}
+      <div className="flex items-center gap-3 pt-8 mt-4 border-t border-border/60">
+        <Button
+          onClick={onSave}
+          disabled={loading || uploading}
+          className="bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest px-10 h-14 rounded-2xl shadow-xl shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
+        >
+          {loading ? 'Guardando...' : mode === 'add' ? 'Crear Producto' : 'Guardar Cambios'}
         </Button>
-        <Button size="sm" variant="outline" className="border-zinc-600 text-zinc-400" onClick={onCancel}>
-          Cancelar
+        <Button
+          variant="ghost"
+          className="text-muted-foreground hover:text-foreground font-bold px-8 h-14 rounded-2xl"
+          onClick={onCancel}
+        >
+          Descartar
         </Button>
       </div>
     </div>
