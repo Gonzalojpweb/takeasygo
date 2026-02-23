@@ -2,9 +2,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
-import { Menu } from 'lucide-react'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
+import MobileNav from '@/components/MobileNav'
 
 export default async function AdminLayout({
   children,
@@ -35,21 +33,9 @@ export default async function AdminLayout({
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Header */}
-        <header className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <h1 className="text-foreground font-bold text-lg tracking-tight">Menu Platform</h1>
-          </div>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-muted-foreground">
-                <Menu size={24} />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-72 border-r border-border bg-sidebar">
-              <AdminSidebar {...sidebarProps} />
-            </SheetContent>
-          </Sheet>
-        </header>
+        <MobileNav>
+          <AdminSidebar {...sidebarProps} />
+        </MobileNav>
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto bg-background p-4 md:p-8 lg:p-10">
