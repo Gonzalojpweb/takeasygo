@@ -1,0 +1,55 @@
+'use client'
+
+import { Button } from '@/components/ui/button'
+
+const demoImages = [
+    'https://images.unsplash.com/photo-1517248135467-4c7ed9d73c7a?q=80&w=2070&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1552566626-52f8b828add9?q=80&w=2070&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=2074&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1590650153855-d9e808231d41?q=80&w=2070&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2015&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?q=80&w=2070&auto=format&fit=crop'
+]
+
+export default function DemoSection() {
+    return (
+        <section id="demo" className="bg-white py-32 overflow-hidden border-t border-zinc-100">
+            <div className="max-w-7xl mx-auto px-6 mb-24 text-center">
+                <h2 className="text-5xl md:text-7xl font-bold text-zinc-900 tracking-tight mb-6">Schedule a Demo</h2>
+                <p className="text-zinc-400 text-xl font-medium">Boost loyalty. Drive sales.</p>
+
+                {/* Minimalist Linear Form */}
+                <div className="mt-20 max-w-5xl mx-auto flex flex-wrap gap-8 items-end justify-center">
+                    <div className="flex flex-col gap-2 min-w-[200px] flex-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Name</label>
+                        <input type="text" className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200" />
+                    </div>
+                    <div className="flex flex-col gap-2 min-w-[200px] flex-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Business Name</label>
+                        <input type="text" className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200" />
+                    </div>
+                    <div className="flex flex-col gap-2 min-w-[200px] flex-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Email</label>
+                        <input type="email" className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200" />
+                    </div>
+                    <div className="flex flex-col gap-2 min-w-[200px] flex-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Phone</label>
+                        <input type="tel" className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200" />
+                    </div>
+                    <Button className="bg-zinc-900 text-white rounded-full px-12 h-14 font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-zinc-800 transition-all">
+                        Submit
+                    </Button>
+                </div>
+            </div>
+
+            {/* Image Slider Component Placeholder (Horizontal List of Rounded Images) */}
+            <div className="flex gap-6 px-6 no-scrollbar overflow-x-auto pb-10">
+                {demoImages.map((src, i) => (
+                    <div key={i} className="min-w-[300px] h-[200px] rounded-3xl overflow-hidden border border-zinc-100 shadow-sm">
+                        <img src={src} alt="Happy clients" className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700" />
+                    </div>
+                ))}
+            </div>
+        </section>
+    )
+}
