@@ -5,6 +5,9 @@ import bcrypt from 'bcryptjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 
+// Roles que un admin puede crear — nunca puede escalar a admin ni superadmin
+const ALLOWED_ROLES = ['manager', 'staff', 'cashier'] as const
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -16,7 +19,7 @@ export async function GET(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-      const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
     const users = await User.find({ tenantId: tenant._id }).select('-password')
@@ -41,6 +44,14 @@ export async function POST(
     if (authError) return authError
 
     const { name, email, password, role, assignedLocation } = await request.json()
+
+    // ✅ Prevenir privilege escalation: solo se permiten roles menores
+    if (!ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json(
+        { error: `Rol inválido. Los roles permitidos son: ${ALLOWED_ROLES.join(', ')}` },
+        { status: 400 }
+      )
+    }
 
     const existing = await User.findOne({ email })
     if (existing) return NextResponse.json({ error: 'El email ya está en uso' }, { status: 400 })
