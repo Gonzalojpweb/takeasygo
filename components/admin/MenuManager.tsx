@@ -15,7 +15,42 @@ interface Props {
   tenantSlug: string
 }
 
-const EMPTY_ITEM = { name: '', description: '', price: '', tags: '', isFeatured: false, imageUrl: '' }
+type CustomizationOptionForm = { name: string; extraPrice: string }
+type CustomizationGroupForm = {
+  name: string
+  type: 'single' | 'multiple'
+  required: boolean
+  options: CustomizationOptionForm[]
+}
+
+const EMPTY_CUSTOMIZATION_GROUP: CustomizationGroupForm = {
+  name: '', type: 'single', required: false, options: [],
+}
+
+const EMPTY_ITEM = {
+  name: '', description: '', price: '', tags: '', isFeatured: false, imageUrl: '',
+  customizationGroups: [] as CustomizationGroupForm[],
+}
+
+type ItemFormData = typeof EMPTY_ITEM
+
+function serializeGroups(groups: CustomizationGroupForm[]) {
+  return groups.map(g => ({
+    name: g.name,
+    type: g.type,
+    required: g.required,
+    options: g.options.map(o => ({ name: o.name, extraPrice: parseFloat(o.extraPrice) || 0 })),
+  }))
+}
+
+function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
+  return (groups || []).map((g: any) => ({
+    name: g.name,
+    type: g.type ?? 'single',
+    required: g.required ?? false,
+    options: (g.options || []).map((o: any) => ({ name: o.name, extraPrice: o.extraPrice.toString() })),
+  }))
+}
 
 export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [selectedLocation, setSelectedLocation] = useState(locations[0]?._id || '')
@@ -23,11 +58,11 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showAddItem, setShowAddItem] = useState<string | null>(null)
-  const [newItem, setNewItem] = useState(EMPTY_ITEM)
+  const [newItem, setNewItem] = useState<ItemFormData>(EMPTY_ITEM)
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [editingCategoryName, setEditingCategoryName] = useState('')
   const [editingItem, setEditingItem] = useState<string | null>(null)
-  const [editingItemData, setEditingItemData] = useState(EMPTY_ITEM)
+  const [editingItemData, setEditingItemData] = useState<ItemFormData>(EMPTY_ITEM)
   const [loading, setLoading] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const router = useRouter()
@@ -116,6 +151,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
           imageUrl: newItem.imageUrl,
+          customizationGroups: serializeGroups(newItem.customizationGroups),
         }),
       })
       if (!res.ok) throw new Error()
@@ -146,6 +182,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           tags: parseTags(editingItemData.tags),
           isFeatured: editingItemData.isFeatured,
           imageUrl: editingItemData.imageUrl,
+          customizationGroups: serializeGroups(editingItemData.customizationGroups),
         }),
       })
       if (!res.ok) throw new Error()
@@ -386,6 +423,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                         tags: (item.tags || []).join(', '),
                                         isFeatured: item.isFeatured ?? false,
                                         imageUrl: item.imageUrl || '',
+                                        customizationGroups: deserializeGroups(item.customizationGroups || []),
                                       })
                                     }}>
                                     <Pencil size={14} />
@@ -443,8 +481,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 function ItemForm({
   data, onChange, onSave, onCancel, loading, mode, tenantSlug,
 }: {
-  data: typeof EMPTY_ITEM
-  onChange: (v: typeof EMPTY_ITEM) => void
+  data: ItemFormData
+  onChange: (v: ItemFormData) => void
   onSave: () => void
   onCancel: () => void
   loading: boolean
@@ -525,6 +563,118 @@ function ItemForm({
           Plato destacado
         </span>
       </label>
+
+      {/* ── Customization groups ── */}
+      <div className="border-t border-zinc-600 pt-3 mt-1">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-zinc-300 text-xs font-semibold uppercase tracking-wide">
+            Grupos de personalización
+          </span>
+          <button type="button"
+            onClick={() => onChange({
+              ...data,
+              customizationGroups: [...data.customizationGroups, { ...EMPTY_CUSTOMIZATION_GROUP, options: [] }],
+            })}
+            className="text-xs text-zinc-400 hover:text-white flex items-center gap-1">
+            <Plus size={11} /> Agregar grupo
+          </button>
+        </div>
+
+        {data.customizationGroups.map((group, gi) => (
+          <div key={gi} className="mb-3 p-2 bg-zinc-800 rounded-lg border border-zinc-600">
+            {/* Group header */}
+            <div className="flex items-center gap-2 mb-2">
+              <input
+                className="flex-1 bg-zinc-700 border border-zinc-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+                placeholder="Nombre (ej: Guarnición)"
+                value={group.name}
+                onChange={e => {
+                  const updated = [...data.customizationGroups]
+                  updated[gi] = { ...updated[gi], name: e.target.value }
+                  onChange({ ...data, customizationGroups: updated })
+                }}
+              />
+              <select
+                className="bg-zinc-700 border border-zinc-600 text-white text-xs rounded px-1 py-1 focus:outline-none"
+                value={group.type}
+                onChange={e => {
+                  const updated = [...data.customizationGroups]
+                  updated[gi] = { ...updated[gi], type: e.target.value as 'single' | 'multiple' }
+                  onChange({ ...data, customizationGroups: updated })
+                }}>
+                <option value="single">1 opción</option>
+                <option value="multiple">Varias</option>
+              </select>
+              <button type="button"
+                onClick={() => {
+                  const updated = [...data.customizationGroups]
+                  updated[gi] = { ...updated[gi], required: !updated[gi].required }
+                  onChange({ ...data, customizationGroups: updated })
+                }}
+                className={`text-[10px] px-2 py-1 rounded font-semibold transition-colors ${group.required ? 'bg-red-500/20 text-red-400' : 'bg-zinc-700 text-zinc-400 hover:text-white'}`}>
+                {group.required ? 'Obligatorio' : 'Opcional'}
+              </button>
+              <button type="button"
+                onClick={() => {
+                  const updated = data.customizationGroups.filter((_, i) => i !== gi)
+                  onChange({ ...data, customizationGroups: updated })
+                }}
+                className="text-zinc-500 hover:text-red-400 transition-colors">
+                <X size={13} />
+              </button>
+            </div>
+
+            {/* Options */}
+            <div className="space-y-1 ml-1">
+              {group.options.map((opt, oi) => (
+                <div key={oi} className="flex items-center gap-2">
+                  <input
+                    className="flex-1 bg-zinc-700 border border-zinc-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+                    placeholder="Opción (ej: Papa fritas)"
+                    value={opt.name}
+                    onChange={e => {
+                      const updated = [...data.customizationGroups]
+                      updated[gi].options[oi] = { ...opt, name: e.target.value }
+                      onChange({ ...data, customizationGroups: updated })
+                    }}
+                  />
+                  <input
+                    className="w-20 bg-zinc-700 border border-zinc-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+                    placeholder="+ $precio"
+                    type="number"
+                    min="0"
+                    value={opt.extraPrice}
+                    onChange={e => {
+                      const updated = [...data.customizationGroups]
+                      updated[gi].options[oi] = { ...opt, extraPrice: e.target.value }
+                      onChange({ ...data, customizationGroups: updated })
+                    }}
+                  />
+                  <button type="button"
+                    onClick={() => {
+                      const updated = [...data.customizationGroups]
+                      updated[gi].options = updated[gi].options.filter((_, i) => i !== oi)
+                      onChange({ ...data, customizationGroups: updated })
+                    }}
+                    className="text-zinc-500 hover:text-red-400 transition-colors flex-shrink-0">
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+              <button type="button"
+                onClick={() => {
+                  const updated = [...data.customizationGroups]
+                  updated[gi].options.push({ name: '', extraPrice: '0' })
+                  onChange({ ...data, customizationGroups: updated })
+                }}
+                className="text-zinc-500 hover:text-zinc-300 text-xs flex items-center gap-1 mt-1 transition-colors">
+                <Plus size={10} /> Agregar opción
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="flex gap-2">
         <Button size="sm" onClick={onSave} disabled={loading || uploading}>
           {mode === 'add' ? 'Agregar' : 'Guardar'}

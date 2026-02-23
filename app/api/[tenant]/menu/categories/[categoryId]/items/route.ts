@@ -18,7 +18,7 @@ export async function POST(
       const authError = await requireAuth(request, tenant._id.toString())
 if (authError) return authError
 
-    const { locationId, name, description, price, imageUrl, tags, isFeatured } = await request.json()
+    const { locationId, name, description, price, imageUrl, tags, isFeatured, customizationGroups } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -26,7 +26,7 @@ if (authError) return authError
     const category = menu.categories.id(categoryId)
     if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
 
-    category.items.push({ name, description: description || '', price, isAvailable: true, imageUrl: imageUrl || '', tags: tags || [], isFeatured: isFeatured || false } as any)
+    category.items.push({ name, description: description || '', price, isAvailable: true, imageUrl: imageUrl || '', tags: tags || [], isFeatured: isFeatured || false, customizationGroups: customizationGroups || [] } as any)
     menu.markModified('categories')
     await menu.save()
 
@@ -50,7 +50,7 @@ export async function PUT(
       const authError = await requireAuth(request, tenant._id.toString())
 if (authError) return authError
 
-    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured } = await request.json()
+    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, customizationGroups } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -68,6 +68,7 @@ if (authError) return authError
     if (imageUrl !== undefined) item.imageUrl = imageUrl
     if (tags !== undefined) item.tags = tags
     if (isFeatured !== undefined) item.isFeatured = isFeatured
+    if (customizationGroups !== undefined) item.customizationGroups = customizationGroups
 
     menu.markModified('categories')
     await menu.save()

@@ -3,12 +3,25 @@ import mongoose, { Schema, Document } from 'mongoose'
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
+export interface ISelectedCustomizationOption {
+  name: string
+  extraPrice: number
+}
+
+export interface ISelectedCustomizationGroup {
+  groupName: string
+  selectedOptions: ISelectedCustomizationOption[]
+}
+
 export interface IOrderItem {
   menuItemId: mongoose.Types.ObjectId
   name: string
+  basePrice: number
+  extraPrice: number
   price: number
   quantity: number
   subtotal: number
+  customizations: ISelectedCustomizationGroup[]
 }
 
 export interface IOrder extends Document {
@@ -34,15 +47,31 @@ export interface IOrder extends Document {
   updatedAt: Date
 }
 
+const SelectedCustomizationOptionSchema = new Schema<ISelectedCustomizationOption>({
+  name: { type: String, required: true },
+  extraPrice: { type: Number, default: 0 },
+}, { _id: false })
+
+const SelectedCustomizationGroupSchema = new Schema<ISelectedCustomizationGroup>({
+  groupName: { type: String, required: true },
+  selectedOptions: [SelectedCustomizationOptionSchema],
+}, { _id: false })
+
 const OrderItemSchema = new Schema<IOrderItem>({
   menuItemId: {
     type: Schema.Types.ObjectId,
     required: true,
   },
   name: { type: String, required: true },
+  basePrice: { type: Number, required: true },
+  extraPrice: { type: Number, default: 0 },
   price: { type: Number, required: true },
   quantity: { type: Number, required: true, min: 1 },
   subtotal: { type: Number, required: true },
+  customizations: {
+    type: [SelectedCustomizationGroupSchema],
+    default: [],
+  },
 })
 
 const OrderSchema = new Schema<IOrder>(

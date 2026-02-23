@@ -1,5 +1,19 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+export interface ICustomizationOption {
+  _id?: mongoose.Types.ObjectId
+  name: string
+  extraPrice: number
+}
+
+export interface ICustomizationGroup {
+  _id?: mongoose.Types.ObjectId
+  name: string
+  type: 'single' | 'multiple'
+  required: boolean
+  options: ICustomizationOption[]
+}
+
 export interface IMenuItem {
   _id?: mongoose.Types.ObjectId
   name: string
@@ -9,6 +23,7 @@ export interface IMenuItem {
   isAvailable: boolean
   tags: string[]
   isFeatured: boolean
+  customizationGroups: ICustomizationGroup[]
 }
 
 export interface IMenuCategory {
@@ -29,6 +44,18 @@ export interface IMenu extends Document {
   createdAt: Date
   updatedAt: Date
 }
+
+const CustomizationOptionSchema = new Schema<ICustomizationOption>({
+  name: { type: String, required: true, trim: true },
+  extraPrice: { type: Number, default: 0, min: 0 },
+})
+
+const CustomizationGroupSchema = new Schema<ICustomizationGroup>({
+  name: { type: String, required: true, trim: true },
+  type: { type: String, enum: ['single', 'multiple'], default: 'single' },
+  required: { type: Boolean, default: false },
+  options: [CustomizationOptionSchema],
+})
 
 const MenuItemSchema = new Schema<IMenuItem>({
   name: {
@@ -61,6 +88,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
   isFeatured: {
     type: Boolean,
     default: false,
+  },
+  customizationGroups: {
+    type: [CustomizationGroupSchema],
+    default: [],
   },
 })
 

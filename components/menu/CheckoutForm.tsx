@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
+import type { CartItem } from '@/types/cart'
 
 interface Props {
   tenantSlug: string
@@ -13,7 +14,7 @@ interface Props {
 
 export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const router = useRouter()
-  const [cart, setCart] = useState<any[]>([])
+  const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' })
 
@@ -83,10 +84,15 @@ async function handleSubmit(e: React.FormEvent) {
         <div className="bg-zinc-50 rounded-2xl p-4 mb-6">
           <h2 className="font-semibold text-sm text-zinc-500 mb-3 uppercase tracking-wide">Resumen</h2>
           <div className="space-y-2">
-            {cart.map((item: any) => (
-              <div key={item.menuItemId} className="flex justify-between text-sm">
-                <span className="text-zinc-700">{item.quantity}x {item.name}</span>
-                <span className="font-medium">${(item.price * item.quantity).toLocaleString('es-AR')}</span>
+            {cart.map((item: CartItem) => (
+              <div key={item.cartItemId} className="flex justify-between text-sm gap-3">
+                <div className="min-w-0">
+                  <span className="text-zinc-700">{item.quantity}x {item.name}</span>
+                  {item.customizationSummary && (
+                    <p className="text-zinc-400 text-xs truncate">{item.customizationSummary}</p>
+                  )}
+                </div>
+                <span className="font-medium flex-shrink-0">${(item.price * item.quantity).toLocaleString('es-AR')}</span>
               </div>
             ))}
           </div>

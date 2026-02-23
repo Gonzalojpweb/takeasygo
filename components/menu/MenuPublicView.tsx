@@ -7,13 +7,8 @@ import {
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-
-interface CartItem {
-  menuItemId: string
-  name: string
-  price: number
-  quantity: number
-}
+import type { CartItem } from '@/types/cart'
+import CustomizationModal from '@/components/menu/CustomizationModal'
 
 interface Props {
   tenant: any
@@ -31,6 +26,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const [cart, setCart] = useState<CartItem[]>([])
   const [showCart, setShowCart] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('')
+  const [customizingItem, setCustomizingItem] = useState<any | null>(null)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
   const branding = tenant.branding
@@ -70,20 +66,43 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
     if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
   }, [activeCategory])
 
-  function addToCart(item: any) {
+  // Items without customization groups: merge by stable cartItemId (`${id}:plain`)
+  function addPlainToCart(item: any) {
+    const plainId = `${item._id}:plain`
     setCart(prev => {
-      const existing = prev.find(i => i.menuItemId === item._id)
-      if (existing) return prev.map(i => i.menuItemId === item._id ? { ...i, quantity: i.quantity + 1 } : i)
-      return [...prev, { menuItemId: item._id, name: item.name, price: item.price, quantity: 1 }]
+      const existing = prev.find(i => i.cartItemId === plainId)
+      if (existing) return prev.map(i => i.cartItemId === plainId ? { ...i, quantity: i.quantity + 1 } : i)
+      return [...prev, {
+        cartItemId: plainId,
+        menuItemId: item._id,
+        name: item.name,
+        basePrice: item.price,
+        extraPrice: 0,
+        price: item.price,
+        quantity: 1,
+        customizations: [],
+        customizationSummary: '',
+      }]
     })
   }
 
-  function removeFromCart(menuItemId: string) {
+  // Called from CustomizationModal — each configured instance is unique
+  function handleConfirmCustomization(cartItem: CartItem) {
+    setCart(prev => [...prev, cartItem])
+    setCustomizingItem(null)
+  }
+
+  function removeFromCart(cartItemId: string) {
     setCart(prev => {
-      const existing = prev.find(i => i.menuItemId === menuItemId)
-      if (existing && existing.quantity > 1) return prev.map(i => i.menuItemId === menuItemId ? { ...i, quantity: i.quantity - 1 } : i)
-      return prev.filter(i => i.menuItemId !== menuItemId)
+      const existing = prev.find(i => i.cartItemId === cartItemId)
+      if (existing && existing.quantity > 1) return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity - 1 } : i)
+      return prev.filter(i => i.cartItemId !== cartItemId)
     })
+  }
+
+  function openCustomizationModal(item: any) {
+    setShowCart(false)
+    setCustomizingItem(item)
   }
 
   function goToCheckout() {
@@ -98,6 +117,11 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
   const totalItems = cart.reduce((sum, i) => sum + i.quantity, 0)
   const totalPrice = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+  // Total quantity of a specific menu item across all cart entries (for badge in CartControl)
+  function itemTotalQty(menuItemId: string) {
+    return cart.filter(i => i.menuItemId === menuItemId).reduce((s, i) => s + i.quantity, 0)
+  }
 
   const primary = branding.primaryColor
   const bg = branding.backgroundColor
@@ -198,7 +222,6 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
             </div>
             <div>
               {featuredItems.map((item: any) => {
-                const cartItem = cart.find(i => i.menuItemId === item._id)
                 const veg = isVegetarian(item.tags || [])
                 return (
                   <div key={item._id} className="flex items-center gap-3 px-4 py-3 border-b last:border-0"
@@ -225,7 +248,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                         ))}
                       </div>
                     </div>
-                    <CartControl item={item} cartItem={cartItem} onAdd={addToCart} onRemove={removeFromCart} primary={primary} bg={bg} />
+                    <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={itemTotalQty(item._id)} primary={primary} bg={bg} />
                   </div>
                 )
               })}
@@ -248,8 +271,8 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
               {category.items
                 .filter((item: any) => item.isAvailable)
                 .map((item: any) => {
-                  const cartItem = cart.find(i => i.menuItemId === item._id)
                   const veg = isVegetarian(item.tags || [])
+                  const qty = itemTotalQty(item._id)
 
                   if (branding.menuLayout === 'grid') {
                     return (
@@ -272,7 +295,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                             <p className="font-bold text-sm" style={{ color: primary }}>
                               ${item.price.toLocaleString('es-AR')}
                             </p>
-                            <CartControl item={item} cartItem={cartItem} onAdd={addToCart} onRemove={removeFromCart} primary={primary} bg={bg} compact />
+                            <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact />
                           </div>
                         </div>
                       </div>
@@ -310,7 +333,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                           ))}
                         </div>
                       </div>
-                      <CartControl item={item} cartItem={cartItem} onAdd={addToCart} onRemove={removeFromCart} primary={primary} bg={bg} />
+                      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} />
                     </div>
                   )
                 })}
@@ -479,6 +502,18 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         </div>
       )}
 
+      {/* ── Customization Modal ── */}
+      {customizingItem && (
+        <CustomizationModal
+          item={customizingItem}
+          onConfirm={handleConfirmCustomization}
+          onClose={() => setCustomizingItem(null)}
+          primaryColor={primary}
+          bgColor={bg}
+          textColor={text}
+        />
+      )}
+
       {/* ── Cart Drawer ── */}
       {showCart && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
@@ -493,22 +528,29 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
             <div className="space-y-3 mb-6">
               {cart.map(item => (
-                <div key={item.menuItemId} className="flex items-center justify-between gap-3">
+                <div key={item.cartItemId} className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => removeFromCart(item.menuItemId)}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => removeFromCart(item.cartItemId)}
                         className="w-7 h-7 rounded-full flex items-center justify-center"
                         style={{ backgroundColor: primary + '20', color: primary }}>
                         <Minus size={13} />
                       </button>
                       <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                      <button onClick={() => addToCart({ _id: item.menuItemId, name: item.name, price: item.price })}
-                        className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: primary, color: bg }}>
-                        <Plus size={13} />
-                      </button>
+                      {item.customizations.length === 0 && (
+                        <button onClick={() => addPlainToCart({ _id: item.menuItemId, name: item.name, price: item.basePrice })}
+                          className="w-7 h-7 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: primary, color: bg }}>
+                          <Plus size={13} />
+                        </button>
+                      )}
                     </div>
-                    <span className="text-sm truncate">{item.name}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm truncate block">{item.name}</span>
+                      {item.customizationSummary && (
+                        <span className="text-xs opacity-50 truncate block">{item.customizationSummary}</span>
+                      )}
+                    </div>
                   </div>
                   <span className="text-sm font-bold flex-shrink-0">
                     ${(item.price * item.quantity).toLocaleString('es-AR')}
@@ -537,28 +579,56 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
 /* ── Cart control sub-component ── */
 function CartControl({
-  item, cartItem, onAdd, onRemove, primary, bg, compact = false,
+  item, cart, onAdd, onOpenModal, onRemove, totalQty, primary, bg, compact = false,
 }: {
   item: any
-  cartItem: CartItem | undefined
+  cart: CartItem[]
   onAdd: (item: any) => void
-  onRemove: (id: string) => void
+  onOpenModal: (item: any) => void
+  onRemove: (cartItemId: string) => void
+  totalQty: number
   primary: string
   bg: string
   compact?: boolean
 }) {
   const sz = compact ? 11 : 13
   const btnSz = compact ? 'w-6 h-6' : 'w-7 h-7'
+  const hasCustomizations = (item.customizationGroups ?? []).length > 0
 
-  if (cartItem) {
+  if (hasCustomizations) {
+    // Always show "+" that opens the modal; badge shows total qty across all instances
+    return (
+      <div className="relative flex-shrink-0">
+        {totalQty > 0 && (
+          <span
+            className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center z-10"
+            style={{ backgroundColor: primary, color: bg }}>
+            {totalQty}
+          </span>
+        )}
+        <button
+          onClick={() => onOpenModal(item)}
+          className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0`}
+          style={{ backgroundColor: primary, color: bg }}>
+          <Plus size={sz} />
+        </button>
+      </div>
+    )
+  }
+
+  // No customizations: inline +/- using the stable :plain cartItemId
+  const plainId = `${item._id}:plain`
+  const plainEntry = cart.find(i => i.cartItemId === plainId)
+
+  if (plainEntry) {
     return (
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button onClick={() => onRemove(item._id)}
+        <button onClick={() => onRemove(plainId)}
           className={`${btnSz} rounded-full flex items-center justify-center`}
           style={{ backgroundColor: primary + '20', color: primary }}>
           <Minus size={sz} />
         </button>
-        <span className="text-sm font-bold w-4 text-center">{cartItem.quantity}</span>
+        <span className="text-sm font-bold w-4 text-center">{plainEntry.quantity}</span>
         <button onClick={() => onAdd(item)}
           className={`${btnSz} rounded-full flex items-center justify-center`}
           style={{ backgroundColor: primary, color: bg }}>

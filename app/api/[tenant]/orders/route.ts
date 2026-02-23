@@ -55,11 +55,23 @@ export async function POST(
       return NextResponse.json({ error: 'Location no encontrada' }, { status: 404 })
     }
 
-    // Calcular subtotales y total
-    const items = body.items.map((item: any) => ({
-      ...item,
-      subtotal: item.price * item.quantity,
-    }))
+    // Calcular subtotales y total (soporta items con y sin customizaciones)
+    const items = body.items.map((item: any) => {
+      const basePrice = item.basePrice ?? item.price
+      const extraPrice = item.extraPrice ?? 0
+      const price = basePrice + extraPrice
+      const subtotal = price * item.quantity
+      return {
+        menuItemId: item.menuItemId,
+        name: item.name,
+        basePrice,
+        extraPrice,
+        price,
+        quantity: item.quantity,
+        subtotal,
+        customizations: item.customizations ?? [],
+      }
+    })
 
     const total = items.reduce((sum: number, item: any) => sum + item.subtotal, 0)
 
