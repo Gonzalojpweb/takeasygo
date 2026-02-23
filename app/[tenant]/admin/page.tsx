@@ -64,17 +64,20 @@ export default async function AdminDashboard() {
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <Card key={stat.label} className="bg-card border-2 border-border/60 shadow-lg hover:shadow-2xl transition-all duration-300 group rounded-3xl overflow-hidden">
+            <Card key={stat.label} className="bg-card border-2 border-border/60 shadow-lg hover:shadow-2xl transition-all duration-500 group rounded-3xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:scale-150 group-hover:rotate-12 transition-transform duration-700 pointer-events-none">
+                <Icon size={120} />
+              </div>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em]">{stat.label}</CardTitle>
-                <div className={cn("p-2.5 rounded-xl bg-muted/50 group-hover:bg-primary/10 transition-colors", stat.color.replace('text-', 'text-opacity-70 '))}>
-                  <Icon size={20} className={stat.color} />
+                <div className={cn("p-2.5 rounded-xl bg-muted/50 group-hover:bg-primary transition-colors duration-500", stat.color.replace('text-', 'text-opacity-70 '))}>
+                  <Icon size={20} className={cn("transition-colors duration-500", stat.color, "group-hover:text-white")} />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
                   <p className="text-foreground text-4xl font-bold tracking-tighter tabular-nums">{stat.value}</p>
-                  <ArrowUpRight size={18} className="text-primary/70 opacity-30 group-hover:opacity-100 transition-opacity" />
+                  <ArrowUpRight size={18} className="text-primary/70 animate-pulse group-hover:scale-125 transition-transform" />
                 </div>
               </CardContent>
             </Card>

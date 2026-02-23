@@ -163,17 +163,23 @@ export default function ReportsDashboard({ stats, topItems, recentOrders }: Prop
 }
 
 function StatCard({ title, value, desc, icon, trend, color, index }: any) {
+    const IconComponent = icon.type
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
         >
-            <Card className="bg-card border-border/60 shadow-lg hover:shadow-2xl hover:border-primary/30 transition-all duration-300 rounded-[2rem] overflow-hidden group">
+            <Card className="bg-card border-2 border-border/60 shadow-lg hover:shadow-2xl hover:border-primary/30 transition-all duration-500 rounded-[2rem] overflow-hidden group relative">
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:scale-150 group-hover:rotate-12 transition-transform duration-700 pointer-events-none">
+                    {icon}
+                </div>
                 <CardContent className="p-7">
                     <div className="flex items-center justify-between mb-5">
-                        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-sm", color)}>
-                            {icon}
+                        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center group-hover:bg-primary transition-all duration-500 shadow-sm", color)}>
+                            <div className="group-hover:text-white transition-colors">
+                                {icon}
+                            </div>
                         </div>
                         {trend && (
                             <div className={cn(
