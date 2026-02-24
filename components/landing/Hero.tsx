@@ -13,7 +13,7 @@ export default function Hero() {
 
             <section
                 id="what-we-do"
-                className="relative min-h-[90vh] flex items-center overflow-hidden px-6 md:px-20"
+                className="relative min-h-[100vh] flex items-center overflow-hidden px-6 md:px-20"
                 style={{ background: '#f7f4f1' }}
             >
                 {/* Ambient glow naranja — bottom right, difuminado, elegante */}
@@ -24,7 +24,7 @@ export default function Hero() {
                         right: '-5%',
                         width: '60vw',
                         height: '60vw',
-                        background: 'radial-gradient(ellipse at 60% 70%, rgba(241,71,34,0.12) 0%, rgba(241,71,34,0.05) 40%, transparent 70%)',
+                        background: 'radial-gradient(ellipse at 60% 70%, rgba(216, 60, 25, 0.35) 0%, rgba(216, 60, 25, 0.18) 30%,transparent 55%)',
                     }}
                 />
                 <div
@@ -58,7 +58,7 @@ export default function Hero() {
                         transition={{ duration: 0.7 }}
                         className="flex items-center gap-3 mb-10"
                     >
-                        <span style={{ width: 24, height: 1, background: '#f14722', display: 'block', flexShrink: 0 }} />
+                        <span style={{ width: 36, height: 1, background: '#f14722', display: 'block', flexShrink: 0 }} />
                         <span style={{
                             fontSize: 10,
                             fontFamily: "'DM Sans', sans-serif",
@@ -153,39 +153,6 @@ export default function Hero() {
                                 <ArrowRight size={13} />
                             </button>
                         </a>
-
-                        <button
-                            style={{
-                                height: 48,
-                                padding: '0 4px',
-                                background: 'transparent',
-                                color: '#8a8280',
-                                border: 'none',
-                                borderBottom: '2px solid #f14722',
-                                fontFamily: "'DM Sans', sans-serif",
-                                fontSize: 11,
-                                fontWeight: 600,
-                                letterSpacing: '0.06em',
-                                textTransform: 'uppercase',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                transition: 'color 0.2s, border-color 0.2s',
-                            }}
-                            onMouseEnter={e => {
-                                const el = e.currentTarget
-                                el.style.color = '#0d0b0a'
-                                el.style.borderColor = '#0d0b0a'
-                            }}
-                            onMouseLeave={e => {
-                                const el = e.currentTarget
-                                el.style.color = '#8a8280'
-                                el.style.borderColor = 'rgba(13,11,10,0.12)'
-                            }}
-                        >
-                            Ver funcionamiento
-                        </button>
                     </motion.div>
                 </div>
             </section>
