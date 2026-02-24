@@ -5,13 +5,13 @@ import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { leadId: string } }
+    { params }: { params: Promise<{ leadId: string }> }
 ) {
     try {
         const authError = await requireSuperAdmin()
         if (authError) return authError
 
-        const { leadId } = params
+        const { leadId } = await params
         const body = await request.json()
 
         // Only allow updating status and notes
