@@ -41,55 +41,71 @@ export default function StackingFeatures() {
     useGSAP(() => {
         const mm = gsap.matchMedia()
 
-        // Helper that creates the full stacking animation with configurable values
+        // Helper that creates the full stacking animation with configurable values.
+        // Uses CSS sticky (not GSAP pin) for reliable mobile + Lenis compatibility.
         const buildStack = (
-            cardOffset: number,   // px gap between pinned cards
+            cardOffset: number,   // px sticky top offset per depth level
             scaleStep: number,    // scale reduction per depth level
             yStep: number,        // y shift (px) per depth level
-            pinnedRadius: string  // border-radius when card is stacked behind
         ) => {
             const cards = gsap.utils.toArray<HTMLElement>('.sf-card')
 
+            // ── CSS sticky replaces GSAP pin ─────────────────────────────────
+            // GSAP pin uses position:fixed internally which conflicts with Lenis
+            // on mobile. CSS sticky is handled natively by the browser. ✓
             cards.forEach((card, i) => {
-                // ── PIN each card when it hits the top ──────────────────────
+                gsap.set(card, {
+                    position: 'sticky',
+                    top: cardOffset * i,
+                    zIndex: i + 1,
+                })
+            })
+
+            // ── Event-based depth animations per card arrival ─────────────────
+            // Using onEnter/onLeaveBack instead of a 1px scrub window, which
+            // is too narrow for mobile touch-scroll to reliably detect.
+            cards.forEach((card, i) => {
+                if (i === 0) return
+
                 ScrollTrigger.create({
                     trigger: card,
                     start: `top top+=${cardOffset * i}`,
-                    endTrigger: containerRef.current,
-                    end: 'bottom bottom',
-                    pin: true,
-                    pinSpacing: false,
+                    onEnter: () => {
+                        for (let j = 0; j < i; j++) {
+                            const depth = i - j
+                            gsap.to(cards[j], {
+                                scale: 1 - depth * scaleStep,
+                                y: -(depth * yStep),
+                                duration: 0.35,
+                                ease: 'power2.out',
+                                overwrite: 'auto',
+                            })
+                        }
+                    },
+                    onLeaveBack: () => {
+                        for (let j = 0; j < i; j++) {
+                            const depth = i - j - 1
+                            gsap.to(cards[j], {
+                                scale: depth > 0 ? 1 - depth * scaleStep : 1,
+                                y: depth > 0 ? -(depth * yStep) : 0,
+                                duration: 0.35,
+                                ease: 'power2.out',
+                                overwrite: 'auto',
+                            })
+                        }
+                    },
                 })
-
-                // ── SCALE DOWN cards below when card i enters ────────────────
-                if (i > 0) {
-                    for (let j = 0; j < i; j++) {
-                        const depth = i - j
-                        gsap.to(cards[j], {
-                            scale: 1 - depth * scaleStep,
-                            y: -(depth * yStep),
-                            borderRadius: pinnedRadius,
-                            ease: 'none',
-                            scrollTrigger: {
-                                trigger: card,
-                                start: `top top+=${cardOffset * i}`,
-                                end: `top top+=${cardOffset * i - 1}`,
-                                scrub: true,
-                            },
-                        })
-                    }
-                }
             })
         }
 
-        // ── Desktop: original values ─────────────────────────────────────────
+        // ── Desktop ───────────────────────────────────────────────────────────
         mm.add('(min-width: 768px)', () => {
-            buildStack(16, 0.04, 10, '28px')
+            buildStack(16, 0.04, 10)
         })
 
-        // ── Mobile: tighter offset, slightly reduced y-shift ─────────────────
+        // ── Mobile ────────────────────────────────────────────────────────────
         mm.add('(max-width: 767px)', () => {
-            buildStack(12, 0.04, 8, '22px')
+            buildStack(12, 0.04, 8)
         })
 
         return () => mm.revert()
