@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const demoImages = [
@@ -12,11 +13,50 @@ const demoImages = [
     'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?q=80&w=2070&auto=format&fit=crop',
 ]
 
-// Duplicate for seamless infinite loop
 const carouselImages = [...demoImages, ...demoImages]
+
+type SubmitState = 'idle' | 'loading' | 'success' | 'error'
 
 export default function DemoSection() {
     const [isPaused, setIsPaused] = useState(false)
+    const [formData, setFormData] = useState({ name: '', business: '', email: '', phone: '' })
+    const [submitState, setSubmitState] = useState<SubmitState>('idle')
+    const [errorMsg, setErrorMsg] = useState('')
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setSubmitState('loading')
+        setErrorMsg('')
+
+        try {
+            const res = await fetch('/api/leads', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...formData,
+                    plan: 'Demo – Solicitud de demostración',
+                    planId: 'demo',
+                }),
+            })
+
+            const data = await res.json()
+
+            if (!res.ok) {
+                setErrorMsg(data.error || 'Error al enviar. Intentá de nuevo.')
+                setSubmitState('error')
+                return
+            }
+
+            setSubmitState('success')
+        } catch {
+            setErrorMsg('Error de conexión. Intentá de nuevo.')
+            setSubmitState('error')
+        }
+    }
 
     return (
         <>
@@ -41,91 +81,133 @@ export default function DemoSection() {
                         Aumenta la fidelidad. Impulsa las ventas.
                     </p>
 
-                    {/* Form */}
-                    <form
-                        className="mt-10 md:mt-16 flex flex-col md:flex-row flex-wrap gap-6 md:gap-8 items-stretch md:items-end justify-center"
-                        onSubmit={(e) => e.preventDefault()}
-                        noValidate
-                    >
-                        {/* Name */}
-                        <div className="flex flex-col gap-2 w-full md:min-w-[180px] md:flex-1 text-left">
-                            <label
-                                htmlFor="demo-name"
-                                className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
-                            >
-                                Nombre
-                            </label>
-                            <input
-                                id="demo-name"
-                                name="name"
-                                type="text"
-                                autoComplete="name"
-                                placeholder="Tu nombre"
-                                className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm"
+                    {submitState === 'success' ? (
+                        /* ── Success state ─────────────────────────────── */
+                        <div className="mt-10 md:mt-16 flex flex-col items-center gap-4 py-6">
+                            <CheckCircle2
+                                size={52}
+                                strokeWidth={1.5}
+                                className="text-[#f14722]"
                             />
+                            <h3 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">
+                                ¡Demo solicitada!
+                            </h3>
+                            <p className="text-zinc-500 text-base max-w-sm leading-relaxed">
+                                Te contactamos en breve para agendar tu demo personalizada.
+                            </p>
                         </div>
-
-                        {/* Business Name */}
-                        <div className="flex flex-col gap-2 w-full md:min-w-[180px] md:flex-1 text-left">
-                            <label
-                                htmlFor="demo-business"
-                                className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
-                            >
-                                Negocio
-                            </label>
-                            <input
-                                id="demo-business"
-                                name="business"
-                                type="text"
-                                autoComplete="organization"
-                                placeholder="Nombre del restaurante"
-                                className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm"
-                            />
-                        </div>
-
-                        {/* Email */}
-                        <div className="flex flex-col gap-2 w-full md:min-w-[180px] md:flex-1 text-left">
-                            <label
-                                htmlFor="demo-email"
-                                className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
-                            >
-                                Email
-                            </label>
-                            <input
-                                id="demo-email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                placeholder="tu@email.com"
-                                className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm"
-                            />
-                        </div>
-
-                        {/* Phone */}
-                        <div className="flex flex-col gap-2 w-full md:min-w-[160px] md:flex-1 text-left">
-                            <label
-                                htmlFor="demo-phone"
-                                className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
-                            >
-                                Teléfono
-                            </label>
-                            <input
-                                id="demo-phone"
-                                name="phone"
-                                type="tel"
-                                autoComplete="tel"
-                                placeholder="+54 9 11 0000 0000"
-                                className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm"
-                            />
-                        </div>
-
-                        <Button
-                            type="submit"
-                            className="w-full md:w-auto bg-zinc-900 text-white rounded-full px-10 md:px-12 h-14 font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-[#f14722] transition-all mt-2 md:mt-0 shrink-0"
+                    ) : (
+                        /* ── Form ─────────────────────────────────────── */
+                        <form
+                            className="mt-10 md:mt-16 flex flex-col md:flex-row flex-wrap gap-6 md:gap-8 items-stretch md:items-end justify-center"
+                            onSubmit={handleSubmit}
+                            noValidate
                         >
-                            Solicitar
-                        </Button>
-                    </form>
+                            {/* Name */}
+                            <div className="flex flex-col gap-2 w-full md:min-w-[180px] md:flex-1 text-left">
+                                <label
+                                    htmlFor="demo-name"
+                                    className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
+                                >
+                                    Nombre
+                                </label>
+                                <input
+                                    id="demo-name"
+                                    name="name"
+                                    type="text"
+                                    autoComplete="name"
+                                    placeholder="Tu nombre"
+                                    required
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    disabled={submitState === 'loading'}
+                                    className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
+                                />
+                            </div>
+
+                            {/* Business */}
+                            <div className="flex flex-col gap-2 w-full md:min-w-[180px] md:flex-1 text-left">
+                                <label
+                                    htmlFor="demo-business"
+                                    className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
+                                >
+                                    Negocio
+                                </label>
+                                <input
+                                    id="demo-business"
+                                    name="business"
+                                    type="text"
+                                    autoComplete="organization"
+                                    placeholder="Nombre del restaurante"
+                                    required
+                                    value={formData.business}
+                                    onChange={handleChange}
+                                    disabled={submitState === 'loading'}
+                                    className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
+                                />
+                            </div>
+
+                            {/* Email */}
+                            <div className="flex flex-col gap-2 w-full md:min-w-[180px] md:flex-1 text-left">
+                                <label
+                                    htmlFor="demo-email"
+                                    className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
+                                >
+                                    Email
+                                </label>
+                                <input
+                                    id="demo-email"
+                                    name="email"
+                                    type="email"
+                                    autoComplete="email"
+                                    placeholder="tu@email.com"
+                                    required
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    disabled={submitState === 'loading'}
+                                    className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
+                                />
+                            </div>
+
+                            {/* Phone */}
+                            <div className="flex flex-col gap-2 w-full md:min-w-[160px] md:flex-1 text-left">
+                                <label
+                                    htmlFor="demo-phone"
+                                    className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
+                                >
+                                    Teléfono
+                                </label>
+                                <input
+                                    id="demo-phone"
+                                    name="phone"
+                                    type="tel"
+                                    autoComplete="tel"
+                                    placeholder="+54 9 11 0000 0000"
+                                    required
+                                    value={formData.phone}
+                                    onChange={handleChange}
+                                    disabled={submitState === 'loading'}
+                                    className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
+                                />
+                            </div>
+
+                            <div className="w-full md:w-auto flex flex-col items-stretch md:items-end gap-2 shrink-0">
+                                <Button
+                                    type="submit"
+                                    disabled={submitState === 'loading'}
+                                    className="w-full md:w-auto bg-zinc-900 text-white rounded-full px-10 md:px-12 h-14 font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-[#f14722] transition-all mt-2 md:mt-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {submitState === 'loading' ? 'Enviando…' : 'Solicitar'}
+                                </Button>
+
+                                {submitState === 'error' && (
+                                    <p className="text-xs text-red-500 font-medium text-center md:text-right mt-1">
+                                        {errorMsg}
+                                    </p>
+                                )}
+                            </div>
+                        </form>
+                    )}
                 </div>
 
                 {/* ── Infinite auto-scroll carousel ─────────────────────────── */}

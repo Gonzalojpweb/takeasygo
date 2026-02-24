@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Store, BarChart3, LogOut, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, Store, BarChart3, LogOut, ChevronRight, UserCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -14,6 +14,7 @@ export default function SuperAdminSidebar() {
     const navItems = [
         { href: '/superadmin', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/superadmin/tenants', label: 'Tenants', icon: Store },
+        { href: '/superadmin/leads', label: 'Leads', icon: UserCheck },
         { href: '/superadmin/analytics', label: 'Analytics', icon: BarChart3 },
     ]
 

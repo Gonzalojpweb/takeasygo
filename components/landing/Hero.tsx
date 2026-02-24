@@ -127,44 +127,45 @@ export default function Hero() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.5 }}
                     >
-                        <a href="mailto:hola@takeasygo.com">
-                            <button
-                                style={{
-                                    height: 48,
-                                    padding: '0 28px',
-                                    background: '#0d0b0a',
-                                    color: '#f7f4f1',
-                                    border: 'none',
-                                    borderRadius: 48,
-                                    fontFamily: "'DM Sans', sans-serif",
-                                    fontSize: 11,
-                                    fontWeight: 500,
-                                    letterSpacing: '0.08em',
-                                    textTransform: 'uppercase',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 10,
-                                    boxShadow: '0 2px 12px rgba(13,11,10,0.12)',
-                                    transition: 'background 0.25s, transform 0.15s, box-shadow 0.25s',
-                                }}
-                                onMouseEnter={e => {
-                                    const el = e.currentTarget
-                                    el.style.background = '#f14722'
-                                    el.style.transform = 'translateY(-2px)'
-                                    el.style.boxShadow = '0 8px 24px rgba(241,71,34,0.22)'
-                                }}
-                                onMouseLeave={e => {
-                                    const el = e.currentTarget
-                                    el.style.background = '#0d0b0a'
-                                    el.style.transform = 'translateY(0)'
-                                    el.style.boxShadow = '0 2px 12px rgba(13,11,10,0.12)'
-                                }}
-                            >
-                                Comenzar ahora
-                                <ArrowRight size={13} />
-                            </button>
-                        </a>
+                        <button
+                            onClick={() =>
+                                document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })
+                            }
+                            style={{
+                                height: 48,
+                                padding: '0 28px',
+                                background: '#0d0b0a',
+                                color: '#f7f4f1',
+                                border: 'none',
+                                borderRadius: 48,
+                                fontFamily: "'DM Sans', sans-serif",
+                                fontSize: 11,
+                                fontWeight: 500,
+                                letterSpacing: '0.08em',
+                                textTransform: 'uppercase',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                boxShadow: '0 2px 12px rgba(13,11,10,0.12)',
+                                transition: 'background 0.25s, transform 0.15s, box-shadow 0.25s',
+                            }}
+                            onMouseEnter={e => {
+                                const el = e.currentTarget
+                                el.style.background = '#f14722'
+                                el.style.transform = 'translateY(-2px)'
+                                el.style.boxShadow = '0 8px 24px rgba(241,71,34,0.22)'
+                            }}
+                            onMouseLeave={e => {
+                                const el = e.currentTarget
+                                el.style.background = '#0d0b0a'
+                                el.style.transform = 'translateY(0)'
+                                el.style.boxShadow = '0 2px 12px rgba(13,11,10,0.12)'
+                            }}
+                        >
+                            Comenzar ahora
+                            <ArrowRight size={13} />
+                        </button>
                     </motion.div>
                 </div>
             </section>
