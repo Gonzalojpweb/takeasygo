@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -15,12 +14,9 @@ const navLinks = [
 
 export default function Navbar() {
     const [scrolled, setScrolled] = useState(false)
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
     useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 20)
-        }
+        const handleScroll = () => setScrolled(window.scrollY > 20)
         window.addEventListener('scroll', handleScroll)
         return () => window.removeEventListener('scroll', handleScroll)
     }, [])
@@ -39,7 +35,9 @@ export default function Navbar() {
                     : 'bg-transparent py-5'
             )}
         >
-            <div className="max-w-7xl mx-auto px-10 flex items-center justify-between">
+            <div className="max-w-7xl mx-auto px-6 md:px-10 flex items-center justify-between">
+
+                {/* Logo — always visible */}
                 <Link href="/" onClick={scrollToTop} className="flex items-center gap-2 group">
                     <div className="w-7 h-7 bg-zinc-900 rounded-md flex items-center justify-center transition-transform duration-300">
                         <span className="text-white font-bold text-sm italic">T</span>
@@ -47,7 +45,7 @@ export default function Navbar() {
                     <span className="text-zinc-900 font-bold text-lg tracking-tight">Takeasygo</span>
                 </Link>
 
-                {/* Desktop Links */}
+                {/* Desktop: full nav links + login */}
                 <div className="hidden md:flex items-center gap-10">
                     {navLinks.map((link) => (
                         <a
@@ -65,35 +63,16 @@ export default function Navbar() {
                     </Link>
                 </div>
 
-                {/* Mobile Toggle */}
-                <button
-                    className="md:hidden text-zinc-900"
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                >
-                    {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-                </button>
-            </div>
-
-            {/* Mobile Menu */}
-            <div className={cn(
-                "fixed inset-0 bg-white z-40 flex flex-col items-center justify-center gap-6 transition-all duration-500 md:hidden",
-                mobileMenuOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
-            )}>
-                {navLinks.map((link) => (
-                    <a
-                        key={link.name}
-                        href={link.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="text-zinc-900 text-xl font-bold uppercase tracking-widest"
+                {/* Mobile: only login button */}
+                <Link href="/login" className="md:hidden">
+                    <Button
+                        size="sm"
+                        className="bg-zinc-900 text-white rounded-full px-5 h-9 text-[10px] font-bold uppercase tracking-wider hover:bg-[#f14722] transition-all"
                     >
-                        {link.name}
-                    </a>
-                ))}
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                    <Button className="bg-zinc-900 text-white rounded-full px-10 py-5 text-sm font-bold uppercase tracking-widest">
                         Iniciar Sesión
                     </Button>
                 </Link>
+
             </div>
         </nav>
     )

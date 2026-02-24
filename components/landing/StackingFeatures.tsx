@@ -35,51 +35,64 @@ const features = [
     },
 ]
 
-// Cuántos px desde el top se pina cada card (se van apilando)
-const CARD_OFFSET = 16 // px de separación visual entre cards apiladas
-
 export default function StackingFeatures() {
     const containerRef = useRef<HTMLDivElement>(null)
 
     useGSAP(() => {
-        const cards = gsap.utils.toArray<HTMLElement>('.sf-card')
-        const total = cards.length
+        const mm = gsap.matchMedia()
 
-        cards.forEach((card, i) => {
-            // ── PIN de cada card ──────────────────────────────────────────
-            // Cada card se pina cuando llega al top, con un offset creciente
-            // para que se vean apiladas
-            ScrollTrigger.create({
-                trigger: card,
-                start: `top top+=${CARD_OFFSET * i}`,
-                endTrigger: containerRef.current,
-                end: 'bottom bottom',
-                pin: true,
-                pinSpacing: false,
-            })
+        // Helper that creates the full stacking animation with configurable values
+        const buildStack = (
+            cardOffset: number,   // px gap between pinned cards
+            scaleStep: number,    // scale reduction per depth level
+            yStep: number,        // y shift (px) per depth level
+            pinnedRadius: string  // border-radius when card is stacked behind
+        ) => {
+            const cards = gsap.utils.toArray<HTMLElement>('.sf-card')
 
-            // ── SCALE DOWN de las cards anteriores ────────────────────────
-            // Cuando la card i entra, las anteriores (0..i-1) se achican
-            // creando el efecto de que "van hacia atrás"
-            if (i > 0) {
-                // Cada card anterior se encoje un poco más cuanto más atrás está
-                for (let j = 0; j < i; j++) {
-                    const depth = i - j // cuántas cards hay encima
-                    gsap.to(cards[j], {
-                        scale: 1 - depth * 0.04,
-                        y: -(depth * 10),
-                        borderRadius: '28px',
-                        ease: 'none',
-                        scrollTrigger: {
-                            trigger: card,
-                            start: `top top+=${CARD_OFFSET * i}`,
-                            end: `top top+=${CARD_OFFSET * i - 1}`,
-                            scrub: true,
-                        },
-                    })
+            cards.forEach((card, i) => {
+                // ── PIN each card when it hits the top ──────────────────────
+                ScrollTrigger.create({
+                    trigger: card,
+                    start: `top top+=${cardOffset * i}`,
+                    endTrigger: containerRef.current,
+                    end: 'bottom bottom',
+                    pin: true,
+                    pinSpacing: false,
+                })
+
+                // ── SCALE DOWN cards below when card i enters ────────────────
+                if (i > 0) {
+                    for (let j = 0; j < i; j++) {
+                        const depth = i - j
+                        gsap.to(cards[j], {
+                            scale: 1 - depth * scaleStep,
+                            y: -(depth * yStep),
+                            borderRadius: pinnedRadius,
+                            ease: 'none',
+                            scrollTrigger: {
+                                trigger: card,
+                                start: `top top+=${cardOffset * i}`,
+                                end: `top top+=${cardOffset * i - 1}`,
+                                scrub: true,
+                            },
+                        })
+                    }
                 }
-            }
+            })
+        }
+
+        // ── Desktop: original values ─────────────────────────────────────────
+        mm.add('(min-width: 768px)', () => {
+            buildStack(16, 0.04, 10, '28px')
         })
+
+        // ── Mobile: tighter offset, slightly reduced y-shift ─────────────────
+        mm.add('(max-width: 767px)', () => {
+            buildStack(12, 0.04, 8, '22px')
+        })
+
+        return () => mm.revert()
     }, { scope: containerRef })
 
     return (
@@ -139,7 +152,6 @@ export default function StackingFeatures() {
                     max-width: 800px;
                     margin: 0 auto;
                     padding: 0 24px;
-                    /* Altura suficiente para que todas las cards pinen bien */
                     padding-bottom: 40px;
                 }
 
@@ -156,7 +168,6 @@ export default function StackingFeatures() {
                     justify-content: space-between;
                     will-change: transform;
                     transform-origin: top center;
-                    /* Margen entre cards */
                     margin-bottom: 20px;
                     box-shadow:
                         0 1px 2px rgba(13,11,10,0.03),
@@ -175,9 +186,12 @@ export default function StackingFeatures() {
                     font-weight: 400;
                     line-height: 1;
                     letter-spacing: -0.04em;
-                    color: rgba(13, 11, 10, 0.03);
+                    color: #f14722;
+                    z-index: -1;
                     pointer-events: none;
                     user-select: none;
+                    opacity: 0.5;
+                    transition: opacity 0.3s;
                 }
 
                 .sf-card-top {
@@ -249,15 +263,22 @@ export default function StackingFeatures() {
                 }
 
                 @media (max-width: 767px) {
-                    .sf-section { padding-top: 72px; padding-bottom: 100px; }
-                    .sf-header { margin-bottom: 60px; padding: 0 16px; }
+                    .sf-section { padding-top: 72px; padding-bottom: 120px; }
+                    .sf-header { margin-bottom: 56px; padding: 0 16px; }
                     .sf-h2 { font-size: clamp(26px, 7vw, 38px); }
-                    .sf-card { padding: 32px 24px; min-height: 260px; }
-                    .sf-card-bg-num { font-size: 100px; right: 20px; bottom: 12px; }
-                    .sf-card-title { font-size: clamp(22px, 5.5vw, 30px); }
-                    .sf-card-desc { font-size: 14px; }
-                    .sf-card-bottom { margin-top: 28px; }
-                    .sf-stack { padding: 0 16px 32px; }
+                    .sf-stack { padding: 0 14px 32px; }
+                    .sf-card {
+                        padding: 28px 22px;
+                        min-height: 240px;
+                        border-radius: 22px;
+                        margin-bottom: 14px;
+                    }
+                    .sf-card-top { gap: 16px; }
+                    .sf-card-bg-num { font-size: 90px; right: 16px; bottom: 10px; }
+                    .sf-card-title { font-size: clamp(20px, 5.5vw, 28px); }
+                    .sf-card-desc { font-size: 13px; line-height: 1.65; }
+                    .sf-card-bottom { margin-top: 20px; }
+                    .sf-icon-wrap { width: 40px; height: 40px; border-radius: 11px; }
                 }
             `}</style>
 
