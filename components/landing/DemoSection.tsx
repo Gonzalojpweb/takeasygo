@@ -153,7 +153,7 @@ export default function DemoSection() {
                                 <img
                                     src={src}
                                     alt=""
-                                    className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
+                                    className="w-full h-full object-cover hover:grayscale-0 transition-all duration-700"
                                     loading="lazy"
                                     draggable={false}
                                 />

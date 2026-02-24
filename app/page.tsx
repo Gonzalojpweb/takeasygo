@@ -30,12 +30,37 @@ export default function LandingPage() {
       {/* Footer Minimalista */}
       <footer className="bg-white border-t border-zinc-100 px-5 md:px-10 py-14 md:py-24">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
+
+          {/* Logo — click vuelve al inicio */}
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex items-center gap-3 group cursor-pointer"
+            aria-label="Volver al inicio"
+          >
+            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center transition-colors group-hover:bg-[#f14722]">
               <span className="text-white font-bold text-base italic">T</span>
             </div>
-            <span className="text-zinc-900 font-bold text-xl tracking-tight">Takeasygo</span>
-          </div>
+            <span className="text-zinc-900 font-bold text-xl tracking-tight group-hover:text-[#f14722] transition-colors">Takeasygo</span>
+          </button>
+
+          {/* Centro: botón volver arriba */}
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label="Volver arriba"
+            className="flex flex-col items-center gap-2 group"
+          >
+            <div className="w-10 h-10 rounded-full border border-zinc-200 flex items-center justify-center transition-all group-hover:border-zinc-900 group-hover:bg-zinc-900">
+              <svg
+                width="14" height="14" viewBox="0 0 14 14" fill="none"
+                className="text-zinc-400 group-hover:text-white transition-colors"
+              >
+                <path d="M7 11V3M3 7l4-4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-300 group-hover:text-zinc-500 transition-colors">
+              Inicio
+            </span>
+          </button>
 
           <div className="flex flex-col items-center md:items-end gap-3">
             <p className="text-zinc-400 font-bold text-[10px] tracking-[0.2em] uppercase">© 2026 Takeasygo - Sophisticated Dining Tech.</p>
@@ -45,6 +70,7 @@ export default function LandingPage() {
               </a>
             </div>
           </div>
+
         </div>
       </footer>
 

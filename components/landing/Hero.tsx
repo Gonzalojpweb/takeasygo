@@ -16,9 +16,9 @@ export default function Hero() {
                 className="relative min-h-[100vh] flex items-center overflow-hidden px-6 md:px-20"
                 style={{ background: '#f7f4f1' }}
             >
-                {/* Ambient glow naranja — bottom right, difuminado, elegante */}
+                {/* Ambient glow naranja — desktop: bottom right radial */}
                 <div
-                    className="absolute pointer-events-none"
+                    className="absolute pointer-events-none hidden md:block"
                     style={{
                         bottom: '-15%',
                         right: '-5%',
@@ -28,13 +28,25 @@ export default function Hero() {
                     }}
                 />
                 <div
-                    className="absolute pointer-events-none"
+                    className="absolute pointer-events-none hidden md:block"
                     style={{
                         bottom: '5%',
                         right: '10%',
                         width: '35vw',
                         height: '35vw',
                         background: 'radial-gradient(ellipse at 50% 50%, rgba(241,71,34,0.07) 0%, transparent 65%)',
+                    }}
+                />
+
+                {/* Mobile glow — degradado desde el pie hacia arriba */}
+                <div
+                    className="absolute pointer-events-none md:hidden"
+                    style={{
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: '72%',
+                        background: 'radial-gradient(ellipse 200% 60% at 50% 100%, rgba(241,71,34, 0.01) 0%, rgb(241,71,34) 38%, transparent 95%)',
                     }}
                 />
 
@@ -87,7 +99,7 @@ export default function Hero() {
                         }}
                     >
                         Una experiencia de venta <br />
-                        <em style={{ color: '#f14722', fontStyle: 'italic' }}>superior para tu marca.</em>
+                        <em style={{ color: 'rgb(241, 71, 34)', fontStyle: 'italic' }}>superior para tu marca.</em>
                     </motion.h1>
 
                     {/* Body */}

@@ -18,11 +18,11 @@ const faqs = [
     },
     {
         q: '¿Qué plan de precios es el adecuado para mi negocio?',
-        a: 'Si buscas escalabilidad con una inversión inicial baja, los planes mensuales son ideales. Para consolidar el sistema como un activo propio de tu empresa, recomendamos el modelo de Inversión Única.'
+        a: 'Podés empezar con planes mensuales o elegir una Inversión Única para hacerlo parte de tu negocio. Ambos modelos están pensados bajo una misma filosofía: sin comisiones abusivas, sin dependencia, y con tecnología que realmente te pertenece.'
     },
     {
         q: '¿Puedo probar el programa antes de comprometerme?',
-        a: 'Sí, ofrecemos demostraciones personalizadas y periodos de prueba asistidos: bajo costo, sin compromiso; para asegurar que Takeasygo sea el motor que tu restaurante necesita.'
+        a: 'Sí, ofrecemos demostraciones personalizadas y un periodo de prueba acompañado por nuestro equipo.Este proceso tiene un costo mínimo, que nos permite garantizar una implementación correcta, asistencia dedicada y un uso real de la plataforma durante la prueba. Al finalizar el periodo, reintegrás el 30% del monto abonado, sin compromiso de continuidad. Nuestro objetivo es simple: asegurarnos de que Takeasygo sea realmente el motor que tu restaurante necesita, antes de que tomes cualquier decisión.'
     }
 ]
 
@@ -31,7 +31,7 @@ export default function FAQ() {
         <section className="bg-zinc-50/50 py-20 md:py-32 px-5 md:px-6 border-t border-zinc-100">
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-10 md:gap-20">
                 <div className="w-full md:w-1/3">
-                    <h2 className="text-6xl md:text-8xl font-bold text-zinc-900 tracking-tighter opacity-10">FAQ</h2>
+                    <h2 className="text-6xl md:text-8xl font-bold text-zinc-900 tracking-tighter opacity-50">FAQ</h2>
                 </div>
 
                 <div className="w-full md:w-2/3">

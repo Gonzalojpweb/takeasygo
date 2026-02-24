@@ -7,17 +7,18 @@ import { useGSAP } from '@gsap/react'
 
 gsap.registerPlugin(ScrollTrigger)
 
-const VIDEO_SRC = 'https://res.cloudinary.com/dypcq8lsa/video/upload/v1771881427/First_scene_a_202602212254_zo6hr_cbcltg.mp4'
+const VIDEO_SRC = 'https://res.cloudinary.com/dypcq8lsa/video/upload/v1771904127/Scene_1_a_202602240036_g1pg1_lswvtw.mp4'
 
+// 7 items (6 fotos + video). El video en posición 5 (penúltimo) para
+// que sea visible cuando el carrusel termina de desplazarse.
 const CAROUSEL_IMAGES = [
-    { src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80', alt: 'Restaurante' },
-    { src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80', alt: 'Restaurante' },
-    { src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80', alt: 'Restaurante' },
+    { src: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=600&q=80', alt: 'Restaurante' },
     { src: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80', alt: 'Gastronomía' },
-    { src: VIDEO_SRC, alt: 'Experiencia', isVideo: true },
+    { src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80', alt: 'Menú' },
     { src: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=600&q=80', alt: 'Chef' },
     { src: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80', alt: 'Plato' },
-    { src: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80', alt: 'Local' },
+    { src: VIDEO_SRC, alt: 'Experiencia', isVideo: true },
+    { src: 'https://images.unsplash.com/photo-1517248135467-4c7ed9d73c7a?w=600&q=80', alt: 'Local' },
 ]
 
 const steps = [
@@ -53,118 +54,133 @@ export default function HowItWorks() {
     useGSAP(() => {
         const mm = gsap.matchMedia()
 
-        // ═══════════════════════════════════════════════════════════════════
-        // DESKTOP (≥ 768px) — valores originales
-        // ═══════════════════════════════════════════════════════════════════
-        mm.add('(min-width: 768px)', () => {
+        /**
+         * ── ARQUITECTURA: UN ÚNICO TIMELINE, UN ÚNICO ScrollTrigger ──────────
+         *
+         * El problema de usar dos ScrollTriggers separados (uno para el carrusel
+         * horizontal y otro para el expand) es que GSAP no puede coordinarlos
+         * correctamente dentro de una sección pinneada con movimiento en X.
+         * El trigger de posición del elemento de video nunca "dispara" en el
+         * momento correcto porque el elemento no se mueve verticalmente.
+         *
+         * Solución: todo el flujo (carrusel → expand → contenido) vive en un
+         * único gsap.timeline() con un único ScrollTrigger que pina el viewport.
+         * Los actos se secuencian por posición en la timeline, no por posición
+         * de elementos en el DOM.
+         *
+         * ACTO 1 (0 → CAROUSEL_DUR):
+         *   track.x de 0 → -totalWidth  (desplazamiento del carrusel)
+         *
+         * ACTO 2 (CAROUSEL_DUR → +2.5):
+         *   expand-wrap crece de card-size → 100vw × 100vh
+         *
+         * ACTO 3a (CAROUSEL_DUR+1.5 → +3):
+         *   overlay aparece
+         *
+         * ACTO 3b (CAROUSEL_DUR+2.5 → +3.7):
+         *   líneas de texto suben (stagger)
+         *
+         * ACTO 3c (CAROUSEL_DUR+3 → +4.8):
+         *   step-cards entran desde abajo (stagger)
+         *
+         * Scroll total (scrollEnd):
+         *   Fase carrusel: totalWidth × 1.4  (la track se mueve a ~0.7× de scroll)
+         *   Fase expansion: 1600px fijos  (suficiente para todos los actos)
+         *   scrollEnd = max(totalWidth, 0) × 1.4 + 1600
+         *
+         * Si el carrusel tiene totalWidth ≤ 0 (todos los ítems caben en viewport),
+         * CAROUSEL_DUR = 0 → el expand empieza inmediatamente, sin carrusel previo.
+         * ─────────────────────────────────────────────────────────────────────
+         */
+        const buildFullAnimation = (
+            cardW: number,      // ancho inicial del expand-wrap (px)
+            cardH: number,      // alto inicial del expand-wrap (px)
+            cardBR: string,     // border-radius inicial del expand-wrap
+            textY: number,      // offset Y inicial de las líneas de texto
+            cardYFrom: number,  // offset Y inicial de las step-cards
+            staggerText: number,
+            staggerCards: number
+        ) => {
+            const vp    = carouselRef.current!
             const track = carouselTrackRef.current!
-            const totalWidth = track.scrollWidth - track.parentElement!.offsetWidth
 
-            // ACTO 1: carrusel horizontal pinneado
-            gsap.to(track, {
-                x: -totalWidth,
-                ease: 'none',
+            // Cuánto puede desplazarse el track (puede ser negativo si cabe todo)
+            const rawScrollWidth = track.scrollWidth - vp.offsetWidth
+            const totalWidth     = Math.max(0, rawScrollWidth)
+
+            // Duración del acto 1 en la timeline (0 si no hay overflow)
+            const CAROUSEL_DUR  = totalWidth > 0 ? 10 : 0
+            const EXPAND_START  = CAROUSEL_DUR  // los actos 2+3 empiezan aquí
+
+            // Píxeles reales de scroll que consumirá cada fase
+            const carouselScrollPx  = totalWidth * 1.4           // fase carrusel
+            const expansionScrollPx = 2200                        // fase expand + contenido (aumentado para dar tiempo al texto)
+            const scrollEnd         = carouselScrollPx + expansionScrollPx
+
+            const tl = gsap.timeline({
                 scrollTrigger: {
-                    trigger: carouselRef.current,
+                    trigger: vp,
                     start: 'top top',
-                    end: () => `+=${totalWidth * 1.2}`,
-                    pin: true,
-                    scrub: 1.2,
-                    anticipatePin: 1,
-                },
-            })
-
-            // ACTO 2 + 3: expand del video → overlay → texto → cards
-            gsap.timeline({
-                scrollTrigger: {
-                    trigger: carouselVideoItemRef.current,
-                    start: '20% top',
-                    end: '+=200',
-                    scrub: 2,
-                },
-            })
-                .fromTo(expandWrapRef.current,
-                    { opacity: 0, width: '380px', height: '500px', borderRadius: '20px' },
-                    { opacity: 1, width: '100vw', height: '100vh', borderRadius: '0px', ease: 'power2.inOut' },
-                    0
-                )
-                .fromTo(overlayRef.current,
-                    { opacity: 0 },
-                    { opacity: 1, ease: 'none' },
-                    0.3
-                )
-                .fromTo(
-                    headlineRef.current!.querySelectorAll('.text-line'),
-                    { y: 60, opacity: 0 },
-                    { y: 0, opacity: 1, stagger: 0.12, ease: 'power3.out' },
-                    0.5
-                )
-                .fromTo(
-                    '.step-card',
-                    { y: 80, opacity: 0, scale: 0.96 },
-                    { y: 0, opacity: 1, scale: 1, stagger: 0.15, ease: 'power2.out' },
-                    0.8
-                )
-        })
-
-        // ═══════════════════════════════════════════════════════════════════
-        // MOBILE (< 768px) — misma secuencia, valores adaptados a pantalla chica
-        // Items del carrusel: 220×300px  |  Expansion: desde 220×300 → 100vw×100vh
-        // ═══════════════════════════════════════════════════════════════════
-        mm.add('(max-width: 767px)', () => {
-            const track = carouselTrackRef.current!
-            // totalWidth es dinámico — se recalcula con los ítems de 220px
-            const totalWidth = track.scrollWidth - track.parentElement!.offsetWidth
-
-            // ACTO 1: mismo carrusel pinneado, scrub un poco más suave para touch
-            gsap.to(track, {
-                x: -totalWidth,
-                ease: 'none',
-                scrollTrigger: {
-                    trigger: carouselRef.current,
-                    start: 'top top',
-                    end: () => `+=${totalWidth * 1.2}`,
+                    end: `+=${scrollEnd}`,
                     pin: true,
                     scrub: 1.5,
                     anticipatePin: 1,
                 },
             })
 
-            // ACTO 2 + 3: expand desde dimensiones del card mobile (220×300)
-            gsap.timeline({
-                scrollTrigger: {
-                    trigger: carouselVideoItemRef.current,
-                    start: '20% top',
-                    end: '+=180',   // un poco menos recorrido — pantalla más corta
-                    scrub: 2,
-                },
-            })
-                .fromTo(expandWrapRef.current,
-                    // from: tamaño del card mobile
-                    { opacity: 0, width: '220px', height: '300px', borderRadius: '14px' },
-                    // to: pantalla completa
-                    { opacity: 1, width: '100vw', height: '100vh', borderRadius: '0px', ease: 'power2.inOut' },
-                    0
-                )
-                .fromTo(overlayRef.current,
-                    { opacity: 0 },
-                    { opacity: 1, ease: 'none' },
-                    0.3
-                )
-                // Texto: offset vertical reducido para pantallas cortas
-                .fromTo(
-                    headlineRef.current!.querySelectorAll('.text-line'),
-                    { y: 40, opacity: 0 },
-                    { y: 0, opacity: 1, stagger: 0.1, ease: 'power3.out' },
-                    0.5
-                )
-                // Cards: mismo efecto, y y scale más moderados
-                .fromTo(
-                    '.step-card',
-                    { y: 50, opacity: 0, scale: 0.97 },
-                    { y: 0, opacity: 1, scale: 1, stagger: 0.12, ease: 'power2.out' },
-                    0.75
-                )
+            // ── ACTO 1: carrusel se desliza en X ────────────────────────────
+            if (totalWidth > 0) {
+                tl.to(track, {
+                    x: -totalWidth,
+                    ease: 'none',
+                    duration: CAROUSEL_DUR,
+                }, 0)
+            }
+
+            // ── ACTO 2: expand-wrap crece hasta pantalla completa ────────────
+            // Duración 3 → la expansión termina en EXPAND_START+3
+            tl.fromTo(
+                expandWrapRef.current,
+                { opacity: 0, width: `${cardW}px`, height: `${cardH}px`, borderRadius: cardBR },
+                { opacity: 1, width: '100vw', height: '100vh', borderRadius: '0px', ease: 'power2.inOut', duration: 3 },
+                EXPAND_START
+            )
+
+            // ── ACTO 3a: overlay oscuro aparece mientras expande ─────────────
+            tl.fromTo(
+                overlayRef.current,
+                { opacity: 0 },
+                { opacity: 1, ease: 'none', duration: 2 },
+                EXPAND_START + 1.5
+            )
+
+            // ── ACTO 3b: líneas de título suben — DESPUÉS de que el expand termina
+            // Empieza en +3.5 para tener el pantalla completa ya establecida
+            tl.fromTo(
+                headlineRef.current!.querySelectorAll('.text-line'),
+                { y: textY, opacity: 0 },
+                { y: 0, opacity: 1, stagger: staggerText, ease: 'power3.out', duration: 1.4 },
+                EXPAND_START + 3.5
+            )
+
+            // ── ACTO 3c: step-cards entran — pausa larga tras el texto
+            // El texto tiene ~4 unidades de timeline para ser leído solo
+            tl.fromTo(
+                '.step-card',
+                { y: cardYFrom, opacity: 0, scale: 0.96 },
+                { y: 0, opacity: 1, scale: 1, stagger: staggerCards, ease: 'power2.out', duration: 1.8 },
+                EXPAND_START + 7.5
+            )
+        }
+
+        // ── Desktop (≥ 768px): card 300×420, offsets mayores ────────────────
+        mm.add('(min-width: 768px)', () => {
+            buildFullAnimation(300, 420, '20px', 60, 80, 0.12, 0.15)
+        })
+
+        // ── Mobile (< 768px): card 220×300, offsets más compactos ───────────
+        mm.add('(max-width: 767px)', () => {
+            buildFullAnimation(220, 300, '14px', 40, 50, 0.10, 0.12)
         })
 
         return () => mm.revert()
@@ -202,8 +218,8 @@ export default function HowItWorks() {
 
                 .carousel-item {
                     flex-shrink: 0;
-                    width: 380px;
-                    height: 500px;
+                    width: 300px;
+                    height: 420px;
                     border-radius: 20px;
                     overflow: hidden;
                     position: relative;
@@ -239,8 +255,8 @@ export default function HowItWorks() {
                     pointer-events: none;
                     z-index: 20;
                     opacity: 0;
-                    width: 380px;
-                    height: 500px;
+                    width: 300px;
+                    height: 420px;
                     border-radius: 20px;
                 }
 
@@ -420,15 +436,11 @@ export default function HowItWorks() {
 
                 /* ══════════════════════════════════════════════════════════════
                    MOBILE (< 768px)
-                   Misma estructura, proporciones ajustadas para pantalla chica.
-                   Los refs y la lógica GSAP se adaptan mediante matchMedia.
                 ══════════════════════════════════════════════════════════════ */
                 @media (max-width: 767px) {
 
-                    /* Carrusel: padding lateral reducido, ítems más pequeños */
                     .carousel-viewport {
                         padding: 0 16px;
-                        /* min-height: 100vh se mantiene — necesario para el pin GSAP */
                     }
 
                     .carousel-track { gap: 12px; }
@@ -439,27 +451,20 @@ export default function HowItWorks() {
                         border-radius: 14px;
                     }
 
-                    /* Expand-wrap: estado inicial = tamaño del card mobile */
+                    /* expand-wrap: estado inicial = card mobile */
                     .expand-wrap {
                         width: 220px;
                         height: 300px;
                         border-radius: 14px;
-                        /* opacity: 0 se hereda del estado base */
                     }
 
-                    /* Contenido del expand: más compacto para caber en 100vh mobile */
                     .expand-content {
                         padding: 20px 14px;
                         justify-content: flex-start;
                         padding-top: 40px;
                     }
 
-                    .pinned-eyebrow {
-                        font-size: 9px;
-                        margin-bottom: 10px;
-                        gap: 8px;
-                    }
-
+                    .pinned-eyebrow { font-size: 9px; margin-bottom: 10px; gap: 8px; }
                     .pinned-eyebrow-line { width: 14px; }
 
                     .pinned-h2 {
@@ -468,50 +473,22 @@ export default function HowItWorks() {
                         line-height: 1.08;
                     }
 
-                    /* Sub-texto ocultado en pantallas muy cortas para liberar espacio */
                     .pinned-sub { display: none; }
 
-                    .cards-inner {
-                        margin-top: 14px;
-                        gap: 8px;
-                        max-width: 100%;
-                    }
+                    .cards-inner { margin-top: 14px; gap: 8px; max-width: 100%; }
 
-                    .step-card {
-                        padding: 14px 16px;
-                        border-radius: 12px;
-                    }
-
-                    .step-card-bg-num {
-                        font-size: 40px;
-                        right: 10px;
-                        top: 8px;
-                    }
-
+                    .step-card { padding: 14px 16px; border-radius: 12px; }
+                    .step-card-bg-num { font-size: 40px; right: 10px; top: 8px; }
                     .step-num-subtitle { margin-bottom: 6px; gap: 8px; }
-
-                    .step-title {
-                        font-size: 16px;
-                        margin-bottom: 4px;
-                    }
-
-                    .step-desc {
-                        font-size: 11px;
-                        line-height: 1.55;
-                    }
-
+                    .step-title { font-size: 16px; margin-bottom: 4px; }
+                    .step-desc { font-size: 11px; line-height: 1.55; }
                     .step-card-bottom { margin-top: 10px; }
-
                     .carousel-item-num { display: none; }
                 }
             `}</style>
 
             <div id="how-we-work" ref={sectionRef} className="hiw-section">
 
-                {/* ═══════════════════════════════════════════════════════
-                    Carrusel + expand: misma estructura DOM para desktop y mobile.
-                    GSAP matchMedia controla los valores según breakpoint.
-                ═══════════════════════════════════════════════════════ */}
                 <div ref={carouselRef} className="carousel-viewport">
 
                     {/* Track de imágenes */}
@@ -534,11 +511,7 @@ export default function HowItWorks() {
                         ))}
                     </div>
 
-                    {/* ═══════════════════════════════════════════════════════
-                        Expand wrap — crece de card → 100vw×100vh con GSAP.
-                        En mobile parte de 220×300 (tamaño del card mobile).
-                        El video, overlay, texto y cards viven aquí.
-                    ═══════════════════════════════════════════════════════ */}
+                    {/* Expand wrap — crece de card → 100vw×100vh con GSAP */}
                     <div ref={expandWrapRef} className="expand-wrap">
 
                         <video autoPlay muted loop playsInline>

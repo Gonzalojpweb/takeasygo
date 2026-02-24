@@ -175,7 +175,7 @@ export default function FeaturesDetail() {
                     <div ref={leftRef} className="w-full flex flex-col">
                         {features.map((f, i) => (
                             <div key={i} className="feature-detail-step h-screen flex flex-col justify-center shrink-0">
-                                <span className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.3em] mb-4">
+                                <span className="text-[#f14722] font-bold text-[12px] uppercase tracking-[0.3em] mb-4">
                                     Funcionalidad 0{i + 1}
                                 </span>
                                 <h3 className="text-3xl md:text-5xl font-bold text-zinc-900 tracking-tight mb-6">
