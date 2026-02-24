@@ -13,40 +13,72 @@ const demoImages = [
 
 export default function DemoSection() {
     return (
-        <section id="demo" className="bg-white py-32 overflow-hidden border-t border-zinc-100">
-            <div className="max-w-7xl mx-auto px-6 mb-24 text-center">
-                <h2 className="text-5xl md:text-7xl font-bold text-zinc-900 tracking-tight mb-6">Solicita Demo</h2>
-                <p className="text-zinc-400 text-xl font-medium">Aumenta la fidelidad. Impulsa las ventas.</p>
+        <section id="demo" className="bg-white py-20 md:py-32 overflow-hidden border-t border-zinc-100">
+            <div className="max-w-7xl mx-auto px-5 md:px-6 mb-14 md:mb-24 text-center">
+                <h2 className="text-4xl md:text-7xl font-bold text-zinc-900 tracking-tight mb-4 md:mb-6">
+                    Solicita Demo
+                </h2>
+                <p className="text-zinc-400 text-base md:text-xl font-medium">
+                    Aumenta la fidelidad. Impulsa las ventas.
+                </p>
 
-                {/* Minimalist Linear Form */}
-                <div className="mt-20 max-w-5xl mx-auto flex flex-wrap gap-8 items-end justify-center">
-                    <div className="flex flex-col gap-2 min-w-[200px] flex-1">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Name</label>
-                        <input type="text" className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200" />
+                {/* Form — stacks to single column on mobile */}
+                <div className="mt-10 md:mt-20 max-w-5xl mx-auto flex flex-col md:flex-row flex-wrap gap-5 md:gap-8 items-stretch md:items-end justify-center">
+                    <div className="flex flex-col gap-2 w-full md:min-w-[200px] md:flex-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1 text-left">
+                            Name
+                        </label>
+                        <input
+                            type="text"
+                            className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200"
+                        />
                     </div>
-                    <div className="flex flex-col gap-2 min-w-[200px] flex-1">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Business Name</label>
-                        <input type="text" className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200" />
+                    <div className="flex flex-col gap-2 w-full md:min-w-[200px] md:flex-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1 text-left">
+                            Business Name
+                        </label>
+                        <input
+                            type="text"
+                            className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200"
+                        />
                     </div>
-                    <div className="flex flex-col gap-2 min-w-[200px] flex-1">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Email</label>
-                        <input type="email" className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200" />
+                    <div className="flex flex-col gap-2 w-full md:min-w-[200px] md:flex-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1 text-left">
+                            Email
+                        </label>
+                        <input
+                            type="email"
+                            className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200"
+                        />
                     </div>
-                    <div className="flex flex-col gap-2 min-w-[200px] flex-1">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Phone</label>
-                        <input type="tel" className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200" />
+                    <div className="flex flex-col gap-2 w-full md:min-w-[200px] md:flex-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1 text-left">
+                            Phone
+                        </label>
+                        <input
+                            type="tel"
+                            className="bg-transparent border-b border-zinc-200 py-3 focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-200"
+                        />
                     </div>
-                    <Button className="bg-zinc-900 text-white rounded-full px-12 h-14 font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-zinc-800 transition-all">
+                    <Button className="w-full md:w-auto bg-zinc-900 text-white rounded-full px-10 md:px-12 h-14 font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-zinc-800 transition-all mt-2 md:mt-0">
                         Submit
                     </Button>
                 </div>
             </div>
 
-            {/* Image Slider Component Placeholder (Horizontal List of Rounded Images) */}
-            <div className="flex gap-6 px-6 no-scrollbar overflow-x-auto pb-10">
+            {/* Horizontal image gallery — touch-scrollable */}
+            <div className="flex gap-4 md:gap-6 pl-5 md:px-6 no-scrollbar overflow-x-auto pb-6 md:pb-10">
                 {demoImages.map((src, i) => (
-                    <div key={i} className="min-w-[300px] h-[200px] rounded-3xl overflow-hidden border border-zinc-100 shadow-sm">
-                        <img src={src} alt="Happy clients" className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700" />
+                    <div
+                        key={i}
+                        className="min-w-[240px] md:min-w-[300px] h-[160px] md:h-[200px] rounded-2xl md:rounded-3xl overflow-hidden border border-zinc-100 shadow-sm flex-shrink-0"
+                    >
+                        <img
+                            src={src}
+                            alt="Happy clients"
+                            className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
+                            loading="lazy"
+                        />
                     </div>
                 ))}
             </div>

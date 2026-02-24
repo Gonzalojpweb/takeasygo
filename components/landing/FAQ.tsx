@@ -22,26 +22,30 @@ const faqs = [
     },
     {
         q: '¿Puedo probar el programa antes de comprometerme?',
-        a: 'Sí, ofrecemos demostraciones personalizadas y periodos de prueba asistidos: bajo costo, sin compromiso;  para asegurar que Takeasygo sea el motor que tu restaurante necesita.'
+        a: 'Sí, ofrecemos demostraciones personalizadas y periodos de prueba asistidos: bajo costo, sin compromiso; para asegurar que Takeasygo sea el motor que tu restaurante necesita.'
     }
 ]
 
 export default function FAQ() {
     return (
-        <section className="bg-zinc-50/50 py-32 px-6 border-t border-zinc-100">
-            <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-20">
+        <section className="bg-zinc-50/50 py-20 md:py-32 px-5 md:px-6 border-t border-zinc-100">
+            <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-10 md:gap-20">
                 <div className="w-full md:w-1/3">
                     <h2 className="text-6xl md:text-8xl font-bold text-zinc-900 tracking-tighter opacity-10">FAQ</h2>
                 </div>
 
                 <div className="w-full md:w-2/3">
-                    <Accordion type="single" collapsible className="w-full space-y-4">
+                    <Accordion type="single" collapsible className="w-full space-y-3 md:space-y-4">
                         {faqs.map((faq, i) => (
-                            <AccordionItem key={i} value={`item-${i}`} className="bg-white border rounded-[1.5rem] px-8 border-zinc-100 shadow-sm overflow-hidden">
-                                <AccordionTrigger className="text-zinc-900 font-bold text-left hover:no-underline py-6">
+                            <AccordionItem
+                                key={i}
+                                value={`item-${i}`}
+                                className="bg-white border rounded-2xl md:rounded-[1.5rem] px-5 md:px-8 border-zinc-100 shadow-sm overflow-hidden"
+                            >
+                                <AccordionTrigger className="text-zinc-900 font-bold text-left text-sm md:text-base hover:no-underline py-5 md:py-6">
                                     {faq.q}
                                 </AccordionTrigger>
-                                <AccordionContent className="text-zinc-500 font-medium leading-relaxed pb-6">
+                                <AccordionContent className="text-zinc-500 font-medium leading-relaxed pb-5 md:pb-6 text-sm">
                                     {faq.a}
                                 </AccordionContent>
                             </AccordionItem>

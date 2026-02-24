@@ -53,13 +53,14 @@ export default function HowItWorks() {
     useGSAP(() => {
         const mm = gsap.matchMedia()
 
+        // ═══════════════════════════════════════════════════════════════════
+        // DESKTOP (≥ 768px) — valores originales
+        // ═══════════════════════════════════════════════════════════════════
         mm.add('(min-width: 768px)', () => {
-            // ─────────────────────────────────────────────────────────────────
-            // ACTO 1: Carrusel horizontal pinneado, se mueve a la izquierda
-            // ─────────────────────────────────────────────────────────────────
             const track = carouselTrackRef.current!
             const totalWidth = track.scrollWidth - track.parentElement!.offsetWidth
 
+            // ACTO 1: carrusel horizontal pinneado
             gsap.to(track, {
                 x: -totalWidth,
                 ease: 'none',
@@ -73,11 +74,7 @@ export default function HowItWorks() {
                 },
             })
 
-            // ─────────────────────────────────────────────────────────────────
-            // ACTO 2 + 3: Cuando el video del carrusel llega al 50% del viewport,
-            // el expand-wrap (absolute, centrado) crece hasta cubrir 100vw x 100vh.
-            // Overlay + texto + cards aparecen encima del video expandido.
-            // ─────────────────────────────────────────────────────────────────
+            // ACTO 2 + 3: expand del video → overlay → texto → cards
             gsap.timeline({
                 scrollTrigger: {
                     trigger: carouselVideoItemRef.current,
@@ -86,31 +83,87 @@ export default function HowItWorks() {
                     scrub: 2,
                 },
             })
-                // expand-wrap aparece y crece
                 .fromTo(expandWrapRef.current,
                     { opacity: 0, width: '380px', height: '500px', borderRadius: '20px' },
                     { opacity: 1, width: '100vw', height: '100vh', borderRadius: '0px', ease: 'power2.inOut' },
                     0
                 )
-                // overlay oscuro
                 .fromTo(overlayRef.current,
                     { opacity: 0 },
                     { opacity: 1, ease: 'none' },
                     0.3
                 )
-                // texto emerge desde abajo
                 .fromTo(
                     headlineRef.current!.querySelectorAll('.text-line'),
                     { y: 60, opacity: 0 },
                     { y: 0, opacity: 1, stagger: 0.12, ease: 'power3.out' },
                     0.5
                 )
-                // cards aparecen escalonadas
                 .fromTo(
                     '.step-card',
                     { y: 80, opacity: 0, scale: 0.96 },
                     { y: 0, opacity: 1, scale: 1, stagger: 0.15, ease: 'power2.out' },
                     0.8
+                )
+        })
+
+        // ═══════════════════════════════════════════════════════════════════
+        // MOBILE (< 768px) — misma secuencia, valores adaptados a pantalla chica
+        // Items del carrusel: 220×300px  |  Expansion: desde 220×300 → 100vw×100vh
+        // ═══════════════════════════════════════════════════════════════════
+        mm.add('(max-width: 767px)', () => {
+            const track = carouselTrackRef.current!
+            // totalWidth es dinámico — se recalcula con los ítems de 220px
+            const totalWidth = track.scrollWidth - track.parentElement!.offsetWidth
+
+            // ACTO 1: mismo carrusel pinneado, scrub un poco más suave para touch
+            gsap.to(track, {
+                x: -totalWidth,
+                ease: 'none',
+                scrollTrigger: {
+                    trigger: carouselRef.current,
+                    start: 'top top',
+                    end: () => `+=${totalWidth * 1.2}`,
+                    pin: true,
+                    scrub: 1.5,
+                    anticipatePin: 1,
+                },
+            })
+
+            // ACTO 2 + 3: expand desde dimensiones del card mobile (220×300)
+            gsap.timeline({
+                scrollTrigger: {
+                    trigger: carouselVideoItemRef.current,
+                    start: '20% top',
+                    end: '+=180',   // un poco menos recorrido — pantalla más corta
+                    scrub: 2,
+                },
+            })
+                .fromTo(expandWrapRef.current,
+                    // from: tamaño del card mobile
+                    { opacity: 0, width: '220px', height: '300px', borderRadius: '14px' },
+                    // to: pantalla completa
+                    { opacity: 1, width: '100vw', height: '100vh', borderRadius: '0px', ease: 'power2.inOut' },
+                    0
+                )
+                .fromTo(overlayRef.current,
+                    { opacity: 0 },
+                    { opacity: 1, ease: 'none' },
+                    0.3
+                )
+                // Texto: offset vertical reducido para pantallas cortas
+                .fromTo(
+                    headlineRef.current!.querySelectorAll('.text-line'),
+                    { y: 40, opacity: 0 },
+                    { y: 0, opacity: 1, stagger: 0.1, ease: 'power3.out' },
+                    0.5
+                )
+                // Cards: mismo efecto, y y scale más moderados
+                .fromTo(
+                    '.step-card',
+                    { y: 50, opacity: 0, scale: 0.97 },
+                    { y: 0, opacity: 1, scale: 1, stagger: 0.12, ease: 'power2.out' },
+                    0.75
                 )
         })
 
@@ -122,12 +175,13 @@ export default function HowItWorks() {
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
 
+                /* ── Sección wrapper ── */
                 .hiw-section {
                     background: #f7f4f1;
                     overflow: hidden;
                 }
 
-                /* ── ACTO 1: Carrusel ── */
+                /* ── ACTO 1: Viewport del carrusel ── */
                 .carousel-viewport {
                     position: relative;
                     width: 100%;
@@ -175,7 +229,7 @@ export default function HowItWorks() {
                     color: rgba(247,244,241,0.6);
                 }
 
-                /* ── Expand wrap: vive dentro del carousel-viewport, absolute centrado ── */
+                /* ── ACTO 2+3: Expand wrap — absolute dentro del carousel-viewport ── */
                 .expand-wrap {
                     position: absolute;
                     top: 50%;
@@ -197,7 +251,6 @@ export default function HowItWorks() {
                     display: block;
                 }
 
-                /* ── Overlay oscuro dentro del expand-wrap ── */
                 .expand-overlay {
                     position: absolute;
                     inset: 0;
@@ -206,7 +259,6 @@ export default function HowItWorks() {
                     z-index: 1;
                 }
 
-                /* ── Contenido encima del video: texto + cards ── */
                 .expand-content {
                     position: absolute;
                     inset: 0;
@@ -272,7 +324,6 @@ export default function HowItWorks() {
                     margin: 0 auto;
                 }
 
-                /* ── Cards dentro del expand ── */
                 .cards-inner {
                     width: 100%;
                     max-width: 580px;
@@ -367,22 +418,103 @@ export default function HowItWorks() {
                     background: linear-gradient(90deg, rgba(241,71,34,0.3), transparent);
                 }
 
+                /* ══════════════════════════════════════════════════════════════
+                   MOBILE (< 768px)
+                   Misma estructura, proporciones ajustadas para pantalla chica.
+                   Los refs y la lógica GSAP se adaptan mediante matchMedia.
+                ══════════════════════════════════════════════════════════════ */
                 @media (max-width: 767px) {
-                    .carousel-item { width: 280px; height: 380px; }
-                    .carousel-viewport { padding: 0 24px; }
-                    .expand-content { padding: 32px 16px; }
-                    .step-card { padding: 28px 24px; }
+
+                    /* Carrusel: padding lateral reducido, ítems más pequeños */
+                    .carousel-viewport {
+                        padding: 0 16px;
+                        /* min-height: 100vh se mantiene — necesario para el pin GSAP */
+                    }
+
+                    .carousel-track { gap: 12px; }
+
+                    .carousel-item {
+                        width: 220px;
+                        height: 300px;
+                        border-radius: 14px;
+                    }
+
+                    /* Expand-wrap: estado inicial = tamaño del card mobile */
+                    .expand-wrap {
+                        width: 220px;
+                        height: 300px;
+                        border-radius: 14px;
+                        /* opacity: 0 se hereda del estado base */
+                    }
+
+                    /* Contenido del expand: más compacto para caber en 100vh mobile */
+                    .expand-content {
+                        padding: 20px 14px;
+                        justify-content: flex-start;
+                        padding-top: 40px;
+                    }
+
+                    .pinned-eyebrow {
+                        font-size: 9px;
+                        margin-bottom: 10px;
+                        gap: 8px;
+                    }
+
+                    .pinned-eyebrow-line { width: 14px; }
+
+                    .pinned-h2 {
+                        font-size: clamp(18px, 5.5vw, 24px);
+                        margin-bottom: 8px;
+                        line-height: 1.08;
+                    }
+
+                    /* Sub-texto ocultado en pantallas muy cortas para liberar espacio */
+                    .pinned-sub { display: none; }
+
+                    .cards-inner {
+                        margin-top: 14px;
+                        gap: 8px;
+                        max-width: 100%;
+                    }
+
+                    .step-card {
+                        padding: 14px 16px;
+                        border-radius: 12px;
+                    }
+
+                    .step-card-bg-num {
+                        font-size: 40px;
+                        right: 10px;
+                        top: 8px;
+                    }
+
+                    .step-num-subtitle { margin-bottom: 6px; gap: 8px; }
+
+                    .step-title {
+                        font-size: 16px;
+                        margin-bottom: 4px;
+                    }
+
+                    .step-desc {
+                        font-size: 11px;
+                        line-height: 1.55;
+                    }
+
+                    .step-card-bottom { margin-top: 10px; }
+
+                    .carousel-item-num { display: none; }
                 }
             `}</style>
 
             <div id="how-we-work" ref={sectionRef} className="hiw-section">
 
-                {/* ═══════════════════════════════════════════════════════════
-                    ACTO 1 — Carrusel horizontal pinneado
-                ═══════════════════════════════════════════════════════════ */}
+                {/* ═══════════════════════════════════════════════════════
+                    Carrusel + expand: misma estructura DOM para desktop y mobile.
+                    GSAP matchMedia controla los valores según breakpoint.
+                ═══════════════════════════════════════════════════════ */}
                 <div ref={carouselRef} className="carousel-viewport">
 
-                    {/* Track con las imágenes */}
+                    {/* Track de imágenes */}
                     <div ref={carouselTrackRef} className="carousel-track">
                         {CAROUSEL_IMAGES.map((item, i) => (
                             <div
@@ -403,21 +535,18 @@ export default function HowItWorks() {
                     </div>
 
                     {/* ═══════════════════════════════════════════════════════
-                        ACTO 2+3 — Expand wrap: absolute dentro del viewport
-                        Crece desde 380×500 hasta 100vw×100vh con GSAP.
-                        Todo el contenido (overlay + texto + cards) vive adentro.
+                        Expand wrap — crece de card → 100vw×100vh con GSAP.
+                        En mobile parte de 220×300 (tamaño del card mobile).
+                        El video, overlay, texto y cards viven aquí.
                     ═══════════════════════════════════════════════════════ */}
                     <div ref={expandWrapRef} className="expand-wrap">
 
-                        {/* Video de fondo */}
                         <video autoPlay muted loop playsInline>
                             <source src={VIDEO_SRC} type="video/mp4" />
                         </video>
 
-                        {/* Overlay oscuro animado */}
                         <div ref={overlayRef} className="expand-overlay" />
 
-                        {/* Texto + cards flotando encima */}
                         <div ref={headlineRef} className="expand-content">
                             <div className="text-line">
                                 <div className="pinned-eyebrow">
@@ -439,7 +568,6 @@ export default function HowItWorks() {
                                 </p>
                             </div>
 
-                            {/* Cards */}
                             <div className="cards-inner">
                                 {steps.map((step, i) => (
                                     <div key={i} className="step-card">

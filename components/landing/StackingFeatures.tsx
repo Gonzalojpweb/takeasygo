@@ -249,8 +249,15 @@ export default function StackingFeatures() {
                 }
 
                 @media (max-width: 767px) {
-                    .sf-card { padding: 36px 28px; min-height: 300px; }
-                    .sf-section { padding-top: 80px; padding-bottom: 120px; }
+                    .sf-section { padding-top: 72px; padding-bottom: 100px; }
+                    .sf-header { margin-bottom: 60px; padding: 0 16px; }
+                    .sf-h2 { font-size: clamp(26px, 7vw, 38px); }
+                    .sf-card { padding: 32px 24px; min-height: 260px; }
+                    .sf-card-bg-num { font-size: 100px; right: 20px; bottom: 12px; }
+                    .sf-card-title { font-size: clamp(22px, 5.5vw, 30px); }
+                    .sf-card-desc { font-size: 14px; }
+                    .sf-card-bottom { margin-top: 28px; }
+                    .sf-stack { padding: 0 16px 32px; }
                 }
             `}</style>
 
