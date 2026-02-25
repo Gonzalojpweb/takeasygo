@@ -13,6 +13,10 @@ export interface ILocation extends Document {
     orderModes: ('takeaway' | 'dine-in')[]
     estimatedPickupTime: number
   }
+  hero: {
+    mediaType: 'none' | 'image' | 'video'
+    url: string
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -65,6 +69,10 @@ const LocationSchema = new Schema<ILocation>(
       },
       estimatedPickupTime: { type: Number, default: 20 },
     },
+    hero: {
+      mediaType: { type: String, enum: ['none', 'image', 'video'], default: 'none' },
+      url: { type: String, default: '' },
+    },
   },
   {
     timestamps: true,
@@ -76,5 +84,3 @@ LocationSchema.index({ tenantId: 1, slug: 1 }, { unique: true })
 
 const Location = mongoose.models.Location || mongoose.model<ILocation>('Location', LocationSchema)
 export default Location
-
-// export

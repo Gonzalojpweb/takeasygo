@@ -15,11 +15,14 @@ import {
   Instagram, Facebook,
   Twitter, Globe,
   Clock, Save,
-  Smartphone, Eye, AlertCircle
+  Smartphone, Eye, AlertCircle,
+  Film, Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 
+
+type HeroMediaType = 'none' | 'image' | 'video'
 
 interface Props {
   tenant: any
@@ -50,6 +53,15 @@ export default function SettingsForm({ tenant, locations, tenantSlug }: Props) {
     Object.fromEntries(locations.map((l: any) => [l._id, l.hours ?? '']))
   )
   const [hoursLoading, setHoursLoading] = useState<string | null>(null)
+
+  // Location hero state
+  const [heroMap, setHeroMap] = useState<Record<string, { mediaType: HeroMediaType; url: string }>>(
+    Object.fromEntries(locations.map((l: any) => [
+      l._id,
+      { mediaType: l.hero?.mediaType ?? 'none', url: l.hero?.url ?? '' },
+    ]))
+  )
+  const [heroSaving, setHeroSaving] = useState<string | null>(null)
 
   async function handleSaveBranding() {
     setLoading(true)
@@ -104,12 +116,54 @@ export default function SettingsForm({ tenant, locations, tenantSlug }: Props) {
     }
   }
 
+  async function saveHeroToDB(locationId: string, hero: { mediaType: HeroMediaType; url: string }) {
+    const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hero }),
+    })
+    if (!res.ok) throw new Error()
+  }
+
+  async function handleHeroUpload(locationId: string, file: File | undefined) {
+    if (!file) return
+    const mediaType: HeroMediaType = file.type.startsWith('video/') ? 'video' : 'image'
+    setHeroSaving(locationId)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploadRes = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
+      if (!uploadRes.ok) throw new Error()
+      const { url } = await uploadRes.json()
+      await saveHeroToDB(locationId, { mediaType, url })
+      setHeroMap(p => ({ ...p, [locationId]: { mediaType, url } }))
+      toast.success('Portada actualizada')
+    } catch {
+      toast.error('Error al subir la portada')
+    } finally {
+      setHeroSaving(null)
+    }
+  }
+
+  async function handleHeroRemove(locationId: string) {
+    setHeroSaving(locationId)
+    try {
+      await saveHeroToDB(locationId, { mediaType: 'none', url: '' })
+      setHeroMap(p => ({ ...p, [locationId]: { mediaType: 'none', url: '' } }))
+      toast.success('Portada eliminada')
+    } catch {
+      toast.error('Error al eliminar la portada')
+    } finally {
+      setHeroSaving(null)
+    }
+  }
+
   const labelCls = "text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50 mb-2 block"
   const inputCls = "w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-2xl px-4 py-3 outline-none transition-all shadow-sm"
 
   return (
     <div className="max-w-6xl">
-      <Tabs defaultValue="branding" className="w-full" onValueChange={setActiveTab}>
+      <Tabs id="settings-tabs" defaultValue="branding" className="w-full" onValueChange={setActiveTab}>
         <div className="flex overflow-x-auto pb-4 mb-2 no-scrollbar">
           <TabsList className="bg-muted/50 border border-border/40 p-1.5 rounded-2xl h-auto gap-1">
             <TabTrigger value="branding" icon={<Palette size={16} />} label="Identidad" />
@@ -403,6 +457,96 @@ export default function SettingsForm({ tenant, locations, tenantSlug }: Props) {
                           disabled={hoursLoading === loc._id}>
                           {hoursLoading === loc._id ? 'Sincronizando...' : 'Guardar Horarios'}
                         </Button>
+
+                        {/* ── Hero media ── */}
+                        <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-3 mt-2">
+                          <div className="flex items-center gap-2">
+                            <Film size={12} className="text-primary" />
+                            <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+                              Portada del Menú
+                            </label>
+                          </div>
+
+                          {/* Hidden file input */}
+                          <input
+                            type="file"
+                            accept="image/*,video/*"
+                            className="hidden"
+                            id={`hero-upload-${loc._id}`}
+                            onChange={e => handleHeroUpload(loc._id, e.target.files?.[0])}
+                          />
+
+                          {/* Upload / preview zone */}
+                          <div
+                            onClick={() => !heroSaving && document.getElementById(`hero-upload-${loc._id}`)?.click()}
+                            className={cn(
+                              'w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all relative overflow-hidden group',
+                              heroSaving === loc._id
+                                ? 'cursor-wait opacity-70'
+                                : 'cursor-pointer',
+                              heroMap[loc._id]?.url
+                                ? 'border-primary/40 bg-primary/5 aspect-video'
+                                : 'border-border hover:border-primary/40 hover:bg-muted/50 h-28'
+                            )}
+                          >
+                            {heroSaving === loc._id ? (
+                              <div className="flex flex-col items-center gap-2 p-4">
+                                <Loader2 size={22} className="animate-spin text-primary" />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                  Subiendo…
+                                </p>
+                              </div>
+                            ) : heroMap[loc._id]?.url ? (
+                              <>
+                                {heroMap[loc._id].mediaType === 'video' ? (
+                                  <video
+                                    src={heroMap[loc._id].url}
+                                    className="w-full h-full object-cover rounded-xl"
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                  />
+                                ) : (
+                                  <img
+                                    src={heroMap[loc._id].url}
+                                    alt=""
+                                    className="w-full h-full object-cover rounded-xl"
+                                  />
+                                )}
+                                {/* Hover overlay */}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-2">
+                                  <Camera className="text-white" size={20} />
+                                  <span className="text-white text-[10px] font-black uppercase tracking-widest">
+                                    Cambiar
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex flex-col items-center gap-2 p-4">
+                                <Film size={26} className="text-muted-foreground/40" />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-center">
+                                  Click para subir imagen o video
+                                </p>
+                                <p className="text-[9px] text-muted-foreground/40">
+                                  JPG · PNG · MP4 · MOV
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Remove button */}
+                          {heroMap[loc._id]?.url && (
+                            <Button
+                              variant="ghost"
+                              className="w-full text-destructive hover:bg-destructive/5 text-[10px] font-bold uppercase tracking-widest h-8"
+                              disabled={heroSaving === loc._id}
+                              onClick={() => handleHeroRemove(loc._id)}
+                            >
+                              Eliminar portada
+                            </Button>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   ))

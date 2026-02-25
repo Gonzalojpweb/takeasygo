@@ -9,6 +9,7 @@ export const authConfig = {
         token.id = user.id
         token.role = user.role
         token.tenantId = user.tenantId
+        token.tenantSlug = user.tenantSlug
         token.assignedLocation = user.assignedLocation
       }
       return token
@@ -18,6 +19,7 @@ export const authConfig = {
         session.user.id = token.id as string
         session.user.role = token.role as string
         session.user.tenantId = token.tenantId as string | null
+        session.user.tenantSlug = token.tenantSlug as string | null
         session.user.assignedLocation = token.assignedLocation as string | null
       }
       return session

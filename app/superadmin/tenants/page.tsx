@@ -3,7 +3,7 @@ import Tenant from '@/models/Tenant'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, ExternalLink, MapPin, Settings } from 'lucide-react'
+import { Plus, ExternalLink, MapPin, Settings, Users } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -68,6 +68,11 @@ export default async function TenantsPage() {
                 <Link href={`/superadmin/tenants/${tenant._id}/locations`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full rounded-xl font-bold text-xs border-2 hover:bg-primary hover:border-primary hover:text-white transition-all group/btn">
                     <MapPin className="mr-2 h-3 w-3 group-hover/btn:scale-110 transition-transform" /> Sedes
+                  </Button>
+                </Link>
+                <Link href={`/superadmin/tenants/${tenant._id}/users`}>
+                  <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all" title="Usuarios">
+                    <Users className="h-4 w-4" />
                   </Button>
                 </Link>
                 <Link href={`/superadmin/tenants/${tenant._id}/edit`}>
