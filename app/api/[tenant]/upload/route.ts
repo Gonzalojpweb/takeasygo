@@ -31,20 +31,41 @@ export async function POST(
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
+    const isVideo = file.type.startsWith('video/')
+
     const result = await new Promise<any>((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: `takeasygo/${tenantSlug}`,
-          transformation: [{ width: 800, height: 600, crop: 'fill', quality: 'auto' }],
-        },
-        (error, result) => {
-          if (error) reject(error)
-          else resolve(result)
-        }
-      ).end(buffer)
+      if (isVideo) {
+        cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'video',
+            folder: `takeasygo/${tenantSlug}/hero`,
+            quality: 'auto',
+          },
+          (error, result) => {
+            if (error) reject(error)
+            else resolve(result)
+          }
+        ).end(buffer)
+      } else {
+        cloudinary.uploader.upload_stream(
+          {
+            folder: `takeasygo/${tenantSlug}`,
+            transformation: [{ width: 800, height: 600, crop: 'fill', quality: 'auto' }],
+          },
+          (error, result) => {
+            if (error) reject(error)
+            else resolve(result)
+          }
+        ).end(buffer)
+      }
     })
 
-    return NextResponse.json({ url: result.secure_url })
+    // Normalize video URLs to .mp4 for cross-browser compatibility
+    const url = isVideo
+      ? result.secure_url.replace(/\.[^/.]+$/, '.mp4')
+      : result.secure_url
+
+    return NextResponse.json({ url })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
