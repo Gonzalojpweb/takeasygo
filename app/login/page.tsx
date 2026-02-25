@@ -1,6 +1,6 @@
 'use client'
 
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -31,7 +31,17 @@ export default function LoginPage() {
             setError('Email o contraseña incorrectos')
             setLoading(false)
         } else {
-            router.push('/superadmin')
+            const session = await getSession()
+            const role = session?.user?.role
+            const tenantSlug = session?.user?.tenantSlug
+
+            if (role === 'superadmin') {
+                router.push('/superadmin')
+            } else if (tenantSlug) {
+                router.push(`/${tenantSlug}/admin`)
+            } else {
+                router.push('/superadmin')
+            }
         }
     }
 
