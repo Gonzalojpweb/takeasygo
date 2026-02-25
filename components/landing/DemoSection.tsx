@@ -5,10 +5,10 @@ import { CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const demoImages = [
-    'https://images.unsplash.com/photo-1517248135467-4c7ed9d73c7a?q=80&w=2070&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1552566626-52f8b828add9?q=80&w=2070&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=2074&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1590650153855-d9e808231d41?q=80&w=2070&auto=format&fit=crop',
+    'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772042562/ChatGPT_Image_25_feb_2026_02_45_51_p.m._meobg5.png',
+    'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038261/Iphone_on_table_with_coffee_b047a1844a_w2mryk.png',
+    'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038257/La_web_utiliza_un_fondo_blancocrema_f7f4f1_y_acent_45f3ac9529_u9qpzr.png',
+    'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038257/La_web_utiliza_un_fondo_blancocrema_f7f4f1_y_acent_c402e4742b_zcniii.png',
     'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2015&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?q=80&w=2070&auto=format&fit=crop',
 ]

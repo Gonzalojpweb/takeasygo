@@ -12,32 +12,32 @@ const VIDEO_SRC = 'https://res.cloudinary.com/dypcq8lsa/video/upload/v1771904127
 // 7 items (6 fotos + video). El video en posición 5 (penúltimo) para
 // que sea visible cuando el carrusel termina de desplazarse.
 const CAROUSEL_IMAGES = [
-    { src: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=600&q=80', alt: 'Restaurante' },
-    { src: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80', alt: 'Gastronomía' },
-    { src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80', alt: 'Menú' },
-    { src: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=600&q=80', alt: 'Chef' },
-    { src: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80', alt: 'Plato' },
+    { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038261/Iphone_on_table_with_coffee_b047a1844a_w2mryk.png', alt: 'Restaurante' },
+    { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038258/Fotos_de_clientes_en_restaurantes_167e7e53b8_bkypke.png', alt: 'Gastronomía' },
+    { src: 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1769023313/cero-cafe/dishes/enxhauqwds92sgmdstdb.png', alt: 'Menú' },
+    { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038261/La_web_utiliza_un_fondo_blancocrema_f7f4f1_y_acent_bfa90da748_ozkwe4.png', alt: 'Chef' },
+    { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038260/La_web_utiliza_un_fondo_blancocrema_f7f4f1_y_acent_da49b274a9_dupvxz.png', alt: 'Plato' },
     { src: VIDEO_SRC, alt: 'Experiencia', isVideo: true },
-    { src: 'https://images.unsplash.com/photo-1517248135467-4c7ed9d73c7a?w=600&q=80', alt: 'Local' },
+    { src: 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1769023785/cero-cafe/dishes/jswzlgaexjdvhyezs6go.png', alt: 'Local' },
 ]
 
 const steps = [
     {
-        title: 'Autonomía Total',
+        title: 'Control del canal de ventas',
         subtitle: 'El activo del negocio',
-        desc: 'Transformamos pedidos en información y clientes en relaciones duraderas.',
+        desc: 'Cada pedido queda en tu sistema. Cada cliente, en tu base. El canal es tuyo. La información también.',
         num: '01',
     },
     {
-        title: 'Sin Intermediarios',
+        title: 'Venta directa, sin comisiones',
         subtitle: 'Venta Directa',
-        desc: 'Tu propio canal, tus propias reglas. Mantén el 100% de tu margen operativo.',
+        desc: 'Pedidos propios. Pagos integrados. El margen queda en esssl restaurante. Vendés directo. Cobrás directo.',
         num: '02',
     },
     {
-        title: 'Identidad Digital',
+        title: 'Menú propio, no genérico',
         subtitle: 'Marca Propia',
-        desc: 'Un menú que respira la esencia de tu local, alejándose de lo genérico.',
+        desc: 'Diseñado para vender mejor, no para parecerse a una app más.',
         num: '03',
     },
 ]
@@ -530,14 +530,14 @@ export default function HowItWorks() {
                             </div>
                             <div className="text-line">
                                 <h2 className="pinned-h2">
-                                    Un proceso pensado<br />
-                                    <em>para la paz del dueño.</em>
+                                    Un proceso diseñado<br />
+                                    <em>para vender directo, sin fricción.</em>
                                 </h2>
                             </div>
                             <div className="text-line">
                                 <p className="pinned-sub">
-                                    Más lealtad. Más ventas. Más crecimiento.<br />
-                                    Sin fricción, sin intermediarios.
+                                    Pedidos directos, pagos integrados y control del canal.<br />
+                                    Un flujo simple para el cliente. Previsible para el negocio.
                                 </p>
                             </div>
 

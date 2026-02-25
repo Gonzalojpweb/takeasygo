@@ -13,31 +13,31 @@ const features = [
         title: 'Target Promotions',
         subtitle: 'Notificaciones Push Estratégicas',
         desc: 'Envía mensajes y ofertas exclusivas directamente al celular de tus clientes, incentivando el regreso y la fidelidad.',
-        image: 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?q=80&w=2070&auto=format&fit=crop'
+        image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046374/func1_war8qd.png'
     },
     {
         title: 'QR Code Menu',
         subtitle: 'Acceso Instantáneo',
         desc: 'Brinda a tus clientes acceso total a tu menú digital a través de QRs personalizados, eliminando esperas y optimizando el servicio.',
-        image: 'https://images.unsplash.com/photo-1590650153855-d9e808231d41?q=80&w=2070&auto=format&fit=crop'
+        image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046385/funcionalidad2_sscrts.png'
     },
     {
         title: 'Intelligent Upselling',
         subtitle: 'Aumenta el Ticket Promedio',
         desc: 'Sugerencias automatizadas durante el flujo de pedido que invitan a tus clientes a descubrir nuevos sabores y complementos.',
-        image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=2074&auto=format&fit=crop'
+        image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046375/funci3_ogkgwo.png'
     },
     {
         title: 'Club de Fidelización',
         subtitle: 'Crea Comunidad',
         desc: 'Transforma clientes ocasionales en recurrentes con un sistema de puntos y recompensas diseñado para el crecimiento mutuo.',
-        image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=2070&auto=format&fit=crop'
+        image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046375/func4_k8llnt.png'
     },
     {
         title: 'Acceso Universal',
         subtitle: 'Control en tiempo real',
         desc: 'Gestiona tu plataforma desde cualquier dispositivo y en cualquier momento. La información de tu negocio siempre a mano.',
-        image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2015&auto=format&fit=crop'
+        image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046373/fun5_sjhanb.png'
     }
 ]
 
