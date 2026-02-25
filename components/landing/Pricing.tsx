@@ -108,7 +108,7 @@ export default function Pricing() {
 
                     {/* ── Header ─────────────────────────────────────────── */}
                     <div className="text-center mb-12 md:mb-16">
-                        <span className="text-zinc-400 font-bold uppercase tracking-[0.3em] text-[10px]">
+                        <span className="text-[#f14722] font-bold uppercase tracking-[0.3em] text-[10px]">
                             Modelos de Negocio
                         </span>
                         <h2 className="text-3xl md:text-5xl font-bold text-zinc-900 tracking-tight mt-4 mb-8">

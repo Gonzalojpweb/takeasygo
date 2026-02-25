@@ -197,6 +197,26 @@ export default function HowItWorks() {
                     overflow: hidden;
                 }
 
+                /* ── Header estático sobre el carrusel ── */
+                .hiw-header {
+                    padding: 96px 48px 56px;
+                    text-align: center;
+                }
+                .hiw-header .pinned-eyebrow {
+                    margin-bottom: 24px;
+                }
+                .hiw-header .pinned-h2 {
+                    color: #0d0b0a;
+                    margin-bottom: 0;
+                }
+                .hiw-header .pinned-h2 em {
+                    color: rgb(241, 71, 34);
+                    font-style: italic;
+                }
+                @media (max-width: 767px) {
+                    .hiw-header { padding: 56px 20px 36px; }
+                }
+
                 /* ── ACTO 1: Viewport del carrusel ── */
                 .carousel-viewport {
                     position: relative;
@@ -289,7 +309,6 @@ export default function HowItWorks() {
 
                 .text-line {
                     display: block;
-                    overflow: hidden;
                 }
 
                 .pinned-eyebrow {
@@ -315,29 +334,31 @@ export default function HowItWorks() {
 
                 .pinned-h2 {
                     font-family: 'DM Serif Display', serif;
-                    font-size: clamp(32px, 4.5vw, 64px);
+                    font-size: clamp(20px, 2vw, 60px);
                     font-weight: 400;
                     line-height: 1.06;
                     letter-spacing: -0.02em;
                     color: #f7f4f1;
                     text-align: center;
-                    margin-bottom: 16px;
+                    margin: 20px 0 0 0px;
+
                 }
 
-                .pinned-h2 em {
+                .pinned-h2-text em {
+                    font-size: .8em;
                     font-style: italic;
-                    color: rgba(247,244,241,0.5);
+                    background: #f14722;
                 }
 
                 .pinned-sub {
                     font-family: 'DM Sans', sans-serif;
                     font-size: 15px;
                     font-weight: 300;
-                    line-height: 1.7;
+                    line-height: 1.75;
                     color: rgba(247,244,241,0.55);
                     text-align: center;
                     max-width: 380px;
-                    margin: 0 auto;
+                    margin: 16px auto 0;
                 }
 
                 .cards-inner {
@@ -489,6 +510,19 @@ export default function HowItWorks() {
 
             <div id="how-we-work" ref={sectionRef} className="hiw-section">
 
+                {/* ── Header estático — visible antes del carrusel ── */}
+                <div className="hiw-header">
+                    <div className="pinned-eyebrow">
+                        <span className="pinned-eyebrow-line" />
+                        Filosofía Takeasygo
+                        <span className="pinned-eyebrow-line" />
+                    </div>
+                    <h2 className="pinned-h2">
+                        Un proceso diseñado<br />
+                        <em>para vender directo, sin fricción.</em>
+                    </h2>
+                </div>
+
                 <div ref={carouselRef} className="carousel-viewport">
 
                     {/* Track de imágenes */}
@@ -522,22 +556,15 @@ export default function HowItWorks() {
 
                         <div ref={headlineRef} className="expand-content">
                             <div className="text-line">
-                                <div className="pinned-eyebrow">
-                                    <span className="pinned-eyebrow-line" />
-                                    Filosofía Takeasygo
-                                    <span className="pinned-eyebrow-line" />
-                                </div>
-                            </div>
-                            <div className="text-line">
-                                <h2 className="pinned-h2">
-                                    Un proceso diseñado<br />
-                                    <em>para vender directo, sin fricción.</em>
+                                <h2 className="pinned-h2 pinned-h2-text">
+                                    Pedidos directos, pagos integrados<br />
+                                    <em>y control del canal.</em>
                                 </h2>
                             </div>
                             <div className="text-line">
                                 <p className="pinned-sub">
-                                    Pedidos directos, pagos integrados y control del canal.<br />
-                                    Un flujo simple para el cliente. Previsible para el negocio.
+                                    Un flujo simple para el cliente.<br />
+                                    Previsible para el negocio.
                                 </p>
                             </div>
 

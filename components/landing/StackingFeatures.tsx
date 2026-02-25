@@ -138,7 +138,7 @@ export default function StackingFeatures() {
                     font-weight: 500;
                     letter-spacing: 0.22em;
                     text-transform: uppercase;
-                    color: #8a8280;
+                    color: #f14722;
                     margin-bottom: 20px;
                 }
 
