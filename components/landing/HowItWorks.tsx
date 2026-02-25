@@ -40,6 +40,12 @@ const steps = [
         desc: 'Diseñado para vender mejor, no para parecerse a una app más.',
         num: '03',
     },
+    {
+        title: 'Operación multi-sede',
+        subtitle: 'Pensado para escalar',
+        desc: 'Precios, menús y reglas por sede, desde un solo lugar',
+        num: '04',
+    },
 ]
 
 export default function HowItWorks() {
@@ -366,8 +372,8 @@ export default function HowItWorks() {
                     max-width: 580px;
                     display: flex;
                     flex-direction: column;
-                    gap: 16px;
-                    margin-top: 48px;
+                    gap: 10px;
+                    margin-top: 30px;
                 }
 
                 .step-card {
@@ -480,8 +486,8 @@ export default function HowItWorks() {
                     }
 
                     .expand-content {
-                        padding: 20px 14px;
-                        justify-content: flex-start;
+                        padding: 28px 20px;
+                        justify-content: center;
                         padding-top: 40px;
                     }
 
@@ -494,15 +500,19 @@ export default function HowItWorks() {
                         line-height: 1.08;
                     }
 
+                    .pinned-h2-text{
+                        font-size: clamp(24px, 10vw, 28px);
+                    }
+
                     .pinned-sub { display: none; }
 
-                    .cards-inner { margin-top: 14px; gap: 8px; max-width: 100%; }
+                    .cards-inner { margin-top: 18px; gap: 12px; max-width: 100%; }
 
-                    .step-card { padding: 14px 16px; border-radius: 12px; }
+                    .step-card { padding: 18px 20px; border-radius: 12px; }
                     .step-card-bg-num { font-size: 40px; right: 10px; top: 8px; }
                     .step-num-subtitle { margin-bottom: 6px; gap: 8px; }
-                    .step-title { font-size: 16px; margin-bottom: 4px; }
-                    .step-desc { font-size: 11px; line-height: 1.55; }
+                    .step-title { font-size: 17|px; margin-bottom: 4px; }
+                    .step-desc { font-size: 13px; line-height: 1.6; }
                     .step-card-bottom { margin-top: 10px; }
                     .carousel-item-num { display: none; }
                 }
@@ -557,8 +567,8 @@ export default function HowItWorks() {
                         <div ref={headlineRef} className="expand-content">
                             <div className="text-line">
                                 <h2 className="pinned-h2 pinned-h2-text">
-                                    Pedidos directos, pagos integrados<br />
-                                    <em>y control del canal.</em>
+                                    El canal propio de pedidos <br />
+                                    <em>del restaurante.</em>
                                 </h2>
                             </div>
                             <div className="text-line">
