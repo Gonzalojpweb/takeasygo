@@ -130,7 +130,7 @@ export default function Hero() {
                 }}
               >
                 Una experiencia de venta <br />
-                <em style={{ color: 'rgb(241,71,34)', fontStyle: 'italic' }}>superior para tu marca.</em>
+                <em style={{ color: '#f14722', fontStyle: 'italic' }}>superior para tu marca.</em>
               </motion.h1>
 
               <motion.p

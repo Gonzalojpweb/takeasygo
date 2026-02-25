@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Navbar from '@/components/landing/Navbar'
 import Hero from '@/components/landing/Hero'
 import HowItWorks from '@/components/landing/HowItWorks'
@@ -34,13 +35,17 @@ export default function LandingPage() {
           {/* Logo — click vuelve al inicio */}
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="flex items-center gap-3 group cursor-pointer"
+            className="flex items-center cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
             aria-label="Volver al inicio"
           >
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center transition-colors group-hover:bg-[#f14722]">
-              <span className="text-white font-bold text-base italic">T</span>
-            </div>
-            <span className="text-zinc-900 font-bold text-xl tracking-tight group-hover:text-[#f14722] transition-colors">Takeasygo</span>
+            <Image
+              src="https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772058968/logo_oolixg.png"
+              alt="Takeasygo"
+              width={160}
+              height={40}
+              style={{ height: 36, width: 'auto' }}
+              unoptimized
+            />
           </button>
 
           {/* Centro: botón volver arriba */}

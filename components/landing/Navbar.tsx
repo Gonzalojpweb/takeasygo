@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -37,12 +38,17 @@ export default function Navbar() {
         >
             <div className="max-w-7xl mx-auto px-6 md:px-10 flex items-center justify-between">
 
-                {/* Logo — always visible */}
-                <Link href="/" onClick={scrollToTop} className="flex items-center gap-2 group">
-                    <div className="w-7 h-7 bg-zinc-900 rounded-md flex items-center justify-center transition-transform duration-300">
-                        <span className="text-white font-bold text-sm italic">T</span>
-                    </div>
-                    <span className="text-zinc-900 font-bold text-lg tracking-tight">Takeasygo</span>
+
+                <Link href="/" onClick={scrollToTop} className="flex items-center">
+                    <Image
+                        src="https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772059496/logo-removebg-preview_1_yamzfc.png"
+                        alt="Takeasygo"
+                        width={140}
+                        height={36}
+                        style={{ height: 30, width: 'auto' }}
+                        unoptimized
+                        priority
+                    />
                 </Link>
 
                 {/* Desktop: full nav links + login */}
