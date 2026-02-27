@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import {
   ChevronDown, Plus, Pencil, Trash2, Check, X,
   Star, Upload, Camera, Settings2, Image as ImageIcon,
-  MoreVertical, Layers, LayoutGrid, List
+  MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -243,6 +243,40 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }
 
+  async function handleToggleItemAvailability(categoryId: string, itemId: string, current: boolean) {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: selectedLocation,
+          itemId,
+          isAvailable: !current,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(!current ? 'Item habilitado' : 'Item deshabilitado')
+      router.refresh()
+    } catch {
+      toast.error('Error al actualizar disponibilidad')
+    }
+  }
+
+  async function handleToggleCategoryAvailability(categoryId: string, current: boolean) {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locationId: selectedLocation, isAvailable: !current }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(!current ? 'Categoría habilitada' : 'Categoría deshabilitada')
+      router.refresh()
+    } catch {
+      toast.error('Error al actualizar disponibilidad')
+    }
+  }
+
   async function handleDeleteItem(categoryId: string, itemId: string) {
     if (!confirm('¿Eliminar este item?')) return
     setLoading(true)
@@ -367,6 +401,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                   key={category._id}
                   className={cn(
                     "border-2 transition-all duration-500 rounded-3xl overflow-hidden",
+                    !category.isAvailable && "opacity-60",
                     isExpanded ? "border-primary/20 shadow-2xl shadow-primary/5" : "border-border/60 hover:border-primary/30 shadow-md transform-gpu"
                   )}
                 >
@@ -403,7 +438,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               autoFocus
                             />
                           ) : (
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
                               <h3 className={cn(
                                 "text-xl tracking-tight transition-colors truncate",
                                 isExpanded ? "font-bold text-foreground" : "font-semibold"
@@ -413,6 +448,11 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               <Badge variant="secondary" className="bg-muted px-2 font-bold tabular-nums text-[10px] uppercase tracking-wide opacity-70">
                                 {category.items.length} items
                               </Badge>
+                              {!category.isAvailable && (
+                                <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                  No disponible
+                                </Badge>
+                              )}
                             </div>
                           )}
                         </div>
@@ -469,6 +509,20 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               <Button
                                 size="icon"
                                 variant="ghost"
+                                title={category.isAvailable ? 'Deshabilitar categoría' : 'Habilitar categoría'}
+                                className={cn(
+                                  "h-10 w-10 rounded-xl transition-all",
+                                  category.isAvailable
+                                    ? "text-emerald-500 hover:bg-emerald-500/10"
+                                    : "text-orange-400 hover:bg-orange-400/10"
+                                )}
+                                onClick={() => handleToggleCategoryAvailability(category._id, category.isAvailable ?? true)}
+                              >
+                                {category.isAvailable ? <Eye size={18} /> : <EyeOff size={18} />}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
                                 className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
                                 onClick={() => handleDeleteCategory(category._id)}
                               >
@@ -510,7 +564,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 layout
                                 className={cn(
                                   "rounded-3xl transition-all border-2",
-                                  editingItem === item._id ? "bg-white border-primary shadow-2xl p-6" : "bg-card border-border/40 hover:border-primary/30 p-2 pl-4"
+                                  editingItem === item._id ? "bg-white border-primary shadow-2xl p-6" : "bg-card border-border/40 hover:border-primary/30 p-2 pl-4",
+                                  !item.isAvailable && editingItem !== item._id && "opacity-50"
                                 )}
                               >
                                 {editingItem === item._id ? (
@@ -537,11 +592,16 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                       </div>
 
                                       <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
                                           <p className="text-foreground text-base font-bold tracking-tight">{item.name}</p>
                                           {item.isFeatured && (
                                             <Badge className="bg-amber-100 text-amber-600 hover:bg-amber-100 border-amber-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
                                               ★ Destacado
+                                            </Badge>
+                                          )}
+                                          {!item.isAvailable && (
+                                            <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                              No disponible
                                             </Badge>
                                           )}
                                         </div>
@@ -560,6 +620,20 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                     </div>
 
                                     <div className="flex items-center gap-1 pr-2">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        title={item.isAvailable ? 'Deshabilitar item' : 'Habilitar item'}
+                                        className={cn(
+                                          "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                          item.isAvailable
+                                            ? "text-emerald-500 hover:bg-emerald-500/10"
+                                            : "text-orange-400 hover:bg-orange-400/10"
+                                        )}
+                                        onClick={() => handleToggleItemAvailability(category._id, item._id, item.isAvailable ?? true)}
+                                      >
+                                        {item.isAvailable ? <Eye size={18} /> : <EyeOff size={18} />}
+                                      </Button>
                                       <Button
                                         size="icon"
                                         variant="ghost"

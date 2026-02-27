@@ -75,6 +75,7 @@ export default async function ReportsPage() {
         stats={stats}
         topItems={JSON.parse(JSON.stringify(topItems))}
         recentOrders={JSON.parse(JSON.stringify(recentOrders))}
+        tenantSlug={tenantSlug || ''}
       />
     </div>
   )
