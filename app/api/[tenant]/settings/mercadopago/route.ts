@@ -24,6 +24,7 @@ if (authError) return authError
         ? decrypt(tenant.mercadopago.publicKey)
         : null,
       hasAccessToken: !!tenant.mercadopago.accessToken,
+      hasWebhookSecret: !!tenant.mercadopago.webhookSecret,
     })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
@@ -44,7 +45,7 @@ export async function POST(
       const authError = await requireAuth(request, tenant._id.toString())
 if (authError) return authError
 
-    const { accessToken, publicKey } = await request.json()
+    const { accessToken, publicKey, webhookSecret } = await request.json()
 
     if (!accessToken || !publicKey) {
       return NextResponse.json({ error: 'Access Token y Public Key son obligatorios' }, { status: 400 })
@@ -52,6 +53,9 @@ if (authError) return authError
 
     tenant.mercadopago.accessToken = encrypt(accessToken)
     tenant.mercadopago.publicKey = encrypt(publicKey)
+    if (webhookSecret) {
+      tenant.mercadopago.webhookSecret = encrypt(webhookSecret)
+    }
     tenant.mercadopago.isConfigured = true
     await tenant.save()
 

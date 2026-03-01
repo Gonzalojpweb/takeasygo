@@ -28,6 +28,7 @@ export interface ITenant extends Document {
   mercadopago: {
     accessToken: string | null
     publicKey: string | null
+    webhookSecret: string | null
     isConfigured: boolean
   }
   createdAt: Date
@@ -89,6 +90,7 @@ const TenantSchema = new Schema<ITenant>(
     mercadopago: {
       accessToken: { type: String, default: null },
       publicKey: { type: String, default: null },
+      webhookSecret: { type: String, default: null },
       isConfigured: { type: Boolean, default: false },
     },
   },
