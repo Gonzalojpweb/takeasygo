@@ -44,3 +44,14 @@ env.local
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+takeasyGo.zip
+.takeasyGo.zip
+/takeasyGo.zip
+takeasyGo.zip*
+
+/scale_extracted
+/takeasygo_extracted
+.takeasygo_extracted
+takeasygo_extracted
+takeasygo_extracted*
