@@ -38,7 +38,7 @@ export default async function AdminLayout({
         </MobileNav>
 
         {/* Main Content */}
-        <main className="flex-1 min-h-0 overflow-y-auto bg-background p-4 md:p-8 lg:p-10">
+        <main className="flex-1 min-h-0 overflow-y-auto bg-background p-4 md:p-8 lg:p-10" data-lenis-prevent>
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
