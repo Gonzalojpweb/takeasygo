@@ -16,9 +16,16 @@ export default function MobileNav({ children, title = 'Menu Platform' }: Props) 
     const pathname = usePathname()
 
     // Automatically close the sheet when the route changes
+    // Fallback: close if pathname changes (e.g., router.push from outside)
     useEffect(() => {
         setOpen(false)
     }, [pathname])
+
+    const handleContentClick = (e: React.MouseEvent) => {
+        if ((e.target as HTMLElement).closest('a[href]')) {
+            setOpen(false)
+        }
+    }
 
     return (
         <header className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-30">
@@ -31,7 +38,11 @@ export default function MobileNav({ children, title = 'Menu Platform' }: Props) 
                         <Menu size={24} className="group-hover:scale-110 transition-transform" />
                     </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="p-0 w-72 border-r border-border bg-sidebar animate-in slide-in-from-left duration-300">
+                <SheetContent
+                    side="left"
+                    className="p-0 w-72 border-r border-border bg-sidebar animate-in slide-in-from-left duration-300 data-[state=closed]:duration-0 data-[state=closed]:animate-none"
+                    onClick={handleContentClick}
+                >
                     <div className="sr-only">
                         <SheetTitle>Navegación Móvil</SheetTitle>
                         <SheetDescription>Accede a las diferentes secciones del panel administrativo.</SheetDescription>
