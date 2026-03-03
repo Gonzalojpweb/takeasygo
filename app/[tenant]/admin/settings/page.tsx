@@ -2,10 +2,17 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { headers } from 'next/headers'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
 import SettingsForm from '@/components/admin/SettingsForm'
 
 export default async function SettingsPage() {
+  const session = await auth()
+  const role = session?.user?.role
+  if (role !== 'admin' && role !== 'superadmin') {
+    redirect('/')
+  }
+
   const headersList = await headers()
   const tenantSlug = headersList.get('x-tenant-slug')
 

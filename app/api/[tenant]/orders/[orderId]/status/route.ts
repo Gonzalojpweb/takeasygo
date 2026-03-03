@@ -3,6 +3,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { logAudit } from '@/lib/audit'
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending:    ['confirmed', 'cancelled'],
@@ -44,8 +45,18 @@ export async function PATCH(
       )
     }
 
+    const previousStatus = order.status
     order.status = status
     await order.save()
+
+    logAudit({
+      tenantId: tenant._id.toString(),
+      action: 'order.status_changed',
+      entity: 'order',
+      entityId: orderId,
+      details: { orderNumber: order.orderNumber, from: previousStatus, to: status },
+      request,
+    })
 
     return NextResponse.json({ order })
   } catch (error) {
