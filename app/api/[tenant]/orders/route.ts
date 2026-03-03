@@ -97,13 +97,7 @@ export async function POST(
         )
       }
 
-      const quantity = parseInt(clientItem.quantity, 10)
-      if (!Number.isInteger(quantity) || quantity < 1) {
-        return NextResponse.json(
-          { error: `Cantidad inválida para: ${menuItem.name}` },
-          { status: 400 }
-        )
-      }
+      const quantity = clientItem.quantity  // ya validado como number.int().min(1) por Zod
 
       // Precio base siempre de la DB
       const basePrice: number = menuItem.price
