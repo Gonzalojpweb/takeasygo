@@ -1,7 +1,7 @@
 import type { NextAuthConfig } from 'next-auth'
 
 export const authConfig = {
-  session: { strategy: 'jwt' },
+  session: { strategy: 'jwt', maxAge: 8 * 60 * 60 }, // 8 horas — SECURITY.md R-AUTH-05
   providers: [],
   callbacks: {
     async jwt({ token, user }) {
