@@ -13,6 +13,9 @@ const EXCLUDED_PATHS = [
   '/login',
 ]
 
+// R-MT-04 — Sanitización de slug antes de usar como identificador de tenant
+const SLUG_REGEX = /^[a-z0-9-]{2,50}$/
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -25,6 +28,11 @@ export async function middleware(request: NextRequest) {
   const tenantSlug = isApiRoute ? segments[1] : segments[0]
 
   if (!tenantSlug) return NextResponse.next()
+
+  // Rechazar slugs que no cumplan el patrón esperado (R-MT-04)
+  if (!SLUG_REGEX.test(tenantSlug)) {
+    return NextResponse.next()
+  }
 
   // Solo pasamos el slug via header — la validación real la hace cada página
   // contra la DB. No hacemos fetch() aquí para evitar loops de red.

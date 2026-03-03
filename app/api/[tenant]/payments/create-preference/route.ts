@@ -12,7 +12,7 @@ export async function POST(
 ) {
   try {
     const ip = request.headers.get('x-forwarded-for') || 'unknown'
-const { success } = rateLimit(`payment:${ip}`, 10, 60_000)
+const { success } = await rateLimit(`payment:${ip}`, 10, 60_000)
 if (!success) {
   return NextResponse.json({ error: 'Demasiadas solicitudes' }, { status: 429 })
 }

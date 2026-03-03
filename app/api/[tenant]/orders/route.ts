@@ -6,6 +6,7 @@ import Menu from '@/models/Menu'
 import { generateOrderNumber } from '@/lib/orderNumber'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { createOrderSchema } from '@/lib/schemas'
 
 export async function GET(
   request: NextRequest,
@@ -45,11 +46,15 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const body = await request.json()
-
-    if (!Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json({ error: 'La orden debe tener al menos un item' }, { status: 400 })
+    const rawBody = await request.json()
+    const parsed = createOrderSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
     }
+    const body = parsed.data
 
     const location = await Location.findOne({
       _id: body.locationId,

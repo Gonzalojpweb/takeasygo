@@ -10,6 +10,8 @@ export interface IUser extends Document {
   tenantId: mongoose.Types.ObjectId | null
   assignedLocation: mongoose.Types.ObjectId | null
   isActive: boolean
+  resetToken: string | null
+  resetTokenExpiry: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -51,6 +53,16 @@ const UserSchema = new Schema<IUser>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    resetToken: {
+      type: String,
+      default: null,
+      select: false, // nunca se incluye en queries normales
+    },
+    resetTokenExpiry: {
+      type: Date,
+      default: null,
+      select: false,
     },
   },
   {

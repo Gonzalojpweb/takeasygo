@@ -19,10 +19,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
         
-        const { success } = rateLimit(`login:${credentials.email}`, 5, 60_000)
+        const { success } = await rateLimit(`login:${credentials.email}`, 5, 60_000)
         if (!success) {
-        throw new Error('Demasiados intentos. Esperá 1 minuto.')
-}
+          throw new Error('Demasiados intentos. Esperá 1 minuto.')
+        }
 
         await connectDB()
 

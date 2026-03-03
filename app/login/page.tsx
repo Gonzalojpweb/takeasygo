@@ -399,6 +399,16 @@ export default function LoginPage() {
                             </div>
                         </div>
 
+                        {/* Forgot password */}
+                        <div style={{ textAlign: 'right', marginTop: '-16px', marginBottom: '16px' }}>
+                            <Link
+                                href="/forgot-password"
+                                style={{ fontSize: '11px', color: '#8a8280', textDecoration: 'none' }}
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </Link>
+                        </div>
+
                         {/* Error */}
                         {error && (
                             <div className="login-error" role="alert">{error}</div>
