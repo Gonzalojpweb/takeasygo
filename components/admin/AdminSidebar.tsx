@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  Printer,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,12 @@ export default function AdminSidebar({ tenantSlug, userRole, userName }: Props) 
       href: `${base}/reports`,
       label: 'Reportes',
       icon: BarChart3,
+      roles: ['admin', 'manager'],
+    },
+    {
+      href: `${base}/printers`,
+      label: 'Impresoras',
+      icon: Printer,
       roles: ['admin', 'manager'],
     },
     {

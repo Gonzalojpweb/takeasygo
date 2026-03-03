@@ -16,7 +16,7 @@ interface Props {
 export default function MercadoPagoSettings({ tenantSlug, isConfigured }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ accessToken: '', publicKey: '' })
+  const [form, setForm] = useState({ accessToken: '', publicKey: '', webhookSecret: '' })
   const [editing, setEditing] = useState(!isConfigured)
 
   async function handleSave(e: React.FormEvent) {
@@ -157,6 +157,29 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured }: Props)
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className={labelCls}>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={10} /> Webhook Secret <span className="text-muted-foreground/40 normal-case font-normal tracking-normal">(opcional pero recomendado)</span>
+                </div>
+              </label>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors">
+                  <Lock size={16} />
+                </div>
+                <input
+                  type="password"
+                  value={form.webhookSecret}
+                  onChange={e => setForm(p => ({ ...p, webhookSecret: e.target.value }))}
+                  placeholder="Clave secreta de tu webhook en MP"
+                  className={cn(inputCls, "pl-11")}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
+                Activa la verificación de firma HMAC en cada notificación de pago. Obtenelo en Panel MP → Tu app → Webhooks.
+              </p>
             </div>
 
             <div className="flex items-center gap-3 pt-6 border-t border-border/40">

@@ -24,6 +24,14 @@ export interface IOrderItem {
   customizations: ISelectedCustomizationGroup[]
 }
 
+export interface IPrintLogEntry {
+  printerName: string
+  role: string
+  success: boolean
+  error: string
+  printedAt: Date
+}
+
 export interface IOrder extends Document {
   tenantId: mongoose.Types.ObjectId
   locationId: mongoose.Types.ObjectId
@@ -43,6 +51,8 @@ export interface IOrder extends Document {
     mercadopagoData: Record<string, any> | null
   }
   notes: string
+  printed: boolean
+  printLog: IPrintLogEntry[]
   createdAt: Date
   updatedAt: Date
 }
@@ -120,6 +130,17 @@ const OrderSchema = new Schema<IOrder>(
       mercadopagoData: { type: Schema.Types.Mixed, default: null },
     },
     notes: { type: String, default: '', trim: true },
+    printed: { type: Boolean, default: false },
+    printLog: {
+      type: [{
+        printerName: { type: String, required: true },
+        role: { type: String, required: true },
+        success: { type: Boolean, required: true },
+        error: { type: String, default: '' },
+        printedAt: { type: Date, default: Date.now },
+      }],
+      default: [],
+    },
   },
   {
     timestamps: true,

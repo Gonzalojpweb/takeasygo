@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/printer-agent/node_modules
 /.pnp
 .pnp.*
 .yarn/*

@@ -1,0 +1,6 @@
+{
+  "apiUrl": "https://tu-dominio.com",
+  "tenantSlug": "tu-restaurante",
+  "locationId": "PEGAR_ID_DE_SEDE_AQUI",
+  "pollInterval": 3000
+}

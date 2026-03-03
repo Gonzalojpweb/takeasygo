@@ -1,0 +1,24 @@
+{
+    "name": "restaurant-print-agent",
+    "version": "1.0.0",
+    "description": "Bridge between cloud restaurant app and local thermal printers",
+    "main": "agent.js",
+    "scripts": {
+        "start": "node agent.js",
+        "build": "pkg . --targets node18-win-x64 --output printer-agent.exe"
+    },
+    "dependencies": {
+        "axios": "^1.6.0",
+        "dotenv": "^16.3.1",
+        "node-windows": "^1.0.0-beta.8"
+    },
+    "devDependencies": {
+        "pkg": "^5.8.1"
+    },
+    "pkg": {
+        "scripts": "agent.js",
+        "assets": [
+            ".env"
+        ]
+    }
+}
