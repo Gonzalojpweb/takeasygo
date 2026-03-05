@@ -4,8 +4,8 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 
-// Score Operativo Interno — no es público
-// Fórmula: Consistencia×0.30 + Cumplimiento×0.30 + BajaCancelacion×0.20 + Actividad×0.10 + Estabilidad×0.10
+// ICO — Índice de Consistencia Operativa — uso interno, no público
+// Fórmula: Consistencia×0.25 + Cumplimiento×0.30 + BajaCancelacion×0.20 + Actividad×0.15 + Estabilidad×0.10
 
 export async function GET(
   request: NextRequest,
@@ -36,7 +36,8 @@ export async function GET(
           cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } }
         }}
       ]),
-      // TPP — media y desvío estándar (30 días)
+      // TPP — media y desvío estándar poblacional (30 días)
+      // $stdDevPop es correcto: medimos la población real del período, no una muestra
       Order.aggregate([
         { $match: {
           tenantId,
@@ -65,7 +66,7 @@ export async function GET(
           foreignField: '_id',
           as: 'location',
         }},
-        { $unwind: { path: '$location', preserveNullAndEmpty: false } },
+        { $unwind: { path: '$location', preserveNullAndEmptyArrays: false } },
         { $project: {
           isOnTime: { $lte: [
             { $subtract: ['$statusTimestamps.readyAt', '$createdAt'] },
@@ -88,12 +89,33 @@ export async function GET(
     const tRaw = tppData[0]
     const oRaw = onTimeData[0]
 
-    // Mínimo de datos para calcular el score
-    const totalOrders = cRaw?.total ?? 0
-    const hasEnoughData = totalOrders >= 5
+    // ── Calidad de datos (Teorema del Límite Central) ───────────────────────
+    // n < 10  → insuficiente: ICO no calculable
+    // 10 ≤ n < 30 → muestra_pequeña: ICO calculable con advertencia
+    // n ≥ 30 → valida: CLT aplica, SE e IC 95% son confiables
+    const tppN = tRaw?.count ?? 0
+    const dataQuality: 'insuficiente' | 'muestra_pequeña' | 'valida' =
+      tppN >= 30 ? 'valida' : tppN >= 10 ? 'muestra_pequeña' : 'insuficiente'
 
-    // ── Componente 1: Consistencia (peso 0.30) ─────────────────────────────
-    // 1 - (σ_TPP / μ_TPP). Si no hay datos: null
+    // SE = σ / √n  (Standard Error de la media del TPP)
+    // CI_95 = μ ± 1.96 × SE  (solo significativo cuando n ≥ 30, CLT garantiza normalidad)
+    let tppSE: number | null = null
+    let tppCI95Low: number | null = null
+    let tppCI95High: number | null = null
+    if (tRaw && tppN >= 10) {
+      tppSE = tRaw.stdMs / Math.sqrt(tppN)
+      if (tppN >= 30) {
+        tppCI95Low  = Math.round((tRaw.avgMs - 1.96 * tppSE) / 60000 * 10) / 10
+        tppCI95High = Math.round((tRaw.avgMs + 1.96 * tppSE) / 60000 * 10) / 10
+      }
+    }
+
+    // Mínimo de datos para calcular el ICO (se requieren ≥ 10 pedidos en 30 días)
+    const totalOrders = cRaw?.total ?? 0
+    const hasEnoughData = totalOrders >= 10
+
+    // ── Componente 1: Consistencia del TPP (peso 0.25) ─────────────────────
+    // 1 - (σ_TPP / μ_TPP) → Coeficiente de variación invertido
     let consistency: number | null = null
     if (tRaw && tRaw.avgMs > 0) {
       consistency = Math.max(0, Math.min(1, 1 - (tRaw.stdMs / tRaw.avgMs)))
@@ -111,7 +133,7 @@ export async function GET(
       bajaCancelacion = Math.max(0, 1 - (cRaw.cancelled / cRaw.total))
     }
 
-    // ── Componente 4: Actividad reciente (peso 0.10) ───────────────────────
+    // ── Componente 4: Actividad sostenida (peso 0.15) ──────────────────────
     // Proporción entre órdenes de la última semana vs promedio semanal del mes
     const avgWeekly = actData30 / 4
     const actividad = avgWeekly > 0
@@ -119,25 +141,25 @@ export async function GET(
       : actData7 > 0 ? 1 : 0
 
     // ── Componente 5: Estabilidad horaria (peso 0.10) ──────────────────────
-    // Proxy: % de días con actividad en los últimos 30 días
+    // Proxy: % de días con actividad en los últimos 30 días (20/30 = score 1)
     const activeDaysData = await Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
       { $count: 'days' }
     ])
     const activeDays = activeDaysData[0]?.days ?? 0
-    const estabilidad = Math.min(1, activeDays / 20)  // 20/30 días activos = score 1
+    const estabilidad = Math.min(1, activeDays / 20)
 
-    // ── Score final ────────────────────────────────────────────────────────
-    // Si faltan componentes críticos (TPP/onTime), usamos los disponibles con peso proporcional
+    // ── ICO final ──────────────────────────────────────────────────────────
+    // Pesos: Consistencia×0.25 + Cumplimiento×0.30 + BajaCancelacion×0.20 + Actividad×0.15 + Estabilidad×0.10
     let score: number | null = null
     if (hasEnoughData) {
-      const c1 = consistency   ?? 0.5  // fallback neutral si sin datos de TPP
-      const c2 = cumplimiento  ?? 0.5  // fallback neutral si sin datos de TPP
+      const c1 = consistency    ?? 0.5  // fallback neutral si sin datos de TPP
+      const c2 = cumplimiento   ?? 0.5  // fallback neutral si sin datos de cumplimiento
       const c3 = bajaCancelacion ?? 1
       const c4 = actividad
       const c5 = estabilidad
-      score = c1 * 0.30 + c2 * 0.30 + c3 * 0.20 + c4 * 0.10 + c5 * 0.10
+      score = c1 * 0.25 + c2 * 0.30 + c3 * 0.20 + c4 * 0.15 + c5 * 0.10
       score = Math.round(score * 100) / 100
     }
 
@@ -145,25 +167,30 @@ export async function GET(
       score,
       hasEnoughData,
       sampleSize: totalOrders,
+      dataQuality,
       components: {
-        consistency:       consistency !== null ? Math.round(consistency * 100) : null,
-        cumplimiento:      cumplimiento !== null ? Math.round(cumplimiento * 100) : null,
-        bajaCancelacion:   bajaCancelacion !== null ? Math.round(bajaCancelacion * 100) : null,
-        actividad:         Math.round(actividad * 100),
-        estabilidad:       Math.round(estabilidad * 100),
+        consistency:     consistency     !== null ? Math.round(consistency * 100)     : null,
+        cumplimiento:    cumplimiento    !== null ? Math.round(cumplimiento * 100)    : null,
+        bajaCancelacion: bajaCancelacion !== null ? Math.round(bajaCancelacion * 100) : null,
+        actividad:       Math.round(actividad * 100),
+        estabilidad:     Math.round(estabilidad * 100),
       },
       details: {
         tppMinutes:    tRaw ? Math.round(tRaw.avgMs / 60000) : null,
         tppStdMinutes: tRaw ? Math.round(tRaw.stdMs / 60000) : null,
-        cancRate:      cRaw ? Math.round((cRaw.cancelled / cRaw.total) * 100) : 0,
-        onTimePct:     oRaw ? Math.round((oRaw.onTime / oRaw.total) * 100) : null,
+        tppN,
+        tppSEMinutes:  tppSE ? Math.round(tppSE / 60000 * 10) / 10 : null,
+        tppCI95Low,
+        tppCI95High,
+        cancRate:      cRaw && cRaw.total > 0 ? Math.round((cRaw.cancelled / cRaw.total) * 100) : 0,
+        onTimePct:     oRaw && oRaw.total > 0 ? Math.round((oRaw.onTime / oRaw.total) * 100) : null,
         ordersLast7:   actData7,
         ordersLast30:  actData30,
         activeDays,
       }
     })
   } catch (error) {
-    console.error('[score] Error:', error)
-    return NextResponse.json({ error: 'Error al calcular el score' }, { status: 500 })
+    console.error('[ICO] Error:', error)
+    return NextResponse.json({ error: 'Error al calcular el ICO' }, { status: 500 })
   }
 }

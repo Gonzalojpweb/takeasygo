@@ -49,11 +49,11 @@ export default async function AdminDashboard() {
   // Score Operativo simplificado para el dashboard
   const cRaw = cancData[0]
   const tRaw = tppData[0]
-  const hasScore = (cRaw?.total ?? 0) >= 5
+  const hasScore = (cRaw?.total ?? 0) >= 10
   const bajaCancelacion = cRaw?.total > 0 ? Math.max(0, 1 - (cRaw.cancelled / cRaw.total)) : null
   const consistency = tRaw?.avgMs > 0 ? Math.max(0, Math.min(1, 1 - (tRaw.stdMs / tRaw.avgMs))) : null
   const scoreEstimate = hasScore
-    ? Math.round(((consistency ?? 0.5) * 0.30 + 0.5 * 0.30 + (bajaCancelacion ?? 1) * 0.20 + 0.10 + 0.10) * 100)
+    ? Math.round(((consistency ?? 0.5) * 0.25 + 0.5 * 0.30 + (bajaCancelacion ?? 1) * 0.20 + 0.15 + 0.10) * 100)
     : null
 
   const stats = [
@@ -116,8 +116,8 @@ export default async function AdminDashboard() {
               <Activity size={20} className="text-primary" />
             </div>
             <div>
-              <CardTitle className="text-foreground text-base font-bold">Score Operativo</CardTitle>
-              <p className="text-muted-foreground text-xs mt-0.5 font-medium">Coherencia interna — últimos 30 días</p>
+              <CardTitle className="text-foreground text-base font-bold">ICO</CardTitle>
+              <p className="text-muted-foreground text-xs mt-0.5 font-medium">Índice de Consistencia Operativa — últimos 30 días</p>
             </div>
           </div>
           <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-[0.2em] border-primary/40 text-primary bg-primary/5 px-3 py-1">
@@ -128,7 +128,7 @@ export default async function AdminDashboard() {
           {!hasScore ? (
             <div className="flex items-center gap-3 text-muted-foreground">
               <AlertTriangle size={16} className="text-amber-500" />
-              <p className="text-sm font-medium">Se necesitan al menos 5 pedidos en los últimos 30 días para calcular el score.</p>
+              <p className="text-sm font-medium">Se necesitan al menos 10 pedidos en los últimos 30 días para calcular el ICO.</p>
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">

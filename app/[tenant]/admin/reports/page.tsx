@@ -104,7 +104,7 @@ export default async function ReportsPage() {
         foreignField: '_id',
         as: 'location',
       }},
-      { $unwind: { path: '$location', preserveNullAndEmpty: false } },
+      { $unwind: { path: '$location', preserveNullAndEmptyArrays: false } },
       { $project: {
         isOnTime: { $lte: [
           { $subtract: ['$statusTimestamps.readyAt', '$createdAt'] },
