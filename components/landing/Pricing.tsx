@@ -23,7 +23,7 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'inicial-mensual',
         name: 'Inicial',
-        price: '30',
+        price: '50.000',
         sub: 'Para empezar a vender online',
         planKey: 'try',
         featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
@@ -32,7 +32,7 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'crecimiento-mensual',
         name: 'Crecimiento',
-        price: '50',
+        price: '65.000',
         sub: 'Para escalar tu operación',
         planKey: 'buy',
         featured: true,
@@ -42,7 +42,7 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'premium-mensual',
         name: 'Premium',
-        price: '80',
+        price: '80.000',
         sub: 'Para optimizar con datos',
         planKey: 'full',
         featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
@@ -50,36 +50,34 @@ const mensualPlans: LandingPlan[] = [
     },
 ]
 
-const inversorPlans: LandingPlan[] = [
+const anualPlans: LandingPlan[] = [
     {
-        id: 'moderado-inversion',
-        name: 'Moderado',
-        price: '600',
-        sub: 'Inversión única por sede',
-        desc: 'Mismas funciones del Plan Crecimiento. Sin cargos mensuales.',
-        features: [
-            'Todas las funciones de Crecimiento',
-            'Propiedad de la app',
-            'Sin mensualidades',
-            'Base de clientes',
-            'Prioridad en nuevas features',
-        ],
+        id: 'inicial-anual',
+        name: 'Inicial',
+        price: '510.000',
+        sub: 'Pago anual anticipado · 15% OFF',
+        planKey: 'try',
+        featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
+        extraFeatures: PLAN_FEATURES_LANDING.try.extra,
     },
     {
-        id: 'experto-inversion',
-        name: 'Experto',
-        price: '800',
-        sub: 'Inversión única por sede',
-        desc: 'El ecosistema Premium completo como activo de tu negocio.',
+        id: 'crecimiento-anual',
+        name: 'Crecimiento',
+        price: '663.000',
+        sub: 'Pago anual anticipado · 15% OFF',
+        planKey: 'buy',
         featured: true,
-        features: [
-            'Todas las funciones Premium',
-            'Notificaciones ilimitadas',
-            'Propiedad de la app',
-            'Sin mensualidades',
-            'Base de clientes',
-            'Prioridad en nuevas features',
-        ],
+        featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
+        extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
+    },
+    {
+        id: 'premium-anual',
+        name: 'Premium',
+        price: '816.000',
+        sub: 'Pago anual anticipado · 15% OFF',
+        planKey: 'full',
+        featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
+        extraFeatures: PLAN_FEATURES_LANDING.full.extra,
     },
 ]
 
@@ -89,7 +87,7 @@ function PlanCard({
     onOpen,
 }: {
     plan: LandingPlan
-    type: 'mensual' | 'inversion'
+    type: 'mensual' | 'anual'
     onOpen: () => void
 }) {
     const [expanded, setExpanded] = useState(false)
@@ -114,9 +112,9 @@ function PlanCard({
             <div className="flex items-baseline gap-1 mb-2">
                 <span className="text-xl font-bold text-zinc-900 italic">USD</span>
                 <span className="text-5xl font-bold text-zinc-900 tracking-tighter">{plan.price}</span>
-                {type === 'mensual' && (
-                    <span className="text-zinc-400 font-medium lowercase">/mes</span>
-                )}
+                <span className="text-zinc-400 font-medium lowercase">
+                    {type === 'mensual' ? '/mes' : '/año'}
+                </span>
             </div>
             <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-wider mb-4">
                 {plan.sub}
@@ -160,17 +158,17 @@ function PlanCard({
                         : 'bg-white text-zinc-900 border-zinc-200 hover:bg-zinc-50'
                 )}
             >
-                {type === 'mensual' ? 'Suscribirse' : 'Adquirir Activo'}
+                {type === 'mensual' ? 'Suscribirse' : 'Contratar Anual'}
             </button>
         </div>
     )
 }
 
 export default function Pricing() {
-    const [type, setType] = useState<'mensual' | 'inversion'>('mensual')
+    const [type, setType] = useState<'mensual' | 'anual'>('mensual')
     const [modal, setModal] = useState<{ plan: string; planId: string } | null>(null)
 
-    const plans = type === 'mensual' ? mensualPlans : inversorPlans
+    const plans = type === 'mensual' ? mensualPlans : anualPlans
 
     return (
         <>
@@ -200,15 +198,15 @@ export default function Pricing() {
                                 Suscripción Mensual
                             </button>
                             <button
-                                onClick={() => setType('inversion')}
+                                onClick={() => setType('anual')}
                                 className={cn(
                                     'px-4 md:px-8 py-2 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap',
-                                    type === 'inversion'
+                                    type === 'anual'
                                         ? 'bg-white text-zinc-900 shadow-sm border border-zinc-100'
                                         : 'text-zinc-400 hover:text-zinc-600'
                                 )}
                             >
-                                Inversión Única
+                                Pago Anual · 15% OFF
                             </button>
                         </div>
                     </div>
@@ -226,16 +224,16 @@ export default function Pricing() {
                                 plan={plan}
                                 type={type}
                                 onOpen={() => setModal({
-                                    plan: `${plan.name} – USD ${plan.price}${type === 'mensual' ? '/mes' : ' único'}`,
+                                    plan: `${plan.name} – USD ${plan.price}${type === 'mensual' ? '/mes' : '/año'}`,
                                     planId: plan.id,
                                 })}
                             />
                         ))}
                     </div>
 
-                    {type === 'inversion' && (
+                    {type === 'anual' && (
                         <p className="text-center text-zinc-400 text-xs mt-10 md:mt-12 max-w-lg mx-auto leading-relaxed px-4">
-                            * El modelo de inversión única convierte la plataforma en un activo propio del restaurante, sin dependencia de pagos mensuales. Ideal para quienes buscan solidez patrimonial a largo plazo.
+                            * El precio anual se abona de forma anticipada y equivale a 10.2 meses de servicio. Renovación anual. Mismo plan, mismas funcionalidades.
                         </p>
                     )}
 
