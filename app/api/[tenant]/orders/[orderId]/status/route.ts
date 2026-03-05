@@ -14,6 +14,15 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   cancelled:  [],
 }
 
+// Mapeo de status → campo de timestamp (para analytics de TPP)
+const STATUS_TIMESTAMP: Record<string, keyof import('@/models/Order').IStatusTimestamps> = {
+  confirmed: 'confirmedAt',
+  preparing: 'preparingAt',
+  ready:     'readyAt',
+  delivered: 'deliveredAt',
+  cancelled: 'cancelledAt',
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string; orderId: string }> }
@@ -47,6 +56,11 @@ export async function PATCH(
 
     const previousStatus = order.status
     order.status = status
+    // Registrar timestamp del cambio de estado para cálculo de TPP y Score Operativo
+    const tsField = STATUS_TIMESTAMP[status]
+    if (tsField) {
+      order.statusTimestamps[tsField] = new Date()
+    }
     await order.save()
 
     logAudit({

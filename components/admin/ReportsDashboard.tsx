@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import {
     DollarSign, ShoppingBag, TrendingUp, Users,
     History, ArrowUpRight, ArrowDownRight, Award,
-    Package, FileSpreadsheet, FileText, Loader2, Calendar
+    Package, FileSpreadsheet, FileText, Loader2, Calendar,
+    Clock, XCircle, Zap, RefreshCw, CreditCard, AlertCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -20,6 +21,18 @@ interface Props {
         growth: string
         lastMonthRevenue: number
         lastMonthOrders: number
+        // KPIs operativos
+        cancRate: number
+        cancTotal: number
+        cancCount: number
+        peakHours: { hour: number; count: number }[]
+        tppMinutes: number | null
+        tppStdMin: number | null
+        tppSampleSize: number
+        onTimePct: number | null
+        payConvPct: number | null
+        recompraPct: number | null
+        recompraClients: number
     }
     topItems: any[]
     recentOrders: any[]
@@ -354,6 +367,65 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 />
             </div>
 
+            {/* ── KPIs Operativos ─────────────────────────────────────── */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+                <div className="mb-4">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Inteligencia operativa</p>
+                    <h2 className="text-xl font-bold text-foreground">KPIs del Mes</h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    {/* Tasa de cancelación */}
+                    <OperKpi
+                        label="Cancelación"
+                        value={`${stats.cancRate}%`}
+                        sub={`${stats.cancCount} de ${stats.cancTotal} pedidos`}
+                        icon={<XCircle size={18} />}
+                        color={stats.cancRate > 15 ? 'text-destructive bg-destructive/10' : stats.cancRate > 5 ? 'text-amber-500 bg-amber-500/10' : 'text-emerald-500 bg-emerald-500/10'}
+                        alert={stats.cancRate > 15}
+                    />
+                    {/* TPP */}
+                    <OperKpi
+                        label="Tiempo prep."
+                        value={stats.tppMinutes !== null ? `${stats.tppMinutes} min` : '—'}
+                        sub={stats.tppMinutes !== null ? `σ ± ${stats.tppStdMin} min · n=${stats.tppSampleSize}` : 'Sin datos aún'}
+                        icon={<Clock size={18} />}
+                        color="text-blue-500 bg-blue-500/10"
+                    />
+                    {/* % en tiempo */}
+                    <OperKpi
+                        label="En tiempo"
+                        value={stats.onTimePct !== null ? `${stats.onTimePct}%` : '—'}
+                        sub={stats.onTimePct !== null ? 'pedidos listos a tiempo' : 'Sin datos aún'}
+                        icon={<Zap size={18} />}
+                        color={stats.onTimePct === null ? 'text-muted-foreground bg-muted/40' : stats.onTimePct >= 80 ? 'text-emerald-500 bg-emerald-500/10' : stats.onTimePct >= 60 ? 'text-amber-500 bg-amber-500/10' : 'text-destructive bg-destructive/10'}
+                    />
+                    {/* Recompra */}
+                    <OperKpi
+                        label="Recompra"
+                        value={stats.recompraPct !== null ? `${stats.recompraPct}%` : '—'}
+                        sub={`${stats.recompraClients} clientes únicos`}
+                        icon={<RefreshCw size={18} />}
+                        color="text-purple-500 bg-purple-500/10"
+                    />
+                    {/* Conversión MP */}
+                    <OperKpi
+                        label="Conv. pago"
+                        value={stats.payConvPct !== null ? `${stats.payConvPct}%` : '—'}
+                        sub={stats.payConvPct !== null ? 'pagos aprobados MP' : 'Sin pagos MP'}
+                        icon={<CreditCard size={18} />}
+                        color={stats.payConvPct === null ? 'text-muted-foreground bg-muted/40' : stats.payConvPct >= 85 ? 'text-emerald-500 bg-emerald-500/10' : 'text-amber-500 bg-amber-500/10'}
+                    />
+                    {/* Hora pico */}
+                    <OperKpi
+                        label="Hora pico"
+                        value={stats.peakHours.length > 0 ? `${stats.peakHours[0].hour}:00` : '—'}
+                        sub={stats.peakHours.length > 0 ? `${stats.peakHours[0].count} pedidos esa hora` : 'Sin datos'}
+                        icon={<TrendingUp size={18} />}
+                        color="text-amber-500 bg-amber-500/10"
+                    />
+                </div>
+            </motion.div>
+
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
                 {/* ── Top Product Rankings ──────────────────────────────── */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
@@ -441,6 +513,28 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 </motion.div>
             </div>
         </div>
+    )
+}
+
+function OperKpi({ label, value, sub, icon, color, alert }: {
+    label: string; value: string; sub: string; icon: React.ReactNode; color: string; alert?: boolean
+}) {
+    return (
+        <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden relative">
+            {alert && (
+                <div className="absolute top-2 right-2">
+                    <AlertCircle size={14} className="text-destructive" />
+                </div>
+            )}
+            <CardContent className="p-4">
+                <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center mb-3', color)}>
+                    {icon}
+                </div>
+                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-0.5">{label}</p>
+                <p className="text-2xl font-black tracking-tighter text-foreground tabular-nums leading-none">{value}</p>
+                <p className="text-[10px] font-bold text-muted-foreground/70 mt-1 leading-tight">{sub}</p>
+            </CardContent>
+        </Card>
     )
 }
 

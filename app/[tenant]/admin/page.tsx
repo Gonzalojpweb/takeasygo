@@ -5,7 +5,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ShoppingBag, Clock, CheckCircle, XCircle, TrendingUp, Calendar, ArrowUpRight } from 'lucide-react'
+import { ShoppingBag, Clock, CheckCircle, XCircle, TrendingUp, Calendar, ArrowUpRight, Activity, AlertTriangle } from 'lucide-react'
 import type { Types } from 'mongoose'
 import { cn } from '@/lib/utils'
 
@@ -21,17 +21,40 @@ export default async function AdminDashboard() {
 
   const tenantId = tenant._id
 
-  const [total, pending, confirmed, cancelled] = await Promise.all([
+  const start30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+  const [total, pending, confirmed, cancelled, cancData, tppData] = await Promise.all([
     Order.countDocuments({ tenantId }),
     Order.countDocuments({ tenantId, status: 'pending' }),
     Order.countDocuments({ tenantId, status: 'confirmed' }),
     Order.countDocuments({ tenantId, status: 'cancelled' }),
+    // Cancelación últimos 30 días para Score
+    Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: start30 } } },
+      { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } }
+    ]),
+    // TPP últimos 30 días para Score
+    Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: start30 }, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
+      { $project: { tppMs: { $subtract: ['$statusTimestamps.readyAt', '$statusTimestamps.confirmedAt'] } } },
+      { $group: { _id: null, avgMs: { $avg: '$tppMs' }, stdMs: { $stdDevPop: '$tppMs' }, count: { $sum: 1 } } }
+    ]),
   ])
 
   const recentOrders = await Order.find({ tenantId })
     .sort({ createdAt: -1 })
     .limit(5)
     .lean()
+
+  // Score Operativo simplificado para el dashboard
+  const cRaw = cancData[0]
+  const tRaw = tppData[0]
+  const hasScore = (cRaw?.total ?? 0) >= 5
+  const bajaCancelacion = cRaw?.total > 0 ? Math.max(0, 1 - (cRaw.cancelled / cRaw.total)) : null
+  const consistency = tRaw?.avgMs > 0 ? Math.max(0, Math.min(1, 1 - (tRaw.stdMs / tRaw.avgMs))) : null
+  const scoreEstimate = hasScore
+    ? Math.round(((consistency ?? 0.5) * 0.30 + 0.5 * 0.30 + (bajaCancelacion ?? 1) * 0.20 + 0.10 + 0.10) * 100)
+    : null
 
   const stats = [
     { label: 'Total pedidos', value: total, icon: ShoppingBag, color: 'text-primary' },
@@ -85,6 +108,52 @@ export default async function AdminDashboard() {
         })}
       </div>
 
+      {/* Score Operativo */}
+      <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
+        <CardHeader className="border-b border-border/40 bg-muted/30 p-6 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/10">
+              <Activity size={20} className="text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-foreground text-base font-bold">Score Operativo</CardTitle>
+              <p className="text-muted-foreground text-xs mt-0.5 font-medium">Coherencia interna — últimos 30 días</p>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-[0.2em] border-primary/40 text-primary bg-primary/5 px-3 py-1">
+            Interno
+          </Badge>
+        </CardHeader>
+        <CardContent className="p-6">
+          {!hasScore ? (
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <AlertTriangle size={16} className="text-amber-500" />
+              <p className="text-sm font-medium">Se necesitan al menos 5 pedidos en los últimos 30 días para calcular el score.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              {/* Gauge visual */}
+              <div className="flex flex-col items-center">
+                <div className={cn(
+                  "w-24 h-24 rounded-full border-8 flex items-center justify-center text-2xl font-black tabular-nums",
+                  (scoreEstimate ?? 0) >= 80 ? "border-emerald-500 text-emerald-500" :
+                  (scoreEstimate ?? 0) >= 60 ? "border-amber-500 text-amber-500" : "border-destructive text-destructive"
+                )}>
+                  {scoreEstimate}
+                </div>
+                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground mt-2">/ 100</p>
+              </div>
+              {/* Detalle */}
+              <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-3">
+                <ScoreBar label="Consistencia" value={consistency !== null ? Math.round(consistency * 100) : null} tip="Desvío estándar del TPP" />
+                <ScoreBar label="Baja cancelación" value={bajaCancelacion !== null ? Math.round(bajaCancelacion * 100) : null} tip="1 - tasa de cancelación" />
+                <ScoreBar label="TPP registrado" value={tRaw?.count > 0 ? Math.min(100, Math.round((tRaw.count / (cRaw?.total || 1)) * 100)) : null} tip={tRaw ? `${Math.round(tRaw.avgMs / 60000)} min promedio` : 'Sin datos de timestamps'} />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Recent Orders */}
       <Card className="bg-card border-2 border-border/60 shadow-xl rounded-3xl overflow-hidden">
         <CardHeader className="border-b border-border/40 bg-muted/30 p-6 flex flex-row items-center justify-between">
@@ -129,6 +198,28 @@ export default async function AdminDashboard() {
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function ScoreBar({ label, value, tip }: { label: string; value: number | null; tip: string }) {
+  const pct = value ?? 0
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">{label}</p>
+        <p className="text-xs font-black tabular-nums">{value !== null ? `${value}%` : '—'}</p>
+      </div>
+      <div className="h-2 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all",
+            pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-destructive"
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-[10px] text-muted-foreground/60 font-medium">{tip}</p>
     </div>
   )
 }

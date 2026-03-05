@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrendingUp, ShoppingBag, DollarSign, Store, Calendar, ArrowUpRight } from 'lucide-react'
+import { TrendingUp, ShoppingBag, DollarSign, Store, Calendar, Activity, Users, Clock, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 
@@ -13,12 +13,17 @@ export default async function SuperAdminAnalyticsPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+  const start30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+  const totalTenants = await Tenant.countDocuments({ isActive: true })
 
   const [
     ordersThisMonth,
     ordersLastMonth,
     topTenants,
     recentOrders,
+    activeTenants30,
+    globalTppData,
   ] = await Promise.all([
     Order.aggregate([
       { $match: { createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
@@ -37,7 +42,28 @@ export default async function SuperAdminAnalyticsPage() {
     Order.find({ status: { $ne: 'cancelled' } })
       .sort({ createdAt: -1 })
       .limit(8)
-      .lean()
+      .lean(),
+    // Tasa de activación: tenants con ≥1 orden en los últimos 30 días
+    Order.aggregate([
+      { $match: { createdAt: { $gte: start30 } } },
+      { $group: { _id: '$tenantId' } },
+      { $count: 'active' }
+    ]),
+    // TPP global promedio (últimos 30 días, todos los tenants)
+    Order.aggregate([
+      { $match: {
+        createdAt: { $gte: start30 },
+        'statusTimestamps.confirmedAt': { $ne: null },
+        'statusTimestamps.readyAt': { $ne: null },
+      }},
+      { $project: { tppMs: { $subtract: ['$statusTimestamps.readyAt', '$statusTimestamps.confirmedAt'] }, tenantId: 1 } },
+      { $group: {
+        _id: '$tenantId',
+        avgMs: { $avg: '$tppMs' },
+        stdMs: { $stdDevPop: '$tppMs' },
+        count: { $sum: 1 }
+      }},
+    ]),
   ])
 
   // Enriquecer topTenants con nombres
@@ -50,6 +76,21 @@ export default async function SuperAdminAnalyticsPage() {
   const revenueGrowth = lastMonth.total > 0
     ? (((thisMonth.total - lastMonth.total) / lastMonth.total) * 100).toFixed(1)
     : '0'
+
+  // Tasa de activación
+  const activeTenantCount = activeTenants30[0]?.active ?? 0
+  const activationRate = totalTenants > 0 ? Math.round((activeTenantCount / totalTenants) * 100) : 0
+
+  // TPP global promedio (media de medias por tenant)
+  const globalTppMinutes = globalTppData.length > 0
+    ? Math.round(globalTppData.reduce((s: number, t: any) => s + t.avgMs, 0) / globalTppData.length / 60000)
+    : null
+
+  // % tenants consistentes: stdDev < 30% de la media (o sin datos TPP)
+  const consistentTenants = globalTppData.filter((t: any) => t.avgMs > 0 && t.stdMs / t.avgMs < 0.30).length
+  const consistentPct = globalTppData.length > 0
+    ? Math.round((consistentTenants / globalTppData.length) * 100)
+    : null
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -120,6 +161,50 @@ export default async function SuperAdminAnalyticsPage() {
           <CardContent>
             <p className="text-foreground text-3xl font-bold tracking-tighter tabular-nums">${lastMonth.total.toLocaleString('es-AR')}</p>
             <p className="text-muted-foreground text-[10px] font-bold mt-1 uppercase tracking-tighter">{lastMonth.count} pedidos totales</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* KPIs de ecosistema */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="p-2 rounded-xl bg-emerald-500/10 w-fit mb-3">
+              <Users size={18} className="text-emerald-500" />
+            </div>
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Tasa de activación</p>
+            <p className="text-2xl font-black tabular-nums">{activationRate}%</p>
+            <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">{activeTenantCount} de {totalTenants} tenants activos (30d)</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="p-2 rounded-xl bg-blue-500/10 w-fit mb-3">
+              <Clock size={18} className="text-blue-500" />
+            </div>
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">TPP global prom.</p>
+            <p className="text-2xl font-black tabular-nums">{globalTppMinutes !== null ? `${globalTppMinutes} min` : '—'}</p>
+            <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">{globalTppData.length} tenants con datos</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="p-2 rounded-xl bg-purple-500/10 w-fit mb-3">
+              <Zap size={18} className="text-purple-500" />
+            </div>
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Tenants consistentes</p>
+            <p className="text-2xl font-black tabular-nums">{consistentPct !== null ? `${consistentPct}%` : '—'}</p>
+            <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">{consistentTenants} con σ/μ &lt; 30%</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="p-2 rounded-xl bg-amber-500/10 w-fit mb-3">
+              <Activity size={18} className="text-amber-500" />
+            </div>
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Listos para red</p>
+            <p className="text-2xl font-black tabular-nums">{consistentPct !== null ? `${consistentPct}%` : '—'}</p>
+            <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">Score operativo alto (Fase 2)</p>
           </CardContent>
         </Card>
       </div>

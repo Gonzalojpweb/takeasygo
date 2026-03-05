@@ -32,6 +32,14 @@ export interface IPrintLogEntry {
   printedAt: Date
 }
 
+export interface IStatusTimestamps {
+  confirmedAt:  Date | null
+  preparingAt:  Date | null
+  readyAt:      Date | null
+  deliveredAt:  Date | null
+  cancelledAt:  Date | null
+}
+
 export interface IOrder extends Document {
   tenantId: mongoose.Types.ObjectId
   locationId: mongoose.Types.ObjectId
@@ -53,6 +61,7 @@ export interface IOrder extends Document {
   notes: string
   printed: boolean
   printLog: IPrintLogEntry[]
+  statusTimestamps: IStatusTimestamps
   createdAt: Date
   updatedAt: Date
 }
@@ -131,6 +140,13 @@ const OrderSchema = new Schema<IOrder>(
     },
     notes: { type: String, default: '', trim: true },
     printed: { type: Boolean, default: false },
+    statusTimestamps: {
+      confirmedAt: { type: Date, default: null },
+      preparingAt: { type: Date, default: null },
+      readyAt:     { type: Date, default: null },
+      deliveredAt: { type: Date, default: null },
+      cancelledAt: { type: Date, default: null },
+    },
     printLog: {
       type: [{
         printerName: { type: String, required: true },
@@ -150,6 +166,7 @@ const OrderSchema = new Schema<IOrder>(
 OrderSchema.index({ tenantId: 1, createdAt: -1 })
 OrderSchema.index({ tenantId: 1, locationId: 1, createdAt: -1 })
 OrderSchema.index({ orderNumber: 1 })
+OrderSchema.index({ tenantId: 1, 'customer.phone': 1 })  // tasa de recompra
 
 const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema)
 export default Order
