@@ -11,28 +11,51 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  ChevronRight,
   Printer,
   ClipboardList,
   Shield,
   Activity,
+  Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Separator } from '@/components/ui/separator'
+import type { Plan, Feature } from '@/lib/plans'
+import { canAccess, requiredPlanFor, PLAN_LABELS } from '@/lib/plans'
 
 interface Props {
   tenantSlug: string
   userRole: string
   userName: string
+  plan: Plan
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName }: Props) {
+interface NavItem {
+  href: string
+  label: string
+  icon: React.ElementType
+  roles: string[]
+  feature?: Feature
+}
+
+function LockedNavItem({ label, icon: Icon, requiredPlan }: { label: string; icon: React.ElementType; requiredPlan: Plan }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl opacity-40 cursor-not-allowed select-none">
+      <Icon size={20} className="text-primary" />
+      <span className="text-sm tracking-wide text-sidebar-foreground/70">{label}</span>
+      <span className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-sidebar-foreground/60">
+        <Lock size={8} />
+        {PLAN_LABELS[requiredPlan]}
+      </span>
+    </div>
+  )
+}
+
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
 
-  const navItems = [
+  const navItems: NavItem[] = [
     {
       href: base,
       label: 'Dashboard',
@@ -56,18 +79,21 @@ export default function AdminSidebar({ tenantSlug, userRole, userName }: Props) 
       label: 'Usuarios',
       icon: Users,
       roles: ['admin'],
+      feature: 'users',
     },
     {
       href: `${base}/reports`,
       label: 'Reportes',
       icon: BarChart3,
       roles: ['admin', 'manager'],
+      feature: 'reports',
     },
     {
       href: `${base}/ico`,
       label: 'ICO',
       icon: Activity,
       roles: ['admin'],
+      feature: 'ico',
     },
     {
       href: `${base}/printers`,
@@ -86,6 +112,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName }: Props) 
       label: 'Auditoría',
       icon: Shield,
       roles: ['admin'],
+      feature: 'audit',
     },
     {
       href: `${base}/settings`,
@@ -113,6 +140,19 @@ export default function AdminSidebar({ tenantSlug, userRole, userName }: Props) 
       <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
         {visibleItems.map((item) => {
           const Icon = item.icon
+          const isLocked = item.feature ? !canAccess(plan, item.feature) : false
+
+          if (isLocked && item.feature) {
+            return (
+              <LockedNavItem
+                key={item.href}
+                label={item.label}
+                icon={Icon}
+                requiredPlan={requiredPlanFor(item.feature)}
+              />
+            )
+          }
+
           const isActive = pathname === item.href
 
           return (

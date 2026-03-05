@@ -3,6 +3,9 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import MobileNav from '@/components/MobileNav'
+import { connectDB } from '@/lib/mongoose'
+import Tenant from '@/models/Tenant'
+import type { Plan } from '@/lib/plans'
 
 export default async function AdminLayout({
   children,
@@ -18,10 +21,17 @@ export default async function AdminLayout({
     redirect('/login')
   }
 
+  await connectDB()
+  const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
+    .select('plan')
+    .lean<{ plan: Plan }>()
+  const plan: Plan = tenantDoc?.plan ?? 'try'
+
   const sidebarProps = {
     tenantSlug: tenant,
     userRole: session.user.role ?? 'staff',
     userName: session.user.name ?? session.user.email ?? '',
+    plan,
   }
 
   return (

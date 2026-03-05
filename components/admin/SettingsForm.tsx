@@ -28,9 +28,10 @@ interface Props {
   tenant: any
   locations: any[]
   tenantSlug: string
+  plan?: string
 }
 
-export default function SettingsForm({ tenant, locations, tenantSlug }: Props) {
+export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [branding, setBranding] = useState(tenant.branding)
@@ -412,6 +413,12 @@ export default function SettingsForm({ tenant, locations, tenantSlug }: Props) {
 
             {/* ── Locations ── */}
             <TabsContent value="locations" className="m-0 mt-2">
+              {plan === 'try' && (
+                <div className="flex items-start gap-3 px-5 py-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 text-amber-600 mb-6 text-sm">
+                  <span className="font-bold">Plan Inicial:</span>
+                  <span>incluye 1 sede. Actualizá a <strong>Crecimiento</strong> para agregar múltiples ubicaciones.</span>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {locations.length === 0 ? (
                   <Card className="border-2 border-dashed border-border/60 bg-muted/10 rounded-[2.5rem] col-span-2">

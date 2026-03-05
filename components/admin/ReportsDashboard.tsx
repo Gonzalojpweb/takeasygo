@@ -46,6 +46,7 @@ interface Props {
     topItems: any[]
     recentOrders: any[]
     tenantSlug: string
+    plan?: string
 }
 
 function getDefaultDates() {
@@ -73,7 +74,7 @@ const PAYMENT_LABELS: Record<string, string> = {
     pending: 'Pendiente', approved: 'Aprobado', rejected: 'Rechazado', cancelled: 'Cancelado',
 }
 
-export default function ReportsDashboard({ stats, topItems, recentOrders, tenantSlug }: Props) {
+export default function ReportsDashboard({ stats, topItems, recentOrders, tenantSlug, plan }: Props) {
     const isPositive = Number(stats.growth) >= 0
     const defaults = getDefaultDates()
     const [from, setFrom] = useState(defaults.from)
@@ -377,6 +378,20 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             </div>
 
             {/* ── KPIs Operativos ─────────────────────────────────────── */}
+            {plan !== 'full' && (
+                <div className="flex items-start gap-4 p-6 rounded-2xl border-2 border-dashed border-border/60 bg-muted/20">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                        <Zap size={18} className="text-muted-foreground" />
+                    </div>
+                    <div>
+                        <p className="font-bold text-sm text-foreground">Analytics avanzados — Plan Premium</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Con Premium accedés a métricas de performance operativa: tiempo de preparación, cumplimiento de tiempos, tasa de cancelación con tendencia, recompra de clientes y distribución horaria de pedidos.
+                        </p>
+                    </div>
+                </div>
+            )}
+            {plan === 'full' && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
                 <div className="mb-4">
                     <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Inteligencia operativa</p>
@@ -438,8 +453,10 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 </div>
             </motion.div>
 
+            )} {/* end plan === 'full' KPIs block */}
+
             {/* ── Distribución Horaria ─────────────────────────────────────── */}
-            {stats.hourlyDistribution.length > 0 && (
+            {plan === 'full' && stats.hourlyDistribution.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.38 }}>
                     <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="p-8 border-b border-border/40 bg-muted/10">

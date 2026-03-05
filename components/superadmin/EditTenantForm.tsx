@@ -5,9 +5,17 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Trash2, Store, Globe, CreditCard, ShieldAlert, ArrowLeft, Loader2, Save } from 'lucide-react'
+import { Trash2, Store, Globe, CreditCard, ShieldAlert, ArrowLeft, Loader2, Save, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
+import type { Plan } from '@/lib/plans'
+
+const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
+  try:  ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
+  buy:  ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
+  full: ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
+}
 
 interface Props {
   tenant: any
@@ -79,7 +87,9 @@ export default function EditTenantForm({ tenant }: Props) {
         </CardHeader>
         <CardContent className="p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            {/* Nombre + Slug */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className={labelCls}>Nombre del Restaurante</label>
                 <div className="relative group">
@@ -103,24 +113,56 @@ export default function EditTenantForm({ tenant }: Props) {
                     className={cn(inputCls, "pl-12 font-mono")} />
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <label className={labelCls}>Plan de Servicio</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors pointer-events-none">
-                    <CreditCard size={18} />
-                  </div>
-                  <select value={form.plan}
-                    onChange={e => setForm(p => ({ ...p, plan: e.target.value }))}
-                    className={cn(inputCls, "pl-12 appearance-none cursor-pointer")}>
-                    <option value="try">Probar — USD 250 / mes</option>
-                    <option value="buy">Comprar — USD 600 / mes</option>
-                    <option value="full">Full Access — USD 800 / mes</option>
-                  </select>
-                </div>
+            {/* Plan de Servicio — ancho completo */}
+            <div className="space-y-2">
+              <label className={labelCls}>Plan de Servicio</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {(['try', 'buy', 'full'] as Plan[]).map(p => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, plan: p }))}
+                    className={cn(
+                      'text-left p-5 rounded-2xl border-2 transition-all',
+                      form.plan === p
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border/60 hover:border-primary/40'
+                    )}
+                  >
+                    <p className={cn('font-bold text-sm', form.plan === p ? 'text-primary' : 'text-foreground')}>{PLAN_LABELS[p]}</p>
+                    <p className="text-muted-foreground text-[10px] font-bold mt-0.5">{PLAN_PRICE[p]}</p>
+                    <ul className="mt-3 space-y-1.5">
+                      {PLAN_FEATURES_SHORT[p].map((f, i) => (
+                        <li key={i} className="text-muted-foreground text-xs flex items-start gap-1.5">
+                          <span className="text-primary mt-0.5 shrink-0">·</span> {f}
+                        </li>
+                      ))}
+                    </ul>
+                  </button>
+                ))}
               </div>
+              {(() => {
+                const planOrder: Plan[] = ['try', 'buy', 'full']
+                const origIdx = planOrder.indexOf(tenant.plan as Plan)
+                const newIdx  = planOrder.indexOf(form.plan as Plan)
+                if (newIdx < origIdx) {
+                  const disabled = planOrder.slice(newIdx + 1, origIdx + 1).map(p => PLAN_LABELS[p]).join(', ')
+                  return (
+                    <div className="flex items-start gap-2 mt-3 px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-600">
+                      <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                      <span>Cambiar de <strong>{PLAN_LABELS[tenant.plan as Plan]}</strong> a <strong>{PLAN_LABELS[form.plan as Plan]}</strong> deshabilitará funciones de: {disabled} para este restaurante.</span>
+                    </div>
+                  )
+                }
+                return null
+              })()}
+            </div>
 
-              <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] self-end h-[58px]">
+            {/* Estado del tenant */}
+            <div>
+              <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
                 <div className="flex items-center gap-3">
                   <div className={cn("w-2 h-2 rounded-full", form.isActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-destructive")} />
                   <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Estado del Tenant</span>

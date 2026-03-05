@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
+import type { Plan } from '@/lib/plans'
+
+const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
+  try:  ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
+  buy:  ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
+  full: ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
+}
 
 export default function NewTenantForm() {
   const router = useRouter()
@@ -84,14 +93,34 @@ export default function NewTenantForm() {
           </div>
 
           <div>
-            <label className="text-zinc-400 text-sm block mb-1.5">Plan</label>
-            <select value={form.plan}
-              onChange={e => setForm(p => ({ ...p, plan: e.target.value }))}
-              className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-zinc-400">
-              <option value="try">Probar — USD 250</option>
-              <option value="buy">Comprar — USD 600</option>
-              <option value="full">Full Access — USD 800</option>
-            </select>
+            <label className="text-zinc-400 text-sm block mb-2">Plan</label>
+            <div className="flex flex-col gap-2">
+              {(['try', 'buy', 'full'] as Plan[]).map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, plan: p }))}
+                  className={cn(
+                    'text-left px-4 py-3 rounded-xl border-2 transition-all flex items-center gap-4',
+                    form.plan === p
+                      ? 'border-primary bg-primary/10'
+                      : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-500'
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className={cn('font-bold text-sm', form.plan === p ? 'text-primary' : 'text-white')}>{PLAN_LABELS[p]}</p>
+                      <p className="text-zinc-500 text-[10px] font-bold">{PLAN_PRICE[p]}</p>
+                    </div>
+                    <p className="text-zinc-500 text-xs mt-0.5 truncate">{PLAN_FEATURES_SHORT[p][0]}</p>
+                  </div>
+                  <div className={cn(
+                    'w-4 h-4 rounded-full border-2 shrink-0 transition-all',
+                    form.plan === p ? 'border-primary bg-primary' : 'border-zinc-600'
+                  )} />
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="border-t border-zinc-700 pt-4">

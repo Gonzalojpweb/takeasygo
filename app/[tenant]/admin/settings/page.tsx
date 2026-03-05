@@ -25,6 +25,8 @@ export default async function SettingsPage() {
 
   const locations = await Location.find({ tenantId }).lean()
 
+  const plan = tenant.plan ?? 'try'
+
   return (
     <div>
       <h1 className="text-white text-2xl font-bold mb-6">Configuración</h1>
@@ -32,6 +34,7 @@ export default async function SettingsPage() {
         tenant={JSON.parse(JSON.stringify(tenant))}
         locations={JSON.parse(JSON.stringify(locations))}
         tenantSlug={tenantSlug || ''}
+        plan={plan}
       />
     </div>
   )

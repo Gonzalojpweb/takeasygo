@@ -5,9 +5,11 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Activity, AlertTriangle, CheckCircle, Info } from 'lucide-react'
+import { Activity, AlertTriangle, CheckCircle, Info, Lock, TrendingUp, Clock, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Types } from 'mongoose'
+import type { Plan } from '@/lib/plans'
+import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 
 // Bandas diagnósticas ICO
 function getBand(score: number): { label: string; color: string; ring: string; text: string } {
@@ -24,8 +26,33 @@ export default async function ICOPage() {
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .lean<{ _id: Types.ObjectId }>()
+    .lean<{ _id: Types.ObjectId; plan: Plan }>()
   if (!tenant) notFound()
+
+  const plan: Plan = tenant.plan ?? 'try'
+
+  // try = locked
+  if (!canAccess(plan, 'ico')) {
+    const required = requiredPlanFor('ico')
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-6 text-center">
+        <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center">
+          <Lock size={32} className="text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">ICO — Fiabilidad Operativa</h2>
+          <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+            Esta funcionalidad está disponible en el plan{' '}
+            <span className="font-bold text-foreground">{PLAN_LABELS[required]}</span>.
+            Contactá al soporte para actualizar tu plan.
+          </p>
+        </div>
+        <div className="px-6 py-3 rounded-2xl bg-muted text-sm font-bold text-muted-foreground">
+          Tu plan actual: {PLAN_LABELS[plan]}
+        </div>
+      </div>
+    )
+  }
 
   const tenantId = tenant._id
   const now = new Date()
@@ -100,12 +127,6 @@ export default async function ICOPage() {
   const dataQuality: 'insuficiente' | 'muestra_pequeña' | 'valida' =
     tppN >= 30 ? 'valida' : tppN >= 10 ? 'muestra_pequeña' : 'insuficiente'
 
-  // CLT — Standard Error e intervalo de confianza 95%
-  const tppSEMs = tRaw && tppN >= 10 ? tRaw.stdMs / Math.sqrt(tppN) : null
-  const tppCI95Low  = tRaw && tppSEMs && tppN >= 30 ? Math.round((tRaw.avgMs - 1.96 * tppSEMs) / 60000 * 10) / 10 : null
-  const tppCI95High = tRaw && tppSEMs && tppN >= 30 ? Math.round((tRaw.avgMs + 1.96 * tppSEMs) / 60000 * 10) / 10 : null
-
-  // Componentes
   const consistency    = tRaw && tRaw.avgMs > 0 ? Math.max(0, Math.min(1, 1 - (tRaw.stdMs / tRaw.avgMs))) : null
   const cumplimiento   = oRaw && oRaw.total > 0 ? oRaw.onTime / oRaw.total : null
   const bajaCancelacion = cRaw && cRaw.total > 0 ? Math.max(0, 1 - (cRaw.cancelled / cRaw.total)) : null
@@ -114,7 +135,6 @@ export default async function ICOPage() {
   const activeDays     = activeDaysData[0]?.days ?? 0
   const estabilidad    = Math.min(1, activeDays / 20)
 
-  // ICO — pesos definitivos
   let icoScore: number | null = null
   if (hasEnoughData) {
     const c1 = consistency    ?? 0.5
@@ -126,11 +146,101 @@ export default async function ICOPage() {
   }
 
   const band = icoScore !== null ? getBand(icoScore) : null
+  const cancRate = cRaw && cRaw.total > 0 ? Math.round((cRaw.cancelled / cRaw.total) * 100) : 0
 
+  // ── buy plan: Fiabilidad Operativa (simplified view) ────────────────────────
+  if (plan === 'buy') {
+    // Auto suggestions based on weakest components
+    const suggestions: { icon: typeof TrendingUp; text: string }[] = []
+    if (cancRate > 15)
+      suggestions.push({ icon: XCircle, text: 'Tenés una tasa de cancelación elevada. Revisá los motivos más frecuentes.' })
+    if (consistency !== null && consistency < 0.6)
+      suggestions.push({ icon: Clock, text: 'Tu tiempo de preparación varía mucho entre pedidos. Considerá estandarizar los procesos de cocina.' })
+    if (cumplimiento !== null && cumplimiento < 0.7)
+      suggestions.push({ icon: AlertTriangle, text: 'Muchos pedidos no están listos en el tiempo prometido. Considerá ajustar el tiempo estimado de retiro.' })
+    if (actividad < 0.8)
+      suggestions.push({ icon: TrendingUp, text: 'La actividad de la última semana está por debajo de tu promedio mensual. Revisá si hay factores que afectan la demanda.' })
+
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/10">
+              <Activity size={22} className="text-primary" />
+            </div>
+            <div>
+              <h1 className="text-foreground text-4xl font-bold tracking-tight leading-none">Fiabilidad Operativa</h1>
+              <p className="text-muted-foreground text-sm mt-1.5 font-medium">Qué tan consistente es tu operación en los últimos 30 días</p>
+            </div>
+          </div>
+        </div>
+
+        {!hasEnoughData ? (
+          <Card className="bg-card border-2 border-amber-500/30 rounded-3xl">
+            <CardContent className="p-6 flex items-start gap-4">
+              <AlertTriangle size={20} className="text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-foreground font-bold">Datos insuficientes</p>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Se necesitan al menos <strong>10 pedidos</strong> en los últimos 30 días. Actualmente hay <strong>{totalOrders}</strong>.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : icoScore !== null && band ? (
+          <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
+            <CardContent className="p-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <div className={cn(
+                    'w-36 h-36 rounded-full border-[10px] flex flex-col items-center justify-center shadow-2xl',
+                    band.color, band.ring
+                  )}>
+                    <span className={cn('text-5xl font-black tabular-nums leading-none', band.text)}>{icoScore}</span>
+                    <span className="text-muted-foreground text-xs font-bold tracking-widest mt-1">/ 100</span>
+                  </div>
+                  <Badge variant="outline" className={cn('text-[10px] font-black uppercase tracking-[0.15em] px-3 py-1 border-2', band.color, band.text)}>
+                    {band.label}
+                  </Badge>
+                </div>
+                <div className="flex-1">
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Este score refleja la consistencia y fiabilidad de tu operación basado en {totalOrders} pedidos del período.
+                  </p>
+                  {suggestions.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {suggestions.slice(0, 3).map((s, i) => {
+                        const Icon = s.icon
+                        return (
+                          <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <Icon size={14} className="text-primary mt-0.5 shrink-0" />
+                            <span>{s.text}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <div className="flex items-center gap-3 px-5 py-4 rounded-2xl border border-primary/20 bg-primary/5 text-sm text-muted-foreground">
+          <Activity size={16} className="text-primary shrink-0" />
+          <span>Actualizá al plan <strong className="text-foreground">{PLAN_LABELS.full}</strong> para ver el diagnóstico completo con todos los factores, estadísticas de TPP y análisis de distribución.</span>
+        </div>
+      </div>
+    )
+  }
+
+  // ── full plan: ICO avanzado (current view) ───────────────────────────────────
+  const tppSEMs = tRaw && tppN >= 10 ? tRaw.stdMs / Math.sqrt(tppN) : null
+  const tppCI95Low  = tRaw && tppSEMs && tppN >= 30 ? Math.round((tRaw.avgMs - 1.96 * tppSEMs) / 60000 * 10) / 10 : null
+  const tppCI95High = tRaw && tppSEMs && tppN >= 30 ? Math.round((tRaw.avgMs + 1.96 * tppSEMs) / 60000 * 10) / 10 : null
   const tppMinutes    = tRaw ? Math.round(tRaw.avgMs / 60000) : null
   const tppStdMinutes = tRaw ? Math.round(tRaw.stdMs / 60000) : null
   const tppSEMinutes  = tppSEMs ? Math.round(tppSEMs / 60000 * 10) / 10 : null
-  const cancRate      = cRaw && cRaw.total > 0 ? Math.round((cRaw.cancelled / cRaw.total) * 100) : 0
 
   const componentsData = [
     { label: 'Consistencia del TPP',       weight: '×0.25', value: consistency    !== null ? Math.round(consistency * 100)    : null, tip: 'Inverso del coeficiente de variación (σ/μ)' },
@@ -150,12 +260,11 @@ export default async function ICOPage() {
           </div>
           <div>
             <h1 className="text-foreground text-4xl font-bold tracking-tight leading-none">ICO</h1>
-            <p className="text-muted-foreground text-sm mt-1.5 font-medium">Índice de Consistencia Operativa · Uso interno exclusivo · Últimos 30 días</p>
+            <p className="text-muted-foreground text-sm mt-1.5 font-medium">Índice de Consistencia Operativa · Últimos 30 días</p>
           </div>
         </div>
       </div>
 
-      {/* Sin datos suficientes */}
       {!hasEnoughData && (
         <Card className="bg-card border-2 border-amber-500/30 rounded-3xl">
           <CardContent className="p-6 flex items-start gap-4">
@@ -170,12 +279,10 @@ export default async function ICOPage() {
         </Card>
       )}
 
-      {/* Score principal */}
       {icoScore !== null && band && (
         <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
           <CardContent className="p-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-              {/* Gauge */}
               <div className="flex flex-col items-center gap-2 shrink-0">
                 <div className={cn(
                   'w-36 h-36 rounded-full border-[10px] flex flex-col items-center justify-center shadow-2xl',
@@ -189,7 +296,6 @@ export default async function ICOPage() {
                 </Badge>
               </div>
 
-              {/* Advertencia CLT */}
               <div className="flex-1 space-y-4">
                 {dataQuality === 'muestra_pequeña' && (
                   <div className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
@@ -218,7 +324,6 @@ export default async function ICOPage() {
         </Card>
       )}
 
-      {/* Componentes */}
       {hasEnoughData && (
         <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
           <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
@@ -235,7 +340,6 @@ export default async function ICOPage() {
         </Card>
       )}
 
-      {/* Detalle TPP + CLT */}
       {tRaw && (
         <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
           <CardHeader className="border-b border-border/40 bg-muted/30 p-6">

@@ -4,6 +4,9 @@ import Order from '@/models/Order'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import ReportsDashboard from '@/components/admin/ReportsDashboard'
+import type { Plan } from '@/lib/plans'
+import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
+import { Lock } from 'lucide-react'
 
 export default async function ReportsPage() {
   const headersList = await headers()
@@ -11,10 +14,36 @@ export default async function ReportsPage() {
 
   await connectDB()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean<{ _id: import('mongoose').Types.ObjectId }>()
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean<{ _id: import('mongoose').Types.ObjectId; plan: Plan }>()
   if (!tenant) notFound()
 
+  const plan: Plan = tenant.plan ?? 'try'
+
+  // try plan = locked
+  if (!canAccess(plan, 'reports')) {
+    const required = requiredPlanFor('reports')
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-6 text-center">
+        <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center">
+          <Lock size={32} className="text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Reportes y Analytics</h2>
+          <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+            Esta funcionalidad está disponible en el plan{' '}
+            <span className="font-bold text-foreground">{PLAN_LABELS[required]}</span>.
+            Contactá al soporte para actualizar tu plan.
+          </p>
+        </div>
+        <div className="px-6 py-3 rounded-2xl bg-muted text-sm font-bold text-muted-foreground">
+          Tu plan actual: {PLAN_LABELS[plan]}
+        </div>
+      </div>
+    )
+  }
+
   const tenantId = tenant._id
+  const isFullPlan = plan === 'full'
 
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -68,23 +97,23 @@ export default async function ReportsPage() {
         cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } }
       }}
     ]),
-    // Tasa de cancelación mes anterior (para tendencia)
-    Order.aggregate([
+    // Tasa de cancelación mes anterior (para tendencia) — solo full
+    isFullPlan ? Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
       { $group: {
         _id: null,
         total: { $sum: 1 },
         cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } }
       }}
-    ]),
-    // Distribución horaria completa (mes actual, sin cancelados, ordenada por hora)
-    Order.aggregate([
+    ]) : Promise.resolve([]),
+    // Distribución horaria completa — solo full
+    isFullPlan ? Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
       { $group: { _id: { $hour: '$createdAt' }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
-    ]),
-    // TPP (Tiempo Promedio de Preparación) — órdenes con confirmedAt y readyAt
-    Order.aggregate([
+    ]) : Promise.resolve([]),
+    // TPP — solo full
+    isFullPlan ? Order.aggregate([
       { $match: {
         tenantId,
         createdAt: { $gte: startOfMonth },
@@ -100,9 +129,9 @@ export default async function ReportsPage() {
         stdMs: { $stdDevPop: '$tppMs' },
         count: { $sum: 1 }
       }}
-    ]),
-    // % pedidos en tiempo — readyAt - createdAt vs estimatedPickupTime de la location
-    Order.aggregate([
+    ]) : Promise.resolve([]),
+    // % pedidos en tiempo — solo full
+    isFullPlan ? Order.aggregate([
       { $match: {
         tenantId,
         createdAt: { $gte: startOfMonth },
@@ -126,19 +155,18 @@ export default async function ReportsPage() {
         total: { $sum: 1 },
         onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } }
       }}
-    ]),
-    // Conversión de pagos MP del mes
-    Order.aggregate([
+    ]) : Promise.resolve([]),
+    // Conversión de pagos MP — solo full
+    isFullPlan ? Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: startOfMonth }, 'payment.method': 'mercadopago' } },
       { $group: {
         _id: null,
         total: { $sum: 1 },
         approved: { $sum: { $cond: [{ $eq: ['$payment.status', 'approved'] }, 1, 0] } }
       }}
-    ]),
-    // Tasa de recompra — clientes únicos por teléfono (últimos 90 días)
-    // El phone se usa solo como clave de agrupación, no se expone en el resultado
-    Order.aggregate([
+    ]) : Promise.resolve([]),
+    // Tasa de recompra — solo full
+    isFullPlan ? Order.aggregate([
       { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: last90days } } },
       { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
       { $group: {
@@ -146,10 +174,9 @@ export default async function ReportsPage() {
         totalClients: { $sum: 1 },
         recurring: { $sum: { $cond: [{ $gt: ['$count', 1] }, 1, 0] } }
       }}
-    ]),
-    // Breakdown de frecuencia de compra (últimos 90 días): 1 compra / 2 compras / 3+
-    // El phone se usa solo como clave de agrupación, no se expone en el resultado
-    Order.aggregate([
+    ]) : Promise.resolve([]),
+    // Breakdown de frecuencia de compra — solo full
+    isFullPlan ? Order.aggregate([
       { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: last90days } } },
       { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
       { $bucket: {
@@ -158,7 +185,7 @@ export default async function ReportsPage() {
         default: 'other',
         output: { clients: { $sum: 1 } }
       }}
-    ]),
+    ]) : Promise.resolve([]),
   ])
 
   const thisMonth = ordersThisMonth[0] || { total: 0, count: 0 }
@@ -266,6 +293,7 @@ export default async function ReportsPage() {
         topItems={JSON.parse(JSON.stringify(topItems))}
         recentOrders={JSON.parse(JSON.stringify(recentOrders))}
         tenantSlug={tenantSlug || ''}
+        plan={plan}
       />
     </div>
   )

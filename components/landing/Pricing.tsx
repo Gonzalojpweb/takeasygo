@@ -2,61 +2,55 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Check, Handshake } from 'lucide-react'
+import { Check, Handshake, ChevronDown, ChevronUp } from 'lucide-react'
 import PlanLeadModal from './PlanLeadModal'
+import { PLAN_FEATURES_LANDING } from '@/lib/plans'
 
-interface Plan {
+interface LandingPlan {
     id: string
     name: string
     price: string
     sub: string
     desc?: string
-    features: string[]
+    planKey?: 'try' | 'buy' | 'full'
+    featuredFeatures?: string[]
+    extraFeatures?: string[]
+    features?: string[]
     featured?: boolean
 }
 
-const mensualPlans: Plan[] = [
+const mensualPlans: LandingPlan[] = [
     {
         id: 'inicial-mensual',
         name: 'Inicial',
         price: '30',
-        sub: 'Hasta 500 clientes',
-        features: [
-            'QR y menú consumo en local',
-            'Club de fidelización',
-            'Soporte Básico',
-        ],
+        sub: 'Para empezar a vender online',
+        planKey: 'try',
+        featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
+        extraFeatures: PLAN_FEATURES_LANDING.try.extra,
     },
     {
         id: 'crecimiento-mensual',
         name: 'Crecimiento',
         price: '50',
-        sub: 'Hasta 1500 clientes',
+        sub: 'Para escalar tu operación',
+        planKey: 'buy',
         featured: true,
-        features: [
-            'QR menú local & takeaway',
-            'Club de fidelización',
-            'Upselling inteligente',
-            'Notificaciones (limitadas)',
-            'Soporte Priority',
-        ],
+        featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
+        extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
     },
     {
         id: 'premium-mensual',
         name: 'Premium',
         price: '80',
-        sub: 'Clientes ilimitados',
-        features: [
-            'QR menú local & takeaway',
-            'Club de fidelización',
-            'Upselling inteligente',
-            'Notificaciones ilimitadas',
-            'Soporte Priority',
-        ],
+        sub: 'Para optimizar con datos',
+        planKey: 'full',
+        featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
+        extraFeatures: PLAN_FEATURES_LANDING.full.extra,
     },
 ]
 
-const inversorPlans: Plan[] = [
+const inversorPlans: LandingPlan[] = [
     {
         id: 'moderado-inversion',
         name: 'Moderado',
@@ -89,15 +83,92 @@ const inversorPlans: Plan[] = [
     },
 ]
 
+function PlanCard({
+    plan,
+    type,
+    onOpen,
+}: {
+    plan: LandingPlan
+    type: 'mensual' | 'inversion'
+    onOpen: () => void
+}) {
+    const [expanded, setExpanded] = useState(false)
+    const hasFeatured = !!plan.featuredFeatures
+    const visibleFeatures = hasFeatured
+        ? (expanded ? [...plan.featuredFeatures!, ...plan.extraFeatures!] : plan.featuredFeatures!)
+        : plan.features ?? []
+
+    return (
+        <div
+            className={cn(
+                'rounded-[2rem] md:rounded-[2.5rem] p-7 md:p-10 border transition-all duration-500 flex flex-col h-full',
+                plan.featured
+                    ? 'bg-white border-zinc-900 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] md:scale-105 z-10'
+                    : 'bg-zinc-50/50 border-zinc-100 hover:border-zinc-200'
+            )}
+        >
+            <h4 className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em] mb-6">
+                {plan.name}
+            </h4>
+
+            <div className="flex items-baseline gap-1 mb-2">
+                <span className="text-xl font-bold text-zinc-900 italic">USD</span>
+                <span className="text-5xl font-bold text-zinc-900 tracking-tighter">{plan.price}</span>
+                {type === 'mensual' && (
+                    <span className="text-zinc-400 font-medium lowercase">/mes</span>
+                )}
+            </div>
+            <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-wider mb-4">
+                {plan.sub}
+            </p>
+
+            {plan.desc && (
+                <p className="text-zinc-400 text-xs leading-relaxed mb-4">{plan.desc}</p>
+            )}
+
+            <ul className="space-y-4 mt-2">
+                {visibleFeatures.map((f, j) => (
+                    <li key={j} className="flex gap-3 text-zinc-500 text-[13px] font-medium leading-tight">
+                        <Check size={16} className="text-orange-500 shrink-0 mt-0.5" />
+                        {f}
+                    </li>
+                ))}
+            </ul>
+
+            {hasFeatured && plan.extraFeatures && plan.extraFeatures.length > 0 && (
+                <button
+                    type="button"
+                    onClick={() => setExpanded(v => !v)}
+                    className="mt-4 flex items-center gap-1 text-[11px] font-bold text-zinc-400 hover:text-orange-500 transition-colors self-start"
+                >
+                    {expanded ? (
+                        <><ChevronUp size={14} /> Ocultar</>
+                    ) : (
+                        <><ChevronDown size={14} /> Ver todo lo incluido</>
+                    )}
+                </button>
+            )}
+
+            <div className="flex-1" />
+
+            <button
+                onClick={onOpen}
+                className={cn(
+                    'w-full h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all cursor-pointer border mt-8',
+                    plan.featured
+                        ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-[#f14722] hover:border-[#f14722]'
+                        : 'bg-white text-zinc-900 border-zinc-200 hover:bg-zinc-50'
+                )}
+            >
+                {type === 'mensual' ? 'Suscribirse' : 'Adquirir Activo'}
+            </button>
+        </div>
+    )
+}
+
 export default function Pricing() {
     const [type, setType] = useState<'mensual' | 'inversion'>('mensual')
     const [modal, setModal] = useState<{ plan: string; planId: string } | null>(null)
-
-    const openModal = (plan: Plan) =>
-        setModal({
-            plan: `${plan.name} – USD ${plan.price}${type === 'mensual' ? '/mes' : ' único'}`,
-            planId: plan.id,
-        })
 
     const plans = type === 'mensual' ? mensualPlans : inversorPlans
 
@@ -150,55 +221,15 @@ export default function Pricing() {
                             : 'grid-cols-1 md:grid-cols-2 md:max-w-3xl'
                     )}>
                         {plans.map((plan) => (
-                            <div
+                            <PlanCard
                                 key={plan.id}
-                                className={cn(
-                                    'rounded-[2rem] md:rounded-[2.5rem] p-7 md:p-10 border transition-all duration-500 flex flex-col h-full',
-                                    plan.featured
-                                        ? 'bg-white border-zinc-900 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] md:scale-105 z-10'
-                                        : 'bg-zinc-50/50 border-zinc-100 hover:border-zinc-200'
-                                )}
-                            >
-                                <h4 className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em] mb-6">
-                                    {plan.name}
-                                </h4>
-
-                                <div className="flex items-baseline gap-1 mb-2">
-                                    <span className="text-xl font-bold text-zinc-900 italic">USD</span>
-                                    <span className="text-5xl font-bold text-zinc-900 tracking-tighter">{plan.price}</span>
-                                    {type === 'mensual' && (
-                                        <span className="text-zinc-400 font-medium lowercase">/mes</span>
-                                    )}
-                                </div>
-                                <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-wider mb-4">
-                                    {plan.sub}
-                                </p>
-
-                                {plan.desc && (
-                                    <p className="text-zinc-400 text-xs leading-relaxed mb-4">{plan.desc}</p>
-                                )}
-
-                                <ul className="space-y-4 mb-10 mt-auto">
-                                    {plan.features.map((f, j) => (
-                                        <li key={j} className="flex gap-3 text-zinc-500 text-[13px] font-medium leading-tight">
-                                            <Check size={16} className="text-orange-500 shrink-0 mt-0.5" />
-                                            {f}
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <button
-                                    onClick={() => openModal(plan)}
-                                    className={cn(
-                                        'w-full h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all cursor-pointer border',
-                                        plan.featured
-                                            ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-[#f14722] hover:border-[#f14722]'
-                                            : 'bg-white text-zinc-900 border-zinc-200 hover:bg-zinc-50'
-                                    )}
-                                >
-                                    {type === 'mensual' ? 'Suscribirse' : 'Adquirir Activo'}
-                                </button>
-                            </div>
+                                plan={plan}
+                                type={type}
+                                onOpen={() => setModal({
+                                    plan: `${plan.name} – USD ${plan.price}${type === 'mensual' ? '/mes' : ' único'}`,
+                                    planId: plan.id,
+                                })}
+                            />
                         ))}
                     </div>
 

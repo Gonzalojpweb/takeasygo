@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Plus, ExternalLink, MapPin, Settings, Users } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import type { Plan } from '@/lib/plans'
+import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 
 export default async function TenantsPage() {
   await connectDB()
@@ -39,9 +41,9 @@ export default async function TenantsPage() {
                 </div>
                 <Badge className={cn(
                   "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border-2",
-                  tenant.plan === 'FULL' ? "bg-primary/10 text-primary border-primary/20" : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                  PLAN_COLORS[tenant.plan as Plan] ?? "bg-muted text-muted-foreground border-muted"
                 )}>
-                  {tenant.plan}
+                  {PLAN_LABELS[tenant.plan as Plan] ?? tenant.plan}
                 </Badge>
               </div>
             </CardHeader>

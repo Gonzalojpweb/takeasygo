@@ -2,9 +2,11 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrendingUp, ShoppingBag, DollarSign, Store, Calendar, Activity, Users, Clock, Zap } from 'lucide-react'
+import { TrendingUp, ShoppingBag, DollarSign, Store, Calendar, Activity, Users, Clock, Zap, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import type { Plan } from '@/lib/plans'
+import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 
 export default async function SuperAdminAnalyticsPage() {
   await connectDB()
@@ -16,6 +18,15 @@ export default async function SuperAdminAnalyticsPage() {
   const start30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
   const totalTenants = await Tenant.countDocuments({ isActive: true })
+
+  // Plan distribution
+  const planBreakdownRaw = await Tenant.aggregate([
+    { $match: { isActive: true } },
+    { $group: { _id: '$plan', count: { $sum: 1 } } }
+  ])
+  const planBreakdown: Record<string, number> = Object.fromEntries(
+    planBreakdownRaw.map((p: any) => [p._id as string, p.count as number])
+  )
 
   const [
     ordersThisMonth,
@@ -91,6 +102,9 @@ export default async function SuperAdminAnalyticsPage() {
   const consistentPct = globalTppData.length > 0
     ? Math.round((consistentTenants / globalTppData.length) * 100)
     : null
+
+  // ARPU — revenue del mes dividido tenants activos
+  const arpu = totalTenants > 0 ? Math.round(thisMonth.total / totalTenants) : 0
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -209,6 +223,68 @@ export default async function SuperAdminAnalyticsPage() {
         </Card>
       </div>
 
+      {/* Plan distribution + ARPU */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
+          <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
+            <div className="flex items-center gap-3">
+              <PieChart size={18} className="text-primary" />
+              <CardTitle className="text-foreground text-base font-bold">Distribución de planes</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-3">
+            {(['try', 'buy', 'full'] as Plan[]).map(p => {
+              const count = planBreakdown[p] ?? 0
+              const pct = totalTenants > 0 ? Math.round((count / totalTenants) * 100) : 0
+              return (
+                <div key={p} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full border', PLAN_COLORS[p])}>
+                      {PLAN_LABELS[p]}
+                    </span>
+                    <span className="text-sm font-black tabular-nums">{count} <span className="text-muted-foreground font-medium text-xs">({pct}%)</span></span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary/60 transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
+          <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
+            <div className="flex items-center gap-3">
+              <DollarSign size={18} className="text-primary" />
+              <CardTitle className="text-foreground text-base font-bold">Revenue del mes</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 grid grid-cols-2 gap-6">
+            <div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">ARPU</p>
+              <p className="text-3xl font-black tabular-nums">${arpu.toLocaleString('es-AR')}</p>
+              <p className="text-[10px] text-muted-foreground/70 font-bold mt-1">revenue / tenants activos</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Tenants activos</p>
+              <p className="text-3xl font-black tabular-nums">{totalTenants}</p>
+              <p className="text-[10px] text-muted-foreground/70 font-bold mt-1">{activeTenantCount} con pedidos en 30d</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Revenue total mes</p>
+              <p className="text-xl font-black tabular-nums">${thisMonth.total.toLocaleString('es-AR')}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">MoM revenue</p>
+              <p className={cn('text-xl font-black tabular-nums', Number(revenueGrowth) >= 0 ? 'text-emerald-500' : 'text-destructive')}>
+                {Number(revenueGrowth) >= 0 ? '+' : ''}{revenueGrowth}%
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* Top tenants */}
         <Card className="bg-card border-2 border-border/60 shadow-xl rounded-3xl overflow-hidden">
@@ -235,6 +311,11 @@ export default async function SuperAdminAnalyticsPage() {
                         </div>
                       </div>
                       <div className="text-right flex flex-col items-end gap-1">
+                        {tenant?.plan && (
+                          <span className={cn('text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-widest', PLAN_COLORS[tenant.plan as Plan])}>
+                            {PLAN_LABELS[tenant.plan as Plan] ?? tenant.plan}
+                          </span>
+                        )}
                         <Badge variant="outline" className="text-[10px] font-bold border-primary/40 text-primary bg-primary/5 px-3 py-1 scale-90">
                           {item.totalOrders} pedidos
                         </Badge>

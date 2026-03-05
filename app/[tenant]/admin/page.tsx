@@ -5,9 +5,41 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ShoppingBag, Clock, CheckCircle, XCircle, TrendingUp, Calendar, ArrowUpRight, Activity, AlertTriangle } from 'lucide-react'
+import { ShoppingBag, Clock, CheckCircle, XCircle, Calendar, ArrowUpRight, Activity, AlertTriangle, Sparkles, ChevronRight } from 'lucide-react'
 import type { Types } from 'mongoose'
 import { cn } from '@/lib/utils'
+import type { Plan } from '@/lib/plans'
+import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
+
+function PlanBanner({ plan }: { plan: Plan }) {
+  if (plan === 'full') return null
+
+  const messages: Record<'try' | 'buy', { text: string; cta: string }> = {
+    try: {
+      text: `Estás en el plan ${PLAN_LABELS.try}. Accedé a reportes, múltiples sedes y más.`,
+      cta: 'Ver planes',
+    },
+    buy: {
+      text: `Estás en el plan ${PLAN_LABELS.buy}. Desbloqueá analytics avanzados e ICO completo con Premium.`,
+      cta: 'Saber más',
+    },
+  }
+
+  const msg = messages[plan as 'try' | 'buy']
+
+  return (
+    <div className={cn(
+      'flex items-center gap-3 px-5 py-3 rounded-2xl border text-sm font-medium',
+      PLAN_COLORS[plan]
+    )}>
+      <Sparkles size={16} className="shrink-0" />
+      <span className="flex-1">{msg.text}</span>
+      <span className="flex items-center gap-1 text-xs font-bold shrink-0 opacity-80 hover:opacity-100 cursor-pointer">
+        {msg.cta} <ChevronRight size={12} />
+      </span>
+    </div>
+  )
+}
 
 export default async function AdminDashboard() {
   const headersList = await headers()
@@ -16,8 +48,10 @@ export default async function AdminDashboard() {
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .lean<{ _id: Types.ObjectId }>()
+    .lean<{ _id: Types.ObjectId; plan: Plan }>()
   if (!tenant) notFound()
+
+  const plan: Plan = tenant.plan ?? 'try'
 
   const tenantId = tenant._id
 
@@ -72,6 +106,8 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      <PlanBanner plan={plan} />
+
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-foreground text-4xl font-bold tracking-tight leading-none">Restaurante</h1>

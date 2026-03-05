@@ -38,6 +38,7 @@ interface Props {
   tenantSlug: string
   printers: PrinterData[]
   locations: Location[]
+  plan?: string
 }
 
 const ROLE_LABELS: Record<PrinterRole, string> = {
@@ -62,7 +63,7 @@ const EMPTY_FORM = {
   paperWidth: 80 as 58 | 80,
 }
 
-export default function PrintersManager({ tenantSlug, printers: initial, locations }: Props) {
+export default function PrintersManager({ tenantSlug, printers: initial, locations, plan }: Props) {
   const [printers, setPrinters] = useState<PrinterData[]>(initial)
   const [selectedLocation, setSelectedLocation] = useState<string>(locations[0]?._id ?? '')
   const [showForm, setShowForm] = useState(false)
@@ -200,6 +201,8 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
             size="sm"
             className="bg-primary text-white font-bold text-xs gap-2 rounded-xl shadow-lg shadow-primary/20"
             onClick={openNew}
+            disabled={plan === 'try' && printers.length >= 1}
+            title={plan === 'try' && printers.length >= 1 ? 'El plan Inicial permite 1 impresora. Actualizá a Crecimiento.' : undefined}
           >
             <Plus size={14} /> Nueva Manual
           </Button>
@@ -356,7 +359,11 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
           </div>
           <p className="text-foreground font-bold text-lg">No hay impresoras configuradas</p>
           <p className="text-muted-foreground text-sm mt-1">Agregá una impresora manual con su IP y rol.</p>
-          <Button className="mt-6 gap-2 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20" onClick={openNew}>
+          <Button
+            className="mt-6 gap-2 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20"
+            onClick={openNew}
+            disabled={plan === 'try' && printers.length >= 1}
+          >
             <Plus size={16} /> Agregar impresora
           </Button>
         </div>
