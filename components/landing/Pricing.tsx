@@ -17,6 +17,9 @@ interface LandingPlan {
     extraFeatures?: string[]
     features?: string[]
     featured?: boolean
+    anchorPrice?: string   // precio tachado (referencia más alta)
+    anchorSavings?: string // badge de ahorro (ej: "Ahorrás $117.000")
+    anchorHint?: string    // texto sutil debajo del precio (mensual)
 }
 
 const mensualPlans: LandingPlan[] = [
@@ -38,6 +41,7 @@ const mensualPlans: LandingPlan[] = [
         featured: true,
         featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
         extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
+        anchorHint: 'Con pago anual pagás $55.250/mes · Ahorrás $117.000/año',
     },
     {
         id: 'premium-mensual',
@@ -69,6 +73,8 @@ const anualPlans: LandingPlan[] = [
         featured: true,
         featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
         extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
+        anchorPrice: '780.000',
+        anchorSavings: 'Ahorrás $117.000',
     },
     {
         id: 'premium-anual',
@@ -105,9 +111,28 @@ function PlanCard({
                     : 'bg-zinc-50/50 border-zinc-100 hover:border-zinc-200'
             )}
         >
-            <h4 className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em] mb-6">
-                {plan.name}
-            </h4>
+            <div className="flex items-center justify-between mb-6">
+                <h4 className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em]">
+                    {plan.name}
+                </h4>
+                {plan.featured && (
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-zinc-900 text-white">
+                        Más popular
+                    </span>
+                )}
+            </div>
+
+            {/* Anchor: precio tachado + badge de ahorro (plan anual) */}
+            {plan.anchorPrice && (
+                <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-zinc-400 line-through text-sm font-medium">
+                        ${plan.anchorPrice}/año
+                    </span>
+                    <span className="bg-[#f14722] text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                        {plan.anchorSavings}
+                    </span>
+                </div>
+            )}
 
             <div className="flex items-baseline gap-1 mb-2">
                 <span className="text-xl font-bold text-zinc-900 italic">USD</span>
@@ -116,9 +141,17 @@ function PlanCard({
                     {type === 'mensual' ? '/mes' : '/año'}
                 </span>
             </div>
-            <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-wider mb-4">
-                {plan.sub}
-            </p>
+
+            {/* Anchor hint: empuja al plan anual desde el plan mensual */}
+            {plan.anchorHint ? (
+                <p className="text-[10px] font-semibold text-emerald-600 mb-4 leading-relaxed">
+                    ✦ {plan.anchorHint}
+                </p>
+            ) : (
+                <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-wider mb-4">
+                    {plan.sub}
+                </p>
+            )}
 
             {plan.desc && (
                 <p className="text-zinc-400 text-xs leading-relaxed mb-4">{plan.desc}</p>
