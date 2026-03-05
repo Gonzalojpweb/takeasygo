@@ -20,7 +20,7 @@ export default async function ReportsPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
-  const last7days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const last90days = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
 
   const [
     ordersThisMonth,
@@ -28,11 +28,13 @@ export default async function ReportsPage() {
     topItems,
     recentOrders,
     cancellationData,
-    peakHoursData,
+    cancellationPrevData,
+    hourlyData,
     tppData,
     onTimeData,
     paymentData,
     recompraData,
+    recompraBreakdownData,
   ] = await Promise.all([
     // Revenue y count del mes actual (sin cancelados)
     Order.aggregate([
@@ -66,12 +68,20 @@ export default async function ReportsPage() {
         cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } }
       }}
     ]),
-    // Hora pico — top 3 franjas horarias por volumen (mes actual)
+    // Tasa de cancelación mes anterior (para tendencia)
+    Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+      { $group: {
+        _id: null,
+        total: { $sum: 1 },
+        cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } }
+      }}
+    ]),
+    // Distribución horaria completa (mes actual, sin cancelados, ordenada por hora)
     Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
       { $group: { _id: { $hour: '$createdAt' }, count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 3 }
+      { $sort: { _id: 1 } },
     ]),
     // TPP (Tiempo Promedio de Preparación) — órdenes con confirmedAt y readyAt
     Order.aggregate([
@@ -126,14 +136,27 @@ export default async function ReportsPage() {
         approved: { $sum: { $cond: [{ $eq: ['$payment.status', 'approved'] }, 1, 0] } }
       }}
     ]),
-    // Tasa de recompra — clientes únicos por teléfono con más de 1 orden
+    // Tasa de recompra — clientes únicos por teléfono (últimos 90 días)
+    // El phone se usa solo como clave de agrupación, no se expone en el resultado
     Order.aggregate([
-      { $match: { tenantId, 'customer.phone': { $ne: '' } } },
+      { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: last90days } } },
       { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
       { $group: {
         _id: null,
         totalClients: { $sum: 1 },
         recurring: { $sum: { $cond: [{ $gt: ['$count', 1] }, 1, 0] } }
+      }}
+    ]),
+    // Breakdown de frecuencia de compra (últimos 90 días): 1 compra / 2 compras / 3+
+    // El phone se usa solo como clave de agrupación, no se expone en el resultado
+    Order.aggregate([
+      { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: last90days } } },
+      { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
+      { $bucket: {
+        groupBy: '$count',
+        boundaries: [1, 2, 3, 99999],
+        default: 'other',
+        output: { clients: { $sum: 1 } }
       }}
     ]),
   ])
@@ -145,9 +168,27 @@ export default async function ReportsPage() {
     ? (((thisMonth.total - lastMonth.total) / lastMonth.total) * 100).toFixed(1)
     : '0'
 
-  // Cancelación
+  // Cancelación — mes actual
   const cancRaw = cancellationData[0] || { total: 0, cancelled: 0 }
   const cancRate = cancRaw.total > 0 ? Math.round((cancRaw.cancelled / cancRaw.total) * 100) : 0
+
+  // Cancelación — mes anterior (para tendencia)
+  const cancPrevRaw = cancellationPrevData[0] || { total: 0, cancelled: 0 }
+  const cancRatePrev = cancPrevRaw.total > 0
+    ? Math.round((cancPrevRaw.cancelled / cancPrevRaw.total) * 100)
+    : null
+  const cancTrend: 'better' | 'worse' | 'same' | null =
+    cancRatePrev === null ? null
+    : cancRate < cancRatePrev ? 'better'
+    : cancRate > cancRatePrev ? 'worse'
+    : 'same'
+
+  // Distribución horaria — todas las horas con actividad, ordenadas cronológicamente
+  const hourlyDistribution: { hour: number; count: number }[] =
+    hourlyData.map((h: any) => ({ hour: h._id as number, count: h.count as number }))
+  const peakHour = hourlyDistribution.length > 0
+    ? hourlyDistribution.reduce((a, b) => b.count > a.count ? b : a)
+    : null
 
   // TPP
   const tppRaw = tppData[0] || null
@@ -165,10 +206,22 @@ export default async function ReportsPage() {
   const payRaw = paymentData[0] || { total: 0, approved: 0 }
   const payConvPct = payRaw.total > 0 ? Math.round((payRaw.approved / payRaw.total) * 100) : null
 
-  // Recompra
+  // Recompra — últimos 90 días
   const recompraRaw = recompraData[0] || { totalClients: 0, recurring: 0 }
   const recompraPct = recompraRaw.totalClients > 0
     ? Math.round((recompraRaw.recurring / recompraRaw.totalClients) * 100)
+    : null
+
+  // Breakdown de frecuencia de compra — clientes con 1, 2 y 3+ órdenes
+  const breakdownMap = Object.fromEntries(
+    (recompraBreakdownData as any[]).map((b: any) => [b._id, b.clients])
+  )
+  const recompraBreakdown = recompraRaw.totalClients > 0
+    ? {
+        once:   (breakdownMap[1] ?? 0) as number,
+        twice:  (breakdownMap[2] ?? 0) as number,
+        thrice: (breakdownMap[3] ?? 0) as number,
+      }
     : null
 
   const stats = {
@@ -178,18 +231,27 @@ export default async function ReportsPage() {
     growth: revenueGrowth,
     lastMonthRevenue: lastMonth.total,
     lastMonthOrders: lastMonth.count,
-    // Nuevos KPIs operativos
+    // Cancelación
     cancRate,
     cancTotal: cancRaw.total,
     cancCount: cancRaw.cancelled,
-    peakHours: peakHoursData.map((h: any) => ({ hour: h._id, count: h.count })),
+    cancRatePrev,
+    cancTrend,
+    // Distribución horaria
+    hourlyDistribution,
+    peakHour,
+    // TPP
     tppMinutes,
     tppStdMin,
     tppSampleSize,
+    // Pedidos en tiempo
     onTimePct,
+    // Conversión MP
     payConvPct,
+    // Recompra
     recompraPct,
     recompraClients: recompraRaw.totalClients,
+    recompraBreakdown,
   }
 
   return (

@@ -21,18 +21,27 @@ interface Props {
         growth: string
         lastMonthRevenue: number
         lastMonthOrders: number
-        // KPIs operativos
+        // Cancelación
         cancRate: number
         cancTotal: number
         cancCount: number
-        peakHours: { hour: number; count: number }[]
+        cancRatePrev: number | null
+        cancTrend: 'better' | 'worse' | 'same' | null
+        // Distribución horaria
+        hourlyDistribution: { hour: number; count: number }[]
+        peakHour: { hour: number; count: number } | null
+        // TPP
         tppMinutes: number | null
         tppStdMin: number | null
         tppSampleSize: number
+        // Pedidos en tiempo
         onTimePct: number | null
+        // Conversión MP
         payConvPct: number | null
+        // Recompra
         recompraPct: number | null
         recompraClients: number
+        recompraBreakdown: { once: number; twice: number; thrice: number } | null
     }
     topItems: any[]
     recentOrders: any[]
@@ -374,14 +383,23 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                     <h2 className="text-xl font-bold text-foreground">KPIs del Mes</h2>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {/* Tasa de cancelación */}
+                    {/* Tasa de cancelación — con tendencia vs mes anterior */}
                     <OperKpi
                         label="Cancelación"
                         value={`${stats.cancRate}%`}
-                        sub={`${stats.cancCount} de ${stats.cancTotal} pedidos`}
+                        sub={
+                            stats.cancTrend !== null
+                                ? `${stats.cancCount}/${stats.cancTotal} · ${stats.cancTrend === 'better' ? '↓' : stats.cancTrend === 'worse' ? '↑' : '='} ${Math.abs(stats.cancRate - (stats.cancRatePrev ?? 0))}pp vs mes ant.`
+                                : `${stats.cancCount} de ${stats.cancTotal} pedidos`
+                        }
                         icon={<XCircle size={18} />}
                         color={stats.cancRate > 15 ? 'text-destructive bg-destructive/10' : stats.cancRate > 5 ? 'text-amber-500 bg-amber-500/10' : 'text-emerald-500 bg-emerald-500/10'}
                         alert={stats.cancRate > 15}
+                        trendColor={
+                            stats.cancTrend === 'better' ? 'text-emerald-500'
+                            : stats.cancTrend === 'worse' ? 'text-destructive'
+                            : undefined
+                        }
                     />
                     {/* TPP */}
                     <OperKpi
@@ -399,14 +417,8 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                         icon={<Zap size={18} />}
                         color={stats.onTimePct === null ? 'text-muted-foreground bg-muted/40' : stats.onTimePct >= 80 ? 'text-emerald-500 bg-emerald-500/10' : stats.onTimePct >= 60 ? 'text-amber-500 bg-amber-500/10' : 'text-destructive bg-destructive/10'}
                     />
-                    {/* Recompra */}
-                    <OperKpi
-                        label="Recompra"
-                        value={stats.recompraPct !== null ? `${stats.recompraPct}%` : '—'}
-                        sub={`${stats.recompraClients} clientes únicos`}
-                        icon={<RefreshCw size={18} />}
-                        color="text-purple-500 bg-purple-500/10"
-                    />
+                    {/* Recompra — card custom con breakdown de frecuencia */}
+                    <RecompraKpi stats={stats} />
                     {/* Conversión MP */}
                     <OperKpi
                         label="Conv. pago"
@@ -418,13 +430,44 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                     {/* Hora pico */}
                     <OperKpi
                         label="Hora pico"
-                        value={stats.peakHours.length > 0 ? `${stats.peakHours[0].hour}:00` : '—'}
-                        sub={stats.peakHours.length > 0 ? `${stats.peakHours[0].count} pedidos esa hora` : 'Sin datos'}
+                        value={stats.peakHour ? `${stats.peakHour.hour}:00` : '—'}
+                        sub={stats.peakHour ? `${stats.peakHour.count} pedidos esa hora` : 'Sin datos'}
                         icon={<TrendingUp size={18} />}
                         color="text-amber-500 bg-amber-500/10"
                     />
                 </div>
             </motion.div>
+
+            {/* ── Distribución Horaria ─────────────────────────────────────── */}
+            {stats.hourlyDistribution.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.38 }}>
+                    <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+                        <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                                        <Clock size={24} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <CardTitle className="text-xl font-bold tracking-tight">Órdenes por Hora</CardTitle>
+                                        <p className="text-xs text-muted-foreground font-medium">Distribución horaria del mes actual · madrugada <span className="inline-block w-2 h-2 rounded-sm bg-slate-400 align-middle" /> mañana <span className="inline-block w-2 h-2 rounded-sm bg-blue-400 align-middle" /> tarde <span className="inline-block w-2 h-2 rounded-sm bg-amber-400 align-middle" /> noche <span className="inline-block w-2 h-2 rounded-sm bg-purple-400 align-middle" /></p>
+                                    </div>
+                                </div>
+                                {stats.peakHour && (
+                                    <div className="text-right shrink-0">
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Hora pico</p>
+                                        <p className="text-2xl font-black tabular-nums text-amber-500">{stats.peakHour.hour}:00</p>
+                                        <p className="text-xs font-bold text-muted-foreground/70">{stats.peakHour.count} pedidos</p>
+                                    </div>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-8 pt-6">
+                            <HourlyChart distribution={stats.hourlyDistribution} />
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
                 {/* ── Top Product Rankings ──────────────────────────────── */}
@@ -516,8 +559,8 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
     )
 }
 
-function OperKpi({ label, value, sub, icon, color, alert }: {
-    label: string; value: string; sub: string; icon: React.ReactNode; color: string; alert?: boolean
+function OperKpi({ label, value, sub, icon, color, alert, trendColor }: {
+    label: string; value: string; sub: string; icon: React.ReactNode; color: string; alert?: boolean; trendColor?: string
 }) {
     return (
         <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden relative">
@@ -532,9 +575,107 @@ function OperKpi({ label, value, sub, icon, color, alert }: {
                 </div>
                 <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-0.5">{label}</p>
                 <p className="text-2xl font-black tracking-tighter text-foreground tabular-nums leading-none">{value}</p>
-                <p className="text-[10px] font-bold text-muted-foreground/70 mt-1 leading-tight">{sub}</p>
+                <p className={cn('text-[10px] font-bold mt-1 leading-tight', trendColor ?? 'text-muted-foreground/70')}>{sub}</p>
             </CardContent>
         </Card>
+    )
+}
+
+function RecompraKpi({ stats }: { stats: Props['stats'] }) {
+    const { recompraPct, recompraClients, recompraBreakdown } = stats
+    return (
+        <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+            <CardContent className="p-4">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3 text-purple-500 bg-purple-500/10">
+                    <RefreshCw size={18} />
+                </div>
+                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-0.5">Recompra</p>
+                <p className="text-2xl font-black tracking-tighter text-foreground tabular-nums leading-none">
+                    {recompraPct !== null ? `${recompraPct}%` : '—'}
+                </p>
+                <p className="text-[10px] font-bold text-muted-foreground/70 mt-1 leading-tight">
+                    {recompraClients > 0 ? `${recompraClients} clientes · 90 días` : 'Sin datos aún'}
+                </p>
+                {recompraBreakdown && recompraClients > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                        <MiniBar label="1 compra" value={recompraBreakdown.once} total={recompraClients} color="bg-purple-300" />
+                        <MiniBar label="2 compras" value={recompraBreakdown.twice} total={recompraClients} color="bg-purple-500" />
+                        <MiniBar label="3+ compras" value={recompraBreakdown.thrice} total={recompraClients} color="bg-purple-700" />
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
+
+function MiniBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+    const pct = total > 0 ? Math.round((value / total) * 100) : 0
+    return (
+        <div>
+            <div className="flex justify-between text-[9px] font-bold text-muted-foreground/60 mb-0.5">
+                <span>{label}</span>
+                <span>{value}</span>
+            </div>
+            <div className="h-1 bg-muted rounded-full overflow-hidden">
+                <div
+                    className={cn('h-full rounded-full', color)}
+                    style={{ width: `${pct}%` }}
+                />
+            </div>
+        </div>
+    )
+}
+
+function HourlyChart({ distribution }: { distribution: { hour: number; count: number }[] }) {
+    const map = Object.fromEntries(distribution.map(d => [d.hour, d.count]))
+    const hours = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: (map[h] ?? 0) as number }))
+    const maxCount = Math.max(...hours.map(h => h.count), 1)
+
+    function barColor(hour: number): string {
+        if (hour < 6) return 'bg-slate-400'
+        if (hour < 12) return 'bg-blue-400'
+        if (hour < 18) return 'bg-amber-400'
+        return 'bg-purple-400'
+    }
+
+    return (
+        <div className="relative pb-5">
+            <div
+                className="flex items-end gap-[3px] h-32"
+                role="img"
+                aria-label="Distribución horaria de órdenes del mes actual"
+            >
+                {hours.map(({ hour, count }) => (
+                    <div key={hour} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                        {/* Tooltip */}
+                        {count > 0 && (
+                            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                {hour}:00 · {count} ped.
+                            </div>
+                        )}
+                        {/* Barra */}
+                        <div
+                            className={cn('w-full rounded-t-[3px] transition-all duration-300', count > 0 ? barColor(hour) : 'bg-muted/40')}
+                            style={{
+                                height: count > 0
+                                    ? `${Math.max(4, Math.round((count / maxCount) * 100))}%`
+                                    : '2px'
+                            }}
+                        />
+                    </div>
+                ))}
+            </div>
+            {/* Eje X — labels cada 3 horas */}
+            <div className="flex mt-1.5">
+                {Array.from({ length: 24 }, (_, h) => (
+                    <div key={h} className="flex-1 text-center">
+                        {h % 3 === 0 && (
+                            <span className="text-[8px] font-bold text-muted-foreground/50">{h}h</span>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
     )
 }
 
