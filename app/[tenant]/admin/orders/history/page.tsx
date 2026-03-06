@@ -1,12 +1,23 @@
 import { headers } from 'next/headers'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ClipboardList } from 'lucide-react'
 import OrderHistory from '@/components/admin/OrderHistory'
+import { auth } from '@/lib/auth'
 
 export default async function OrderHistoryPage() {
+  const session = await auth()
+  const role = session?.user?.role
+  if (!role || role === 'staff') redirect('/')
+
   const headersList = await headers()
   const tenantSlug = headersList.get('x-tenant-slug')
   if (!tenantSlug) notFound()
+
+  // Verificar que el usuario pertenece al tenant correcto
+  const sessionTenantSlug = session?.user?.tenantSlug
+  if (sessionTenantSlug && sessionTenantSlug !== tenantSlug && role !== 'superadmin') {
+    redirect('/')
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">

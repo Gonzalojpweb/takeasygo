@@ -82,6 +82,19 @@ export function requiredPlanFor(feature: Feature): Plan {
 // ── Feature lists para la landing ────────────────────────────────────────────
 
 export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: string[] }> = {
+  trial: {
+    featured: [
+      'Menú digital completo con imágenes y customizaciones',
+      'Pedidos online con pago por MercadoPago',
+      'Tracking del pedido en tiempo real para el cliente',
+      'Impresión automática de tickets en cocina',
+    ],
+    extra: [
+      'Hasta 30 pedidos para generar tu Informe ICO de contexto',
+      '1 sede / ubicación',
+      'Panel de administración',
+    ],
+  },
   try: {
     featured: [
       'Menú digital completo con imágenes y customizaciones',
@@ -101,34 +114,32 @@ export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: st
   buy: {
     featured: [
       'Todo el plan Inicial incluido',
-      'Reportes de ventas, KPIs y exportación Excel',
+      'Reportes de ventas con comparativa mensual y exportación Excel/PDF',
       'Múltiples sedes y usuarios con roles',
-      'ICO — Fiabilidad Operativa de tu negocio',
+      'ICO — Score de Fiabilidad Operativa',
     ],
     extra: [
       'Roles de equipo: staff, cajero, gerente',
       'Múltiples impresoras por local',
-      'Gráficos de tendencias y filtros por fecha',
-      'Filtros por sucursal en reportes',
       'Log de auditoría de acciones del equipo',
-      'Crecimiento mes a mes (MoM)',
-      'Revenue por categoría de menú',
+      'Comparativa de ventas mes a mes (MoM)',
+      'Top 5 productos más vendidos e ingresos generados',
+      'Historial completo de pedidos con filtros',
     ],
   },
   full: {
     featured: [
       'Todo el plan Crecimiento incluido',
-      'Performance operativa: TPP, cancelaciones, cumplimiento',
-      'Inteligencia de menú: rentabilidad y oportunidades',
-      'Horarios pico y distribución horaria de pedidos',
+      'KPIs operativos: TPP, cumplimiento de tiempos y tasa de cancelación',
+      'Distribución horaria de pedidos y hora pico',
+      'Tasa de recompra y frecuencia de clientes (últimos 90 días)',
     ],
     extra: [
       'ICO avanzado con diagnóstico completo por factores',
-      'Análisis de crecimiento semanal y mensual',
-      'Tasa de recompra y frecuencia de clientes',
-      'Productos más rentables y menos vendidos',
+      'Tiempo de preparación: media, desvío estándar e intervalo de confianza',
+      'Tasa de cancelación con tendencia vs mes anterior',
       'Modo Dine-in (menú para consumo en el local)',
-      'Patrones de demanda y tendencias',
+      'Conversión de pagos MercadoPago',
     ],
   },
 }
