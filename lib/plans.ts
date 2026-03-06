@@ -123,12 +123,11 @@ export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: st
       'Horarios pico y distribución horaria de pedidos',
     ],
     extra: [
-      'ICO avanzado con diagnóstico completo por factores',
-      'Análisis de crecimiento semanal y mensual',
+      'performance de ventas',
+      'Análisis crecimiento',
       'Tasa de recompra y frecuencia de clientes',
       'Productos más rentables y menos vendidos',
-      'Modo Dine-in (menú para consumo en el local)',
-      'Patrones de demanda y tendencias',
+      'Modo Dine-in (menú para consumo en el local)'
     ],
   },
 }

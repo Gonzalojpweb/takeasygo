@@ -5,7 +5,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Activity, AlertTriangle, CheckCircle, Info, Lock, TrendingUp, Clock, XCircle } from 'lucide-react'
+import { Activity, AlertTriangle, CheckCircle, Info, Lock, TrendingUp, Clock, XCircle, RefreshCw, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Types } from 'mongoose'
 import type { Plan } from '@/lib/plans'
@@ -190,10 +190,11 @@ export default async function ICOPage() {
 
   const tenantId = tenant._id
   const now = new Date()
-  const start30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-  const start7  = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000)
+  const start30  = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const start7   = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000)
+  const start90  = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
 
-  const [cancData, tppData, onTimeData, actData7, actData30, activeDaysData] = await Promise.all([
+  const [cancData, tppData, onTimeData, actData7, actData30, activeDaysData, recompraData, recompraBreakdownData] = await Promise.all([
     Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: start30 } } },
       { $group: {
@@ -249,6 +250,27 @@ export default async function ICOPage() {
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
       { $count: 'days' }
     ]),
+    // Tasa de recompra — últimos 90 días, agrupado por teléfono
+    Order.aggregate([
+      { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: start90 } } },
+      { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
+      { $group: {
+        _id: null,
+        totalClients: { $sum: 1 },
+        recurring: { $sum: { $cond: [{ $gt: ['$count', 1] }, 1, 0] } },
+      }},
+    ]),
+    // Breakdown de frecuencia: clientes con 1, 2, 3+ pedidos
+    Order.aggregate([
+      { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: start90 } } },
+      { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
+      { $bucket: {
+        groupBy: '$count',
+        boundaries: [1, 2, 3, 99999],
+        default: 'other',
+        output: { clients: { $sum: 1 } },
+      }},
+    ]),
   ])
 
   const cRaw = cancData[0]
@@ -281,6 +303,18 @@ export default async function ICOPage() {
 
   const band = icoScore !== null ? getBand(icoScore) : null
   const cancRate = cRaw && cRaw.total > 0 ? Math.round((cRaw.cancelled / cRaw.total) * 100) : 0
+
+  // Recompra (solo se usa en full plan)
+  const recompraRaw = recompraData[0] ?? { totalClients: 0, recurring: 0 }
+  const recompraPct = recompraRaw.totalClients > 0
+    ? Math.round((recompraRaw.recurring / recompraRaw.totalClients) * 100)
+    : null
+  const breakdownMap = Object.fromEntries(
+    (recompraBreakdownData as any[]).map((b: any) => [b._id, b.clients])
+  )
+  const recompraBreakdown = recompraRaw.totalClients > 0
+    ? { once: (breakdownMap[1] ?? 0) as number, twice: (breakdownMap[2] ?? 0) as number, thrice: (breakdownMap[3] ?? 0) as number }
+    : null
 
   // ── buy plan: Fiabilidad Operativa (simplified view) ────────────────────────
   if (plan === 'buy') {
@@ -495,6 +529,84 @@ export default async function ICOPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* ── Recompra y frecuencia de clientes ── */}
+      <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
+        <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <RefreshCw size={18} className="text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-foreground text-base font-bold">Recompra y frecuencia de clientes</CardTitle>
+              <p className="text-muted-foreground text-xs mt-0.5 font-medium">Clientes únicos identificados por teléfono — últimos 90 días</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          {recompraRaw.totalClients === 0 ? (
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+              <p className="text-sm">Sin suficientes datos aún. Se necesitan pedidos con teléfono de cliente registrado en los últimos 90 días.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Métricas principales */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Tasa de recompra</p>
+                  <p className={cn('text-3xl font-black tabular-nums',
+                    recompraPct === null ? 'text-muted-foreground' :
+                    recompraPct >= 40 ? 'text-emerald-500' :
+                    recompraPct >= 20 ? 'text-amber-500' : 'text-foreground'
+                  )}>
+                    {recompraPct !== null ? `${recompraPct}%` : '—'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/60 font-medium">Clientes con más de 1 pedido</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Clientes únicos</p>
+                  <p className="text-3xl font-black tabular-nums text-foreground">{recompraRaw.totalClients}</p>
+                  <p className="text-[10px] text-muted-foreground/60 font-medium">En los últimos 90 días</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Clientes recurrentes</p>
+                  <p className="text-3xl font-black tabular-nums text-foreground">{recompraRaw.recurring}</p>
+                  <p className="text-[10px] text-muted-foreground/60 font-medium">Con 2 o más pedidos</p>
+                </div>
+              </div>
+
+              {/* Distribución de frecuencia */}
+              {recompraBreakdown && (
+                <div className="pt-4 border-t border-border/40 space-y-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users size={14} className="text-primary" />
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Distribución de frecuencia</p>
+                  </div>
+                  {[
+                    { label: '1 compra', count: recompraBreakdown.once,   color: 'bg-primary/20' },
+                    { label: '2 compras', count: recompraBreakdown.twice,  color: 'bg-primary/50' },
+                    { label: '3+ compras', count: recompraBreakdown.thrice, color: 'bg-primary' },
+                  ].map(({ label, count, color }) => {
+                    const pct = recompraRaw.totalClients > 0 ? Math.round((count / recompraRaw.totalClients) * 100) : 0
+                    return (
+                      <div key={label} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-foreground">{label}</span>
+                          <span className="font-black tabular-nums text-muted-foreground">{count} clientes · {pct}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div className={cn('h-full rounded-full transition-all duration-700', color)} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
