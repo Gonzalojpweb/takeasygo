@@ -22,7 +22,7 @@ const faqs = [
     },
     {
         q: '¿Puedo probar el programa antes de comprometerme?',
-        a: 'Sí, ofrecemos demostraciones personalizadas y un periodo de prueba acompañado por nuestro equipo.Este proceso tiene un costo mínimo, que nos permite garantizar una implementación correcta, asistencia dedicada y un uso real de la plataforma durante la prueba. Al finalizar el periodo, reintegrás el 30% del monto abonado, sin compromiso de continuidad. Nuestro objetivo es simple: asegurarnos de que Takeasygo sea realmente el motor que tu restaurante necesita, antes de que tomes cualquier decisión.'
+        a: 'Sí, ofrecemos demostraciones personalizadas y un periodo de prueba acompañado por nuestro equipo. La demostración es gratuita sin compromiso de continuidad. Nuestro objetivo es simple: asegurarnos de que Takeasygo sea realmente el motor que tu restaurante necesita, antes de que tomes cualquier decisión.'
     }
 ]
 
