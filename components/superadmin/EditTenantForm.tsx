@@ -12,9 +12,10 @@ import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 
 const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
-  try:  ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
-  buy:  ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
-  full: ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
+  trial: ['Menú + pedidos takeaway', 'Panel básico de órdenes', 'Hasta 30 pedidos → Informe ICO gratis'],
+  try:   ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
+  buy:   ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
+  full:  ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
 }
 
 interface Props {
@@ -118,8 +119,8 @@ export default function EditTenantForm({ tenant }: Props) {
             {/* Plan de Servicio — ancho completo */}
             <div className="space-y-2">
               <label className={labelCls}>Plan de Servicio</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {(['try', 'buy', 'full'] as Plan[]).map(p => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {(['trial', 'try', 'buy', 'full'] as Plan[]).map(p => (
                   <button
                     key={p}
                     type="button"
@@ -132,7 +133,11 @@ export default function EditTenantForm({ tenant }: Props) {
                     )}
                   >
                     <p className={cn('font-bold text-sm', form.plan === p ? 'text-primary' : 'text-foreground')}>{PLAN_LABELS[p]}</p>
-                    <p className="text-muted-foreground text-[10px] font-bold mt-0.5">{PLAN_PRICE[p]}</p>
+                    {p === 'trial' ? (
+                      <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-500">Prueba gratuita</span>
+                    ) : (
+                      <p className="text-muted-foreground text-[10px] font-bold mt-0.5">{PLAN_PRICE[p]}</p>
+                    )}
                     <ul className="mt-3 space-y-1.5">
                       {PLAN_FEATURES_SHORT[p].map((f, i) => (
                         <li key={i} className="text-muted-foreground text-xs flex items-start gap-1.5">
@@ -144,9 +149,17 @@ export default function EditTenantForm({ tenant }: Props) {
                 ))}
               </div>
               {(() => {
-                const planOrder: Plan[] = ['try', 'buy', 'full']
+                const planOrder: Plan[] = ['trial', 'try', 'buy', 'full']
                 const origIdx = planOrder.indexOf(tenant.plan as Plan)
                 const newIdx  = planOrder.indexOf(form.plan as Plan)
+                if (tenant.plan === 'trial' && newIdx > origIdx) {
+                  return (
+                    <div className="flex items-start gap-2 mt-3 px-4 py-3 rounded-xl border border-primary/30 bg-primary/5 text-xs text-primary">
+                      <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                      <span>Activar plan <strong>{PLAN_LABELS[form.plan as Plan]}</strong> — El restaurante tendrá acceso completo a las funciones del plan seleccionado.</span>
+                    </div>
+                  )
+                }
                 if (newIdx < origIdx) {
                   const disabled = planOrder.slice(newIdx + 1, origIdx + 1).map(p => PLAN_LABELS[p]).join(', ')
                   return (

@@ -40,7 +40,15 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug }
 
       if (!res.ok) throw new Error('Error al actualizar')
 
-      toast.success(`Pedido actualizado a "${next!.label}"`)
+      const data = await res.json()
+      if (data.milestoneReached) {
+        toast.success('🎉 ¡30 pedidos procesados! Tu Informe ICO está listo.', {
+          duration: 8000,
+          action: { label: 'Ver Informe', onClick: () => router.push(`/${tenantSlug}/admin/ico`) },
+        })
+      } else {
+        toast.success(`Pedido actualizado a "${next!.label}"`)
+      }
       router.refresh()
     } catch {
       toast.error('No se pudo actualizar el pedido')

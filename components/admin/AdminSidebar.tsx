@@ -140,7 +140,10 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan }: P
       <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
         {visibleItems.map((item) => {
           const Icon = item.icon
-          const isLocked = item.feature ? !canAccess(plan, item.feature) : false
+          // ICO is accessible for trial plan (via icoTrial feature) or buy/full (via ico feature)
+          const isLocked = item.feature
+            ? (item.feature === 'ico' && plan === 'trial') ? false : !canAccess(plan, item.feature)
+            : false
 
           if (isLocked && item.feature) {
             return (

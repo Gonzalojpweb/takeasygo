@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 export interface ITenant extends Document {
   name: string
   slug: string
-  plan: 'try' | 'buy' | 'full'
+  plan: 'trial' | 'try' | 'buy' | 'full'
   isActive: boolean
   branding: {
     primaryColor: string
@@ -52,8 +52,8 @@ const TenantSchema = new Schema<ITenant>(
     },
     plan: {
       type: String,
-      enum: ['try', 'buy', 'full'],
-      required: true,
+      enum: ['trial', 'try', 'buy', 'full'],
+      default: 'trial',
     },
     isActive: {
       type: Boolean,

@@ -33,11 +33,12 @@ export interface IPrintLogEntry {
 }
 
 export interface IStatusTimestamps {
-  confirmedAt:  Date | null
-  preparingAt:  Date | null
-  readyAt:      Date | null
-  deliveredAt:  Date | null
-  cancelledAt:  Date | null
+  confirmedAt:      Date | null
+  preparingAt:      Date | null
+  readyAt:          Date | null
+  deliveredAt:      Date | null
+  cancelledAt:      Date | null
+  estimatedReadyAt: Date | null  // confirmedAt + location.estimatedPickupTime
 }
 
 export interface IOrder extends Document {
@@ -141,11 +142,12 @@ const OrderSchema = new Schema<IOrder>(
     notes: { type: String, default: '', trim: true },
     printed: { type: Boolean, default: false },
     statusTimestamps: {
-      confirmedAt: { type: Date, default: null },
-      preparingAt: { type: Date, default: null },
-      readyAt:     { type: Date, default: null },
-      deliveredAt: { type: Date, default: null },
-      cancelledAt: { type: Date, default: null },
+      confirmedAt:      { type: Date, default: null },
+      preparingAt:      { type: Date, default: null },
+      readyAt:          { type: Date, default: null },
+      deliveredAt:      { type: Date, default: null },
+      cancelledAt:      { type: Date, default: null },
+      estimatedReadyAt: { type: Date, default: null },
     },
     printLog: {
       type: [{

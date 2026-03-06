@@ -11,8 +11,36 @@ import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 
-function PlanBanner({ plan }: { plan: Plan }) {
+function PlanBanner({ plan, trialOrderCount }: { plan: Plan; trialOrderCount?: number }) {
   if (plan === 'full') return null
+
+  if (plan === 'trial') {
+    const count = trialOrderCount ?? 0
+    const isReady = count >= 30
+    return (
+      <div className={cn(
+        'flex items-center gap-3 px-5 py-3 rounded-2xl border text-sm font-medium',
+        PLAN_COLORS.trial
+      )}>
+        <Sparkles size={16} className="shrink-0" />
+        {isReady ? (
+          <>
+            <span className="flex-1">🎉 Procesaste 30 pedidos. Tu Informe ICO de Contexto está listo.</span>
+            <a href="./ico" className="flex items-center gap-1 text-xs font-bold shrink-0 opacity-80 hover:opacity-100">
+              Ver Informe <ChevronRight size={12} />
+            </a>
+          </>
+        ) : (
+          <>
+            <span className="flex-1">Trial activo — {count} de 30 pedidos para tu Informe ICO.</span>
+            <span className="flex items-center gap-1 text-xs font-bold shrink-0 opacity-60">
+              {30 - count} restantes
+            </span>
+          </>
+        )}
+      </div>
+    )
+  }
 
   const messages: Record<'try' | 'buy', { text: string; cta: string }> = {
     try: {
@@ -75,10 +103,12 @@ export default async function AdminDashboard() {
     ]),
   ])
 
-  const recentOrders = await Order.find({ tenantId })
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .lean()
+  const [recentOrders, trialOrderCount] = await Promise.all([
+    Order.find({ tenantId }).sort({ createdAt: -1 }).limit(5).lean(),
+    plan === 'trial'
+      ? Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] } })
+      : Promise.resolve(undefined),
+  ])
 
   // Score Operativo simplificado para el dashboard
   const cRaw = cancData[0]
@@ -106,7 +136,7 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <PlanBanner plan={plan} />
+      <PlanBanner plan={plan} trialOrderCount={trialOrderCount} />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>

@@ -10,9 +10,10 @@ import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 
 const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
-  try:  ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
-  buy:  ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
-  full: ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
+  trial: ['Menú + pedidos takeaway', 'Panel básico de órdenes', 'Hasta 30 pedidos → Informe ICO gratis'],
+  try:   ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
+  buy:   ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
+  full:  ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
 }
 
 export default function NewTenantForm() {
@@ -21,7 +22,7 @@ export default function NewTenantForm() {
   const [form, setForm] = useState({
     name: '',
     slug: '',
-    plan: 'try',
+    plan: 'trial',
     adminName: '',
     adminEmail: '',
     adminPassword: '',
@@ -95,7 +96,7 @@ export default function NewTenantForm() {
           <div>
             <label className="text-zinc-400 text-sm block mb-2">Plan</label>
             <div className="flex flex-col gap-2">
-              {(['try', 'buy', 'full'] as Plan[]).map(p => (
+              {(['trial', 'try', 'buy', 'full'] as Plan[]).map(p => (
                 <button
                   key={p}
                   type="button"
@@ -110,7 +111,11 @@ export default function NewTenantForm() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className={cn('font-bold text-sm', form.plan === p ? 'text-primary' : 'text-white')}>{PLAN_LABELS[p]}</p>
-                      <p className="text-zinc-500 text-[10px] font-bold">{PLAN_PRICE[p]}</p>
+                      {p === 'trial' ? (
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-400">Prueba gratuita</span>
+                      ) : (
+                        <p className="text-zinc-500 text-[10px] font-bold">{PLAN_PRICE[p]}</p>
+                      )}
                     </div>
                     <p className="text-zinc-500 text-xs mt-0.5 truncate">{PLAN_FEATURES_SHORT[p][0]}</p>
                   </div>

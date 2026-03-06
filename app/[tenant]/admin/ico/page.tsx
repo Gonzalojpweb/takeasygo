@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import type { Types } from 'mongoose'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
+import TrialIcoReport from '@/components/admin/TrialIcoReport'
 
 // Bandas diagnósticas ICO
 function getBand(score: number): { label: string; color: string; ring: string; text: string } {
@@ -31,7 +32,140 @@ export default async function ICOPage() {
 
   const plan: Plan = tenant.plan ?? 'try'
 
-  // try = locked
+  // ── plan 'trial': vista especial — progreso o informe de contexto ────────────
+  if (plan === 'trial') {
+    const trialOrderCount = await Order.countDocuments({
+      tenantId: tenant._id,
+      status: { $nin: ['cancelled'] },
+    })
+
+    if (trialOrderCount < 30) {
+      const remaining = 30 - trialOrderCount
+      const pct = Math.round((trialOrderCount / 30) * 100)
+      const sections = [
+        { label: 'Resumen operativo', desc: 'Pedidos totales, días activos y cancelaciones' },
+        { label: 'Velocidad de cocina', desc: 'Tiempo promedio y clasificación de tu operación' },
+        { label: 'Consistencia', desc: 'Variabilidad de los tiempos de preparación' },
+        { label: 'Cuello de botella', desc: 'Franjas horarias con mayor concentración de pedidos' },
+        { label: 'Platos más pedidos', desc: 'Top 5 ítems y concentración del menú' },
+        { label: 'Recomendaciones', desc: 'Sugerencias automáticas basadas en tus datos' },
+      ]
+      return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+          <div>
+            <h1 className="text-foreground text-4xl font-bold tracking-tight">Informe ICO</h1>
+            <p className="text-muted-foreground mt-2 font-medium">Tu informe de contexto operativo se genera al llegar a 30 pedidos.</p>
+          </div>
+
+          {/* Barra de progreso */}
+          <div className="rounded-[2rem] border-2 border-violet-500/20 bg-violet-500/5 p-8">
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-black text-sm text-foreground">{trialOrderCount} de 30 pedidos procesados</p>
+              <span className="text-[10px] font-black uppercase tracking-widest text-violet-600 bg-violet-100 px-3 py-1 rounded-full">
+                Faltan {remaining}
+              </span>
+            </div>
+            <div className="h-3 rounded-full bg-violet-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-violet-500 transition-all duration-700"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              En un restaurante activo esto ocurre en 2–4 días. Cada pedido suma señal estadística real.
+            </p>
+          </div>
+
+          {/* Secciones bloqueadas del informe */}
+          <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Tu informe incluirá</p>
+            {sections.map((s, i) => (
+              <div key={i} className="flex items-center gap-4 p-4 rounded-2xl border border-border/60 bg-card">
+                <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <Lock size={14} className="text-muted-foreground/50" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground">{s.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{s.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    // ≥30 pedidos: calcular y mostrar el informe de contexto
+    const [tppD, cancD, confirmD, topItemsD, peakD, activeDaysD, onTimeD] = await Promise.all([
+      Order.aggregate([
+        { $match: { tenantId: tenant._id, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
+        { $project: { tppMs: { $subtract: ['$statusTimestamps.readyAt', '$statusTimestamps.confirmedAt'] } } },
+        { $group: { _id: null, avgMs: { $avg: '$tppMs' }, stdMs: { $stdDevPop: '$tppMs' }, count: { $sum: 1 } } }
+      ]),
+      Order.aggregate([
+        { $match: { tenantId: tenant._id } },
+        { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } }
+      ]),
+      Order.aggregate([
+        { $match: { tenantId: tenant._id, 'statusTimestamps.confirmedAt': { $ne: null } } },
+        { $project: { ms: { $subtract: ['$statusTimestamps.confirmedAt', '$createdAt'] } } },
+        { $group: { _id: null, avgMs: { $avg: '$ms' } } }
+      ]),
+      Order.aggregate([
+        { $match: { tenantId: tenant._id, status: { $nin: ['cancelled'] } } },
+        { $unwind: '$items' },
+        { $group: { _id: '$items.name', count: { $sum: '$items.quantity' } } },
+        { $sort: { count: -1 } }, { $limit: 5 }
+      ]),
+      Order.aggregate([
+        { $match: { tenantId: tenant._id, status: { $nin: ['cancelled'] } } },
+        { $project: { window: { $concat: [{ $toString: { $hour: '$createdAt' } }, ':', { $cond: [{ $gte: [{ $minute: '$createdAt' }, 30] }, '30', '00'] }] } } },
+        { $group: { _id: '$window', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }, { $limit: 1 }
+      ]),
+      Order.aggregate([
+        { $match: { tenantId: tenant._id, status: { $nin: ['cancelled'] } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
+        { $count: 'days' }
+      ]),
+      Order.aggregate([
+        { $match: { tenantId: tenant._id, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
+        { $project: { isOnTime: { $lte: ['$statusTimestamps.readyAt', '$statusTimestamps.estimatedReadyAt'] } } },
+        { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } }
+      ]),
+    ])
+
+    const tR = tppD[0], cR = cancD[0], ctR = confirmD[0], oR = onTimeD[0]
+    const totalOrders   = cR?.total ?? 0
+    const activeDays    = activeDaysD[0]?.days ?? 0
+    const cancRate      = cR && cR.total > 0 ? Math.round((cR.cancelled / cR.total) * 100) : 0
+    const tppMinutes    = tR ? Math.round(tR.avgMs / 60000) : null
+    const tppStdMin     = tR ? Math.round(tR.stdMs / 60000) : null
+    const confirmMin    = ctR ? Math.round((ctR.avgMs / 60000) * 10) / 10 : null
+    const onTimePct     = oR && oR.total > 0 ? Math.round((oR.onTime / oR.total) * 100) : null
+    const tppBenchmark  = tppMinutes === null ? null : tppMinutes < 15 ? 'rapido' : tppMinutes <= 22 ? 'normal' : 'lento'
+    const topItems      = topItemsD.map((i: any) => ({ name: i._id, count: i.count }))
+    const totalUnits    = topItems.reduce((s: number, i: any) => s + i.count, 0)
+    const top3Units     = topItems.slice(0, 3).reduce((s: number, i: any) => s + i.count, 0)
+    const topConc       = totalUnits > 0 ? Math.round((top3Units / totalUnits) * 100) : null
+    const peakWindow    = peakD[0] ? { time: peakD[0]._id, count: peakD[0].count, pct: totalOrders > 0 ? Math.round((peakD[0].count / totalOrders) * 100) : 0 } : null
+    const recommendations: string[] = []
+    if (tppMinutes !== null && tppMinutes > 22) recommendations.push('Tu tiempo de cocina es lento. Revisá si algún ítem genera demoras.')
+    if (tppStdMin !== null && tppStdMin > 8) recommendations.push('Los tiempos varían bastante. Puede indicar picos o procesos no estandarizados.')
+    if (peakWindow && peakWindow.pct > 35) recommendations.push(`El ${peakWindow.pct}% de los pedidos se concentra en las ${peakWindow.time}hs. Ese pico puede generar retrasos.`)
+    if (confirmMin !== null && confirmMin > 3) recommendations.push('Tardás más de 3 min en confirmar pedidos. Responder rápido mejora la experiencia de retiro.')
+    if (onTimePct !== null && onTimePct < 70) recommendations.push(`Solo el ${onTimePct}% de los pedidos estuvo listo a tiempo. Considerá ajustar el tiempo estimado.`)
+    if (recommendations.length === 0) recommendations.push('Tu operación tiene buenos indicadores. Seguí monitoreando a medida que crece el volumen.')
+
+    return (
+      <TrialIcoReport
+        data={{ totalOrders, activeDays, cancRate, tppMinutes, tppStdMinutes: tppStdMin, tppBenchmark, confirmMinutes: confirmMin, onTimePct, topItems, topItemsConcentration: topConc, peakWindow, recommendations }}
+        tenantSlug={tenantSlug ?? ''}
+      />
+    )
+  }
+
+  // try/buy/full = locked si no tiene acceso
   if (!canAccess(plan, 'ico')) {
     const required = requiredPlanFor('ico')
     return (

@@ -16,6 +16,7 @@ interface Props {
     orders: any[]
     locationMap: Record<string, string>
     tenantSlug: string
+    trialOrderCount?: number
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
@@ -30,7 +31,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 // Fallback icons if not imported
 import { CheckCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 
-export default function OrdersManager({ orders, locationMap, tenantSlug }: Props) {
+export default function OrdersManager({ orders, locationMap, tenantSlug, trialOrderCount }: Props) {
     const [searchTerm, setSearchTerm] = useState('')
 
     const filteredOrders = orders.filter(order =>
@@ -40,6 +41,20 @@ export default function OrdersManager({ orders, locationMap, tenantSlug }: Props
 
     return (
         <div className="space-y-6">
+            {/* Trial milestone banner */}
+            {trialOrderCount !== undefined && trialOrderCount >= 30 && (
+                <div className="flex items-center gap-4 p-5 rounded-2xl bg-violet-500/5 border-2 border-violet-500/20">
+                    <span className="text-2xl shrink-0">🎉</span>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-foreground">¡Ya tenemos suficiente información para analizar tu operación!</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Procesaste {trialOrderCount} pedidos. Tu Informe ICO de Contexto está listo.</p>
+                    </div>
+                    <a href="./ico" className="shrink-0 h-9 px-4 rounded-xl bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-violet-600 transition-all flex items-center">
+                        Generar Informe →
+                    </a>
+                </div>
+            )}
+
             {/* Header & Search */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="relative flex-1 max-w-md">

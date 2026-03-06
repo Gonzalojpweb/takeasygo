@@ -26,7 +26,7 @@ export async function GET(
     const start30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     const start7  = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000)
 
-    const [cancData, tppData, onTimeData, actData7, actData30] = await Promise.all([
+    const [cancData, tppData, onTimeNew, onTimeFallback, actData7, actData30] = await Promise.all([
       // Tasa de cancelación (30 días)
       Order.aggregate([
         { $match: { tenantId, createdAt: { $gte: start30 } } },
@@ -37,7 +37,6 @@ export async function GET(
         }}
       ]),
       // TPP — media y desvío estándar poblacional (30 días)
-      // $stdDevPop es correcto: medimos la población real del período, no una muestra
       Order.aggregate([
         { $match: {
           tenantId,
@@ -53,12 +52,26 @@ export async function GET(
           count: { $sum: 1 }
         }}
       ]),
-      // % en tiempo — readyAt - createdAt vs estimatedPickupTime (30 días)
+      // % en tiempo — NUEVO: usa estimatedReadyAt cuando está presente (pedidos post-deploy)
       Order.aggregate([
         { $match: {
           tenantId,
           createdAt: { $gte: start30 },
           'statusTimestamps.readyAt': { $ne: null },
+          'statusTimestamps.estimatedReadyAt': { $ne: null },
+        }},
+        { $project: {
+          isOnTime: { $lte: ['$statusTimestamps.readyAt', '$statusTimestamps.estimatedReadyAt'] }
+        }},
+        { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } }
+      ]),
+      // % en tiempo — FALLBACK: pedidos históricos sin estimatedReadyAt (fórmula anterior con $lookup)
+      Order.aggregate([
+        { $match: {
+          tenantId,
+          createdAt: { $gte: start30 },
+          'statusTimestamps.readyAt': { $ne: null },
+          'statusTimestamps.estimatedReadyAt': null,
         }},
         { $lookup: {
           from: 'locations',
@@ -73,11 +86,7 @@ export async function GET(
             { $multiply: ['$location.settings.estimatedPickupTime', 60000] }
           ]}
         }},
-        { $group: {
-          _id: null,
-          total: { $sum: 1 },
-          onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } }
-        }}
+        { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } }
       ]),
       // Actividad últimos 7 días
       Order.countDocuments({ tenantId, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
@@ -87,7 +96,10 @@ export async function GET(
 
     const cRaw = cancData[0]
     const tRaw = tppData[0]
-    const oRaw = onTimeData[0]
+    // Merge on-time data: nuevos pedidos (estimatedReadyAt) + fallback histórico ($lookup)
+    const mergedOnTimeTotal = (onTimeNew[0]?.total ?? 0) + (onTimeFallback[0]?.total ?? 0)
+    const mergedOnTime      = (onTimeNew[0]?.onTime ?? 0) + (onTimeFallback[0]?.onTime ?? 0)
+    const oRaw = mergedOnTimeTotal > 0 ? { total: mergedOnTimeTotal, onTime: mergedOnTime } : null
 
     // ── Calidad de datos (Teorema del Límite Central) ───────────────────────
     // n < 10  → insuficiente: ICO no calculable

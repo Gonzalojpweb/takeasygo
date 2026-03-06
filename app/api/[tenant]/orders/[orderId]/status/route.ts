@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
@@ -56,12 +57,35 @@ export async function PATCH(
 
     const previousStatus = order.status
     order.status = status
-    // Registrar timestamp del cambio de estado para cálculo de TPP y Score Operativo
-    const tsField = STATUS_TIMESTAMP[status]
-    if (tsField) {
-      order.statusTimestamps[tsField] = new Date()
+
+    if (status === 'confirmed') {
+      // Calcular estimatedReadyAt = confirmedAt + estimatedPickupTime de la sede
+      const location = await Location.findById(order.locationId)
+        .select('settings.estimatedPickupTime')
+        .lean<{ settings: { estimatedPickupTime: number } }>()
+      const pickupMs = (location?.settings?.estimatedPickupTime ?? 20) * 60_000
+      const confirmedAt = new Date()
+      order.statusTimestamps.confirmedAt = confirmedAt
+      order.statusTimestamps.estimatedReadyAt = new Date(confirmedAt.getTime() + pickupMs)
+    } else {
+      // Registrar timestamp del cambio de estado para cálculo de TPP y Score Operativo
+      const tsField = STATUS_TIMESTAMP[status]
+      if (tsField) {
+        order.statusTimestamps[tsField] = new Date()
+      }
     }
+
     await order.save()
+
+    // Milestone detection: notificar al cliente cuando el pedido #30 es procesado (solo plan trial)
+    let milestoneReached = false
+    if (tenant.plan === 'trial' && status !== 'cancelled') {
+      const activeCount = await Order.countDocuments({
+        tenantId: tenant._id,
+        status: { $nin: ['cancelled'] },
+      })
+      milestoneReached = activeCount === 30
+    }
 
     logAudit({
       tenantId: tenant._id.toString(),
@@ -72,7 +96,7 @@ export async function PATCH(
       request,
     })
 
-    return NextResponse.json({ order })
+    return NextResponse.json({ order, milestoneReached })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
