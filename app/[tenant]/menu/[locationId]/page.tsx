@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
@@ -66,6 +67,10 @@ export default async function MenuSelectorPage({ params }: Props) {
               </div>
             </Link>
           )}
+        </div>
+
+        <div className="mt-10 flex justify-center">
+          <PoweredByTakeasy variant="dark" label="network" />
         </div>
       </div>
     )
@@ -326,6 +331,10 @@ export default async function MenuSelectorPage({ params }: Props) {
                 🥡 Para llevar
               </Link>
             )}
+          </div>
+
+          <div style={{ marginTop: '8px' }}>
+            <PoweredByTakeasy variant="dark" label="network" />
           </div>
 
         </div>

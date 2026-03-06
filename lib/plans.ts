@@ -73,7 +73,7 @@ export function canAccess(plan: Plan, feature: Feature): boolean {
 
 /** Devuelve el plan mínimo requerido para una feature */
 export function requiredPlanFor(feature: Feature): Plan {
-  const order: Plan[] = ['trial', 'try', 'buy', 'full']
+  const order: Plan[] = ['try', 'buy', 'full']
   return order.find(p =>
     (PLAN_ACCESS[feature] as readonly string[]).includes(p)
   ) ?? 'full'
@@ -123,11 +123,12 @@ export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: st
       'Horarios pico y distribución horaria de pedidos',
     ],
     extra: [
-      'performance de ventas',
-      'Análisis crecimiento',
+      'ICO avanzado con diagnóstico completo por factores',
+      'Análisis de crecimiento semanal y mensual',
       'Tasa de recompra y frecuencia de clientes',
       'Productos más rentables y menos vendidos',
-      'Modo Dine-in (menú para consumo en el local)'
+      'Modo Dine-in (menú para consumo en el local)',
+      'Patrones de demanda y tendencias',
     ],
   },
 }

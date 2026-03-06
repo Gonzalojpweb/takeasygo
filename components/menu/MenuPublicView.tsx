@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { CartItem } from '@/types/cart'
+import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import CustomizationModal from '@/components/menu/CustomizationModal'
 
 interface Props {
@@ -472,14 +473,17 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t px-4 py-4 max-w-2xl mx-auto flex items-center justify-between"
+        <div className="border-t px-4 py-4 max-w-2xl mx-auto flex items-center justify-between gap-4"
           style={{ borderColor: primary + '20' }}>
           <p className="text-xs" style={{ color: '#475569' }}>
             © {new Date().getFullYear()} {tenant.name}. Todos los derechos reservados.
           </p>
-          <Link href={`/${tenant.slug}/admin`} className="opacity-20 hover:opacity-60 transition-opacity" title="Acceso administrador">
-            <Settings size={14} style={{ color: '#94a3b8' }} />
-          </Link>
+          <div className="flex items-center gap-3">
+            <PoweredByTakeasy variant="dark" label="network" />
+            <Link href={`/${tenant.slug}/admin`} className="opacity-20 hover:opacity-60 transition-opacity" title="Acceso administrador">
+              <Settings size={14} style={{ color: '#94a3b8' }} />
+            </Link>
+          </div>
         </div>
       </footer>
 

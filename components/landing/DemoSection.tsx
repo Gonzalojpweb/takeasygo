@@ -197,7 +197,7 @@ export default function DemoSection() {
                                     disabled={submitState === 'loading'}
                                     className="w-full md:w-auto bg-zinc-900 text-white rounded-full px-10 md:px-12 h-14 font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-[#f14722] transition-all mt-2 md:mt-0 disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    {submitState === 'loading' ? 'Enviando…' : 'Solicitar'}
+                                    {submitState === 'loading' ? 'Enviando…' : 'Solicitar Demo Gratuíto'}
                                 </Button>
 
                                 {submitState === 'error' && (

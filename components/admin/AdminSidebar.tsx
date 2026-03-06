@@ -28,6 +28,7 @@ interface Props {
   userRole: string
   userName: string
   plan: Plan
+  dineInOnly?: boolean
 }
 
 interface NavItem {
@@ -36,22 +37,33 @@ interface NavItem {
   icon: React.ElementType
   roles: string[]
   feature?: Feature
+  requiresTakeaway?: boolean
 }
 
-function LockedNavItem({ label, icon: Icon, requiredPlan }: { label: string; icon: React.ElementType; requiredPlan: Plan }) {
+function LockedNavItem({
+  label,
+  icon: Icon,
+  requiredPlan,
+  reason = 'plan',
+}: {
+  label: string
+  icon: React.ElementType
+  requiredPlan?: Plan
+  reason?: 'plan' | 'mode'
+}) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 rounded-xl opacity-40 cursor-not-allowed select-none">
       <Icon size={20} className="text-primary" />
       <span className="text-sm tracking-wide text-sidebar-foreground/70">{label}</span>
       <span className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-sidebar-foreground/60">
         <Lock size={8} />
-        {PLAN_LABELS[requiredPlan]}
+        {reason === 'mode' ? 'Takeaway' : (requiredPlan ? PLAN_LABELS[requiredPlan] : '')}
       </span>
     </div>
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
 
@@ -67,6 +79,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan }: P
       label: 'Pedidos',
       icon: ShoppingBag,
       roles: ['admin', 'manager', 'staff', 'cashier'],
+      requiresTakeaway: true,
     },
     {
       href: `${base}/menu`,
@@ -87,6 +100,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan }: P
       icon: BarChart3,
       roles: ['admin', 'manager'],
       feature: 'reports',
+      requiresTakeaway: true,
     },
     {
       href: `${base}/ico`,
@@ -94,18 +108,21 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan }: P
       icon: Activity,
       roles: ['admin'],
       feature: 'ico',
+      requiresTakeaway: true,
     },
     {
       href: `${base}/printers`,
       label: 'Impresoras',
       icon: Printer,
       roles: ['admin', 'manager'],
+      requiresTakeaway: true,
     },
     {
       href: `${base}/orders/history`,
       label: 'Historial',
       icon: ClipboardList,
       roles: ['admin', 'manager', 'cashier'],
+      requiresTakeaway: true,
     },
     {
       href: `${base}/audit`,
@@ -140,18 +157,35 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan }: P
       <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
         {visibleItems.map((item) => {
           const Icon = item.icon
+
+          // Mode lock: takeaway-dependent features are locked when tenant is dine-in only
+          const isModeLocked = dineInOnly && !!item.requiresTakeaway
+
+          // Plan lock: feature gating (mode lock takes precedence)
           // ICO is accessible for trial plan (via icoTrial feature) or buy/full (via ico feature)
-          const isLocked = item.feature
+          const isPlanLocked = !isModeLocked && item.feature
             ? (item.feature === 'ico' && plan === 'trial') ? false : !canAccess(plan, item.feature)
             : false
 
-          if (isLocked && item.feature) {
+          if (isModeLocked) {
+            return (
+              <LockedNavItem
+                key={item.href}
+                label={item.label}
+                icon={Icon}
+                reason="mode"
+              />
+            )
+          }
+
+          if (isPlanLocked && item.feature) {
             return (
               <LockedNavItem
                 key={item.href}
                 label={item.label}
                 icon={Icon}
                 requiredPlan={requiredPlanFor(item.feature)}
+                reason="plan"
               />
             )
           }
