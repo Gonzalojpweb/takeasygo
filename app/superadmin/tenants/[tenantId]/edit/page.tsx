@@ -15,8 +15,8 @@ export default async function EditTenantPage({ params }: Props) {
   if (!tenant) notFound()
 
   return (
-    <div className="max-w-lg">
-      <h1 className="text-white text-2xl font-bold mb-6">Editar Tenant</h1>
+    <div>
+      <h1 className="text-foreground text-2xl font-bold mb-6">Editar Tenant</h1>
       <EditTenantForm tenant={JSON.parse(JSON.stringify(tenant))} />
     </div>
   )
