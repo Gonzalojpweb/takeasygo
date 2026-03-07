@@ -71,7 +71,7 @@ async function handleSubmit(e: React.FormEvent) {
 }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="bg-white">
       <header className="sticky top-0 bg-white border-b px-4 py-4 flex items-center gap-3">
         <button onClick={() => router.back()}>
           <ArrowLeft size={20} className="text-zinc-600" />
@@ -111,27 +111,28 @@ async function handleSubmit(e: React.FormEvent) {
             placeholder="Nombre *"
             value={form.name}
             onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
           />
           <input
             placeholder="Teléfono (opcional)"
+            type="tel"
             value={form.phone}
             onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
           />
           <input
             placeholder="Email (opcional)"
             type="email"
             value={form.email}
             onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
           />
           <textarea
             placeholder="Notas o aclaraciones (opcional)"
             value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
             rows={3}
-            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400 resize-none"
+            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400 resize-none"
           />
 
 <button

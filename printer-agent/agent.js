@@ -178,10 +178,10 @@ function generateTicket(order, role, columns = 32) {
         // Mostrar customizaciones en todos los tickets (cocina, barra y caja)
         if (item.customizations && item.customizations.length > 0) {
             item.customizations.forEach(c => {
-                const group = c.groupName || c.group || '';
-                const sels = (c.selections && Array.isArray(c.selections) && c.selections.length > 0)
-                    ? c.selections
-                    : (c.selected || c.option ? [c.selected || c.option] : []);
+                const group = c.groupName || '';
+                const sels = Array.isArray(c.selectedOptions) && c.selectedOptions.length > 0
+                    ? c.selectedOptions.map(o => o.name).filter(Boolean)
+                    : [];
                 if (sels.length > 0) {
                     const prefix = group ? group + ': ' : '';
                     chunks.push(Buffer.from(`  > ${prefix}${sels.join(', ')}\n`));
