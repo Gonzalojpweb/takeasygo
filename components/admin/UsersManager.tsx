@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, X, User as UserIcon, Mail, Shield, UserPlus, ShieldCheck, Loader2 } from 'lucide-react'
+import { Plus, X, User as UserIcon, Mail, Shield, UserPlus, ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -29,6 +29,7 @@ export default function UsersManager({ users, tenantSlug, tenantId }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
 
   async function handleCreate(e: React.FormEvent) {
@@ -125,9 +126,18 @@ export default function UsersManager({ users, tenantSlug, tenantId }: Props) {
 
                     <div className="space-y-2">
                       <label className={labelCls}>Contraseña Temporal</label>
-                      <input required type="password" placeholder="••••••••" value={form.password}
-                        onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                        className={inputCls} />
+                      <div className="relative group">
+                        <input required type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={form.password}
+                          onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                          className={cn(inputCls, "pr-12")} />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(p => !p)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-primary transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
