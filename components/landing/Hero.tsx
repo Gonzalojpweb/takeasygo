@@ -37,19 +37,19 @@ function FloatingPhones({
         .pf-phone-b { animation: pf-b 6.8s ease-in-out infinite; }
 
         /* Imágenes — desktop */
-        .pf-img-a { width: 440px; height: auto; display: block; user-select: none; }
-        .pf-img-b { width: 340px; height: auto; display: block; user-select: none; }
+        .pf-img-a { width: 480px; height: auto; display: block; user-select: none; }
+        .pf-img-b { width: 380px; height: auto; display: block; user-select: none; }
 
         /* Wrappers — desktop (absolute positioning base) */
         .pf-wrap-b { position: absolute; right: 0;  top: 0;  z-index: 1; }
-        .pf-wrap-a { position: absolute; left: 20px; top: 60px; z-index: 2; }
+        .pf-wrap-a { position: absolute; left: 10px; top: 60px; z-index: 2; }
 
         /* Mobile — imágenes y posiciones */
         @media (max-width: 767px) {
-          .pf-img-a { width: 400px; }
-          .pf-img-b { width: 340px; }
-          .pf-wrap-b { right: -20px; top: 0px; }
-          .pf-wrap-a { left: -10px;  top: 0px; }
+          .pf-img-a { width: 100%; height: 60vh; }
+          .pf-img-b { width: 100%; height: 60vh; }
+          .pf-wrap-b { right: -190px; top: -250px; }
+          .pf-wrap-a { left: -180px;  top: -240px; }
         }
       `}</style>
 
