@@ -15,6 +15,7 @@ export interface ISelectedCustomizationGroup {
 
 export interface IOrderItem {
   menuItemId: mongoose.Types.ObjectId
+  categoryName: string
   name: string
   basePrice: number
   extraPrice: number
@@ -82,6 +83,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
     type: Schema.Types.ObjectId,
     required: true,
   },
+  categoryName: { type: String, default: '' },
   name: { type: String, required: true },
   basePrice: { type: Number, required: true },
   extraPrice: { type: Number, default: 0 },

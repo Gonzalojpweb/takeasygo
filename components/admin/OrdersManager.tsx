@@ -165,14 +165,22 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                                                             {order.items.map((item: any) => (
                                                                 <div key={item._id} className="flex items-start justify-between gap-4">
                                                                     <div className="flex-1 min-w-0">
+                                                                        {item.categoryName && (
+                                                                            <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 leading-none mb-0.5">{item.categoryName}</p>
+                                                                        )}
                                                                         <p className="text-xs font-bold text-foreground flex items-center gap-2">
                                                                             <span className="text-primary font-black text-[10px] tabular-nums">{item.quantity}x</span>
                                                                             <span className="truncate">{item.name}</span>
                                                                         </p>
                                                                         {item.customizations?.length > 0 && (
-                                                                            <p className="text-[10px] text-muted-foreground pl-6 italic">
-                                                                                {item.customizations.map((c: any) => c.name).join(', ')}
-                                                                            </p>
+                                                                            <div className="pl-6 mt-0.5 space-y-0.5">
+                                                                                {item.customizations.map((c: any, ci: number) => (
+                                                                                    <p key={ci} className="text-[10px] text-muted-foreground italic">
+                                                                                        <span className="font-semibold not-italic">{c.groupName}:</span>{' '}
+                                                                                        {c.selectedOptions.map((o: any) => o.name).join(', ')}
+                                                                                    </p>
+                                                                                ))}
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                     <p className="text-xs font-bold tabular-nums text-foreground/70">${item.subtotal.toLocaleString('es-AR')}</p>

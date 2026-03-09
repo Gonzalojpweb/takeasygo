@@ -167,6 +167,11 @@ function generateTicket(order, role, columns = 32) {
     itemsToPrint.forEach(item => {
         const line = `${item.quantity}x ${item.name}`;
 
+        // Nombre de categoría (si existe)
+        if (item.categoryName) {
+            chunks.push(Buffer.from(`[${item.categoryName}]\n`));
+        }
+
         if (role === 'cashier') {
             const price = `$${money(item.price * item.quantity)}`;
             const dots = '.'.repeat(Math.max(2, columns - line.length - price.length));

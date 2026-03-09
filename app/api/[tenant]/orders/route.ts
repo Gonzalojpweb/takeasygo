@@ -75,13 +75,13 @@ export async function POST(
       return NextResponse.json({ error: 'Menú no encontrado para esta sede' }, { status: 404 })
     }
 
-    // Construir un mapa de lookup: menuItemId (string) → item del menú
+    // Construir un mapa de lookup: menuItemId (string) → { item, categoryName }
     const menuItemMap = new Map<string, any>()
     for (const category of menu.categories) {
       if (!category.isAvailable) continue
       for (const item of category.items) {
         if (item.isAvailable && item._id) {
-          menuItemMap.set(item._id.toString(), item)
+          menuItemMap.set(item._id.toString(), { ...item.toObject(), categoryName: category.name })
         }
       }
     }
@@ -139,6 +139,7 @@ export async function POST(
 
       resolvedItems.push({
         menuItemId: menuItem._id,
+        categoryName: menuItem.categoryName || '',
         name: menuItem.name,
         basePrice,
         extraPrice,
