@@ -1,19 +1,30 @@
 'use client'
 
+import { useRef } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Radius } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import Image from 'next/image'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { useGSAP } from '@gsap/react'
 
-// ── Replace with real screenshots of your app ────────────────────────────────
+gsap.registerPlugin(ScrollTrigger)
+
 const PHONE_SCREEN_FRONT = 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772049646/ChatGPT_Image_25_feb_2026__02_58_32_p.m.-removebg-preview_w0qdaq.png'
 const PHONE_SCREEN_BACK  = 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772049646/ChatGPT_Image_25_feb_2026__02_46_04_p.m.-removebg-preview_hqhdwi.png'
 
-// ── Floating scene — images already carry their own phone frame + perspective ──
-function FloatingPhones() {
+// ── FloatingPhones — outer div lleva el ref de GSAP, inner div lleva el CSS float
+// Así no hay conflicto de transform entre GSAP y la animación CSS
+function FloatingPhones({
+  phoneARef,
+  phoneBRef,
+}: {
+  phoneARef: React.RefObject<HTMLDivElement>
+  phoneBRef: React.RefObject<HTMLDivElement>
+}) {
   return (
     <>
       <style>{`
-        /* Pure vertical float — no extra rotation (images already have 3D tilt) */
         @keyframes pf-a {
           0%, 100% { transform: translateY(0px); }
           50%       { transform: translateY(-16px); }
@@ -28,36 +39,34 @@ function FloatingPhones() {
 
       <div style={{ position: 'relative', width: 530, height: 500 }}>
 
-        {/* Phone B — back right */}
-        <div
-          className="pf-phone-b"
-          style={{ position: 'absolute', right: 0, top: 0, zIndex: 1 }}
-        >
-          <Image
-            src={PHONE_SCREEN_BACK}
-            alt=""
-            width={380}
-            height={470}
-            style={{ width: 340, height: 'auto', display: 'block', userSelect: 'none' }}
-            draggable={false}
-            unoptimized
-          />
+        {/* Phone B — GSAP mueve este div a la izquierda */}
+        <div ref={phoneBRef} style={{ position: 'absolute', right: 0, top: 0, zIndex: 1 }}>
+          <div className="pf-phone-b">
+            <Image
+              src={PHONE_SCREEN_BACK}
+              alt=""
+              width={380}
+              height={470}
+              style={{ width: 340, height: 'auto', display: 'block', userSelect: 'none' }}
+              draggable={false}
+              unoptimized
+            />
+          </div>
         </div>
 
-        {/* Phone A — front left */}
-        <div
-          className="pf-phone-a"
-          style={{ position: 'absolute', left: 20, top: 60, zIndex: 2 }}
-        >
-          <Image
-            src={PHONE_SCREEN_FRONT}
-            alt=""
-            width={340}
-            height={490}
-            style={{ width: 440, height: 'auto', display: 'block', userSelect: 'none' }}
-            draggable={false}
-            unoptimized
-          />
+        {/* Phone A — GSAP mueve este div hacia arriba */}
+        <div ref={phoneARef} style={{ position: 'absolute', left: 20, top: 60, zIndex: 2 }}>
+          <div className="pf-phone-a">
+            <Image
+              src={PHONE_SCREEN_FRONT}
+              alt=""
+              width={340}
+              height={490}
+              style={{ width: 440, height: 'auto', display: 'block', userSelect: 'none' }}
+              draggable={false}
+              unoptimized
+            />
+          </div>
         </div>
 
       </div>
@@ -67,6 +76,38 @@ function FloatingPhones() {
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 export default function Hero() {
+  const heroRef  = useRef<HTMLElement>(null)
+  const textRef  = useRef<HTMLDivElement>(null)
+  const phoneARef = useRef<HTMLDivElement>(null)
+  const phoneBRef = useRef<HTMLDivElement>(null)
+
+  // ── Animación de salida sincronizada al scroll (efecto telón)
+  useGSAP(() => {
+    if (!heroRef.current || !textRef.current) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: heroRef.current,
+        start: 'top top',
+        // La animación completa en 25% del alto del viewport desde que empieza
+        end: () => `+=${window.innerHeight * 0.25}`,
+        scrub: 1.5,
+      },
+    })
+
+    // Phone B → sale por la izquierda
+    if (phoneBRef.current) {
+      tl.to(phoneBRef.current, { x: '160%', ease: 'power2.in', duration: 1 }, 0)
+    }
+    // Phone A → sale hacia arriba
+    if (phoneARef.current) {
+      tl.to(phoneARef.current, { y: '-170%', ease: 'power2.in', duration: 1 }, 0)
+    }
+    // Texto → sale por la derecha
+    tl.to(textRef.current, { x: '-160%', ease: 'power2.in', duration: 1 }, 0)
+
+  }, { scope: heroRef })
+
   return (
     <>
       <style>{`
@@ -74,17 +115,15 @@ export default function Hero() {
       `}</style>
 
       <section
+        ref={heroRef}
         id="what-we-do"
         className="relative min-h-[100vh] flex items-center overflow-hidden"
-        style={{ background: '#f14722',
-        borderRadius: '20px',
-        margin: '20px 20px 20px 20px',
-         }}
+        style={{ background: '#f14722', borderRadius: '20px', margin: '20px 20px 20px 20px' }}
       >
         {/* Glows */}
         <div className="absolute pointer-events-none hidden md:block" style={{
           bottom: '-15%', right: '-5%', width: '60vw', height: '60vw',
-          background: 'radial-gradient(ellipse at 60% 70%, rgba(247, 244, 243, 0.35) 0%, rgba(247, 243, 242, 0.18) 30%, transparent 55%)',
+          background: 'radial-gradient(ellipse at 60% 70%, rgba(247,244,243,0.35) 0%, rgba(247,243,242,0.18) 30%, transparent 55%)',
         }} />
         <div className="absolute pointer-events-none hidden md:block" style={{
           bottom: '5%', right: '10%', width: '35vw', height: '35vw',
@@ -92,19 +131,19 @@ export default function Hero() {
         }} />
         <div className="absolute pointer-events-none md:hidden" style={{
           bottom: 0, left: 0, right: 0, height: '72%',
-          background: 'radial-gradient(ellipse 200% 60% at 50% 100%, rgba(252, 252, 252, 0.01) 0%, rgb(241,71,34) 38%, transparent 95%)',
+          background: 'radial-gradient(ellipse 200% 60% at 50% 100%, rgba(252,252,252,0.01) 0%, rgb(241,71,34) 38%, transparent 95%)',
         }} />
         <div className="absolute top-0 bottom-0 pointer-events-none hidden md:block" style={{
           left: '80px', width: '1px',
-          background: 'linear-gradient(to bottom, transparent, rgba(245, 245, 245, 0.12) 20%, rgba(247,244,242,0.12) 80%, transparent)',
+          background: 'linear-gradient(to bottom, transparent, rgba(247,244,242,0.12) 20%, rgba(247,244,242,0.12) 80%, transparent)',
         }} />
 
         {/* Grid */}
         <div className="relative z-10 w-full px-6 md:px-20">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-0">
 
-            {/* Left — text */}
-            <div className="flex-1 min-w-0 pt-24 pb-12 md:py-32 md:pl-8 md:pr-16">
+            {/* Left — texto (ref para GSAP: sale a la derecha) */}
+            <div ref={textRef} className="flex-1 min-w-0 pt-24 pb-12 md:py-32 md:pl-8 md:pr-16">
 
               <motion.div
                 initial={{ opacity: 0 }}
@@ -112,10 +151,10 @@ export default function Hero() {
                 transition={{ duration: 0.7 }}
                 className="flex items-center gap-3 mb-10"
               >
-                <span style={{ width: 36, height: 1, background: 'rgba(247, 244, 242, 0.97)', display: 'block', flexShrink: 0 }} />
+                <span style={{ width: 36, height: 1, background: 'rgba(247,244,242,0.97)', display: 'block', flexShrink: 0 }} />
                 <span style={{
                   fontSize: 10, fontFamily: "'DM Sans', sans-serif", fontWeight: 500,
-                  letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(247, 244, 242, 0.97)',
+                  letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(247,244,242,0.97)',
                 }}>
                   Infraestructura digital para la gastronomía
                 </span>
@@ -133,7 +172,7 @@ export default function Hero() {
                 }}
               >
                 Una experiencia de venta <br />
-                <em style={{ color: 'rgba(247, 244, 242, 0.97)', fontStyle: 'italic' }}>superior para tu marca.</em>
+                <em style={{ color: 'rgba(247,244,242,0.97)', fontStyle: 'italic' }}>superior para tu marca.</em>
               </motion.h1>
 
               <motion.p
@@ -142,7 +181,7 @@ export default function Hero() {
                 transition={{ duration: 0.9, delay: 0.3 }}
                 style={{
                   fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 300,
-                  lineHeight: 1.75, color: 'rgba(247, 244, 242, 0.97)', maxWidth: 440, marginBottom: 48,
+                  lineHeight: 1.75, color: 'rgba(247,244,242,0.97)', maxWidth: 440, marginBottom: 48,
                 }}
               >
                 Menú digital → Pedidos takeaway → Pagos online. <br />
@@ -184,7 +223,7 @@ export default function Hero() {
               </motion.div>
             </div>
 
-            {/* Right — phones (desktop only) */}
+            {/* Right — teléfonos (desktop only) */}
             <motion.div
               className="hidden md:flex items-center justify-center flex-shrink-0"
               style={{ perspective: '1200px' }}
@@ -192,7 +231,7 @@ export default function Hero() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1.1, delay: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
             >
-              <FloatingPhones />
+              <FloatingPhones phoneARef={phoneARef} phoneBRef={phoneBRef} />
             </motion.div>
 
           </div>
