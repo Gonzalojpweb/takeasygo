@@ -84,7 +84,7 @@ export default function Hero() {
         {/* Glows */}
         <div className="absolute pointer-events-none hidden md:block" style={{
           bottom: '-15%', right: '-5%', width: '60vw', height: '60vw',
-          background: 'radial-gradient(ellipse at 60% 70%, rgba(216,60,25,0.35) 0%, rgba(216,60,25,0.18) 30%, transparent 55%)',
+          background: 'radial-gradient(ellipse at 60% 70%, rgba(247, 244, 243, 0.35) 0%, rgba(247, 243, 242, 0.18) 30%, transparent 55%)',
         }} />
         <div className="absolute pointer-events-none hidden md:block" style={{
           bottom: '5%', right: '10%', width: '35vw', height: '35vw',
@@ -92,11 +92,11 @@ export default function Hero() {
         }} />
         <div className="absolute pointer-events-none md:hidden" style={{
           bottom: 0, left: 0, right: 0, height: '72%',
-          background: 'radial-gradient(ellipse 200% 60% at 50% 100%, rgba(241,71,34,0.01) 0%, rgb(241,71,34) 38%, transparent 95%)',
+          background: 'radial-gradient(ellipse 200% 60% at 50% 100%, rgba(252, 252, 252, 0.01) 0%, rgb(241,71,34) 38%, transparent 95%)',
         }} />
         <div className="absolute top-0 bottom-0 pointer-events-none hidden md:block" style={{
           left: '80px', width: '1px',
-          background: 'linear-gradient(to bottom, transparent, rgba(247,244,242,0.12) 20%, rgba(247,244,242,0.12) 80%, transparent)',
+          background: 'linear-gradient(to bottom, transparent, rgba(245, 245, 245, 0.12) 20%, rgba(247,244,242,0.12) 80%, transparent)',
         }} />
 
         {/* Grid */}
