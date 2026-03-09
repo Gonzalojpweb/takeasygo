@@ -10,33 +10,33 @@ gsap.registerPlugin(ScrollTrigger)
 
 const features = [
     {
-        title: 'Target Promotions',
-        subtitle: 'Notificaciones Push Estratégicas',
-        desc: 'Envía mensajes y ofertas exclusivas directamente al celular de tus clientes, incentivando el regreso y la fidelidad.',
+        title: 'Infraestructura para takeaway',
+        subtitle: 'TakeasyGO ayuda a los restaurantes a organizar y gestionar sus pedidos para llevar de forma simple y confiable.',
+        desc: 'Desde la toma del pedido hasta la preparación en cocina, el sistema está pensado para ordenar la operación y darle al local más control sobre sus tiempos de producción. Cuando la operación funciona mejor, la experiencia del cliente también mejora.',
         image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046374/func1_war8qd.png'
     },
     {
-        title: 'QR Code Menu',
-        subtitle: 'Acceso Instantáneo',
-        desc: 'Brinda a tus clientes acceso total a tu menú digital a través de QRs personalizados, eliminando esperas y optimizando el servicio.',
+        title: 'Más que un menú digital',
+        subtitle: 'TakeasyGO no es solo una carta online.',
+        desc: 'Es una herramienta pensada para restaurantes que quieren trabajar mejor su operación de takeaway: pedidos claros, tiempos de preparación más previsibles y una cocina que puede enfocarse en producir.',
         image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046385/funcionalidad2_sscrts.png'
     },
     {
-        title: 'Intelligent Upselling',
-        subtitle: 'Aumenta el Ticket Promedio',
-        desc: 'Sugerencias automatizadas durante el flujo de pedido que invitan a tus clientes a descubrir nuevos sabores y complementos.',
+        title: 'Restaurantes que hacen las cosas bien',
+        subtitle: 'En cada barrio hay restaurantes que trabajan con dedicación, que cuidan su producto y que construyen comunidad.',
+        desc: 'Muchos de esos negocios quedan invisibles dentro de plataformas donde todo depende de publicidad, posicionamiento o comisiones.',
         image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046375/funci3_ogkgwo.png'
     },
     {
-        title: 'Club de Fidelización',
-        subtitle: 'Crea Comunidad',
-        desc: 'Transforma clientes ocasionales en recurrentes con un sistema de puntos y recompensas diseñado para el crecimiento mutuo.',
+        title: 'Sin presión, sin intermediarios innecesarios',
+        subtitle: 'Explorar y descubrir restaurantes debería ser simple.',
+        desc: 'Sin publicidad invasiva, sin resultados manipulados y sin obligar a los negocios a competir por visibilidad.',
         image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046375/func4_k8llnt.png'
     },
     {
-        title: 'Acceso Universal',
-        subtitle: 'Control en tiempo real',
-        desc: 'Gestiona tu plataforma desde cualquier dispositivo y en cualquier momento. La información de tu negocio siempre a mano.',
+        title: 'Donde el valor se transforma en acción',
+        subtitle: 'Los restaurantes son mucho más que un punto de venta.',
+        desc: 'Son espacios que generan trabajo, sostienen barrios y forman parte de la vida cotidiana de las personas. Sin embargo, muchas plataformas los empujan a competir por visibilidad en lugar de ayudarlos a operar mejor.',
         image: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772046373/fun5_sjhanb.png'
     }
 ]
@@ -176,17 +176,16 @@ export default function FeaturesDetail() {
                         {features.map((f, i) => (
                             <div key={i} className="feature-detail-step h-screen flex flex-col justify-center shrink-0">
                                 <span className="text-[#f14722] font-bold text-[12px] uppercase tracking-[0.3em] mb-4">
-                                    Funcionalidad 0{i + 1}
+                                    {f.title}
                                 </span>
                                 <h3 className="text-3xl md:text-5xl font-bold text-zinc-900 tracking-tight mb-6">
-                                    {f.title}
-                                </h3>
-                                <p className="text-zinc-500 font-bold mb-4 text-sm uppercase tracking-widest">
                                     {f.subtitle}
-                                </p>
-                                <p className="text-zinc-400 text-lg font-medium leading-relaxed max-w-md">
-                                    {f.desc}
-                                </p>
+                                </h3>
+                                {f.desc && (
+                                    <p className="text-zinc-400 text-lg font-medium leading-relaxed max-w-md">
+                                        {f.desc}
+                                    </p>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -290,12 +289,12 @@ export default function FeaturesDetail() {
                                         fontWeight: 500,
                                         letterSpacing: '0.28em',
                                         textTransform: 'uppercase',
-                                        color: '#b0aaa6',
+                                        color: '#f14722',
                                         display: 'block',
-                                        marginBottom: 10,
+                                        marginBottom: 8,
                                     }}
                                 >
-                                    {String(i + 1).padStart(2, '0')} / {String(features.length).padStart(2, '0')}
+                                    {f.title}
                                 </span>
                                 <h3
                                     style={{
@@ -308,32 +307,21 @@ export default function FeaturesDetail() {
                                         marginBottom: 8,
                                     }}
                                 >
-                                    {f.title}
-                                </h3>
-                                <p
-                                    style={{
-                                        fontFamily: "'DM Sans', sans-serif",
-                                        fontSize: 10,
-                                        fontWeight: 600,
-                                        letterSpacing: '0.14em',
-                                        textTransform: 'uppercase',
-                                        color: '#8a8280',
-                                        marginBottom: 10,
-                                    }}
-                                >
                                     {f.subtitle}
-                                </p>
-                                <p
-                                    style={{
-                                        fontFamily: "'DM Sans', sans-serif",
-                                        fontSize: 13,
-                                        fontWeight: 300,
-                                        lineHeight: 1.65,
-                                        color: '#6b6460',
-                                    }}
-                                >
-                                    {f.desc}
-                                </p>
+                                </h3>
+                                {f.desc && (
+                                    <p
+                                        style={{
+                                            fontFamily: "'DM Sans', sans-serif",
+                                            fontSize: 13,
+                                            fontWeight: 300,
+                                            lineHeight: 1.65,
+                                            color: '#6b6460',
+                                        }}
+                                    >
+                                        {f.desc}
+                                    </p>
+                                )}
                             </div>
                         ))}
                     </div>
