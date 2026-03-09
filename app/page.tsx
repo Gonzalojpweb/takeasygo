@@ -9,6 +9,7 @@ import FeaturesDetail from '@/components/landing/FeaturesDetail'
 import Pricing from '@/components/landing/Pricing'
 import DemoSection from '@/components/landing/DemoSection'
 import FAQ from '@/components/landing/FAQ'
+import CTASection from '@/components/landing/CTASection'
 
 export default function LandingPage() {
   return (
@@ -24,8 +25,9 @@ export default function LandingPage() {
         {/* Phase 2: Details & Conversion */}
         <FeaturesDetail />
         <Pricing />
-        <DemoSection />
         <FAQ />
+        <DemoSection />
+        <CTASection />
       </main>
 
       {/* Footer Minimalista */}
