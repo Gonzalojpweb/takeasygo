@@ -5,6 +5,7 @@ import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
+import { createPaymentPreferenceSchema } from '@/lib/schemas'
 
 export async function POST(
   request: NextRequest,
@@ -26,7 +27,11 @@ if (!success) {
       return NextResponse.json({ error: 'MercadoPago no configurado' }, { status: 400 })
     }
 
-    const { orderId } = await request.json()
+    const parsed = createPaymentPreferenceSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'orderId inválido' }, { status: 400 })
+    }
+    const { orderId } = parsed.data
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })

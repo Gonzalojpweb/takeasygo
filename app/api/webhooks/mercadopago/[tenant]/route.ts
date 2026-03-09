@@ -61,17 +61,19 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    // Verificar firma si el tenant tiene el webhookSecret configurado
-    if (tenant.mercadopago.webhookSecret) {
-      const webhookSecret = decrypt(tenant.mercadopago.webhookSecret)
-      const signatureHeader = request.headers.get('x-signature')
-      const requestId = request.headers.get('x-request-id')
-      const dataId = body.data?.id
+    // Verificación de firma obligatoria — se rechaza si no está configurado el secret
+    if (!tenant.mercadopago.webhookSecret) {
+      return NextResponse.json({ error: 'Webhook no configurado' }, { status: 401 })
+    }
 
-      const isValid = verifyMercadoPagoSignature(signatureHeader, requestId, dataId, webhookSecret)
-      if (!isValid) {
-        return NextResponse.json({ error: 'Firma invalida' }, { status: 401 })
-      }
+    const webhookSecret = decrypt(tenant.mercadopago.webhookSecret)
+    const signatureHeader = request.headers.get('x-signature')
+    const requestId = request.headers.get('x-request-id')
+    const dataId = body.data?.id
+
+    const isValid = verifyMercadoPagoSignature(signatureHeader, requestId, dataId, webhookSecret)
+    if (!isValid) {
+      return NextResponse.json({ error: 'Firma invalida' }, { status: 401 })
     }
 
     const accessToken = decrypt(tenant.mercadopago.accessToken)

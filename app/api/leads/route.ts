@@ -1,34 +1,30 @@
 import { connectDB } from '@/lib/mongoose'
 import Lead from '@/models/Lead'
+import { rateLimit } from '@/lib/rateLimit'
+import { createLeadSchema } from '@/lib/schemas'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json()
-        const { name, business, email, phone, plan, planId } = body
-
-        // Basic field validation
-        if (!name || !business || !email || !phone || !plan || !planId) {
-            return NextResponse.json(
-                { error: 'Todos los campos son requeridos.' },
-                { status: 400 }
-            )
+        const ip = request.headers.get('x-forwarded-for') || 'unknown'
+        const { success } = await rateLimit(`lead:${ip}`, 10, 60_000)
+        if (!success) {
+            return NextResponse.json({ error: 'Demasiadas solicitudes' }, { status: 429 })
         }
 
-        // Basic email format check
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(email)) {
+        const parsed = createLeadSchema.safeParse(await request.json())
+        if (!parsed.success) {
             return NextResponse.json(
-                { error: 'El email no es válido.' },
+                { error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors },
                 { status: 400 }
             )
         }
 
         await connectDB()
-        const lead = await Lead.create({ name, business, email, phone, plan, planId })
+        const lead = await Lead.create(parsed.data)
 
         return NextResponse.json({ lead }, { status: 201 })
     } catch (error) {
-        return NextResponse.json({ error: String(error) }, { status: 500 })
+        return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500 })
     }
 }

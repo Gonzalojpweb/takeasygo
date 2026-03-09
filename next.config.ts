@@ -6,6 +6,21 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
   { key: 'X-XSS-Protection', value: '1; mode=block' },
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://res.cloudinary.com",
+      "font-src 'self'",
+      "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com",
+      "frame-src https://www.mercadopago.com https://www.mercadopago.com.ar",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; '),
+  },
 ]
 
 const nextConfig: NextConfig = {

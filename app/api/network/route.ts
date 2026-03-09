@@ -1,31 +1,30 @@
 import { connectDB } from '@/lib/mongoose'
 import NetworkRestaurant from '@/models/NetworkRestaurant'
+import { rateLimit } from '@/lib/rateLimit'
+import { createNetworkSchema } from '@/lib/schemas'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json()
-        const { nombre, instagram, email, telefono, tipoRestaurante } = body
+        const ip = request.headers.get('x-forwarded-for') || 'unknown'
+        const { success } = await rateLimit(`network:${ip}`, 10, 60_000)
+        if (!success) {
+            return NextResponse.json({ error: 'Demasiadas solicitudes' }, { status: 429 })
+        }
 
-        if (!nombre || !email || !telefono || !tipoRestaurante) {
+        const parsed = createNetworkSchema.safeParse(await request.json())
+        if (!parsed.success) {
             return NextResponse.json(
-                { error: 'Los campos nombre, email, teléfono y tipo son requeridos.' },
+                { error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors },
                 { status: 400 }
             )
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(email)) {
-            return NextResponse.json({ error: 'El email no es válido.' }, { status: 400 })
-        }
-
         await connectDB()
-        const restaurant = await NetworkRestaurant.create({
-            nombre, instagram: instagram || '', email, telefono, tipoRestaurante,
-        })
+        const restaurant = await NetworkRestaurant.create(parsed.data)
 
         return NextResponse.json({ restaurant }, { status: 201 })
     } catch (error) {
-        return NextResponse.json({ error: String(error) }, { status: 500 })
+        return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500 })
     }
 }
