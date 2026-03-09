@@ -30,9 +30,9 @@ export default function Navbar() {
     return (
         <nav
             className={cn(
-                'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
+                'fixed top-6 left-0 right-0 z-50 transition-all duration-300',
                 scrolled
-                    ? 'bg-white/80 backdrop-blur-md border-b border-zinc-100 py-3'
+                    ? 'bg-white/80 backdrop-blur-md border-b border-zinc-100 py-3 top-0'
                     : 'bg-transparent py-5'
             )}
         >
@@ -41,7 +41,10 @@ export default function Navbar() {
 
                 <Link href="/" onClick={scrollToTop} className="flex items-center">
                     <Image
-                        src="https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772059496/logo-removebg-preview_1_yamzfc.png"
+                        src={scrolled
+                            ? 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1773021081/logoblack_2_mws0us.png'
+                            : 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1773021081/logowhite_2_ppmk8j.png'
+                        }
                         alt="Takeasygo"
                         width={140}
                         height={36}
@@ -57,13 +60,26 @@ export default function Navbar() {
                         <a
                             key={link.name}
                             href={link.href}
-                            className="text-zinc-500 hover:text-zinc-900 text-[11px] font-bold uppercase tracking-[0.15em] transition-colors"
+                            className={cn(
+                                'text-[11px] font-bold uppercase tracking-[0.15em] transition-colors',
+                                scrolled
+                                    ? 'text-zinc-500 hover:text-zinc-900'
+                                    : 'text-[rgba(247, 244, 242, 0.97)] hover:text-[#f7f4f2]'
+                            )}
                         >
                             {link.name}
                         </a>
                     ))}
                     <Link href="/login">
-                        <Button variant="ghost" className="text-zinc-900 font-bold border border-zinc-200 hover:bg-[#f14722] hover:text-white rounded-full px-6 transition-all h-9 text-[11px] uppercase tracking-wider">
+                        <Button
+                            variant="ghost"
+                            className={cn(
+                                'font-bold rounded-full px-6 transition-all h-9 text-[11px] uppercase tracking-wider',
+                                scrolled
+                                    ? 'text-zinc-900 border border-zinc-200 hover:bg-[#f14722] hover:text-white'
+                                    : 'text-[#f7f4f2] border border-[rgba(247,244,242,0.35)] hover:bg-[rgba(247,244,242,0.12)] hover:text-[#f7f4f2]'
+                            )}
+                        >
                             Iniciar Sesión
                         </Button>
                     </Link>

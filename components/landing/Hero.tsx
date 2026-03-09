@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Radius } from 'lucide-react'
 import Image from 'next/image'
 
 // ── Replace with real screenshots of your app ────────────────────────────────
@@ -76,7 +76,10 @@ export default function Hero() {
       <section
         id="what-we-do"
         className="relative min-h-[100vh] flex items-center overflow-hidden"
-        style={{ background: '#f7f4f1' }}
+        style={{ background: '#f14722',
+        borderRadius: '20px',
+        margin: '20px 20px 20px 20px',
+         }}
       >
         {/* Glows */}
         <div className="absolute pointer-events-none hidden md:block" style={{
@@ -93,7 +96,7 @@ export default function Hero() {
         }} />
         <div className="absolute top-0 bottom-0 pointer-events-none hidden md:block" style={{
           left: '80px', width: '1px',
-          background: 'linear-gradient(to bottom, transparent, rgba(13,11,10,0.07) 20%, rgba(13,11,10,0.07) 80%, transparent)',
+          background: 'linear-gradient(to bottom, transparent, rgba(247,244,242,0.12) 20%, rgba(247,244,242,0.12) 80%, transparent)',
         }} />
 
         {/* Grid */}
@@ -109,10 +112,10 @@ export default function Hero() {
                 transition={{ duration: 0.7 }}
                 className="flex items-center gap-3 mb-10"
               >
-                <span style={{ width: 36, height: 1, background: '#f14722', display: 'block', flexShrink: 0 }} />
+                <span style={{ width: 36, height: 1, background: 'rgba(247, 244, 242, 0.97)', display: 'block', flexShrink: 0 }} />
                 <span style={{
                   fontSize: 10, fontFamily: "'DM Sans', sans-serif", fontWeight: 500,
-                  letterSpacing: '0.22em', textTransform: 'uppercase', color: '#8a8280',
+                  letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(247, 244, 242, 0.97)',
                 }}>
                   Infraestructura digital para la gastronomía
                 </span>
@@ -130,7 +133,7 @@ export default function Hero() {
                 }}
               >
                 Una experiencia de venta <br />
-                <em style={{ color: '#f14722', fontStyle: 'italic' }}>superior para tu marca.</em>
+                <em style={{ color: 'rgba(247, 244, 242, 0.97)', fontStyle: 'italic' }}>superior para tu marca.</em>
               </motion.h1>
 
               <motion.p
@@ -139,7 +142,7 @@ export default function Hero() {
                 transition={{ duration: 0.9, delay: 0.3 }}
                 style={{
                   fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 300,
-                  lineHeight: 1.75, color: '#6b6460', maxWidth: 440, marginBottom: 48,
+                  lineHeight: 1.75, color: 'rgba(247, 244, 242, 0.97)', maxWidth: 440, marginBottom: 48,
                 }}
               >
                 Menú digital → Pedidos takeaway → Pagos online. <br />
