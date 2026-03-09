@@ -42,13 +42,13 @@ export default function Navbar() {
                 <Link href="/" onClick={scrollToTop} className="flex items-center">
                     <Image
                         src={scrolled
-                            ? 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1773021081/logoblack_2_mws0us.png'
-                            : 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1773021081/logowhite_2_ppmk8j.png'
+                            ? 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1773077771/ChatGPT_Image_9_mar_2026__02_28_19_p.m.-removebg-preview-removebg-preview_1_yrwjdm.png'
+                            : 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1773077771/ChatGPT_Image_9_mar_2026__02_28_19_p.m.-removebg-preview-removebg-preview_1_yrwjdm.png'
                         }
                         alt="Takeasygo"
-                        width={140}
-                        height={36}
-                        style={{ height: 30, width: 'auto' }}
+                        width={200}
+                        height={40}
+                        style={{ height: 40, width: 'auto' }}
                         unoptimized
                         priority
                     />

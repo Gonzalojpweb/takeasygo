@@ -44,7 +44,7 @@ export default function LandingPage() {
             aria-label="Volver al inicio"
           >
             <Image
-              src="https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772058968/logo_oolixg.png"
+              src="https://res.cloudinary.com/dypcq8lsa/image/upload/v1773077771/ChatGPT_Image_9_mar_2026__02_28_19_p.m.-removebg-preview-removebg-preview_1_yrwjdm.png"
               alt="Takeasygo"
               width={160}
               height={40}
