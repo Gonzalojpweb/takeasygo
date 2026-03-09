@@ -19,8 +19,8 @@ function FloatingPhones({
   phoneARef,
   phoneBRef,
 }: {
-  phoneARef: React.RefObject<HTMLDivElement>
-  phoneBRef: React.RefObject<HTMLDivElement>
+  phoneARef: React.RefObject<HTMLDivElement | null>
+  phoneBRef: React.RefObject<HTMLDivElement | null>
 }) {
   return (
     <>
