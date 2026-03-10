@@ -20,9 +20,10 @@ interface Props {
   orderId: string
   currentStatus: string
   tenantSlug: string
+  compact?: boolean
 }
 
-export default function OrderStatusButton({ orderId, currentStatus, tenantSlug }: Props) {
+export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, compact }: Props) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const next = NEXT_STATUS[currentStatus]
@@ -61,18 +62,19 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug }
     <Button
       size="sm"
       className={cn(
-        "mt-3 text-white font-bold px-6 h-10 rounded-xl transition-all active:scale-95 shadow-lg group",
+        "text-white font-bold rounded-xl transition-all active:scale-95 shadow-md group",
+        compact ? "px-3 h-8 text-xs" : "mt-3 px-6 h-10",
         next.color
       )}
       onClick={handleClick}
       disabled={loading}
     >
       {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
       ) : (
         <>
           {next.label}
-          <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          <ArrowRight className={cn("ml-1.5 h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform", compact ? "ml-1" : "ml-2 h-4 w-4")} />
         </>
       )}
     </Button>

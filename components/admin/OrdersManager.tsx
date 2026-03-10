@@ -1,235 +1,318 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import {
-    ShoppingBag, User, Phone, MapPin,
-    Calendar, Clock, DollarSign, StickyNote,
-    ChevronRight, Search, Filter
-} from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2 } from 'lucide-react'
 import OrderStatusButton from './OrderStatusButton'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
 
 interface Props {
-    orders: any[]
-    locationMap: Record<string, string>
-    tenantSlug: string
-    trialOrderCount?: number
+  orders: any[]
+  locationMap: Record<string, string>
+  tenantSlug: string
+  trialOrderCount?: number
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-    pending: { label: 'Pendiente', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20', icon: Clock },
-    confirmed: { label: 'Confirmado', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20', icon: CheckCircle },
-    preparing: { label: 'Preparando', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20', icon: Loader2 },
-    ready: { label: 'Listo', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20', icon: CheckCircle2 },
-    delivered: { label: 'Entregado', color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20', icon: ShoppingBag },
-    cancelled: { label: 'Cancelado', color: 'bg-destructive/10 text-destructive border-destructive/20', icon: XCircle },
+const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
+  pending:   { label: 'Pendiente',   dot: 'bg-amber-400',   badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  confirmed: { label: 'Confirmado',  dot: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+  preparing: { label: 'Preparando',  dot: 'bg-orange-400',  badge: 'bg-orange-50 text-orange-700 border-orange-200' },
+  ready:     { label: 'Listo',       dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  delivered: { label: 'Entregado',   dot: 'bg-zinc-400',    badge: 'bg-zinc-50 text-zinc-600 border-zinc-200' },
+  cancelled: { label: 'Cancelado',   dot: 'bg-red-400',     badge: 'bg-red-50 text-red-600 border-red-200' },
 }
 
-// Fallback icons if not imported
-import { CheckCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+const FILTER_TABS = [
+  { value: 'all',       label: 'Todos' },
+  { value: 'active',    label: 'Activos' },
+  { value: 'pending',   label: 'Pendientes' },
+  { value: 'confirmed', label: 'Confirmados' },
+  { value: 'preparing', label: 'Preparando' },
+  { value: 'ready',     label: 'Listos' },
+  { value: 'delivered', label: 'Completados' },
+  { value: 'cancelled', label: 'Cancelados' },
+]
+
+const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready']
+
+// Paleta de colores por categoría (se asigna por índice)
+const CATEGORY_COLORS = [
+  'text-violet-600', 'text-orange-500', 'text-blue-600',
+  'text-emerald-600', 'text-rose-500', 'text-amber-600',
+]
 
 export default function OrdersManager({ orders, locationMap, tenantSlug, trialOrderCount }: Props) {
-    const [searchTerm, setSearchTerm] = useState('')
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [activeFilter, setActiveFilter] = useState('pending')
 
-    const filteredOrders = orders.filter(order =>
-        order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customer.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+  function handleRefresh() {
+    startTransition(() => router.refresh())
+  }
 
-    return (
-        <div className="space-y-6">
-            {/* Trial milestone banner */}
-            {trialOrderCount !== undefined && trialOrderCount >= 30 && (
-                <div className="flex items-center gap-4 p-5 rounded-2xl bg-violet-500/5 border-2 border-violet-500/20">
-                    <span className="text-2xl shrink-0">🎉</span>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-foreground">¡Ya tenemos suficiente información para analizar tu operación!</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Procesaste {trialOrderCount} pedidos. Tu Informe ICO de Contexto está listo.</p>
-                    </div>
-                    <a href="./ico" className="shrink-0 h-9 px-4 rounded-xl bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-violet-600 transition-all flex items-center">
-                        Generar Informe →
-                    </a>
-                </div>
-            )}
+  const countByStatus = orders.reduce((acc, o) => {
+    acc[o.status] = (acc[o.status] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+  const activeCount = ACTIVE_STATUSES.reduce((sum, s) => sum + (countByStatus[s] || 0), 0)
 
-            {/* Header & Search */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Buscar por número o cliente..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-muted/50 border-2 border-border/60 focus:border-primary/40 focus:bg-white rounded-2xl pl-12 pr-4 py-3 outline-none transition-all font-medium text-sm"
-                    />
-                </div>
-                <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="px-4 py-1.5 border-2 border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest">
-                        {filteredOrders.length} Pedidos
-                    </Badge>
-                </div>
-            </div>
+  const filtered = orders.filter(order => {
+    const matchSearch = !searchTerm ||
+      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.customer.phone || '').includes(searchTerm)
 
-            <AnimatePresence mode="popLayout">
-                {filteredOrders.length === 0 ? (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                    >
-                        <Card className="border-2 border-dashed border-border/60 bg-muted/10 rounded-3xl">
-                            <CardContent className="py-24 text-center">
-                                <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-6">
-                                    <ShoppingBag className="text-muted-foreground" size={32} />
-                                </div>
-                                <p className="text-foreground text-lg font-bold">No se encontraron pedidos</p>
-                                <p className="text-muted-foreground text-sm mt-1">Prueba con otro término de búsqueda.</p>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                ) : (
-                    <div className="grid grid-cols-1 gap-6">
-                        {filteredOrders.map((order: any, index: number) => {
-                            const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
-                            const StatusIcon = status.icon
+    const matchFilter =
+      activeFilter === 'all'    ? true :
+      activeFilter === 'active' ? ACTIVE_STATUSES.includes(order.status) :
+      order.status === activeFilter
 
-                            return (
-                                <motion.div
-                                    key={order._id}
-                                    layout
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: index * 0.05 }}
-                                >
-                                    <Card className="bg-card border-2 border-border/60 hover:border-primary/30 shadow-md hover:shadow-xl transition-all duration-300 rounded-[2.5rem] overflow-hidden group">
-                                        <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-border/40">
-                                            {/* Left Side: Summary & Items */}
-                                            <div className="flex-1 p-8">
-                                                <div className="flex items-center justify-between mb-6">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-lg shadow-inner">
-                                                            {order.orderNumber.slice(-2)}
-                                                        </div>
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <h3 className="text-xl font-bold tracking-tight text-foreground">#{order.orderNumber}</h3>
-                                                                <Badge className={cn("px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border-2", status.color)}>
-                                                                    {status.label}
-                                                                </Badge>
-                                                            </div>
-                                                            <p className="text-muted-foreground text-xs font-medium flex items-center gap-1.5 mt-1" suppressHydrationWarning>
-                                                                <Calendar size={12} /> {new Date(order.createdAt).toLocaleDateString('es-AR')}
-                                                                <span className="opacity-30">•</span>
-                                                                <Clock size={12} /> {new Date(order.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
+    return matchSearch && matchFilter
+  })
 
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-                                                    <div className="space-y-4">
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 mt-0.5">
-                                                                <User size={14} />
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60 leading-none mb-1">Cliente</p>
-                                                                <p className="text-sm font-bold text-foreground leading-tight">{order.customer.name}</p>
-                                                                {order.customer.phone && (
-                                                                    <p className="text-xs text-muted-foreground font-medium mt-1 inline-flex items-center gap-1">
-                                                                        <Phone size={10} /> {order.customer.phone}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 mt-0.5">
-                                                                <MapPin size={14} />
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60 leading-none mb-1">Ubicación</p>
-                                                                <p className="text-sm font-bold text-foreground leading-tight">
-                                                                    {locationMap[order.locationId?.toString()] || 'Sede desconocida'}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+  return (
+    <div className="space-y-4">
 
-                                                    <div className="bg-muted/30 rounded-3xl p-5 border border-border/40">
-                                                        <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60 mb-3 block">Detalle del pedido</p>
-                                                        <div className="space-y-2">
-                                                            {order.items.map((item: any) => (
-                                                                <div key={item._id} className="flex items-start justify-between gap-4">
-                                                                    <div className="flex-1 min-w-0">
-                                                                        {item.categoryName && (
-                                                                            <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 leading-none mb-0.5">{item.categoryName}</p>
-                                                                        )}
-                                                                        <p className="text-xs font-bold text-foreground flex items-center gap-2">
-                                                                            <span className="text-primary font-black text-[10px] tabular-nums">{item.quantity}x</span>
-                                                                            <span className="truncate">{item.name}</span>
-                                                                        </p>
-                                                                        {item.customizations?.length > 0 && (
-                                                                            <div className="pl-6 mt-0.5 space-y-0.5">
-                                                                                {item.customizations.map((c: any, ci: number) => (
-                                                                                    <p key={ci} className="text-[10px] text-muted-foreground italic">
-                                                                                        <span className="font-semibold not-italic">{c.groupName}:</span>{' '}
-                                                                                        {c.selectedOptions.map((o: any) => o.name).join(', ')}
-                                                                                    </p>
-                                                                                ))}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                    <p className="text-xs font-bold tabular-nums text-foreground/70">${item.subtotal.toLocaleString('es-AR')}</p>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {order.notes && (
-                                                    <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-2xl mt-4">
-                                                        <StickyNote size={16} className="text-primary shrink-0 mt-0.5" />
-                                                        <div>
-                                                            <p className="text-[10px] uppercase font-black tracking-widest text-primary/80 mb-1">Notas del cliente</p>
-                                                            <p className="text-sm font-medium text-foreground italic">{order.notes}</p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Right Side: Total & Actions */}
-                                            <div className="bg-muted/10 p-8 flex flex-col justify-between items-center lg:items-end lg:w-72 lg:shrink-0 gap-6">
-                                                <div className="text-center lg:text-right w-full">
-                                                    <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-2">Total</p>
-                                                    <p className="text-4xl font-black tracking-tighter text-foreground tabular-nums flex items-start justify-center lg:justify-end gap-1">
-                                                        <span className="text-sm font-bold opacity-30 mt-1">$</span>
-                                                        {order.total.toLocaleString('es-AR')}
-                                                    </p>
-                                                </div>
-
-                                                <div className="w-full space-y-3">
-                                                    <OrderStatusButton
-                                                        orderId={order._id.toString()}
-                                                        currentStatus={order.status}
-                                                        tenantSlug={tenantSlug || ''}
-                                                    />
-                                                    <p className="text-[10px] text-muted-foreground/40 text-center lg:text-right font-bold uppercase tracking-widest mt-4">
-                                                        TakeAway — ID: {order._id.toString().slice(-6)}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                </motion.div>
-                            )
-                        })}
-                    </div>
-                )}
-            </AnimatePresence>
+      {/* Trial milestone banner */}
+      {trialOrderCount !== undefined && trialOrderCount >= 30 && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-violet-500/5 border-2 border-violet-500/20">
+          <span className="text-xl shrink-0">🎉</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm">¡Ya tenemos suficiente información para analizar tu operación!</p>
+            <p className="text-xs text-muted-foreground">Procesaste {trialOrderCount} pedidos. Tu Informe ICO está listo.</p>
+          </div>
+          <a href="./ico" className="shrink-0 h-8 px-3 rounded-xl bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-violet-600 transition-all flex items-center">Ver →</a>
         </div>
-    )
+      )}
+
+      {/* Search + Refresh */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+          <input
+            type="text"
+            placeholder="Buscar número, cliente o teléfono..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full bg-muted/50 border border-border/60 focus:border-primary/40 rounded-xl pl-9 pr-4 py-2.5 outline-none transition-all text-sm"
+          />
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isPending}
+          title="Actualizar pedidos"
+          className="h-9 w-9 rounded-xl border border-border/60 bg-muted/50 hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shrink-0"
+        >
+          <RefreshCw size={15} className={cn(isPending && 'animate-spin')} />
+        </button>
+        <span className="text-xs text-muted-foreground font-medium shrink-0">
+          {filtered.length} pedido{filtered.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        {FILTER_TABS.map(tab => {
+          const count =
+            tab.value === 'active' ? activeCount :
+            tab.value === 'all'    ? orders.length :
+            (countByStatus[tab.value] || 0)
+          const isActive = activeFilter === tab.value
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setActiveFilter(tab.value)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 border',
+                isActive
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : 'bg-background text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground'
+              )}
+            >
+              {tab.label}
+              {count > 0 && (
+                <span className={cn(
+                  'inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] font-black px-1',
+                  isActive ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Grid de cards */}
+      <AnimatePresence mode="popLayout">
+        {filtered.length === 0 ? (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center justify-center py-20 text-center"
+          >
+            <div className="w-14 h-14 bg-muted rounded-2xl flex items-center justify-center mb-4">
+              <ShoppingBag className="text-muted-foreground" size={22} />
+            </div>
+            <p className="font-bold text-sm">No hay pedidos</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {activeFilter === 'pending' ? 'Los nuevos pedidos aparecerán aquí.' : 'Cambiá el filtro para ver otros estados.'}
+            </p>
+          </motion.div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map((order: any, index: number) => {
+              const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
+              const locationName = locationMap[order.locationId?.toString()] || 'Sede'
+              const time = new Date(order.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+              const date = new Date(order.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+
+              // Agrupar items por categoría
+              const byCategory: Record<string, any[]> = {}
+              for (const item of order.items) {
+                const cat = item.categoryName || 'Otros'
+                if (!byCategory[cat]) byCategory[cat] = []
+                byCategory[cat].push(item)
+              }
+              const categories = Object.entries(byCategory)
+
+              return (
+                <motion.div
+                  key={order._id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ delay: index * 0.03, duration: 0.18 }}
+                  className="bg-card border border-border/70 rounded-2xl overflow-hidden flex flex-col hover:border-primary/30 hover:shadow-md transition-all"
+                >
+                  {/* Card header */}
+                  <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border/50">
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-base tracking-tight text-foreground">
+                        #{order.orderNumber}
+                      </span>
+                      <span className={cn(
+                        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border',
+                        status.badge
+                      )}>
+                        <span className={cn('w-1.5 h-1.5 rounded-full', status.dot)} />
+                        {status.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock size={11} />
+                        {date} {time}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin size={11} />
+                        {locationName}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Customer + total */}
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
+                    <span className="font-bold text-sm text-foreground">{order.customer.name}</span>
+                    <span className="font-black text-base text-primary tabular-nums">
+                      ${order.total.toLocaleString('es-AR')}
+                    </span>
+                  </div>
+
+                  {/* Items por categoría */}
+                  <div className="px-4 py-3 space-y-3 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Items:</p>
+                    {categories.map(([catName, items], catIndex) => (
+                      <div key={catName}>
+                        <p className={cn('text-[10px] font-black uppercase tracking-widest mb-1', CATEGORY_COLORS[catIndex % CATEGORY_COLORS.length])}>
+                          {catName}
+                        </p>
+                        <div className="space-y-2">
+                          {items.map((item: any) => (
+                            <div key={item._id} className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-foreground leading-tight">
+                                  {item.quantity}x {item.name}
+                                </p>
+                                {item.customizations?.map((c: any, ci: number) => (
+                                  c.selectedOptions?.length > 0 && (
+                                    <p key={ci} className="text-xs text-muted-foreground mt-0.5">
+                                      <span className="font-semibold uppercase text-[10px] tracking-wide">{c.groupName}:</span>{' '}
+                                      {c.selectedOptions.map((o: any) => o.name).join(', ')}
+                                    </p>
+                                  )
+                                ))}
+                              </div>
+                              <span className="text-sm font-bold text-foreground/70 tabular-nums shrink-0">
+                                ${item.subtotal.toLocaleString('es-AR')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Notas */}
+                    {order.notes && (
+                      <div className="mt-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                        <span className="font-bold">Nota: </span>{order.notes}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Contacto */}
+                  {(order.customer.phone || order.customer.email) && (
+                    <div className="px-4 pb-3 flex flex-wrap gap-x-4 gap-y-1">
+                      {order.customer.phone && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Phone size={11} />
+                          {order.customer.phone}
+                        </span>
+                      )}
+                      {order.customer.email && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground truncate max-w-full">
+                          <Mail size={11} className="shrink-0" />
+                          {order.customer.email}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Confirmación de retiro (cuando está entregado) */}
+                  {order.status === 'delivered' && order.statusTimestamps?.deliveredAt && (
+                    <div className="mx-4 mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                      <span className="text-xs font-semibold text-emerald-700">Cliente confirmó retiro</span>
+                      <span className="ml-auto text-[10px] text-emerald-600 font-medium tabular-nums">
+                        {new Date(order.statusTimestamps.deliveredAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Footer: acción */}
+                  <div className="px-4 pb-4 pt-1 border-t border-border/40 flex items-center justify-between gap-3">
+                    <span className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-widest">
+                      ID: {order._id.toString().slice(-6)}
+                    </span>
+                    <OrderStatusButton
+                      orderId={order._id.toString()}
+                      currentStatus={order.status}
+                      tenantSlug={tenantSlug}
+                      compact
+                    />
+                  </div>
+
+                </motion.div>
+              )
+            })}
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
 }
