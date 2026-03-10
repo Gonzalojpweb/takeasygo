@@ -64,6 +64,9 @@ export default async function ReportsPage() {
     paymentData,
     recompraData,
     recompraBreakdownData,
+    categoryRevenueData,
+    dailyTrendData,
+    locationRevenueData,
   ] = await Promise.all([
     // Revenue y count del mes actual (sin cancelados)
     Order.aggregate([
@@ -186,6 +189,45 @@ export default async function ReportsPage() {
         output: { clients: { $sum: 1 } }
       }}
     ]) : Promise.resolve([]),
+    // Revenue por categoría — solo full
+    isFullPlan ? Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
+      { $unwind: '$items' },
+      { $group: {
+        _id: '$items.categoryName',
+        revenue: { $sum: '$items.subtotal' },
+        quantity: { $sum: '$items.quantity' },
+      }},
+      { $match: { _id: { $nin: [null, ''] } } },
+      { $sort: { revenue: -1 } },
+    ]) : Promise.resolve([]),
+    // Tendencia diaria — solo full
+    isFullPlan ? Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
+      { $group: {
+        _id: { $dayOfMonth: '$createdAt' },
+        revenue: { $sum: '$total' },
+        orders: { $sum: 1 },
+      }},
+      { $sort: { _id: 1 } },
+    ]) : Promise.resolve([]),
+    // Revenue por sede — solo full
+    isFullPlan ? Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
+      { $lookup: {
+        from: 'locations',
+        localField: 'locationId',
+        foreignField: '_id',
+        as: 'location',
+      }},
+      { $unwind: { path: '$location', preserveNullAndEmptyArrays: true } },
+      { $group: {
+        _id: '$location.name',
+        revenue: { $sum: '$total' },
+        orders: { $sum: 1 },
+      }},
+      { $sort: { revenue: -1 } },
+    ]) : Promise.resolve([]),
   ])
 
   const thisMonth = ordersThisMonth[0] || { total: 0, count: 0 }
@@ -251,6 +293,34 @@ export default async function ReportsPage() {
       }
     : null
 
+  // Revenue por categoría
+  const revenueByCategory: { category: string; revenue: number; quantity: number }[] =
+    (categoryRevenueData as any[]).map(c => ({
+      category: c._id as string,
+      revenue: c.revenue as number,
+      quantity: c.quantity as number,
+    }))
+
+  // Tendencia diaria — rellena días sin pedidos con 0
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const dailyMap = Object.fromEntries(
+    (dailyTrendData as any[]).map(d => [d._id, { revenue: d.revenue as number, orders: d.orders as number }])
+  )
+  const dailyTrend: { day: number; revenue: number; orders: number }[] =
+    Array.from({ length: daysInMonth }, (_, i) => ({
+      day: i + 1,
+      revenue: dailyMap[i + 1]?.revenue ?? 0,
+      orders: dailyMap[i + 1]?.orders ?? 0,
+    }))
+
+  // Revenue por sede
+  const revenueByLocation: { locationName: string; revenue: number; orders: number }[] =
+    (locationRevenueData as any[]).map(l => ({
+      locationName: (l._id as string) || 'Sin sede',
+      revenue: l.revenue as number,
+      orders: l.orders as number,
+    }))
+
   const stats = {
     revenue: thisMonth.total,
     orders: thisMonth.count,
@@ -279,6 +349,10 @@ export default async function ReportsPage() {
     recompraPct,
     recompraClients: recompraRaw.totalClients,
     recompraBreakdown,
+    // Nuevos KPIs Fase 1
+    revenueByCategory,
+    dailyTrend,
+    revenueByLocation,
   }
 
   return (

@@ -42,6 +42,10 @@ interface Props {
         recompraPct: number | null
         recompraClients: number
         recompraBreakdown: { once: number; twice: number; thrice: number } | null
+        // Nuevos KPIs Fase 1
+        revenueByCategory: { category: string; revenue: number; quantity: number }[]
+        dailyTrend: { day: number; revenue: number; orders: number }[]
+        revenueByLocation: { locationName: string; revenue: number; orders: number }[]
     }
     topItems: any[]
     recentOrders: any[]
@@ -486,6 +490,92 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 </motion.div>
             )}
 
+            {/* ── Tendencia Diaria ─────────────────────────────────────── */}
+            {plan === 'full' && stats.dailyTrend.some(d => d.orders > 0) && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.40 }}>
+                    <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+                        <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                        <TrendingUp size={24} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <CardTitle className="text-xl font-bold tracking-tight">Tendencia Diaria</CardTitle>
+                                        <p className="text-xs text-muted-foreground font-medium">Órdenes y ventas por día — mes actual</p>
+                                    </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Pico del mes</p>
+                                    {(() => {
+                                        const peak = stats.dailyTrend.reduce((a, b) => b.orders > a.orders ? b : a, stats.dailyTrend[0])
+                                        return peak && peak.orders > 0 ? (
+                                            <>
+                                                <p className="text-2xl font-black tabular-nums text-blue-500">Día {peak.day}</p>
+                                                <p className="text-xs font-bold text-muted-foreground/70">{peak.orders} pedidos</p>
+                                            </>
+                                        ) : null
+                                    })()}
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-8 pt-6">
+                            <DailyTrendChart trend={stats.dailyTrend} />
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
+
+            {/* ── Revenue por Categoría + Revenue por Sede ──────────────── */}
+            {plan === 'full' && (stats.revenueByCategory.length > 0 || stats.revenueByLocation.length > 1) && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
+                    <div className={stats.revenueByCategory.length > 0 && stats.revenueByLocation.length > 1
+                        ? 'grid grid-cols-1 lg:grid-cols-2 gap-8'
+                        : 'grid grid-cols-1 gap-8'
+                    }>
+                        {/* Revenue por Categoría */}
+                        {stats.revenueByCategory.length > 0 && (
+                            <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+                                <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                                            <Package size={24} strokeWidth={2.5} />
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-xl font-bold tracking-tight">Ventas por Categoría</CardTitle>
+                                            <p className="text-xs text-muted-foreground font-medium">Ingresos netos del mes por categoría de menú</p>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-8">
+                                    <CategoryRevenueChart categories={stats.revenueByCategory} />
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Revenue por Sede */}
+                        {stats.revenueByLocation.length > 1 && (
+                            <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+                                <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500">
+                                            <Users size={24} strokeWidth={2.5} />
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-xl font-bold tracking-tight">Ventas por Sede</CardTitle>
+                                            <p className="text-xs text-muted-foreground font-medium">Comparativa de ingresos entre sucursales</p>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-8">
+                                    <LocationRevenueChart locations={stats.revenueByLocation} />
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                </motion.div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
                 {/* ── Top Product Rankings ──────────────────────────────── */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
@@ -692,6 +782,143 @@ function HourlyChart({ distribution }: { distribution: { hour: number; count: nu
                     </div>
                 ))}
             </div>
+        </div>
+    )
+}
+
+function DailyTrendChart({ trend }: { trend: { day: number; revenue: number; orders: number }[] }) {
+    const maxOrders = Math.max(...trend.map(d => d.orders), 1)
+    const maxRevenue = Math.max(...trend.map(d => d.revenue), 1)
+    const today = new Date().getDate()
+
+    return (
+        <div className="space-y-4">
+            {/* Bars — orders */}
+            <div>
+                <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-2">Pedidos por día</p>
+                <div className="flex items-end gap-[2px] h-24" role="img" aria-label="Tendencia de pedidos diarios">
+                    {trend.map(({ day, orders }) => (
+                        <div key={day} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                            {orders > 0 && (
+                                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Día {day} · {orders} ped.
+                                </div>
+                            )}
+                            <div
+                                className={cn(
+                                    'w-full rounded-t-[3px] transition-all duration-300',
+                                    day === today ? 'bg-blue-500' : orders > 0 ? 'bg-blue-400/70' : 'bg-muted/30'
+                                )}
+                                style={{ height: orders > 0 ? `${Math.max(4, Math.round((orders / maxOrders) * 100))}%` : '2px' }}
+                            />
+                        </div>
+                    ))}
+                </div>
+                {/* Day labels every 5 */}
+                <div className="flex mt-1">
+                    {trend.map(({ day }) => (
+                        <div key={day} className="flex-1 text-center">
+                            {(day === 1 || day % 5 === 0) && (
+                                <span className="text-[8px] font-bold text-muted-foreground/50">{day}</span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+            {/* Bars — revenue */}
+            <div>
+                <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-2">Ventas por día ($)</p>
+                <div className="flex items-end gap-[2px] h-16" role="img" aria-label="Tendencia de ventas diarias">
+                    {trend.map(({ day, revenue }) => (
+                        <div key={day} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                            {revenue > 0 && (
+                                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Día {day} · ${revenue.toLocaleString('es-AR')}
+                                </div>
+                            )}
+                            <div
+                                className={cn(
+                                    'w-full rounded-t-[3px] transition-all duration-300',
+                                    day === today ? 'bg-emerald-500' : revenue > 0 ? 'bg-emerald-400/70' : 'bg-muted/30'
+                                )}
+                                style={{ height: revenue > 0 ? `${Math.max(4, Math.round((revenue / maxRevenue) * 100))}%` : '2px' }}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function CategoryRevenueChart({ categories }: { categories: { category: string; revenue: number; quantity: number }[] }) {
+    const maxRevenue = Math.max(...categories.map(c => c.revenue), 1)
+    const totalRevenue = categories.reduce((s, c) => s + c.revenue, 0)
+    const COLORS = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-purple-500', 'bg-rose-500', 'bg-teal-500', 'bg-indigo-500', 'bg-orange-500']
+
+    return (
+        <div className="space-y-4">
+            {categories.map((cat, i) => {
+                const pct = totalRevenue > 0 ? Math.round((cat.revenue / totalRevenue) * 100) : 0
+                const barPct = Math.round((cat.revenue / maxRevenue) * 100)
+                return (
+                    <div key={cat.category}>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2">
+                                <div className={cn('w-2 h-2 rounded-full shrink-0', COLORS[i % COLORS.length])} />
+                                <span className="text-sm font-bold text-foreground truncate max-w-[180px]">{cat.category}</span>
+                                <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest">{cat.quantity} uds.</span>
+                            </div>
+                            <div className="text-right shrink-0 ml-4">
+                                <span className="text-sm font-black tabular-nums text-foreground">${cat.revenue.toLocaleString('es-AR')}</span>
+                                <span className="text-[10px] font-bold text-muted-foreground/60 ml-1.5">{pct}%</span>
+                            </div>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                                className={cn('h-full rounded-full transition-all duration-500', COLORS[i % COLORS.length])}
+                                style={{ width: `${barPct}%` }}
+                            />
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
+function LocationRevenueChart({ locations }: { locations: { locationName: string; revenue: number; orders: number }[] }) {
+    const maxRevenue = Math.max(...locations.map(l => l.revenue), 1)
+    const totalRevenue = locations.reduce((s, l) => s + l.revenue, 0)
+    const COLORS = ['bg-purple-500', 'bg-blue-500', 'bg-amber-500', 'bg-emerald-500', 'bg-rose-500']
+
+    return (
+        <div className="space-y-4">
+            {locations.map((loc, i) => {
+                const pct = totalRevenue > 0 ? Math.round((loc.revenue / totalRevenue) * 100) : 0
+                const barPct = Math.round((loc.revenue / maxRevenue) * 100)
+                return (
+                    <div key={loc.locationName}>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2">
+                                <div className={cn('w-2 h-2 rounded-full shrink-0', COLORS[i % COLORS.length])} />
+                                <span className="text-sm font-bold text-foreground truncate max-w-[180px]">{loc.locationName}</span>
+                                <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest">{loc.orders} pedidos</span>
+                            </div>
+                            <div className="text-right shrink-0 ml-4">
+                                <span className="text-sm font-black tabular-nums text-foreground">${loc.revenue.toLocaleString('es-AR')}</span>
+                                <span className="text-[10px] font-bold text-muted-foreground/60 ml-1.5">{pct}%</span>
+                            </div>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                                className={cn('h-full rounded-full transition-all duration-500', COLORS[i % COLORS.length])}
+                                style={{ width: `${barPct}%` }}
+                            />
+                        </div>
+                    </div>
+                )
+            })}
         </div>
     )
 }
