@@ -91,32 +91,93 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const navBg = dark ? '#0f172a' : branding.backgroundColor
   const navBorder = dark ? branding.primaryColor + '30' : branding.primaryColor + '20'
 
+  const hasHeroMedia = location.hero?.mediaType !== 'none' && !!location.hero?.url
+  const showLogoOnHero = location.hero?.showLogo !== false
+
   return (
     <div style={{ backgroundColor: bg, color: text, minHeight: '100vh', fontFamily: 'Georgia, serif' }}>
 
       {/* ── Hero ───────────────────────────────────────────────── */}
-      <section className="text-center py-16 px-4" style={{ backgroundColor: bg }}>
-        {branding.logoUrl ? (
-          <img src={branding.logoUrl} alt={tenant.name} className="h-20 object-contain mx-auto mb-6" />
-        ) : (
-          <h1 className="text-4xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
-            {tenant.name}
-          </h1>
+      <section
+        className="relative text-center overflow-hidden flex items-center justify-center"
+        style={{
+          minHeight: hasHeroMedia ? '60vh' : undefined,
+          paddingTop: hasHeroMedia ? 0 : '4rem',
+          paddingBottom: hasHeroMedia ? 0 : '4rem',
+          backgroundColor: bg,
+        }}
+      >
+        {/* Background media */}
+        {hasHeroMedia && location.hero.mediaType === 'image' && (
+          <img
+            src={location.hero.url}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
         )}
-        <h2 className="text-2xl font-bold mb-3" style={{ color: branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
-          Nuestra Carta
-        </h2>
-        {/* Decorative line */}
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="h-px w-16" style={{ backgroundColor: branding.primaryColor + '60' }} />
-          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: branding.primaryColor }} />
-          <div className="h-px w-16" style={{ backgroundColor: branding.primaryColor + '60' }} />
+        {hasHeroMedia && location.hero.mediaType === 'video' && (
+          <video
+            autoPlay muted loop playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          >
+            <source src={location.hero.url} type="video/mp4" />
+          </video>
+        )}
+
+        {/* Overlay oscuro para legibilidad cuando hay media */}
+        {hasHeroMedia && (
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0.65) 100%)' }}
+          />
+        )}
+
+        {/* Contenido del hero */}
+        <div className="relative z-10 px-4 py-16 w-full">
+          {/* Logo — invertido a blanco cuando hay imagen/video de fondo */}
+          {showLogoOnHero && branding.logoUrl ? (
+            <img
+              src={branding.logoUrl}
+              alt={tenant.name}
+              className="h-20 object-contain mx-auto mb-6"
+              style={{ filter: hasHeroMedia ? 'brightness(0) invert(1)' : undefined }}
+            />
+          ) : !branding.logoUrl && !hasHeroMedia ? (
+            <h1 className="text-4xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
+              {tenant.name}
+            </h1>
+          ) : null}
+
+          <h2
+            className="text-2xl font-bold mb-3"
+            style={{
+              color: hasHeroMedia ? '#ffffff' : branding.primaryColor,
+              fontFamily: 'Georgia, Cambria, serif',
+            }}
+          >
+            Nuestra Carta
+          </h2>
+
+          {/* Línea decorativa */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="h-px w-16" style={{ backgroundColor: hasHeroMedia ? 'rgba(255,255,255,0.45)' : branding.primaryColor + '60' }} />
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: hasHeroMedia ? '#ffffff' : branding.primaryColor }} />
+            <div className="h-px w-16" style={{ backgroundColor: hasHeroMedia ? 'rgba(255,255,255,0.45)' : branding.primaryColor + '60' }} />
+          </div>
+
+          {profile.menuDescription && (
+            <p
+              className="max-w-2xl mx-auto text-base leading-relaxed"
+              style={{
+                color: hasHeroMedia ? 'rgba(255,255,255,0.78)' : mutedText,
+                fontFamily: 'Georgia, Cambria, serif',
+                fontStyle: 'italic',
+              }}
+            >
+              {profile.menuDescription}
+            </p>
+          )}
         </div>
-        {profile.menuDescription && (
-          <p className="max-w-2xl mx-auto text-base leading-relaxed" style={{ color: mutedText, fontFamily: 'Georgia, Cambria, serif', fontStyle: 'italic' }}>
-            {profile.menuDescription}
-          </p>
-        )}
       </section>
 
       {/* ── Sticky category nav ────────────────────────────────── */}

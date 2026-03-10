@@ -16,6 +16,7 @@ export interface ILocation extends Document {
   hero: {
     mediaType: 'none' | 'image' | 'video'
     url: string
+    showLogo: boolean
   }
   createdAt: Date
   updatedAt: Date
@@ -72,6 +73,7 @@ const LocationSchema = new Schema<ILocation>(
     hero: {
       mediaType: { type: String, enum: ['none', 'image', 'video'], default: 'none' },
       url: { type: String, default: '' },
+      showLogo: { type: Boolean, default: true },
     },
   },
   {

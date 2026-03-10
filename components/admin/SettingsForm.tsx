@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge'
 
 
 type HeroMediaType = 'none' | 'image' | 'video'
+type HeroConfig = { mediaType: HeroMediaType; url: string; showLogo: boolean }
 
 interface Props {
   tenant: any
@@ -56,10 +57,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   const [hoursLoading, setHoursLoading] = useState<string | null>(null)
 
   // Location hero state
-  const [heroMap, setHeroMap] = useState<Record<string, { mediaType: HeroMediaType; url: string }>>(
+  const [heroMap, setHeroMap] = useState<Record<string, HeroConfig>>(
     Object.fromEntries(locations.map((l: any) => [
       l._id,
-      { mediaType: l.hero?.mediaType ?? 'none', url: l.hero?.url ?? '' },
+      { mediaType: l.hero?.mediaType ?? 'none', url: l.hero?.url ?? '', showLogo: l.hero?.showLogo !== false },
     ]))
   )
   const [heroSaving, setHeroSaving] = useState<string | null>(null)
@@ -117,7 +118,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     }
   }
 
-  async function saveHeroToDB(locationId: string, hero: { mediaType: HeroMediaType; url: string }) {
+  async function saveHeroToDB(locationId: string, hero: HeroConfig) {
     const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -129,6 +130,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   async function handleHeroUpload(locationId: string, file: File | undefined) {
     if (!file) return
     const mediaType: HeroMediaType = file.type.startsWith('video/') ? 'video' : 'image'
+    const currentShowLogo = heroMap[locationId]?.showLogo !== false
     setHeroSaving(locationId)
     try {
       const formData = new FormData()
@@ -136,8 +138,9 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
       const uploadRes = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
       if (!uploadRes.ok) throw new Error()
       const { url } = await uploadRes.json()
-      await saveHeroToDB(locationId, { mediaType, url })
-      setHeroMap(p => ({ ...p, [locationId]: { mediaType, url } }))
+      const newHero: HeroConfig = { mediaType, url, showLogo: currentShowLogo }
+      await saveHeroToDB(locationId, newHero)
+      setHeroMap(p => ({ ...p, [locationId]: newHero }))
       toast.success('Portada actualizada')
     } catch {
       toast.error('Error al subir la portada')
@@ -149,13 +152,26 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   async function handleHeroRemove(locationId: string) {
     setHeroSaving(locationId)
     try {
-      await saveHeroToDB(locationId, { mediaType: 'none', url: '' })
-      setHeroMap(p => ({ ...p, [locationId]: { mediaType: 'none', url: '' } }))
+      const newHero: HeroConfig = { mediaType: 'none', url: '', showLogo: true }
+      await saveHeroToDB(locationId, newHero)
+      setHeroMap(p => ({ ...p, [locationId]: newHero }))
       toast.success('Portada eliminada')
     } catch {
       toast.error('Error al eliminar la portada')
     } finally {
       setHeroSaving(null)
+    }
+  }
+
+  async function handleToggleShowLogo(locationId: string) {
+    const current = heroMap[locationId]
+    const updated: HeroConfig = { ...current, showLogo: !current.showLogo }
+    try {
+      await saveHeroToDB(locationId, updated)
+      setHeroMap(p => ({ ...p, [locationId]: updated }))
+      toast.success(updated.showLogo ? 'Logo activado en portada' : 'Logo ocultado en portada')
+    } catch {
+      toast.error('Error al guardar preferencia')
     }
   }
 
@@ -541,6 +557,34 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               </div>
                             )}
                           </div>
+
+                          {/* Toggle mostrar logo */}
+                          {heroMap[loc._id]?.url && (
+                            <div className="flex items-center justify-between px-1">
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                  Mostrar logo en portada
+                                </p>
+                                <p className="text-[9px] text-muted-foreground/40 mt-0.5">
+                                  Solo aplica al menú de salón
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleToggleShowLogo(loc._id)}
+                                className={cn(
+                                  'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                                  heroMap[loc._id]?.showLogo !== false ? 'bg-primary' : 'bg-muted-foreground/30'
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200',
+                                    heroMap[loc._id]?.showLogo !== false ? 'translate-x-5' : 'translate-x-0'
+                                  )}
+                                />
+                              </button>
+                            </div>
+                          )}
 
                           {/* Remove button */}
                           {heroMap[loc._id]?.url && (
