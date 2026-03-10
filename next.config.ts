@@ -13,6 +13,7 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://res.cloudinary.com",
+      "media-src 'self' https://res.cloudinary.com",
       "font-src 'self'",
       "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com",
       "frame-src https://www.mercadopago.com https://www.mercadopago.com.ar",
