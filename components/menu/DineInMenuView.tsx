@@ -101,7 +101,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
       <section
         className="relative text-center overflow-hidden flex items-center justify-center"
         style={{
-          minHeight: hasHeroMedia ? '60vh' : undefined,
+          minHeight: hasHeroMedia ? '40vh' : undefined,
           paddingTop: hasHeroMedia ? 0 : '4rem',
           paddingBottom: hasHeroMedia ? 0 : '4rem',
           backgroundColor: bg,
