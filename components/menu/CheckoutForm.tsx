@@ -17,6 +17,7 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' })
+  const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
 
   useEffect(() => {
     const saved = sessionStorage.getItem('cart')
@@ -46,6 +47,14 @@ async function handleSubmit(e: React.FormEvent) {
         notes: form.notes,
       }),
     })
+
+    if (orderRes.status === 409) {
+      const data = await orderRes.json()
+      setActiveOrderNumber(data.activeOrderNumber)
+      setLoading(false)
+      return
+    }
+
     if (!orderRes.ok) throw new Error('Error al crear el pedido')
     const { order } = await orderRes.json()
 
@@ -69,6 +78,33 @@ async function handleSubmit(e: React.FormEvent) {
     setLoading(false)
   }
 }
+
+  // Bloqueo por pedido activo — se muestra en lugar del formulario después del intento
+  if (activeOrderNumber) {
+    return (
+      <div className="bg-white min-h-screen">
+        <header className="sticky top-0 bg-white border-b px-4 py-4 flex items-center gap-3">
+          <button onClick={() => router.back()}>
+            <ArrowLeft size={20} className="text-zinc-600" />
+          </button>
+          <h1 className="font-bold text-lg">Tu pedido</h1>
+        </header>
+        <div className="max-w-md mx-auto px-4 py-12 text-center space-y-5">
+          <div className="text-5xl">🛍️</div>
+          <h2 className="text-xl font-black">Tenés un pedido activo</h2>
+          <p className="text-zinc-500 text-sm">
+            Ya tenés un pedido en curso. Primero retirá ese pedido antes de hacer uno nuevo.
+          </p>
+          <a
+            href={`/${tenantSlug}/tracking/${activeOrderNumber}`}
+            className="block w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base"
+          >
+            Ver mi pedido #{activeOrderNumber}
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-white">

@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import { notFound } from 'next/navigation'
+import ConfirmPickupButton from '@/components/tracking/ConfirmPickupButton'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
@@ -13,8 +14,8 @@ const STATUS_INFO: Record<string, { label: string; description: string; emoji: s
   pending:   { label: 'Recibido',     description: 'Tu pedido fue recibido y está esperando confirmación', emoji: '📋' },
   confirmed: { label: 'Confirmado',   description: 'El restaurante confirmó tu pedido', emoji: '✅' },
   preparing: { label: 'Preparando',   description: 'Tu pedido está siendo preparado', emoji: '👨‍🍳' },
-  ready:     { label: 'Listo',        description: 'Tu pedido está listo para retirar', emoji: '🎉' },
-  delivered: { label: 'Entregado',    description: 'Pedido entregado. ¡Buen provecho!', emoji: '🍽️' },
+  ready:     { label: 'Listo',        description: '¡Tu pedido está listo para retirar!', emoji: '🎉' },
+  delivered: { label: 'Entregado',    description: 'Pedido retirado. ¡Que lo disfrutes!', emoji: '🍽️' },
   cancelled: { label: 'Cancelado',    description: 'El pedido fue cancelado', emoji: '❌' },
 }
 
@@ -86,6 +87,37 @@ export default async function TrackingPage({ params }: Props) {
                 }}
               />
             </div>
+          </div>
+        )}
+
+        {/* Acción del cliente: confirmar retiro cuando el pedido está listo */}
+        {order.status === 'ready' && (
+          <div className="mb-8 rounded-2xl p-5"
+            style={{ backgroundColor: branding.primaryColor + '10', border: `2px solid ${branding.primaryColor}40` }}>
+            <p className="text-sm font-semibold mb-4 text-center opacity-70">
+              Acercate a retirar tu pedido y confirmá cuando lo tengas
+            </p>
+            <ConfirmPickupButton
+              orderId={order._id.toString()}
+              tenantSlug={tenantSlug}
+              locationId={order.locationId.toString()}
+              primaryColor={branding.primaryColor}
+              backgroundColor={branding.backgroundColor}
+              textColor={branding.textColor}
+            />
+          </div>
+        )}
+
+        {/* Pedido ya entregado: mostrar botón para volver al menú */}
+        {order.status === 'delivered' && (
+          <div className="mb-8 text-center">
+            <a
+              href={`/${tenantSlug}/menu/${order.locationId.toString()}/takeaway`}
+              className="inline-block w-full py-4 rounded-2xl font-bold text-base"
+              style={{ backgroundColor: branding.primaryColor, color: branding.backgroundColor }}
+            >
+              Volver al menú
+            </a>
           </div>
         )}
 

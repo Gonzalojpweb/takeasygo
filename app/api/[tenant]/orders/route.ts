@@ -65,6 +65,26 @@ export async function POST(
       return NextResponse.json({ error: 'Location no encontrada' }, { status: 404 })
     }
 
+    // Bloquear si el cliente tiene un pedido activo (identificado por teléfono)
+    if (body.customer.phone) {
+      const activeOrder = await Order.findOne({
+        tenantId: tenant._id,
+        'customer.phone': body.customer.phone,
+        status: { $in: ['pending', 'confirmed', 'preparing', 'ready'] },
+      }).select('orderNumber status').lean() as any
+
+      if (activeOrder) {
+        return NextResponse.json(
+          {
+            error: 'Tenés un pedido activo. Retirá tu pedido antes de hacer uno nuevo.',
+            activeOrderNumber: activeOrder.orderNumber,
+            code: 'ACTIVE_ORDER_EXISTS',
+          },
+          { status: 409 }
+        )
+      }
+    }
+
     // Buscar el menú real en la DB — los precios se toman de aquí, nunca del cliente
     const menu = await Menu.findOne({
       tenantId: tenant._id,
