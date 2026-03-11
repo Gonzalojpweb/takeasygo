@@ -106,7 +106,7 @@ export default function LandingPage() {
                 Producto Exclusivo de la Consultora Click and Think
               </span>
               <div className="flex items-center gap-4 mt-1">
-                <a href="https://instagram.com/clickandthinkai" target="_blank" rel="noopener noreferrer" className="text-zinc-400 hover:text-pink-600 transition-colors flex items-center gap-1 text-[10px] font-bold tracking-wider">
+                <a href="https://www.instagram.com/takeasygo/" target="_blank" rel="noopener noreferrer" className="text-zinc-400 hover:text-pink-600 transition-colors flex items-center gap-1 text-[10px] font-bold tracking-wider">
                   <Instagram className="w-3 h-3" />
                   @takeasygo
                 </a>
