@@ -135,7 +135,7 @@ function PlanCard({
             )}
 
             <div className="flex items-baseline gap-1 mb-2">
-                <span className="text-xl font-bold text-zinc-900 italic">USD</span>
+                <span className="text-xl font-bold text-zinc-900 italic">$ARG</span>
                 <span className="text-5xl font-bold text-zinc-900 tracking-tighter">{plan.price}</span>
                 <span className="text-zinc-400 font-medium lowercase">
                     {type === 'mensual' ? '/mes' : '/año'}
