@@ -17,6 +17,7 @@ import {
   Clock, Save,
   Smartphone, Eye, AlertCircle,
   Film, Loader2,
+  CalendarDays, Plus, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -70,6 +71,61 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     ]))
   )
   const [heroSaving, setHeroSaving] = useState<string | null>(null)
+
+  // Reservation config state
+  type ReservationConfig = { enabled: boolean; minPayment: number; timeSlots: string[]; maxPartySize: number }
+  const [reservationMap, setReservationMap] = useState<Record<string, ReservationConfig>>(
+    Object.fromEntries(locations.map((l: any) => [
+      l._id,
+      {
+        enabled: l.reservationConfig?.enabled ?? false,
+        minPayment: l.reservationConfig?.minPayment ?? 0,
+        timeSlots: l.reservationConfig?.timeSlots ?? [],
+        maxPartySize: l.reservationConfig?.maxPartySize ?? 10,
+      },
+    ]))
+  )
+  const [reservationSaving, setReservationSaving] = useState<string | null>(null)
+  const [newSlotMap, setNewSlotMap] = useState<Record<string, string>>({})
+
+  async function handleSaveReservationConfig(locationId: string) {
+    setReservationSaving(locationId)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservationConfig: reservationMap[locationId] }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Configuración de reservas guardada')
+    } catch {
+      toast.error('Error al guardar configuración')
+    } finally {
+      setReservationSaving(null)
+    }
+  }
+
+  function addSlot(locationId: string) {
+    const slot = (newSlotMap[locationId] || '').trim()
+    if (!slot || !/^\d{2}:\d{2}$/.test(slot)) {
+      toast.error('Formato inválido. Usá HH:MM (ej: 13:00)')
+      return
+    }
+    setReservationMap(prev => {
+      const current = prev[locationId]
+      if (current.timeSlots.includes(slot)) return prev
+      const updated = [...current.timeSlots, slot].sort()
+      return { ...prev, [locationId]: { ...current, timeSlots: updated } }
+    })
+    setNewSlotMap(prev => ({ ...prev, [locationId]: '' }))
+  }
+
+  function removeSlot(locationId: string, slot: string) {
+    setReservationMap(prev => {
+      const current = prev[locationId]
+      return { ...prev, [locationId]: { ...current, timeSlots: current.timeSlots.filter(s => s !== slot) } }
+    })
+  }
 
   async function handleSaveBranding() {
     setLoading(true)
@@ -212,6 +268,9 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             <TabTrigger value="locations" icon={<MapPin size={16} />} label="Sedes" />
             <TabTrigger value="general" icon={<SettingsIcon size={16} />} label="General" />
             <TabTrigger value="mercadopago" icon={<CreditCard size={16} />} label="Pagos" />
+            {tenant.features?.reservations && (
+              <TabTrigger value="reservas" icon={<CalendarDays size={16} />} label="Reservas" />
+            )}
           </TabsList>
         </div>
 
@@ -642,6 +701,123 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                             </Button>
                           )}
                         </div>
+
+                        {/* ── Reservation config ── */}
+                        {tenant.features?.reservations && (
+                          <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <CalendarDays size={12} className="text-primary" />
+                                <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+                                  Configuración de Reservas
+                                </label>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setReservationMap(prev => ({
+                                  ...prev,
+                                  [loc._id]: { ...prev[loc._id], enabled: !prev[loc._id].enabled }
+                                }))}
+                                className={cn(
+                                  'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                                  reservationMap[loc._id]?.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+                                )}
+                              >
+                                <span className={cn(
+                                  'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200',
+                                  reservationMap[loc._id]?.enabled ? 'translate-x-5' : 'translate-x-0'
+                                )} />
+                              </button>
+                            </div>
+
+                            {reservationMap[loc._id]?.enabled && (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1.5 block">
+                                      Pago mínimo ($)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={reservationMap[loc._id]?.minPayment ?? 0}
+                                      onChange={e => setReservationMap(prev => ({
+                                        ...prev,
+                                        [loc._id]: { ...prev[loc._id], minPayment: Number(e.target.value) }
+                                      }))}
+                                      className={cn(inputCls, "bg-white border-none shadow-inner h-10 text-center")}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1.5 block">
+                                      Personas (máx.)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={30}
+                                      value={reservationMap[loc._id]?.maxPartySize ?? 10}
+                                      onChange={e => setReservationMap(prev => ({
+                                        ...prev,
+                                        [loc._id]: { ...prev[loc._id], maxPartySize: Number(e.target.value) }
+                                      }))}
+                                      className={cn(inputCls, "bg-white border-none shadow-inner h-10 text-center")}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-2 block">
+                                    Horarios disponibles
+                                  </label>
+                                  <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+                                    {(reservationMap[loc._id]?.timeSlots || []).map(slot => (
+                                      <span
+                                        key={slot}
+                                        className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20"
+                                      >
+                                        {slot}
+                                        <button
+                                          type="button"
+                                          onClick={() => removeSlot(loc._id, slot)}
+                                          className="text-primary/60 hover:text-red-500 transition-colors"
+                                        >
+                                          <X size={11} />
+                                        </button>
+                                      </span>
+                                    ))}
+                                    {(reservationMap[loc._id]?.timeSlots || []).length === 0 && (
+                                      <span className="text-[10px] text-muted-foreground/40 font-medium">Sin horarios configurados</span>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="time"
+                                      value={newSlotMap[loc._id] || ''}
+                                      onChange={e => setNewSlotMap(prev => ({ ...prev, [loc._id]: e.target.value }))}
+                                      className={cn(inputCls, "bg-white border-none shadow-inner h-9 flex-1 text-sm")}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => addSlot(loc._id)}
+                                      className="flex items-center gap-1 px-3 h-9 rounded-xl bg-primary text-white text-xs font-black hover:bg-primary/90 transition-colors active:scale-95 shrink-0"
+                                    >
+                                      <Plus size={13} /> Agregar
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            <Button
+                              className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
+                              onClick={() => handleSaveReservationConfig(loc._id)}
+                              disabled={reservationSaving === loc._id}
+                            >
+                              {reservationSaving === loc._id ? 'Guardando...' : 'Guardar configuración de reservas'}
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))
@@ -699,6 +875,142 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                 <MercadoPagoSettings tenantSlug={tenantSlug} isConfigured={tenant.mercadopago?.isConfigured} />
               </div>
             </TabsContent>
+
+            {/* ── Reservas ── */}
+            {tenant.features?.reservations && (
+              <TabsContent value="reservas" className="m-0 mt-2">
+                <div className="max-w-3xl space-y-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                      <CalendarDays size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold tracking-tight">Configuración de Reservas</h3>
+                      <p className="text-xs text-muted-foreground font-medium">Configurá los horarios y condiciones por sede.</p>
+                    </div>
+                  </div>
+
+                  {locations.length === 0 ? (
+                    <Card className="border-2 border-dashed border-border/60 bg-muted/10 rounded-[2.5rem]">
+                      <CardContent className="py-16 text-center">
+                        <p className="text-muted-foreground font-bold">No hay sedes configuradas</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    locations.map((loc: any) => (
+                      <Card key={loc._id} className="bg-card border-2 border-border/60 rounded-[2rem] overflow-hidden">
+                        <CardHeader className="p-6 pb-0">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <CardTitle className="text-base font-bold">{loc.name}</CardTitle>
+                              <p className="text-xs text-muted-foreground mt-0.5">{loc.address}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setReservationMap(prev => ({
+                                ...prev,
+                                [loc._id]: { ...prev[loc._id], enabled: !prev[loc._id].enabled }
+                              }))}
+                              className={cn(
+                                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                                reservationMap[loc._id]?.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+                              )}
+                            >
+                              <span className={cn(
+                                'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200',
+                                reservationMap[loc._id]?.enabled ? 'translate-x-5' : 'translate-x-0'
+                              )} />
+                            </button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-5">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className={labelCls}>Pago mínimo ($)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                value={reservationMap[loc._id]?.minPayment ?? 0}
+                                onChange={e => setReservationMap(prev => ({
+                                  ...prev,
+                                  [loc._id]: { ...prev[loc._id], minPayment: Number(e.target.value) }
+                                }))}
+                                className={cn(inputCls, "text-center")}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelCls}>Personas (máx.)</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={30}
+                                value={reservationMap[loc._id]?.maxPartySize ?? 10}
+                                onChange={e => setReservationMap(prev => ({
+                                  ...prev,
+                                  [loc._id]: { ...prev[loc._id], maxPartySize: Number(e.target.value) }
+                                }))}
+                                className={cn(inputCls, "text-center")}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className={labelCls}>Horarios disponibles</label>
+                            <div className="flex flex-wrap gap-2 mb-3 min-h-[36px]">
+                              {(reservationMap[loc._id]?.timeSlots || []).map(slot => (
+                                <span
+                                  key={slot}
+                                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-primary/10 text-primary border border-primary/20"
+                                >
+                                  {slot}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSlot(loc._id, slot)}
+                                    className="text-primary/50 hover:text-red-500 transition-colors"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </span>
+                              ))}
+                              {(reservationMap[loc._id]?.timeSlots || []).length === 0 && (
+                                <span className="text-xs text-muted-foreground/50 italic">Sin horarios cargados</span>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <input
+                                type="time"
+                                value={newSlotMap[loc._id] || ''}
+                                onChange={e => setNewSlotMap(prev => ({ ...prev, [loc._id]: e.target.value }))}
+                                className={cn(inputCls, "flex-1")}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => addSlot(loc._id)}
+                                className="flex items-center gap-1.5 px-4 h-[50px] rounded-2xl bg-primary text-white text-xs font-black hover:bg-primary/90 transition-colors active:scale-95 shrink-0"
+                              >
+                                <Plus size={14} /> Agregar
+                              </button>
+                            </div>
+                          </div>
+
+                          <Button
+                            className="w-full bg-zinc-900 text-white font-bold h-12 rounded-xl active:scale-95 transition-all"
+                            onClick={() => handleSaveReservationConfig(loc._id)}
+                            disabled={reservationSaving === loc._id}
+                          >
+                            {reservationSaving === loc._id ? (
+                              <><Loader2 size={16} className="animate-spin mr-2" /> Guardando...</>
+                            ) : (
+                              <><Save size={16} className="mr-2" /> Guardar configuración</>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+            )}
           </motion.div>
         </AnimatePresence>
       </Tabs>

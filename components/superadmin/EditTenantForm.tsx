@@ -31,6 +31,7 @@ export default function EditTenantForm({ tenant }: Props) {
     slug: tenant.slug,
     plan: tenant.plan,
     isActive: tenant.isActive,
+    featuresReservations: tenant.features?.reservations ?? false,
   })
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -40,7 +41,13 @@ export default function EditTenantForm({ tenant }: Props) {
       const res = await fetch(`/api/superadmin/tenants/${tenant._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          slug: form.slug,
+          plan: form.plan,
+          isActive: form.isActive,
+          features: { reservations: form.featuresReservations },
+        }),
       })
       if (!res.ok) throw new Error()
       toast.success('Tenant actualizado correctamente')
@@ -173,8 +180,8 @@ export default function EditTenantForm({ tenant }: Props) {
               })()}
             </div>
 
-            {/* Estado del tenant */}
-            <div>
+            {/* Estado del tenant + Features */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
                 <div className="flex items-center gap-3">
                   <div className={cn("w-2 h-2 rounded-full", form.isActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-destructive")} />
@@ -189,6 +196,24 @@ export default function EditTenantForm({ tenant }: Props) {
                   <div className={cn(
                     "w-4 h-4 rounded-full bg-white shadow-sm transition-all absolute",
                     form.isActive ? 'left-[26px]' : 'left-1'
+                  )} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
+                <div className="flex items-center gap-3">
+                  <div className={cn("w-2 h-2 rounded-full", form.featuresReservations ? "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/30")} />
+                  <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Módulo Reservaciones</span>
+                </div>
+                <button type="button"
+                  onClick={() => setForm(p => ({ ...p, featuresReservations: !p.featuresReservations }))}
+                  className={cn(
+                    "w-12 h-6 rounded-full transition-all relative flex items-center",
+                    form.featuresReservations ? 'bg-primary' : 'bg-muted-foreground/20'
+                  )}>
+                  <div className={cn(
+                    "w-4 h-4 rounded-full bg-white shadow-sm transition-all absolute",
+                    form.featuresReservations ? 'left-[26px]' : 'left-1'
                   )} />
                 </button>
               </div>

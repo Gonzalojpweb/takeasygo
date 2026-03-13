@@ -60,6 +60,9 @@ export const PLAN_ACCESS = {
   analyticsAdv:  ['full'] as const,  // performance + menú + horarios inteligentes
   icoAdvanced:   ['full'] as const,  // diagnóstico completo con factores
   dineIn:        ['full'] as const,
+
+  // Plan Crecimiento y superior
+  reservations:  ['buy', 'full'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS

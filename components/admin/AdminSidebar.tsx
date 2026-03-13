@@ -16,6 +16,7 @@ import {
   Shield,
   Activity,
   Lock,
+  CalendarDays,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -109,6 +110,13 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       roles: ['admin'],
       feature: 'ico',
       requiresTakeaway: true,
+    },
+    {
+      href: `${base}/reservas`,
+      label: 'Reservaciones',
+      icon: CalendarDays,
+      roles: ['admin', 'manager'],
+      feature: 'reservations',
     },
     {
       href: `${base}/printers`,

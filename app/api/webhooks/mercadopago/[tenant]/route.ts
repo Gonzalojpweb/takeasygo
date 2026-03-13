@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
+import Reservation from '@/models/Reservation'
 import Tenant from '@/models/Tenant'
 import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
@@ -82,8 +83,29 @@ export async function POST(
 
     const payment = await paymentClient.get({ id: body.data.id })
 
+    const externalRef = payment.external_reference || ''
+
+    // ── Reserva ──
+    if (externalRef.startsWith('reserva_')) {
+      const reservaId = externalRef.replace('reserva_', '')
+      const reservation = await Reservation.findOne({ _id: reservaId, tenantId: tenant._id })
+      if (reservation) {
+        reservation.payment.mercadopagoId = String(payment.id)
+        reservation.payment.status = payment.status as any
+        if (payment.status === 'approved') {
+          reservation.status = 'confirmed'
+          reservation.payment.status = 'approved'
+        } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
+          reservation.payment.status = 'rejected'
+        }
+        await reservation.save()
+      }
+      return NextResponse.json({ received: true })
+    }
+
+    // ── Orden ──
     const order = await Order.findOne({
-      orderNumber: payment.external_reference,
+      orderNumber: externalRef,
       tenantId: tenant._id,
     })
 

@@ -25,6 +25,9 @@ export interface ITenant extends Document {
       twitter: string
     }
   }
+  features: {
+    reservations: boolean
+  }
   mercadopago: {
     accessToken: string | null
     publicKey: string | null
@@ -87,6 +90,9 @@ const TenantSchema = new Schema<ITenant>(
         twitter: { type: String, default: '' },
       },
     },
+    features: {
+      reservations: { type: Boolean, default: false },
+    },
     mercadopago: {
       accessToken: { type: String, default: null },
       publicKey: { type: String, default: null },
@@ -99,5 +105,9 @@ const TenantSchema = new Schema<ITenant>(
   }
 )
 
-const Tenant = mongoose.models.Tenant || mongoose.model<ITenant>('Tenant', TenantSchema)
+if (process.env.NODE_ENV !== 'production') {
+  delete (mongoose.models as any).Tenant
+}
+
+const Tenant = mongoose.models.Tenant as mongoose.Model<ITenant> || mongoose.model<ITenant>('Tenant', TenantSchema)
 export default Tenant

@@ -14,6 +14,12 @@ export interface ILocation extends Document {
     orderModes: ('takeaway' | 'dine-in')[]
     estimatedPickupTime: number
   }
+  reservationConfig: {
+    enabled: boolean
+    minPayment: number
+    timeSlots: string[]
+    maxPartySize: number
+  }
   hero: {
     mediaType: 'none' | 'image' | 'video'
     url: string
@@ -75,6 +81,12 @@ const LocationSchema = new Schema<ILocation>(
         default: ['takeaway'],
       },
       estimatedPickupTime: { type: Number, default: 20 },
+    },
+    reservationConfig: {
+      enabled: { type: Boolean, default: false },
+      minPayment: { type: Number, default: 0 },
+      timeSlots: { type: [String], default: [] },
+      maxPartySize: { type: Number, default: 10 },
     },
     hero: {
       mediaType: { type: String, enum: ['none', 'image', 'video'], default: 'none' },

@@ -60,7 +60,7 @@ if (!success) {
           failure: `${baseUrl}/${tenantSlug}/order-failure/${order.orderNumber}`,
           pending: `${baseUrl}/${tenantSlug}/order-pending/${order.orderNumber}`,
         },
-        auto_return: 'approved',
+        ...(baseUrl.startsWith('https://') ? { auto_return: 'approved' as const } : {}),
         external_reference: order.orderNumber,
         notification_url: `${baseUrl}/api/webhooks/mercadopago/${tenantSlug}`,
       }
