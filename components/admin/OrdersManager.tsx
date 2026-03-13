@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2 } from 'lucide-react'
 import OrderStatusButton from './OrderStatusButton'
 import { cn } from '@/lib/utils'
+import { useNotificationSound } from '@/hooks/useNotificationSound'
 
 interface Props {
   orders: any[]
@@ -47,6 +48,25 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
   const [isPending, startTransition] = useTransition()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilter, setActiveFilter] = useState('pending')
+  const playSound = useNotificationSound()
+  const knownIdsRef = useRef<Set<string>>(new Set(orders.map(o => o._id)))
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      startTransition(() => router.refresh())
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [router])
+
+  // Detect new pending orders and play sound
+  useEffect(() => {
+    const incoming = orders.filter(o => !knownIdsRef.current.has(o._id))
+    if (incoming.length > 0 && incoming.some(o => o.status === 'pending')) {
+      playSound()
+    }
+    knownIdsRef.current = new Set(orders.map(o => o._id))
+  }, [orders, playSound])
 
   function handleRefresh() {
     startTransition(() => router.refresh())

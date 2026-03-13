@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -91,6 +92,8 @@ export default function ReservasPanel({ reservations: initialReservations, locat
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0])
   const [selectedLocation, setSelectedLocation] = useState<string>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const playSound = useNotificationSound()
+  const knownIdsRef = useRef<Set<string>>(new Set(initialReservations.map(r => r._id)))
 
   // Date navigation — show 14 days from today
   const today = new Date()
@@ -119,6 +122,22 @@ export default function ReservasPanel({ reservations: initialReservations, locat
     })
     return map
   }, [reservations, selectedLocation])
+
+  // Sync state when server re-sends new props (after router.refresh)
+  useEffect(() => {
+    const incoming = initialReservations.filter(r => !knownIdsRef.current.has(r._id))
+    if (incoming.length > 0) {
+      playSound()
+      setReservations(initialReservations)
+    }
+    knownIdsRef.current = new Set(initialReservations.map(r => r._id))
+  }, [initialReservations, playSound])
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 30000)
+    return () => clearInterval(interval)
+  }, [router])
 
   async function updateStatus(reservaId: string, status: Reservation['status']) {
     setUpdatingId(reservaId)
