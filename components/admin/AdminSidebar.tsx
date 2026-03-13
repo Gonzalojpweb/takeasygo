@@ -53,7 +53,7 @@ function LockedNavItem({
   reason?: 'plan' | 'mode'
 }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl opacity-40 cursor-not-allowed select-none">
+    <div className="flex items-center gap-2 px-2 py-2 rounded-xl opacity-40 cursor-not-allowed select-none">
       <Icon size={20} className="text-primary" />
       <span className="text-sm tracking-wide text-sidebar-foreground/70">{label}</span>
       <span className="ml-auto flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-sidebar-foreground/60">
@@ -151,10 +151,10 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
   const visibleItems = navItems.filter(item => item.roles.includes(effectiveRole))
 
   return (
-    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300">
+    <div className="flex bg-red-500 flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300">
       {/* Logo */}
-      <div className="p-8">
-        <h1 className="text-white font-bold text-xl tracking-tight leading-none">Menu Platform</h1>
+      <div className="p-4">
+        <h1 className="text-white font-semibold text-xl tracking-tight leading-none">Menu Platform</h1>
         <div className="flex items-center gap-2 mt-2">
           <div className="h-1 w-4 bg-primary rounded-full" />
           <p className="text-primary text-[10px] uppercase font-bold tracking-widest leading-none">{tenantSlug}</p>
@@ -203,7 +203,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
           return (
             <Link key={item.href} href={item.href}>
               <div className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all duration-300 group relative',
+                'flex items-center gap-2 px-2 py-3 rounded-xl text-sm transition-all duration-300 group relative',
                 isActive
                   ? 'bg-primary text-white shadow-xl shadow-primary/20 font-bold'
                   : 'text-sidebar-foreground/70 hover:text-white hover:bg-white/5'
