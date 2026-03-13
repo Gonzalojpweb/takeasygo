@@ -26,7 +26,7 @@ export async function PUT(
     const location = await Location.findOneAndUpdate(
       { _id: locationId, tenantId: tenant._id },
       { $set: body },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     )
 
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })

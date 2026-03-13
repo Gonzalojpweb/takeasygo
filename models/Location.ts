@@ -7,6 +7,7 @@ export interface ILocation extends Document {
   address: string
   phone: string
   hours: string
+  mapsUrl: string
   isActive: boolean
   settings: {
     acceptsOrders: boolean
@@ -52,6 +53,11 @@ const LocationSchema = new Schema<ILocation>(
       trim: true,
       default: '',
     },
+    mapsUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     hours: {
       type: String,
       trim: true,
@@ -84,5 +90,10 @@ const LocationSchema = new Schema<ILocation>(
 // El slug debe ser único dentro del mismo tenant
 LocationSchema.index({ tenantId: 1, slug: 1 }, { unique: true })
 
-const Location = mongoose.models.Location || mongoose.model<ILocation>('Location', LocationSchema)
+// In development, always recreate to pick up schema changes across hot-reloads
+if (process.env.NODE_ENV !== 'production') {
+  delete (mongoose.models as any).Location
+}
+
+const Location = mongoose.models.Location as mongoose.Model<ILocation> || mongoose.model<ILocation>('Location', LocationSchema)
 export default Location

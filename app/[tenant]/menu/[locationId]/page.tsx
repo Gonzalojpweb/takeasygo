@@ -22,82 +22,48 @@ export default async function MenuSelectorPage({ params }: Props) {
 
   const modes: string[] = location.settings?.orderModes || ['takeaway']
   const branding = tenant.branding
+  const profile = tenant.profile || {}
   const hero = location.hero || { mediaType: 'none', url: '' }
   const hasHero = hero.mediaType !== 'none' && !!hero.url
+  const isOpen = location.settings?.acceptsOrders !== false
 
-  // ── Fallback layout (no hero configured) ─────────────────────────────────
-  if (!hasHero) {
-    return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center px-4"
-        style={{ backgroundColor: branding.backgroundColor, color: branding.textColor }}
-      >
-        <div className="text-center mb-12">
-          {branding.logoUrl ? (
-            <img src={branding.logoUrl} alt={tenant.name} className="h-[30%] w-[20%] object-cover mx-auto mb-4" />
-          ) : (
-            <h1 className="text-4xl font-black tracking-tight" style={{ color: branding.primaryColor }}>
-              {tenant.name}
-            </h1>
-          )}
-          <p className="text-sm opacity-60 mt-2">{location.name}</p>
-        </div>
+  const instagram = profile.social?.instagram || ''
+  const phone = location.phone || ''
+  const mapsUrl = location.mapsUrl || ''
 
-        <div className="w-full max-w-xs space-y-3">
-          <p className="text-center text-sm opacity-50 mb-6 uppercase tracking-widest text-xs">
-            ¿Cómo querés pedir?
-          </p>
-          {modes.includes('dine-in') && (
-            <Link href={`/${tenantSlug}/menu/${locationId}/dine-in`}>
-              <div
-                className="w-full mb-2 py-4 px-4 rounded-2xl border-2 text-center font-semibold text-lg cursor-pointer transition-all hover:scale-105"
-                style={{ borderColor: branding.primaryColor, color: branding.primaryColor }}
-              >
-                🍽️ Consumir aquí
-              </div>
-            </Link>
-          )}
-          {modes.includes('takeaway') && (
-            <Link href={`/${tenantSlug}/menu/${locationId}/takeaway`}>
-              <div
-                className="w-full py-4 px-4 rounded-2xl text-center font-semibold text-lg cursor-pointer transition-all hover:scale-105"
-                style={{ backgroundColor: branding.primaryColor, color: branding.backgroundColor }}
-              >
-                🥡 Para llevar
-              </div>
-            </Link>
-          )}
-        </div>
+  // Compute border radius value from branding
+  const br = branding.borderRadius === 'pill' ? '10px' : branding.borderRadius === 'sharp' ? '4px' : '10px'
 
-        <div className="mt-10 flex justify-center">
-          <PoweredByTakeasy variant="dark" label="network" />
-        </div>
-      </div>
-    )
-  }
-
-  // ── Hero layout ───────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         .mh-root {
           position: relative;
           min-height: 100dvh;
           overflow: hidden;
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 0px 16px;
+          padding: 32px 20px 24px;
+          gap: 0;
         }
 
-        /* Blurred background */
+        /* ── Backgrounds ── */
+        .mh-bg-color {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+        }
         .mh-bg-img {
           position: absolute;
           inset: -60px;
-          background-size: contain;
+          background-size: cover;
           background-position: center;
           filter: blur(2px) saturate(1);
-          // transform: scale(1);
+          transform: scale(1.1);
           z-index: 0;
         }
         .mh-bg-video {
@@ -106,237 +72,318 @@ export default async function MenuSelectorPage({ params }: Props) {
           width: calc(100% + 120px);
           height: calc(100% + 120px);
           object-fit: cover;
-          filter: blur(38px) saturate(1.2);
-          transform: scale(1.13);
+          filter: blur(28px) saturate(1.2);
+          transform: scale(1.1);
           z-index: 0;
         }
-
-        /* Subtle dark scrim so content stays legible */
         .mh-scrim {
           position: absolute;
           inset: 0;
-          background: rgba(0, 0, 0, 0.26);
+          background: rgba(0, 0, 0, 0.48);
           z-index: 1;
         }
 
-        /* Content wrapper */
+        /* ── Content ── */
         .mh-content {
           position: relative;
           z-index: 10;
           width: 100%;
-          max-width: 620px;
+          max-width: 360px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 18px;
-        }
-
-        /* Centered media card */
-        .mh-card {
-          position: relative;
-          width: 100%;
-          border-radius: 20px;
-          overflow: hidden;
-          box-shadow:
-            0 4px 20px rgba(0,0,0,0.20),
-            0 28px 72px rgba(0,0,0,0.44);
-        }
-        .mh-media {
-          width: 100%;
-          display: block;
-          object-fit: cover;
-          max-height: 64vh;
-        }
-
-        /* Logo / name gradient overlay at top of card */
-        .mh-overlay {
-          position: absolute;
-          top: 0; left: 0; right: 0;
-          padding: 26px 26px 80px;
-          background: linear-gradient(180deg, rgba(0,0,0,0.60) 0%, transparent 100%);
-          display: flex;
-          align-items: flex-start;
+          gap: 0;
+          flex: 1;
           justify-content: center;
         }
+
+        /* ── Header: logo + name + tagline + badge ── */
+        .mh-header {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          text-align: center;
+          margin-bottom: 36px;
+        }
         .mh-logo {
-          height: 42px;
+          height: 72px;
+          max-width: 180px;
           object-fit: contain;
-          filter: drop-shadow(0 2px 10px rgba(0,0,0,0.4));
+          filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
         }
         .mh-name {
           color: #fff;
-          font-size: clamp(24px, 5vw, 38px);
+          font-size: clamp(26px, 7vw, 36px);
           font-weight: 900;
           letter-spacing: -0.03em;
-          text-shadow: 0 2px 20px rgba(0,0,0,0.55);
-          margin: 0;
+          line-height: 1.1;
+          text-shadow: 0 2px 24px rgba(0,0,0,0.6);
         }
-
-        /* Location subtitle */
-        .mh-sublabel {
-          color: rgba(255,255,255,0.60);
-          font-size: 10px;
+        .mh-tagline {
+          color: rgba(255,255,255,0.65);
+          font-size: 13px;
+          font-weight: 500;
+          font-style: italic;
+          letter-spacing: 0.01em;
+          max-width: 260px;
+          line-height: 1.4;
+        }
+        .mh-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          padding: 5px 14px 5px 10px;
+          border-radius: 9999px;
+          font-size: 11px;
           font-weight: 700;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          margin: 0;
+          letter-spacing: 0.04em;
+          margin-top: 4px;
+        }
+        .mh-badge-open {
+          background: rgba(34, 197, 94, 0.18);
+          border: 1px solid rgba(34, 197, 94, 0.35);
+          color: #86efac;
+        }
+        .mh-badge-closed {
+          background: rgba(239, 68, 68, 0.18);
+          border: 1px solid rgba(239, 68, 68, 0.35);
+          color: #fca5a5;
+        }
+        .mh-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .mh-dot-open {
+          background: #22c55e;
+          box-shadow: 0 0 0 0 rgba(34,197,94,0.7);
+          animation: mh-pulse 1.8s infinite;
+        }
+        .mh-dot-closed {
+          background: #ef4444;
+        }
+        @keyframes mh-pulse {
+          0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); }
+          70%  { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+          100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
         }
 
-        /* Buttons */
+        /* ── Buttons ── */
         .mh-buttons {
           width: 100%;
-          max-width: 320px;
           display: flex;
           flex-direction: column;
-          gap: 11px;
+          gap: 10px;
         }
-        .mh-prompt {
-          color: rgba(255,255,255,0.42);
-          font-size: 9px;
-          font-weight: 700;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          text-align: center;
-          margin: 0 0 2px;
-        }
-        .mh-btn-outline {
-          display: block;
+        .mh-btn {
+          display: flex;
+          border-radius: 10px;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
           width: 100%;
-          padding: 14px 16px;
-          border-radius: 14px;
-          border-width: 2px;
-          border-style: solid;
-          text-align: center;
-          font-weight: 700;
-          font-size: 15px;
-          color: #fff;
+          padding: 12px 15px;
+          font-size: 14px;
+          font-weight: 300;
+          letter-spacing: 0.01em;
           cursor: pointer;
-          background: rgba(255,255,255,0.10);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-          transition: background 0.2s;
           text-decoration: none;
+          transition: transform 0.15s ease, opacity 0.15s ease;
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
         }
-        .mh-btn-outline:hover { background: rgba(255,255,255,0.20); }
-        .mh-btn-solid {
-          display: block;
-          width: 100%;
-          padding: 14px 16px;
-          border-radius: 14px;
-          border: none;
-          text-align: center;
-          font-weight: 700;
-          font-size: 15px;
-          cursor: pointer;
-          transition: opacity 0.2s;
-          text-decoration: none;
-        }
-        .mh-btn-solid:hover { opacity: 0.88; }
+        .mh-btn:active { transform: scale(0.97); }
 
-        @media (min-width: 600px) {
-          .mh-root { padding: 32px 24px; }
-          .mh-card { border-radius: 26px; }
-          .mh-media { max-height: 68vh; }
+        .mh-btn-primary {
+          border: none;
+          color: #fff;
+        }
+        .mh-btn-glass {
+          background: rgba(255,255,255,0.12);
+          border: 1.5px solid rgba(255,255,255,0.22);
+          color: #fff;
+        }
+        .mh-btn-glass:hover { background: rgba(255,255,255,0.20); }
+        .mh-btn-primary:hover { opacity: 0.88; }
+
+        /* ── Footer social ── */
+        .mh-footer {
+          position: relative;
+          z-index: 10;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          padding-top: 28px;
+          width: 100%;
+        }
+        .mh-social {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+        }
+        .mh-social-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.12);
+          border: 1.5px solid rgba(255,255,255,0.22);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          color: #fff;
+          text-decoration: none;
+          transition: background 0.15s, transform 0.15s;
+          flex-shrink: 0;
+        }
+        .mh-social-btn:hover {
+          background: rgba(255,255,255,0.22);
+          transform: scale(1.08);
+        }
+        .mh-social-btn svg {
+          width: 18px;
+          height: 18px;
+          fill: none;
+          stroke: currentColor;
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
         }
       `}</style>
 
       <div className="mh-root">
 
-        {/* ── Blurred background ── */}
-        {hero.mediaType === 'image' && (
-          <div
-            aria-hidden
-            className="mh-bg-img"
-            style={{ backgroundImage: `url(${hero.url})` }}
-          />
+        {/* ── Background ── */}
+        {!hasHero && (
+          <div className="mh-bg-color" style={{ backgroundColor: branding.backgroundColor }} />
         )}
-        {hero.mediaType === 'video' && (
+        {hasHero && hero.mediaType === 'image' && (
+          <div className="mh-bg-img" style={{ backgroundImage: `url(${hero.url})` }} aria-hidden />
+        )}
+        {hasHero && hero.mediaType === 'video' && (
           // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video
-            aria-hidden
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            src={hero.url}
-            className="mh-bg-video"
-          />
+          <video aria-hidden autoPlay muted loop playsInline preload="auto" src={hero.url} className="mh-bg-video" />
         )}
+        <div aria-hidden className="mh-scrim" style={!hasHero ? { background: 'rgba(0,0,0,0.15)' } : undefined} />
 
-        {/* Dark scrim */}
-        <div aria-hidden className="mh-scrim" />
-
-        {/* ── Centered content ── */}
+        {/* ── Main content ── */}
         <div className="mh-content">
 
-          {/* Hero card */}
-          <div className="mh-card">
-            {hero.mediaType === 'image' && (
-              <img
-                src={hero.url}
-                alt={tenant.name}
-                className="mh-media"
-              />
-            )}
-            {hero.mediaType === 'video' && (
-              // eslint-disable-next-line jsx-a11y/media-has-caption
-              <video
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="auto"
-                src={hero.url}
-                className="mh-media"
-              />
+          {/* Header */}
+          <div className="mh-header">
+            {branding.logoUrl ? (
+              <img src={branding.logoUrl} alt={tenant.name} className="mh-logo" />
+            ) : (
+              <h1 className="mh-name" style={!hasHero ? { color: branding.textColor } : undefined}>
+                {tenant.name}
+              </h1>
             )}
 
-            {/* Logo / name at top of card */}
-            <div className="mh-overlay">
-              {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt={tenant.name} className="mh-logo" />
-              ) : (
-                <h1 className="mh-name">{tenant.name}</h1>
-              )}
+            {profile.menuDescription ? (
+              <p className="mh-tagline" style={!hasHero ? { color: branding.textColor, opacity: 0.6 } : undefined}>
+                {profile.menuDescription}
+              </p>
+            ) : null}
+
+            <div className={`mh-badge ${isOpen ? 'mh-badge-open' : 'mh-badge-closed'}`}>
+              <span className={`mh-dot ${isOpen ? 'mh-dot-open' : 'mh-dot-closed'}`} />
+              {isOpen ? 'Abierto ahora' : 'Cerrado'}
             </div>
           </div>
 
-          {/* Location name */}
-          <p className="mh-sublabel">{location.name}</p>
-
-          {/* Order mode buttons */}
+          {/* Mode buttons */}
           <div className="mh-buttons">
-            <p className="mh-prompt">¿Cómo querés pedir?</p>
-
             {modes.includes('dine-in') && (
               <Link
                 href={`/${tenantSlug}/menu/${locationId}/dine-in`}
-                className="mh-btn-outline"
-                style={{ borderColor: branding.primaryColor }}
+                className="mh-btn mh-btn-glass"
+                style={{ borderRadius: br }}
               >
-                🍽️ Consumir aquí
+                <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, flexShrink: 0, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                  <path d="M3 11l19-9-9 19-2-8-8-2z" />
+                </svg>
+                Consumir aquí
               </Link>
             )}
-
             {modes.includes('takeaway') && (
               <Link
                 href={`/${tenantSlug}/menu/${locationId}/takeaway`}
-                className="mh-btn-solid"
+                className="mh-btn mh-btn-primary"
                 style={{
+                  borderRadius: br,
                   backgroundColor: branding.primaryColor,
-                  color: branding.backgroundColor || '#ffffff',
+                  boxShadow: `0 8px 32px ${branding.primaryColor}55`,
                 }}
               >
-                🥡 Para llevar
+                <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, flexShrink: 0, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
+                Para llevar
               </Link>
             )}
           </div>
+        </div>
 
-          <div style={{ marginTop: '8px' }}>
-            <PoweredByTakeasy variant="dark" label="network" />
-          </div>
+        {/* ── Footer ── */}
+        <div className="mh-footer">
+          {(instagram || phone || mapsUrl) && (
+            <div className="mh-social">
+              {instagram && (
+                <a
+                  href={`https://instagram.com/${instagram.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mh-social-btn"
+                  aria-label="Instagram"
+                >
+                  {/* Instagram icon */}
+                  <svg viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                  </svg>
+                </a>
+              )}
+              {phone && (
+                <a
+                  href={`https://wa.me/${phone.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mh-social-btn"
+                  aria-label="WhatsApp"
+                >
+                  {/* WhatsApp icon */}
+                  <svg viewBox="0 0 24 24">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                  </svg>
+                </a>
+              )}
+              {mapsUrl && (
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mh-social-btn"
+                  aria-label="Ver en Google Maps"
+                >
+                  {/* Map pin icon */}
+                  <svg viewBox="0 0 24 24">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                </a>
+              )}
+            </div>
+          )}
 
+          <PoweredByTakeasy variant="dark" label="network" />
         </div>
       </div>
     </>

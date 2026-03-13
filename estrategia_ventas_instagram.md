@@ -27,7 +27,7 @@
 
 ### 🎯 Post 3: Estrellas vs. Realidad (Comparativa Estática)
 - **Imagen atractiva:** Split screen. Arriba: "4.8 Estrellas (Pero la comida llega fría o tarde)". Abajo: "ICO 95/100 (Operación Impecable y Consistente)".
-- **Texto:** "¿De qué sirven 5 estrellas si el cliente tiene que esperar una hora por su pedido? El sistema actual es mentiroso. En TakeasyGO evaluamos a los restaurantes por su **Índice de Confiabilidad Operativa (ICO)**. Medimos tiempos reales, consistencia y cero cancelaciones."
+- **Texto:** "¿De qué sirven 5 estrellas si el cliente tiene que esperar una hora por su pedido? El sistema actual es mentiroso. En TakeasyGO evaluamos a los restaurantes por su **Índice de Confiabilidad Operativa (ICO)**. Medimos tiempos re+ales, consistencia y cero cancelaciones."
 - **Beneficio:** "Si operas bien, el sistema te premia con visibilidad orgánica. Sin pagar anuncios."
 - **CTA:** "¿Crees que tu restaurante tiene lo necesario para estar en el Top Operativo? Demuéstralo. Registra tu restaurante hoy en www.takeasygo.com."
 

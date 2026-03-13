@@ -56,6 +56,12 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   )
   const [hoursLoading, setHoursLoading] = useState<string | null>(null)
 
+  // Location mapsUrl state
+  const [mapsUrlMap, setMapsUrlMap] = useState<Record<string, string>>(
+    Object.fromEntries(locations.map((l: any) => [l._id, l.mapsUrl ?? '']))
+  )
+  const [mapsUrlLoading, setMapsUrlLoading] = useState<string | null>(null)
+
   // Location hero state
   const [heroMap, setHeroMap] = useState<Record<string, HeroConfig>>(
     Object.fromEntries(locations.map((l: any) => [
@@ -115,6 +121,24 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
       toast.error('Error al guardar horarios')
     } finally {
       setHoursLoading(null)
+    }
+  }
+
+  async function handleSaveMapsUrl(locationId: string) {
+    setMapsUrlLoading(locationId)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mapsUrl: mapsUrlMap[locationId] }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Link de Google Maps guardado')
+      router.refresh()
+    } catch {
+      toast.error('Error al guardar el link')
+    } finally {
+      setMapsUrlLoading(null)
     }
   }
 
@@ -480,6 +504,26 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                           disabled={hoursLoading === loc._id}>
                           {hoursLoading === loc._id ? 'Sincronizando...' : 'Guardar Horarios'}
                         </Button>
+
+                        {/* ── Google Maps URL ── */}
+                        <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <MapPin size={12} className="text-primary" />
+                            <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">Link Google Maps</label>
+                          </div>
+                          <input
+                            value={mapsUrlMap[loc._id] ?? ''}
+                            onChange={e => setMapsUrlMap(p => ({ ...p, [loc._id]: e.target.value }))}
+                            placeholder="https://maps.google.com/..."
+                            className={cn(inputCls, "bg-white border-none shadow-inner h-11 h-12")}
+                          />
+                          <Button
+                            className="w-full mt-3 bg-zinc-900 border-zinc-800 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg"
+                            onClick={() => handleSaveMapsUrl(loc._id)}
+                            disabled={mapsUrlLoading === loc._id}>
+                            {mapsUrlLoading === loc._id ? 'Guardando...' : 'Guardar Link'}
+                          </Button>
+                        </div>
 
                         {/* ── Hero media ── */}
                         <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-3 mt-2">
