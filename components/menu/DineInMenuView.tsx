@@ -133,7 +133,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         )}
 
         {/* Contenido del hero */}
-        <div className="relative z-10 px-4 py-16 w-full">
+        <div className="relative z-10 px-4 py-16 w-full flex flex-col items-center">
           {/* Logo — invertido a blanco cuando hay imagen/video de fondo */}
           {showLogoOnHero && branding.logoUrl ? (
             <img
@@ -155,19 +155,12 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
               fontFamily: 'Georgia, Cambria, serif',
             }}
           >
-            Nuestra Carta
+            Menu
           </h2>
-
-          {/* Línea decorativa */}
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="h-px w-16" style={{ backgroundColor: hasHeroMedia ? 'rgba(255,255,255,0.45)' : branding.primaryColor + '60' }} />
-            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: hasHeroMedia ? '#ffffff' : branding.primaryColor }} />
-            <div className="h-px w-16" style={{ backgroundColor: hasHeroMedia ? 'rgba(255,255,255,0.45)' : branding.primaryColor + '60' }} />
-          </div>
 
           {profile.menuDescription && (
             <p
-              className="max-w-2xl mx-auto text-base leading-relaxed"
+              className="max-w-2xl mx-auto text-base leading-relaxed mb-4"
               style={{
                 color: hasHeroMedia ? 'rgba(255,255,255,0.78)' : mutedText,
                 fontFamily: 'Georgia, Cambria, serif',
@@ -178,17 +171,30 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             </p>
           )}
         </div>
+
+        {/* Scroll down chevron */}
+        {hasHeroMedia && (
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center" style={{ animation: 'bounce 2s infinite' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+            <svg width="28" height="20" viewBox="0 0 24 16" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: -10 }}>
+              <polyline points="6 1 12 7 18 1" />
+            </svg>
+          </div>
+        )}
+        <style>{`@keyframes bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(6px)} }`}</style>
       </section>
 
       {/* ── Sticky category nav ────────────────────────────────── */}
       <div
         className="sticky top-0 z-50 border-b"
-        style={{ backgroundColor: navBg + 'f0', borderColor: navBorder, backdropFilter: 'blur(12px)' }}>
-        <div className="max-w-4xl mx-auto flex items-center">
+        style={{ backgroundColor: navBg + 'f2', borderColor: navBorder, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
+        <div className="max-w-4xl mx-auto flex items-center gap-2 px-3 py-2.5">
           <div
             ref={navRef}
-            className="flex-1 flex items-center overflow-x-auto scrollbar-none"
-            style={{ scrollbarWidth: 'none' }}>
+            className="flex-1 flex items-center gap-2 overflow-x-auto"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {categories.map((cat: any) => {
               const isActive = activeCategory === cat._id
               return (
@@ -196,11 +202,18 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                   key={cat._id}
                   data-cat={cat._id}
                   onClick={() => scrollToCategory(cat._id)}
-                  className="whitespace-nowrap px-4 py-4 text-sm font-medium transition-colors relative"
+                  className="whitespace-nowrap flex-shrink-0 transition-all"
                   style={{
-                    color: isActive ? branding.primaryColor : mutedText,
-                    borderBottom: isActive ? `2px solid ${branding.primaryColor}` : '2px solid transparent',
-                    marginBottom: '-1px',
+                    padding: '5px 14px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    borderRadius: '9999px',
+                    border: `1.5px solid ${branding.primaryColor}`,
+                    backgroundColor: isActive ? branding.primaryColor : 'transparent',
+                    color: isActive ? '#ffffff' : branding.primaryColor,
+                    cursor: 'pointer',
                   }}>
                   {cat.name}
                 </button>
@@ -210,9 +223,9 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
           {/* Dark mode toggle */}
           <button
             onClick={() => setDark(d => !d)}
-            className="p-3 ml-2 rounded-lg transition-colors flex-shrink-0"
-            style={{ color: mutedText }}>
-            {dark ? <Sun size={18} /> : <Moon size={18} />}
+            className="p-2 rounded-full transition-colors flex-shrink-0"
+            style={{ color: mutedText, border: `1.5px solid ${branding.primaryColor}40` }}>
+            {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
         </div>
       </div>
@@ -243,18 +256,33 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                 .map((item: any) => (
                   <div
                     key={item._id}
-                    className="flex items-start gap-4 p-4 rounded-xl border transition-all"
-                    style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
-                    {/* Dietary icon */}
-                    <div className="mt-0.5">
-                      <DietaryIcon tags={item.tags ?? []} color={branding.primaryColor + '80'} />
-                    </div>
+                    className="flex items-start gap-3 rounded-xl border transition-all overflow-hidden"
+                    style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+                    onClick={() => item.imageUrl && setModalItem(item)}
+                  >
+                    {/* Image — visible directly if exists */}
+                    {item.imageUrl ? (
+                      <div className="flex-shrink-0 w-[88px] h-[88px] relative" style={{ cursor: 'pointer' }}>
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex-shrink-0 w-3 self-stretch" style={{ backgroundColor: branding.primaryColor + '18' }} />
+                    )}
 
                     {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm tracking-wide uppercase" style={{ color: text }}>
-                        {item.name}
-                      </p>
+                    <div className="flex-1 min-w-0 py-3 pr-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-bold text-sm tracking-wide" style={{ color: text }}>
+                          {item.name}
+                        </p>
+                        <p className="font-bold text-sm flex-shrink-0" style={{ color: branding.primaryColor }}>
+                          ${item.price.toLocaleString('es-AR')}
+                        </p>
+                      </div>
                       {item.description && (
                         <p className="text-xs mt-1 leading-relaxed" style={{ color: mutedText }}>
                           {item.description}
@@ -272,20 +300,6 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                           ))}
                         </div>
                       )}
-                    </div>
-
-                    {/* Price + eye */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {item.imageUrl && (
-                        <button
-                          onClick={() => setModalItem(item)}
-                          className="opacity-50 hover:opacity-100 transition-opacity">
-                          <Eye size={16} style={{ color: branding.primaryColor }} />
-                        </button>
-                      )}
-                      <p className="font-bold text-base" style={{ color: branding.primaryColor }}>
-                        ${item.price.toLocaleString('es-AR')}
-                      </p>
                     </div>
                   </div>
                 ))}
