@@ -3,6 +3,7 @@ import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { translateToEnglish } from '@/lib/translate'
 
 export async function POST(
   request: NextRequest,
@@ -15,8 +16,8 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-      const authError = await requireAuth(request, tenant._id.toString())
-if (authError) return authError
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
 
     const { locationId, name, description, price, imageUrl, tags, isFeatured, customizationGroups } = await request.json()
 
@@ -26,7 +27,23 @@ if (authError) return authError
     const category = menu.categories.id(categoryId)
     if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
 
-    category.items.push({ name, description: description || '', price, isAvailable: true, imageUrl: imageUrl || '', tags: tags || [], isFeatured: isFeatured || false, customizationGroups: customizationGroups || [] } as any)
+    const [nameEn, descEn] = await Promise.all([
+      translateToEnglish(name),
+      description ? translateToEnglish(description) : Promise.resolve(''),
+    ])
+
+    category.items.push({
+      name,
+      description: description || '',
+      price,
+      isAvailable: true,
+      imageUrl: imageUrl || '',
+      tags: tags || [],
+      isFeatured: isFeatured || false,
+      customizationGroups: customizationGroups || [],
+      nameTranslations: { en: nameEn },
+      descriptionTranslations: { en: descEn },
+    } as any)
     menu.markModified('categories')
     await menu.save()
 
@@ -70,8 +87,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Item no encontrado', itemId, availableIds: ids }, { status: 404 })
     }
 
-    if (name !== undefined) item.name = name
-    if (description !== undefined) item.description = description
+    if (name !== undefined) {
+      item.name = name
+      item.nameTranslations = { en: await translateToEnglish(name) }
+    }
+    if (description !== undefined) {
+      item.description = description
+      item.descriptionTranslations = { en: description ? await translateToEnglish(description) : '' }
+    }
     if (price !== undefined) item.price = price
     if (isAvailable !== undefined) item.isAvailable = isAvailable
     if (imageUrl !== undefined) item.imageUrl = imageUrl

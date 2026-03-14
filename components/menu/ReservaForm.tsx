@@ -13,6 +13,59 @@ function getTodayStr() {
   return new Date().toISOString().split('T')[0]
 }
 
+const UI = {
+  es: {
+    title: 'Reservar mesa',
+    deposit: (amount: string) => `Seña de $${amount} para confirmar`,
+    date: 'Fecha',
+    time: 'Horario',
+    noSlots: 'No hay horarios configurados',
+    partySize: 'Personas',
+    name: 'Nombre',
+    namePlaceholder: 'Tu nombre',
+    phone: 'Teléfono',
+    phonePlaceholder: '+54 9 11 1234 5678',
+    notes: 'Observaciones (opcional)',
+    notesPlaceholder: 'Ej: Mesa afuera, celebración de cumpleaños, alergias...',
+    submit: 'Confirmar reserva',
+    submitPay: (amount: string) => `Pagar seña $${amount}`,
+    processing: 'Procesando...',
+    confirmed: '¡Reserva confirmada!',
+    confirmedMsg: (phone: string) => `Nos vemos pronto. Podés comunicarte al ${phone} si necesitás modificar tu reserva.`,
+    errTime: 'Seleccioná un horario',
+    errName: 'Ingresá tu nombre',
+    errPhone: 'Ingresá tu teléfono',
+    errConnection: 'Error de conexión. Intentá de nuevo.',
+    errPayment: 'Error al iniciar el pago',
+    errCreate: 'Error al crear la reserva',
+  },
+  en: {
+    title: 'Book a table',
+    deposit: (amount: string) => `$${amount} deposit required to confirm`,
+    date: 'Date',
+    time: 'Time',
+    noSlots: 'No time slots available',
+    partySize: 'Party size',
+    name: 'Name',
+    namePlaceholder: 'Your name',
+    phone: 'Phone',
+    phonePlaceholder: '+54 9 11 1234 5678',
+    notes: 'Notes (optional)',
+    notesPlaceholder: 'E.g.: outdoor table, birthday celebration, allergies...',
+    submit: 'Confirm reservation',
+    submitPay: (amount: string) => `Pay deposit $${amount}`,
+    processing: 'Processing...',
+    confirmed: 'Reservation confirmed!',
+    confirmedMsg: (phone: string) => `See you soon. You can reach us at ${phone} if you need to modify your reservation.`,
+    errTime: 'Please select a time',
+    errName: 'Please enter your name',
+    errPhone: 'Please enter your phone number',
+    errConnection: 'Connection error. Please try again.',
+    errPayment: 'Error starting payment',
+    errCreate: 'Error creating reservation',
+  },
+}
+
 export default function ReservaForm({ tenant, location }: Props) {
   const branding = tenant.branding
   const config = location.reservationConfig || {}
@@ -20,6 +73,7 @@ export default function ReservaForm({ tenant, location }: Props) {
   const minPayment: number = config.minPayment || 0
   const maxPartySize: number = config.maxPartySize || 10
 
+  const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [step, setStep] = useState<'form' | 'paying' | 'free_done'>('form')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -33,14 +87,16 @@ export default function ReservaForm({ tenant, location }: Props) {
     notes: '',
   })
 
+  const t = UI[locale]
+  const primary = branding.primaryColor
   const br = branding.borderRadius === 'pill' ? '9999px' : branding.borderRadius === 'sharp' ? '4px' : '12px'
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
-    if (!form.time) { setError('Seleccioná un horario'); return }
-    if (!form.name.trim()) { setError('Ingresá tu nombre'); return }
-    if (!form.phone.trim()) { setError('Ingresá tu teléfono'); return }
+    if (!form.time) { setError(t.errTime); return }
+    if (!form.name.trim()) { setError(t.errName); return }
+    if (!form.phone.trim()) { setError(t.errPhone); return }
 
     setLoading(true)
     try {
@@ -52,7 +108,7 @@ export default function ReservaForm({ tenant, location }: Props) {
       })
       if (!resRes.ok) {
         const d = await resRes.json()
-        setError(d.error || 'Error al crear la reserva')
+        setError(d.error || t.errCreate)
         return
       }
       const { reservation } = await resRes.json()
@@ -64,7 +120,7 @@ export default function ReservaForm({ tenant, location }: Props) {
         body: JSON.stringify({ reservaId: reservation._id }),
       })
       if (!prefRes.ok) {
-        setError('Error al iniciar el pago')
+        setError(t.errPayment)
         return
       }
       const prefData = await prefRes.json()
@@ -81,7 +137,7 @@ export default function ReservaForm({ tenant, location }: Props) {
         : (prefData.sandboxInitPoint || prefData.initPoint)
       window.location.href = url
     } catch {
-      setError('Error de conexión. Intentá de nuevo.')
+      setError(t.errConnection)
     } finally {
       setLoading(false)
     }
@@ -91,7 +147,7 @@ export default function ReservaForm({ tenant, location }: Props) {
     width: '100%',
     padding: '12px 16px',
     borderRadius: br,
-    border: `1.5px solid ${branding.primaryColor}30`,
+    border: `1.5px solid ${primary}30`,
     backgroundColor: '#ffffff',
     color: branding.textColor,
     fontSize: '14px',
@@ -114,13 +170,13 @@ export default function ReservaForm({ tenant, location }: Props) {
     return (
       <div style={{ minHeight: '100dvh', backgroundColor: branding.backgroundColor, color: branding.textColor, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div style={{ textAlign: 'center', maxWidth: '360px' }}>
-          <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: branding.primaryColor + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={branding.primaryColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: primary + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-          <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '8px' }}>¡Reserva confirmada!</h2>
-          <p style={{ opacity: 0.6, fontSize: '14px' }}>Nos vemos pronto. Podés comunicarte al {location.phone} si necesitás modificar tu reserva.</p>
+          <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '8px' }}>{t.confirmed}</h2>
+          <p style={{ opacity: 0.6, fontSize: '14px' }}>{t.confirmedMsg(location.phone)}</p>
         </div>
       </div>
     )
@@ -130,18 +186,35 @@ export default function ReservaForm({ tenant, location }: Props) {
     <div style={{ minHeight: '100dvh', backgroundColor: branding.backgroundColor, color: branding.textColor, fontFamily: 'inherit' }}>
       {/* Header */}
       <div style={{ padding: '32px 20px 0', textAlign: 'center' }}>
+        {/* Language toggle */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: 4, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700 }}>
+            <button
+              onClick={() => setLocale('es')}
+              style={{ padding: '2px 6px', borderRadius: 4, border: 'none', background: 'none', cursor: 'pointer', color: primary, opacity: locale === 'es' ? 1 : 0.35 }}>
+              ES
+            </button>
+            <span style={{ opacity: 0.25, color: branding.textColor }}>|</span>
+            <button
+              onClick={() => setLocale('en')}
+              style={{ padding: '2px 6px', borderRadius: 4, border: 'none', background: 'none', cursor: 'pointer', color: primary, opacity: locale === 'en' ? 1 : 0.35 }}>
+              EN
+            </button>
+          </div>
+        </div>
+
         {branding.logoUrl ? (
           <img src={branding.logoUrl} alt={tenant.name} style={{ height: 52, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }} />
         ) : (
-          <h1 style={{ fontSize: '22px', fontWeight: 900, color: branding.primaryColor, marginBottom: '8px' }}>{tenant.name}</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 900, color: primary, marginBottom: '8px' }}>{tenant.name}</h1>
         )}
-        <p style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>Reservar mesa</p>
+        <p style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>{t.title}</p>
         <p style={{ fontSize: '12px', opacity: 0.5 }}>{location.name}</p>
         {minPayment > 0 && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '5px 14px', borderRadius: 9999, backgroundColor: branding.primaryColor + '15', border: `1px solid ${branding.primaryColor}30` }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={branding.primaryColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: branding.primaryColor }}>
-              Seña de ${minPayment.toLocaleString('es-AR')} para confirmar
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '5px 14px', borderRadius: 9999, backgroundColor: primary + '15', border: `1px solid ${primary}30` }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: primary }}>
+              {t.deposit(minPayment.toLocaleString('es-AR'))}
             </span>
           </div>
         )}
@@ -153,7 +226,7 @@ export default function ReservaForm({ tenant, location }: Props) {
 
           {/* Date */}
           <div>
-            <label style={labelStyle}>Fecha</label>
+            <label style={labelStyle}>{t.date}</label>
             <input
               type="date"
               value={form.date}
@@ -166,9 +239,9 @@ export default function ReservaForm({ tenant, location }: Props) {
 
           {/* Time slots */}
           <div>
-            <label style={labelStyle}>Horario</label>
+            <label style={labelStyle}>{t.time}</label>
             {timeSlots.length === 0 ? (
-              <p style={{ fontSize: '13px', opacity: 0.5 }}>No hay horarios configurados</p>
+              <p style={{ fontSize: '13px', opacity: 0.5 }}>{t.noSlots}</p>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {timeSlots.map(slot => (
@@ -179,9 +252,9 @@ export default function ReservaForm({ tenant, location }: Props) {
                     style={{
                       padding: '8px 16px',
                       borderRadius: br,
-                      border: `1.5px solid ${branding.primaryColor}`,
-                      backgroundColor: form.time === slot ? branding.primaryColor : 'transparent',
-                      color: form.time === slot ? '#ffffff' : branding.primaryColor,
+                      border: `1.5px solid ${primary}`,
+                      backgroundColor: form.time === slot ? primary : 'transparent',
+                      color: form.time === slot ? '#ffffff' : primary,
                       fontSize: '13px',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -196,7 +269,7 @@ export default function ReservaForm({ tenant, location }: Props) {
 
           {/* Party size */}
           <div>
-            <label style={labelStyle}>Personas</label>
+            <label style={labelStyle}>{t.partySize}</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {PARTY_SIZES.filter(s => s <= maxPartySize).map(s => (
                 <button
@@ -207,9 +280,9 @@ export default function ReservaForm({ tenant, location }: Props) {
                     width: 44,
                     height: 44,
                     borderRadius: br,
-                    border: `1.5px solid ${branding.primaryColor}`,
-                    backgroundColor: form.partySize === s ? branding.primaryColor : 'transparent',
-                    color: form.partySize === s ? '#ffffff' : branding.primaryColor,
+                    border: `1.5px solid ${primary}`,
+                    backgroundColor: form.partySize === s ? primary : 'transparent',
+                    color: form.partySize === s ? '#ffffff' : primary,
                     fontSize: '14px',
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -223,12 +296,12 @@ export default function ReservaForm({ tenant, location }: Props) {
 
           {/* Name */}
           <div>
-            <label style={labelStyle}>Nombre</label>
+            <label style={labelStyle}>{t.name}</label>
             <input
               type="text"
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="Tu nombre"
+              placeholder={t.namePlaceholder}
               style={inputStyle}
               required
             />
@@ -236,12 +309,12 @@ export default function ReservaForm({ tenant, location }: Props) {
 
           {/* Phone */}
           <div>
-            <label style={labelStyle}>Teléfono</label>
+            <label style={labelStyle}>{t.phone}</label>
             <input
               type="tel"
               value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-              placeholder="+54 9 11 1234 5678"
+              placeholder={t.phonePlaceholder}
               style={inputStyle}
               required
             />
@@ -249,11 +322,11 @@ export default function ReservaForm({ tenant, location }: Props) {
 
           {/* Notes */}
           <div>
-            <label style={labelStyle}>Observaciones (opcional)</label>
+            <label style={labelStyle}>{t.notes}</label>
             <textarea
               value={form.notes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Ej: Mesa afuera, celebración de cumpleaños, alergias..."
+              placeholder={t.notesPlaceholder}
               rows={3}
               style={{ ...inputStyle, resize: 'none', height: 80 }}
             />
@@ -271,16 +344,16 @@ export default function ReservaForm({ tenant, location }: Props) {
               padding: '15px',
               borderRadius: br,
               border: 'none',
-              backgroundColor: branding.primaryColor,
+              backgroundColor: primary,
               color: '#ffffff',
               fontSize: '15px',
               fontWeight: 700,
               cursor: loading ? 'wait' : 'pointer',
               opacity: loading ? 0.7 : 1,
-              boxShadow: `0 8px 24px ${branding.primaryColor}44`,
+              boxShadow: `0 8px 24px ${primary}44`,
             }}
           >
-            {loading ? 'Procesando...' : minPayment > 0 ? `Pagar seña $${minPayment.toLocaleString('es-AR')}` : 'Confirmar reserva'}
+            {loading ? t.processing : minPayment > 0 ? t.submitPay(minPayment.toLocaleString('es-AR')) : t.submit}
           </button>
         </div>
       </form>

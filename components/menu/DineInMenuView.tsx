@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Eye } from 'lucide-react'
+import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter } from 'lucide-react'
 
 interface Props {
   tenant: any
@@ -16,19 +16,53 @@ function isVegetarian(tags: string[]): boolean {
   return tags.some(t => VEGETARIAN_TAGS.includes(t.toLowerCase()))
 }
 
-function DietaryIcon({ tags, color }: { tags: string[]; color: string }) {
-  if (isVegetarian(tags)) {
-    return (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill={color} style={{ flexShrink: 0 }}>
-        <path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 0 0 8 20C19 20 22 3 22 3c-1 2-8 2-8 2C14 3 12 2 10 2 7 2 3 4 3 9c0 2 1 4 2 5" />
-      </svg>
-    )
+function tn(obj: any, field: 'name' | 'description', locale: 'es' | 'en'): string {
+  if (locale === 'en') {
+    const trans = field === 'name' ? obj.nameTranslations : obj.descriptionTranslations
+    if (trans?.en) return trans.en
   }
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" style={{ flexShrink: 0 }}>
-      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-    </svg>
-  )
+  return obj[field] || ''
+}
+
+function hasMissingTranslations(categories: any[]): boolean {
+  for (const cat of categories) {
+    if (!cat.nameTranslations?.en) return true
+    for (const item of cat.items ?? []) {
+      if (!item.nameTranslations?.en) return true
+    }
+  }
+  return false
+}
+
+const UI = {
+  es: {
+    featuredTitle: 'Platos Destacados',
+    featuredSubtitle: 'Una selección de nuestras creaciones más aclamadas, donde la técnica se encuentra con la pasión',
+    contact: 'Contacto',
+    ourStory: 'Nuestra Historia',
+    followUs: 'Síguenos',
+    followIG: 'Seguinos en Instagram',
+    followFB: 'Seguinos en Facebook',
+    followTW: 'Seguinos en Twitter',
+    rights: 'Todos los derechos reservados.',
+    terms: 'Términos y Condiciones',
+    privacy: 'Política de Privacidad',
+    translating: 'Traduciendo...',
+  },
+  en: {
+    featuredTitle: 'Featured Dishes',
+    featuredSubtitle: 'A selection of our most acclaimed creations, where technique meets passion',
+    contact: 'Contact',
+    ourStory: 'Our Story',
+    followUs: 'Follow us',
+    followIG: 'Follow us on Instagram',
+    followFB: 'Follow us on Facebook',
+    followTW: 'Follow us on Twitter',
+    rights: 'All rights reserved.',
+    terms: 'Terms & Conditions',
+    privacy: 'Privacy Policy',
+    translating: 'Translating...',
+  },
 }
 
 export default function DineInMenuView({ tenant, location, menu }: Props) {
@@ -36,19 +70,54 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const profile = tenant.profile ?? {}
 
   const [dark, setDark] = useState(false)
+  const [locale, setLocale] = useState<'es' | 'en'>('es')
+  const [translating, setTranslating] = useState(false)
+  const [menuData, setMenuData] = useState(menu)
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [modalItem, setModalItem] = useState<any | null>(null)
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
 
-  const categories = (menu.categories ?? [])
+  const t = UI[locale]
+
+  const categories = (menuData.categories ?? [])
     .filter((c: any) => c.isAvailable)
     .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
 
   const featuredItems = categories
     .flatMap((c: any) => c.items ?? [])
     .filter((i: any) => i.isFeatured)
+
+  async function switchToEnglish() {
+    if (categories.length > 0 && hasMissingTranslations(categories)) {
+      setTranslating(true)
+      try {
+        const res = await fetch(`/api/${tenant.slug}/menu/translate-all`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locationId: location._id }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setMenuData(data.menu)
+        }
+      } catch {
+        // fallback to Spanish if translation fails
+      } finally {
+        setTranslating(false)
+      }
+    }
+    setLocale('en')
+  }
+
+  function handleLocaleToggle(newLocale: 'es' | 'en') {
+    if (newLocale === 'en') {
+      switchToEnglish()
+    } else {
+      setLocale('es')
+    }
+  }
 
   // Detect which section is visible
   useEffect(() => {
@@ -67,7 +136,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
       observers.push(obs)
     })
     return () => observers.forEach(o => o.disconnect())
-  }, [menu])
+  }, [menuData])
 
   function scrollToCategory(id: string) {
     sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -97,7 +166,21 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   return (
     <div style={{ backgroundColor: bg, color: text, minHeight: '100vh', fontFamily: 'Georgia, serif' }}>
 
-      {/* ── Hero ───────────────────────────────────────────────── */}
+      {/* ── Translating overlay ── */}
+      {translating && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl font-semibold text-sm text-white"
+            style={{ backgroundColor: branding.primaryColor }}>
+            <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            {t.translating}
+          </div>
+        </div>
+      )}
+
+      {/* ── Hero ─────────────────────────────────────────── */}
       <section
         className="relative text-center overflow-hidden flex items-center justify-center"
         style={{
@@ -107,34 +190,20 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
           backgroundColor: bg,
         }}
       >
-        {/* Background media */}
         {hasHeroMedia && location.hero.mediaType === 'image' && (
-          <img
-            src={location.hero.url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+          <img src={location.hero.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
         {hasHeroMedia && location.hero.mediaType === 'video' && (
-          <video
-            autoPlay muted loop playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          >
+          <video autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover">
             <source src={location.hero.url} type="video/mp4" />
           </video>
         )}
-
-        {/* Overlay oscuro para legibilidad cuando hay media */}
         {hasHeroMedia && (
-          <div
-            className="absolute inset-0"
-            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0.65) 100%)' }}
-          />
+          <div className="absolute inset-0"
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0.65) 100%)' }} />
         )}
 
-        {/* Contenido del hero */}
         <div className="relative z-10 px-4 py-16 w-full flex flex-col items-center">
-          {/* Logo — invertido a blanco cuando hay imagen/video de fondo */}
           {showLogoOnHero && branding.logoUrl ? (
             <img
               src={branding.logoUrl}
@@ -148,31 +217,19 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             </h1>
           ) : null}
 
-          <h2
-            className="text-2xl font-bold mb-3"
-            style={{
-              color: hasHeroMedia ? '#ffffff' : branding.primaryColor,
-              fontFamily: 'Georgia, Cambria, serif',
-            }}
-          >
+          <h2 className="text-2xl font-bold mb-3"
+            style={{ color: hasHeroMedia ? '#ffffff' : branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
             Menu
           </h2>
 
           {profile.menuDescription && (
-            <p
-              className="max-w-2xl mx-auto text-base leading-relaxed mb-4"
-              style={{
-                color: hasHeroMedia ? 'rgba(255,255,255,0.78)' : mutedText,
-                fontFamily: 'Georgia, Cambria, serif',
-                fontStyle: 'italic',
-              }}
-            >
+            <p className="max-w-2xl mx-auto text-base leading-relaxed mb-4"
+              style={{ color: hasHeroMedia ? 'rgba(255,255,255,0.78)' : mutedText, fontFamily: 'Georgia, Cambria, serif', fontStyle: 'italic' }}>
               {profile.menuDescription}
             </p>
           )}
         </div>
 
-        {/* Scroll down chevron */}
         {hasHeroMedia && (
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center" style={{ animation: 'bounce 2s infinite' }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -186,7 +243,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         <style>{`@keyframes bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(6px)} }`}</style>
       </section>
 
-      {/* ── Sticky category nav ────────────────────────────────── */}
+      {/* ── Sticky category nav ───────────────────────────── */}
       <div
         className="sticky top-0 z-50 border-b"
         style={{ backgroundColor: navBg + 'f2', borderColor: navBorder, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
@@ -215,11 +272,35 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                     color: isActive ? '#ffffff' : branding.primaryColor,
                     cursor: 'pointer',
                   }}>
-                  {cat.name}
+                  {tn(cat, 'name', locale)}
                 </button>
               )
             })}
           </div>
+
+          {/* Language toggle — right next to dark mode */}
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <button
+              onClick={() => handleLocaleToggle('es')}
+              className="px-1.5 py-1 rounded transition-opacity"
+              style={{
+                fontSize: '11px', fontWeight: 700, border: 'none', background: 'none', cursor: 'pointer',
+                color: branding.primaryColor, opacity: locale === 'es' ? 1 : 0.35,
+              }}>
+              ES
+            </button>
+            <span style={{ opacity: 0.25, color: text, fontSize: '11px' }}>|</span>
+            <button
+              onClick={() => handleLocaleToggle('en')}
+              className="px-1.5 py-1 rounded transition-opacity"
+              style={{
+                fontSize: '11px', fontWeight: 700, border: 'none', background: 'none', cursor: 'pointer',
+                color: branding.primaryColor, opacity: locale === 'en' ? 1 : 0.35,
+              }}>
+              EN
+            </button>
+          </div>
+
           {/* Dark mode toggle */}
           <button
             onClick={() => setDark(d => !d)}
@@ -230,17 +311,16 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         </div>
       </div>
 
-      {/* ── Menu sections ──────────────────────────────────────── */}
+      {/* ── Menu sections ─────────────────────────────────── */}
       <main className="max-w-4xl mx-auto px-4 py-8">
         {categories.map((cat: any) => (
           <section
             key={cat._id}
             ref={el => { sectionRefs.current[cat._id] = el }}
             className="mb-12 scroll-mt-20">
-            {/* Category header */}
             <div className="text-center mb-8">
               <h3 className="text-3xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
-                {cat.name}
+                {tn(cat, 'name', locale)}
               </h3>
               <div className="flex items-center justify-center gap-3">
                 <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
@@ -249,7 +329,6 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
               </div>
             </div>
 
-            {/* Items */}
             <div className="space-y-3">
               {(cat.items ?? [])
                 .filter((i: any) => i.isAvailable)
@@ -260,24 +339,18 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                     style={{ backgroundColor: cardBg, borderColor: cardBorder }}
                     onClick={() => item.imageUrl && setModalItem(item)}
                   >
-                    {/* Image — visible directly if exists */}
                     {item.imageUrl ? (
                       <div className="flex-shrink-0 w-[88px] h-[88px] relative" style={{ cursor: 'pointer' }}>
-                        <img
-                          src={item.imageUrl}
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
                       </div>
                     ) : (
                       <div className="flex-shrink-0 w-3 self-stretch" style={{ backgroundColor: branding.primaryColor + '18' }} />
                     )}
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0 py-3 pr-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-bold text-sm tracking-wide" style={{ color: text }}>
-                          {item.name}
+                          {tn(item, 'name', locale)}
                         </p>
                         <p className="font-bold text-sm flex-shrink-0" style={{ color: branding.primaryColor }}>
                           ${item.price.toLocaleString('es-AR')}
@@ -285,15 +358,13 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                       </div>
                       {item.description && (
                         <p className="text-xs mt-1 leading-relaxed" style={{ color: mutedText }}>
-                          {item.description}
+                          {tn(item, 'description', locale)}
                         </p>
                       )}
                       {item.tags?.length > 0 && (
                         <div className="flex gap-1.5 mt-2 flex-wrap">
                           {item.tags.map((tag: string) => (
-                            <span
-                              key={tag}
-                              className="text-xs px-2 py-0.5 rounded-full border"
+                            <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
                               style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
                               {tag}
                             </span>
@@ -308,13 +379,13 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         ))}
       </main>
 
-      {/* ── Platos Destacados ─────────────────────────────────── */}
+      {/* ── Platos Destacados ──────────────────────────────── */}
       {featuredItems.length > 0 && (
         <section className="py-16 px-4" style={{ backgroundColor: dark ? '#020617' : '#1e293b' }}>
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-10">
               <h3 className="text-3xl font-bold mb-3" style={{ color: branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
-                Platos Destacados
+                {t.featuredTitle}
               </h3>
               <div className="flex items-center justify-center gap-3 mb-4">
                 <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
@@ -322,27 +393,19 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                 <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
               </div>
               <p className="text-sm max-w-sm mx-auto" style={{ color: '#94a3b8' }}>
-                Una selección de nuestras creaciones más aclamadas, donde la técnica se encuentra con la pasión
+                {t.featuredSubtitle}
               </p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {featuredItems.slice(0, 8).map((item: any) => (
-                <button
-                  key={item._id}
-                  onClick={() => setModalItem(item)}
-                  className="rounded-xl overflow-hidden aspect-square relative group">
+                <button key={item._id} onClick={() => setModalItem(item)} className="rounded-xl overflow-hidden aspect-square relative group">
                   {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                    />
+                    <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                   ) : (
-                    <div
-                      className="w-full h-full flex flex-col items-center justify-center gap-2 p-3"
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3"
                       style={{ backgroundColor: branding.primaryColor + '20', border: `1px solid ${branding.primaryColor}30` }}>
                       <p className="text-xs font-bold text-center leading-tight" style={{ color: branding.primaryColor }}>
-                        {item.name}
+                        {tn(item, 'name', locale)}
                       </p>
                       <p className="text-xs font-bold" style={{ color: branding.primaryColor }}>
                         ${item.price.toLocaleString('es-AR')}
@@ -350,7 +413,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                    <p className="text-white text-xs font-bold text-left">{item.name}</p>
+                    <p className="text-white text-xs font-bold text-left">{tn(item, 'name', locale)}</p>
                   </div>
                 </button>
               ))}
@@ -359,16 +422,12 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         </section>
       )}
 
-      {/* ── Footer ────────────────────────────────────────────── */}
+      {/* ── Footer ────────────────────────────────────────── */}
       <footer style={{ backgroundColor: dark ? '#020617' : '#1e293b' }}>
         <div className="max-w-4xl mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
-            {/* Contacto */}
             <div>
-              <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>
-                Contacto
-              </h4>
+              <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>{t.contact}</h4>
               <div className="space-y-3">
                 {location.address && (
                   <div className="flex items-start gap-2">
@@ -390,65 +449,49 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                 )}
               </div>
             </div>
-
-            {/* Historia */}
             {profile.about && (
               <div>
-                <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>
-                  Nuestra Historia
-                </h4>
-                <p className="text-sm leading-relaxed" style={{ color: '#94a3b8' }}>
-                  {profile.about}
-                </p>
+                <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>{t.ourStory}</h4>
+                <p className="text-sm leading-relaxed" style={{ color: '#94a3b8' }}>{profile.about}</p>
               </div>
             )}
-
-            {/* Redes */}
             {(profile.social?.instagram || profile.social?.facebook || profile.social?.twitter) && (
               <div>
-                <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>
-                  Síguenos
-                </h4>
+                <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>{t.followUs}</h4>
                 <div className="space-y-3">
                   {profile.social?.instagram && (
                     <a href={`https://instagram.com/${profile.social.instagram.replace('@', '')}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 group">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: branding.primaryColor }}>
+                      target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: branding.primaryColor }}>
                         <Instagram size={18} className="text-white" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-white">{tenant.name}</p>
-                        <p className="text-xs" style={{ color: branding.primaryColor }}>Seguinos en Instagram</p>
+                        <p className="text-xs" style={{ color: branding.primaryColor }}>{t.followIG}</p>
                       </div>
                     </a>
                   )}
                   {profile.social?.facebook && (
                     <a href={`https://facebook.com/${profile.social.facebook.replace('@', '')}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 group">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: branding.primaryColor }}>
+                      target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: branding.primaryColor }}>
                         <Facebook size={18} className="text-white" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-white">{tenant.name}</p>
-                        <p className="text-xs" style={{ color: branding.primaryColor }}>Seguinos en Facebook</p>
+                        <p className="text-xs" style={{ color: branding.primaryColor }}>{t.followFB}</p>
                       </div>
                     </a>
                   )}
                   {profile.social?.twitter && (
                     <a href={`https://twitter.com/${profile.social.twitter.replace('@', '')}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 group">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: branding.primaryColor }}>
+                      target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: branding.primaryColor }}>
                         <Twitter size={18} className="text-white" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-white">{tenant.name}</p>
-                        <p className="text-xs" style={{ color: branding.primaryColor }}>Seguinos en Twitter</p>
+                        <p className="text-xs" style={{ color: branding.primaryColor }}>{t.followTW}</p>
                       </div>
                     </a>
                   )}
@@ -458,53 +501,46 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
           </div>
         </div>
 
-        {/* Bottom bar */}
         <div className="border-t px-4 py-4 max-w-4xl mx-auto flex items-center justify-between"
           style={{ borderColor: branding.primaryColor + '20' }}>
           <p className="text-xs" style={{ color: '#475569' }}>
-            © {new Date().getFullYear()} {tenant.name}. Todos los derechos reservados.
+            © {new Date().getFullYear()} {tenant.name}. {t.rights}
           </p>
           <div className="flex items-center gap-4">
-            <span className="text-xs" style={{ color: '#334155' }}>Términos y Condiciones</span>
-            <span className="text-xs" style={{ color: '#334155' }}>Política de Privacidad</span>
-            {/* Discrete admin access */}
-            <Link
-              href={`/${tenant.slug}/admin`}
-              className="opacity-20 hover:opacity-60 transition-opacity"
-              title="Acceso administrador">
+            <span className="text-xs" style={{ color: '#334155' }}>{t.terms}</span>
+            <span className="text-xs" style={{ color: '#334155' }}>{t.privacy}</span>
+            <Link href={`/${tenant.slug}/admin`} className="opacity-20 hover:opacity-60 transition-opacity" title="Acceso administrador">
               <Settings size={14} style={{ color: '#94a3b8' }} />
             </Link>
           </div>
         </div>
       </footer>
 
-      {/* ── Image modal ───────────────────────────────────────── */}
+      {/* ── Image modal ───────────────────────────────────── */}
       {modalItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
           onClick={() => setModalItem(null)}>
-          <div
-            className="max-w-sm w-full rounded-2xl overflow-hidden"
+          <div className="max-w-sm w-full rounded-2xl overflow-hidden"
             style={{ backgroundColor: cardBg }}
             onClick={e => e.stopPropagation()}>
             {modalItem.imageUrl && (
-              <img src={modalItem.imageUrl} alt={modalItem.name} className="w-full aspect-square object-cover" />
+              <img src={modalItem.imageUrl} alt={tn(modalItem, 'name', locale)} className="w-full aspect-square object-cover" />
             )}
             <div className="p-4">
-              <p className="font-bold uppercase tracking-wide" style={{ color: text }}>{modalItem.name}</p>
+              <p className="font-bold uppercase tracking-wide" style={{ color: text }}>{tn(modalItem, 'name', locale)}</p>
               {modalItem.description && (
-                <p className="text-sm mt-1" style={{ color: mutedText }}>{modalItem.description}</p>
+                <p className="text-sm mt-1" style={{ color: mutedText }}>{tn(modalItem, 'description', locale)}</p>
               )}
               <p className="font-bold text-lg mt-2" style={{ color: branding.primaryColor }}>
                 ${modalItem.price.toLocaleString('es-AR')}
               </p>
               {modalItem.tags?.length > 0 && (
                 <div className="flex gap-1.5 mt-3 flex-wrap">
-                  {modalItem.tags.map((t: string) => (
-                    <span key={t} className="text-xs px-2 py-0.5 rounded-full border"
+                  {modalItem.tags.map((tag: string) => (
+                    <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
                       style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
-                      {t}
+                      {tag}
                     </span>
                   ))}
                 </div>

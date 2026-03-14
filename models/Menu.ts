@@ -24,6 +24,8 @@ export interface IMenuItem {
   tags: string[]
   isFeatured: boolean
   customizationGroups: ICustomizationGroup[]
+  nameTranslations?: { en: string }
+  descriptionTranslations?: { en: string }
 }
 
 export interface IMenuCategory {
@@ -34,6 +36,8 @@ export interface IMenuCategory {
   isAvailable: boolean
   sortOrder: number
   items: IMenuItem[]
+  nameTranslations?: { en: string }
+  descriptionTranslations?: { en: string }
 }
 
 export interface IMenu extends Document {
@@ -93,6 +97,12 @@ const MenuItemSchema = new Schema<IMenuItem>({
     type: [CustomizationGroupSchema],
     default: [],
   },
+  nameTranslations: {
+    en: { type: String, default: '' },
+  },
+  descriptionTranslations: {
+    en: { type: String, default: '' },
+  },
 })
 
 const MenuCategorySchema = new Schema<IMenuCategory>({
@@ -119,6 +129,12 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
     default: 0,
   },
   items: [MenuItemSchema],
+  nameTranslations: {
+    en: { type: String, default: '' },
+  },
+  descriptionTranslations: {
+    en: { type: String, default: '' },
+  },
 })
 
 const MenuSchema = new Schema<IMenu>(

@@ -3,6 +3,7 @@ import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
+import { translateToEnglish } from '@/lib/translate'
 
 export async function PUT(
   request: NextRequest,
@@ -26,8 +27,14 @@ export async function PUT(
     const category = menu.categories.id(categoryId)
     if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
 
-    if (name !== undefined) category.name = name
-    if (description !== undefined) category.description = description
+    if (name !== undefined) {
+      category.name = name
+      category.nameTranslations = { en: await translateToEnglish(name) }
+    }
+    if (description !== undefined) {
+      category.description = description
+      category.descriptionTranslations = { en: description ? await translateToEnglish(description) : '' }
+    }
     if (isAvailable !== undefined) category.isAvailable = isAvailable
     if (imageUrl !== undefined) category.imageUrl = imageUrl
 

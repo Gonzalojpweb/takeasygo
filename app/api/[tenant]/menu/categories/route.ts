@@ -3,6 +3,7 @@ import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { translateToEnglish } from '@/lib/translate'
 
 export async function POST(
   request: NextRequest,
@@ -23,7 +24,21 @@ export async function POST(
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
 
-    menu.categories.push({ name, description: description || '', imageUrl: imageUrl || '', isAvailable: true, sortOrder: menu.categories.length, items: [] } as any)
+    const [nameEn, descEn] = await Promise.all([
+      translateToEnglish(name),
+      description ? translateToEnglish(description) : Promise.resolve(''),
+    ])
+
+    menu.categories.push({
+      name,
+      description: description || '',
+      imageUrl: imageUrl || '',
+      isAvailable: true,
+      sortOrder: menu.categories.length,
+      items: [],
+      nameTranslations: { en: nameEn },
+      descriptionTranslations: { en: descEn },
+    } as any)
     await menu.save()
 
     return NextResponse.json({ menu }, { status: 201 })
