@@ -603,7 +603,7 @@ Eso construye lealtad. No el algoritmo de una app.
 `PLANES DESDE $XX.XXX/mes`
 Sin comisión por pedido.
 Sin contrato de permanencia.
-Con soporte en español, de lunes a domingo.
+  Con soporte en español, de lunes a domingo.
 → Agendá tu demo de 15 minutos. Es gratis.
 → www.takeasygo.com | WhatsApp en bio.
 

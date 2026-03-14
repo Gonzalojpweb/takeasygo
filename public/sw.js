@@ -1,10 +1,11 @@
 // TakeasyGO Service Worker
 // Strategy: cache-first for static assets, network-first for HTML pages, skip API routes
 
-const CACHE = 'tgo-v1'
+const CACHE = 'tgo-v2'
 
 const PRECACHE = [
-  '/tgo192.png',
+  '/real192.jpg',
+  '/real512.jpg',
 ]
 
 self.addEventListener('install', (e) => {

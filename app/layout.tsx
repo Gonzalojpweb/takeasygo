@@ -10,6 +10,10 @@ const geist = Geist({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Takeasygo | Premium Dining Tech',
   description: 'Infraestructura digital para la gastronomía',
+  icons: {
+    icon: '/real192.jpg',
+    apple: '/real192.jpg',
+  },
 }
 
 export default function RootLayout({

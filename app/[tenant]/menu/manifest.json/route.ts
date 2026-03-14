@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
@@ -16,6 +17,12 @@ export async function GET(
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
   if (!tenant) return new NextResponse(null, { status: 404 })
+
+  // Fetch first active location to build a valid start_url
+  const firstLocation = await Location.findOne({ tenantId: tenant._id, isActive: true })
+    .sort({ createdAt: 1 })
+    .select('_id')
+    .lean() as any
 
   const branding = tenant.branding || {}
   const name: string = tenant.name || 'Menu'
@@ -36,7 +43,9 @@ export async function GET(
     name,
     short_name: shortName,
     description: tenant.profile?.menuDescription || `Menu digital de ${name}`,
-    start_url: `/${tenantSlug}/menu`,
+    start_url: firstLocation
+      ? `/${tenantSlug}/menu/${firstLocation._id}`
+      : `/${tenantSlug}/menu`,
     scope: `/${tenantSlug}/`,
     display: 'standalone',
     orientation: 'portrait-primary',
@@ -44,11 +53,17 @@ export async function GET(
     theme_color: primaryColor,
     categories: ['food', 'lifestyle'],
     icons: [
-      // Fallback TakeasyGO icon — declared at its actual size (192×192 slot only)
+      // TakeasyGO fallback icons (proper square sizes)
       {
-        src: '/tgo192.png',
+        src: '/real192.jpg',
         sizes: '192x192',
-        type: 'image/png',
+        type: 'image/jpeg',
+        purpose: 'any',
+      },
+      {
+        src: '/real512.jpg',
+        sizes: '512x512',
+        type: 'image/jpeg',
         purpose: 'any',
       },
       // Tenant logo resized to exact 512×512 via Cloudinary transform (preferred icon)
