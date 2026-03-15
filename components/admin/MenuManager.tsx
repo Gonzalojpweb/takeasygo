@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button'
 import {
   ChevronDown, Plus, Pencil, Trash2, Check, X,
   Star, Upload, Camera, Settings2, Image as ImageIcon,
-  MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff
+  MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff, Clock
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import ScheduleEditor, { type ScheduleSlot } from '@/components/admin/ScheduleEditor'
 
 interface Props {
   locations: any[]
@@ -36,6 +37,8 @@ const EMPTY_CUSTOMIZATION_GROUP: CustomizationGroupForm = {
 const EMPTY_ITEM = {
   name: '', description: '', price: '', tags: '', isFeatured: false, imageUrl: '',
   customizationGroups: [] as CustomizationGroupForm[],
+  availabilityMode: 'always' as 'always' | 'scheduled',
+  availabilitySchedule: [] as ScheduleSlot[],
 }
 
 type ItemFormData = typeof EMPTY_ITEM
@@ -67,6 +70,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [newItem, setNewItem] = useState<ItemFormData>(EMPTY_ITEM)
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [editingCategoryName, setEditingCategoryName] = useState('')
+  const [editingCategoryAvailMode, setEditingCategoryAvailMode] = useState<'always' | 'scheduled'>('always')
+  const [editingCategoryAvailSchedule, setEditingCategoryAvailSchedule] = useState<ScheduleSlot[]>([])
   const [editingItem, setEditingItem] = useState<string | null>(null)
   const [editingItemData, setEditingItemData] = useState<ItemFormData>(EMPTY_ITEM)
   const [loading, setLoading] = useState(false)
@@ -114,7 +119,12 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locationId: selectedLocation, name: editingCategoryName }),
+        body: JSON.stringify({
+          locationId: selectedLocation,
+          name: editingCategoryName,
+          availabilityMode: editingCategoryAvailMode,
+          availabilitySchedule: editingCategoryAvailMode === 'scheduled' ? editingCategoryAvailSchedule : [],
+        }),
       })
       if (!res.ok) throw new Error()
       toast.success('Categoría actualizada')
@@ -189,6 +199,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           isFeatured: editingItemData.isFeatured,
           imageUrl: editingItemData.imageUrl,
           customizationGroups: serializeGroups(editingItemData.customizationGroups),
+          availabilityMode: editingItemData.availabilityMode,
+          availabilitySchedule: editingItemData.availabilityMode === 'scheduled' ? editingItemData.availabilitySchedule : [],
         }),
       })
       if (!res.ok) throw new Error()
@@ -502,7 +514,16 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 size="icon"
                                 variant="ghost"
                                 className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
-                                onClick={() => { setEditingCategory(category._id); setEditingCategoryName(category.name) }}
+                                onClick={() => {
+                                  setEditingCategory(category._id)
+                                  setEditingCategoryName(category.name)
+                                  setEditingCategoryAvailMode(category.availabilityMode ?? 'always')
+                                  setEditingCategoryAvailSchedule(category.availabilitySchedule ?? [])
+                                  // Expand to show availability editor
+                                  if (!expandedCategories.includes(category._id)) {
+                                    setExpandedCategories(prev => [...prev, category._id])
+                                  }
+                                }}
                               >
                                 <Pencil size={18} />
                               </Button>
@@ -551,6 +572,38 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                         transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
                       >
                         <CardContent className="p-6 pt-2 bg-muted/10 border-t border-border/40">
+                          {/* Category availability editor (shows when editing category) */}
+                          {editingCategory === category._id && (
+                            <div className="mb-6 p-4 bg-white rounded-2xl border-2 border-primary/20 space-y-3" onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center gap-2">
+                                <Clock size={14} className="text-primary" />
+                                <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/70">Disponibilidad de la categoría</span>
+                              </div>
+                              <div className="flex gap-2">
+                                {(['always', 'scheduled'] as const).map(mode => (
+                                  <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => setEditingCategoryAvailMode(mode)}
+                                    className={cn(
+                                      'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all',
+                                      editingCategoryAvailMode === mode
+                                        ? 'bg-primary/5 border-primary/40 text-primary'
+                                        : 'bg-muted border-transparent text-muted-foreground hover:text-foreground'
+                                    )}
+                                  >
+                                    {mode === 'always' ? 'Siempre disponible' : 'Horario personalizado'}
+                                  </button>
+                                ))}
+                              </div>
+                              {editingCategoryAvailMode === 'scheduled' && (
+                                <ScheduleEditor
+                                  slots={editingCategoryAvailSchedule}
+                                  onChange={setEditingCategoryAvailSchedule}
+                                />
+                              )}
+                            </div>
+                          )}
                           <div className="space-y-4 mb-8">
                             {category.items.length === 0 && !showAddItem && (
                               <div className="py-12 text-center bg-muted/20 border-2 border-dashed border-border/40 rounded-3xl">
@@ -660,6 +713,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                             isFeatured: item.isFeatured ?? false,
                                             imageUrl: item.imageUrl || '',
                                             customizationGroups: deserializeGroups(item.customizationGroups || []),
+                                            availabilityMode: item.availabilityMode ?? 'always',
+                                            availabilitySchedule: item.availabilitySchedule ?? [],
                                           })
                                         }}
                                       >
@@ -1061,6 +1116,50 @@ function ItemForm({
               </div>
             </motion.div>
           ))}
+        </div>
+      </div>
+
+      {/* ── Availability ── */}
+      <div className="pt-6 border-t border-border/60">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+            <Clock size={18} />
+          </div>
+          <div>
+            <h5 className="text-sm font-bold text-foreground leading-none">Disponibilidad</h5>
+            <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter opacity-70">
+              Cuándo se muestra este producto en el menú
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            {(['always', 'scheduled'] as const).map(mode => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onChange({ ...data, availabilityMode: mode })}
+                className={cn(
+                  'px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all',
+                  data.availabilityMode === mode
+                    ? 'bg-primary/5 border-primary/40 text-primary'
+                    : 'bg-muted border-transparent text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {mode === 'always' ? 'Siempre disponible' : 'Horario personalizado'}
+              </button>
+            ))}
+          </div>
+
+          {data.availabilityMode === 'scheduled' && (
+            <div className="bg-muted/30 rounded-2xl p-4 border border-border/60">
+              <ScheduleEditor
+                slots={data.availabilitySchedule}
+                onChange={slots => onChange({ ...data, availabilitySchedule: slots })}
+              />
+            </div>
+          )}
         </div>
       </div>
 

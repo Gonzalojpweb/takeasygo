@@ -17,7 +17,7 @@ import {
   Clock, Save,
   Smartphone, Eye, AlertCircle,
   Film, Loader2,
-  CalendarDays, Plus, X,
+  CalendarDays, Plus, X, Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -88,6 +88,20 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   const [reservationSaving, setReservationSaving] = useState<string | null>(null)
   const [newSlotMap, setNewSlotMap] = useState<Record<string, string>>({})
 
+  // Service hours state
+  type ServiceHoursSlot = { days: number[]; open: string; close: string }
+  type ServiceHoursConfig = { takeaway: ServiceHoursSlot[]; dineIn: ServiceHoursSlot[] }
+  const [serviceHoursMap, setServiceHoursMap] = useState<Record<string, ServiceHoursConfig>>(
+    Object.fromEntries(locations.map((l: any) => [
+      l._id,
+      {
+        takeaway: l.serviceHours?.takeaway ?? [],
+        dineIn: l.serviceHours?.dineIn ?? [],
+      }
+    ]))
+  )
+  const [serviceHoursSaving, setServiceHoursSaving] = useState<string | null>(null)
+
   async function handleSaveReservationConfig(locationId: string) {
     setReservationSaving(locationId)
     try {
@@ -124,6 +138,68 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     setReservationMap(prev => {
       const current = prev[locationId]
       return { ...prev, [locationId]: { ...current, timeSlots: current.timeSlots.filter(s => s !== slot) } }
+    })
+  }
+
+  async function handleSaveServiceHours(locationId: string) {
+    setServiceHoursSaving(locationId)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceHours: serviceHoursMap[locationId] }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Horarios de servicio guardados')
+    } catch {
+      toast.error('Error al guardar horarios de servicio')
+    } finally {
+      setServiceHoursSaving(null)
+    }
+  }
+
+  function addServiceSlot(locationId: string, type: 'takeaway' | 'dineIn') {
+    setServiceHoursMap(prev => ({
+      ...prev,
+      [locationId]: {
+        ...prev[locationId],
+        [type]: [...(prev[locationId]?.[type] ?? []), { days: [1, 2, 3, 4, 5], open: '09:00', close: '22:00' }],
+      },
+    }))
+  }
+
+  function removeServiceSlot(locationId: string, type: 'takeaway' | 'dineIn', idx: number) {
+    setServiceHoursMap(prev => ({
+      ...prev,
+      [locationId]: {
+        ...prev[locationId],
+        [type]: prev[locationId][type].filter((_, i) => i !== idx),
+      },
+    }))
+  }
+
+  function updateServiceSlot(
+    locationId: string,
+    type: 'takeaway' | 'dineIn',
+    idx: number,
+    field: 'open' | 'close',
+    value: string
+  ) {
+    setServiceHoursMap(prev => {
+      const slots = [...prev[locationId][type]]
+      slots[idx] = { ...slots[idx], [field]: value }
+      return { ...prev, [locationId]: { ...prev[locationId], [type]: slots } }
+    })
+  }
+
+  function toggleServiceDay(locationId: string, type: 'takeaway' | 'dineIn', idx: number, day: number) {
+    setServiceHoursMap(prev => {
+      const slots = [...prev[locationId][type]]
+      const days = slots[idx].days.includes(day)
+        ? slots[idx].days.filter(d => d !== day)
+        : [...slots[idx].days, day].sort((a, b) => a - b)
+      slots[idx] = { ...slots[idx], days }
+      return { ...prev, [locationId]: { ...prev[locationId], [type]: slots } }
     })
   }
 
@@ -700,6 +776,84 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               Eliminar portada
                             </Button>
                           )}
+                        </div>
+
+                        {/* ── Service Hours ── */}
+                        <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock size={12} className="text-primary" />
+                            <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+                              Horarios de servicio
+                            </label>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground/50">Configurá cuándo acepta pedidos cada canal. Si no hay franjas, se asume siempre abierto.</p>
+
+                          {(['takeaway', 'dineIn'] as const).map(svcType => (
+                            <div key={svcType} className="space-y-2">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                {svcType === 'takeaway' ? '🥡 Takeaway' : '🍽️ Salón'}
+                              </p>
+                              {(serviceHoursMap[loc._id]?.[svcType] ?? []).map((slot, idx) => (
+                                <div key={idx} className="flex flex-col gap-2 p-3 bg-white rounded-xl border border-border/60 shadow-sm">
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((d, di) => (
+                                      <button
+                                        key={di}
+                                        type="button"
+                                        onClick={() => toggleServiceDay(loc._id, svcType, idx, di)}
+                                        className={cn(
+                                          'w-9 h-7 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all',
+                                          slot.days.includes(di)
+                                            ? 'bg-primary text-white shadow-sm'
+                                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                        )}
+                                      >
+                                        {d}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="time"
+                                      value={slot.open}
+                                      onChange={e => updateServiceSlot(loc._id, svcType, idx, 'open', e.target.value)}
+                                      className="flex-1 bg-muted/40 border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-1.5 outline-none transition-all"
+                                    />
+                                    <span className="text-muted-foreground text-xs font-bold">—</span>
+                                    <input
+                                      type="time"
+                                      value={slot.close}
+                                      onChange={e => updateServiceSlot(loc._id, svcType, idx, 'close', e.target.value)}
+                                      className="flex-1 bg-muted/40 border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-1.5 outline-none transition-all"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeServiceSlot(loc._id, svcType, idx)}
+                                      className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => addServiceSlot(loc._id, svcType)}
+                                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors px-1 py-1"
+                              >
+                                <Plus size={13} strokeWidth={3} />
+                                Agregar franja
+                              </button>
+                            </div>
+                          ))}
+
+                          <Button
+                            className="w-full bg-zinc-900 border-zinc-800 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs mt-2"
+                            onClick={() => handleSaveServiceHours(loc._id)}
+                            disabled={serviceHoursSaving === loc._id}
+                          >
+                            {serviceHoursSaving === loc._id ? 'Guardando...' : 'Guardar horarios de servicio'}
+                          </Button>
                         </div>
 
                         {/* ── Reservation config ── */}

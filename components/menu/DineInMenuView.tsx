@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter } from 'lucide-react'
+import { isAvailableNow } from '@/lib/availability'
 
 interface Props {
   tenant: any
@@ -69,6 +70,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
 
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const [dark, setDark] = useState(false)
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [translating, setTranslating] = useState(false)
@@ -82,8 +84,11 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const t = UI[locale]
 
   const categories = (menuData.categories ?? [])
-    .filter((c: any) => c.isAvailable)
-    .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+    .filter((c: any) => c.isAvailable && (!mounted || isAvailableNow(c.availabilityMode, c.availabilitySchedule)))
+    .sort((a: any, b: any) => {
+      const diff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+      return diff !== 0 ? diff : String(a._id).localeCompare(String(b._id))
+    })
 
   const featuredItems = categories
     .flatMap((c: any) => c.items ?? [])
@@ -331,7 +336,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
 
             <div className="space-y-3">
               {(cat.items ?? [])
-                .filter((i: any) => i.isAvailable)
+                .filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
                 .map((item: any) => (
                   <div
                     key={item._id}
@@ -504,7 +509,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         <div className="border-t px-4 py-4 max-w-4xl mx-auto flex items-center justify-between"
           style={{ borderColor: branding.primaryColor + '20' }}>
           <p className="text-xs" style={{ color: '#475569' }}>
-            © {new Date().getFullYear()} {tenant.name}. {t.rights}
+            © <span suppressHydrationWarning>{new Date().getFullYear()}</span> {tenant.name}. {t.rights}
           </p>
           <div className="flex items-center gap-4">
             <span className="text-xs" style={{ color: '#334155' }}>{t.terms}</span>

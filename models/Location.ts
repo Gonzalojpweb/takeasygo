@@ -25,6 +25,10 @@ export interface ILocation extends Document {
     url: string
     showLogo: boolean
   }
+  serviceHours?: {
+    takeaway: Array<{ days: number[]; open: string; close: string }>
+    dineIn: Array<{ days: number[]; open: string; close: string }>
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -92,6 +96,10 @@ const LocationSchema = new Schema<ILocation>(
       mediaType: { type: String, enum: ['none', 'image', 'video'], default: 'none' },
       url: { type: String, default: '' },
       showLogo: { type: Boolean, default: true },
+    },
+    serviceHours: {
+      takeaway: { type: [{ days: [Number], open: String, close: String }], default: [] },
+      dineIn: { type: [{ days: [Number], open: String, close: String }], default: [] },
     },
   },
   {

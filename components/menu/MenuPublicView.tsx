@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import type { CartItem } from '@/types/cart'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import CustomizationModal from '@/components/menu/CustomizationModal'
+import { isAvailableNow } from '@/lib/availability'
 
 interface Props {
   tenant: any
@@ -84,6 +85,7 @@ const UI = {
 }
 
 export default function MenuPublicView({ tenant, location, menu, mode }: Props) {
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [translating, setTranslating] = useState(false)
   // menuData is kept in state so we can update it after bulk translation
@@ -101,8 +103,11 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const t = UI[locale]
 
   const categories = menuData.categories
-    .filter((cat: any) => cat.isAvailable)
-    .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+    .filter((cat: any) => cat.isAvailable && (!mounted || isAvailableNow(cat.availabilityMode, cat.availabilitySchedule)))
+    .sort((a: any, b: any) => {
+      const diff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+      return diff !== 0 ? diff : String(a._id).localeCompare(String(b._id))
+    })
 
   const featuredItems = categories.flatMap((cat: any) =>
     cat.items.filter((i: any) => i.isFeatured)
@@ -391,7 +396,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
             <div className={branding.menuLayout === 'grid' ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-0'}>
               {category.items
-                .filter((item: any) => item.isAvailable)
+                .filter((item: any) => item.isAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule)))
                 .map((item: any) => {
                   const veg = isVegetarian(item.tags || [])
                   const qty = itemTotalQty(item._id)
@@ -588,7 +593,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         <div className="border-t px-4 py-4 max-w-2xl mx-auto flex items-center justify-between gap-4"
           style={{ borderColor: primary + '20' }}>
           <p className="text-xs" style={{ color: '#475569' }}>
-            © {new Date().getFullYear()} {tenant.name}. {t.rights}
+            © <span suppressHydrationWarning>{new Date().getFullYear()}</span> {tenant.name}. {t.rights}
           </p>
           <div className="flex items-center gap-3">
             <PoweredByTakeasy variant="dark" label="network" />

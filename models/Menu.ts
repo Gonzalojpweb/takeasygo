@@ -14,6 +14,12 @@ export interface ICustomizationGroup {
   options: ICustomizationOption[]
 }
 
+export interface IAvailabilitySlot {
+  days: number[]
+  timeStart: string
+  timeEnd: string
+}
+
 export interface IMenuItem {
   _id?: mongoose.Types.ObjectId
   name: string
@@ -26,6 +32,8 @@ export interface IMenuItem {
   customizationGroups: ICustomizationGroup[]
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
+  availabilityMode?: 'always' | 'scheduled'
+  availabilitySchedule?: IAvailabilitySlot[]
 }
 
 export interface IMenuCategory {
@@ -38,6 +46,8 @@ export interface IMenuCategory {
   items: IMenuItem[]
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
+  availabilityMode?: 'always' | 'scheduled'
+  availabilitySchedule?: IAvailabilitySlot[]
 }
 
 export interface IMenu extends Document {
@@ -103,6 +113,15 @@ const MenuItemSchema = new Schema<IMenuItem>({
   descriptionTranslations: {
     en: { type: String, default: '' },
   },
+  availabilityMode: { type: String, enum: ['always', 'scheduled'], default: 'always' },
+  availabilitySchedule: {
+    type: [{
+      days: [Number],
+      timeStart: String,
+      timeEnd: String,
+    }],
+    default: [],
+  },
 })
 
 const MenuCategorySchema = new Schema<IMenuCategory>({
@@ -135,6 +154,15 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
   descriptionTranslations: {
     en: { type: String, default: '' },
   },
+  availabilityMode: { type: String, enum: ['always', 'scheduled'], default: 'always' },
+  availabilitySchedule: {
+    type: [{
+      days: [Number],
+      timeStart: String,
+      timeEnd: String,
+    }],
+    default: [],
+  },
 })
 
 const MenuSchema = new Schema<IMenu>(
@@ -163,6 +191,11 @@ const MenuSchema = new Schema<IMenu>(
 )
 
 MenuSchema.index({ tenantId: 1, locationId: 1 }, { unique: true })
+
+// In development, always recreate to pick up schema changes across hot-reloads
+if (process.env.NODE_ENV !== 'production') {
+  delete (mongoose.models as any).Menu
+}
 
 const Menu = mongoose.models.Menu || mongoose.model<IMenu>('Menu', MenuSchema)
 export default Menu
