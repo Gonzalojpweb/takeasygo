@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import User from '@/models/User'
 import { requireAdminRole } from '@/lib/apiAuth'
 import { getPlatformMPClient, BILLING_CONFIG, type BillablePlan } from '@/lib/mp-platform'
-import { auth } from '@/lib/auth'
 
 const BILLABLE_PLANS: BillablePlan[] = ['try', 'buy', 'full']
 
@@ -29,17 +27,14 @@ export async function POST(
       return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
     }
 
-    // Obtener email del admin que inicia la suscripción
-    const session = await auth()
-    const userId = session?.user?.id
-    const userDoc = userId ? await User.findById(userId).select('email').lean<{ email: string }>() : null
-    const payerEmail = userDoc?.email ?? 'admin@takeasygo.com'
-
     const config = BILLING_CONFIG[targetPlan]
     const appUrl = process.env.NEXTAUTH_URL ?? 'https://takeasygo.vercel.app'
 
-    const { preApproval } = getPlatformMPClient()
+    const { preApproval } = await getPlatformMPClient()
 
+    // payer_email se omite — MP lo solicita en su propio checkout.
+    // Incluirlo causaría error "Both payer and collector must be real or test users"
+    // cuando el email no pertenece a una cuenta MP del mismo tipo (test/produccion).
     const result = await preApproval.create({
       body: {
         reason: `TakeasyGO — ${config.label}`,
@@ -50,7 +45,6 @@ export async function POST(
           currency_id: config.currency,
         } as any,
         back_url: `${appUrl}/${tenantSlug}/admin/billing/success`,
-        payer_email: payerEmail,
         external_reference: `${tenant._id}:${targetPlan}`,
         status: 'pending',
       } as any,

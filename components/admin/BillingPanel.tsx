@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { CheckCircle2, Zap, Star, Rocket, ExternalLink, X, AlertCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PLAN_LABELS, PLAN_FEATURES_LANDING, type Plan } from '@/lib/plans'
-import { BILLING_CONFIG, type BillablePlan } from '@/lib/mp-platform'
+import { BILLING_CONFIG, type BillablePlan } from '@/lib/billing-config'
 
 interface SubscriptionInfo {
   status: string | null

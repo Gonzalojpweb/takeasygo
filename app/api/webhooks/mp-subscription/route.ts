@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { getPlatformMPClient, type BillablePlan } from '@/lib/mp-platform'
+import { getPlatformMPClient, getPlatformWebhookSecret, type BillablePlan } from '@/lib/mp-platform'
 
 /**
  * Verifica la firma HMAC-SHA256 del webhook de MercadoPago.
@@ -37,14 +37,17 @@ function verifySignature(
 
 export async function POST(request: NextRequest) {
   try {
-    const webhookSecret = process.env.MP_SUBSCRIPTION_WEBHOOK_SECRET
-    if (!webhookSecret) {
+    // Leer webhook secret desde DB
+    let webhookSecret: string
+    try {
+      webhookSecret = await getPlatformWebhookSecret()
+    } catch {
       return NextResponse.json({ error: 'Webhook no configurado' }, { status: 500 })
     }
 
     const body = await request.json()
 
-    // Solo procesar eventos de preapproval (suscripción)
+    // Solo procesar eventos de preapproval (suscripcion)
     if (body.type !== 'subscription_preapproval') {
       return NextResponse.json({ received: true })
     }
@@ -53,13 +56,13 @@ export async function POST(request: NextRequest) {
     const requestId = request.headers.get('x-request-id')
     const dataId = body.data?.id
 
-    const isValid = verifySignature(signatureHeader, requestId, dataId, webhookSecret)
+    const isValid = verifySignature(signatureHeader, requestId, dataId, webhookSecret!)
     if (!isValid) {
-      return NextResponse.json({ error: 'Firma inválida' }, { status: 401 })
+      return NextResponse.json({ error: 'Firma invalida' }, { status: 401 })
     }
 
     // Obtener el preapproval de MP
-    const { preApproval } = getPlatformMPClient()
+    const { preApproval } = await getPlatformMPClient()
     const sub = await preApproval.get({ id: dataId })
 
     const externalRef = (sub as any).external_reference ?? ''

@@ -23,7 +23,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'No hay suscripción activa' }, { status: 400 })
     }
 
-    const { preApproval } = getPlatformMPClient()
+    const { preApproval } = await getPlatformMPClient()
 
     await preApproval.update({
       id: preapprovalId,

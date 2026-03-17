@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Trash2, Store, Globe, CreditCard, ShieldAlert, ArrowLeft, Loader2, Save, AlertTriangle } from 'lucide-react'
+import { Trash2, Store, Globe, CreditCard, ShieldAlert, ArrowLeft, Loader2, Save, AlertTriangle, Mail, Pencil, X, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
@@ -20,12 +20,42 @@ const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
 
 interface Props {
   tenant: any
+  adminEmail: string | null
 }
 
-export default function EditTenantForm({ tenant }: Props) {
+export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  // Admin email state
+  const [adminEmail, setAdminEmail]       = useState(initialAdminEmail ?? '')
+  const [editingEmail, setEditingEmail]   = useState(false)
+  const [newEmail, setNewEmail]           = useState('')
+  const [emailLoading, setEmailLoading]   = useState(false)
+  const [emailError, setEmailError]       = useState<string | null>(null)
+
+  async function handleSaveEmail() {
+    if (!newEmail || newEmail === adminEmail) { setEditingEmail(false); return }
+    setEmailError(null)
+    setEmailLoading(true)
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenant._id}/admin-email`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newEmail }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al actualizar')
+      setAdminEmail(data.email)
+      setEditingEmail(false)
+      toast.success('Email del admin actualizado')
+    } catch (err: any) {
+      setEmailError(err.message)
+    } finally {
+      setEmailLoading(false)
+    }
+  }
   const [form, setForm] = useState({
     name: tenant.name,
     slug: tenant.slug,
@@ -228,6 +258,80 @@ export default function EditTenantForm({ tenant }: Props) {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Admin del tenant */}
+      <Card className="bg-card border-2 border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+        <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+              <Mail size={24} strokeWidth={2.5} />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold tracking-tight">Admin del restaurante</CardTitle>
+              <p className="text-xs text-muted-foreground font-medium">Email de acceso al panel de administración</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-8">
+          {!editingEmail ? (
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Email actual</p>
+                <p className="text-sm font-mono font-medium text-foreground">
+                  {adminEmail || <span className="text-muted-foreground italic">Sin admin asignado</span>}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl gap-2 font-bold text-xs"
+                onClick={() => { setNewEmail(adminEmail); setEditingEmail(true); setEmailError(null) }}
+              >
+                <Pencil size={13} /> Editar
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={e => setNewEmail(e.target.value)}
+                  placeholder="nuevo@email.com"
+                  autoFocus
+                  className="flex-1 bg-muted/40 border-2 border-border/60 focus:border-primary/40 text-foreground text-sm font-mono rounded-2xl px-4 py-3 outline-none transition-all"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={emailLoading}
+                  onClick={handleSaveEmail}
+                  className="rounded-xl gap-2 font-bold text-xs bg-primary text-white"
+                >
+                  {emailLoading ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  Guardar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={emailLoading}
+                  onClick={() => { setEditingEmail(false); setEmailError(null) }}
+                  className="rounded-xl text-muted-foreground"
+                >
+                  <X size={13} />
+                </Button>
+              </div>
+              {emailError && (
+                <p className="text-xs text-destructive font-medium flex items-center gap-1.5">
+                  <AlertTriangle size={12} /> {emailError}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
