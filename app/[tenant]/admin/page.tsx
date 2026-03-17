@@ -10,6 +10,7 @@ import type { Types } from 'mongoose'
 import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
+import OnboardingChecklist from '@/components/admin/OnboardingChecklist'
 
 function PlanBanner({ plan, trialOrderCount }: { plan: Plan; trialOrderCount?: number }) {
   if (plan === 'full') return null
@@ -76,7 +77,7 @@ export default async function AdminDashboard() {
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .lean<{ _id: Types.ObjectId; plan: Plan }>()
+    .lean<{ _id: Types.ObjectId; plan: Plan; branding: { logoUrl: string } }>()
   if (!tenant) notFound()
 
   const plan: Plan = tenant.plan ?? 'try'
@@ -137,6 +138,12 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <PlanBanner plan={plan} trialOrderCount={trialOrderCount} />
+
+      <OnboardingChecklist
+        tenantId={tenantId}
+        tenantSlug={tenantSlug!}
+        logoUrl={tenant.branding?.logoUrl ?? ''}
+      />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>

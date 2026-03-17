@@ -1,11 +1,16 @@
 // TakeasyGO Service Worker
-// Strategy: cache-first for static assets, network-first for HTML pages, skip API routes
+// Strategy:
+//   - JS/CSS chunks (/_next/static/): NETWORK ONLY — nunca cachear, cambian con cada deploy
+//   - Imágenes y fuentes estáticas: cache-first
+//   - HTML pages: network-first con fallback al cache
+//   - API routes: siempre network
 
-const CACHE = 'tgo-v2'
+const CACHE = 'tgo-v3'
 
 const PRECACHE = [
   '/real192.jpg',
   '/real512.jpg',
+  '/tgo192.png',
 ]
 
 self.addEventListener('install', (e) => {
@@ -28,18 +33,20 @@ self.addEventListener('fetch', (e) => {
   const req = e.request
   const url = new URL(req.url)
 
-  // Only handle GET requests from our own origin
+  // Solo GET de nuestro propio origen
   if (req.method !== 'GET' || url.origin !== self.location.origin) return
 
-  // Skip Next.js API routes and internal routes — always network
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/data/')) return
+  // ── NETWORK ONLY: API routes y chunks JS/CSS de Next.js ───────────────────
+  // Los chunks de /_next/static/ contienen el código de la app — si los
+  // cacheamos con cache-first, un deploy nuevo causa hydration mismatch.
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/_next/')
+  ) return
 
-  // Cache-first for static build assets and images
-  const isStaticAsset =
-    url.pathname.startsWith('/_next/static/') ||
-    url.pathname.match(/\.(png|jpg|jpeg|webp|gif|svg|ico|woff2|woff|ttf)$/)
-
-  if (isStaticAsset) {
+  // ── CACHE FIRST: imágenes y fuentes (no cambian entre deploys) ────────────
+  const isMedia = url.pathname.match(/\.(png|jpg|jpeg|webp|gif|svg|ico|woff2|woff|ttf)$/)
+  if (isMedia) {
     e.respondWith(
       caches.match(req).then(
         (cached) =>
@@ -56,7 +63,7 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
-  // Network-first for menu HTML pages — fall back to cache when offline
+  // ── NETWORK FIRST: páginas HTML — fallback al cache si offline ────────────
   e.respondWith(
     fetch(req)
       .then((res) => {

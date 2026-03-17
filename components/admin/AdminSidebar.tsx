@@ -17,6 +17,7 @@ import {
   Activity,
   Lock,
   CalendarDays,
+  CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -143,6 +144,12 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       href: `${base}/settings`,
       label: 'Configuración',
       icon: Settings,
+      roles: ['admin'],
+    },
+    {
+      href: `${base}/billing`,
+      label: 'Facturación',
+      icon: CreditCard,
       roles: ['admin'],
     },
   ]

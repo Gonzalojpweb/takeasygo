@@ -5,6 +5,13 @@ export interface ITenant extends Document {
   slug: string
   plan: 'trial' | 'try' | 'buy' | 'full'
   isActive: boolean
+  subscription: {
+    preapprovalId: string | null
+    status: 'authorized' | 'pending' | 'cancelled' | 'paused' | null
+    plan: 'try' | 'buy' | 'full' | null
+    nextBillingDate: Date | null
+    lastUpdated: Date | null
+  }
   branding: {
     primaryColor: string
     secondaryColor: string
@@ -61,6 +68,21 @@ const TenantSchema = new Schema<ITenant>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    subscription: {
+      preapprovalId: { type: String, default: null },
+      status: {
+        type: String,
+        enum: ['authorized', 'pending', 'cancelled', 'paused', null],
+        default: null,
+      },
+      plan: {
+        type: String,
+        enum: ['try', 'buy', 'full', null],
+        default: null,
+      },
+      nextBillingDate: { type: Date, default: null },
+      lastUpdated: { type: Date, default: null },
     },
     branding: {
       primaryColor: { type: String, default: '#000000' },
