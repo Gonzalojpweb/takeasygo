@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
 import RestaurantCard from './RestaurantCard'
 import { MapPin, List, Map, Loader2, AlertCircle, Navigation } from 'lucide-react'
@@ -21,15 +22,14 @@ type View = 'list' | 'map'
 const BUENOS_AIRES = { lat: -34.6037, lng: -58.3816 }
 
 export default function ExploreClient() {
+  const router = useRouter()
   const [view, setView] = useState<View>('list')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsError, setGpsError] = useState<string | null>(null)
   const [gpsLoading, setGpsLoading] = useState(true)
   const [restaurants, setRestaurants] = useState<NearbyRestaurant[]>([])
   const [fetching, setFetching] = useState(false)
-  const [selected, setSelected] = useState<NearbyRestaurant | null>(null)
   const [radius, setRadius] = useState(5000)
-  const [gpsGranted, setGpsGranted] = useState(false)
 
   // ── GPS ──────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -42,7 +42,6 @@ export default function ExploreClient() {
     navigator.geolocation.getCurrentPosition(
       pos => {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setGpsGranted(true)
         setGpsLoading(false)
       },
       () => {
@@ -173,7 +172,7 @@ export default function ExploreClient() {
                 <RestaurantCard
                   key={r.id}
                   restaurant={r}
-                  onClick={() => { setSelected(r); setView('map') }}
+                  onNavigate={() => router.push(`/explore/${r.id}?type=${r.type}`)}
                 />
               ))
             )}
@@ -187,23 +186,8 @@ export default function ExploreClient() {
               userLat={coords.lat}
               userLng={coords.lng}
               restaurants={restaurants}
-              onSelect={r => setSelected(r)}
+              onSelect={r => router.push(`/explore/${r.id}?type=${r.type}`)}
             />
-
-            {/* Panel inferior: tarjeta del seleccionado */}
-            {selected && (
-              <div className="absolute bottom-0 left-0 right-0 z-[1000] bg-white border-t border-zinc-200 shadow-2xl p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div />
-                  <button
-                    onClick={() => setSelected(null)}
-                    className="text-zinc-400 hover:text-zinc-600 text-xs">
-                    ✕ cerrar
-                  </button>
-                </div>
-                <RestaurantCard restaurant={selected} />
-              </div>
-            )}
           </div>
         )}
       </div>

@@ -4,19 +4,20 @@ import Link from 'next/link'
 
 interface Props {
   restaurant: NearbyRestaurant
-  onClick?: () => void
+  /** Navegar a la página de detalle al hacer click en el card */
+  onNavigate?: () => void
 }
 
 function distLabel(m: number) {
   return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`
 }
 
-export default function RestaurantCard({ restaurant: r, onClick }: Props) {
+export default function RestaurantCard({ restaurant: r, onNavigate }: Props) {
   const isNetwork = r.type === 'network'
 
   return (
     <div
-      onClick={onClick}
+      onClick={onNavigate}
       className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.99]">
 
       {/* Header */}
@@ -73,7 +74,7 @@ export default function RestaurantCard({ restaurant: r, onClick }: Props) {
         )}
       </div>
 
-      {/* CTA */}
+      {/* CTA — stopPropagation para no disparar onNavigate */}
       <div onClick={e => e.stopPropagation()}>
         {isNetwork ? (
           <Link
@@ -113,7 +114,9 @@ export default function RestaurantCard({ restaurant: r, onClick }: Props) {
 
       {/* Conversion CTA para directorio */}
       {!isNetwork && (
-        <p className="text-center text-[11px] text-zinc-400 mt-2">
+        <p
+          className="text-center text-[11px] text-zinc-400 mt-2"
+          onClick={e => e.stopPropagation()}>
           ¿Sos el dueño?{' '}
           <a href="/#pricing" className="text-emerald-600 hover:underline font-medium">
             Sumá tu restaurante a la red →

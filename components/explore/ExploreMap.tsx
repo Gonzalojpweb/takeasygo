@@ -24,8 +24,10 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
     import('leaflet').then(L => {
       // StrictMode monta dos veces — si el cleanup ya corrió, no inicializar
       if (cancelled || !containerRef.current || mapRef.current) return
-      // Si el contenedor ya tiene un mapa de Leaflet (hot-reload), salir
-      if ((containerRef.current as any)._leaflet_id) return
+      // Si el contenedor aún tiene _leaflet_id residual, limpiarlo antes de inicializar
+      if ((containerRef.current as any)._leaflet_id) {
+        delete (containerRef.current as any)._leaflet_id
+      }
 
       const map = L.map(containerRef.current!, {
         zoomControl: true,
@@ -116,6 +118,10 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
+      }
+      // Limpiar _leaflet_id del contenedor para que Leaflet pueda reinicializarlo
+      if (containerRef.current) {
+        delete (containerRef.current as any)._leaflet_id
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
