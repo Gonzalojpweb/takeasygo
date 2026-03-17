@@ -9,6 +9,13 @@ export interface ILocation extends Document {
   hours: string
   mapsUrl: string
   isActive: boolean
+  // ── Red TakeasyGO ──────────────────────────────────────────────────────────
+  geo?: {
+    type: 'Point'
+    coordinates: [number, number] // [longitude, latitude] — GeoJSON estándar
+  }
+  networkVisible: boolean // true = aparece en el mapa público de consumidores
+  // ──────────────────────────────────────────────────────────────────────────
   settings: {
     acceptsOrders: boolean
     orderModes: ('takeaway' | 'dine-in')[]
@@ -68,6 +75,23 @@ const LocationSchema = new Schema<ILocation>(
       trim: true,
       default: '',
     },
+    // ── Red TakeasyGO ────────────────────────────────────────────────────────
+    geo: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: undefined,
+      },
+    },
+    networkVisible: {
+      type: Boolean,
+      default: false,
+    },
+    // ─────────────────────────────────────────────────────────────────────────
     hours: {
       type: String,
       trim: true,
@@ -109,6 +133,9 @@ const LocationSchema = new Schema<ILocation>(
 
 // El slug debe ser único dentro del mismo tenant
 LocationSchema.index({ tenantId: 1, slug: 1 }, { unique: true })
+
+// Índice geoespacial para consultas de proximidad (sparse: solo indexa docs con geo)
+LocationSchema.index({ geo: '2dsphere' }, { sparse: true })
 
 // In development, always recreate to pick up schema changes across hot-reloads
 if (process.env.NODE_ENV !== 'production') {

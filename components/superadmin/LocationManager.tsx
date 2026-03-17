@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { MapPin, Plus, ChevronUp, Pencil, Trash2, X, Check, Upload } from 'lucide-react'
+import { MapPin, Plus, ChevronUp, Pencil, Trash2, X, Check, Upload, Globe } from 'lucide-react'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
 
 type OrderMode = 'takeaway' | 'dine-in'
@@ -18,6 +18,9 @@ interface LocationItem {
   isActive: boolean
   hasMenu: boolean
   orderModes: OrderMode[]
+  lat: number | null
+  lng: number | null
+  networkVisible: boolean
 }
 
 interface Props {
@@ -36,6 +39,8 @@ const EMPTY_FORM = {
   address: '',
   phone: '',
   orderModes: ['takeaway'] as OrderMode[],
+  lat: '',
+  lng: '',
 }
 
 export default function LocationManager({ tenantSlug, initialLocations }: Props) {
@@ -45,8 +50,16 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<Pick<LocationItem, 'name' | 'address' | 'phone' | 'orderModes'>>({
-    name: '', address: '', phone: '', orderModes: ['takeaway'],
+  const [editForm, setEditForm] = useState<{
+    name: string
+    address: string
+    phone: string
+    orderModes: OrderMode[]
+    lat: string
+    lng: string
+    networkVisible: boolean
+  }>({
+    name: '', address: '', phone: '', orderModes: ['takeaway'], lat: '', lng: '', networkVisible: false,
   })
   const [editLoading, setEditLoading] = useState(false)
   const [importingLocation, setImportingLocation] = useState<LocationItem | null>(null)
@@ -63,10 +76,27 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
   }
 
   // ── Create ──────────────────────────────────────────────────────────────────
+  function buildGeo(lat: string, lng: string): { type: 'Point'; coordinates: [number, number] } | null | 'invalid' {
+    if (!lat.trim() || !lng.trim()) return null
+    const latN = parseFloat(lat)
+    const lngN = parseFloat(lng)
+    if (isNaN(latN) || isNaN(lngN)) return 'invalid'
+    if (latN < -90 || latN > 90) return 'invalid'
+    if (lngN < -180 || lngN > 180) return 'invalid'
+    return { type: 'Point', coordinates: [lngN, latN] }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
     try {
+      const geoResult = buildGeo(form.lat, form.lng)
+      if (geoResult === 'invalid') {
+        toast.error('Coordenadas inválidas. Latitud: -90 a 90 · Longitud: -180 a 180')
+        setLoading(false)
+        return
+      }
+      const geo = geoResult
       const locRes = await fetch(`/api/${tenantSlug}/locations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,6 +106,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           address: form.address,
           phone: form.phone,
           settings: { orderModes: form.orderModes },
+          ...(geo && { geo }),
         }),
       })
       if (!locRes.ok) {
@@ -108,6 +139,9 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           isActive: location.isActive,
           hasMenu,
           orderModes: location.settings?.orderModes ?? form.orderModes,
+          lat: location.geo?.coordinates ? location.geo.coordinates[1] : null,
+          lng: location.geo?.coordinates ? location.geo.coordinates[0] : null,
+          networkVisible: location.networkVisible ?? false,
         },
       ])
       setForm(EMPTY_FORM)
@@ -122,12 +156,27 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
   // ── Edit ────────────────────────────────────────────────────────────────────
   function startEdit(loc: LocationItem) {
     setEditingId(loc._id)
-    setEditForm({ name: loc.name, address: loc.address, phone: loc.phone, orderModes: loc.orderModes })
+    setEditForm({
+      name: loc.name,
+      address: loc.address,
+      phone: loc.phone,
+      orderModes: loc.orderModes,
+      lat: loc.lat != null ? String(loc.lat) : '',
+      lng: loc.lng != null ? String(loc.lng) : '',
+      networkVisible: loc.networkVisible,
+    })
   }
 
   async function handleSaveEdit(locationId: string) {
     setEditLoading(true)
     try {
+      const geoResult = buildGeo(editForm.lat, editForm.lng)
+      if (geoResult === 'invalid') {
+        toast.error('Coordenadas inválidas. Latitud: -90 a 90 · Longitud: -180 a 180')
+        setEditLoading(false)
+        return
+      }
+      const geo = geoResult
       const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -136,16 +185,29 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           address: editForm.address,
           phone: editForm.phone,
           settings: { orderModes: editForm.orderModes },
+          networkVisible: editForm.networkVisible,
+          ...(geo ? { geo } : { $unset: { geo: '' } }),
         }),
       })
       if (!res.ok) {
         const err = await res.json()
         throw new Error(err.error || 'Error al guardar')
       }
+      const latN = parseFloat(editForm.lat)
+      const lngN = parseFloat(editForm.lng)
       setLocations(prev =>
         prev.map(l =>
           l._id === locationId
-            ? { ...l, name: editForm.name, address: editForm.address, phone: editForm.phone, orderModes: editForm.orderModes }
+            ? {
+                ...l,
+                name: editForm.name,
+                address: editForm.address,
+                phone: editForm.phone,
+                orderModes: editForm.orderModes,
+                lat: isNaN(latN) ? null : latN,
+                lng: isNaN(lngN) ? null : lngN,
+                networkVisible: editForm.networkVisible,
+              }
             : l
         )
       )
@@ -216,6 +278,66 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                         className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400"
                       />
                     </div>
+
+                    {/* ── Coordenadas GPS ──────────────────────────────────── */}
+                    <div>
+                      <label className="text-zinc-500 text-xs block mb-1">
+                        Coordenadas GPS{' '}
+                        <span className="text-zinc-600">(necesarias para aparecer en el mapa)</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          step="any"
+                          value={editForm.lat}
+                          onChange={e => setEditForm(p => ({ ...p, lat: e.target.value }))}
+                          placeholder="Latitud  ej: -34.603"
+                          className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 font-mono"
+                        />
+                        <input
+                          type="number"
+                          step="any"
+                          value={editForm.lng}
+                          onChange={e => setEditForm(p => ({ ...p, lng: e.target.value }))}
+                          placeholder="Longitud  ej: -58.381"
+                          className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 font-mono"
+                        />
+                      </div>
+                      <p className="text-zinc-600 text-xs mt-1">
+                        Podés obtenerlas desde Google Maps → clic derecho sobre el local → copiar coordenadas
+                      </p>
+                    </div>
+
+                    {/* ── Red TakeasyGO ────────────────────────────────────── */}
+                    <div className="flex items-center justify-between rounded-lg bg-zinc-700/50 border border-zinc-600 px-3 py-2">
+                      <div>
+                        <p className="text-white text-xs font-medium flex items-center gap-1.5">
+                          <Globe size={12} className="text-emerald-400" />
+                          Visible en Red TakeasyGO
+                        </p>
+                        <p className="text-zinc-500 text-xs mt-0.5">
+                          {editForm.lat && editForm.lng
+                            ? 'Activar para que aparezca en el mapa público'
+                            : 'Requiere coordenadas GPS primero'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!editForm.lat || !editForm.lng}
+                        onClick={() => setEditForm(p => ({ ...p, networkVisible: !p.networkVisible }))}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                          editForm.networkVisible && editForm.lat && editForm.lng
+                            ? 'bg-emerald-500'
+                            : 'bg-zinc-600'
+                        } disabled:opacity-40`}>
+                        <span
+                          className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                            editForm.networkVisible && editForm.lat && editForm.lng ? 'left-5' : 'left-0.5'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
                     <div>
                       <label className="text-zinc-500 text-xs block mb-1">Modalidades</label>
                       <div className="flex gap-2">
@@ -282,6 +404,16 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                         }`}>
                         {loc.hasMenu ? 'Con menú' : 'Sin menú'}
                       </span>
+                      {loc.networkVisible ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 flex items-center gap-1">
+                          <Globe size={9} />
+                          En Red
+                        </span>
+                      ) : loc.lat != null ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/20">
+                          📍 GPS
+                        </span>
+                      ) : null}
                       <button
                         title="Importar menú JSON"
                         onClick={() => setImportingLocation(loc)}
@@ -363,6 +495,31 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                     placeholder="+54 11 1234-5678"
                     className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-zinc-400"
                   />
+                </div>
+
+                <div>
+                  <label className="text-zinc-400 text-xs block mb-1">
+                    Coordenadas GPS{' '}
+                    <span className="text-zinc-600">(opcional, para el mapa)</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      step="any"
+                      value={form.lat}
+                      onChange={e => setForm(p => ({ ...p, lat: e.target.value }))}
+                      placeholder="Latitud  -34.603"
+                      className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-zinc-400 font-mono"
+                    />
+                    <input
+                      type="number"
+                      step="any"
+                      value={form.lng}
+                      onChange={e => setForm(p => ({ ...p, lng: e.target.value }))}
+                      placeholder="Longitud  -58.381"
+                      className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-zinc-400 font-mono"
+                    />
+                  </div>
                 </div>
 
                 <div>

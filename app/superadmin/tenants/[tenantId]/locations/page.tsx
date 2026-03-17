@@ -31,6 +31,8 @@ export default async function TenantLocationsPage({ params }: Props) {
       address: string
       phone: string
       isActive: boolean
+      geo?: { type: string; coordinates: [number, number] }
+      networkVisible: boolean
       settings: { orderModes: ('takeaway' | 'dine-in')[] }
     }>
   >()
@@ -47,6 +49,9 @@ export default async function TenantLocationsPage({ params }: Props) {
     isActive: loc.isActive,
     hasMenu: menuLocationIds.has(loc._id.toString()),
     orderModes: loc.settings?.orderModes ?? (['takeaway'] as ('takeaway' | 'dine-in')[]),
+    lat: loc.geo?.coordinates ? loc.geo.coordinates[1] : null,
+    lng: loc.geo?.coordinates ? loc.geo.coordinates[0] : null,
+    networkVisible: loc.networkVisible ?? false,
   }))
 
   return (

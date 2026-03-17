@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Store, BarChart3, LogOut, ChevronRight, UserCheck, Globe } from 'lucide-react'
+import { LayoutDashboard, Store, BarChart3, LogOut, ChevronRight, UserCheck, Globe, BookMarked } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -16,6 +16,7 @@ export default function SuperAdminSidebar() {
         { href: '/superadmin/tenants', label: 'Tenants', icon: Store },
         { href: '/superadmin/leads', label: 'Leads', icon: UserCheck },
         { href: '/superadmin/red', label: 'Red', icon: Globe },
+        { href: '/superadmin/directory', label: 'Directorio', icon: BookMarked },
         { href: '/superadmin/analytics', label: 'Analytics', icon: BarChart3 },
     ]
 
