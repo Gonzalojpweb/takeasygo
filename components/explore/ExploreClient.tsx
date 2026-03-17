@@ -1,0 +1,212 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
+import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
+import RestaurantCard from './RestaurantCard'
+import { MapPin, List, Map, Loader2, AlertCircle, Navigation } from 'lucide-react'
+
+// Leaflet no puede correr en SSR
+const ExploreMap = dynamic(() => import('./ExploreMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-zinc-100">
+      <Loader2 size={24} className="animate-spin text-zinc-400" />
+    </div>
+  ),
+})
+
+type View = 'list' | 'map'
+
+const BUENOS_AIRES = { lat: -34.6037, lng: -58.3816 }
+
+export default function ExploreClient() {
+  const [view, setView] = useState<View>('list')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [gpsError, setGpsError] = useState<string | null>(null)
+  const [gpsLoading, setGpsLoading] = useState(true)
+  const [restaurants, setRestaurants] = useState<NearbyRestaurant[]>([])
+  const [fetching, setFetching] = useState(false)
+  const [selected, setSelected] = useState<NearbyRestaurant | null>(null)
+  const [radius, setRadius] = useState(5000)
+  const [gpsGranted, setGpsGranted] = useState(false)
+
+  // ── GPS ──────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGpsError('Tu navegador no soporta geolocalización')
+      setCoords(BUENOS_AIRES)
+      setGpsLoading(false)
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setGpsGranted(true)
+        setGpsLoading(false)
+      },
+      () => {
+        setGpsError('Permiso de ubicación denegado — mostrando Buenos Aires')
+        setCoords(BUENOS_AIRES)
+        setRadius(10000) // radio más amplio cuando no hay GPS real
+        setGpsLoading(false)
+      },
+      { timeout: 8000, maximumAge: 60000 }
+    )
+  }, [])
+
+  // ── Fetch restaurantes cercanos ───────────────────────────────────────────────
+  const fetchNearby = useCallback(async (lat: number, lng: number, r: number) => {
+    setFetching(true)
+    try {
+      const res = await fetch(`/api/explore/nearby?lat=${lat}&lng=${lng}&radius=${r}`)
+      if (!res.ok) throw new Error('Error al cargar restaurantes')
+      const data = await res.json()
+      setRestaurants(data.restaurants)
+    } catch {
+      setRestaurants([])
+    } finally {
+      setFetching(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (coords) fetchNearby(coords.lat, coords.lng, radius)
+  }, [coords, radius, fetchNearby])
+
+  // ── Loading GPS ───────────────────────────────────────────────────────────────
+  if (gpsLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 text-zinc-400">
+        <Navigation size={32} className="animate-pulse text-emerald-500" />
+        <p className="text-sm font-medium">Detectando tu ubicación...</p>
+      </div>
+    )
+  }
+
+  const networkCount = restaurants.filter(r => r.type === 'network').length
+  const listedCount  = restaurants.filter(r => r.type === 'listed').length
+
+  return (
+    <div className="flex flex-col h-full bg-zinc-50">
+
+      {/* ── Top bar ──────────────────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-zinc-200 px-4 pt-4 pb-3 shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h1 className="text-zinc-900 font-bold text-lg leading-tight">Takeaway cerca de vos</h1>
+            {gpsError && (
+              <p className="text-amber-600 text-xs flex items-center gap-1 mt-0.5">
+                <AlertCircle size={11} /> {gpsError}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-1 bg-zinc-100 rounded-xl p-1">
+            <button
+              onClick={() => setView('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                view === 'list' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'
+              }`}>
+              <List size={13} /> Lista
+            </button>
+            <button
+              onClick={() => setView('map')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                view === 'map' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'
+              }`}>
+              <Map size={13} /> Mapa
+            </button>
+          </div>
+        </div>
+
+        {/* Radio selector */}
+        <div className="flex items-center gap-2">
+          <MapPin size={12} className="text-zinc-400 shrink-0" />
+          <p className="text-zinc-400 text-xs shrink-0">Radio:</p>
+          <div className="flex gap-1">
+            {[1000, 2000, 5000, 10000].map(r => (
+              <button
+                key={r}
+                onClick={() => setRadius(r)}
+                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                  radius === r
+                    ? 'bg-zinc-900 text-white border-zinc-900'
+                    : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400'
+                }`}>
+                {r >= 1000 ? `${r / 1000}km` : `${r}m`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Resumen */}
+        {!fetching && restaurants.length > 0 && (
+          <p className="text-zinc-400 text-xs mt-2">
+            {networkCount > 0 && <span className="text-emerald-600 font-medium">{networkCount} en red</span>}
+            {networkCount > 0 && listedCount > 0 && <span className="mx-1">·</span>}
+            {listedCount > 0 && <span>{listedCount} en directorio</span>}
+          </p>
+        )}
+      </div>
+
+      {/* ── Contenido principal ───────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-hidden relative">
+
+        {/* Loading fetch */}
+        {fetching && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-50/80">
+            <Loader2 size={28} className="animate-spin text-emerald-500" />
+          </div>
+        )}
+
+        {/* Vista LISTA */}
+        {view === 'list' && !fetching && (
+          <div className="h-full overflow-y-auto px-4 py-4 space-y-3">
+            {restaurants.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full gap-3 text-zinc-400 py-20">
+                <MapPin size={36} className="text-zinc-300" />
+                <p className="text-sm font-medium text-zinc-500">Sin restaurantes en este radio</p>
+                <p className="text-xs text-zinc-400">Probá aumentar el radio de búsqueda</p>
+              </div>
+            ) : (
+              restaurants.map(r => (
+                <RestaurantCard
+                  key={r.id}
+                  restaurant={r}
+                  onClick={() => { setSelected(r); setView('map') }}
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Vista MAPA */}
+        {view === 'map' && coords && (
+          <div className="h-full w-full">
+            <ExploreMap
+              userLat={coords.lat}
+              userLng={coords.lng}
+              restaurants={restaurants}
+              onSelect={r => setSelected(r)}
+            />
+
+            {/* Panel inferior: tarjeta del seleccionado */}
+            {selected && (
+              <div className="absolute bottom-0 left-0 right-0 z-[1000] bg-white border-t border-zinc-200 shadow-2xl p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div />
+                  <button
+                    onClick={() => setSelected(null)}
+                    className="text-zinc-400 hover:text-zinc-600 text-xs">
+                    ✕ cerrar
+                  </button>
+                </div>
+                <RestaurantCard restaurant={selected} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
