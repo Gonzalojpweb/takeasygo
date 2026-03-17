@@ -69,3 +69,46 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(req))
   )
 })
+
+// ── Push notifications ────────────────────────────────────────────────────────
+self.addEventListener('push', (e) => {
+  if (!e.data) return
+
+  let data = {}
+  try { data = e.data.json() } catch { data = { title: 'TakeasyGO', body: e.data.text() } }
+
+  const {
+    title = 'TakeasyGO',
+    body = '',
+    icon = '/tgo192.png',
+    badge = '/tgo192.png',
+    url = '/explore',
+  } = data
+
+  e.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      badge,
+      data: { url },
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+    })
+  )
+})
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const url = e.notification.data?.url ?? '/explore'
+
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => c.url.includes(self.location.origin))
+      if (existing) {
+        existing.focus()
+        return existing.navigate(url)
+      }
+      return self.clients.openWindow(url)
+    })
+  )
+})

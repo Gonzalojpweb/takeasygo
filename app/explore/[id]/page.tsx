@@ -89,11 +89,25 @@ async function fetchRestaurant(id: string, type: string): Promise<NearbyRestaura
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params
   const { type = 'network' } = await searchParams
-  const restaurant = await fetchRestaurant(id, type)
-  if (!restaurant) return { title: 'Restaurante · TakeasyGO' }
+  const r = await fetchRestaurant(id, type)
+  if (!r) return { title: 'Restaurante · TakeasyGO' }
+
+  const image = r.logoUrl || '/real512.jpg'
   return {
-    title: `${restaurant.name} · TakeasyGO`,
-    description: `${restaurant.address} — Pedí takeaway en TakeasyGO`,
+    title: `${r.name} · TakeasyGO`,
+    description: `${r.address} — Pedí takeaway en TakeasyGO`,
+    openGraph: {
+      title: r.name,
+      description: `${r.address} — Pedí takeaway sin filas`,
+      images: [{ url: image, width: 512, height: 512 }],
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary',
+      title: r.name,
+      description: r.address,
+      images: [image],
+    },
   }
 }
 

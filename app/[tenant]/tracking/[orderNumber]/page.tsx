@@ -2,21 +2,10 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import { notFound } from 'next/navigation'
-import ConfirmPickupButton from '@/components/tracking/ConfirmPickupButton'
+import OrderTracker from '@/components/tracking/OrderTracker'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
-}
-
-const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
-
-const STATUS_INFO: Record<string, { label: string; description: string; emoji: string }> = {
-  pending:   { label: 'Recibido',     description: 'Tu pedido fue recibido y está esperando confirmación', emoji: '📋' },
-  confirmed: { label: 'Confirmado',   description: 'El restaurante confirmó tu pedido', emoji: '✅' },
-  preparing: { label: 'Preparando',   description: 'Tu pedido está siendo preparado', emoji: '👨‍🍳' },
-  ready:     { label: 'Listo',        description: '¡Tu pedido está listo para retirar!', emoji: '🎉' },
-  delivered: { label: 'Entregado',    description: 'Pedido retirado. ¡Que lo disfrutes!', emoji: '🍽️' },
-  cancelled: { label: 'Cancelado',    description: 'El pedido fue cancelado', emoji: '❌' },
 }
 
 export default async function TrackingPage({ params }: Props) {
@@ -31,15 +20,12 @@ export default async function TrackingPage({ params }: Props) {
   if (!order) notFound()
 
   const branding = tenant.branding
-  const currentStatus = STATUS_INFO[order.status]
-  const currentStep = STATUS_STEPS.indexOf(order.status)
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: branding.backgroundColor, color: branding.textColor }}>
 
       {/* Header */}
-      <header className="border-b px-4 py-4"
-        style={{ borderColor: branding.primaryColor + '20' }}>
+      <header className="border-b px-4 py-4" style={{ borderColor: branding.primaryColor + '20' }}>
         <div className="max-w-md mx-auto flex items-center justify-between">
           {branding.logoUrl
             ? <img src={branding.logoUrl} alt={tenant.name} className="h-8 object-contain" />
@@ -51,75 +37,18 @@ export default async function TrackingPage({ params }: Props) {
 
       <main className="max-w-md mx-auto px-4 py-8">
 
-        {/* Status principal */}
-        <div className="text-center mb-10">
-          <div className="text-6xl mb-4">{currentStatus.emoji}</div>
-          <h1 className="text-2xl font-black mb-2">{currentStatus.label}</h1>
-          <p className="text-sm opacity-60">{currentStatus.description}</p>
-        </div>
-
-        {/* Progress bar */}
-        {order.status !== 'cancelled' && (
-          <div className="mb-10">
-            <div className="flex items-center justify-between mb-2">
-              {STATUS_STEPS.map((step, index) => (
-                <div key={step} className="flex flex-col items-center gap-1">
-                  <div
-                    className="w-3 h-3 rounded-full transition-all"
-                    style={{
-                      backgroundColor: index <= currentStep
-                        ? branding.primaryColor
-                        : branding.primaryColor + '30'
-                    }}
-                  />
-                  <span className="text-xs opacity-50 hidden sm:block">
-                    {STATUS_INFO[step].label}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="h-1 rounded-full w-full" style={{ backgroundColor: branding.primaryColor + '20' }}>
-              <div
-                className="h-1 rounded-full transition-all duration-500"
-                style={{
-                  backgroundColor: branding.primaryColor,
-                  width: `${(currentStep / (STATUS_STEPS.length - 1)) * 100}%`
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Acción del cliente: confirmar retiro cuando el pedido está listo */}
-        {order.status === 'ready' && (
-          <div className="mb-8 rounded-2xl p-5"
-            style={{ backgroundColor: branding.primaryColor + '10', border: `2px solid ${branding.primaryColor}40` }}>
-            <p className="text-sm font-semibold mb-4 text-center opacity-70">
-              Acercate a retirar tu pedido y confirmá cuando lo tengas
-            </p>
-            <ConfirmPickupButton
-              orderId={order._id.toString()}
-              tenantSlug={tenantSlug}
-              locationId={order.locationId.toString()}
-              primaryColor={branding.primaryColor}
-              backgroundColor={branding.backgroundColor}
-              textColor={branding.textColor}
-            />
-          </div>
-        )}
-
-        {/* Pedido ya entregado: mostrar botón para volver al menú */}
-        {order.status === 'delivered' && (
-          <div className="mb-8 text-center">
-            <a
-              href={`/${tenantSlug}/menu/${order.locationId.toString()}/takeaway`}
-              className="inline-block w-full py-4 rounded-2xl font-bold text-base"
-              style={{ backgroundColor: branding.primaryColor, color: branding.backgroundColor }}
-            >
-              Volver al menú
-            </a>
-          </div>
-        )}
+        {/* Status + progreso + CTA — todo reactivo con polling */}
+        <OrderTracker
+          orderId={order._id.toString()}
+          tenantSlug={tenantSlug}
+          locationId={order.locationId.toString()}
+          initialStatus={order.status}
+          initialEstimatedReadyAt={order.statusTimestamps?.estimatedReadyAt?.toISOString() ?? null}
+          primaryColor={branding.primaryColor}
+          backgroundColor={branding.backgroundColor}
+          textColor={branding.textColor}
+          orderNumber={order.orderNumber}
+        />
 
         {/* Resumen del pedido */}
         <div className="rounded-2xl p-4 mb-6"
@@ -140,10 +69,7 @@ export default async function TrackingPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Cliente */}
-        <p className="text-center text-sm opacity-40">
-          Pedido para {order.customer.name}
-        </p>
+        <p className="text-center text-sm opacity-40">Pedido para {order.customer.name}</p>
 
       </main>
     </div>

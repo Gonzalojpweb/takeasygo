@@ -1,41 +1,30 @@
-import { connectDB } from '@/lib/mongoose'
-import Tenant from '@/models/Tenant'
-import Order from '@/models/Order'
-import { notFound } from 'next/navigation'
-import Link from 'next/link'
+'use client'
 
-interface Props {
-  params: Promise<{ tenant: string; orderNumber: string }>
-}
+import { useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 
-export default async function OrderSuccessPage({ params }: Props) {
-  const { tenant: tenantSlug, orderNumber } = await params
-  await connectDB()
+export default function OrderSuccessPage() {
+  const { tenant: tenantSlug, orderNumber } = useParams<{ tenant: string; orderNumber: string }>()
+  const router = useRouter()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
-  if (!tenant) notFound()
-
-  const order = await Order.findOne({ orderNumber, tenantId: tenant._id }).lean() as any
-  if (!order) notFound()
-
-  const branding = tenant.branding
+  useEffect(() => {
+    const t = setTimeout(() => {
+      router.replace(`/${tenantSlug}/tracking/${orderNumber}`)
+    }, 2500)
+    return () => clearTimeout(t)
+  }, [router, tenantSlug, orderNumber])
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4"
-      style={{ backgroundColor: branding.backgroundColor, color: branding.textColor }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-white">
       <div className="text-center max-w-sm">
-        <div className="text-7xl mb-6">🎉</div>
-        <h1 className="text-2xl font-black mb-2">¡Pago exitoso!</h1>
-        <p className="opacity-60 text-sm mb-2">Tu pedido fue confirmado</p>
-        <p className="font-mono text-sm font-bold mb-8" style={{ color: branding.primaryColor }}>
-          #{order.orderNumber}
-        </p>
-        <Link href={`/${tenantSlug}/tracking/${orderNumber}`}>
-          <button className="w-full py-4 rounded-2xl font-bold"
-            style={{ backgroundColor: branding.primaryColor, color: branding.backgroundColor }}>
-            Ver estado del pedido
-          </button>
-        </Link>
+        <div className="text-7xl mb-6 animate-bounce">🎉</div>
+        <h1 className="text-2xl font-black mb-2 text-zinc-900">¡Pago exitoso!</h1>
+        <p className="text-zinc-500 text-sm mb-1">Tu pedido fue confirmado</p>
+        <p className="font-mono text-sm font-bold text-emerald-600 mb-8">#{orderNumber}</p>
+        <p className="text-xs text-zinc-400">Redirigiendo al seguimiento...</p>
+        <div className="mt-3 flex justify-center">
+          <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        </div>
       </div>
     </div>
   )

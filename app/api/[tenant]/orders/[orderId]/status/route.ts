@@ -2,9 +2,17 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
+import PushSubscription from '@/models/PushSubscription'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
+import webpush from 'web-push'
+
+webpush.setVapidDetails(
+  'mailto:clickandthink1@gmail.com',
+  process.env.VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+)
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending:    ['confirmed', 'cancelled'],
@@ -76,6 +84,32 @@ export async function PATCH(
     }
 
     await order.save()
+
+    // ── Push notification al cliente cuando el pedido está listo ──────────────
+    if (status === 'ready' && (order as any).clientToken) {
+      try {
+        const sub = await PushSubscription.findOne({ clientToken: (order as any).clientToken })
+        if (sub) {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            JSON.stringify({
+              title: '🛍️ ¡Tu pedido está listo!',
+              body: `Pedido #${order.orderNumber} — podés pasar a retirarlo.`,
+              icon: '/tgo192.png',
+              badge: '/tgo192.png',
+              url: '/explore',
+            })
+          )
+        }
+      } catch (pushErr: any) {
+        // Si el endpoint expiró, limpiar la suscripción
+        if (pushErr?.statusCode === 410) {
+          await PushSubscription.deleteOne({ clientToken: (order as any).clientToken })
+        }
+        // No fallar el endpoint por un error de push
+        console.warn('[push] Error enviando notificación:', pushErr?.message)
+      }
+    }
 
     // Milestone detection: notificar al cliente cuando el pedido #30 es procesado (solo plan trial)
     let milestoneReached = false

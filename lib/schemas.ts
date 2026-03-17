@@ -35,6 +35,7 @@ export const createOrderSchema = z.object({
       .transform(v => v ?? ''),
   }),
   notes: z.string().max(500).trim().default(''),
+  clientToken: z.string().uuid().optional().nullable(),
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>

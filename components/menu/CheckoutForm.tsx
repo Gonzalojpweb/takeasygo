@@ -45,6 +45,7 @@ async function handleSubmit(e: React.FormEvent) {
         customer: { name: form.name, phone: form.phone, email: form.email },
         items: cart,
         notes: form.notes,
+        clientToken: localStorage.getItem('tgo-client-token') ?? undefined,
       }),
     })
 

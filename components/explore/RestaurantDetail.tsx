@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
-import { MapPin, Clock, Phone, Utensils, ExternalLink, ArrowLeft, ShoppingBag } from 'lucide-react'
+import { MapPin, Clock, Phone, Utensils, ExternalLink, ArrowLeft, ShoppingBag, Share2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import 'leaflet/dist/leaflet.css'
@@ -74,6 +74,15 @@ function MiniMap({ lat, lng, name }: { lat: number; lng: number; name: string })
   )
 }
 
+async function handleShare(name: string, address: string) {
+  const url = window.location.href
+  if (navigator.share) {
+    await navigator.share({ title: name, text: `${name} — ${address}`, url })
+  } else {
+    await navigator.clipboard.writeText(url)
+  }
+}
+
 export default function RestaurantDetail({ restaurant: r }: Props) {
   const router = useRouter()
   const isNetwork = r.type === 'network'
@@ -93,6 +102,12 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
           <p className="text-xs text-zinc-400 truncate">Restaurante</p>
           <h1 className="font-bold text-zinc-900 text-base leading-tight truncate">{r.name}</h1>
         </div>
+        <button
+          onClick={() => handleShare(r.name, r.address)}
+          className="flex items-center justify-center w-8 h-8 rounded-xl bg-zinc-100 hover:bg-zinc-200 transition-colors shrink-0"
+          title="Compartir">
+          <Share2 size={15} className="text-zinc-600" />
+        </button>
         {isNetwork && r.logoUrl && (
           <div className="shrink-0 w-10 h-10 rounded-xl overflow-hidden border border-zinc-100">
             <img src={r.logoUrl} alt={r.name} className="w-full h-full object-cover" />

@@ -181,6 +181,7 @@ export async function POST(
       total,
       customer: body.customer,
       notes: body.notes || '',
+      clientToken: body.clientToken ?? null,
     })
 
     return NextResponse.json({ order }, { status: 201 })

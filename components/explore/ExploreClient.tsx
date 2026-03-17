@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
 import RestaurantCard from './RestaurantCard'
+import InstallBanner from './InstallBanner'
+import PushSubscriber from './PushSubscriber'
 import { MapPin, List, Map, Loader2, AlertCircle, Navigation } from 'lucide-react'
 
 // Leaflet no puede correr en SSR
@@ -88,6 +90,10 @@ export default function ExploreClient() {
 
   return (
     <div className="flex flex-col h-full bg-zinc-50">
+
+      {/* ── Banners ──────────────────────────────────────────────────────────── */}
+      <InstallBanner />
+      <PushSubscriber />
 
       {/* ── Top bar ──────────────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-zinc-200 px-4 pt-4 pb-3 shrink-0">

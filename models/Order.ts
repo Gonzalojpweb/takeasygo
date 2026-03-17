@@ -142,6 +142,8 @@ const OrderSchema = new Schema<IOrder>(
       mercadopagoData: { type: Schema.Types.Mixed, default: null },
     },
     notes: { type: String, default: '', trim: true },
+    // Token del dispositivo consumer para enviar push cuando el pedido esté listo
+    clientToken: { type: String, default: null, index: true },
     printed: { type: Boolean, default: false },
     statusTimestamps: {
       confirmedAt:      { type: Date, default: null },
