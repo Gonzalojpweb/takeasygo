@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useTransition, useEffect, useRef } from 'react'
+import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2 } from 'lucide-react'
+import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2, Radio } from 'lucide-react'
 import OrderStatusButton from './OrderStatusButton'
 import { cn } from '@/lib/utils'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
+import { toast } from 'sonner'
 
 interface Props {
   orders: any[]
@@ -48,29 +49,59 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
   const [isPending, startTransition] = useTransition()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilter, setActiveFilter] = useState('pending')
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
   const playSound = useNotificationSound()
   const knownIdsRef = useRef<Set<string>>(new Set(orders.map(o => o._id)))
 
-  // Auto-refresh every 30s
-  useEffect(() => {
-    const interval = setInterval(() => {
-      startTransition(() => router.refresh())
-    }, 30000)
-    return () => clearInterval(interval)
+  const doRefresh = useCallback(() => {
+    startTransition(() => {
+      router.refresh()
+      setLastUpdated(new Date())
+    })
   }, [router])
 
-  // Detect new pending orders and play sound
+  // Auto-refresh cada 10s cuando hay órdenes activas, 30s si no
+  useEffect(() => {
+    const hasActive = orders.some(o => ACTIVE_STATUSES.includes(o.status))
+    const interval = setInterval(doRefresh, hasActive ? 10_000 : 30_000)
+    return () => clearInterval(interval)
+  }, [orders, doRefresh])
+
+  // Refresh inmediato cuando el tab vuelve a ser visible
+  useEffect(() => {
+    function onVisibility() {
+      if (document.visibilityState === 'visible') doRefresh()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [doRefresh])
+
+  // Detectar nuevos pedidos pendientes → sonido + toast
   useEffect(() => {
     const incoming = orders.filter(o => !knownIdsRef.current.has(o._id))
-    if (incoming.length > 0 && incoming.some(o => o.status === 'pending')) {
+    const newPending = incoming.filter(o => o.status === 'pending')
+    if (newPending.length > 0) {
       playSound()
+      setNewOrderIds(prev => new Set([...prev, ...newPending.map(o => o._id)]))
+      toast(`🛍️ ${newPending.length === 1 ? 'Nuevo pedido' : `${newPending.length} nuevos pedidos`}`, {
+        description: newPending.map(o => `#${o.orderNumber} · ${o.customer.name}`).join(' — '),
+        duration: 8000,
+        position: 'top-center',
+      })
+      // Limpiar highlight después de 8s
+      setTimeout(() => {
+        setNewOrderIds(prev => {
+          const next = new Set(prev)
+          newPending.forEach(o => next.delete(o._id))
+          return next
+        })
+      }, 8000)
     }
     knownIdsRef.current = new Set(orders.map(o => o._id))
   }, [orders, playSound])
 
-  function handleRefresh() {
-    startTransition(() => router.refresh())
-  }
+  function handleRefresh() { doRefresh() }
 
   const countByStatus = orders.reduce((acc, o) => {
     acc[o.status] = (acc[o.status] || 0) + 1
@@ -127,6 +158,13 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
         >
           <RefreshCw size={15} className={cn(isPending && 'animate-spin')} />
         </button>
+        {/* Indicador en vivo */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Radio size={12} className={cn('text-emerald-500', isPending && 'opacity-40')} />
+          <span className="text-xs text-muted-foreground font-medium hidden sm:block">
+            {isPending ? 'Actualizando...' : `${lastUpdated.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+          </span>
+        </div>
         <span className="text-xs text-muted-foreground font-medium shrink-0">
           {filtered.length} pedido{filtered.length !== 1 ? 's' : ''}
         </span>
@@ -208,7 +246,12 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: index * 0.03, duration: 0.18 }}
-                  className="bg-card border border-border/70 rounded-2xl overflow-hidden flex flex-col hover:border-primary/30 hover:shadow-md transition-all"
+                  className={cn(
+                    "bg-card border rounded-2xl overflow-hidden flex flex-col hover:shadow-md transition-all",
+                    newOrderIds.has(order._id)
+                      ? "border-emerald-400 shadow-emerald-100 shadow-lg ring-2 ring-emerald-300/40"
+                      : "border-border/70 hover:border-primary/30"
+                  )}
                 >
                   {/* Card header */}
                   <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border/50">
