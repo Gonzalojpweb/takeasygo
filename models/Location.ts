@@ -32,6 +32,7 @@ export interface ILocation extends Document {
     url: string
     showLogo: boolean
   }
+  cuisineTypes: string[]
   serviceHours?: {
     takeaway: Array<{ days: number[]; open: string; close: string }>
     dineIn: Array<{ days: number[]; open: string; close: string }>
@@ -121,6 +122,7 @@ const LocationSchema = new Schema<ILocation>(
       url: { type: String, default: '' },
       showLogo: { type: Boolean, default: true },
     },
+    cuisineTypes: { type: [String], default: [] },
     serviceHours: {
       takeaway: { type: [{ days: [Number], open: String, close: String }], default: [] },
       dineIn: { type: [{ days: [Number], open: String, close: String }], default: [] },

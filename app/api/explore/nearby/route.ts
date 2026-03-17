@@ -16,10 +16,11 @@ export interface NearbyRestaurant {
   address: string
   lat: number
   lng: number
-  distanceM: number            // metros desde el usuario
+  distanceM: number
   phone: string
   cuisineTypes: string[]
   openingHours: string
+  isOpenNow: boolean | null    // null = sin horarios estructurados (directorio)
   // Solo en type = 'network'
   tenantSlug?: string
   tenantName?: string
@@ -31,6 +32,22 @@ export interface NearbyRestaurant {
   // Solo en type = 'listed'
   externalMenuUrl?: string
   status?: string
+}
+
+// Determina si un restaurante está abierto ahora según sus serviceHours de takeaway
+function checkIsOpenNow(
+  serviceHours?: { takeaway: Array<{ days: number[]; open: string; close: string }> }
+): boolean | null {
+  if (!serviceHours?.takeaway?.length) return null
+  const now = new Date()
+  const day = now.getDay()
+  const cur = now.getHours() * 100 + now.getMinutes()
+  return serviceHours.takeaway.some(slot => {
+    if (!slot.days.includes(day)) return false
+    const [oh, om] = slot.open.split(':').map(Number)
+    const [ch, cm] = slot.close.split(':').map(Number)
+    return cur >= oh * 100 + om && cur <= ch * 100 + cm
+  })
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -68,11 +85,11 @@ export async function GET(request: NextRequest) {
 
     const geoNearStage = {
       $geoNear: {
-        near: { type: 'Point', coordinates: [lng, lat] },
+        near: { type: 'Point' as const, coordinates: [lng, lat] as [number, number] },
         distanceField: 'distanceM',
         maxDistance: radius,
         spherical: true,
-        query: {},  // se sobreescribe por cada colección
+        query: {},
       },
     }
 
@@ -104,6 +121,8 @@ export async function GET(request: NextRequest) {
             address: 1,
             distanceM: 1,
             phone: 1,
+            cuisineTypes: 1,
+            serviceHours: 1,
             'geo.coordinates': 1,
             'settings.acceptsOrders': 1,
             'settings.estimatedPickupTime': 1,
@@ -161,8 +180,9 @@ export async function GET(request: NextRequest) {
       lng: loc.geo?.coordinates?.[0] ?? lng,
       distanceM: Math.round(loc.distanceM),
       phone: loc.phone ?? '',
-      cuisineTypes: [],
+      cuisineTypes: loc.cuisineTypes ?? [],
       openingHours: '',
+      isOpenNow: checkIsOpenNow(loc.serviceHours),
       tenantSlug: loc.tenant?.slug,
       tenantName: loc.tenant?.name,
       logoUrl: loc.tenant?.branding?.logoUrl ?? '',
@@ -183,6 +203,7 @@ export async function GET(request: NextRequest) {
       phone: entry.phone ?? '',
       cuisineTypes: entry.cuisineTypes ?? [],
       openingHours: entry.openingHours ?? '',
+      isOpenNow: null, // horarios en texto libre, no parseable
       externalMenuUrl: entry.externalMenuUrl ?? '',
       status: entry.status,
     }))

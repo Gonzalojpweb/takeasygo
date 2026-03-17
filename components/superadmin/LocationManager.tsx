@@ -21,6 +21,7 @@ interface LocationItem {
   lat: number | null
   lng: number | null
   networkVisible: boolean
+  cuisineTypes: string[]
 }
 
 interface Props {
@@ -58,8 +59,9 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
     lat: string
     lng: string
     networkVisible: boolean
+    cuisineTypes: string
   }>({
-    name: '', address: '', phone: '', orderModes: ['takeaway'], lat: '', lng: '', networkVisible: false,
+    name: '', address: '', phone: '', orderModes: ['takeaway'], lat: '', lng: '', networkVisible: false, cuisineTypes: '',
   })
   const [editLoading, setEditLoading] = useState(false)
   const [importingLocation, setImportingLocation] = useState<LocationItem | null>(null)
@@ -142,6 +144,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           lat: location.geo?.coordinates ? location.geo.coordinates[1] : null,
           lng: location.geo?.coordinates ? location.geo.coordinates[0] : null,
           networkVisible: location.networkVisible ?? false,
+          cuisineTypes: location.cuisineTypes ?? [],
         },
       ])
       setForm(EMPTY_FORM)
@@ -164,6 +167,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
       lat: loc.lat != null ? String(loc.lat) : '',
       lng: loc.lng != null ? String(loc.lng) : '',
       networkVisible: loc.networkVisible,
+      cuisineTypes: loc.cuisineTypes.join(', '),
     })
   }
 
@@ -186,6 +190,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           phone: editForm.phone,
           settings: { orderModes: editForm.orderModes },
           networkVisible: editForm.networkVisible,
+          cuisineTypes: editForm.cuisineTypes.split(',').map(s => s.trim()).filter(Boolean),
           ...(geo ? { geo } : { $unset: { geo: '' } }),
         }),
       })
@@ -207,6 +212,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                 lat: isNaN(latN) ? null : latN,
                 lng: isNaN(lngN) ? null : lngN,
                 networkVisible: editForm.networkVisible,
+                cuisineTypes: editForm.cuisineTypes.split(',').map(s => s.trim()).filter(Boolean),
               }
             : l
         )
@@ -338,6 +344,20 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                       </button>
                     </div>
 
+                    {/* ── Tipos de cocina ──────────────────────────────────── */}
+                    <div>
+                      <label className="text-zinc-500 text-xs block mb-1">
+                        Tipos de cocina{' '}
+                        <span className="text-zinc-600">(separados por coma)</span>
+                      </label>
+                      <input
+                        value={editForm.cuisineTypes}
+                        onChange={e => setEditForm(p => ({ ...p, cuisineTypes: e.target.value }))}
+                        placeholder="ej: pizza, hamburgesas, mexicana"
+                        className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400"
+                      />
+                    </div>
+
                     <div>
                       <label className="text-zinc-500 text-xs block mb-1">Modalidades</label>
                       <div className="flex gap-2">
@@ -387,10 +407,15 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                       <p className="text-white text-sm font-medium">{loc.name}</p>
                       <p className="text-zinc-500 text-xs">{loc.address}</p>
                       <p className="text-zinc-600 text-xs font-mono">{loc.slug}</p>
-                      <div className="flex gap-1 mt-1">
+                      <div className="flex flex-wrap gap-1 mt-1">
                         {loc.orderModes.map(m => (
                           <span key={m} className="text-xs px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">
                             {MODE_LABELS[m]}
+                          </span>
+                        ))}
+                        {loc.cuisineTypes.map(c => (
+                          <span key={c} className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 capitalize">
+                            {c}
                           </span>
                         ))}
                       </div>

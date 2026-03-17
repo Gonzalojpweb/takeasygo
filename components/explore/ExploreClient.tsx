@@ -7,7 +7,7 @@ import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
 import RestaurantCard from './RestaurantCard'
 import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
-import { MapPin, List, Map, Loader2, AlertCircle, Navigation } from 'lucide-react'
+import { MapPin, List, Map, Loader2, AlertCircle, Navigation, Clock, X } from 'lucide-react'
 
 // Leaflet no puede correr en SSR
 const ExploreMap = dynamic(() => import('./ExploreMap'), {
@@ -32,6 +32,8 @@ export default function ExploreClient() {
   const [restaurants, setRestaurants] = useState<NearbyRestaurant[]>([])
   const [fetching, setFetching] = useState(false)
   const [radius, setRadius] = useState(5000)
+  const [activeCuisine, setActiveCuisine] = useState<string | null>(null)
+  const [openNowOnly, setOpenNowOnly] = useState(false)
 
   // ── GPS ──────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -85,8 +87,21 @@ export default function ExploreClient() {
     )
   }
 
-  const networkCount = restaurants.filter(r => r.type === 'network').length
-  const listedCount  = restaurants.filter(r => r.type === 'listed').length
+  // Cuisines disponibles (todas las únicas del resultado actual)
+  const allCuisines = Array.from(
+    new Set(restaurants.flatMap(r => r.cuisineTypes))
+  ).sort()
+
+  // Resultado filtrado según filtros activos
+  const filtered = restaurants.filter(r => {
+    if (activeCuisine && !r.cuisineTypes.includes(activeCuisine)) return false
+    if (openNowOnly && r.isOpenNow !== true) return false
+    return true
+  })
+
+  const networkCount = filtered.filter(r => r.type === 'network').length
+  const listedCount  = filtered.filter(r => r.type === 'listed').length
+  const activeFilters = (activeCuisine ? 1 : 0) + (openNowOnly ? 1 : 0)
 
   return (
     <div className="flex flex-col h-full bg-zinc-50">
@@ -144,12 +159,55 @@ export default function ExploreClient() {
           </div>
         </div>
 
+        {/* Filtros */}
+        {!fetching && (allCuisines.length > 0 || restaurants.some(r => r.isOpenNow !== null)) && (
+          <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+            {/* Toggle abierto ahora */}
+            {restaurants.some(r => r.isOpenNow !== null) && (
+              <button
+                onClick={() => setOpenNowOnly(v => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shrink-0 transition-colors ${
+                  openNowOnly
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'
+                }`}>
+                <Clock size={11} />
+                Abierto ahora
+              </button>
+            )}
+
+            {/* Chips de cocina */}
+            {allCuisines.map(cuisine => (
+              <button
+                key={cuisine}
+                onClick={() => setActiveCuisine(c => c === cuisine ? null : cuisine)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border shrink-0 capitalize transition-colors ${
+                  activeCuisine === cuisine
+                    ? 'bg-zinc-900 text-white border-zinc-900'
+                    : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'
+                }`}>
+                {cuisine}
+              </button>
+            ))}
+
+            {/* Limpiar filtros */}
+            {activeFilters > 0 && (
+              <button
+                onClick={() => { setActiveCuisine(null); setOpenNowOnly(false) }}
+                className="flex items-center gap-1 px-2 py-1 rounded-full text-xs text-zinc-400 border border-zinc-200 shrink-0 hover:text-zinc-600 transition-colors">
+                <X size={11} /> Limpiar
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Resumen */}
         {!fetching && restaurants.length > 0 && (
           <p className="text-zinc-400 text-xs mt-2">
             {networkCount > 0 && <span className="text-emerald-600 font-medium">{networkCount} en red</span>}
             {networkCount > 0 && listedCount > 0 && <span className="mx-1">·</span>}
             {listedCount > 0 && <span>{listedCount} en directorio</span>}
+            {activeFilters > 0 && <span className="ml-1 text-zinc-400">· {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>}
           </p>
         )}
       </div>
@@ -167,14 +225,27 @@ export default function ExploreClient() {
         {/* Vista LISTA */}
         {view === 'list' && !fetching && (
           <div className="h-full overflow-y-auto px-4 py-4 space-y-3">
-            {restaurants.length === 0 ? (
+            {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 text-zinc-400 py-20">
                 <MapPin size={36} className="text-zinc-300" />
-                <p className="text-sm font-medium text-zinc-500">Sin restaurantes en este radio</p>
-                <p className="text-xs text-zinc-400">Probá aumentar el radio de búsqueda</p>
+                {activeFilters > 0 ? (
+                  <>
+                    <p className="text-sm font-medium text-zinc-500">Sin resultados con estos filtros</p>
+                    <button
+                      onClick={() => { setActiveCuisine(null); setOpenNowOnly(false) }}
+                      className="text-xs text-emerald-600 font-semibold underline underline-offset-2">
+                      Limpiar filtros
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-zinc-500">Sin restaurantes en este radio</p>
+                    <p className="text-xs text-zinc-400">Probá aumentar el radio de búsqueda</p>
+                  </>
+                )}
               </div>
             ) : (
-              restaurants.map(r => (
+              filtered.map(r => (
                 <RestaurantCard
                   key={r.id}
                   restaurant={r}
