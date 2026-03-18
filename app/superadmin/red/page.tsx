@@ -1,40 +1,76 @@
 import { connectDB } from '@/lib/mongoose'
-import NetworkRestaurant from '@/models/NetworkRestaurant'
-import { Globe } from 'lucide-react'
+import Tenant from '@/models/Tenant'
+import { Globe, ShieldCheck, TrendingUp, CircleDot } from 'lucide-react'
 
 export default async function RedPage() {
     await connectDB()
-    const raw = await NetworkRestaurant.find().sort({ createdAt: -1 }).lean()
 
-    const data = raw.map((r: any) => ({
-        _id:             String(r._id),
-        nombre:          r.nombre,
-        instagram:       r.instagram || '',
-        email:           r.email,
-        telefono:        r.telefono,
-        tipoRestaurante: r.tipoRestaurante,
-        createdAt:       r.createdAt?.toISOString?.() ?? String(r.createdAt),
+    const raw = await Tenant.find({ isActive: true })
+        .select('name slug plan profile.social.instagram cachedScores mercadopago.isConfigured createdAt')
+        .sort({ createdAt: -1 })
+        .lean()
+
+    const data = raw.map((t: any) => ({
+        _id:          String(t._id),
+        name:         t.name,
+        slug:         t.slug,
+        plan:         t.plan as string,
+        instagram:    t.profile?.social?.instagram || '',
+        icoScore:     t.cachedScores?.icoScore ?? null,
+        capacityScore:t.cachedScores?.capacityScore ?? null,
+        mpConfigured: t.mercadopago?.isConfigured ?? false,
+        createdAt:    t.createdAt?.toISOString?.() ?? String(t.createdAt),
     }))
+
+    const PLAN_LABEL: Record<string, string> = {
+        try:   'Inicial',
+        buy:   'Crecimiento',
+        full:  'Premium',
+        trial: 'Trial',
+    }
+
+    const PLAN_COLOR: Record<string, string> = {
+        try:   'bg-zinc-100 text-zinc-500',
+        buy:   'bg-blue-50 text-blue-600',
+        full:  'bg-amber-50 text-amber-600',
+        trial: 'bg-zinc-100 text-zinc-400',
+    }
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
 
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-foreground text-3xl font-bold tracking-tight">Red</h1>
-                    <p className="text-muted-foreground mt-1 font-medium">
-                        Restaurantes registrados desde la landing — captación orgánica.
-                    </p>
-                </div>
+            <div>
+                <h1 className="text-foreground text-3xl font-bold tracking-tight">Red</h1>
+                <p className="text-muted-foreground mt-1 font-medium">
+                    Restaurantes activos en la plataforma TakeasyGO.
+                </p>
             </div>
 
-            {/* Summary chip */}
+            {/* KPIs */}
             <div className="flex flex-wrap gap-3">
                 <div className="flex items-center gap-2.5 px-4 py-2 rounded-full border-2 text-sm font-bold bg-primary/10 text-primary border-primary/20">
                     <Globe size={14} />
-                    <span>Registros totales:</span>
+                    <span>Activos:</span>
                     <span className="text-lg leading-none">{data.length}</span>
+                </div>
+                <div className="flex items-center gap-2.5 px-4 py-2 rounded-full border-2 text-sm font-bold bg-emerald-50 text-emerald-700 border-emerald-200">
+                    <ShieldCheck size={14} />
+                    <span>Con MercadoPago:</span>
+                    <span className="text-lg leading-none">{data.filter(t => t.mpConfigured).length}</span>
+                </div>
+                <div className="flex items-center gap-2.5 px-4 py-2 rounded-full border-2 text-sm font-bold bg-amber-50 text-amber-700 border-amber-200">
+                    <TrendingUp size={14} />
+                    <span>ICO promedio:</span>
+                    <span className="text-lg leading-none">
+                        {data.filter(t => t.icoScore !== null).length > 0
+                            ? Math.round(
+                                data.filter(t => t.icoScore !== null)
+                                    .reduce((s, t) => s + (t.icoScore as number), 0) /
+                                data.filter(t => t.icoScore !== null).length
+                              )
+                            : '—'}
+                    </span>
                 </div>
             </div>
 
@@ -45,44 +81,95 @@ export default async function RedPage() {
                         <thead>
                             <tr className="border-b border-zinc-100 bg-zinc-50/80">
                                 <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Restaurante</th>
+                                <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hidden md:table-cell">Slug / URL</th>
                                 <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hidden md:table-cell">Instagram</th>
-                                <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Email</th>
-                                <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hidden lg:table-cell">Teléfono</th>
-                                <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hidden lg:table-cell">Tipo</th>
-                                <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Registrado</th>
+                                <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Plan</th>
+                                <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hidden lg:table-cell">ICO</th>
+                                <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hidden lg:table-cell">MercadoPago</th>
+                                <th className="text-left px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Alta</th>
                             </tr>
                         </thead>
                         <tbody>
                             {data.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-20 text-zinc-400 font-medium">
-                                        Ningún restaurante registrado aún.
+                                    <td colSpan={7} className="text-center py-20 text-zinc-400 font-medium">
+                                        No hay restaurantes activos aún.
                                     </td>
                                 </tr>
                             )}
-                            {data.map((r) => (
+                            {data.map((t) => (
                                 <tr
-                                    key={r._id}
+                                    key={t._id}
                                     className="border-b border-zinc-50 hover:bg-zinc-50/70 transition-colors"
                                 >
-                                    <td className="px-5 py-4 font-semibold text-zinc-900">{r.nombre}</td>
+                                    {/* Nombre */}
+                                    <td className="px-5 py-4 font-semibold text-zinc-900">
+                                        <div className="flex items-center gap-2">
+                                            <CircleDot size={10} className="text-emerald-500 shrink-0" />
+                                            {t.name}
+                                        </div>
+                                    </td>
+
+                                    {/* Slug */}
                                     <td className="px-5 py-4 text-zinc-500 hidden md:table-cell">
-                                        {r.instagram
-                                            ? <a href={`https://instagram.com/${r.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">{r.instagram}</a>
+                                        <a
+                                            href={`/${t.slug}/menu`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="font-mono text-xs hover:text-primary transition-colors"
+                                        >
+                                            /{t.slug}
+                                        </a>
+                                    </td>
+
+                                    {/* Instagram */}
+                                    <td className="px-5 py-4 text-zinc-500 hidden md:table-cell">
+                                        {t.instagram
+                                            ? <a
+                                                href={`https://instagram.com/${t.instagram.replace('@', '')}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="hover:text-primary transition-colors"
+                                              >
+                                                {t.instagram.startsWith('@') ? t.instagram : `@${t.instagram}`}
+                                              </a>
                                             : <span className="text-zinc-300">—</span>
                                         }
                                     </td>
+
+                                    {/* Plan */}
                                     <td className="px-5 py-4">
-                                        <a href={`mailto:${r.email}`} className="text-zinc-500 hover:text-primary transition-colors">{r.email}</a>
-                                    </td>
-                                    <td className="px-5 py-4 text-zinc-500 hidden lg:table-cell">{r.telefono}</td>
-                                    <td className="px-5 py-4 hidden lg:table-cell">
-                                        <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wide">
-                                            {r.tipoRestaurante}
+                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${PLAN_COLOR[t.plan] ?? 'bg-zinc-100 text-zinc-500'}`}>
+                                            {PLAN_LABEL[t.plan] ?? t.plan}
                                         </span>
                                     </td>
+
+                                    {/* ICO */}
+                                    <td className="px-5 py-4 hidden lg:table-cell">
+                                        {t.icoScore !== null ? (
+                                            <span className={`font-bold text-sm ${
+                                                t.icoScore >= 75 ? 'text-emerald-600' :
+                                                t.icoScore >= 50 ? 'text-amber-500' :
+                                                'text-red-500'
+                                            }`}>
+                                                {t.icoScore}
+                                            </span>
+                                        ) : (
+                                            <span className="text-zinc-300 text-xs">Sin datos</span>
+                                        )}
+                                    </td>
+
+                                    {/* MercadoPago */}
+                                    <td className="px-5 py-4 hidden lg:table-cell">
+                                        {t.mpConfigured
+                                            ? <span className="text-emerald-600 text-xs font-semibold">✓ Configurado</span>
+                                            : <span className="text-zinc-400 text-xs">—</span>
+                                        }
+                                    </td>
+
+                                    {/* Alta */}
                                     <td className="px-5 py-4 text-zinc-400 text-xs whitespace-nowrap">
-                                        {new Date(r.createdAt).toLocaleDateString('es-AR', {
+                                        {new Date(t.createdAt).toLocaleDateString('es-AR', {
                                             day: '2-digit', month: 'short', year: 'numeric'
                                         })}
                                     </td>
@@ -92,7 +179,6 @@ export default async function RedPage() {
                     </table>
                 </div>
             </div>
-
         </div>
     )
 }
