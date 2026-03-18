@@ -5,6 +5,7 @@ import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
 import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
+import { checkIsOpenNow } from '@/lib/service-hours'
 import mongoose from 'mongoose'
 
 interface Props {
@@ -33,6 +34,8 @@ async function fetchRestaurant(id: string, type: string): Promise<NearbyRestaura
       {
         $project: {
           _id: 1, name: 1, address: 1, phone: 1,
+          cuisineTypes: 1,
+          serviceHours: 1,
           'geo.coordinates': 1,
           'settings.acceptsOrders': 1,
           'settings.estimatedPickupTime': 1,
@@ -52,8 +55,9 @@ async function fetchRestaurant(id: string, type: string): Promise<NearbyRestaura
       lng: loc.geo?.coordinates?.[0],
       distanceM: 0,
       phone: loc.phone ?? '',
-      cuisineTypes: [],
+      cuisineTypes: loc.cuisineTypes ?? [],
       openingHours: '',
+      isOpenNow: checkIsOpenNow(loc.serviceHours),
       tenantSlug: loc.tenant?.slug,
       tenantName: loc.tenant?.name,
       logoUrl: loc.tenant?.branding?.logoUrl ?? '',
@@ -81,6 +85,7 @@ async function fetchRestaurant(id: string, type: string): Promise<NearbyRestaura
     phone: entry.phone ?? '',
     cuisineTypes: entry.cuisineTypes ?? [],
     openingHours: entry.openingHours ?? '',
+    isOpenNow: null,
     externalMenuUrl: entry.externalMenuUrl ?? '',
     status: entry.status,
   }

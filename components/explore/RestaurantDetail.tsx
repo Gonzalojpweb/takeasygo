@@ -118,8 +118,8 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
 
-        {/* Badge + distancia */}
-        <div className="flex items-center gap-2">
+        {/* Badge + distancia + estado */}
+        <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
             isNetwork
               ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
@@ -127,6 +127,16 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
           }`}>
             {isNetwork ? '● En Red TakeasyGO' : '○ Directorio'}
           </span>
+          {r.isOpenNow === true && (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-600 border-emerald-200">
+              Abierto ahora
+            </span>
+          )}
+          {r.isOpenNow === false && (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-red-50 text-red-500 border-red-200">
+              Cerrado ahora
+            </span>
+          )}
           {r.distanceM > 0 && (
             <span className="text-xs text-zinc-400 font-medium">{distLabel(r.distanceM)}</span>
           )}

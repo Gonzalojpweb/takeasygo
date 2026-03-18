@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkIsOpenNow } from '@/lib/service-hours'
 
 const DEFAULT_RADIUS_M = 5000  // 5 km
 const MAX_RADIUS_M     = 20000 // 20 km — techo de seguridad
@@ -32,22 +33,6 @@ export interface NearbyRestaurant {
   // Solo en type = 'listed'
   externalMenuUrl?: string
   status?: string
-}
-
-// Determina si un restaurante está abierto ahora según sus serviceHours de takeaway
-function checkIsOpenNow(
-  serviceHours?: { takeaway: Array<{ days: number[]; open: string; close: string }> }
-): boolean | null {
-  if (!serviceHours?.takeaway?.length) return null
-  const now = new Date()
-  const day = now.getDay()
-  const cur = now.getHours() * 100 + now.getMinutes()
-  return serviceHours.takeaway.some(slot => {
-    if (!slot.days.includes(day)) return false
-    const [oh, om] = slot.open.split(':').map(Number)
-    const [ch, cm] = slot.close.split(':').map(Number)
-    return cur >= oh * 100 + om && cur <= ch * 100 + cm
-  })
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
