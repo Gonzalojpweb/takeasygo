@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mockup — Consumer Home · TakeasyGO</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f4f5; display: flex; gap: 48px; justify-content: center; align-items: flex-start; padding: 40px 24px; min-height: 100vh; flex-wrap: wrap; }
+
+  /* ── Labels de sección ── */
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .device-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #71717a; }
+
+  /* ── Frame móvil ── */
+  .phone { width: 375px; background: #fff; border-radius: 40px; overflow: hidden; box-shadow: 0 32px 80px rgba(0,0,0,0.18), 0 0 0 10px #18181b; position: relative; }
+  .phone-screen { height: 812px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+
+  /* ── Frame desktop ── */
+  .desktop-frame { width: 900px; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.14), 0 0 0 8px #18181b; }
+  .desktop-bar { background: #18181b; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 16px; }
+  .desktop-bar .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .desktop-bar .dot.r { background: #ef4444; } .desktop-bar .dot.y { background: #eab308; } .desktop-bar .dot.g { background: #22c55e; }
+  .desktop-bar .url { background: #27272a; border-radius: 6px; flex: 1; max-width: 320px; margin: 0 auto; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #71717a; }
+  .desktop-screen { height: 600px; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* ── Componentes compartidos ── */
+  .hero { background: linear-gradient(160deg, #064e3b 0%, #065f46 60%, #059669 100%); padding: 48px 28px 52px; position: relative; overflow: hidden; flex-shrink: 0; }
+  .hero-mobile { padding: 56px 24px 44px; }
+  .hero::before { content:''; position:absolute; inset:0; background: radial-gradient(circle at 80% 20%, rgba(167,243,208,.15) 0%, transparent 60%); }
+  .hero-logo { font-size: 13px; font-weight: 800; color: #6ee7b7; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 20px; display: flex; align-items: center; gap: 6px; }
+  .hero-logo .dot-logo { width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
+  .hero-title { font-size: 34px; font-weight: 900; color: #fff; line-height: 1.1; margin-bottom: 10px; }
+  .hero-title-mobile { font-size: 28px; }
+  .hero-sub { font-size: 15px; color: #a7f3d0; font-weight: 500; line-height: 1.5; margin-bottom: 28px; }
+  .hero-sub-mobile { font-size: 14px; margin-bottom: 22px; }
+  .btn-primary { display: inline-flex; align-items: center; gap: 10px; background: #fff; color: #065f46; font-size: 15px; font-weight: 800; padding: 14px 24px; border-radius: 100px; border: none; cursor: pointer; box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
+  .btn-primary-mobile { font-size: 14px; padding: 13px 22px; width: 100%; justify-content: center; border-radius: 18px; }
+  .btn-icon { width: 20px; height: 20px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .badge-count { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 100px; padding: 4px 12px; font-size: 11px; color: #d1fae5; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 16px; }
+  .badge-dot { width: 6px; height: 6px; background: #34d399; border-radius: 50%; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Categorías ── */
+  .section { padding: 24px; }
+  .section-mobile { padding: 20px; }
+  .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: #a1a1aa; margin-bottom: 14px; }
+  .cats { display: flex; gap: 10px; flex-wrap: wrap; }
+  .cats-mobile { gap: 8px; }
+  .cat { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 14px; background: #f4f4f5; border-radius: 16px; cursor: pointer; transition: all .2s; border: 2px solid transparent; min-width: 68px; }
+  .cat-mobile { padding: 10px 12px; border-radius: 14px; min-width: 60px; }
+  .cat:hover { background: #ecfdf5; border-color: #6ee7b7; }
+  .cat-emoji { font-size: 22px; }
+  .cat-emoji-mobile { font-size: 20px; }
+  .cat-name { font-size: 10px; font-weight: 700; color: #52525b; text-align: center; }
+  .cat-active { background: #ecfdf5; border-color: #10b981; }
+
+  /* ── Lista de restaurants ── */
+  .rest-list { padding: 0 24px 24px; flex: 1; overflow: hidden; }
+  .rest-list-mobile { padding: 0 16px 80px; }
+  .rest-card { display: flex; align-items: center; gap: 14px; padding: 14px; background: #fff; border-radius: 18px; border: 1.5px solid #f4f4f5; margin-bottom: 10px; cursor: pointer; transition: all .2s; }
+  .rest-card:hover { border-color: #d1fae5; box-shadow: 0 4px 16px rgba(16,185,129,0.08); }
+  .rest-avatar { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #ecfdf5, #d1fae5); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .rest-avatar-mobile { width: 44px; height: 44px; border-radius: 12px; font-size: 18px; }
+  .rest-info { flex: 1; min-width: 0; }
+  .rest-name { font-size: 14px; font-weight: 700; color: #18181b; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rest-meta { font-size: 12px; color: #a1a1aa; display: flex; align-items: center; gap: 6px; }
+  .pill { padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700; }
+  .pill-green { background: #ecfdf5; color: #059669; }
+  .pill-gray { background: #f4f4f5; color: #71717a; }
+  .pill-open { background: #ecfdf5; color: #059669; }
+  .rest-right { text-align: right; flex-shrink: 0; }
+  .rest-dist { font-size: 11px; font-weight: 700; color: #10b981; }
+  .rest-time { font-size: 10px; color: #a1a1aa; }
+
+  /* ── Bottom nav mobile ── */
+  .bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1.5px solid #f4f4f5; display: flex; height: 68px; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; }
+  .nav-icon { font-size: 20px; }
+  .nav-label { font-size: 9px; font-weight: 700; color: #a1a1aa; text-transform: uppercase; letter-spacing: .05em; }
+  .nav-item.active .nav-label { color: #10b981; }
+  .nav-item.active .nav-icon-svg { color: #10b981; }
+
+  /* ── Install banner mobile ── */
+  .install-banner { background: linear-gradient(90deg, #064e3b, #065f46); margin: 0 16px; border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .install-icon { width: 36px; height: 36px; background: #10b981; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .install-text { flex: 1; }
+  .install-title { font-size: 12px; font-weight: 800; color: #fff; }
+  .install-sub { font-size: 10px; color: #a7f3d0; }
+  .install-btn { background: #fff; color: #065f46; font-size: 11px; font-weight: 800; padding: 6px 12px; border-radius: 8px; border: none; cursor: pointer; }
+
+  /* ── Desktop sidebar ── */
+  .desktop-layout { display: flex; flex: 1; overflow: hidden; }
+  .sidebar { width: 340px; border-right: 1.5px solid #f4f4f5; overflow-y: auto; flex-shrink: 0; }
+  .map-area { flex: 1; background: #e8f4f0; position: relative; display: flex; align-items: center; justify-content: center; }
+  .map-placeholder { position: relative; width: 100%; height: 100%; overflow: hidden; }
+  .map-bg { width: 100%; height: 100%; object-fit: cover; }
+
+  /* Fake map streets */
+  .fake-map { width: 100%; height: 100%; background: #e8f0ea; position: relative; }
+  .street { position: absolute; background: #fff; }
+  .street.h { height: 3px; left: 0; right: 0; }
+  .street.v { width: 3px; top: 0; bottom: 0; }
+  .street.h.thick { height: 5px; }
+  .street.v.thick { width: 5px; }
+  .block { position: absolute; background: #d4e6d4; border-radius: 4px; }
+
+  /* Map pins */
+  .map-pin { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+  .map-pin .pin-body { width: 28px; height: 36px; }
+  .map-pin .pin-label { background: white; border-radius: 8px; padding: 3px 8px; font-size: 10px; font-weight: 700; color: #18181b; box-shadow: 0 2px 8px rgba(0,0,0,0.15); white-space: nowrap; margin-top: -4px; }
+  .map-pin .pin-label.open { color: #059669; }
+  .user-pin { position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; border: 3px solid white; box-shadow: 0 0 0 6px rgba(59,130,246,0.2); }
+
+  /* ── Desktop top bar ── */
+  .desktop-topbar { background: #fff; border-bottom: 1.5px solid #f4f4f5; padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+  .topbar-logo { font-size: 14px; font-weight: 900; color: #065f46; }
+  .topbar-search { flex: 1; background: #f4f4f5; border-radius: 12px; padding: 8px 14px; font-size: 13px; color: #a1a1aa; display: flex; align-items: center; gap: 8px; }
+  .topbar-location { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #059669; background: #ecfdf5; padding: 6px 12px; border-radius: 100px; }
+
+  /* ── B2B footer link ── */
+  .b2b-link { text-align: center; padding: 12px; font-size: 11px; color: #a1a1aa; flex-shrink: 0; }
+  .b2b-link a { color: #059669; font-weight: 600; text-decoration: none; }
+
+  /* ── Section divider ── */
+  .divider { height: 8px; background: #f4f4f5; flex-shrink: 0; }
+
+  /* Animaciones */
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+  .float { animation: float 3s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     MOBILE
+════════════════════════════════════════ -->
+<div class="device-wrap">
+  <div class="device-label">📱 Mobile — /app (consumer home)</div>
+  <div class="phone">
+    <div class="phone-screen">
+
+      <!-- Hero -->
+      <div class="hero hero-mobile">
+        <div class="hero-logo"><div class="dot-logo"></div> TakeasyGO</div>
+        <div class="badge-count"><div class="badge-dot"></div> 3 restaurantes cerca</div>
+        <div class="hero-title hero-title-mobile">Pedí takeaway<br>sin filas.</div>
+        <div class="hero-sub hero-sub-mobile">Encontrá lo que querés, pagá online y retirá listo.</div>
+        <button class="btn-primary btn-primary-mobile">
+          <div class="btn-icon">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+          </div>
+          Buscar cerca de mí
+        </button>
+      </div>
+
+      <!-- Install banner -->
+      <div style="padding: 14px 16px 0; background:#fff;">
+        <div class="install-banner">
+          <div class="install-icon">📲</div>
+          <div class="install-text">
+            <div class="install-title">Instalá la app</div>
+            <div class="install-sub">Acceso rápido desde tu pantalla</div>
+          </div>
+          <button class="install-btn">Instalar</button>
+        </div>
+      </div>
+
+      <!-- Categorías -->
+      <div class="section section-mobile" style="background:#fff; padding-bottom: 16px;">
+        <div class="section-title">¿Qué te provoca?</div>
+        <div class="cats cats-mobile">
+          <div class="cat cat-mobile cat-active"><span class="cat-emoji cat-emoji-mobile">🍕</span><span class="cat-name">Pizza</span></div>
+          <div class="cat cat-mobile"><span class="cat-emoji cat-emoji-mobile">🍣</span><span class="cat-name">Sushi</span></div>
+          <div class="cat cat-mobile"><span class="cat-emoji cat-emoji-mobile">🍔</span><span class="cat-name">Burger</span></div>
+          <div class="cat cat-mobile"><span class="cat-emoji cat-emoji-mobile">🌮</span><span class="cat-name">Mexicano</span></div>
+          <div class="cat cat-mobile"><span class="cat-emoji cat-emoji-mobile">🥗</span><span class="cat-name">Saludable</span></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Lista -->
+      <div class="rest-list rest-list-mobile" style="background:#fff; overflow:hidden; flex:1;">
+        <div class="section-title" style="padding-top:16px;">Cerca de vos</div>
+
+        <div class="rest-card">
+          <div class="rest-avatar rest-avatar-mobile">🍕</div>
+          <div class="rest-info">
+            <div class="rest-name">La Trattoria</div>
+            <div class="rest-meta">
+              <span class="pill pill-green">● Red</span>
+              <span class="pill pill-open">Abierto</span>
+            </div>
+            <div class="rest-meta" style="margin-top:3px; font-size:11px;">Pizza · Pasta</div>
+          </div>
+          <div class="rest-right">
+            <div class="rest-dist">350 m</div>
+            <div class="rest-time">~12 min</div>
+          </div>
+        </div>
+
+        <div class="rest-card">
+          <div class="rest-avatar rest-avatar-mobile">🍣</div>
+          <div class="rest-info">
+            <div class="rest-name">Sushi Nakamura</div>
+            <div class="rest-meta">
+              <span class="pill pill-green">● Red</span>
+              <span class="pill pill-open">Abierto</span>
+            </div>
+            <div class="rest-meta" style="margin-top:3px; font-size:11px;">Sushi · Japonés</div>
+          </div>
+          <div class="rest-right">
+            <div class="rest-dist">820 m</div>
+            <div class="rest-time">~18 min</div>
+          </div>
+        </div>
+
+        <div class="rest-card" style="opacity:.6;">
+          <div class="rest-avatar rest-avatar-mobile" style="background:#f4f4f5;">🍔</div>
+          <div class="rest-info">
+            <div class="rest-name">Big Smash</div>
+            <div class="rest-meta">
+              <span class="pill pill-gray">○ Directorio</span>
+            </div>
+            <div class="rest-meta" style="margin-top:3px; font-size:11px;">Burger</div>
+          </div>
+          <div class="rest-right">
+            <div class="rest-dist" style="color:#a1a1aa;">1.2 km</div>
+            <div class="rest-time">Sin horario</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Nav -->
+      <div class="bottom-nav">
+        <div class="nav-item active">
+          <span class="nav-icon" style="color:#10b981;">🏠</span>
+          <span class="nav-label" style="color:#10b981;">Inicio</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">🗺</span>
+          <span class="nav-label">Mapa</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">Mis pedidos</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">Perfil</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="device-label" style="font-size:10px; color:#a1a1aa; max-width:375px; text-align:center; line-height:1.5">
+    Entry point: <code style="background:#e4e4e7;padding:2px 6px;border-radius:4px;">/app</code> · Instalable como PWA · Sin login requerido
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     DESKTOP
+════════════════════════════════════════ -->
+<div class="device-wrap">
+  <div class="device-label">🖥️ Desktop — /app (consumer home)</div>
+  <div class="desktop-frame">
+    <!-- Browser bar -->
+    <div class="desktop-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <div class="url">takeasygo.com/app</div>
+    </div>
+
+    <!-- Top bar -->
+    <div class="desktop-topbar">
+      <div class="topbar-logo">🥡 TakeasyGO</div>
+      <div class="topbar-search">🔍 &nbsp; Buscar restaurante o tipo de cocina...</div>
+      <div class="topbar-location">📍 Buenos Aires</div>
+      <div style="background:#ecfdf5;color:#059669;font-size:11px;font-weight:700;padding:6px 12px;border-radius:100px;white-space:nowrap;">3 cerca de vos</div>
+    </div>
+
+    <!-- Main layout -->
+    <div class="desktop-layout">
+
+      <!-- Sidebar -->
+      <div class="sidebar">
+
+        <!-- Filtros radio -->
+        <div style="padding: 16px 20px 12px; border-bottom: 1.5px solid #f4f4f5;">
+          <div class="section-title">Categorías</div>
+          <div class="cats" style="gap:8px; flex-wrap: wrap;">
+            <div class="cat cat-active" style="min-width:auto; padding: 8px 12px; flex-direction:row; gap:6px; border-radius:100px;">
+              <span style="font-size:16px;">🍕</span><span class="cat-name" style="font-size:11px;">Pizza</span>
+            </div>
+            <div class="cat" style="min-width:auto; padding: 8px 12px; flex-direction:row; gap:6px; border-radius:100px;">
+              <span style="font-size:16px;">🍣</span><span class="cat-name" style="font-size:11px;">Sushi</span>
+            </div>
+            <div class="cat" style="min-width:auto; padding: 8px 12px; flex-direction:row; gap:6px; border-radius:100px;">
+              <span style="font-size:16px;">🍔</span><span class="cat-name" style="font-size:11px;">Burger</span>
+            </div>
+            <div class="cat" style="min-width:auto; padding: 8px 12px; flex-direction:row; gap:6px; border-radius:100px;">
+              <span style="font-size:16px;">🌮</span><span class="cat-name" style="font-size:11px;">Mexicano</span>
+            </div>
+            <div class="cat" style="min-width:auto; padding: 8px 12px; flex-direction:row; gap:6px; border-radius:100px; white-space:nowrap">
+              <span style="font-size:16px;">🕐</span><span class="cat-name" style="font-size:11px;">Abierto ahora</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista resultados -->
+        <div style="padding: 16px 16px 8px;">
+          <div class="section-title">3 resultados · Radio 5km</div>
+
+          <div class="rest-card" style="border-color:#d1fae5; box-shadow: 0 2px 12px rgba(16,185,129,0.08);">
+            <div class="rest-avatar">🍕</div>
+            <div class="rest-info">
+              <div class="rest-name">La Trattoria</div>
+              <div class="rest-meta" style="margin-bottom:4px;">
+                <span class="pill pill-green">● En Red</span>
+                <span class="pill pill-open">Abierto</span>
+              </div>
+              <div style="font-size:11px; color:#a1a1aa;">Pizza · Pasta · 350 m</div>
+            </div>
+            <div class="rest-right">
+              <div class="rest-dist">~12 min</div>
+              <div style="margin-top:6px; background:#10b981; color:white; font-size:10px; font-weight:700; padding:4px 10px; border-radius:8px; cursor:pointer;">Ver menú</div>
+            </div>
+          </div>
+
+          <div class="rest-card">
+            <div class="rest-avatar">🍣</div>
+            <div class="rest-info">
+              <div class="rest-name">Sushi Nakamura</div>
+              <div class="rest-meta" style="margin-bottom:4px;">
+                <span class="pill pill-green">● En Red</span>
+                <span class="pill pill-open">Abierto</span>
+              </div>
+              <div style="font-size:11px; color:#a1a1aa;">Sushi · Japonés · 820 m</div>
+            </div>
+            <div class="rest-right">
+              <div class="rest-dist">~18 min</div>
+              <div style="margin-top:6px; background:#10b981; color:white; font-size:10px; font-weight:700; padding:4px 10px; border-radius:8px; cursor:pointer;">Ver menú</div>
+            </div>
+          </div>
+
+          <div class="rest-card" style="opacity:.55;">
+            <div class="rest-avatar" style="background:#f4f4f5;">🍔</div>
+            <div class="rest-info">
+              <div class="rest-name">Big Smash Burgers</div>
+              <div class="rest-meta" style="margin-bottom:4px;">
+                <span class="pill pill-gray">○ Directorio</span>
+              </div>
+              <div style="font-size:11px; color:#a1a1aa;">Burger · 1.2 km</div>
+            </div>
+            <div class="rest-right">
+              <div class="rest-dist" style="color:#a1a1aa;">—</div>
+              <div style="margin-top:6px; background:#f4f4f5; color:#71717a; font-size:10px; font-weight:700; padding:4px 10px; border-radius:8px; cursor:pointer;">Ver info</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="b2b-link">¿Tenés un restaurante? <a href="#">Sumate a la red →</a></div>
+      </div>
+
+      <!-- Map area -->
+      <div class="map-area">
+        <div class="fake-map">
+          <!-- Streets simulados -->
+          <div class="street h" style="top:20%;background:#fff;height:4px;"></div>
+          <div class="street h" style="top:40%;background:#fff;height:3px;"></div>
+          <div class="street h" style="top:60%;background:#fff;height:5px;"></div>
+          <div class="street h" style="top:75%;background:#fff;height:3px;"></div>
+          <div class="street v" style="left:25%;background:#fff;width:4px;"></div>
+          <div class="street v" style="left:50%;background:#fff;width:5px;"></div>
+          <div class="street v" style="left:70%;background:#fff;width:3px;"></div>
+          <div class="street v" style="left:85%;background:#fff;width:3px;"></div>
+
+          <!-- Manzanas -->
+          <div class="block" style="top:5%;left:5%;width:18%;height:13%;"></div>
+          <div class="block" style="top:5%;left:27%;width:20%;height:13%;"></div>
+          <div class="block" style="top:5%;left:52%;width:15%;height:13%;"></div>
+          <div class="block" style="top:5%;left:72%;width:12%;height:13%;"></div>
+          <div class="block" style="top:22%;left:5%;width:18%;height:15%;"></div>
+          <div class="block" style="top:22%;left:27%;width:20%;height:15%;"></div>
+          <div class="block" style="top:22%;left:52%;width:15%;height:15%;"></div>
+          <div class="block" style="top:22%;left:72%;width:12%;height:15%;"></div>
+          <div class="block" style="top:42%;left:5%;width:18%;height:15%;background:#c8dfc8;"></div>
+          <div class="block" style="top:42%;left:27%;width:20%;height:15%;"></div>
+          <div class="block" style="top:42%;left:52%;width:15%;height:15%;"></div>
+          <div class="block" style="top:42%;left:72%;width:12%;height:15%;"></div>
+          <div class="block" style="top:62%;left:5%;width:18%;height:12%;"></div>
+          <div class="block" style="top:62%;left:27%;width:20%;height:12%;"></div>
+          <div class="block" style="top:62%;left:52%;width:15%;height:12%;"></div>
+          <div class="block" style="top:62%;left:72%;width:12%;height:12%;"></div>
+
+          <!-- Pin usuario -->
+          <div class="user-pin" style="position:absolute;top:55%;left:48%;transform:translate(-50%,-50%);"></div>
+
+          <!-- Pin restaurante 1 (hover card visible) -->
+          <div class="map-pin" style="top:30%;left:35%;transform:translateX(-50%);">
+            <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 3px 6px rgba(0,0,0,0.25))">
+              <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z" fill="#10b981"/>
+              <circle cx="14" cy="14" r="6" fill="white" fill-opacity="0.95"/>
+            </svg>
+            <!-- Hover card -->
+            <div style="position:absolute;left:32px;top:-60px;width:220px;background:white;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.15);border:1.5px solid #f0fdf4;overflow:hidden;z-index:10;">
+              <div style="height:3px;background:#10b981;"></div>
+              <div style="padding:12px;">
+                <div style="display:flex;gap:6px;margin-bottom:6px;">
+                  <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;background:#ecfdf5;color:#059669;padding:2px 7px;border-radius:100px;">● Red</span>
+                  <span style="font-size:9px;font-weight:800;background:#ecfdf5;color:#059669;padding:2px 7px;border-radius:100px;">Abierto</span>
+                </div>
+                <div style="font-weight:800;font-size:13px;color:#18181b;margin-bottom:3px;">La Trattoria</div>
+                <div style="font-size:11px;color:#a1a1aa;margin-bottom:4px;">350 m · Av. Santa Fe 1234</div>
+                <div style="font-size:11px;color:#10b981;font-weight:600;margin-bottom:8px;">⏱ ~12 min</div>
+                <div style="font-size:10px;color:#d4d4d8;">Click para ver detalle →</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pin restaurante 2 -->
+          <div class="map-pin" style="top:20%;left:62%;transform:translateX(-50%);">
+            <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 3px 6px rgba(0,0,0,0.25));opacity:0.9">
+              <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z" fill="#10b981"/>
+              <circle cx="14" cy="14" r="6" fill="white" fill-opacity="0.95"/>
+            </svg>
+          </div>
+
+          <!-- Pin directorio -->
+          <div class="map-pin" style="top:68%;left:72%;transform:translateX(-50%);">
+            <svg width="22" height="28" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.15));opacity:0.65">
+              <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z" fill="#a1a1aa"/>
+              <circle cx="14" cy="14" r="6" fill="white" fill-opacity="0.95"/>
+            </svg>
+          </div>
+
+          <!-- Leyenda -->
+          <div style="position:absolute;bottom:12px;left:12px;background:white;border-radius:12px;padding:8px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.1);font-size:10px;font-weight:700;display:flex;flex-direction:column;gap:5px;">
+            <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#10b981;"></div>En Red TakeasyGO</div>
+            <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#a1a1aa;"></div>Directorio</div>
+            <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#3b82f6;box-shadow:0 0 0 4px rgba(59,130,246,0.2)"></div>Tu ubicación</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="device-label" style="font-size:10px; color:#a1a1aa; max-width:900px; text-align:center; line-height:1.5">
+    Sidebar con lista + filtros · Mapa con hover cards · Sin login · Link B2B en footer de sidebar
+  </div>
+</div>
+
+</body>
+</html>
