@@ -24,6 +24,7 @@ interface Props {
   backgroundColor: string
   textColor: string
   orderNumber: string
+  ratingToken: string | null
 }
 
 function formatCountdown(target: string): string {
@@ -43,6 +44,7 @@ export default function OrderTracker({
   backgroundColor,
   textColor,
   orderNumber,
+  ratingToken,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [estimatedReadyAt, setEstimatedReadyAt] = useState(initialEstimatedReadyAt)
@@ -161,12 +163,21 @@ export default function OrderTracker({
         </div>
       )}
 
-      {/* Volver al menú cuando está entregado */}
+      {/* CTAs cuando está entregado */}
       {status === 'delivered' && (
-        <div className="mb-8 text-center">
+        <div className="mb-8 space-y-3">
+          {/* Calificación — solo si hay token */}
+          {ratingToken && (
+            <a
+              href={`/${tenantSlug}/rate/${orderNumber}?token=${ratingToken}`}
+              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-base border-2 transition-opacity hover:opacity-80"
+              style={{ borderColor: primaryColor, color: primaryColor }}>
+              ⭐ Calificá tu experiencia
+            </a>
+          )}
           <a
             href={`/${tenantSlug}/menu/${locationId}/takeaway`}
-            className="inline-block w-full py-4 rounded-2xl font-bold text-base"
+            className="block w-full text-center py-4 rounded-2xl font-bold text-base"
             style={{ backgroundColor: primaryColor, color: backgroundColor }}>
             Volver al menú
           </a>

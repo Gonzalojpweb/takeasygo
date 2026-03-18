@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 import OnboardingChecklist from '@/components/admin/OnboardingChecklist'
+import RatingsWidget from '@/components/admin/RatingsWidget'
 
 function PlanBanner({ plan, trialOrderCount }: { plan: Plan; trialOrderCount?: number }) {
   if (plan === 'full') return null
@@ -226,6 +227,9 @@ export default async function AdminDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Calificaciones */}
+      <RatingsWidget tenantSlug={tenantSlug!} />
 
       {/* Recent Orders */}
       <Card className="bg-card border-2 border-border/60 shadow-xl rounded-3xl overflow-hidden">

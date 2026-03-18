@@ -245,6 +245,7 @@ Score propio de TakeasyGO (0-100) que mide la calidad operativa del restaurante.
 | **Impresora** | IP, puerto, roles, estado, historial de prints |
 | **Auditoría** | acción, entidad, usuario, IP, cambios detallados |
 | **Lead** | nombre, negocio, email, teléfono, plan, estado CRM |
+| **Rating** | orderId (único), tenantId, locationId, estrellas (1-5), comentario, createdAt |
 
 ---
 

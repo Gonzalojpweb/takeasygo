@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import { notFound } from 'next/navigation'
 import OrderTracker from '@/components/tracking/OrderTracker'
+import { generateRatingToken } from '@/lib/rating-token'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
@@ -20,6 +21,7 @@ export default async function TrackingPage({ params }: Props) {
   if (!order) notFound()
 
   const branding = tenant.branding
+  const ratingToken = generateRatingToken(order._id.toString())
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: branding.backgroundColor, color: branding.textColor }}>
@@ -48,6 +50,7 @@ export default async function TrackingPage({ params }: Props) {
           backgroundColor={branding.backgroundColor}
           textColor={branding.textColor}
           orderNumber={order.orderNumber}
+          ratingToken={ratingToken}
         />
 
         {/* Resumen del pedido */}
