@@ -1,17 +1,23 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
+import ICOSnapshot from '@/models/ICOSnapshot'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ShoppingBag, Clock, CheckCircle, XCircle, Calendar, ArrowUpRight, Activity, AlertTriangle, Sparkles, ChevronRight } from 'lucide-react'
+import {
+  ShoppingBag, Clock, CheckCircle, XCircle, Calendar,
+  ArrowUpRight, Activity, AlertTriangle, Sparkles, ChevronRight,
+  TrendingUp, Zap,
+} from 'lucide-react'
 import type { Types } from 'mongoose'
 import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 import OnboardingChecklist from '@/components/admin/OnboardingChecklist'
 import RatingsWidget from '@/components/admin/RatingsWidget'
+import Link from 'next/link'
 
 function PlanBanner({ plan, trialOrderCount }: { plan: Plan; trialOrderCount?: number }) {
   if (plan === 'full') return null
@@ -78,63 +84,90 @@ export default async function AdminDashboard() {
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .lean<{ _id: Types.ObjectId; plan: Plan; branding: { logoUrl: string } }>()
+    .lean<{
+      _id: Types.ObjectId
+      plan: Plan
+      branding: { logoUrl: string }
+      cachedScores?: { icoScore: number | null; capacityScore: number | null; updatedAt: Date | null }
+    }>()
   if (!tenant) notFound()
 
   const plan: Plan = tenant.plan ?? 'try'
-
   const tenantId = tenant._id
-
   const start30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-  const [total, pending, confirmed, cancelled, cancData, tppData] = await Promise.all([
-    Order.countDocuments({ tenantId }),
-    Order.countDocuments({ tenantId, status: 'pending' }),
-    Order.countDocuments({ tenantId, status: 'confirmed' }),
-    Order.countDocuments({ tenantId, status: 'cancelled' }),
-    // Cancelación últimos 30 días para Score
-    Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: start30 } } },
-      { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } }
-    ]),
-    // TPP últimos 30 días para Score
-    Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: start30 }, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
-      { $project: { tppMs: { $subtract: ['$statusTimestamps.readyAt', '$statusTimestamps.confirmedAt'] } } },
-      { $group: { _id: null, avgMs: { $avg: '$tppMs' }, stdMs: { $stdDevPop: '$tppMs' }, count: { $sum: 1 } } }
-    ]),
-  ])
+  const [total, pending, confirmed, cancelled, cancData, recentOrders, trialOrderCount, icoHistory] =
+    await Promise.all([
+      Order.countDocuments({ tenantId }),
+      Order.countDocuments({ tenantId, status: 'pending' }),
+      Order.countDocuments({ tenantId, status: 'confirmed' }),
+      Order.countDocuments({ tenantId, status: 'cancelled' }),
+      // Cancelación últimos 30d para alertas
+      Order.aggregate([
+        { $match: { tenantId, createdAt: { $gte: start30 } } },
+        { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
+      ]),
+      Order.find({ tenantId }).sort({ createdAt: -1 }).limit(5).lean(),
+      plan === 'trial'
+        ? Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] } })
+        : Promise.resolve(undefined),
+      // Últimos 8 snapshots ICO para sparkline
+      ICOSnapshot.find({ tenantId }).sort({ date: -1 }).limit(8).lean<
+        Array<{ date: Date; icoScore: number }>
+      >(),
+    ])
 
-  const [recentOrders, trialOrderCount] = await Promise.all([
-    Order.find({ tenantId }).sort({ createdAt: -1 }).limit(5).lean(),
-    plan === 'trial'
-      ? Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] } })
-      : Promise.resolve(undefined),
-  ])
+  const icoHistorySorted = [...icoHistory].reverse() // cronológico asc
 
-  // Score Operativo simplificado para el dashboard
+  // ── Datos reales del ICO desde cachedScores ──────────────────────────────────
+  const realIco = tenant.cachedScores?.icoScore ?? null
+  const realCapacity = tenant.cachedScores?.capacityScore ?? null
+
   const cRaw = cancData[0]
-  const tRaw = tppData[0]
-  const hasScore = (cRaw?.total ?? 0) >= 10
-  const bajaCancelacion = cRaw?.total > 0 ? Math.max(0, 1 - (cRaw.cancelled / cRaw.total)) : null
-  const consistency = tRaw?.avgMs > 0 ? Math.max(0, Math.min(1, 1 - (tRaw.stdMs / tRaw.avgMs))) : null
-  const scoreEstimate = hasScore
-    ? Math.round(((consistency ?? 0.5) * 0.25 + 0.5 * 0.30 + (bajaCancelacion ?? 1) * 0.20 + 0.15 + 0.10) * 100)
-    : null
+  const cancRate30 = cRaw?.total > 0 ? Math.round((cRaw.cancelled / cRaw.total) * 100) : 0
+  const orders30 = cRaw?.total ?? 0
+  const hasEnoughData = orders30 >= 10
+
+  // ── Alertas operativas ───────────────────────────────────────────────────────
+  type Alert = { level: 'error' | 'warn'; text: string; href: string }
+  const alerts: Alert[] = []
+
+  if (hasEnoughData && realIco !== null && realIco < 51)
+    alerts.push({ level: 'error', text: `ICO en zona crítica (${realIco}/100). Revisá los componentes para identificar qué mejorar.`, href: './ico' })
+  else if (hasEnoughData && realIco !== null && realIco < 76)
+    alerts.push({ level: 'warn', text: `ICO en consolidación (${realIco}/100). Hay margen de mejora operativa.`, href: './ico' })
+
+  if (cancRate30 > 20 && orders30 >= 10)
+    alerts.push({ level: 'error', text: `Tasa de cancelación alta: ${cancRate30}% en los últimos 30 días.`, href: './orders' })
+  else if (cancRate30 > 10 && orders30 >= 10)
+    alerts.push({ level: 'warn', text: `Cancelaciones elevadas: ${cancRate30}% en los últimos 30 días.`, href: './orders' })
+
+  if (hasEnoughData && realCapacity !== null && realCapacity < 0.5)
+    alerts.push({ level: 'warn', text: 'Se detectaron franjas horarias con sobrecarga de capacidad recurrente.', href: './ico' })
+
+  if (hasEnoughData && realIco === null)
+    alerts.push({ level: 'warn', text: 'El ICO no se calculó aún. Visitá la página ICO para generar tu índice.', href: './ico' })
 
   const stats = [
-    { label: 'Total pedidos', value: total, icon: ShoppingBag, color: 'text-primary' },
-    { label: 'Pendientes', value: pending, icon: Clock, color: 'text-amber-500' },
-    { label: 'Confirmados', value: confirmed, icon: CheckCircle, color: 'text-primary' },
-    { label: 'Cancelados', value: cancelled, icon: XCircle, color: 'text-destructive' },
+    { label: 'Total pedidos',  value: total,     icon: ShoppingBag, color: 'text-primary'     },
+    { label: 'Pendientes',     value: pending,   icon: Clock,       color: 'text-amber-500'   },
+    { label: 'Confirmados',    value: confirmed, icon: CheckCircle, color: 'text-primary'      },
+    { label: 'Cancelados',     value: cancelled, icon: XCircle,     color: 'text-destructive'  },
   ]
 
   const STATUS_COLORS: Record<string, string> = {
-    pending: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    pending:   'bg-amber-500/10 text-amber-500 border-amber-500/20',
     confirmed: 'bg-primary/10 text-primary border-primary/20',
     cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
     delivered: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
   }
+
+  const icoBand =
+    realIco === null     ? null :
+    realIco >= 91        ? { label: 'Alta consistencia', color: 'border-emerald-500', text: 'text-emerald-600' } :
+    realIco >= 76        ? { label: 'Operación estable',  color: 'border-emerald-400', text: 'text-emerald-500' } :
+    realIco >= 51        ? { label: 'En consolidación',   color: 'border-amber-500',   text: 'text-amber-500'   } :
+                           { label: 'Ajustes necesarios', color: 'border-destructive', text: 'text-destructive' }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -151,7 +184,7 @@ export default async function AdminDashboard() {
           <h1 className="text-foreground text-4xl font-bold tracking-tight leading-none">Restaurante</h1>
           <p className="text-muted-foreground mt-3 font-medium flex items-center gap-2" suppressHydrationWarning>
             <Calendar size={14} className="text-primary" />
-            Panel de control administrativo - {new Date().toLocaleDateString('es-AR')}
+            Panel de control administrativo · {new Date().toLocaleDateString('es-AR')}
           </p>
         </div>
       </div>
@@ -182,7 +215,27 @@ export default async function AdminDashboard() {
         })}
       </div>
 
-      {/* Score Operativo */}
+      {/* Alertas operativas */}
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.map((alert, i) => (
+            <Link key={i} href={alert.href}>
+              <div className={cn(
+                'flex items-center gap-3 px-5 py-3.5 rounded-2xl border text-sm font-medium transition-opacity hover:opacity-80 cursor-pointer',
+                alert.level === 'error'
+                  ? 'bg-destructive/5 border-destructive/20 text-destructive'
+                  : 'bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400'
+              )}>
+                <AlertTriangle size={16} className="shrink-0" />
+                <span className="flex-1">{alert.text}</span>
+                <ChevronRight size={14} className="shrink-0 opacity-50" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* ICO + Tendencia */}
       <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
         <CardHeader className="border-b border-border/40 bg-muted/30 p-6 flex flex-row items-center justify-between">
           <div className="flex items-center gap-3">
@@ -191,37 +244,113 @@ export default async function AdminDashboard() {
             </div>
             <div>
               <CardTitle className="text-foreground text-base font-bold">ICO</CardTitle>
-              <p className="text-muted-foreground text-xs mt-0.5 font-medium">Índice de Consistencia Operativa — últimos 30 días</p>
+              <p className="text-muted-foreground text-xs mt-0.5 font-medium">Índice de Consistencia Operativa · últimos 30 días</p>
             </div>
           </div>
-          <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-[0.2em] border-primary/40 text-primary bg-primary/5 px-3 py-1">
-            Interno
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-[0.2em] border-primary/40 text-primary bg-primary/5 px-3 py-1">
+              Interno
+            </Badge>
+            <Link href="./ico" className="text-[10px] font-bold text-primary/70 hover:text-primary flex items-center gap-1 transition-colors">
+              Ver detalle <ChevronRight size={10} />
+            </Link>
+          </div>
         </CardHeader>
         <CardContent className="p-6">
-          {!hasScore ? (
+          {!hasEnoughData ? (
             <div className="flex items-center gap-3 text-muted-foreground">
               <AlertTriangle size={16} className="text-amber-500" />
               <p className="text-sm font-medium">Se necesitan al menos 10 pedidos en los últimos 30 días para calcular el ICO.</p>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              {/* Gauge visual */}
-              <div className="flex flex-col items-center">
-                <div className={cn(
-                  "w-24 h-24 rounded-full border-8 flex items-center justify-center text-2xl font-black tabular-nums",
-                  (scoreEstimate ?? 0) >= 80 ? "border-emerald-500 text-emerald-500" :
-                  (scoreEstimate ?? 0) >= 60 ? "border-amber-500 text-amber-500" : "border-destructive text-destructive"
-                )}>
-                  {scoreEstimate}
-                </div>
-                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground mt-2">/ 100</p>
+            <div className="flex flex-col sm:flex-row gap-8">
+              {/* Score gauge */}
+              <div className="flex flex-col items-center gap-2 shrink-0">
+                {realIco !== null && icoBand ? (
+                  <>
+                    <div className={cn(
+                      'w-24 h-24 rounded-full border-8 flex flex-col items-center justify-center',
+                      icoBand.color
+                    )}>
+                      <span className={cn('text-2xl font-black tabular-nums', icoBand.text)}>{realIco}</span>
+                      <span className="text-muted-foreground text-[10px] font-bold">/100</span>
+                    </div>
+                    <p className={cn('text-[10px] font-black uppercase tracking-wider', icoBand.text)}>
+                      {icoBand.label}
+                    </p>
+                  </>
+                ) : (
+                  <div className="w-24 h-24 rounded-full border-8 border-muted flex items-center justify-center text-muted-foreground text-xs font-bold text-center px-2 leading-tight">
+                    Sin datos aún
+                  </div>
+                )}
               </div>
-              {/* Detalle */}
-              <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-3">
-                <ScoreBar label="Consistencia" value={consistency !== null ? Math.round(consistency * 100) : null} tip="Desvío estándar del TPP" />
-                <ScoreBar label="Baja cancelación" value={bajaCancelacion !== null ? Math.round(bajaCancelacion * 100) : null} tip="1 - tasa de cancelación" />
-                <ScoreBar label="TPP registrado" value={tRaw?.count > 0 ? Math.min(100, Math.round((tRaw.count / (cRaw?.total || 1)) * 100)) : null} tip={tRaw ? `${Math.round(tRaw.avgMs / 60000)} min promedio` : 'Sin datos de timestamps'} />
+
+              {/* Sparkline histórico + métricas */}
+              <div className="flex-1 space-y-4">
+                {/* Capacidad */}
+                {realCapacity !== null && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
+                        <Zap size={10} />
+                        Capacidad operativa
+                      </span>
+                      <span className="text-xs font-black tabular-nums">{Math.round(realCapacity * 100)}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          realCapacity >= 0.8 ? 'bg-emerald-500' : realCapacity >= 0.6 ? 'bg-amber-500' : 'bg-destructive'
+                        )}
+                        style={{ width: `${Math.round(realCapacity * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Sparkline tendencia */}
+                {icoHistorySorted.length >= 2 && (
+                  <div>
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-2 flex items-center gap-1.5">
+                      <TrendingUp size={10} />
+                      Tendencia ({icoHistorySorted.length} mediciones)
+                    </p>
+                    <div className="flex items-end gap-1 h-12">
+                      {icoHistorySorted.map((snap, i) => {
+                        const pct = snap.icoScore
+                        const barColor =
+                          pct >= 91 ? 'bg-emerald-500' :
+                          pct >= 76 ? 'bg-emerald-400' :
+                          pct >= 51 ? 'bg-amber-400' : 'bg-destructive'
+                        const isLatest = i === icoHistorySorted.length - 1
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                            {isLatest && (
+                              <span className="text-[8px] font-black tabular-nums text-foreground">{snap.icoScore}</span>
+                            )}
+                            <div className="w-full flex items-end" style={{ height: 36 }}>
+                              <div
+                                className={cn('w-full rounded-t', barColor, isLatest ? 'opacity-100' : 'opacity-40')}
+                                style={{ height: `${Math.max(6, pct)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <p className="text-[9px] text-muted-foreground/40 mt-1">
+                      Última medición: {new Date(icoHistorySorted.at(-1)!.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                    </p>
+                  </div>
+                )}
+
+                {icoHistorySorted.length < 2 && realIco !== null && (
+                  <p className="text-xs text-muted-foreground/60 font-medium">
+                    El historial de tendencia se construye con cada visita al panel ICO. Volvé mañana para ver la evolución.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -231,7 +360,7 @@ export default async function AdminDashboard() {
       {/* Calificaciones */}
       <RatingsWidget tenantSlug={tenantSlug!} />
 
-      {/* Recent Orders */}
+      {/* Pedidos recientes */}
       <Card className="bg-card border-2 border-border/60 shadow-xl rounded-3xl overflow-hidden">
         <CardHeader className="border-b border-border/40 bg-muted/30 p-6 flex flex-row items-center justify-between">
           <div>
@@ -245,7 +374,7 @@ export default async function AdminDashboard() {
         <CardContent className="p-0">
           {recentOrders.length === 0 ? (
             <div className="p-20 text-center">
-              <div className="bg-muted/30 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-border/60 transition-transform">
+              <div className="bg-muted/30 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-border/60">
                 <ShoppingBag className="text-muted-foreground" size={24} />
               </div>
               <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">No hay pedidos registrados</p>
@@ -275,28 +404,6 @@ export default async function AdminDashboard() {
           )}
         </CardContent>
       </Card>
-    </div>
-  )
-}
-
-function ScoreBar({ label, value, tip }: { label: string; value: number | null; tip: string }) {
-  const pct = value ?? 0
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">{label}</p>
-        <p className="text-xs font-black tabular-nums">{value !== null ? `${value}%` : '—'}</p>
-      </div>
-      <div className="h-2 rounded-full bg-muted overflow-hidden">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-destructive"
-          )}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <p className="text-[10px] text-muted-foreground/60 font-medium">{tip}</p>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
+import ICOSnapshot from '@/models/ICOSnapshot'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -194,7 +195,7 @@ export default async function ICOPage() {
   const start7   = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000)
   const start90  = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
 
-  const [cancData, tppData, onTimeData, actData7, actData30, activeDaysData, recompraData, recompraBreakdownData] = await Promise.all([
+  const [cancData, tppData, onTimeData, actData7, actData30, activeDaysData, recompraData, recompraBreakdownData, eventIntegrityData, capacityRawData] = await Promise.all([
     Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: start30 } } },
       { $group: {
@@ -271,6 +272,36 @@ export default async function ICOPage() {
         output: { clients: { $sum: 1 } },
       }},
     ]),
+    // Event Integrity: false_ready_events (deliveredAt - readyAt > 10 min = pedido no estaba listo)
+    Order.aggregate([
+      { $match: {
+        tenantId,
+        createdAt: { $gte: start30 },
+        'statusTimestamps.readyAt': { $ne: null },
+        'statusTimestamps.deliveredAt': { $ne: null },
+      }},
+      { $project: {
+        pickupDelayMs: { $subtract: ['$statusTimestamps.deliveredAt', '$statusTimestamps.readyAt'] },
+      }},
+      { $group: {
+        _id: null,
+        total: { $sum: 1 },
+        falseReady: { $sum: { $cond: [{ $gt: ['$pickupDelayMs', 600000] }, 1, 0] } },
+        avgDelayMs: { $avg: '$pickupDelayMs' },
+      }},
+    ]),
+    // Capacidad operativa: distribución horaria de pedidos (últimos 30 días)
+    Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }},
+      { $group: {
+        _id: {
+          date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          hour: { $hour: '$createdAt' },
+        },
+        count: { $sum: 1 },
+      }},
+      { $sort: { count: -1 } },
+    ]),
   ])
 
   const cRaw = cancData[0]
@@ -283,13 +314,39 @@ export default async function ICOPage() {
   const dataQuality: 'insuficiente' | 'muestra_pequeña' | 'valida' =
     tppN >= 30 ? 'valida' : tppN >= 10 ? 'muestra_pequeña' : 'insuficiente'
 
-  const consistency    = tRaw && tRaw.avgMs > 0 ? Math.max(0, Math.min(1, 1 - (tRaw.stdMs / tRaw.avgMs))) : null
-  const cumplimiento   = oRaw && oRaw.total > 0 ? oRaw.onTime / oRaw.total : null
+  const consistency     = tRaw && tRaw.avgMs > 0 ? Math.max(0, Math.min(1, 1 - (tRaw.stdMs / tRaw.avgMs))) : null
+  const cumplimiento    = oRaw && oRaw.total > 0 ? oRaw.onTime / oRaw.total : null
   const bajaCancelacion = cRaw && cRaw.total > 0 ? Math.max(0, 1 - (cRaw.cancelled / cRaw.total)) : null
-  const avgWeekly      = actData30 / 4
-  const actividad      = avgWeekly > 0 ? Math.min(1, actData7 / avgWeekly) : actData7 > 0 ? 1 : 0
-  const activeDays     = activeDaysData[0]?.days ?? 0
-  const estabilidad    = Math.min(1, activeDays / 20)
+  const avgWeekly       = actData30 / 4
+  const actividad       = avgWeekly > 0 ? Math.min(1, actData7 / avgWeekly) : actData7 > 0 ? 1 : 0
+  const activeDays      = activeDaysData[0]?.days ?? 0
+  const estabilidad     = Math.min(1, activeDays / 20)
+
+  // ── Event Integrity Score ────────────────────────────────────────────────────
+  const eiRaw = (eventIntegrityData as any[])[0]
+  const integrityScore = eiRaw && eiRaw.total >= 5
+    ? Math.max(0, 1 - (eiRaw.falseReady / eiRaw.total))
+    : null
+  const falseReadyPct = eiRaw && eiRaw.total > 0
+    ? Math.round((eiRaw.falseReady / eiRaw.total) * 100)
+    : null
+  const avgPickupDelayMin = eiRaw?.avgDelayMs
+    ? Math.round(eiRaw.avgDelayMs / 60000)
+    : null
+
+  // ── Capacidad operativa ──────────────────────────────────────────────────────
+  const hourlyCounts = (capacityRawData as any[]).map((w: any) => w.count as number)
+  const avgPerHour = hourlyCounts.length > 0
+    ? hourlyCounts.reduce((a, b) => a + b, 0) / hourlyCounts.length
+    : 0
+  const overloadedWindows = hourlyCounts.filter(c => c > avgPerHour * 1.5).length
+  const capacityScore = hourlyCounts.length >= 5
+    ? Math.max(0, 1 - (overloadedWindows / hourlyCounts.length))
+    : null
+  const peakHourRaw = (capacityRawData as any[])[0]
+  const peakHour = peakHourRaw
+    ? { hour: peakHourRaw._id.hour as number, count: peakHourRaw.count as number }
+    : null
 
   let icoScore: number | null = null
   if (hasEnoughData) {
@@ -298,11 +355,58 @@ export default async function ICOPage() {
     const c3 = bajaCancelacion ?? 1
     const c4 = actividad
     const c5 = estabilidad
-    icoScore = Math.round((c1 * 0.25 + c2 * 0.30 + c3 * 0.20 + c4 * 0.15 + c5 * 0.10) * 100)
+    const c6 = integrityScore ?? 0.8  // default 80% cuando no hay datos suficientes
+    // Pesos redistribuidos para acomodar el 6to componente (suma = 1.00)
+    icoScore = Math.round((c1 * 0.22 + c2 * 0.27 + c3 * 0.18 + c4 * 0.12 + c5 * 0.09 + c6 * 0.12) * 100)
   }
 
   const band = icoScore !== null ? getBand(icoScore) : null
   const cancRate = cRaw && cRaw.total > 0 ? Math.round((cRaw.cancelled / cRaw.total) * 100) : 0
+
+  // ── Persistir scores para el algoritmo de visibilidad (Etapa 17) ─────────────
+  if (icoScore !== null || capacityScore !== null) {
+    Tenant.updateOne(
+      { _id: tenantId },
+      {
+        $set: {
+          'cachedScores.icoScore': icoScore ?? null,
+          'cachedScores.capacityScore': capacityScore ?? null,
+          'cachedScores.updatedAt': new Date(),
+        },
+      }
+    ).catch(() => {})
+  }
+
+  // ── Guardar snapshot diario del ICO (Etapa 19-A — Historial ICO) ─────────────
+  if (icoScore !== null) {
+    const today = new Date()
+    today.setUTCHours(0, 0, 0, 0)
+    ICOSnapshot.findOneAndUpdate(
+      { tenantId, date: today },
+      {
+        $set: {
+          icoScore,
+          capacityScore: capacityScore ?? null,
+          components: {
+            consistency:     consistency ?? null,
+            cumplimiento:    cumplimiento ?? null,
+            bajaCancelacion: bajaCancelacion ?? null,
+            actividad,
+            estabilidad,
+            integrityScore:  integrityScore ?? null,
+          },
+        },
+      },
+      { upsert: true }
+    ).catch(() => {})
+  }
+
+  // ── Historial: últimos 10 snapshots para mostrar tendencia ───────────────────
+  const icoHistory = await ICOSnapshot
+    .find({ tenantId })
+    .sort({ date: 1 })
+    .limit(10)
+    .lean<Array<{ date: Date; icoScore: number; capacityScore: number | null }>>()
 
   // Recompra (solo se usa en full plan)
   const recompraRaw = recompraData[0] ?? { totalClients: 0, recurring: 0 }
@@ -411,11 +515,12 @@ export default async function ICOPage() {
   const tppSEMinutes  = tppSEMs ? Math.round(tppSEMs / 60000 * 10) / 10 : null
 
   const componentsData = [
-    { label: 'Consistencia del TPP',       weight: '×0.25', value: consistency    !== null ? Math.round(consistency * 100)    : null, tip: 'Inverso del coeficiente de variación (σ/μ)' },
-    { label: 'Cumplimiento de tiempos',    weight: '×0.30', value: cumplimiento   !== null ? Math.round(cumplimiento * 100)   : null, tip: '% de pedidos entregados dentro del tiempo estimado' },
-    { label: 'Baja tasa de cancelación',   weight: '×0.20', value: bajaCancelacion !== null ? Math.round(bajaCancelacion * 100) : null, tip: `${cancRate}% de cancelaciones en 30 días` },
-    { label: 'Actividad sostenida',        weight: '×0.15', value: Math.round(actividad * 100),   tip: 'Órdenes últimos 7 días vs promedio semanal del mes' },
-    { label: 'Estabilidad horaria',        weight: '×0.10', value: Math.round(estabilidad * 100), tip: `${activeDays} días activos en los últimos 30` },
+    { label: 'Consistencia del TPP',       weight: '×0.22', value: consistency    !== null ? Math.round(consistency * 100)    : null, tip: 'Inverso del coeficiente de variación (σ/μ)' },
+    { label: 'Cumplimiento de tiempos',    weight: '×0.27', value: cumplimiento   !== null ? Math.round(cumplimiento * 100)   : null, tip: '% de pedidos entregados dentro del tiempo estimado' },
+    { label: 'Baja tasa de cancelación',   weight: '×0.18', value: bajaCancelacion !== null ? Math.round(bajaCancelacion * 100) : null, tip: `${cancRate}% de cancelaciones en 30 días` },
+    { label: 'Actividad sostenida',        weight: '×0.12', value: Math.round(actividad * 100),   tip: 'Órdenes últimos 7 días vs promedio semanal del mes' },
+    { label: 'Estabilidad horaria',        weight: '×0.09', value: Math.round(estabilidad * 100), tip: `${activeDays} días activos en los últimos 30` },
+    { label: 'Integridad de eventos',      weight: '×0.12', value: integrityScore !== null ? Math.round(integrityScore * 100) : null, tip: falseReadyPct !== null ? `${falseReadyPct}% de pedidos marcados "listo" antes de estar preparados` : 'Sin datos suficientes (mín. 5 entregas registradas)' },
   ]
 
   return (
@@ -492,11 +597,67 @@ export default async function ICOPage() {
         </Card>
       )}
 
+      {/* ── Historial ICO ── */}
+      {icoHistory.length >= 2 && (
+        <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
+          <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <TrendingUp size={18} className="text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-foreground text-base font-bold">Historial ICO</CardTitle>
+                <p className="text-muted-foreground text-xs mt-0.5 font-medium">
+                  Evolución del índice — últimas {icoHistory.length} mediciones
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex items-end gap-2 h-24">
+              {icoHistory.map((snap, i) => {
+                const pct = snap.icoScore
+                const barColor =
+                  pct >= 91 ? 'bg-emerald-500' :
+                  pct >= 76 ? 'bg-emerald-400' :
+                  pct >= 51 ? 'bg-amber-400' : 'bg-destructive'
+                const label = new Date(snap.date).toLocaleDateString('es-AR', {
+                  day: '2-digit', month: 'short',
+                })
+                const isLatest = i === icoHistory.length - 1
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+                    <span className={cn(
+                      'text-[9px] font-black tabular-nums',
+                      isLatest ? 'text-foreground' : 'text-muted-foreground/60'
+                    )}>
+                      {snap.icoScore}
+                    </span>
+                    <div className="w-full flex items-end" style={{ height: 64 }}>
+                      <div
+                        className={cn('w-full rounded-t-lg transition-all', barColor, isLatest ? 'opacity-100' : 'opacity-50')}
+                        style={{ height: `${Math.max(6, pct)}%` }}
+                      />
+                    </div>
+                    <span className="text-[8px] text-muted-foreground/50 font-medium truncate w-full text-center">
+                      {label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground/50 mt-3 font-medium">
+              Cada barra representa el ICO calculado ese día. El color sigue las bandas diagnósticas.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {hasEnoughData && (
         <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
           <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
             <CardTitle className="text-foreground text-base font-bold">Componentes del ICO</CardTitle>
-            <p className="text-muted-foreground text-xs mt-0.5 font-medium">Los 5 factores que conforman el índice</p>
+            <p className="text-muted-foreground text-xs mt-0.5 font-medium">Los 6 factores que conforman el índice</p>
           </CardHeader>
           <CardContent className="p-6">
             <div className="space-y-5">
@@ -529,6 +690,134 @@ export default async function ICOPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* ── Event Integrity Score ── */}
+      <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
+        <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <CheckCircle size={18} className="text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-foreground text-base font-bold">Integridad de Eventos — Event Integrity Score</CardTitle>
+              <p className="text-muted-foreground text-xs mt-0.5 font-medium">
+                Detecta si los pedidos marcados como "listo" realmente lo estaban (retiro &gt; 10 min después = falsa señal)
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          {!eiRaw || eiRaw.total < 5 ? (
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Info size={16} className="text-amber-500 shrink-0" />
+              <p className="text-sm">Se necesitan al menos 5 pedidos con timestamps de retiro registrados. El sistema usará un valor por defecto (80%) hasta tener datos.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+              <StatCell
+                label="Score de integridad"
+                value={integrityScore !== null ? `${Math.round(integrityScore * 100)}%` : '—'}
+                sub="1 − (falsos listos / total)"
+              />
+              <StatCell
+                label="Falsos listos"
+                value={`${eiRaw.falseReady} / ${eiRaw.total}`}
+                sub="Retiro > 10 min tras marcar listo"
+              />
+              <StatCell
+                label="Tasa de error"
+                value={falseReadyPct !== null ? `${falseReadyPct}%` : '—'}
+                sub="Pedidos con señal prematura"
+                highlight={falseReadyPct !== null ? (falseReadyPct < 15 ? 'valida' : falseReadyPct < 30 ? 'muestra_pequeña' : 'insuficiente') : undefined}
+              />
+              <StatCell
+                label="Demora promedio de retiro"
+                value={avgPickupDelayMin !== null ? `${avgPickupDelayMin} min` : '—'}
+                sub="Desde readyAt hasta entrega"
+              />
+            </div>
+          )}
+          <div className="mt-4 p-3 rounded-xl bg-muted/30 border border-border/40">
+            <p className="text-[10px] text-muted-foreground/60 font-medium leading-relaxed">
+              <strong className="text-foreground/70">¿Por qué importa?</strong> Si el restaurante marca "listo" antes de que el pedido esté preparado, el cliente llega y espera.
+              Eso degrada la experiencia real y afecta la confiabilidad de los timestamps del ICO. Esta métrica detecta ese patrón.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Capacidad operativa ── */}
+      <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
+        <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <TrendingUp size={18} className="text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-foreground text-base font-bold">Capacidad Operativa</CardTitle>
+              <p className="text-muted-foreground text-xs mt-0.5 font-medium">
+                Distribución horaria de pedidos — detecta saturación y picos de demanda (últimos 30 días)
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          {hourlyCounts.length < 5 ? (
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+              <p className="text-sm">Datos insuficientes para análisis de capacidad. Se necesitan pedidos distribuidos en al menos 5 franjas horarias.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                <StatCell
+                  label="Pedidos / hora activa"
+                  value={avgPerHour > 0 ? avgPerHour.toFixed(1) : '—'}
+                  sub="Promedio en los últimos 30 días"
+                />
+                <StatCell
+                  label="Franjas registradas"
+                  value={`${hourlyCounts.length}`}
+                  sub="Ventanas de 1 hora con pedidos"
+                />
+                <StatCell
+                  label="Franjas sobrecargadas"
+                  value={`${overloadedWindows}`}
+                  sub="> 1.5× el promedio horario"
+                  highlight={overloadedWindows === 0 ? 'valida' : overloadedWindows < hourlyCounts.length * 0.2 ? 'muestra_pequeña' : 'insuficiente'}
+                />
+                {peakHour && (
+                  <StatCell
+                    label="Hora pico"
+                    value={`${peakHour.hour}:00 hs`}
+                    sub={`${peakHour.count} pedidos en esa franja`}
+                  />
+                )}
+              </div>
+              {capacityScore !== null && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-bold text-foreground">Score de capacidad</span>
+                    <span className="font-black tabular-nums">{Math.round(capacityScore * 100)}%</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all duration-700',
+                        capacityScore >= 0.8 ? 'bg-emerald-500' : capacityScore >= 0.6 ? 'bg-amber-500' : 'bg-destructive'
+                      )}
+                      style={{ width: `${Math.round(capacityScore * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/60">
+                    1 − (franjas sobrecargadas / total). Más alto = operación más uniforme y predecible.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ── Recompra y frecuencia de clientes ── */}
       <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">

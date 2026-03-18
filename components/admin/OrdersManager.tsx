@@ -14,6 +14,8 @@ interface Props {
   locationMap: Record<string, string>
   tenantSlug: string
   trialOrderCount?: number
+  load30m?: number
+  load60m?: number
 }
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
@@ -44,7 +46,7 @@ const CATEGORY_COLORS = [
   'text-emerald-600', 'text-rose-500', 'text-amber-600',
 ]
 
-export default function OrdersManager({ orders, locationMap, tenantSlug, trialOrderCount }: Props) {
+export default function OrdersManager({ orders, locationMap, tenantSlug, trialOrderCount, load30m, load60m }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [searchTerm, setSearchTerm] = useState('')
@@ -135,6 +137,42 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
             <p className="text-xs text-muted-foreground">Procesaste {trialOrderCount} pedidos. Tu Informe ICO está listo.</p>
           </div>
           <a href="./ico" className="shrink-0 h-8 px-3 rounded-xl bg-violet-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-violet-600 transition-all flex items-center">Ver →</a>
+        </div>
+      )}
+
+      {/* Indicador de carga operativa en tiempo real */}
+      {load60m !== undefined && load60m > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-card">
+          <div className={cn(
+            'w-2 h-2 rounded-full shrink-0',
+            load30m !== undefined && load30m >= 5 ? 'bg-red-500 animate-pulse' :
+            load30m !== undefined && load30m >= 3 ? 'bg-amber-400 animate-pulse' :
+            'bg-emerald-500'
+          )} />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-foreground">
+              {load30m !== undefined && load30m >= 5 ? '⚠ Alta demanda' :
+               load30m !== undefined && load30m >= 3 ? 'Demanda moderada' :
+               'Operación fluida'}
+            </p>
+            <p className="text-[10px] text-muted-foreground font-medium">
+              {load30m ?? 0} pedidos en los últimos 30 min · {load60m} en la última hora
+            </p>
+          </div>
+          {load30m !== undefined && load30m > 0 && (
+            <div className="flex items-center gap-1 shrink-0">
+              {[...Array(Math.min(load30m, 8))].map((_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'w-1.5 rounded-full transition-all',
+                    i < 3 ? 'bg-emerald-500' : i < 5 ? 'bg-amber-400' : 'bg-red-500'
+                  )}
+                  style={{ height: `${8 + i * 3}px` }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

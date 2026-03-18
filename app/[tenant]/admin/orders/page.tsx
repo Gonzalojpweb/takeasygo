@@ -20,9 +20,12 @@ export default async function OrdersPage() {
 
   const tenantId = tenant._id
 
-  const [orders, locations] = await Promise.all([
+  const now = new Date()
+  const [orders, locations, load30m, load60m] = await Promise.all([
     Order.find({ tenantId }).sort({ createdAt: -1 }).limit(50).lean(),
     Location.find({ tenantId }).lean(),
+    Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] }, createdAt: { $gte: new Date(now.getTime() - 30 * 60 * 1000) } }),
+    Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] }, createdAt: { $gte: new Date(now.getTime() - 60 * 60 * 1000) } }),
   ])
 
   const locationMap = Object.fromEntries(
@@ -46,6 +49,8 @@ export default async function OrdersPage() {
         locationMap={locationMap}
         tenantSlug={tenantSlug || ''}
         trialOrderCount={trialOrderCount}
+        load30m={load30m}
+        load60m={load60m}
       />
     </div>
   )

@@ -41,6 +41,11 @@ export interface ITenant extends Document {
     webhookSecret: string | null
     isConfigured: boolean
   }
+  cachedScores: {
+    icoScore: number | null
+    capacityScore: number | null
+    updatedAt: Date | null
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -120,6 +125,11 @@ const TenantSchema = new Schema<ITenant>(
       publicKey: { type: String, default: null },
       webhookSecret: { type: String, default: null },
       isConfigured: { type: Boolean, default: false },
+    },
+    cachedScores: {
+      icoScore: { type: Number, default: null },
+      capacityScore: { type: Number, default: null },
+      updatedAt: { type: Date, default: null },
     },
   },
   {

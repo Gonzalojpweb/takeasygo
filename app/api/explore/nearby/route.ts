@@ -33,6 +33,8 @@ export interface NearbyRestaurant {
   // Solo en type = 'listed'
   externalMenuUrl?: string
   status?: string
+  // Algoritmo de visibilidad (solo network, interno)
+  visibilityScore?: number
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -117,6 +119,8 @@ export async function GET(request: NextRequest) {
             'tenant.slug': 1,
             'tenant.branding.logoUrl': 1,
             'tenant.branding.primaryColor': 1,
+            'tenant.cachedScores.icoScore': 1,
+            'tenant.cachedScores.capacityScore': 1,
           },
         },
       ])
@@ -156,26 +160,49 @@ export async function GET(request: NextRequest) {
 
     // ── Normalizar a NearbyRestaurant ────────────────────────────────────────
 
-    const networkResults: NearbyRestaurant[] = networkRaw.map(loc => ({
-      id: loc._id.toString(),
-      type: 'network',
-      name: loc.tenant?.name ?? loc.name,
-      address: loc.address,
-      lat: loc.geo?.coordinates?.[1] ?? lat,
-      lng: loc.geo?.coordinates?.[0] ?? lng,
-      distanceM: Math.round(loc.distanceM),
-      phone: loc.phone ?? '',
-      cuisineTypes: loc.cuisineTypes ?? [],
-      openingHours: '',
-      isOpenNow: checkIsOpenNow(loc.serviceHours),
-      tenantSlug: loc.tenant?.slug,
-      tenantName: loc.tenant?.name,
-      logoUrl: loc.tenant?.branding?.logoUrl ?? '',
-      primaryColor: loc.tenant?.branding?.primaryColor ?? '#000000',
-      acceptsOrders: loc.settings?.acceptsOrders ?? true,
-      estimatedPickupTime: loc.settings?.estimatedPickupTime ?? 20,
-      orderModes: loc.settings?.orderModes ?? ['takeaway'],
-    }))
+    const networkResults: NearbyRestaurant[] = networkRaw.map(loc => {
+      const distanceM = Math.round(loc.distanceM)
+      const estimatedPickupTime: number = loc.settings?.estimatedPickupTime ?? 20
+      const acceptsOrders: boolean = loc.settings?.acceptsOrders ?? true
+      const isOpenNow = checkIsOpenNow(loc.serviceHours)
+
+      // ── Visibility Algorithm (Etapa 17) ──────────────────────────────────────
+      // Score ∈ [0, 1], higher = shown first
+      // Weights: distance 0.35 | prep_time 0.30 | capacity 0.20 | ICO 0.15
+      const distScore     = 1 - Math.min(distanceM, radius) / radius
+      const prepScore     = Math.max(0, 1 - Math.max(0, estimatedPickupTime - 5) / 55)
+      const capacityScore: number = loc.tenant?.cachedScores?.capacityScore ?? 0.5  // neutral default
+      const icoNorm: number       = loc.tenant?.cachedScores?.icoScore != null
+        ? (loc.tenant.cachedScores.icoScore as number) / 100
+        : 0.5  // neutral default
+      // Penalizar si no acepta pedidos o está cerrado
+      const penalty = (!acceptsOrders ? -0.15 : 0) + (isOpenNow === false ? -0.10 : 0)
+      const visibilityScore = Math.max(0,
+        distScore * 0.35 + prepScore * 0.30 + capacityScore * 0.20 + icoNorm * 0.15 + penalty
+      )
+
+      return {
+        id: loc._id.toString(),
+        type: 'network',
+        name: loc.tenant?.name ?? loc.name,
+        address: loc.address,
+        lat: loc.geo?.coordinates?.[1] ?? lat,
+        lng: loc.geo?.coordinates?.[0] ?? lng,
+        distanceM,
+        phone: loc.phone ?? '',
+        cuisineTypes: loc.cuisineTypes ?? [],
+        openingHours: '',
+        isOpenNow,
+        tenantSlug: loc.tenant?.slug,
+        tenantName: loc.tenant?.name,
+        logoUrl: loc.tenant?.branding?.logoUrl ?? '',
+        primaryColor: loc.tenant?.branding?.primaryColor ?? '#000000',
+        acceptsOrders,
+        estimatedPickupTime,
+        orderModes: loc.settings?.orderModes ?? ['takeaway'],
+        visibilityScore,
+      }
+    })
 
     const directoryResults: NearbyRestaurant[] = directoryRaw.map(entry => ({
       id: entry._id.toString(),
@@ -193,19 +220,16 @@ export async function GET(request: NextRequest) {
       status: entry.status,
     }))
 
-    // ── Merge + ordenar por distancia ────────────────────────────────────────
-    // Red siempre primero dentro del mismo rango, luego directorio
-    const all = [
-      ...networkResults,
-      ...directoryResults,
-    ].sort((a, b) => {
-      // In-network tiene prioridad sobre listed a igual distancia (±200m)
-      const distDiff = a.distanceM - b.distanceM
-      if (Math.abs(distDiff) > 200) return distDiff
-      if (a.type === 'network' && b.type === 'listed') return -1
-      if (a.type === 'listed' && b.type === 'network') return 1
-      return distDiff
-    })
+    // ── Merge + ordenar por Visibility Algorithm ─────────────────────────────
+    // Network: ordenado por visibilityScore (desc), directorio: por distancia (asc)
+    // Red siempre antes que directorio salvo que la distancia sea > 3× la del red más lejano
+    const networkSorted = [...networkResults].sort(
+      (a, b) => (b.visibilityScore ?? 0) - (a.visibilityScore ?? 0)
+    )
+    const directorySorted = [...directoryResults].sort(
+      (a, b) => a.distanceM - b.distanceM
+    )
+    const all = [...networkSorted, ...directorySorted]
 
     return NextResponse.json({
       restaurants: all,
