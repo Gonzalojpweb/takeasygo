@@ -54,7 +54,11 @@ export default function ExploreClient() {
         setRadius(10000) // radio más amplio cuando no hay GPS real
         setGpsLoading(false)
       },
-      { timeout: 8000, maximumAge: 60000 }
+      {
+        timeout: 10000,
+        maximumAge: 0,          // siempre pedir posición fresca, nunca usar caché
+        enableHighAccuracy: true, // usar GPS del hardware, no solo IP/WiFi
+      }
     )
   }, [])
 
