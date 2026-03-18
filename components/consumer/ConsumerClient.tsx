@@ -11,7 +11,7 @@ import {
   Navigation, Loader2, Clock, MapPin, Home, Map, User,
   AlertCircle, ChevronRight,
 } from 'lucide-react'
-import PlanLeadModal from '@/components/landing/PlanLeadModal'
+import SelfReportModal from '@/components/consumer/SelfReportModal'
 
 const ExploreMap = dynamic(() => import('@/components/explore/ExploreMap'), {
   ssr: false,
@@ -520,13 +520,9 @@ export default function ConsumerClient() {
         </div>
       </div>
 
-      {/* Modal de registro B2B */}
+      {/* Modal de registro en directorio */}
       {showLeadModal && (
-        <PlanLeadModal
-          plan="Registrá tu restaurante"
-          planId="contact"
-          onClose={() => setShowLeadModal(false)}
-        />
+        <SelfReportModal onClose={() => setShowLeadModal(false)} />
       )}
     </>
   )
