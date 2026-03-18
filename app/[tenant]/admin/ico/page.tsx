@@ -348,16 +348,26 @@ export default async function ICOPage() {
     ? { hour: peakHourRaw._id.hour as number, count: peakHourRaw.count as number }
     : null
 
+  // ── ICO: renormalización dinámica sobre componentes con dato real ────────────
+  // Si un componente no tiene datos (null), su peso se redistribuye proporcionalmente
+  // entre los disponibles. Ningún valor hardcodeado entra en la fórmula.
+  const icoComponents = [
+    { value: consistency,     weight: 0.22 },
+    { value: cumplimiento,    weight: 0.27 },
+    { value: bajaCancelacion, weight: 0.18 },
+    { value: actividad,       weight: 0.12 },
+    { value: estabilidad,     weight: 0.09 },
+    { value: integrityScore,  weight: 0.12 },
+  ] as const
+
   let icoScore: number | null = null
   if (hasEnoughData) {
-    const c1 = consistency    ?? 0.5
-    const c2 = cumplimiento   ?? 0.5
-    const c3 = bajaCancelacion ?? 1
-    const c4 = actividad
-    const c5 = estabilidad
-    const c6 = integrityScore ?? 0.8  // default 80% cuando no hay datos suficientes
-    // Pesos redistribuidos para acomodar el 6to componente (suma = 1.00)
-    icoScore = Math.round((c1 * 0.22 + c2 * 0.27 + c3 * 0.18 + c4 * 0.12 + c5 * 0.09 + c6 * 0.12) * 100)
+    const available = icoComponents.filter(c => c.value !== null)
+    const totalWeight = available.reduce((s, c) => s + c.weight, 0)
+    if (totalWeight > 0) {
+      const raw = available.reduce((s, c) => s + (c.value as number) * c.weight, 0)
+      icoScore = Math.round((raw / totalWeight) * 100)
+    }
   }
 
   const band = icoScore !== null ? getBand(icoScore) : null
@@ -514,14 +524,56 @@ export default async function ICOPage() {
   const tppStdMinutes = tRaw ? Math.round(tRaw.stdMs / 60000) : null
   const tppSEMinutes  = tppSEMs ? Math.round(tppSEMs / 60000 * 10) / 10 : null
 
+  // Peso efectivo de cada componente (renormalizado según los disponibles)
+  const availableWeight = icoComponents
+    .filter(c => c.value !== null)
+    .reduce((s, c) => s + c.weight, 0)
+  const effectiveWeight = (nominalWeight: number, hasData: boolean) =>
+    hasData && availableWeight > 0
+      ? `×${(nominalWeight / availableWeight).toFixed(2)}`
+      : '—'
+
   const componentsData = [
-    { label: 'Consistencia del TPP',       weight: '×0.22', value: consistency    !== null ? Math.round(consistency * 100)    : null, tip: 'Inverso del coeficiente de variación (σ/μ)' },
-    { label: 'Cumplimiento de tiempos',    weight: '×0.27', value: cumplimiento   !== null ? Math.round(cumplimiento * 100)   : null, tip: '% de pedidos entregados dentro del tiempo estimado' },
-    { label: 'Baja tasa de cancelación',   weight: '×0.18', value: bajaCancelacion !== null ? Math.round(bajaCancelacion * 100) : null, tip: `${cancRate}% de cancelaciones en 30 días` },
-    { label: 'Actividad sostenida',        weight: '×0.12', value: Math.round(actividad * 100),   tip: 'Órdenes últimos 7 días vs promedio semanal del mes' },
-    { label: 'Estabilidad horaria',        weight: '×0.09', value: Math.round(estabilidad * 100), tip: `${activeDays} días activos en los últimos 30` },
-    { label: 'Integridad de eventos',      weight: '×0.12', value: integrityScore !== null ? Math.round(integrityScore * 100) : null, tip: falseReadyPct !== null ? `${falseReadyPct}% de pedidos marcados "listo" antes de estar preparados` : 'Sin datos suficientes (mín. 5 entregas registradas)' },
-  ]
+    {
+      label: 'Consistencia del TPP', nominalWeight: 0.22,
+      value: consistency !== null ? Math.round(consistency * 100) : null,
+      tip: consistency !== null
+        ? 'Inverso del coeficiente de variación (σ/μ)'
+        : 'Sin datos — se necesitan pedidos con timestamps confirmedAt y readyAt',
+    },
+    {
+      label: 'Cumplimiento de tiempos', nominalWeight: 0.27,
+      value: cumplimiento !== null ? Math.round(cumplimiento * 100) : null,
+      tip: cumplimiento !== null
+        ? '% de pedidos listos dentro del tiempo estimado de la sede'
+        : 'Sin datos — se necesitan pedidos con readyAt y estimatedPickupTime configurado en la sede',
+    },
+    {
+      label: 'Baja tasa de cancelación', nominalWeight: 0.18,
+      value: bajaCancelacion !== null ? Math.round(bajaCancelacion * 100) : null,
+      tip: `${cancRate}% de cancelaciones en los últimos 30 días`,
+    },
+    {
+      label: 'Actividad sostenida', nominalWeight: 0.12,
+      value: Math.round(actividad * 100),
+      tip: 'Pedidos últimos 7 días vs promedio semanal del mes',
+    },
+    {
+      label: 'Estabilidad horaria', nominalWeight: 0.09,
+      value: Math.round(estabilidad * 100),
+      tip: `${activeDays} días activos en los últimos 30`,
+    },
+    {
+      label: 'Integridad de eventos', nominalWeight: 0.12,
+      value: integrityScore !== null ? Math.round(integrityScore * 100) : null,
+      tip: integrityScore !== null
+        ? (falseReadyPct !== null ? `${falseReadyPct}% de pedidos marcados "listo" prematuramente` : '—')
+        : 'Sin datos — se necesitan al menos 5 pedidos con deliveredAt registrado',
+    },
+  ].map(c => ({
+    ...c,
+    weight: effectiveWeight(c.nominalWeight, c.value !== null),
+  }))
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -657,7 +709,9 @@ export default async function ICOPage() {
         <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
           <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
             <CardTitle className="text-foreground text-base font-bold">Componentes del ICO</CardTitle>
-            <p className="text-muted-foreground text-xs mt-0.5 font-medium">Los 6 factores que conforman el índice</p>
+            <p className="text-muted-foreground text-xs mt-0.5 font-medium">
+              {icoComponents.filter(c => c.value !== null).length} de 6 componentes con datos reales · pesos renormalizados automáticamente
+            </p>
           </CardHeader>
           <CardContent className="p-6">
             <div className="space-y-5">
