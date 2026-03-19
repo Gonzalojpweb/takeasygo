@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Check, Handshake, ChevronDown, ChevronUp } from 'lucide-react'
+import { Check, Handshake, ChevronDown, ChevronUp, Star, Zap } from 'lucide-react'
 import PlanLeadModal from './PlanLeadModal'
 import { PLAN_FEATURES_LANDING } from '@/lib/plans'
 
@@ -197,6 +197,107 @@ function PlanCard({
     )
 }
 
+const FOUNDER_FEATURES = [
+    { icon: '⚡', label: 'Dashboard de administración' },
+    { icon: '🍽️', label: 'Menú digital completo' },
+    { icon: '⚙️', label: 'Configuración del restaurante' },
+    { icon: '💳', label: 'Gestión de facturación' },
+]
+
+function FounderBanner({ onOpen }: { onOpen: () => void }) {
+    return (
+        <div className="relative mb-16 md:mb-20">
+            {/* Glow de fondo */}
+            <div
+                className="absolute inset-0 rounded-[2.5rem] pointer-events-none"
+                style={{
+                    background: 'radial-gradient(ellipse at 50% 0%, rgba(245,158,11,0.12) 0%, transparent 70%)',
+                }}
+            />
+
+            <div className="relative rounded-[2rem] md:rounded-[2.5rem] border border-amber-200 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/40 p-8 md:p-12 overflow-hidden">
+
+                {/* Fondo decorativo */}
+                <div
+                    className="absolute top-0 right-0 w-80 h-80 pointer-events-none opacity-30"
+                    style={{
+                        background: 'radial-gradient(ellipse at 80% 20%, rgba(245,158,11,0.25) 0%, transparent 60%)',
+                    }}
+                />
+
+                <div className="relative flex flex-col md:flex-row items-start md:items-center gap-10 md:gap-16">
+
+                    {/* ── Copy ── */}
+                    <div className="flex-1 min-w-0">
+                        {/* Badges */}
+                        <div className="flex flex-wrap items-center gap-2 mb-5">
+                            <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-full bg-amber-500 text-white">
+                                <Star size={9} fill="white" />
+                                Acceso Anfitriones
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-full border border-amber-300 text-amber-700 bg-amber-50">
+                                <Zap size={9} />
+                                Lanzamiento Limitado
+                            </span>
+                        </div>
+
+                        {/* Título */}
+                        <h3 className="text-zinc-900 font-bold text-2xl md:text-3xl tracking-tight mb-2">
+                            El mejor momento para empezar<br className="hidden md:block" /> es ahora.
+                        </h3>
+                        <p className="text-zinc-500 text-sm leading-relaxed max-w-md mb-6">
+                            Cupos exclusivos para los primeros restaurantes en sumarse a la plataforma.
+                            Acceso completo al panel, menú digital, configuración y facturación.
+                        </p>
+
+                        {/* Features grid */}
+                        <div className="grid grid-cols-2 gap-2.5">
+                            {FOUNDER_FEATURES.map((f) => (
+                                <div key={f.label} className="flex items-center gap-2 text-zinc-600 text-xs font-medium">
+                                    <span className="text-base leading-none">{f.icon}</span>
+                                    {f.label}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ── Precio ── */}
+                    <div className="shrink-0 flex flex-col items-start md:items-center gap-5">
+                        <div className="bg-white border border-amber-100 rounded-2xl p-6 shadow-sm text-center min-w-[200px]">
+                            {/* Anchor diario */}
+                            <div className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 mb-4">
+                                ✦ Menos de $250/día
+                            </div>
+
+                            <div className="flex items-baseline justify-center gap-1 mb-1">
+                                <span className="text-sm font-bold text-zinc-400 italic">$ARG</span>
+                                <span className="text-5xl font-bold text-zinc-900 tracking-tighter">7.500</span>
+                            </div>
+                            <p className="text-zinc-400 text-[11px] font-bold uppercase tracking-wider mb-1">
+                                / mes
+                            </p>
+                            <p className="text-zinc-400 text-[10px] leading-relaxed">
+                                = $7.500 ÷ 30 días
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={onOpen}
+                            className="w-full h-12 px-8 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] uppercase tracking-widest transition-all cursor-pointer border-0 shadow-lg shadow-amber-500/20 whitespace-nowrap"
+                        >
+                            Quiero ser Anfitrión
+                        </button>
+
+                        <p className="text-zinc-400 text-[10px] text-center leading-relaxed">
+                            Cupos limitados · Sin permanencia
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 export default function Pricing() {
     const [type, setType] = useState<'mensual' | 'anual'>('mensual')
     const [modal, setModal] = useState<{ plan: string; planId: string } | null>(null)
@@ -207,6 +308,11 @@ export default function Pricing() {
         <>
             <section id="pricing" className="bg-white py-20 md:py-32 px-5 md:px-6">
                 <div className="max-w-7xl mx-auto">
+
+                    {/* ── Banner Anfitriones ──────────────────────────────── */}
+                    <FounderBanner
+                        onOpen={() => setModal({ plan: 'Anfitriones — $7.500/mes', planId: 'anfitrion' })}
+                    />
 
                     {/* ── Header ─────────────────────────────────────────── */}
                     <div className="text-center mb-12 md:mb-16">

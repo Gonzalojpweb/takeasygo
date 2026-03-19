@@ -5,8 +5,7 @@ import Printer from '@/models/Printer'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import PrintersManager from '@/components/admin/PrintersManager'
-import type { Plan } from '@/lib/plans'
-import { PLAN_LABELS } from '@/lib/plans'
+import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 import { AlertTriangle } from 'lucide-react'
 
 export default async function PrintersPage() {
@@ -19,6 +18,28 @@ export default async function PrintersPage() {
   if (!tenant) notFound()
 
   const plan: Plan = tenant.plan ?? 'try'
+
+  if (!canAccess(plan, 'printers')) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-6 text-center">
+        <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center">
+          <AlertTriangle size={32} className="text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Impresoras</h2>
+          <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+            Esta funcionalidad no está incluida en el plan{' '}
+            <span className="font-bold text-foreground">{PLAN_LABELS[plan]}</span>.
+            Contactá al soporte para actualizar tu plan.
+          </p>
+        </div>
+        <div className="px-6 py-3 rounded-2xl bg-muted text-sm font-bold text-muted-foreground">
+          Tu plan actual: {PLAN_LABELS[plan]}
+        </div>
+      </div>
+    )
+  }
+
   const isTryPlan = plan === 'try'
 
   const locations = await Location.find({ tenantId: tenant._id, isActive: true }).lean()

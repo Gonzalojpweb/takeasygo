@@ -81,6 +81,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       label: 'Pedidos',
       icon: ShoppingBag,
       roles: ['admin', 'manager', 'staff', 'cashier'],
+      feature: 'orders',
       requiresTakeaway: true,
     },
     {
@@ -124,6 +125,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       label: 'Impresoras',
       icon: Printer,
       roles: ['admin', 'manager'],
+      feature: 'printers',
       requiresTakeaway: true,
     },
     {
@@ -131,6 +133,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       label: 'Historial',
       icon: ClipboardList,
       roles: ['admin', 'manager', 'cashier'],
+      feature: 'orderHistory',
       requiresTakeaway: true,
     },
     {
