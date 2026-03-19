@@ -8,6 +8,8 @@ import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 import { Lock } from 'lucide-react'
 
+const UPSELL_SOURCES = ['upsell_sheet', 'checkout_banner']
+
 export default async function ReportsPage() {
   const headersList = await headers()
   const tenantSlug = headersList.get('x-tenant-slug')
@@ -67,6 +69,8 @@ export default async function ReportsPage() {
     categoryRevenueData,
     dailyTrendData,
     locationRevenueData,
+    upsellAddsData,
+    upsellConversionsData,
   ] = await Promise.all([
     // Revenue y count del mes actual (sin cancelados)
     Order.aggregate([
@@ -228,6 +232,20 @@ export default async function ReportsPage() {
       }},
       { $sort: { revenue: -1 } },
     ]) : Promise.resolve([]),
+    // Upsell adds — solo full (últimos 90 días)
+    isFullPlan ? Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: last90days } } },
+      { $unwind: '$items' },
+      { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
+      { $group: { _id: { name: '$items.name', source: '$items.addedFrom' }, adds: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
+    ]) : Promise.resolve([]),
+    // Upsell conversions (pagadas) — solo full
+    isFullPlan ? Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: last90days }, 'payment.status': 'approved' } },
+      { $unwind: '$items' },
+      { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
+      { $group: { _id: { name: '$items.name', source: '$items.addedFrom' }, conversions: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
+    ]) : Promise.resolve([]),
   ])
 
   const thisMonth = ordersThisMonth[0] || { total: 0, count: 0 }
@@ -321,6 +339,25 @@ export default async function ReportsPage() {
       orders: l.orders as number,
     }))
 
+  // Upsell analytics — merge adds + conversions
+  type UpsellRow = { name: string; source: string; adds: number; conversions: number; conversionRate: number; revenue: number }
+  const upsellMap = new Map<string, UpsellRow>()
+  for (const a of upsellAddsData as any[]) {
+    const key = `${a._id.name}::${a._id.source}`
+    upsellMap.set(key, { name: a._id.name as string, source: a._id.source as string, adds: a.adds as number, conversions: 0, conversionRate: 0, revenue: 0 })
+  }
+  for (const c of upsellConversionsData as any[]) {
+    const key = `${c._id.name}::${c._id.source}`
+    const row = upsellMap.get(key)
+    if (row) { row.conversions = c.conversions as number; row.revenue = c.revenue as number; row.conversionRate = row.adds > 0 ? Math.round((row.conversions / row.adds) * 100) : 0 }
+    else { upsellMap.set(key, { name: c._id.name as string, source: c._id.source as string, adds: 0, conversions: c.conversions as number, conversionRate: 100, revenue: c.revenue as number }) }
+  }
+  const upsellRows = Array.from(upsellMap.values()).sort((a, b) => b.revenue - a.revenue)
+  const upsellTotalAdds = upsellRows.reduce((s, r) => s + r.adds, 0)
+  const upsellTotalConversions = upsellRows.reduce((s, r) => s + r.conversions, 0)
+  const upsellTotalRevenue = upsellRows.reduce((s, r) => s + r.revenue, 0)
+  const upsellOverallConvRate = upsellTotalAdds > 0 ? Math.round((upsellTotalConversions / upsellTotalAdds) * 100) : 0
+
   const stats = {
     revenue: thisMonth.total,
     orders: thisMonth.count,
@@ -353,6 +390,12 @@ export default async function ReportsPage() {
     revenueByCategory,
     dailyTrend,
     revenueByLocation,
+    // Upselling analytics
+    upsellRows,
+    upsellTotalAdds,
+    upsellTotalConversions,
+    upsellTotalRevenue,
+    upsellOverallConvRate,
   }
 
   return (

@@ -67,6 +67,7 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
         quantity: 1,
         customizations: [],
         customizationSummary: '',
+        addedFrom: 'checkout_banner' as const,
       }]
     })
     setUpsellHints(prev => prev.filter(h => h._id !== item._id))

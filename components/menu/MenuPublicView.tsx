@@ -101,6 +101,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const [upsellSuggestions, setUpsellSuggestions] = useState<any[]>([])
   const [insights, setInsights] = useState<ICoOccurrencePair[] | null>(null)
   const skipUpsellRef = useRef(false)
+  const upsellModalRef = useRef(false)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
   const branding = tenant.branding
@@ -182,7 +183,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
       .catch(() => { /* falla silenciosa, el fallback estático sigue funcionando */ })
   }, [tenant.slug, location._id])
 
-  function addPlainToCart(item: any, triggerUpsell = true) {
+  function addPlainToCart(item: any, triggerUpsell = true, addedFrom: CartItem['addedFrom'] = 'menu') {
     const plainId = `${item._id}:plain`
     const isNew = !cart.some(i => i.cartItemId === plainId)
     setCart(prev => {
@@ -198,6 +199,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         quantity: 1,
         customizations: [],
         customizationSummary: '',
+        addedFrom,
       }]
     })
     if (triggerUpsell && isNew) {
@@ -207,18 +209,23 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   }
 
   function handleConfirmCustomization(cartItem: CartItem) {
-    setCart(prev => [...prev, cartItem])
+    const taggedItem: CartItem = upsellModalRef.current
+      ? { ...cartItem, addedFrom: 'upsell_sheet' }
+      : cartItem
+    setCart(prev => [...prev, taggedItem])
     setCustomizingItem(null)
     if (!skipUpsellRef.current) {
       const suggestions = getSuggestions(categories, cart, cartItem.menuItemId, insights)
       if (suggestions.length > 0) setUpsellSuggestions(suggestions)
     }
     skipUpsellRef.current = false
+    upsellModalRef.current = false
   }
 
   function handleUpsellOpenModal(item: any) {
     setUpsellSuggestions([])
     skipUpsellRef.current = true
+    upsellModalRef.current = true
     openCustomizationModal(item)
   }
 
@@ -683,7 +690,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
       {upsellSuggestions.length > 0 && (
         <UpsellSheet
           suggestions={upsellSuggestions}
-          onAddPlain={(item) => { addPlainToCart(item, false); setUpsellSuggestions([]) }}
+          onAddPlain={(item) => { addPlainToCart(item, false, 'upsell_sheet'); setUpsellSuggestions([]) }}
           onOpenModal={handleUpsellOpenModal}
           onClose={() => setUpsellSuggestions([])}
           primary={primary}

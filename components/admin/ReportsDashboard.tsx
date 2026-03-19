@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import UpsellAnalytics from '@/components/admin/UpsellAnalytics'
 
 interface Props {
     stats: {
@@ -46,6 +47,12 @@ interface Props {
         revenueByCategory: { category: string; revenue: number; quantity: number }[]
         dailyTrend: { day: number; revenue: number; orders: number }[]
         revenueByLocation: { locationName: string; revenue: number; orders: number }[]
+        // Upselling analytics
+        upsellRows: { name: string; source: string; adds: number; conversions: number; conversionRate: number; revenue: number }[]
+        upsellTotalAdds: number
+        upsellTotalConversions: number
+        upsellTotalRevenue: number
+        upsellOverallConvRate: number
     }
     topItems: any[]
     recentOrders: any[]
@@ -573,6 +580,27 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                             </Card>
                         )}
                     </div>
+                </motion.div>
+            )}
+
+            {/* ── Upselling Analytics ──────────────────────────────────── */}
+            {plan === 'full' && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+                    <div className="mb-4">
+                        <h2 className="text-lg font-bold tracking-tight flex items-center gap-2">
+                            <Zap size={18} className="text-amber-500" />
+                            Analytics de Upselling
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">Productos sugeridos · últimos 90 días</p>
+                    </div>
+                    <UpsellAnalytics
+                        totalAdds={stats.upsellTotalAdds}
+                        totalConversions={stats.upsellTotalConversions}
+                        totalRevenue={stats.upsellTotalRevenue}
+                        overallConversionRate={stats.upsellOverallConvRate}
+                        windowDays={90}
+                        rows={stats.upsellRows}
+                    />
                 </motion.div>
             )}
 

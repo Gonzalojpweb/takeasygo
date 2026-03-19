@@ -167,6 +167,7 @@ export async function POST(
         quantity,
         subtotal,
         customizations: resolvedCustomizations,
+        addedFrom: clientItem.addedFrom ?? null,
       })
     }
 

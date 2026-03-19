@@ -23,6 +23,7 @@ export interface IOrderItem {
   quantity: number
   subtotal: number
   customizations: ISelectedCustomizationGroup[]
+  addedFrom?: string
 }
 
 export interface IPrintLogEntry {
@@ -95,6 +96,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
     type: [SelectedCustomizationGroupSchema],
     default: [],
   },
+  addedFrom: { type: String, default: null },
 })
 
 const OrderSchema = new Schema<IOrder>(
