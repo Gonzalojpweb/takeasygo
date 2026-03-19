@@ -32,7 +32,7 @@ export async function computeMenuInsights(
 
   // Filtrar órdenes con ≥ 2 ítems distintos
   const multiItemOrders = orders.filter((o) => {
-    const ids = new Set(o.items.map((i) => String(i.menuItemId)))
+    const ids = new Set(o.items.map((i: any) => String(i.menuItemId)))
     return ids.size >= 2
   })
 
@@ -44,7 +44,7 @@ export async function computeMenuInsights(
   const coMap = new Map<string, number>()
 
   for (const order of multiItemOrders) {
-    const ids = [...new Set(order.items.map((i) => String(i.menuItemId)))]
+    const ids = [...new Set(order.items.map((i: any) => String(i.menuItemId)))]
 
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
