@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import PushSubscription from '@/models/PushSubscription'
 import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
-import { auth } from '@/auth'
+import { auth } from '@/lib/auth'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
