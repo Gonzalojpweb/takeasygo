@@ -8,9 +8,12 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { CartItem } from '@/types/cart'
+import type { ICoOccurrencePair } from '@/models/MenuInsights'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import CustomizationModal from '@/components/menu/CustomizationModal'
+import UpsellSheet from '@/components/menu/UpsellSheet'
 import { isAvailableNow } from '@/lib/availability'
+import { getSuggestions } from '@/lib/upsell-menu'
 
 interface Props {
   tenant: any
@@ -95,6 +98,9 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const [showCart, setShowCart] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [customizingItem, setCustomizingItem] = useState<any | null>(null)
+  const [upsellSuggestions, setUpsellSuggestions] = useState<any[]>([])
+  const [insights, setInsights] = useState<ICoOccurrencePair[] | null>(null)
+  const skipUpsellRef = useRef(false)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
   const branding = tenant.branding
@@ -168,8 +174,17 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
     if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
   }, [activeCategory])
 
-  function addPlainToCart(item: any) {
+  // Fetch insights de co-ocurrencia (no bloquea el render, mejora sugerencias cuando llegan)
+  useEffect(() => {
+    fetch(`/api/${tenant.slug}/menu/insights/${location._id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.pairs?.length) setInsights(data.pairs) })
+      .catch(() => { /* falla silenciosa, el fallback estático sigue funcionando */ })
+  }, [tenant.slug, location._id])
+
+  function addPlainToCart(item: any, triggerUpsell = true) {
     const plainId = `${item._id}:plain`
+    const isNew = !cart.some(i => i.cartItemId === plainId)
     setCart(prev => {
       const existing = prev.find(i => i.cartItemId === plainId)
       if (existing) return prev.map(i => i.cartItemId === plainId ? { ...i, quantity: i.quantity + 1 } : i)
@@ -185,11 +200,26 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         customizationSummary: '',
       }]
     })
+    if (triggerUpsell && isNew) {
+      const suggestions = getSuggestions(categories, cart, String(item._id), insights)
+      if (suggestions.length > 0) setUpsellSuggestions(suggestions)
+    }
   }
 
   function handleConfirmCustomization(cartItem: CartItem) {
     setCart(prev => [...prev, cartItem])
     setCustomizingItem(null)
+    if (!skipUpsellRef.current) {
+      const suggestions = getSuggestions(categories, cart, cartItem.menuItemId, insights)
+      if (suggestions.length > 0) setUpsellSuggestions(suggestions)
+    }
+    skipUpsellRef.current = false
+  }
+
+  function handleUpsellOpenModal(item: any) {
+    setUpsellSuggestions([])
+    skipUpsellRef.current = true
+    openCustomizationModal(item)
   }
 
   function removeFromCart(cartItemId: string) {
@@ -632,6 +662,20 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
           primaryColor={primary}
           bgColor={bg}
           textColor={text}
+        />
+      )}
+
+      {/* ── Upsell Sheet ── */}
+      {upsellSuggestions.length > 0 && (
+        <UpsellSheet
+          suggestions={upsellSuggestions}
+          onAddPlain={(item) => { addPlainToCart(item, false); setUpsellSuggestions([]) }}
+          onOpenModal={handleUpsellOpenModal}
+          onClose={() => setUpsellSuggestions([])}
+          primary={primary}
+          bg={bg}
+          text={text}
+          locale={locale}
         />
       )}
 
