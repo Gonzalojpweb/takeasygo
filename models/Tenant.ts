@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 export interface ITenant extends Document {
   name: string
   slug: string
-  plan: 'trial' | 'try' | 'buy' | 'full'
+  plan: 'trial' | 'try' | 'buy' | 'full' | 'anfitrion'
   isActive: boolean
   subscription: {
     preapprovalId: string | null
@@ -67,7 +67,7 @@ const TenantSchema = new Schema<ITenant>(
     },
     plan: {
       type: String,
-      enum: ['trial', 'try', 'buy', 'full'],
+      enum: ['trial', 'try', 'buy', 'full', 'anfitrion'],
       default: 'trial',
     },
     isActive: {

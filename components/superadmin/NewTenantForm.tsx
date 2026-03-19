@@ -10,10 +10,11 @@ import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 
 const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
-  trial: ['Menú + pedidos takeaway', 'Panel básico de órdenes', 'Hasta 30 pedidos → Informe ICO gratis'],
-  try:   ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
-  buy:   ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
-  full:  ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
+  trial:     ['Menú + pedidos takeaway', 'Panel básico de órdenes', 'Hasta 30 pedidos → Informe ICO gratis'],
+  try:       ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
+  buy:       ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
+  full:      ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
+  anfitrion: ['Dashboard + Menú digital', 'Configuración del restaurante', 'Facturación y suscripción'],
 }
 
 export default function NewTenantForm() {
@@ -102,7 +103,7 @@ export default function NewTenantForm() {
           <div>
             <label className="text-zinc-400 text-sm block mb-2">Plan</label>
             <div className="flex flex-col gap-2">
-              {(['trial', 'try', 'buy', 'full'] as Plan[]).map(p => (
+              {(['anfitrion', 'trial', 'try', 'buy', 'full'] as Plan[]).map(p => (
                 <button
                   key={p}
                   type="button"
@@ -119,6 +120,8 @@ export default function NewTenantForm() {
                       <p className={cn('font-bold text-sm', form.plan === p ? 'text-primary' : 'text-white')}>{PLAN_LABELS[p]}</p>
                       {p === 'trial' ? (
                         <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-400">Prueba gratuita</span>
+                      ) : p === 'anfitrion' ? (
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">Lanzamiento · {PLAN_PRICE[p]}</span>
                       ) : (
                         <p className="text-zinc-500 text-[10px] font-bold">{PLAN_PRICE[p]}</p>
                       )}

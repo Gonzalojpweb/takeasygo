@@ -12,10 +12,11 @@ import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 
 const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
-  trial: ['Menú + pedidos takeaway', 'Panel básico de órdenes', 'Hasta 30 pedidos → Informe ICO gratis'],
-  try:   ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
-  buy:   ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
-  full:  ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
+  trial:     ['Menú + pedidos takeaway', 'Panel básico de órdenes', 'Hasta 30 pedidos → Informe ICO gratis'],
+  try:       ['Menú + pedidos + MercadoPago', 'Impresión automática en cocina', '1 sede / 1 impresora'],
+  buy:       ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
+  full:      ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
+  anfitrion: ['Dashboard + Menú digital', 'Configuración del restaurante', 'Facturación y suscripción'],
 }
 
 interface Props {
@@ -157,7 +158,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
             <div className="space-y-2">
               <label className={labelCls}>Plan de Servicio</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {(['trial', 'try', 'buy', 'full'] as Plan[]).map(p => (
+                {(['anfitrion', 'trial', 'try', 'buy', 'full'] as Plan[]).map(p => (
                   <button
                     key={p}
                     type="button"
@@ -172,6 +173,8 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                     <p className={cn('font-bold text-sm', form.plan === p ? 'text-primary' : 'text-foreground')}>{PLAN_LABELS[p]}</p>
                     {p === 'trial' ? (
                       <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-500">Prueba gratuita</span>
+                    ) : p === 'anfitrion' ? (
+                      <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500">Lanzamiento · {PLAN_PRICE[p]}</span>
                     ) : (
                       <p className="text-muted-foreground text-[10px] font-bold mt-0.5">{PLAN_PRICE[p]}</p>
                     )}
@@ -186,7 +189,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                 ))}
               </div>
               {(() => {
-                const planOrder: Plan[] = ['trial', 'try', 'buy', 'full']
+                const planOrder: Plan[] = ['anfitrion', 'trial', 'try', 'buy', 'full']
                 const origIdx = planOrder.indexOf(tenant.plan as Plan)
                 const newIdx  = planOrder.indexOf(form.plan as Plan)
                 if (tenant.plan === 'trial' && newIdx > origIdx) {
