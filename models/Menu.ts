@@ -29,6 +29,7 @@ export interface IMenuItem {
   isAvailable: boolean
   tags: string[]
   isFeatured: boolean
+  suggestWith?: string[]  // IDs de ítems a sugerir cuando este se agrega al carrito
   customizationGroups: ICustomizationGroup[]
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
@@ -102,6 +103,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
   isFeatured: {
     type: Boolean,
     default: false,
+  },
+  suggestWith: {
+    type: [String],
+    default: [],
   },
   customizationGroups: {
     type: [CustomizationGroupSchema],

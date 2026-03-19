@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import {
   ChevronDown, Plus, Pencil, Trash2, Check, X,
   Star, Upload, Camera, Settings2, Image as ImageIcon,
-  MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff, Clock
+  MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff, Clock, Sparkles
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -36,6 +36,7 @@ const EMPTY_CUSTOMIZATION_GROUP: CustomizationGroupForm = {
 
 const EMPTY_ITEM = {
   name: '', description: '', price: '', tags: '', isFeatured: false, imageUrl: '',
+  suggestWith: [] as string[],
   customizationGroups: [] as CustomizationGroupForm[],
   availabilityMode: 'always' as 'always' | 'scheduled',
   availabilitySchedule: [] as ScheduleSlot[],
@@ -167,6 +168,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
           imageUrl: newItem.imageUrl,
+          suggestWith: newItem.suggestWith,
           customizationGroups: serializeGroups(newItem.customizationGroups),
         }),
       })
@@ -198,6 +200,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           tags: parseTags(editingItemData.tags),
           isFeatured: editingItemData.isFeatured,
           imageUrl: editingItemData.imageUrl,
+          suggestWith: editingItemData.suggestWith,
           customizationGroups: serializeGroups(editingItemData.customizationGroups),
           availabilityMode: editingItemData.availabilityMode,
           availabilitySchedule: editingItemData.availabilityMode === 'scheduled' ? editingItemData.availabilitySchedule : [],
@@ -630,6 +633,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                     loading={loading}
                                     mode="edit"
                                     tenantSlug={tenantSlug}
+                                    allItems={(currentMenu?.categories || []).flatMap((c: any) => c.items).filter((i: any) => i._id !== item._id)}
                                   />
                                 ) : (
                                   <div className="flex items-center justify-between gap-4">
@@ -712,6 +716,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                             tags: (item.tags || []).join(', '),
                                             isFeatured: item.isFeatured ?? false,
                                             imageUrl: item.imageUrl || '',
+                                            suggestWith: item.suggestWith ?? [],
                                             customizationGroups: deserializeGroups(item.customizationGroups || []),
                                             availabilityMode: item.availabilityMode ?? 'always',
                                             availabilitySchedule: item.availabilitySchedule ?? [],
@@ -761,6 +766,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                     loading={loading}
                                     mode="add"
                                     tenantSlug={tenantSlug}
+                                    allItems={(currentMenu?.categories || []).flatMap((c: any) => c.items)}
                                   />
                                 </motion.div>
                               ) : (
@@ -799,7 +805,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 }
 
 function ItemForm({
-  data, onChange, onSave, onCancel, loading, mode, tenantSlug,
+  data, onChange, onSave, onCancel, loading, mode, tenantSlug, allItems = [],
 }: {
   data: ItemFormData
   onChange: (v: ItemFormData) => void
@@ -808,6 +814,7 @@ function ItemForm({
   loading: boolean
   mode: 'add' | 'edit'
   tenantSlug: string
+  allItems?: any[]
 }) {
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -1162,6 +1169,55 @@ function ItemForm({
           )}
         </div>
       </div>
+
+      {/* ── Sugerir junto a ── */}
+      {allItems.length > 0 && (
+        <div className="pt-6 border-t border-border/60">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <h5 className="text-sm font-bold text-foreground leading-none">Sugerir junto a</h5>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter opacity-70">
+                Se ofrecen al cliente cuando agrega este producto
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {allItems.map((other: any) => {
+              const isSelected = (data.suggestWith ?? []).includes(String(other._id))
+              return (
+                <button
+                  key={other._id}
+                  type="button"
+                  onClick={() => {
+                    const current = data.suggestWith ?? []
+                    const id = String(other._id)
+                    onChange({
+                      ...data,
+                      suggestWith: isSelected
+                        ? current.filter(i => i !== id)
+                        : [...current, id],
+                    })
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 p-3 rounded-xl border-2 text-left text-xs font-medium transition-all',
+                    isSelected
+                      ? 'border-primary/40 bg-primary/5 text-primary'
+                      : 'border-border/60 bg-muted/20 text-muted-foreground hover:border-primary/30',
+                  )}
+                >
+                  {other.imageUrl && (
+                    <img src={other.imageUrl} alt="" className="w-8 h-8 object-cover rounded-lg flex-shrink-0" />
+                  )}
+                  <span className="truncate">{other.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-3 pt-8 mt-4 border-t border-border/60">
         <Button

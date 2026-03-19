@@ -238,6 +238,20 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   function goToCheckout() {
     sessionStorage.setItem('cart', JSON.stringify(cart))
     sessionStorage.setItem('mode', mode)
+
+    // Pre-checkout upsell: ítems destacados fuera del carrito sin grupos requeridos
+    const cartIds = new Set(cart.map(i => i.menuItemId))
+    const hints = categories
+      .flatMap((cat: any) => cat.items)
+      .filter((i: any) =>
+        i.isAvailable &&
+        i.isFeatured &&
+        !cartIds.has(String(i._id)) &&
+        !(i.customizationGroups ?? []).some((g: any) => g.required)
+      )
+      .slice(0, 2)
+    sessionStorage.setItem('upsellHints', JSON.stringify(hints))
+
     router.push(`/${tenant.slug}/menu/${location._id}/${mode}/checkout`)
   }
 

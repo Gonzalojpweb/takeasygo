@@ -19,7 +19,7 @@ export async function POST(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { locationId, name, description, price, imageUrl, tags, isFeatured, customizationGroups } = await request.json()
+    const { locationId, name, description, price, imageUrl, tags, isFeatured, suggestWith, customizationGroups } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -40,6 +40,7 @@ export async function POST(
       imageUrl: imageUrl || '',
       tags: tags || [],
       isFeatured: isFeatured || false,
+      suggestWith: suggestWith || [],
       customizationGroups: customizationGroups || [],
       nameTranslations: { en: nameEn },
       descriptionTranslations: { en: descEn },
@@ -68,7 +69,7 @@ export async function PUT(
     if (authError) return authError
 
     const body = await request.json()
-    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, customizationGroups, availabilityMode, availabilitySchedule } = body
+    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, availabilityMode, availabilitySchedule } = body
 
     console.log('[PUT items]', { tenantSlug, categoryId, locationId, itemId })
 
@@ -100,6 +101,7 @@ export async function PUT(
     if (imageUrl !== undefined) item.imageUrl = imageUrl
     if (tags !== undefined) item.tags = tags
     if (isFeatured !== undefined) item.isFeatured = isFeatured
+    if (suggestWith !== undefined) item.suggestWith = suggestWith
     if (customizationGroups !== undefined) item.customizationGroups = customizationGroups
     if (availabilityMode !== undefined) item.availabilityMode = availabilityMode
     if (availabilitySchedule !== undefined) item.availabilitySchedule = availabilitySchedule

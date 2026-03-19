@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 
@@ -15,6 +15,7 @@ interface Props {
 export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
+  const [upsellHints, setUpsellHints] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' })
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
@@ -26,9 +27,36 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
       return
     }
     setCart(JSON.parse(saved))
+
+    const hints = sessionStorage.getItem('upsellHints')
+    if (hints) {
+      setUpsellHints(JSON.parse(hints))
+      sessionStorage.removeItem('upsellHints')
+    }
   }, [])
 
+  function addHintToCart(item: any) {
+    const plainId = `${item._id}:plain`
+    setCart(prev => {
+      const existing = prev.find(i => i.cartItemId === plainId)
+      if (existing) return prev.map(i => i.cartItemId === plainId ? { ...i, quantity: i.quantity + 1 } : i)
+      return [...prev, {
+        cartItemId: plainId,
+        menuItemId: item._id,
+        name: item.name,
+        basePrice: item.price,
+        extraPrice: 0,
+        price: item.price,
+        quantity: 1,
+        customizations: [],
+        customizationSummary: '',
+      }]
+    })
+    setUpsellHints(prev => prev.filter(h => h._id !== item._id))
+  }
+
   const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  // total se recalcula automáticamente al agregar hints (cart es estado)
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault()
@@ -138,6 +166,35 @@ async function handleSubmit(e: React.FormEvent) {
             <span>${total.toLocaleString('es-AR')}</span>
           </div>
         </div>
+
+        {/* Pre-checkout upsell */}
+        {upsellHints.length > 0 && (
+          <div className="mb-6 rounded-2xl border border-zinc-100 overflow-hidden">
+            <p className="px-4 py-2.5 text-xs font-bold text-zinc-400 uppercase tracking-widest bg-zinc-50">
+              ¿Agregás algo más?
+            </p>
+            <div className="divide-y divide-zinc-100">
+              {upsellHints.map(item => (
+                <div key={item._id} className="flex items-center gap-3 px-4 py-3">
+                  {item.imageUrl && (
+                    <img src={item.imageUrl} alt={item.name} className="w-12 h-12 object-cover rounded-xl flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-zinc-700 truncate">{item.name}</p>
+                    <p className="text-sm font-bold text-zinc-900">${item.price.toLocaleString('es-AR')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => addHintToCart(item)}
+                    className="w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center flex-shrink-0"
+                  >
+                    <Plus size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-4">

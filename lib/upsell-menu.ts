@@ -11,9 +11,10 @@ function median(values: number[]): number {
 /**
  * Devuelve ítems sugeridos para mostrar en el UpsellSheet.
  *
- * Prioridad:
- *  1. Behavioral (co-ocurrencia real de órdenes) — si hay insights disponibles
- *  2. Fallback estático (price tiers + isFeatured) — funciona desde el día 1
+ * Tres capas en orden de prioridad:
+ *  0. Manual (suggestWith): el admin configuró explícitamente qué sugerir
+ *  1. Behavioral (co-ocurrencia real de órdenes): clientes que pidieron X también pidieron Y
+ *  2. Fallback estático (price tiers + isFeatured): funciona desde el día 1 sin historial
  *
  * Siempre excluye ítems ya en el carrito y el ítem recién agregado.
  */
@@ -39,41 +40,50 @@ export function getSuggestions(
   const candidates = allItems.filter((i: any) => !cartItemIds.has(String(i._id)))
   if (candidates.length === 0) return []
 
-  // ── Capa 1: Behavioral — co-ocurrencia real ───────────────────────────────
-  if (insights && insights.length > 0) {
-    const behavioralSuggestions: any[] = []
+  const result: any[] = []
+  const included = new Set<string>()
 
-    // Buscar pares que involucren al ítem recién agregado
-    const relevantPairs = insights
-      .filter((p) => p.itemA === justAddedItemId || p.itemB === justAddedItemId)
-      .sort((a, b) => b.count - a.count)
-
-    for (const pair of relevantPairs) {
-      const partnerId = pair.itemA === justAddedItemId ? pair.itemB : pair.itemA
-      if (cartItemIds.has(partnerId)) continue
-      const item = itemById.get(partnerId)
-      if (!item) continue // ítem eliminado del menú — ignorar
-      behavioralSuggestions.push(item)
-      if (behavioralSuggestions.length >= maxSuggestions) break
+  function fill(items: any[]) {
+    for (const item of items) {
+      const id = String(item._id)
+      if (included.has(id) || cartItemIds.has(id)) continue
+      result.push(item)
+      included.add(id)
+      if (result.length >= maxSuggestions) return
     }
-
-    // Si el behavioral ya llenó el cupo, listo
-    if (behavioralSuggestions.length >= maxSuggestions) return behavioralSuggestions
-
-    // Si faltan slots, completar con fallback estático
-    const alreadyIncluded = new Set(behavioralSuggestions.map((i) => String(i._id)))
-    const remaining = maxSuggestions - behavioralSuggestions.length
-    const staticFill = getStaticSuggestions(
-      candidates.filter((i: any) => !alreadyIncluded.has(String(i._id))),
-      allItems,
-      remaining,
-    )
-
-    return [...behavioralSuggestions, ...staticFill]
   }
 
-  // ── Capa 2: Fallback estático — price tiers + isFeatured ─────────────────
-  return getStaticSuggestions(candidates, allItems, maxSuggestions)
+  // ── Capa 0: Manual (suggestWith configurado por el admin) ────────────────
+  const justAdded = itemById.get(justAddedItemId)
+  if (justAdded?.suggestWith?.length > 0) {
+    const manualItems = (justAdded.suggestWith as string[])
+      .map((id) => itemById.get(id))
+      .filter((i): i is any => !!i && i.isAvailable)
+    fill(manualItems)
+  }
+
+  if (result.length >= maxSuggestions) return result
+
+  // ── Capa 1: Behavioral (co-ocurrencia real de órdenes) ──────────────────
+  if (insights && insights.length > 0) {
+    const behavioralItems = insights
+      .filter((p) => p.itemA === justAddedItemId || p.itemB === justAddedItemId)
+      .sort((a, b) => b.count - a.count)
+      .map((p) => {
+        const partnerId = p.itemA === justAddedItemId ? p.itemB : p.itemA
+        return itemById.get(partnerId)
+      })
+      .filter((i): i is any => !!i && i.isAvailable)
+    fill(behavioralItems)
+  }
+
+  if (result.length >= maxSuggestions) return result
+
+  // ── Capa 2: Fallback estático (price tiers + isFeatured) ────────────────
+  const remainingCandidates = candidates.filter((i: any) => !included.has(String(i._id)))
+  fill(getStaticSuggestions(remainingCandidates, allItems, maxSuggestions - result.length))
+
+  return result
 }
 
 function getStaticSuggestions(candidates: any[], allItems: any[], max: number): any[] {
