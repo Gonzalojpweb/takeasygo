@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 // Singleton — siempre existe un solo documento con _id: 'platform'
-export interface IPlatformConfig extends Document {
+export interface IPlatformConfig {
   _id: string
   mercadopago: {
     accessToken: string | null   // encriptado con AES-256
