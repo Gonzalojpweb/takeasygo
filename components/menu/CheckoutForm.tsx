@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 
@@ -34,6 +34,23 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
       sessionStorage.removeItem('upsellHints')
     }
   }, [])
+
+  function increaseQty(cartItemId: string) {
+    setCart(prev => prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + 1 } : i))
+  }
+
+  function decreaseQty(cartItemId: string) {
+    setCart(prev => {
+      const item = prev.find(i => i.cartItemId === cartItemId)
+      if (!item) return prev
+      if (item.quantity === 1) return prev.filter(i => i.cartItemId !== cartItemId)
+      return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity - 1 } : i)
+    })
+  }
+
+  function removeItem(cartItemId: string) {
+    setCart(prev => prev.filter(i => i.cartItemId !== cartItemId))
+  }
 
   function addHintToCart(item: any) {
     const plainId = `${item._id}:plain`
@@ -145,26 +162,75 @@ async function handleSubmit(e: React.FormEvent) {
       </header>
 
       <div className="max-w-md mx-auto px-4 py-6">
-        {/* Resumen */}
+        {/* Resumen editable */}
         <div className="bg-zinc-50 rounded-2xl p-4 mb-6">
           <h2 className="font-semibold text-sm text-zinc-500 mb-3 uppercase tracking-wide">Resumen</h2>
-          <div className="space-y-2">
-            {cart.map((item: CartItem) => (
-              <div key={item.cartItemId} className="flex justify-between text-sm gap-3">
-                <div className="min-w-0">
-                  <span className="text-zinc-700">{item.quantity}x {item.name}</span>
-                  {item.customizationSummary && (
-                    <p className="text-zinc-400 text-xs truncate">{item.customizationSummary}</p>
-                  )}
-                </div>
-                <span className="font-medium flex-shrink-0">${(item.price * item.quantity).toLocaleString('es-AR')}</span>
-              </div>
-            ))}
-          </div>
-          <div className="border-t mt-3 pt-3 flex justify-between font-bold">
-            <span>Total</span>
-            <span>${total.toLocaleString('es-AR')}</span>
-          </div>
+
+          {cart.length === 0 ? (
+            <div className="py-6 text-center">
+              <p className="text-zinc-400 text-sm">Tu carrito está vacío.</p>
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="mt-3 text-sm font-bold text-zinc-700 underline underline-offset-2"
+              >
+                Volver al menú
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {cart.map((item: CartItem) => {
+                const hasCustomizations = item.customizations.length > 0
+                return (
+                  <div key={item.cartItemId} className="flex items-center gap-3">
+                    {/* Controles de cantidad */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => decreaseQty(item.cartItemId)}
+                        className="w-7 h-7 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-600 hover:bg-zinc-300 transition-colors"
+                      >
+                        {item.quantity === 1 ? <Trash2 size={12} /> : <Minus size={12} />}
+                      </button>
+                      <span className="text-sm font-bold w-4 text-center tabular-nums">{item.quantity}</span>
+                      {/* + solo para ítems sin customizaciones (no se puede reabrir el modal aquí) */}
+                      {!hasCustomizations ? (
+                        <button
+                          type="button"
+                          onClick={() => increaseQty(item.cartItemId)}
+                          className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-white hover:bg-zinc-700 transition-colors"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      ) : (
+                        <div className="w-7 h-7" /> /* placeholder para alinear */
+                      )}
+                    </div>
+
+                    {/* Nombre e info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-700 truncate">{item.name}</p>
+                      {item.customizationSummary && (
+                        <p className="text-xs text-zinc-400 truncate">{item.customizationSummary}</p>
+                      )}
+                    </div>
+
+                    {/* Subtotal */}
+                    <span className="text-sm font-semibold text-zinc-800 flex-shrink-0">
+                      ${(item.price * item.quantity).toLocaleString('es-AR')}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {cart.length > 0 && (
+            <div className="border-t border-zinc-200 mt-4 pt-3 flex justify-between font-bold">
+              <span>Total</span>
+              <span>${total.toLocaleString('es-AR')}</span>
+            </div>
+          )}
         </div>
 
         {/* Pre-checkout upsell */}
@@ -231,7 +297,7 @@ async function handleSubmit(e: React.FormEvent) {
 
 <button
   type="submit"
-  disabled={loading}
+  disabled={loading || cart.length === 0}
   className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50">
   {loading ? 'Procesando...' : '💳 Pagar con MercadoPago'}
 </button>
