@@ -61,6 +61,7 @@ export interface IOrder extends Document {
     mercadopagoData: Record<string, any> | null
   }
   notes: string
+  clientToken: string | null
   printed: boolean
   printLog: IPrintLogEntry[]
   statusTimestamps: IStatusTimestamps
