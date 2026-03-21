@@ -1,7 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
-import { decrypt } from '@/lib/crypto'
+import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
@@ -52,8 +52,8 @@ if (!success) {
           currency_id: 'ARS',
         })),
         payer: {
-          name: order.customer.name,
-          email: order.customer.email || 'cliente@menuplatform.com',
+          name:  safeDecrypt(order.customer.name),
+          email: safeDecrypt(order.customer.email) || 'cliente@menuplatform.com',
         },
         back_urls: {
           success: `${baseUrl}/${tenantSlug}/order-success/${order.orderNumber}`,

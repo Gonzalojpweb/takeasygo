@@ -27,3 +27,23 @@ export function decrypt(encryptedText: string): string {
   decipher.setAuthTag(authTag)
   return decipher.update(encrypted) + decipher.final('utf8')
 }
+
+/**
+ * Intenta desencriptar. Si falla (p.ej. texto en claro de órdenes antiguas), devuelve el valor original.
+ * Permite migración gradual sin romper órdenes existentes.
+ */
+export function safeDecrypt(value: string): string {
+  try {
+    return decrypt(value)
+  } catch {
+    return value
+  }
+}
+
+/**
+ * SHA-256 estable del teléfono — permite agrupar por cliente sin exponer el número.
+ * No tiene IV aleatorio, por eso es apto para $group en MongoDB.
+ */
+export function hashPhone(phone: string): string {
+  return crypto.createHash('sha256').update(phone.trim().toLowerCase()).digest('hex')
+}

@@ -162,7 +162,7 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured }: Props)
             <div className="space-y-2">
               <label className={labelCls}>
                 <div className="flex items-center gap-2">
-                  <ShieldCheck size={10} /> Webhook Secret <span className="text-muted-foreground/40 normal-case font-normal tracking-normal">(opcional pero recomendado)</span>
+                  <ShieldCheck size={10} /> Webhook Secret <span className="text-red-500 normal-case font-normal tracking-normal">(obligatorio)</span>
                 </div>
               </label>
               <div className="relative group">
@@ -170,6 +170,7 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured }: Props)
                   <Lock size={16} />
                 </div>
                 <input
+                  required
                   type="password"
                   value={form.webhookSecret}
                   onChange={e => setForm(p => ({ ...p, webhookSecret: e.target.value }))}

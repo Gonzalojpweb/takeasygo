@@ -4,6 +4,7 @@ import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
+import { safeDecrypt } from '@/lib/crypto'
 
 const PAGE_SIZE = 25
 
@@ -50,10 +51,8 @@ export async function GET(
     }
 
     if (q) {
-      filter.$or = [
-        { orderNumber: { $regex: q, $options: 'i' } },
-        { 'customer.name': { $regex: q, $options: 'i' } },
-      ]
+      // Solo busca por orderNumber — customer.name está cifrado en DB
+      filter.orderNumber = { $regex: q, $options: 'i' }
     }
 
     const [orders, total, locations] = await Promise.all([
@@ -69,8 +68,14 @@ export async function GET(
 
     const locationMap = Object.fromEntries(locations.map(l => [l._id.toString(), l.name]))
 
-    const ordersWithLocation = orders.map(o => ({
+    const ordersWithLocation = (orders as any[]).map(o => ({
       ...o,
+      customer: o.customer ? {
+        ...o.customer,
+        name:  safeDecrypt(o.customer.name ?? ''),
+        phone: safeDecrypt(o.customer.phone ?? ''),
+        email: safeDecrypt(o.customer.email ?? ''),
+      } : o.customer,
       locationName: locationMap[o.locationId?.toString()] ?? '—',
     }))
 

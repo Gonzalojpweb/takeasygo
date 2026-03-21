@@ -48,15 +48,13 @@ if (authError) return authError
 
     const { accessToken, publicKey, webhookSecret } = await request.json()
 
-    if (!accessToken || !publicKey) {
-      return NextResponse.json({ error: 'Access Token y Public Key son obligatorios' }, { status: 400 })
+    if (!accessToken || !publicKey || !webhookSecret) {
+      return NextResponse.json({ error: 'Access Token, Public Key y Webhook Secret son obligatorios' }, { status: 400 })
     }
 
     tenant.mercadopago.accessToken = encrypt(accessToken)
     tenant.mercadopago.publicKey = encrypt(publicKey)
-    if (webhookSecret) {
-      tenant.mercadopago.webhookSecret = encrypt(webhookSecret)
-    }
+    tenant.mercadopago.webhookSecret = encrypt(webhookSecret)
     tenant.mercadopago.isConfigured = true
     await tenant.save()
 

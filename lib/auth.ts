@@ -6,9 +6,30 @@ import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import { authConfig } from '@/lib/auth.config'
 import { rateLimit } from '@/lib/rateLimit'
+import { logAudit } from '@/lib/audit'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
+  events: {
+    async signIn({ user }) {
+      logAudit({
+        tenantId: (user as any).tenantId ?? '',
+        action: 'auth.login',
+        entity: 'session',
+        details: { userId: user.id, userName: user.name, userRole: (user as any).role },
+      })
+    },
+    async signOut(message) {
+      const token = 'token' in message ? message.token : null
+      if (!token) return
+      logAudit({
+        tenantId: (token.tenantId as string) ?? '',
+        action: 'auth.logout',
+        entity: 'session',
+        details: { userId: token.id, userName: token.name, userRole: token.role },
+      })
+    },
+  },
   providers: [
     Credentials({
       name: 'credentials',

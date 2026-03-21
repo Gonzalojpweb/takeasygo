@@ -54,6 +54,7 @@ export interface IOrder extends Document {
     name: string
     phone: string
     email: string
+    phoneHash?: string
   }
   payment: {
     status: PaymentStatus
@@ -133,6 +134,7 @@ const OrderSchema = new Schema<IOrder>(
       name: { type: String, required: true, trim: true },
       phone: { type: String, default: '', trim: true },
       email: { type: String, default: '', trim: true },
+      phoneHash: { type: String, default: null, index: true },
     },
     payment: {
       status: {
@@ -175,7 +177,7 @@ const OrderSchema = new Schema<IOrder>(
 OrderSchema.index({ tenantId: 1, createdAt: -1 })
 OrderSchema.index({ tenantId: 1, locationId: 1, createdAt: -1 })
 OrderSchema.index({ orderNumber: 1 })
-OrderSchema.index({ tenantId: 1, 'customer.phone': 1 })  // tasa de recompra
+OrderSchema.index({ tenantId: 1, 'customer.phoneHash': 1 })  // tasa de recompra
 
 const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema)
 export default Order

@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed, Users, BarChart3,
   Settings, Printer, ClipboardList, Shield, Activity, CalendarDays,
-  CreditCard, Search, ChevronRight, X, Zap, TrendingUp, BookOpen,
-  Target, CheckCircle2, Lock, Star, HelpCircle, ArrowRight,
-  Sparkles, Package, Clock, Bell, FileText, Globe, Palette, MapPin,
+  CreditCard, Search, ChevronRight, X, BookOpen,
+  Target, CheckCircle2, Star, HelpCircle, ArrowRight,
+  Sparkles, ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +30,7 @@ interface Section {
   roles: RoleBadge[]
   objective: string
   description: string
-  features: { title: string; desc: string }[]
+  features: { title: string; desc: string; highlight?: 'security' }[]
   steps?: Step[]
   tips?: string[]
 }
@@ -355,20 +355,22 @@ const SECTIONS: Section[] = [
       { title: 'Branding', desc: 'Color primario, color de fondo, color de texto, logo, radio de bordes de los botones y layout del menú (lista o grilla).' },
       { title: 'Perfil del restaurante', desc: 'Nombre, descripción, historia, redes sociales para el footer del menú.' },
       { title: 'Sedes / Ubicaciones', desc: 'Podés tener múltiples locales (Crecimiento y Premium). Cada sede tiene su nombre, dirección, teléfono, horarios y QR propio.' },
-      { title: 'Integración MercadoPago', desc: 'Configurá tus credenciales de MercadoPago (Access Token y Public Key) para recibir pagos.' },
+      { title: 'Integración MercadoPago', desc: 'Configurá tus credenciales de MercadoPago (Access Token, Public Key y Webhook Secret) para recibir pagos. Las tres son obligatorias para garantizar que cada notificación de pago sea auténtica.' },
       { title: 'Tiempo estimado de preparación', desc: 'Por sede: cuántos minutos tarda la preparación de un pedido promedio. Se usa para calcular el % de pedidos en tiempo (KPI Premium).' },
-      { title: 'Modo Dine-in (Premium)', desc: 'Activar o desactivar el modo para consumo en mesa.' },
+      { title: 'Modo Dine-in', desc: 'Activar o desactivar el menú digital para consumo en mesa, sin flujo de pedido online.' },
+      { title: 'Protección de datos de clientes (AES-256-GCM)', desc: 'Nombre, teléfono y email de cada pedido se almacenan cifrados con AES-256-GCM — el estándar de la banca y las plataformas de pago internacionales. Ningún dato personal se guarda en texto plano: aunque alguien accediera a la base de datos, los datos de tus clientes serían ilegibles.', highlight: 'security' as const },
     ],
     steps: [
       { action: 'Configurá el branding primero', detail: 'El menú digital usa estos colores. Elegí colores que representen tu marca y que tengan buen contraste.' },
       { action: 'Completá el perfil del restaurante', detail: 'El about y las redes sociales aparecen en el footer del menú público.' },
-      { action: 'Conectá MercadoPago', detail: 'Sin las credenciales, los clientes no pueden pagar. Obtené tu Access Token desde tu cuenta de MP.' },
+      { action: 'Conectá MercadoPago con los tres campos', detail: 'Access Token, Public Key y Webhook Secret son obligatorios. El Webhook Secret autentica cada notificación de pago: sin él, los pedidos no se confirman automáticamente.' },
       { action: 'Configurá el tiempo estimado de preparación', detail: 'Sé honesto: si normalmente tardás 20 minutos, poné 20. Esto afecta el KPI de pedidos en tiempo.' },
     ],
     tips: [
       'Usá colores con alto contraste entre primario y fondo. Un contraste bajo hace que el menú sea difícil de leer.',
       'El layout "grilla" funciona mejor para menús con fotos. El "lista" es mejor para menús extensos.',
       'Nunca compartás tu Access Token de MercadoPago. Tiene acceso a tu dinero.',
+      'El Webhook Secret lo encontrás en tu Panel de Developers de MP → Tu app → Webhooks. Es distinto del Access Token.',
     ],
   },
   {
@@ -617,15 +619,30 @@ function SectionCard({
           Funcionalidades
         </p>
         <div className="space-y-2">
-          {section.features.map((f, i) => (
-            <div key={i} className="flex items-start gap-3 p-3 rounded-xl border bg-card hover:border-primary/20 transition-colors">
-              <CheckCircle2 size={15} className="text-primary flex-shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold leading-snug">{f.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{f.desc}</p>
+          {section.features.map((f, i) =>
+            f.highlight === 'security' ? (
+              <div key={i} className="rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                  <p className="text-sm font-black text-emerald-800 leading-snug">{f.title}</p>
+                </div>
+                <p className="text-xs text-emerald-700/80 leading-relaxed">{f.desc}</p>
+                <div className="pt-1 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] font-bold uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 text-emerald-700/70"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />Algoritmo: AES-256-GCM</span>
+                  <span className="flex items-center gap-1.5 text-emerald-700/70"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />Alcance: nombre · teléfono · email</span>
+                  <span className="flex items-center gap-1.5 text-emerald-700/70"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />Estándar: banca y pagos internacionales</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div key={i} className="flex items-start gap-3 p-3 rounded-xl border bg-card hover:border-primary/20 transition-colors">
+                <CheckCircle2 size={15} className="text-primary flex-shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-snug">{f.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{f.desc}</p>
+                </div>
+              </div>
+            )
+          )}
         </div>
       </div>
 

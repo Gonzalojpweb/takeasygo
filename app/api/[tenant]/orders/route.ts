@@ -7,6 +7,7 @@ import { generateOrderNumber } from '@/lib/orderNumber'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { createOrderSchema } from '@/lib/schemas'
+import { encrypt, safeDecrypt, hashPhone } from '@/lib/crypto'
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +27,16 @@ const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     const filter: Record<string, any> = { tenantId: tenant._id }
     if (locationId) filter.locationId = locationId
 
-    const orders = await Order.find(filter).sort({ createdAt: -1 }).limit(50)
+    const rawOrders = await Order.find(filter).sort({ createdAt: -1 }).limit(50).lean()
+    const orders = rawOrders.map((o: any) => ({
+      ...o,
+      customer: {
+        ...o.customer,
+        name:  safeDecrypt(o.customer.name),
+        phone: safeDecrypt(o.customer.phone),
+        email: safeDecrypt(o.customer.email),
+      },
+    }))
     return NextResponse.json({ orders })
   } catch (error) {
     return NextResponse.json({ error: 'Error al obtener las órdenes' }, { status: 500 })
@@ -65,11 +75,12 @@ export async function POST(
       return NextResponse.json({ error: 'Location no encontrada' }, { status: 404 })
     }
 
-    // Bloquear si el cliente tiene un pedido activo (identificado por teléfono)
+    // Bloquear si el cliente tiene un pedido activo (identificado por phoneHash)
     if (body.customer.phone) {
+      const ph = hashPhone(body.customer.phone)
       const activeOrder = await Order.findOne({
         tenantId: tenant._id,
-        'customer.phone': body.customer.phone,
+        'customer.phoneHash': ph,
         status: { $in: ['pending', 'confirmed', 'preparing', 'ready'] },
       }).select('orderNumber status').lean() as any
 
@@ -174,13 +185,20 @@ export async function POST(
     // Total calculado 100% en el servidor
     const total = resolvedItems.reduce((sum, item) => sum + item.subtotal, 0)
 
+    const encryptedCustomer = {
+      name:  encrypt(body.customer.name),
+      phone: body.customer.phone ? encrypt(body.customer.phone) : '',
+      email: body.customer.email ? encrypt(body.customer.email) : '',
+      phoneHash: body.customer.phone ? hashPhone(body.customer.phone) : null,
+    }
+
     const order = await Order.create({
       tenantId: tenant._id,
       locationId: body.locationId,
       orderNumber: generateOrderNumber(tenantSlug),
       items: resolvedItems,
       total,
-      customer: body.customer,
+      customer: encryptedCustomer,
       notes: body.notes || '',
       clientToken: body.clientToken ?? null,
     })

@@ -172,10 +172,10 @@ export default async function ReportsPage() {
         approved: { $sum: { $cond: [{ $eq: ['$payment.status', 'approved'] }, 1, 0] } }
       }}
     ]) : Promise.resolve([]),
-    // Tasa de recompra — solo full
+    // Tasa de recompra — solo full (usa phoneHash para grouping estable, compatible con PII cifrada)
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: last90days } } },
-      { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
+      { $match: { tenantId, 'customer.phoneHash': { $ne: null }, createdAt: { $gte: last90days } } },
+      { $group: { _id: '$customer.phoneHash', count: { $sum: 1 } } },
       { $group: {
         _id: null,
         totalClients: { $sum: 1 },
@@ -184,8 +184,8 @@ export default async function ReportsPage() {
     ]) : Promise.resolve([]),
     // Breakdown de frecuencia de compra — solo full
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: last90days } } },
-      { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
+      { $match: { tenantId, 'customer.phoneHash': { $ne: null }, createdAt: { $gte: last90days } } },
+      { $group: { _id: '$customer.phoneHash', count: { $sum: 1 } } },
       { $bucket: {
         groupBy: '$count',
         boundaries: [1, 2, 3, 99999],

@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
+import { safeDecrypt } from '@/lib/crypto'
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
@@ -56,10 +57,20 @@ export async function GET(
     const to = toRaw ? new Date(toRaw) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
     to.setHours(23, 59, 59, 999)
 
-    const orders = await Order.find({
+    const rawOrders = await Order.find({
       tenantId: tenant._id,
       createdAt: { $gte: from, $lte: to },
     }).sort({ createdAt: -1 }).lean()
+
+    const orders = rawOrders.map((o: any) => ({
+      ...o,
+      customer: {
+        ...o.customer,
+        name:  safeDecrypt(o.customer.name),
+        phone: safeDecrypt(o.customer.phone),
+        email: safeDecrypt(o.customer.email),
+      },
+    }))
 
     // ─── Data endpoint for client-side PDF ──────────────────────────────────
     if (format === 'data') {

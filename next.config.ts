@@ -33,6 +33,31 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
+      // CORS: las rutas de API admin sólo aceptan requests del mismo origen
+      {
+        source: '/api/:tenant/settings/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      {
+        source: '/api/:tenant/users/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      {
+        source: '/api/:tenant/analytics/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
     ]
   },
 }
