@@ -817,7 +817,10 @@ function ItemForm({
   allItems?: any[]
 }) {
   const [uploading, setUploading] = useState(false)
+  const [upsellSearch, setUpsellSearch] = useState('')
+  const [upsellOpen, setUpsellOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const upsellBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const labelCls = "text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block"
   const inputCls = 'w-full bg-muted/30 border-2 border-border/80 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-xl px-4 py-3 outline-none transition-all shadow-sm flex items-center gap-2'
@@ -1171,53 +1174,120 @@ function ItemForm({
       </div>
 
       {/* ── Sugerir junto a ── */}
-      {allItems.length > 0 && (
-        <div className="pt-6 border-t border-border/60">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <Sparkles size={18} />
+      {allItems.length > 0 && (() => {
+        const selectedIds = data.suggestWith ?? []
+        const selectedItems = allItems.filter((i: any) => selectedIds.includes(String(i._id)))
+        const available = allItems.filter((i: any) =>
+          !selectedIds.includes(String(i._id)) &&
+          i.name.toLowerCase().includes(upsellSearch.toLowerCase())
+        )
+        const toggleItem = (id: string) => {
+          onChange({
+            ...data,
+            suggestWith: selectedIds.includes(id)
+              ? selectedIds.filter(x => x !== id)
+              : [...selectedIds, id],
+          })
+        }
+        return (
+          <div className="pt-6 border-t border-border/60">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <h5 className="text-sm font-bold text-foreground leading-none">Sugerir junto a</h5>
+                <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter opacity-70">
+                  Se ofrecen al cliente cuando agrega este producto
+                </p>
+              </div>
             </div>
-            <div>
-              <h5 className="text-sm font-bold text-foreground leading-none">Sugerir junto a</h5>
-              <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter opacity-70">
-                Se ofrecen al cliente cuando agrega este producto
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {allItems.map((other: any) => {
-              const isSelected = (data.suggestWith ?? []).includes(String(other._id))
-              return (
+
+            {/* Chips de seleccionados */}
+            {selectedItems.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {selectedItems.map((item: any) => (
+                  <button
+                    key={item._id}
+                    type="button"
+                    onClick={() => toggleItem(String(item._id))}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs font-semibold hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors group"
+                  >
+                    {item.imageUrl && (
+                      <img src={item.imageUrl} alt="" className="w-4 h-4 object-cover rounded-full flex-shrink-0" />
+                    )}
+                    <span>{item.name}</span>
+                    <span className="ml-0.5 opacity-50 group-hover:opacity-100 leading-none">✕</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Combobox: input + dropdown */}
+            <div className="relative">
+              <input
+                type="text"
+                value={upsellSearch}
+                onChange={e => setUpsellSearch(e.target.value)}
+                onFocus={() => {
+                  if (upsellBlurTimer.current) clearTimeout(upsellBlurTimer.current)
+                  setUpsellOpen(true)
+                }}
+                onBlur={() => {
+                  upsellBlurTimer.current = setTimeout(() => setUpsellOpen(false), 150)
+                }}
+                placeholder={selectedIds.length > 0 ? 'Agregar otro producto...' : 'Clic para ver todos o escribí para buscar...'}
+                className="w-full bg-muted/30 border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-xl px-4 py-2.5 outline-none transition-all"
+              />
+              {upsellSearch && (
                 <button
-                  key={other._id}
                   type="button"
-                  onClick={() => {
-                    const current = data.suggestWith ?? []
-                    const id = String(other._id)
-                    onChange({
-                      ...data,
-                      suggestWith: isSelected
-                        ? current.filter(i => i !== id)
-                        : [...current, id],
-                    })
-                  }}
-                  className={cn(
-                    'flex items-center gap-2 p-3 rounded-xl border-2 text-left text-xs font-medium transition-all',
-                    isSelected
-                      ? 'border-primary/40 bg-primary/5 text-primary'
-                      : 'border-border/60 bg-muted/20 text-muted-foreground hover:border-primary/30',
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => setUpsellSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs p-1"
+                >✕</button>
+              )}
+
+              {/* Dropdown */}
+              {upsellOpen && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto rounded-xl border border-border/60 bg-background shadow-xl divide-y divide-border/40">
+                  {available.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">
+                      {upsellSearch ? 'Sin resultados para esa búsqueda' : 'Todos los productos ya están seleccionados'}
+                    </p>
+                  ) : (
+                    <>
+                      {!upsellSearch && (
+                        <div className="px-3 py-1.5 bg-muted/30">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">
+                            {available.length} productos disponibles
+                          </span>
+                        </div>
+                      )}
+                      {available.map((item: any) => (
+                        <button
+                          key={item._id}
+                          type="button"
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => { toggleItem(String(item._id)); setUpsellSearch('') }}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-left text-sm hover:bg-primary/5 transition-colors"
+                        >
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt="" className="w-7 h-7 object-cover rounded-lg flex-shrink-0" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-lg bg-muted/60 flex-shrink-0" />
+                          )}
+                          <span className="font-medium text-foreground truncate">{item.name}</span>
+                        </button>
+                      ))}
+                    </>
                   )}
-                >
-                  {other.imageUrl && (
-                    <img src={other.imageUrl} alt="" className="w-8 h-8 object-cover rounded-lg flex-shrink-0" />
-                  )}
-                  <span className="truncate">{other.name}</span>
-                </button>
-              )
-            })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       <div className="flex items-center gap-3 pt-8 mt-4 border-t border-border/60">
         <Button
