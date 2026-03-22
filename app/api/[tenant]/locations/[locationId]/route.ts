@@ -3,6 +3,7 @@ import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { logAudit } from '@/lib/audit'
 
 async function resolveTenant(tenantSlug: string) {
   await connectDB()
@@ -31,6 +32,7 @@ export async function PUT(
 
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
 
+    logAudit({ tenantId: tenant._id.toString(), action: 'settings.location.updated', entity: 'location', entityId: locationId, details: { fields: Object.keys(body) }, request })
     return NextResponse.json({ location })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

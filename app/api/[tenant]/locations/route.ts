@@ -2,6 +2,8 @@ import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/apiAuth'
+import { logAudit } from '@/lib/audit'
 
 export async function GET(
   request: NextRequest,
@@ -36,8 +38,13 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
+
     const body = await request.json()
     const location = await Location.create({ ...body, tenantId: tenant._id })
+
+    logAudit({ tenantId: tenant._id.toString(), action: 'settings.location.created', entity: 'location', entityId: location._id.toString(), details: { name: body.name }, request })
     return NextResponse.json({ location }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
