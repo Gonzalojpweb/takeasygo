@@ -1,19 +1,20 @@
 import { connectDB } from '@/lib/mongoose'
 import Lead from '@/models/Lead'
 import LeadsTable from '@/components/superadmin/LeadsTable'
+import { safeDecrypt } from '@/lib/crypto'
 import { Users } from 'lucide-react'
 
 export default async function LeadsPage() {
     await connectDB()
     const leads = await Lead.find().sort({ createdAt: -1 }).lean()
 
-    // Serialize for client component
+    // Serialize for client component — decrypt PII before sending
     const serialized = leads.map((l: any) => ({
         _id: String(l._id),
-        name: l.name,
+        name:  safeDecrypt(l.name),
         business: l.business,
-        email: l.email,
-        phone: l.phone,
+        email: safeDecrypt(l.email),
+        phone: safeDecrypt(l.phone),
         plan: l.plan,
         planId: l.planId,
         status: l.status,

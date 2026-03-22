@@ -12,21 +12,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   events: {
     async signIn({ user }) {
+      const u = user as any
       logAudit({
-        tenantId: (user as any).tenantId ?? '',
+        tenantId: u.tenantId ?? null,
         action: 'auth.login',
         entity: 'session',
-        details: { userId: user.id, userName: user.name, userRole: (user as any).role },
+        // Pass identity directly — avoids circular auth() call inside logAudit
+        userId:   u.id ?? null,
+        userName: u.name ?? u.email ?? 'Sistema',
+        userRole: u.role ?? '',
+        details: { userRole: u.role },
       })
     },
     async signOut(message) {
       const token = 'token' in message ? message.token : null
       if (!token) return
       logAudit({
-        tenantId: (token.tenantId as string) ?? '',
+        tenantId: (token.tenantId as string) ?? null,
         action: 'auth.logout',
         entity: 'session',
-        details: { userId: token.id, userName: token.name, userRole: token.role },
+        // Pass identity directly — avoids circular auth() call inside logAudit
+        userId:   (token.id as string) ?? null,
+        userName: (token.name as string) ?? 'Sistema',
+        userRole: (token.role as string) ?? '',
+        details: { userRole: token.role },
       })
     },
   },

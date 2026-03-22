@@ -3,6 +3,11 @@ import Tenant from '@/models/Tenant'
 import Reservation from '@/models/Reservation'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { safeDecrypt } from '@/lib/crypto'
+
+function decryptReservation(r: any) {
+  return { ...r, name: safeDecrypt(r.name), phone: safeDecrypt(r.phone) }
+}
 
 async function resolveTenant(tenantSlug: string) {
   await connectDB()
@@ -22,7 +27,7 @@ export async function GET(
     const reservation = await Reservation.findOne({ _id: reservaId, tenantId: tenant._id }).lean()
     if (!reservation) return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
 
-    return NextResponse.json({ reservation })
+    return NextResponse.json({ reservation: decryptReservation(reservation) })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
@@ -52,11 +57,11 @@ export async function PUT(
     const reservation = await Reservation.findOneAndUpdate(
       { _id: reservaId, tenantId: tenant._id },
       { $set: { status } },
-      { returnDocument: 'after' }
+      { returnDocument: 'after', lean: true }
     )
     if (!reservation) return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
 
-    return NextResponse.json({ reservation })
+    return NextResponse.json({ reservation: decryptReservation(reservation) })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

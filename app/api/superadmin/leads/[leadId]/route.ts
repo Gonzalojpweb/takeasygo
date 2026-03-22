@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Lead from '@/models/Lead'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
+import { safeDecrypt } from '@/lib/crypto'
 
 export async function PATCH(
     request: NextRequest,
@@ -30,7 +31,15 @@ export async function PATCH(
             return NextResponse.json({ error: 'Lead no encontrado.' }, { status: 404 })
         }
 
-        return NextResponse.json({ lead })
+        const plain = lead.toObject()
+        return NextResponse.json({
+            lead: {
+                ...plain,
+                name:  safeDecrypt(plain.name),
+                email: safeDecrypt(plain.email),
+                phone: safeDecrypt(plain.phone),
+            },
+        })
     } catch (error) {
         return NextResponse.json({ error: String(error) }, { status: 500 })
     }

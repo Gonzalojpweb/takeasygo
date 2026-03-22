@@ -5,6 +5,15 @@ import Reservation from '@/models/Reservation'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
+import { encrypt, safeDecrypt } from '@/lib/crypto'
+
+function decryptReservation(r: any) {
+  return {
+    ...r,
+    name:  safeDecrypt(r.name),
+    phone: safeDecrypt(r.phone),
+  }
+}
 
 async function resolveTenant(tenantSlug: string) {
   await connectDB()
@@ -32,7 +41,7 @@ export async function GET(
     if (date) filter.date = date
     if (locationId) filter.locationId = locationId
 
-    const reservations = await Reservation.find(filter).sort({ date: 1, time: 1 }).lean()
+    const reservations = (await Reservation.find(filter).sort({ date: 1, time: 1 }).lean()).map(decryptReservation)
     return NextResponse.json({ reservations })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
@@ -82,8 +91,8 @@ export async function POST(
       date,
       time,
       partySize,
-      name: name.trim(),
-      phone: phone.trim(),
+      name:  encrypt(name.trim()),
+      phone: encrypt(phone.trim()),
       notes: notes?.trim() || '',
       status: 'pending_payment',
       payment: {

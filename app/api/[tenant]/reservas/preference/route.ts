@@ -1,7 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Reservation from '@/models/Reservation'
-import { decrypt } from '@/lib/crypto'
+import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -50,8 +50,8 @@ export async function POST(
           currency_id: 'ARS',
         }],
         payer: {
-          name: reservation.name,
-          phone: { number: reservation.phone },
+          name: safeDecrypt(reservation.name),
+          phone: { number: safeDecrypt(reservation.phone) },
         },
         back_urls: {
           success: `${baseUrl}/${tenantSlug}/reservas/${reservation.locationId}/exito?reservaId=${reservation._id}`,

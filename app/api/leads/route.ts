@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Lead from '@/models/Lead'
 import { rateLimit } from '@/lib/rateLimit'
 import { createLeadSchema } from '@/lib/schemas'
+import { encrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -21,9 +22,15 @@ export async function POST(request: NextRequest) {
         }
 
         await connectDB()
-        const lead = await Lead.create(parsed.data)
+        const { name, email, phone, ...rest } = parsed.data
+        await Lead.create({
+            ...rest,
+            name:  encrypt(name),
+            email: encrypt(email),
+            phone: encrypt(phone),
+        })
 
-        return NextResponse.json({ lead }, { status: 201 })
+        return NextResponse.json({ ok: true }, { status: 201 })
     } catch (error) {
         return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500 })
     }

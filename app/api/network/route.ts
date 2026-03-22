@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import NetworkRestaurant from '@/models/NetworkRestaurant'
 import { rateLimit } from '@/lib/rateLimit'
 import { createNetworkSchema } from '@/lib/schemas'
+import { encrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -21,9 +22,15 @@ export async function POST(request: NextRequest) {
         }
 
         await connectDB()
-        const restaurant = await NetworkRestaurant.create(parsed.data)
+        const { nombre, email, telefono, ...rest } = parsed.data
+        await NetworkRestaurant.create({
+            ...rest,
+            nombre:   encrypt(nombre),
+            email:    encrypt(email),
+            telefono: encrypt(telefono),
+        })
 
-        return NextResponse.json({ restaurant }, { status: 201 })
+        return NextResponse.json({ ok: true }, { status: 201 })
     } catch (error) {
         return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500 })
     }
