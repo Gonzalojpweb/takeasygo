@@ -6,9 +6,10 @@ import {
   Settings, Printer, ClipboardList, Shield, Activity, CalendarDays,
   CreditCard, Search, ChevronRight, X, BookOpen,
   Target, CheckCircle2, Star, HelpCircle, ArrowRight,
-  Sparkles, ShieldCheck,
+  Sparkles, ShieldCheck, Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Plan } from '@/lib/plans'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -396,6 +397,48 @@ const SECTIONS: Section[] = [
   },
 ]
 
+// ── Visibility per plan ────────────────────────────────────────────────────────
+
+type SectionVisibility = 'full' | 'hook' | 'hidden'
+
+// 'full'   → show full module documentation
+// 'hook'   → show marketing teaser only (gancho de atracción, no detalles internos)
+// 'hidden' → don't render at all
+const VISIBILITY: Record<string, Record<Plan, SectionVisibility>> = {
+  dashboard:    { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+  pedidos:      { anfitrion: 'hook',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+  menu:         { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+  upselling:    { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+  usuarios:     { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
+  reportes:     { anfitrion: 'hidden', trial: 'hook',   try: 'hook',   buy: 'full', full: 'full' },
+  ico:          { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
+  reservas:     { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
+  impresoras:   { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+  historial:    { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+  auditoria:    { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
+  configuracion:{ anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+  facturacion:  { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+}
+
+function getVisibility(plan: Plan, sectionId: string): SectionVisibility {
+  return VISIBILITY[sectionId]?.[plan] ?? 'full'
+}
+
+// ── Hook (marketing teaser) content per section ────────────────────────────────
+
+const HOOK_CONTENT: Record<string, { headline: string; body: string; upgradeLabel: string }> = {
+  pedidos: {
+    headline: 'Gestión de pedidos en tiempo real',
+    body: 'Recibí y gestioná cada pedido online en tiempo real — sin retrasos, sin llamadas. El cliente sigue el estado de su pedido en vivo, y vos controlás la operación desde un panel centralizado. Integrado con MercadoPago para confirmación automática del pago y notificaciones automáticas en cada etapa.',
+    upgradeLabel: 'Disponible desde el plan Inicial',
+  },
+  reportes: {
+    headline: 'Reportes de ventas y analytics operativos',
+    body: 'Visualizá el revenue del mes, ticket promedio, top 5 productos más vendidos y tasa de cancelación. Exportá en Excel o PDF. Con plan Premium, accedés a KPIs avanzados: tiempo de preparación, tasa de recompra de clientes, distribución horaria, hora pico y analytics de upselling.',
+    upgradeLabel: 'Disponible desde el plan Crecimiento',
+  },
+}
+
 // ── Plan badges ────────────────────────────────────────────────────────────────
 
 const PLAN_CONFIG: Record<PlanBadge, { label: string; color: string }> = {
@@ -414,15 +457,18 @@ const ROLE_CONFIG: Record<RoleBadge, { label: string; color: string }> = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function HelpCenter() {
+export default function HelpCenter({ plan }: { plan: Plan }) {
   const [query, setQuery] = useState('')
   const [activeId, setActiveId] = useState('dashboard')
   const [expandedTips, setExpandedTips] = useState<Record<string, boolean>>({})
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const contentRef = useRef<HTMLDivElement>(null)
 
-  // Filter sections by search
-  const filtered = SECTIONS.filter(s =>
+  // Sections visible for this plan (full or hook — never hidden)
+  const visible = SECTIONS.filter(s => getVisibility(plan, s.id) !== 'hidden')
+
+  // Filter visible sections by search query
+  const filtered = visible.filter(s =>
     !query ||
     s.label.toLowerCase().includes(query.toLowerCase()) ||
     s.description.toLowerCase().includes(query.toLowerCase()) ||
@@ -435,7 +481,7 @@ export default function HelpCenter() {
     if (!container) return
     function onScroll() {
       const scrollTop = container!.scrollTop + 120
-      for (const section of SECTIONS) {
+      for (const section of visible) {
         const el = sectionRefs.current[section.id]
         if (el && el.offsetTop <= scrollTop) setActiveId(section.id)
       }
@@ -471,7 +517,7 @@ export default function HelpCenter() {
             </div>
             <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-xl">
               <HelpCircle size={13} />
-              {SECTIONS.length} módulos documentados
+              {visible.length} módulos disponibles
             </div>
           </div>
 
@@ -502,9 +548,10 @@ export default function HelpCenter() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 px-2 mb-2">
             Módulos
           </p>
-          {SECTIONS.map(s => {
+          {visible.map(s => {
             const Icon = s.icon
             const isActive = activeId === s.id
+            const isHook = getVisibility(plan, s.id) === 'hook'
             return (
               <button
                 key={s.id}
@@ -517,8 +564,11 @@ export default function HelpCenter() {
                 )}
               >
                 <Icon size={15} className={isActive ? 'text-primary' : ''} />
-                <span className="truncate">{s.label}</span>
-                {isActive && <ChevronRight size={12} className="ml-auto flex-shrink-0" />}
+                <span className="truncate flex-1">{s.label}</span>
+                {isHook
+                  ? <Lock size={11} className="ml-auto flex-shrink-0 opacity-40" />
+                  : isActive && <ChevronRight size={12} className="ml-auto flex-shrink-0" />
+                }
               </button>
             )
           })}
@@ -540,20 +590,79 @@ export default function HelpCenter() {
             </div>
           ) : (
             <div className="space-y-12 max-w-2xl">
-              {filtered.map((section) => (
-                <SectionCard
-                  key={section.id}
-                  section={section}
-                  sectionRef={el => { sectionRefs.current[section.id] = el }}
-                  tipsExpanded={expandedTips[section.id] ?? false}
-                  onToggleTips={() => setExpandedTips(p => ({ ...p, [section.id]: !p[section.id] }))}
-                />
-              ))}
+              {filtered.map((section) => {
+                const vis = getVisibility(plan, section.id)
+                if (vis === 'hook') {
+                  return (
+                    <HookCard
+                      key={section.id}
+                      section={section}
+                      sectionRef={el => { sectionRefs.current[section.id] = el }}
+                    />
+                  )
+                }
+                return (
+                  <SectionCard
+                    key={section.id}
+                    section={section}
+                    sectionRef={el => { sectionRefs.current[section.id] = el }}
+                    tipsExpanded={expandedTips[section.id] ?? false}
+                    onToggleTips={() => setExpandedTips(p => ({ ...p, [section.id]: !p[section.id] }))}
+                  />
+                )
+              })}
             </div>
           )}
         </main>
       </div>
     </div>
+  )
+}
+
+// ── Hook Card (marketing teaser for locked sections) ──────────────────────────
+
+function HookCard({
+  section,
+  sectionRef,
+}: {
+  section: Section
+  sectionRef: (el: HTMLElement | null) => void
+}) {
+  const Icon = section.icon
+  const hook = HOOK_CONTENT[section.id]
+  if (!hook) return null
+
+  return (
+    <article ref={sectionRef} id={section.id} className="scroll-mt-6">
+      <div className="rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/60 p-6">
+        {/* Header */}
+        <div className="flex items-start gap-4 mb-4">
+          <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 opacity-50', section.bgColor)}>
+            <Icon size={18} className={section.color} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-lg font-black tracking-tight text-zinc-500">{section.label}</h2>
+              <Lock size={14} className="text-zinc-400" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-500">
+              {hook.upgradeLabel}
+            </span>
+          </div>
+        </div>
+
+        {/* Teaser content */}
+        <div className="pl-14">
+          <p className="text-sm font-bold text-zinc-600 mb-1.5">{hook.headline}</p>
+          <p className="text-sm text-zinc-500 leading-relaxed">{hook.body}</p>
+          <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-zinc-400">
+            <Sparkles size={13} />
+            <span>Consultá con tu asesor TakeasyGO para conocer más sobre este módulo.</span>
+          </div>
+        </div>
+      </div>
+      <div className="mt-10 border-b border-dashed" />
+    </article>
   )
 }
 
