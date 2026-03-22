@@ -3,6 +3,7 @@ import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
+import { logAudit } from '@/lib/audit'
 
 export async function DELETE(
   request: NextRequest,
@@ -29,6 +30,7 @@ export async function DELETE(
     category.items.pull({ _id: itemId })
     await menu.save()
 
+    logAudit({ tenantId: tenant._id.toString(), action: 'menu.item.deleted', entity: 'item', entityId: itemId, details: { categoryId, locationId }, request })
     return NextResponse.json({ message: 'Item eliminado' })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

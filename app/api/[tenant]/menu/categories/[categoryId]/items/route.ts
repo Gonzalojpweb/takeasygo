@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { translateToEnglish } from '@/lib/translate'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(
   request: NextRequest,
@@ -48,6 +49,7 @@ export async function POST(
     menu.markModified('categories')
     await menu.save()
 
+    logAudit({ tenantId: tenant._id.toString(), action: 'menu.item.created', entity: 'item', details: { name, price, categoryId, locationId }, request })
     return NextResponse.json({ menu }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
@@ -109,6 +111,7 @@ export async function PUT(
     menu.markModified('categories')
     await menu.save()
 
+    logAudit({ tenantId: tenant._id.toString(), action: 'menu.item.updated', entity: 'item', entityId: itemId, details: { name, price, categoryId, locationId }, request })
     return NextResponse.json({ menu })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

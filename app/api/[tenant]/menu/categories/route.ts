@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { translateToEnglish } from '@/lib/translate'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(
   request: NextRequest,
@@ -41,6 +42,7 @@ export async function POST(
     } as any)
     await menu.save()
 
+    logAudit({ tenantId: tenant._id.toString(), action: 'menu.category.created', entity: 'category', details: { name, locationId }, request })
     return NextResponse.json({ menu }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

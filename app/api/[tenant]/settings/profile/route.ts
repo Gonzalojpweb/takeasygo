@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { logAudit } from '@/lib/audit'
 
 export async function PUT(
   request: NextRequest,
@@ -32,6 +33,7 @@ export async function PUT(
       { new: true }
     )
 
+    logAudit({ tenantId: tenant._id.toString(), action: 'settings.profile.updated', entity: 'tenant', details: { fields: Object.keys(update) }, request })
     return NextResponse.json({ profile: updated?.profile })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

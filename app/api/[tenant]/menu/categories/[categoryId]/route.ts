@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
 import { translateToEnglish } from '@/lib/translate'
+import { logAudit } from '@/lib/audit'
 
 export async function PUT(
   request: NextRequest,
@@ -42,6 +43,7 @@ export async function PUT(
 
     menu.markModified('categories')
     await menu.save()
+    logAudit({ tenantId: tenant._id.toString(), action: 'menu.category.updated', entity: 'category', entityId: categoryId, details: { name, locationId }, request })
     return NextResponse.json({ menu })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
@@ -70,6 +72,7 @@ export async function DELETE(
     menu.categories.pull({ _id: categoryId })
     await menu.save()
 
+    logAudit({ tenantId: tenant._id.toString(), action: 'menu.category.deleted', entity: 'category', entityId: categoryId, details: { locationId }, request })
     return NextResponse.json({ message: 'Categoría eliminada' })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
