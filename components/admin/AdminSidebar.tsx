@@ -168,7 +168,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
   const visibleItems = navItems.filter(item => item.roles.includes(effectiveRole))
 
   return (
-    <div className="flex bg-red-500 flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300">
+    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-300">
       {/* Logo */}
       <div className="p-4">
         <h1 className="text-white font-semibold text-xl tracking-tight leading-none">Menu Platform</h1>
