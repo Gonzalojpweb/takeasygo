@@ -20,7 +20,7 @@ import RatingsWidget from '@/components/admin/RatingsWidget'
 import Link from 'next/link'
 
 function PlanBanner({ plan, trialOrderCount }: { plan: Plan; trialOrderCount?: number }) {
-  if (plan === 'full') return null
+  if (plan === 'full' || plan === 'anfitrion') return null
 
   if (plan === 'trial') {
     const count = trialOrderCount ?? 0
