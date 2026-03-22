@@ -73,7 +73,7 @@ export default function AuditoriaPanel({ initialRows, initialTotal, initialPages
   // Detail drawer
   const [detail, setDetail] = useState<AuditRow | null>(null)
 
-  const fetch = useCallback((p: number, tId: string, cat: string, from: string, to: string) => {
+  const loadData = useCallback((p: number, tId: string, cat: string, from: string, to: string) => {
     startTransition(async () => {
       const qs = new URLSearchParams({ page: String(p), limit: '50' })
       if (tId)  qs.set('tenantId', tId)
@@ -91,8 +91,8 @@ export default function AuditoriaPanel({ initialRows, initialTotal, initialPages
     })
   }, [])
 
-  function applyFilters() { fetch(1, tenantId, category, dateFrom, dateTo) }
-  function goPage(p: number) { fetch(p, tenantId, category, dateFrom, dateTo) }
+  function applyFilters() { loadData(1, tenantId, category, dateFrom, dateTo) }
+  function goPage(p: number) { loadData(p, tenantId, category, dateFrom, dateTo) }
 
   return (
     <div className="space-y-6">
@@ -159,7 +159,7 @@ export default function AuditoriaPanel({ initialRows, initialTotal, initialPages
             Aplicar filtros
           </button>
           <button
-            onClick={() => { setTenantId(''); setCategory('all'); setDateFrom(''); setDateTo(''); fetch(1, '', 'all', '', '') }}
+            onClick={() => { setTenantId(''); setCategory('all'); setDateFrom(''); setDateTo(''); loadData(1, '', 'all', '', '') }}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Limpiar
