@@ -145,15 +145,30 @@ function FloatingNotifications({ containerRef }: { containerRef: React.RefObject
           78%         { opacity: 1; transform: translateY(0)    scale(1);    }
           88%, 100%   { opacity: 0; transform: translateY(-6px) scale(0.97); }
         }
+
+        /* ── Mobile overrides: reposicionar sobre la mitad inferior donde viven los teléfonos ── */
+        @media (max-width: 767px) {
+          .notif-card   { min-width: 155px !important; max-width: 190px !important; padding: 7px 10px 7px 7px !important; gap: 6px !important; }
+          .notif-icon   { width: 28px !important; height: 28px !important; font-size: 13px !important; }
+          .notif-title  { font-size: 10px !important; }
+          .notif-sub    { font-size: 9px !important; }
+
+          /* Posiciones distribuidas en la zona de los teléfonos (bottom 55% del hero) */
+          .notif-card-0 { top: 40% !important;    right: 3% !important;  left: auto !important; bottom: auto !important; }
+          .notif-card-1 { top: 50% !important;    right: 2% !important;  left: auto !important; bottom: auto !important; }
+          .notif-card-2 { top: 47% !important;    left: 3% !important;   right: auto !important; bottom: auto !important; }
+          .notif-card-3 { bottom: 7% !important;  right: 3% !important;  left: auto !important; top: auto !important; }
+          .notif-card-4 { bottom: 7% !important;  left: 3% !important;   right: auto !important; top: auto !important; }
+        }
       `}</style>
       <div
         ref={containerRef}
-        className="hidden md:block"
         style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }}
       >
         {NOTIFS.map((n, i) => (
           <div
             key={i}
+            className={`notif-card notif-card-${i}`}
             style={{
               position: 'absolute',
               ...n.pos,
@@ -167,26 +182,32 @@ function FloatingNotifications({ containerRef }: { containerRef: React.RefObject
               boxShadow: '0 8px 32px rgba(13,11,10,0.14), 0 1px 4px rgba(13,11,10,0.06)',
               minWidth: 210,
               maxWidth: 260,
-              animation: 'notif-appear 16s ease-in-out infinite',
+              animationName: 'notif-appear',
+              animationDuration: '20s',
+              animationTimingFunction: 'ease-in-out',
+              animationIterationCount: 'infinite',
               animationDelay: n.delay,
               opacity: 0,
               borderLeft: `3px solid ${n.accent}`,
             }}
           >
-            <div style={{
-              width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-              background: n.accent + '1a',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16,
-            }}>
+            <div
+              className="notif-icon"
+              style={{
+                width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                background: n.accent + '1a',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16,
+              }}
+            >
               {n.icon}
             </div>
             <div>
-              <p style={{
+              <p className="notif-title" style={{
                 fontSize: 11, fontWeight: 600, color: '#0d0b0a',
                 fontFamily: "'DM Sans', sans-serif", lineHeight: 1.3, marginBottom: 2,
               }}>{n.title}</p>
-              <p style={{
+              <p className="notif-sub" style={{
                 fontSize: 10, color: '#8a7f7a',
                 fontFamily: "'DM Sans', sans-serif", lineHeight: 1.2,
               }}>{n.sub}</p>
