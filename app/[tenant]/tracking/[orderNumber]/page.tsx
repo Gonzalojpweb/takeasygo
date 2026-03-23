@@ -21,7 +21,11 @@ export default async function TrackingPage({ params }: Props) {
   if (!order) notFound()
 
   const branding = tenant.branding
-  const ratingToken = generateRatingToken(order._id.toString())
+
+  // NEXTAUTH_SECRET requerido para el token — si falta en env el token es null en lugar de crashear
+  const ratingToken = process.env.NEXTAUTH_SECRET
+    ? generateRatingToken(order._id.toString())
+    : null
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: branding.backgroundColor, color: branding.textColor }}>
@@ -43,7 +47,7 @@ export default async function TrackingPage({ params }: Props) {
         <OrderTracker
           orderId={order._id.toString()}
           tenantSlug={tenantSlug}
-          locationId={order.locationId.toString()}
+          locationId={order.locationId?.toString() ?? ''}
           initialStatus={order.status}
           initialEstimatedReadyAt={order.statusTimestamps?.estimatedReadyAt?.toISOString() ?? null}
           primaryColor={branding.primaryColor}

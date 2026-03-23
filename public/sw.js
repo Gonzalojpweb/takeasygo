@@ -52,7 +52,7 @@ self.addEventListener('fetch', (e) => {
         (cached) =>
           cached ||
           fetch(req).then((res) => {
-            if (res.ok) {
+            if (res.ok && res.status !== 206) {
               const clone = res.clone()
               caches.open(CACHE).then((c) => c.put(req, clone))
             }
@@ -67,7 +67,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(req)
       .then((res) => {
-        if (res.ok) {
+        if (res.ok && res.status !== 206) {
           const clone = res.clone()
           caches.open(CACHE).then((c) => c.put(req, clone))
         }
