@@ -90,12 +90,121 @@ function FloatingPhones({
   )
 }
 
+// ── Floating Notifications ────────────────────────────────────────────────────
+
+const NOTIFS = [
+  {
+    icon: '🔔',
+    title: 'Tu pedido está listo',
+    sub: 'Listo para retirar · ahora',
+    accent: '#f14722',
+    pos: { top: '10%', right: '4%' },
+    delay: '0s',
+  },
+  {
+    icon: '⭐',
+    title: 'Agrega unas papas',
+    sub: 'Acompaña tu hamburguesa',
+    accent: '#f59e0b',
+    pos: { top: '38%', right: '-0.5%' },
+    delay: '4s',
+  },
+  {
+    icon: '🕐',
+    title: 'La Parrilla de Juan',
+    sub: '≈ 15 min · Abierto ahora',
+    accent: '#6366f1',
+    pos: { top: '18%', right: '33%' },
+    delay: '8s',
+  },
+  {
+    icon: '✅',
+    title: 'Pago confirmado',
+    sub: '$4.800 · MercadoPago',
+    accent: '#22c55e',
+    pos: { bottom: '20%', right: '4%' },
+    delay: '12s',
+  },
+  {
+    icon: '📅',
+    title: 'Recibimos tu reservación',
+    sub: 'Para 2 personas · 21:00 hs',
+    accent: '#a855f7',
+    pos: { bottom: '28%', right: '33%' },
+    delay: '16s',
+  },
+]
+
+function FloatingNotifications({ containerRef }: { containerRef: React.RefObject<HTMLDivElement | null> }) {
+  return (
+    <>
+      <style>{`
+        @keyframes notif-appear {
+          0%          { opacity: 0; transform: translateY(10px) scale(0.93); }
+          5%          { opacity: 1; transform: translateY(0)    scale(1);    }
+          78%         { opacity: 1; transform: translateY(0)    scale(1);    }
+          88%, 100%   { opacity: 0; transform: translateY(-6px) scale(0.97); }
+        }
+      `}</style>
+      <div
+        ref={containerRef}
+        className="hidden md:block"
+        style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }}
+      >
+        {NOTIFS.map((n, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              ...n.pos,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'rgba(255,255,255,0.92)',
+              backdropFilter: 'blur(14px)',
+              borderRadius: 16,
+              padding: '10px 14px 8px 8px',
+              boxShadow: '0 8px 32px rgba(13,11,10,0.14), 0 1px 4px rgba(13,11,10,0.06)',
+              minWidth: 210,
+              maxWidth: 260,
+              animation: 'notif-appear 16s ease-in-out infinite',
+              animationDelay: n.delay,
+              opacity: 0,
+              borderLeft: `3px solid ${n.accent}`,
+            }}
+          >
+            <div style={{
+              width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+              background: n.accent + '1a',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16,
+            }}>
+              {n.icon}
+            </div>
+            <div>
+              <p style={{
+                fontSize: 11, fontWeight: 600, color: '#0d0b0a',
+                fontFamily: "'DM Sans', sans-serif", lineHeight: 1.3, marginBottom: 2,
+              }}>{n.title}</p>
+              <p style={{
+                fontSize: 10, color: '#8a7f7a',
+                fontFamily: "'DM Sans', sans-serif", lineHeight: 1.2,
+              }}>{n.sub}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
 // ── Hero ──────────────────────────────────────────────────────────────────────
 export default function Hero() {
   const heroRef   = useRef<HTMLElement>(null)
   const textRef   = useRef<HTMLDivElement>(null)
   const phoneARef = useRef<HTMLDivElement>(null)
   const phoneBRef = useRef<HTMLDivElement>(null)
+  const notifRef  = useRef<HTMLDivElement>(null)
 
   useGSAP(() => {
     if (!heroRef.current || !textRef.current) return
@@ -119,6 +228,10 @@ export default function Hero() {
     }
     // Text → exits left
     tl.to(textRef.current, { x: '-160%', ease: 'power2.in', duration: 1 }, 0)
+    // Notifications → exit right with phones
+    if (notifRef.current) {
+      tl.to(notifRef.current, { x: '25%', opacity: 0, ease: 'power2.in', duration: 1 }, 0)
+    }
 
   }, { scope: heroRef })
 
@@ -276,6 +389,10 @@ export default function Hero() {
 
           </div>
         </div>
+
+        {/* Floating notification cards */}
+        <FloatingNotifications containerRef={notifRef} />
+
       </section>
     </>
   )
