@@ -214,7 +214,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
               src={branding.logoUrl}
               alt={tenant.name}
               className="h-20 object-contain mx-auto mb-6"
-              style={{ filter: hasHeroMedia ? 'brightness(0) invert(1)' : undefined }}
+              style={{ filter: hasHeroMedia ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' : undefined }}
             />
           ) : !branding.logoUrl && !hasHeroMedia ? (
             <h1 className="text-4xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
