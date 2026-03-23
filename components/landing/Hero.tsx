@@ -148,7 +148,7 @@ export default function Hero() {
         ref={heroRef}
         id="what-we-do"
         className="relative h-[100dvh] md:h-auto md:min-h-[100vh] flex flex-col md:flex-row md:items-center overflow-hidden"
-        style={{ background: '#f14722', borderRadius: '20px', margin: '20px' }}
+        style={{ background: '#f14722', borderRadius: '20px', margin: '20px', position: 'sticky', top: 20, zIndex: 1 }}
       >
         {/* Glows */}
         <div className="absolute pointer-events-none hidden md:block" style={{

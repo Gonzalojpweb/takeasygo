@@ -13,6 +13,7 @@ import Pricing from '@/components/landing/Pricing'
 import DemoSection from '@/components/landing/DemoSection'
 import FAQ from '@/components/landing/FAQ'
 import CTASection from '@/components/landing/CTASection'
+import SobreNosotros from '@/components/landing/SobreNosotros'
 
 export default function LandingPage() {
   return (
@@ -21,7 +22,10 @@ export default function LandingPage() {
 
       <main>
         {/* Phase 1: Context & Vision */}
-        <Hero />
+        <div>
+          <Hero />
+          <SobreNosotros />
+        </div>
         <HowItWorks />
         <StackingFeatures />
 

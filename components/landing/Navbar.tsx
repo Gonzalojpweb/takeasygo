@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 
 const navLinks = [
     { name: 'Qué hacemos', href: '#what-we-do' },
+    { name: 'Quiénes somos', href: '#sobre-nosotros' },
     { name: 'Cómo trabajamos', href: '#how-we-work' },
     { name: 'Funcionalidades', href: '#features' },
     { name: 'Precios', href: '#pricing' },
