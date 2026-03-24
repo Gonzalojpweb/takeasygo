@@ -38,8 +38,8 @@ export default function RatingsWidget({ tenantSlug }: { tenantSlug: string }) {
 
   useEffect(() => {
     fetch(`/api/${tenantSlug}/ratings`)
-      .then(r => r.json())
-      .then(setData)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.distribution) setData(d) })
       .finally(() => setLoading(false))
   }, [tenantSlug])
 
