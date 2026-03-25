@@ -4,6 +4,7 @@ import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
+import { safeDecrypt } from '@/lib/crypto'
 
 /**
  * GET /api/[tenant]/print-jobs?locationId=xxx
@@ -43,9 +44,15 @@ export async function GET(
       isActive: true,
     }).lean()
 
-    // Enriquecer órdenes con datos de la sede
-    const ordersWithLocation = orders.map(o => ({
+    // Enriquecer órdenes con datos de la sede y desencriptar PII del cliente
+    const ordersWithLocation = (orders as any[]).map(o => ({
       ...o,
+      customer: o.customer ? {
+        ...o.customer,
+        name:  safeDecrypt(o.customer.name  ?? ''),
+        phone: safeDecrypt(o.customer.phone ?? ''),
+        email: safeDecrypt(o.customer.email ?? ''),
+      } : o.customer,
       location: { locationName: location.name },
     }))
 
