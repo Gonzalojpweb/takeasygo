@@ -26,7 +26,7 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'inicial-mensual',
         name: 'Inicial',
-        price: '50.000',
+        price: '65.000',
         sub: 'Para empezar a vender online',
         planKey: 'try',
         featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
@@ -35,18 +35,18 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'crecimiento-mensual',
         name: 'Crecimiento',
-        price: '65.000',
+        price: '75.000',
         sub: 'Para escalar tu operación',
         planKey: 'buy',
         featured: true,
         featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
         extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
-        anchorHint: 'Con pago anual pagás $55.250/mes · Ahorrás $117.000/año',
+        anchorHint: 'Con pago anual pagás $63.750/mes · Ahorrás $135.000/año',
     },
     {
         id: 'premium-mensual',
         name: 'Premium',
-        price: '80.000',
+        price: '90.000',
         sub: 'Para optimizar con datos',
         planKey: 'full',
         featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
@@ -58,7 +58,7 @@ const anualPlans: LandingPlan[] = [
     {
         id: 'inicial-anual',
         name: 'Inicial',
-        price: '510.000',
+        price: '663.000',
         sub: 'Pago anual anticipado · 15% OFF',
         planKey: 'try',
         featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
@@ -67,19 +67,19 @@ const anualPlans: LandingPlan[] = [
     {
         id: 'crecimiento-anual',
         name: 'Crecimiento',
-        price: '663.000',
+        price: '765.000',
         sub: 'Pago anual anticipado · 15% OFF',
         planKey: 'buy',
         featured: true,
         featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
         extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
-        anchorPrice: '780.000',
-        anchorSavings: 'Ahorrás $117.000',
+        anchorPrice: '900.000',
+        anchorSavings: 'Ahorrás $135.000',
     },
     {
         id: 'premium-anual',
         name: 'Premium',
-        price: '816.000',
+        price: '918.000',
         sub: 'Pago anual anticipado · 15% OFF',
         planKey: 'full',
         featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
@@ -310,9 +310,11 @@ export default function Pricing() {
                 <div className="max-w-7xl mx-auto">
 
                     {/* ── Banner Anfitriones ──────────────────────────────── */}
+                    {/* 
                     <FounderBanner
                         onOpen={() => setModal({ plan: 'Anfitriones — $7.500/mes', planId: 'anfitrion' })}
-                    />
+                    /> 
+                    */}
 
                     {/* ── Header ─────────────────────────────────────────── */}
                     <div className="text-center mb-12 md:mb-16">
@@ -363,7 +365,7 @@ export default function Pricing() {
                                 plan={plan}
                                 type={type}
                                 onOpen={() => setModal({
-                                    plan: `${plan.name} – USD ${plan.price}${type === 'mensual' ? '/mes' : '/año'}`,
+                                    plan: `${plan.name} – $ARG ${plan.price}${type === 'mensual' ? '/mes' : '/año'}`,
                                     planId: plan.id,
                                 })}
                             />
