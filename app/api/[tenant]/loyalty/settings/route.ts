@@ -23,11 +23,12 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const authError = await requireAuth(request, tenant._id.toString())
-    if (authError) return authError
-
+    // GET público sin auth — usado por checkout para mostrar checkbox de registro
     if (!canAccess(tenant.plan, 'loyaltyClub')) {
-      return NextResponse.json({ error: 'Tu plan no incluye el Club de Fidelización' }, { status: 403 })
+      return NextResponse.json({
+        loyalty: { enabled: false },
+        plan: tenant.plan,
+      })
     }
 
     return NextResponse.json({
