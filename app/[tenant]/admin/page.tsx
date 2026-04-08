@@ -19,7 +19,7 @@ import OnboardingChecklist from '@/components/admin/OnboardingChecklist'
 import RatingsWidget from '@/components/admin/RatingsWidget'
 import Link from 'next/link'
 
-function PlanBanner({ plan, trialOrderCount }: { plan: Plan; trialOrderCount?: number }) {
+function PlanBanner({ plan, trialOrderCount, tenantSlug }: { plan: Plan; trialOrderCount?: number; tenantSlug: string }) {
   if (plan === 'full' || plan === 'anfitrion') return null
 
   if (plan === 'trial') {
@@ -34,7 +34,7 @@ function PlanBanner({ plan, trialOrderCount }: { plan: Plan; trialOrderCount?: n
         {isReady ? (
           <>
             <span className="flex-1">🎉 Procesaste 30 pedidos. Tu Informe ICO de Contexto está listo.</span>
-            <a href="./ico" className="flex items-center gap-1 text-xs font-bold shrink-0 opacity-80 hover:opacity-100">
+            <a href={`/${tenantSlug}/admin/ico`} className="flex items-center gap-1 text-xs font-bold shrink-0 opacity-80 hover:opacity-100">
               Ver Informe <ChevronRight size={12} />
             </a>
           </>
@@ -132,21 +132,24 @@ export default async function AdminDashboard() {
   type Alert = { level: 'error' | 'warn'; text: string; href: string }
   const alerts: Alert[] = []
 
+  const icoHref    = `/${tenantSlug}/admin/ico`
+  const ordersHref = `/${tenantSlug}/admin/orders`
+
   if (hasEnoughData && realIco !== null && realIco < 51)
-    alerts.push({ level: 'error', text: `ICO en zona crítica (${realIco}/100). Revisá los componentes para identificar qué mejorar.`, href: './ico' })
+    alerts.push({ level: 'error', text: `ICO en zona crítica (${realIco}/100). Revisá los componentes para identificar qué mejorar.`, href: icoHref })
   else if (hasEnoughData && realIco !== null && realIco < 76)
-    alerts.push({ level: 'warn', text: `ICO en consolidación (${realIco}/100). Hay margen de mejora operativa.`, href: './ico' })
+    alerts.push({ level: 'warn', text: `ICO en consolidación (${realIco}/100). Hay margen de mejora operativa.`, href: icoHref })
 
   if (cancRate30 > 20 && orders30 >= 10)
-    alerts.push({ level: 'error', text: `Tasa de cancelación alta: ${cancRate30}% en los últimos 30 días.`, href: './orders' })
+    alerts.push({ level: 'error', text: `Tasa de cancelación alta: ${cancRate30}% en los últimos 30 días.`, href: ordersHref })
   else if (cancRate30 > 10 && orders30 >= 10)
-    alerts.push({ level: 'warn', text: `Cancelaciones elevadas: ${cancRate30}% en los últimos 30 días.`, href: './orders' })
+    alerts.push({ level: 'warn', text: `Cancelaciones elevadas: ${cancRate30}% en los últimos 30 días.`, href: ordersHref })
 
   if (hasEnoughData && realCapacity !== null && realCapacity < 0.5)
-    alerts.push({ level: 'warn', text: 'Se detectaron franjas horarias con sobrecarga de capacidad recurrente.', href: './ico' })
+    alerts.push({ level: 'warn', text: 'Se detectaron franjas horarias con sobrecarga de capacidad recurrente.', href: icoHref })
 
   if (hasEnoughData && realIco === null)
-    alerts.push({ level: 'warn', text: 'El ICO no se calculó aún. Visitá la página ICO para generar tu índice.', href: './ico' })
+    alerts.push({ level: 'warn', text: 'El ICO no se calculó aún. Visitá la página ICO para generar tu índice.', href: icoHref })
 
   const stats = [
     { label: 'Total pedidos',  value: total,     icon: ShoppingBag, color: 'text-primary'     },
@@ -171,7 +174,7 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <PlanBanner plan={plan} trialOrderCount={trialOrderCount} />
+      <PlanBanner plan={plan} trialOrderCount={trialOrderCount} tenantSlug={tenantSlug!} />
 
       <OnboardingChecklist
         tenantId={tenantId}
@@ -251,7 +254,7 @@ export default async function AdminDashboard() {
             <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-[0.2em] border-primary/40 text-primary bg-primary/5 px-3 py-1">
               Interno
             </Badge>
-            <Link href="./ico" className="text-[10px] font-bold text-primary/70 hover:text-primary flex items-center gap-1 transition-colors">
+            <Link href={icoHref} className="text-[10px] font-bold text-primary/70 hover:text-primary flex items-center gap-1 transition-colors">
               Ver detalle <ChevronRight size={10} />
             </Link>
           </div>

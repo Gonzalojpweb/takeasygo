@@ -8,6 +8,7 @@ import OrdersManager from '@/components/admin/OrdersManager'
 import type { Types } from 'mongoose'
 import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 import { Lock } from 'lucide-react'
+import { safeDecrypt } from '@/lib/crypto'
 
 export default async function OrdersPage() {
   const headersList = await headers()
@@ -61,6 +62,16 @@ export default async function OrdersPage() {
     ? await Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] } })
     : undefined
 
+  const decryptedOrders = orders.map((o: any) => ({
+    ...o,
+    customer: {
+      ...o.customer,
+      name:  safeDecrypt(o.customer.name),
+      phone: safeDecrypt(o.customer.phone),
+      email: safeDecrypt(o.customer.email),
+    },
+  }))
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div>
@@ -69,7 +80,7 @@ export default async function OrdersPage() {
       </div>
 
       <OrdersManager
-        orders={JSON.parse(JSON.stringify(orders))}
+        orders={JSON.parse(JSON.stringify(decryptedOrders))}
         locationMap={locationMap}
         tenantSlug={tenantSlug || ''}
         trialOrderCount={trialOrderCount}

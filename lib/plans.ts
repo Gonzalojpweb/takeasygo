@@ -33,9 +33,9 @@ export const PLAN_COLORS: Record<Plan, string> = {
 // ── Precios de referencia ─────────────────────────────────────────────────────
 export const PLAN_PRICE: Record<Plan, string> = {
   trial:   'Gratis',
-  try:     'USD 30/mes',
-  buy:     'USD 50/mes',
-  full:    'USD 80/mes',
+  try:     '$65.000 ARS/mes',
+  buy:     '$75.000 ARS/mes',
+  full:    '$90.000 ARS/mes',
   anfitrion: '$7.500/mes',
 }
 

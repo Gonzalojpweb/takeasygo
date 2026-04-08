@@ -72,6 +72,7 @@ export const createLeadSchema = z.object({
   phone:    z.string().min(1).max(30).trim(),
   plan:     z.string().min(1).max(50).trim(),
   planId:   z.string().min(1).max(50).trim(),
+  notes:    z.string().max(300).trim().optional().default(''),
 })
 
 // ── Network / contacto de restaurantes ──────────────────────────────────────

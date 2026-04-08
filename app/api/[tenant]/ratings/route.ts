@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Rating from '@/models/Rating'
+import '@/models/Order' // necesario para que Mongoose registre el modelo antes del populate
 import { requireAuth } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
 
