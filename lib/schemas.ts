@@ -37,6 +37,7 @@ export const createOrderSchema = z.object({
   }),
   notes: z.string().max(500).trim().default(''),
   clientToken: z.string().uuid().optional().nullable(),
+  joinClub: z.boolean().optional().default(false),
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>

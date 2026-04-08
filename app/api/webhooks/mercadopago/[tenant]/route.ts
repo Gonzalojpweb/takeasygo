@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Reservation from '@/models/Reservation'
 import Tenant from '@/models/Tenant'
+import LoyaltyMember from '@/models/LoyaltyMember'
 import PaymentNotification from '@/models/PaymentNotification'
 import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
@@ -140,6 +141,27 @@ export async function POST(
 
             if (paymentData.status === 'approved') {
               order.status = 'confirmed'
+
+              if (order.customer?.phoneHash) {
+                await LoyaltyMember.findOneAndUpdate(
+                  {
+                    tenantId:  tenant._id,
+                    phoneHash: order.customer.phoneHash,
+                    status:   'active',
+                  },
+                  {
+                    $inc: {
+                      'cache.totalOrders': 1,
+                      'cache.totalSpent':  order.total ?? 0,
+                    },
+                    $set: {
+                      'cache.lastOrderAt': new Date(),
+                      'cache.updatedAt':  new Date(),
+                    },
+                  },
+                  { session, upsert: false }
+                ).catch(() => {})
+              }
             } else if (['rejected', 'cancelled'].includes(paymentData.status!)) {
               order.status = 'cancelled'
             }

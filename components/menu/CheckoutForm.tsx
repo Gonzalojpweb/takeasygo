@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, Minus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 
@@ -12,6 +12,12 @@ interface Props {
   mode: 'takeaway' | 'dine-in'
 }
 
+interface LoyaltyConfig {
+  enabled: boolean
+  clubName: string
+  welcomeMessage: string
+}
+
 export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
@@ -19,6 +25,8 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' })
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
+  const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig | null>(null)
+  const [joinClub, setJoinClub] = useState(false)
 
   useEffect(() => {
     const saved = sessionStorage.getItem('cart')
@@ -33,6 +41,15 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
       setUpsellHints(JSON.parse(hints))
       sessionStorage.removeItem('upsellHints')
     }
+
+    fetch(`/api/${tenantSlug}/loyalty/settings`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.loyalty?.enabled) {
+          setLoyaltyConfig(data.loyalty)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   function increaseQty(cartItemId: string) {
@@ -92,6 +109,7 @@ async function handleSubmit(e: React.FormEvent) {
         items: cart,
         notes: form.notes,
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,
+        joinClub: joinClub && loyaltyConfig?.enabled,
       }),
     })
 
@@ -295,6 +313,28 @@ async function handleSubmit(e: React.FormEvent) {
             rows={3}
             className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400 resize-none"
           />
+
+          {loyaltyConfig?.enabled && (
+            <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-amber-200 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={joinClub}
+                onChange={e => setJoinClub(e.target.checked)}
+                className="mt-1 w-5 h-5 rounded border-amber-300 text-amber-500 focus:ring-amber-400"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Star size={16} className="text-amber-500 fill-amber-500" />
+                  <span className="text-sm font-bold text-amber-900">
+                    Unirme a {loyaltyConfig.clubName || 'Club de Fidelización'}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-700 mt-1">
+                  {loyaltyConfig.welcomeMessage || 'Completá tu registro para recibir beneficios exclusivos.'}
+                </p>
+              </div>
+            </label>
+          )}
 
 <button
   type="submit"

@@ -3,11 +3,15 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
+import LoyaltyMember from '@/models/LoyaltyMember'
 import { generateOrderNumber } from '@/lib/orderNumber'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { createOrderSchema } from '@/lib/schemas'
 import { encrypt, safeDecrypt, hashPhone } from '@/lib/crypto'
+import crypto from 'crypto'
+import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
+import type { Plan } from '@/lib/plans'
 
 export async function GET(
   request: NextRequest,
@@ -65,6 +69,8 @@ export async function POST(
       )
     }
     const body = parsed.data
+
+    const joinClub = body.joinClub === true
 
     const location = await Location.findOne({
       _id: body.locationId,
@@ -202,6 +208,31 @@ export async function POST(
       notes: body.notes || '',
       clientToken: body.clientToken ?? null,
     })
+
+    if (joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled) {
+      const pHash = hashPhone(body.customer.phone)
+      const existing = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash }).lean()
+      if (!existing) {
+        const limit = LOYALTY_MEMBER_LIMIT[tenant.plan as Plan]
+        if (limit === null || await LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }) < limit) {
+          await LoyaltyMember.create({
+            tenantId:  tenant._id,
+            name:      body.customer.name,
+            phone:     body.customer.phone,
+            email:     body.customer.email || '',
+            phoneHash: pHash,
+            status:    'active',
+            source:    'checkout',
+            cache: {
+              totalOrders: 1,
+              totalSpent:  total,
+              lastOrderAt: new Date(),
+              updatedAt:   new Date(),
+            },
+          }).catch(() => {})
+        }
+      }
+    }
 
     return NextResponse.json({ order }, { status: 201 })
   } catch (error) {

@@ -68,6 +68,13 @@ export const PLAN_ACCESS = {
 
   // Plan Crecimiento y superior
   reservations:  ['buy', 'full'] as const,
+
+  // Club de Fidelización — disponible en todos los planes con límites distintos
+  // Límites de miembros: trial=30, try=150, buy/full=ilimitado
+  // Exportación de lista: solo desde buy/full
+  loyaltyClub:       ['trial', 'try', 'buy', 'full'] as const,
+  loyaltyExport:     ['buy', 'full'] as const,
+  loyaltyAnalytics:  ['full'] as const,  // Fase 2: métricas avanzadas del club
 }
 
 export type Feature = keyof typeof PLAN_ACCESS
@@ -85,6 +92,15 @@ export function requiredPlanFor(feature: Feature): Plan {
   return order.find(p =>
     (PLAN_ACCESS[feature] as readonly string[]).includes(p)
   ) ?? 'full'
+}
+
+/** Límite de miembros del club por plan. null = sin límite */
+export const LOYALTY_MEMBER_LIMIT: Record<Plan, number | null> = {
+  trial:    30,
+  try:      150,
+  buy:      null,
+  full:     null,
+  anfitrion: 0,  // el plan anfitrion no incluye pedidos ni club activo
 }
 
 // ── Feature lists para la landing ────────────────────────────────────────────

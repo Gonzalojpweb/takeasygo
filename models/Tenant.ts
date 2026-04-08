@@ -35,6 +35,12 @@ export interface ITenant extends Document {
   features: {
     reservations: boolean
   }
+  loyalty: {
+    enabled:        boolean
+    clubName:       string   // nombre del club (por defecto 'Club [nombre restaurante]')
+    welcomeMessage: string   // mensaje de bienvenida editable
+    createdAt:      Date | null
+  }
   mercadopago: {
     accessToken: string | null
     publicKey: string | null
@@ -119,6 +125,12 @@ const TenantSchema = new Schema<ITenant>(
     },
     features: {
       reservations: { type: Boolean, default: false },
+    },
+    loyalty: {
+      enabled:        { type: Boolean, default: false },
+      clubName:       { type: String,  default: '' },
+      welcomeMessage: { type: String,  default: '' },
+      createdAt:      { type: Date,    default: null },
     },
     mercadopago: {
       accessToken: { type: String, default: null },

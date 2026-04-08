@@ -19,6 +19,7 @@ import {
   CalendarDays,
   CreditCard,
   BookOpen,
+  QrCode,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -161,6 +162,13 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       label: 'Centro de Ayuda',
       icon: BookOpen,
       roles: ['admin', 'manager', 'staff', 'cashier'],
+    },
+    {
+      href: `${base}/club`,
+      label: 'Club',
+      icon: QrCode,
+      roles: ['admin', 'manager'],
+      feature: 'loyaltyClub',
     },
   ]
 
