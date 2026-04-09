@@ -51,7 +51,11 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
   const [isPending, startTransition] = useTransition()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilter, setActiveFilter] = useState('pending')
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
+  useEffect(() => {
+    setLastUpdated(new Date())
+  }, [])
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
   const playSound = useNotificationSound()
   const knownIdsRef = useRef<Set<string>>(new Set(orders.map(o => o._id)))
@@ -200,7 +204,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
         <div className="flex items-center gap-1.5 shrink-0">
           <Radio size={12} className={cn('text-emerald-500', isPending && 'opacity-40')} />
           <span className="text-xs text-muted-foreground font-medium hidden sm:block">
-            {isPending ? 'Actualizando...' : `${lastUpdated.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+            {isPending ? 'Actualizando...' : lastUpdated ? lastUpdated.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
           </span>
         </div>
         <span className="text-xs text-muted-foreground font-medium shrink-0">
