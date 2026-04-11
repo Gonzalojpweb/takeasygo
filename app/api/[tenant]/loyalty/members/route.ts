@@ -128,10 +128,30 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { name, phone, email, notes } = body
+    const { name, phone, email, birthDate, notes } = body
 
     if (!name?.trim()) {
       return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 })
+    }
+
+    // Validar birthDate si se proporciona
+    let parsedBirthDate: Date | null = null
+    if (birthDate) {
+      const date = new Date(birthDate)
+      if (isNaN(date.getTime())) {
+        return NextResponse.json({ error: 'Fecha de nacimiento inválida' }, { status: 400 })
+      }
+
+      // Verificar que no sea una fecha futura y que tenga sentido (mayor de 13 años, menor de 120)
+      const now = new Date()
+      const minDate = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate())
+      const maxDate = new Date(now.getFullYear() - 13, now.getMonth(), now.getDate())
+
+      if (date < minDate || date > maxDate) {
+        return NextResponse.json({ error: 'Fecha de nacimiento fuera del rango válido' }, { status: 400 })
+      }
+
+      parsedBirthDate = date
     }
 
     const cleanName   = String(name).trim().slice(0, 100)
@@ -158,6 +178,7 @@ export async function POST(
       name:      cleanName,
       phone:     cleanPhone,
       email:     cleanEmail,
+      birthDate: parsedBirthDate,
       phoneHash,
       status:    'active',
       source:    'admin',

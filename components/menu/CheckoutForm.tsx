@@ -23,7 +23,7 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const [cart, setCart] = useState<CartItem[]>([])
   const [upsellHints, setUpsellHints] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '', birthDate: '', notes: '' })
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
   const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig | null>(null)
   const [joinClub, setJoinClub] = useState(false)
@@ -105,7 +105,12 @@ async function handleSubmit(e: React.FormEvent) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         locationId,
-        customer: { name: form.name, phone: form.phone, email: form.email },
+        customer: {
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          ...(joinClub && form.birthDate && { birthDate: form.birthDate })
+        },
         items: cart,
         notes: form.notes,
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,
@@ -334,6 +339,26 @@ async function handleSubmit(e: React.FormEvent) {
                 </p>
               </div>
             </label>
+          )}
+
+          {/* Fecha de nacimiento cuando se une al club */}
+          {joinClub && loyaltyConfig?.enabled && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-zinc-700">
+                Fecha de nacimiento <span className="text-zinc-400">(opcional)</span>
+              </label>
+              <input
+                type="date"
+                value={form.birthDate}
+                onChange={e => setForm(p => ({ ...p, birthDate: e.target.value }))}
+                max={new Date(Date.now() - 13 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                min={new Date(Date.now() - 120 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
+              />
+              <p className="text-xs text-zinc-500">
+                Te enviaremos felicitaciones en tu cumpleaños y ofertas especiales
+              </p>
+            </div>
           )}
 
 <button

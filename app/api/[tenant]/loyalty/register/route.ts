@@ -67,10 +67,30 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { name, phone, email } = body
+    const { name, phone, email, birthDate } = body
 
     if (!name?.trim() || !phone?.trim()) {
       return NextResponse.json({ error: 'Nombre y teléfono son requeridos' }, { status: 400 })
+    }
+
+    // Validar birthDate si se proporciona
+    let parsedBirthDate: Date | null = null
+    if (birthDate) {
+      const date = new Date(birthDate)
+      if (isNaN(date.getTime())) {
+        return NextResponse.json({ error: 'Fecha de nacimiento inválida' }, { status: 400 })
+      }
+
+      // Verificar que no sea una fecha futura y que tenga sentido (mayor de 13 años, menor de 120)
+      const now = new Date()
+      const minDate = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate())
+      const maxDate = new Date(now.getFullYear() - 13, now.getMonth(), now.getDate())
+
+      if (date < minDate || date > maxDate) {
+        return NextResponse.json({ error: 'Fecha de nacimiento fuera del rango válido' }, { status: 400 })
+      }
+
+      parsedBirthDate = date
     }
 
     // Sanitizar
@@ -83,9 +103,17 @@ export async function POST(
     const existing = await LoyaltyMember.findOne({
       tenantId:  tenant._id,
       phoneHash: pHash,
-    }).lean<{ _id: any; name: string; joinedAt: Date }>()
+    }).lean<{ _id: any; name: string; joinedAt: Date; birthDate?: Date }>()
 
     if (existing) {
+      // Si se proporciona birthDate y el miembro no lo tiene, actualizarlo
+      if (parsedBirthDate && !existing.birthDate) {
+        await LoyaltyMember.updateOne(
+          { _id: existing._id },
+          { birthDate: parsedBirthDate }
+        )
+      }
+
       // Devuelve la tarjeta existente — no error
       const clubName = tenant.loyalty?.clubName?.trim() || `Club ${tenant.name}`
       return NextResponse.json({
@@ -119,6 +147,7 @@ export async function POST(
       name:      cleanName,
       phone:     cleanPhone,
       email:     cleanEmail,
+      birthDate: parsedBirthDate,
       phoneHash: pHash,
       status:    'active',
       source:    'qr_scan',

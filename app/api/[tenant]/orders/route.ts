@@ -205,6 +205,7 @@ export async function POST(
             name:      body.customer.name,
             phone:     body.customer.phone,
             email:     body.customer.email || '',
+            birthDate: body.customer.birthDate ? new Date(body.customer.birthDate) : null,
             phoneHash: pHash,
             status:    'active',
             source:    'checkout',

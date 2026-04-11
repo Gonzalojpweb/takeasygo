@@ -34,6 +34,7 @@ export const createOrderSchema = z.object({
       .optional()
       .or(z.literal(''))
       .transform(v => v ?? ''),
+    birthDate: z.string().optional(), // formato YYYY-MM-DD
   }),
   notes: z.string().max(500).trim().default(''),
   clientToken: z.string().uuid().optional().nullable(),

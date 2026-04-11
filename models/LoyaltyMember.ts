@@ -12,6 +12,7 @@ export interface ILoyaltyMember extends Document {
   name:      string
   phone:     string
   email:     string
+  birthDate?: Date | null  // Fecha de nacimiento para notificaciones de cumpleaños
   phoneHash: string   // SHA-256(phone) — para vincular órdenes sin exponer PII
 
   // Estado de membresía
@@ -62,6 +63,10 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
       default: '',
       trim:    true,
       lowercase: true,
+    },
+    birthDate: {
+      type:    Date,
+      default: null,
     },
     phoneHash: {
       type:    String,
