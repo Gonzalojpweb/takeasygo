@@ -30,6 +30,7 @@ export async function POST(
 
     const previousStatus = tenant.status
     tenant.status = 'active'
+    tenant.isActive = true // active tenants are fully active
     tenant.pausedAt = null
     tenant.pausedReason = ''
     await tenant.save()

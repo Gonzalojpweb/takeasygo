@@ -170,12 +170,6 @@ TenantSchema.virtual('computedIsActive').get(function() {
   return this.status === 'active' || this.status === 'paused'
 })
 
-// Pre-save hook para mantener isActive sincronizado
-TenantSchema.pre('save', function(next) {
-  this.isActive = this.status === 'active' || this.status === 'paused'
-  next()
-})
-
 if (process.env.NODE_ENV !== 'production') {
   delete (mongoose.models as any).Tenant
 }

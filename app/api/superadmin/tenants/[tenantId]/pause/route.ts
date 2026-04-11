@@ -36,6 +36,7 @@ export async function POST(
     }
 
     tenant.status = 'paused'
+    tenant.isActive = true // paused tenants are still "active" for admin access
     tenant.pausedAt = new Date()
     tenant.pausedReason = reason.trim()
     await tenant.save()
