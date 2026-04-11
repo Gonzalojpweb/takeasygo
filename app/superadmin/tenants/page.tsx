@@ -10,12 +10,15 @@ export default async function TenantsPage() {
   const tenants = await Tenant.find().sort({ name: 1 }).lean()
 
   const serialized = tenants.map((t: any) => ({
-    _id:       t._id.toString(),
-    name:      t.name,
-    slug:      t.slug,
-    plan:      t.plan,
-    isActive:  t.isActive,
-    createdAt: t.createdAt.toISOString(),
+    _id:          t._id.toString(),
+    name:         t.name,
+    slug:         t.slug,
+    plan:         t.plan,
+    status:       t.status,
+    isActive:     t.isActive,
+    pausedAt:     t.pausedAt?.toISOString() || null,
+    pausedReason: t.pausedReason || '',
+    createdAt:    t.createdAt.toISOString(),
   }))
 
   return (

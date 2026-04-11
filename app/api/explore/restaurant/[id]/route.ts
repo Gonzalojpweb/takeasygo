@@ -20,7 +20,7 @@ export async function GET(
 
     if (type === 'network') {
       const [loc] = await Location.aggregate([
-        { $match: { _id: new mongoose.Types.ObjectId(id), networkVisible: true, isActive: true } },
+        { $match: { _id: new mongoose.Types.ObjectId(id), networkVisible: true, status: 'active' } },
         {
           $lookup: {
             from: 'tenants',
@@ -30,7 +30,7 @@ export async function GET(
           },
         },
         { $unwind: { path: '$tenant', preserveNullAndEmptyArrays: false } },
-        { $match: { 'tenant.isActive': true } },
+        { $match: { 'tenant.status': 'active' } },
         {
           $project: {
             _id: 1,

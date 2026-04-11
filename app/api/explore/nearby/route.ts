@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
         {
           $geoNear: {
             ...geoNearStage.$geoNear,
-            query: { networkVisible: true, isActive: true },
+            query: { networkVisible: true, status: 'active' },
           },
         },
         { $limit: MAX_RESULTS },
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
           },
         },
         { $unwind: { path: '$tenant', preserveNullAndEmptyArrays: false } },
-        { $match: { 'tenant.isActive': true } },
+        { $match: { 'tenant.status': 'active' } },
         {
           $project: {
             _id: 1,

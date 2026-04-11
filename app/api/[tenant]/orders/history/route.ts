@@ -21,7 +21,7 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+    const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
     const authError = await requireAuth(request, tenant._id.toString())

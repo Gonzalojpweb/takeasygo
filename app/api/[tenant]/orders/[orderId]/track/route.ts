@@ -12,7 +12,7 @@ export async function GET(
     const { tenant: tenantSlug, orderId } = await params
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
+    const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } }).lean() as any
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })

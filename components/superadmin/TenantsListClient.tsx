@@ -4,18 +4,22 @@ import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ExternalLink, MapPin, Settings, Users, Search, ArrowUpAZ, ArrowDownAZ, Clock } from 'lucide-react'
+import { ExternalLink, MapPin, Settings, Users, Search, ArrowUpAZ, ArrowDownAZ, Clock, Pause, Play } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
+import { toast } from 'sonner'
 
 type Tenant = {
   _id: string
   name: string
   slug: string
   plan: Plan
+  status: 'active' | 'paused' | 'deleted'
   isActive: boolean
+  pausedAt?: string | null
+  pausedReason?: string
   createdAt: string
 }
 
@@ -40,7 +44,50 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
   const [search, setSearch]   = useState('')
   const [sort, setSort]       = useState<SortKey>('newest')
   const [plan, setPlan]       = useState('all')
-  const [status, setStatus]   = useState('all') // 'all' | 'active' | 'inactive'
+  const [status, setStatus]   = useState('all') // 'all' | 'active' | 'paused' | 'deleted'
+
+  const handlePause = async (tenantId: string) => {
+    const reason = prompt('Razón para pausar el tenant:')
+    if (!reason?.trim()) return
+
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenantId}/pause`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason.trim() }),
+      })
+
+      if (res.ok) {
+        toast.success('Tenant pausado exitosamente')
+        window.location.reload()
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Error al pausar tenant')
+      }
+    } catch (error) {
+      toast.error('Error de conexión')
+    }
+  }
+
+  const handleResume = async (tenantId: string) => {
+    if (!confirm('¿Reactivar este tenant?')) return
+
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenantId}/resume`, {
+        method: 'POST',
+      })
+
+      if (res.ok) {
+        toast.success('Tenant reactivado exitosamente')
+        window.location.reload()
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Error al reactivar tenant')
+      }
+    } catch (error) {
+      toast.error('Error de conexión')
+    }
+  }
 
   const filtered = useMemo(() => {
     let list = [...tenants]
@@ -60,8 +107,9 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
     }
 
     // Filtro estado
-    if (status === 'active')   list = list.filter(t => t.isActive)
-    if (status === 'inactive') list = list.filter(t => !t.isActive)
+    if (status === 'active')  list = list.filter(t => t.status === 'active')
+    if (status === 'paused')  list = list.filter(t => t.status === 'paused')
+    if (status === 'deleted') list = list.filter(t => t.status === 'deleted')
 
     // Ordenamiento
     list.sort((a, b) => {
@@ -110,7 +158,8 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
         >
           <option value="all">Todos los estados</option>
           <option value="active">Activos</option>
-          <option value="inactive">Inactivos</option>
+          <option value="paused">Pausados</option>
+          <option value="deleted">Eliminados</option>
         </select>
 
         {/* Orden */}
@@ -175,43 +224,69 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
                 </div>
               </CardHeader>
               <CardContent className="space-y-6 pt-0">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border/40">
-                  <div className="flex items-center gap-2">
-                    <div className={cn(
-                      "w-2.5 h-2.5 rounded-full shadow-[0_0_8px]",
-                      tenant.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-destructive shadow-destructive/50"
-                    )} />
-                    <span className="text-xs font-bold uppercase tracking-tighter">
-                      {tenant.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground font-bold">
-                    Desde: {new Date(tenant.createdAt).toLocaleDateString('es-AR')}
-                  </p>
-                </div>
+                 <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border/40">
+                   <div className="flex items-center gap-2">
+                     <div className={cn(
+                       "w-2.5 h-2.5 rounded-full shadow-[0_0_8px]",
+                       tenant.status === 'active' ? "bg-emerald-500 shadow-emerald-500/50" :
+                       tenant.status === 'paused' ? "bg-amber-500 shadow-amber-500/50" :
+                       "bg-red-500 shadow-red-500/50"
+                     )} />
+                     <span className="text-xs font-bold uppercase tracking-tighter">
+                       {tenant.status === 'active' ? 'Activo' :
+                        tenant.status === 'paused' ? 'Pausado' :
+                        'Eliminado'}
+                     </span>
+                   </div>
+                   <p className="text-[10px] text-muted-foreground font-bold">
+                     Desde: {new Date(tenant.createdAt).toLocaleDateString('es-AR')}
+                   </p>
+                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Link href={`/${tenant.slug}/admin`} target="_blank" className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full rounded-xl font-bold text-xs border-2 hover:bg-primary hover:border-primary hover:text-white transition-all group/btn">
-                      <ExternalLink className="mr-2 h-3 w-3 group-hover/btn:scale-110 transition-transform" /> Admin
-                    </Button>
-                  </Link>
-                  <Link href={`/superadmin/tenants/${tenant._id}/locations`} className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full rounded-xl font-bold text-xs border-2 hover:bg-primary hover:border-primary hover:text-white transition-all group/btn">
-                      <MapPin className="mr-2 h-3 w-3 group-hover/btn:scale-110 transition-transform" /> Sedes
-                    </Button>
-                  </Link>
-                  <Link href={`/superadmin/tenants/${tenant._id}/users`}>
-                    <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all" title="Usuarios">
-                      <Users className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                  <Link href={`/superadmin/tenants/${tenant._id}/edit`}>
-                    <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all">
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
+                 <div className="flex items-center gap-2">
+                   <Link href={`/${tenant.slug}/admin`} target="_blank" className="flex-1">
+                     <Button variant="outline" size="sm" className="w-full rounded-xl font-bold text-xs border-2 hover:bg-primary hover:border-primary hover:text-white transition-all group/btn">
+                       <ExternalLink className="mr-2 h-3 w-3 group-hover/btn:scale-110 transition-transform" /> Admin
+                     </Button>
+                   </Link>
+                   <Link href={`/superadmin/tenants/${tenant._id}/locations`} className="flex-1">
+                     <Button variant="outline" size="sm" className="w-full rounded-xl font-bold text-xs border-2 hover:bg-primary hover:border-primary hover:text-white transition-all group/btn">
+                       <MapPin className="mr-2 h-3 w-3 group-hover/btn:scale-110 transition-transform" /> Sedes
+                     </Button>
+                   </Link>
+                   <Link href={`/superadmin/tenants/${tenant._id}/users`}>
+                     <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all" title="Usuarios">
+                       <Users className="h-4 w-4" />
+                     </Button>
+                   </Link>
+                   <Link href={`/superadmin/tenants/${tenant._id}/edit`}>
+                     <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all">
+                       <Settings className="h-4 w-4" />
+                     </Button>
+                   </Link>
+                   {tenant.status === 'active' && (
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => handlePause(tenant._id)}
+                       className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-amber-500 hover:border-amber-500 hover:text-white transition-all"
+                       title="Pausar tenant"
+                     >
+                       <Pause className="h-4 w-4" />
+                     </Button>
+                   )}
+                   {tenant.status === 'paused' && (
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => handleResume(tenant._id)}
+                       className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-emerald-500 hover:border-emerald-500 hover:text-white transition-all"
+                       title="Reactivar tenant"
+                     >
+                       <Play className="h-4 w-4" />
+                     </Button>
+                   )}
+                 </div>
               </CardContent>
             </Card>
           ))}

@@ -22,29 +22,14 @@ export async function GET(
     await connectDB()
     const locationId = request.nextUrl.searchParams.get('locationId')
 
-const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    }
 
-    const authError = await requireAuth(request, tenant._id.toString())
-    if (authError) return authError
-
-    const filter: Record<string, any> = { tenantId: tenant._id }
-    if (locationId) filter.locationId = locationId
-
-    const rawOrders = await Order.find(filter).sort({ createdAt: -1 }).limit(50).lean()
-    const orders = rawOrders.map((o: any) => ({
-      ...o,
-      customer: {
-        ...o.customer,
-        name:  safeDecrypt(o.customer.name),
-        phone: safeDecrypt(o.customer.phone),
-        email: safeDecrypt(o.customer.email),
-      },
-    }))
-    return NextResponse.json({ orders })
-  } catch (error) {
-    return NextResponse.json({ error: 'Error al obtener las órdenes' }, { status: 500 })
-  }
+    if (tenant.status !== 'active') {
+      return NextResponse.json({ error: 'Este restaurante no está aceptando pedidos en este momento' }, { status: 503 })
+    }
 }
 
 export async function POST(
@@ -55,7 +40,7 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+    const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }

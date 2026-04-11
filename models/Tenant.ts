@@ -4,7 +4,10 @@ export interface ITenant extends Document {
   name: string
   slug: string
   plan: 'trial' | 'try' | 'buy' | 'full' | 'anfitrion'
-  isActive: boolean
+  status: 'active' | 'paused' | 'deleted'
+  isActive: boolean  // Computed: status === 'active' || status === 'paused'
+  pausedAt?: Date | null
+  pausedReason?: string
   subscription: {
     preapprovalId: string | null
     status: 'authorized' | 'pending' | 'cancelled' | 'paused' | null
@@ -76,9 +79,22 @@ const TenantSchema = new Schema<ITenant>(
       enum: ['trial', 'try', 'buy', 'full', 'anfitrion'],
       default: 'trial',
     },
+    status: {
+      type: String,
+      enum: ['active', 'paused', 'deleted'],
+      default: 'active',
+    },
     isActive: {
       type: Boolean,
       default: true,
+    },
+    pausedAt: {
+      type: Date,
+      default: null,
+    },
+    pausedReason: {
+      type: String,
+      default: '',
     },
     subscription: {
       preapprovalId: { type: String, default: null },
@@ -148,6 +164,17 @@ const TenantSchema = new Schema<ITenant>(
     timestamps: true,
   }
 )
+
+// Virtual para isActive basado en status (para compatibilidad)
+TenantSchema.virtual('computedIsActive').get(function() {
+  return this.status === 'active' || this.status === 'paused'
+})
+
+// Pre-save hook para mantener isActive sincronizado
+TenantSchema.pre('save', function(next) {
+  this.isActive = this.status === 'active' || this.status === 'paused'
+  next()
+})
 
 if (process.env.NODE_ENV !== 'production') {
   delete (mongoose.models as any).Tenant
