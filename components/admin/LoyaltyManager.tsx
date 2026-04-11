@@ -57,6 +57,7 @@ interface Member {
   name: string
   phone: string
   email: string
+  birthDate?: string | null
   status: 'active' | 'inactive' | 'blocked'
   joinedAt: string
   source: 'checkout' | 'qr_scan' | 'admin' | 'manual_import'
@@ -122,10 +123,10 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [page, setPage]             = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [addForm, setAddForm]       = useState({ name: '', phone: '', email: '', notes: '' })
+  const [addForm, setAddForm]       = useState({ name: '', phone: '', email: '', birthDate: '', notes: '' })
   const [addLoading, setAddLoading]  = useState(false)
   const [editingMember, setEditingMember] = useState<Member | null>(null)
-  const [editForm, setEditForm]     = useState({ name: '', email: '', notes: '' })
+  const [editForm, setEditForm]     = useState({ name: '', phone: '', email: '', birthDate: '', notes: '' })
   const [editLoading, setEditLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [importDialog, setImportDialog] = useState(false)
@@ -181,7 +182,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       toast.success('Miembro agregado')
-      setAddForm({ name: '', phone: '', email: '', notes: '' })
+      setAddForm({ name: '', phone: '', email: '', birthDate: '', notes: '' })
       setShowAddForm(false)
       fetchMembers()
       fetchStats()
@@ -276,7 +277,13 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
 
   function openEdit(member: Member) {
     setEditingMember(member)
-    setEditForm({ name: member.name, email: member.email, notes: member.notes ?? '' })
+    setEditForm({
+      name: member.name,
+      phone: member.phone,
+      email: member.email,
+      birthDate: member.birthDate ? new Date(member.birthDate).toISOString().split('T')[0] : '',
+      notes: member.notes ?? ''
+    })
   }
 
   function formatDate(d: string | null) {
@@ -390,6 +397,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="pl-6">Cliente</TableHead>
                     <TableHead>Contacto</TableHead>
+                    <TableHead>Cumpleaños</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Fuente</TableHead>
                     <TableHead>Pedidos</TableHead>
@@ -407,15 +415,20 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                           {m.notes && <p className="text-[10px] text-muted-foreground/60 truncate max-w-[150px]">{m.notes}</p>}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <p className="text-sm font-medium">{m.phone}</p>
-                        <p className="text-xs text-muted-foreground">{m.email || '—'}</p>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn('text-[9px] font-black uppercase tracking-widest border-2', STATUS_COLORS[m.status])}>
-                          {m.status}
-                        </Badge>
-                      </TableCell>
+                       <TableCell>
+                         <p className="text-sm font-medium">{m.phone}</p>
+                         <p className="text-xs text-muted-foreground">{m.email || '—'}</p>
+                       </TableCell>
+                       <TableCell>
+                         <span className="text-sm text-muted-foreground">
+                           {m.birthDate ? formatDate(m.birthDate) : '—'}
+                         </span>
+                       </TableCell>
+                       <TableCell>
+                         <Badge className={cn('text-[9px] font-black uppercase tracking-widest border-2', STATUS_COLORS[m.status])}>
+                           {m.status}
+                         </Badge>
+                       </TableCell>
                       <TableCell>
                         <Badge className={cn('text-[9px] font-bold border-2', SOURCE_ICONS[m.source])}>
                           {SOURCE_LABELS[m.source]}
@@ -599,7 +612,7 @@ function MemberFormDialog({
   onClose,
 }: {
   title: string
-  form: { name: string; phone?: string; email: string; notes: string }
+  form: { name: string; phone?: string; email: string; birthDate: string; notes: string }
   setForm: (f: any) => void
   loading: boolean
   onSubmit: (e: React.FormEvent) => void
@@ -646,6 +659,17 @@ function MemberFormDialog({
               value={form.email}
               onChange={e => setForm((f: any) => ({ ...f, email: e.target.value }))}
               placeholder="Ej: juan@mail.com"
+              className={inputCls}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className={labelCls}>Fecha de nacimiento</label>
+            <input
+              type="date"
+              value={form.birthDate}
+              onChange={e => setForm((f: any) => ({ ...f, birthDate: e.target.value }))}
+              max={new Date(Date.now() - 13 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+              min={new Date(Date.now() - 120 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
               className={inputCls}
             />
           </div>
