@@ -10,7 +10,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-72 flex-col border-r border-border shrink-0">
+      <aside className="hidden lg:flex w-72 h-full flex-col border-r border-border shrink-0">
         <SuperAdminSidebar />
       </aside>
 
