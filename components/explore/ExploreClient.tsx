@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
 import RestaurantCard, { FeaturedCard } from './RestaurantCard'
 import ExploreHeader from './ExploreHeader'
@@ -28,7 +28,16 @@ type View = 'list' | 'map'
 const BUENOS_AIRES = { lat: -34.6037, lng: -58.3816 }
 
 export default function ExploreClient() {
+  return (
+    <Suspense fallback={<GpsLoading />}>
+      <ExploreClientInner />
+    </Suspense>
+  )
+}
+
+function ExploreClientInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [view, setView] = useState<View>('list')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsError, setGpsError] = useState<string | null>(null)
@@ -40,6 +49,13 @@ export default function ExploreClient() {
   const [openNowOnly, setOpenNowOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showLeadModal, setShowLeadModal] = useState(false)
+
+  // ── Sync View with URL ───────────────────────────────────────────
+  useEffect(() => {
+    const v = searchParams.get('view')
+    if (v === 'map') setView('map')
+    else setView('list')
+  }, [searchParams])
 
   // ── GPS ──────────────────────────────────────────────────────────────
   useEffect(() => {
