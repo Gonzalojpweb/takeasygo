@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         {
           $geoNear: {
             ...geoNearStage.$geoNear,
-            query: { status: 'active' },
+            query: { isActive: true },
           },
         },
         { $limit: MAX_RESULTS },
