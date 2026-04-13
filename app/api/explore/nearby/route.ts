@@ -26,6 +26,7 @@ export interface NearbyRestaurant {
   tenantSlug?: string
   tenantName?: string
   logoUrl?: string
+  heroImage?: string
   primaryColor?: string
   acceptsOrders?: boolean
   estimatedPickupTime?: number
@@ -196,6 +197,7 @@ export async function GET(request: NextRequest) {
         tenantSlug: loc.tenant?.slug,
         tenantName: loc.tenant?.name,
         logoUrl: loc.tenant?.branding?.logoUrl ?? '',
+        heroImage: loc.tenant?.branding?.logoUrl ?? '', // Fallback to logo or empty
         primaryColor: loc.tenant?.branding?.primaryColor ?? '#000000',
         acceptsOrders,
         estimatedPickupTime,
