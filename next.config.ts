@@ -13,10 +13,10 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://res.cloudinary.com https://*.tile.openstreetmap.org",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com",
       "media-src 'self' https://res.cloudinary.com",
       "font-src 'self'",
-      "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com https://api.mymemory.translated.net https://*.tile.openstreetmap.org",
+      "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com https://api.mymemory.translated.net https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com",
       "worker-src 'self'",
       "frame-src https://www.mercadopago.com https://www.mercadopago.com.ar",
       "object-src 'none'",
@@ -27,6 +27,15 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/app',
+        destination: '/explore',
+        permanent: true,
+      },
+    ]
+  },
   async headers() {
     return [
       {

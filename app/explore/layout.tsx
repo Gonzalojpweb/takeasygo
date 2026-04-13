@@ -26,5 +26,9 @@ export const metadata: Metadata = {
 }
 
 export default function ExploreLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return (
+    <div className="consumer-dark min-h-screen bg-[#0d0b0a]">
+      {children}
+    </div>
+  )
 }

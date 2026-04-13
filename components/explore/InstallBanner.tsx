@@ -1,56 +1,81 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Download } from 'lucide-react'
+import { Download, X } from 'lucide-react'
+import { AnimatedShinyText } from '@/components/ui/animated-shiny-text'
 
 export default function InstallBanner() {
-  const [prompt, setPrompt] = useState<any>(null)
-  const [dismissed, setDismissed] = useState(false)
+  const [show, setShow] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
 
   useEffect(() => {
-    // Ya está instalada como PWA — no mostrar
+    // Hide if already installed or dismissed in this session
+    if (typeof window === 'undefined') return
     if (window.matchMedia('(display-mode: standalone)').matches) return
-    // El usuario ya cerró el banner antes
-    if (sessionStorage.getItem('pwa-banner-dismissed')) return
+    if (sessionStorage.getItem('pwa-dismissed')) return
 
-    const handler = (e: Event) => {
+    const handler = (e: any) => {
       e.preventDefault()
-      setPrompt(e)
+      setDeferredPrompt(e)
+      setShow(true)
     }
-    window.addEventListener('beforeinstallprompt', handler as any)
-    return () => window.removeEventListener('beforeinstallprompt', handler as any)
+
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
-  if (!prompt || dismissed) return null
+  if (!show) return null
 
-  function dismiss() {
-    sessionStorage.setItem('pwa-banner-dismissed', '1')
-    setDismissed(true)
+  const handleInstall = async () => {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') setShow(false)
+    setDeferredPrompt(null)
   }
 
-  async function install() {
-    prompt.prompt()
-    const { outcome } = await prompt.userChoice
-    if (outcome === 'accepted') setDismissed(true)
-    else dismiss()
+  const handleDismiss = () => {
+    setShow(false)
+    sessionStorage.setItem('pwa-dismissed', '1')
   }
 
   return (
-    <div className="flex items-center gap-3 bg-emerald-600 text-white px-4 py-2.5 shrink-0">
-      <img src="/tgo192.png" alt="TakeasyGO" className="w-8 h-8 rounded-lg shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold leading-tight">Instalá TakeasyGO</p>
-        <p className="text-[11px] text-emerald-100 leading-tight">Accedé rápido desde tu pantalla de inicio</p>
+    <div className="relative mx-4 mt-3 mb-1 rounded-2xl overflow-hidden animate-fade-in-up"
+      style={{
+        background: 'linear-gradient(135deg, rgba(241,71,34,0.12) 0%, rgba(16,185,129,0.06) 100%)',
+        border: '1px solid rgba(241,71,34,0.15)',
+      }}
+    >
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(241,71,34,0.15)' }}>
+          <Download size={16} className="text-[#f14722]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <AnimatedShinyText className="text-xs font-bold text-[#f7f4f2] inline-block">
+            Instalá TakeasyGO
+          </AnimatedShinyText>
+          <p className="text-[#5a524d] text-[10px] leading-tight">
+            Acceso rápido desde tu pantalla de inicio
+          </p>
+        </div>
+        <button
+          onClick={handleInstall}
+          className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all duration-200"
+          style={{
+            background: 'linear-gradient(135deg, #f14722, #e03e1d)',
+            color: 'white',
+            boxShadow: '0 2px 10px rgba(241,71,34,0.3)',
+          }}
+        >
+          Instalar
+        </button>
+        <button
+          onClick={handleDismiss}
+          className="shrink-0 p-1 text-[#5a524d] hover:text-[#8a7f7a] transition-colors cursor-pointer"
+        >
+          <X size={14} />
+        </button>
       </div>
-      <button
-        onClick={install}
-        className="flex items-center gap-1 bg-white text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-lg shrink-0">
-        <Download size={12} />
-        Instalar
-      </button>
-      <button onClick={dismiss} className="text-emerald-200 hover:text-white">
-        <X size={16} />
-      </button>
     </div>
   )
 }
