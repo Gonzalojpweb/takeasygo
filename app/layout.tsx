@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner'
 import SmoothScroll from '@/components/SmoothScroll'
 import NavigationProgress from '@/components/NavigationProgress'
 import './globals.css'
+import AuthProvider from '@/components/AuthProvider'
 
 const geist = Geist({ subsets: ['latin'] })
 
@@ -24,11 +25,13 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={geist.className}>
-        <NavigationProgress />
-        <SmoothScroll>
-          {children}
-        </SmoothScroll>
-        <Toaster />
+        <AuthProvider>
+          <NavigationProgress />
+          <SmoothScroll>
+            {children}
+          </SmoothScroll>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   )
