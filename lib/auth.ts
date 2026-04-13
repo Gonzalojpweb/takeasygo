@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
+import Google from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
@@ -18,7 +19,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         action: 'auth.login',
         entity: 'session',
         // Pass identity directly — avoids circular auth() call inside logAudit
-        userId:   u.id ?? null,
+        userId: u.id ?? null,
         userName: u.name ?? u.email ?? 'Sistema',
         userRole: u.role ?? '',
         details: { userRole: u.role },
@@ -32,7 +33,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         action: 'auth.logout',
         entity: 'session',
         // Pass identity directly — avoids circular auth() call inside logAudit
-        userId:   (token.id as string) ?? null,
+        userId: (token.id as string) ?? null,
         userName: (token.name as string) ?? 'Sistema',
         userRole: (token.role as string) ?? '',
         details: { userRole: token.role },
@@ -40,6 +41,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     Credentials({
       name: 'credentials',
       credentials: {
@@ -48,7 +53,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
-        
+
         const { success } = await rateLimit(`login:${credentials.email}`, 5, 60_000)
         if (!success) {
           throw new Error('Demasiados intentos. Esperá 1 minuto.')

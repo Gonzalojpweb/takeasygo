@@ -1,11 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
-export type UserRole = 'superadmin' | 'admin' | 'manager' | 'staff' | 'cashier'
+export type UserRole = 'superadmin' | 'admin' | 'manager' | 'staff' | 'cashier' | 'consumer'
 
 export interface IUser extends Document {
   name: string
   email: string
-  password: string
+  password?: string // Optional for OAuth users
+  image?: string    // Profile picture
   role: UserRole
   tenantId: mongoose.Types.ObjectId | null
   assignedLocation: mongoose.Types.ObjectId | null
@@ -32,13 +33,22 @@ const UserSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: [true, 'La contraseña es obligatoria'],
+      required: function (this: any) {
+        // Required only if not a consumer (or better: only if explicitly using credentials)
+        // For simplicity, we make it optional if not provided
+        return false
+      },
       minlength: [8, 'La contraseña debe tener al menos 8 caracteres'],
+    },
+    image: {
+      type: String,
+      default: null,
     },
     role: {
       type: String,
-      enum: ['superadmin', 'admin', 'manager', 'staff', 'cashier'],
+      enum: ['superadmin', 'admin', 'manager', 'staff', 'cashier', 'consumer'],
       required: true,
+      default: 'consumer',
     },
     tenantId: {
       type: Schema.Types.ObjectId,

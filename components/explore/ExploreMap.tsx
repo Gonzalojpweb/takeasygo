@@ -31,7 +31,7 @@ function pinSvg(fill: string, isNetwork: boolean, logoUrl?: string) {
         </div>
       </div>`
   }
-  
+
   return `
     <div style="transform:translate(-14px, -36px)">
       <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg"
@@ -82,7 +82,7 @@ function HoverCard({ r, pos, containerW, containerH }: {
   const gap = 20
 
   let left = pos.x + gap
-  let top  = pos.y - cardH / 2
+  let top = pos.y - cardH / 2
   if (left + cardW > containerW - 12) left = pos.x - cardW - gap
   if (top < 12) top = 12
   if (top + cardH > containerH - 12) top = containerH - cardH - 12
@@ -96,9 +96,8 @@ function HoverCard({ r, pos, containerW, containerH }: {
         <div className={`h-1.5 w-full ${isNetwork ? 'bg-[#10b981]' : 'bg-[#5a524d]'}`} />
         <div className="p-4 space-y-2">
           <div className="flex items-center gap-2">
-            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-              isNetwork ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-white/10 text-[#8a7f7a]'
-            }`}>
+            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isNetwork ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-white/10 text-[#8a7f7a]'
+              }`}>
               {isNetwork ? 'Red' : 'Directorio'}
             </span>
             <span className="text-[#8a7f7a] text-[10px] ml-auto">{distLabel(r.distanceM)}</span>
@@ -143,9 +142,8 @@ function BottomSheet({ r, onClose, onNavigate }: {
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    isNetwork ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-white/10 text-[#8a7f7a]'
-                  }`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isNetwork ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-white/10 text-[#8a7f7a]'
+                    }`}>
                     {isNetwork ? '● En Red' : '○ Directorio'}
                   </span>
                   <span className="text-[#8a7f7a] text-xs">{distLabel(r.distanceM)}</span>
@@ -193,14 +191,14 @@ function BottomSheet({ r, onClose, onNavigate }: {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: Props) {
-  const containerRef  = useRef<HTMLDivElement>(null)
-  const mapRef        = useRef<any>(null)
-  const hoveredRef    = useRef<NearbyRestaurant | null>(null)
-  const hideTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<any>(null)
+  const hoveredRef = useRef<NearbyRestaurant | null>(null)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [hovered, setHovered]   = useState<NearbyRestaurant | null>(null)
+  const [hovered, setHovered] = useState<NearbyRestaurant | null>(null)
   const [hoveredPos, setHoveredPos] = useState<CardPos | null>(null)
-  const [tapped, setTapped]     = useState<NearbyRestaurant | null>(null)
+  const [tapped, setTapped] = useState<NearbyRestaurant | null>(null)
   const [containerSize, setContainerSize] = useState({ w: 600, h: 500 })
 
   const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
@@ -226,7 +224,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
 
     import('leaflet').then(L => {
       if (cancelled || !containerRef.current || mapRef.current) return
-      
+
       const map = L.map(containerRef.current!, {
         zoomControl: false, // Custom zoom? No, let's keep it simple for now or move it
         attributionControl: false,
@@ -248,9 +246,9 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
       // Restaurant markers
       restaurants.forEach(r => {
         const isNetwork = r.type === 'network'
-        const isClosed  = r.isOpenNow === false
+        const isClosed = r.isOpenNow === false
         const fill = isNetwork ? '#10b981' : '#5a524d'
-        
+
         const icon = L.divIcon({
           className: '',
           html: pinSvg(fill, isNetwork, r.logoUrl),
@@ -272,7 +270,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
       })
 
       mapRef.current = map
-      
+
       const updateSize = () => {
         if (containerRef.current) {
           setContainerSize({
@@ -317,14 +315,14 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
           onNavigate={() => { onSelect(tapped); setTapped(null) }}
         />
       )}
-      
+
       {/* Zoom controls (overlay) */}
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-[500]">
-        <button 
+        <button
           onClick={() => mapRef.current?.zoomIn()}
           className="w-10 h-10 rounded-xl glass-card flex items-center justify-center text-white font-bold active:scale-95"
         >+</button>
-        <button 
+        <button
           onClick={() => mapRef.current?.zoomOut()}
           className="w-10 h-10 rounded-xl glass-card flex items-center justify-center text-white font-bold active:scale-95"
         >-</button>

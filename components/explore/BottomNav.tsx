@@ -8,7 +8,7 @@ const TABS = [
   { href: '/explore', label: 'Explorar', icon: Compass },
   { href: '/explore?view=map', label: 'Mapa', icon: Map },
   { href: '/explore?tab=favs', label: 'Favoritos', icon: Heart },
-  { href: '/explore?tab=profile', label: 'Perfil', icon: User },
+  { href: '/explore/profile', label: 'Perfil', icon: User },
 ] as const
 
 export default function BottomNav({ activeView }: { activeView?: string }) {
@@ -18,8 +18,8 @@ export default function BottomNav({ activeView }: { activeView?: string }) {
   const getActiveTab = (href: string) => {
     if (activeView === 'map' && href.includes('view=map')) return true
     if (activeView === 'favs' && href.includes('tab=favs')) return true
-    if (activeView === 'profile' && href.includes('tab=profile')) return true
-    if (!activeView && href === '/explore') return true
+    if (pathname === '/explore/profile' && href === '/explore/profile') return true
+    if (!activeView && pathname === '/explore' && href === '/explore') return true
     return false
   }
 
