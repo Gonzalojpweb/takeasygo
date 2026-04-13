@@ -20,7 +20,7 @@ async function fetchRestaurant(id: string, type: string): Promise<NearbyRestaura
 
   if (type === 'network') {
     const [loc] = await Location.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(id), networkVisible: true, isActive: true } },
+      { $match: { _id: new mongoose.Types.ObjectId(id), isActive: true } },
       {
         $lookup: {
           from: 'tenants',
@@ -30,7 +30,7 @@ async function fetchRestaurant(id: string, type: string): Promise<NearbyRestaura
         },
       },
       { $unwind: { path: '$tenant', preserveNullAndEmptyArrays: false } },
-      { $match: { 'tenant.isActive': true } },
+      { $match: { 'tenant.status': 'active' } },
       {
         $project: {
           _id: 1, name: 1, address: 1, phone: 1,
