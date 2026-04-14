@@ -94,7 +94,7 @@ export default function ExperienceDemos() {
               +100 restaurantes ya operan con esta tecnología.
             </p>
           </div>
-          <Link href="/#pricing" className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-widest group">
+          <Link href="/demo" className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-widest group">
             Empezar ahora <ChevronRight className="w-4 h-4 text-orange-500 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
