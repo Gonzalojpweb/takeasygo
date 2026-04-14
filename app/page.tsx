@@ -7,6 +7,7 @@ import Image from 'next/image'
 import Navbar from '@/components/landing/Navbar'
 import Hero from '@/components/landing/Hero'
 import HowItWorks from '@/components/landing/HowItWorks'
+import ExperienceDemos from '@/components/landing/ExperienceDemos'
 import StackingFeatures from '@/components/landing/StackingFeatures'
 import FeaturesDetail from '@/components/landing/FeaturesDetail'
 import Pricing from '@/components/landing/Pricing'
@@ -27,6 +28,7 @@ export default function LandingPage() {
           <SobreNosotros />
         </div>
         <HowItWorks />
+        <ExperienceDemos />
         <StackingFeatures />
 
         {/* Phase 2: Details & Conversion */}
