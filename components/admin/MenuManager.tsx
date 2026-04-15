@@ -1,6 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { GripVertical } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -81,6 +85,64 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 
   const currentMenu = menus.find(m => m.locationId.toString() === selectedLocation)
   const currentLocation = locations.find(l => l._id === selectedLocation)
+
+  const [localCategories, setLocalCategories] = useState<any[]>([])
+
+  useEffect(() => {
+    if (currentMenu?.categories) {
+      setLocalCategories([...currentMenu.categories].sort((a: any, b: any) => a.sortOrder - b.sortOrder))
+    } else {
+      setLocalCategories([])
+    }
+  }, [currentMenu])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  function handleDragEndCategory(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setLocalCategories((items) => {
+        const oldIndex = items.findIndex((item) => item._id === active.id)
+        const newIndex = items.findIndex((item) => item._id === over.id)
+        const newArray = arrayMove(items, oldIndex, newIndex)
+        
+        fetch(`/api/${tenantSlug}/menu/reorder`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locationId: selectedLocation, type: 'categories', orderedIds: newArray.map(c => c._id) })
+        }).then(res => { if(res.ok) router.refresh() })
+        
+        return newArray
+      })
+    }
+  }
+
+  function handleDragEndItem(categoryId: string, event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setLocalCategories((cats) => {
+        const newCats = [...cats]
+        const catIndex = newCats.findIndex(c => c._id === categoryId)
+        if (catIndex > -1) {
+          const items = newCats[catIndex].items || []
+          const oldIndex = items.findIndex((item: any) => item._id === active.id)
+          const newIndex = items.findIndex((item: any) => item._id === over.id)
+          const newItemsArray = arrayMove(items, oldIndex, newIndex)
+          newCats[catIndex] = { ...newCats[catIndex], items: newItemsArray }
+          
+          fetch(`/api/${tenantSlug}/menu/reorder`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ locationId: selectedLocation, type: 'items', categoryId, orderedIds: newItemsArray.map(i => i._id) })
+          }).then(res => { if(res.ok) router.refresh() })
+        }
+        return newCats
+      })
+    }
+  }
 
   function toggleCategory(categoryId: string) {
     setExpandedCategories(prev =>
@@ -406,13 +468,14 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {currentMenu.categories
-            .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
-            .map((category: any) => {
-              const isExpanded = expandedCategories.includes(category._id)
-              return (
-                <Card
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndCategory}>
+          <SortableContext items={localCategories.map(c => c._id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-6">
+              {localCategories.map((category: any) => {
+                const isExpanded = expandedCategories.includes(category._id)
+                return (
+                  <SortableCategoryWrapper key={category._id} id={category._id}>
+                    <Card
                   key={category._id}
                   className={cn(
                     "border-2 transition-all duration-500 rounded-3xl overflow-hidden",
@@ -614,131 +677,136 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               </div>
                             )}
 
-                            {category.items.map((item: any) => (
-                              <motion.div
-                                key={item._id}
-                                layout
-                                className={cn(
-                                  "rounded-3xl transition-all border-2",
-                                  editingItem === item._id ? "bg-white border-primary shadow-2xl p-6" : "bg-card border-border/40 hover:border-primary/30 p-2 pl-4",
-                                  !item.isAvailable && editingItem !== item._id && "opacity-50"
-                                )}
-                              >
-                                {editingItem === item._id ? (
-                                  <ItemForm
-                                    data={editingItemData}
-                                    onChange={setEditingItemData}
-                                    onSave={() => handleEditItem(category._id, item._id)}
-                                    onCancel={() => setEditingItem(null)}
-                                    loading={loading}
-                                    mode="edit"
-                                    tenantSlug={tenantSlug}
-                                    allItems={(currentMenu?.categories || []).flatMap((c: any) => c.items).filter((i: any) => i._id !== item._id)}
-                                  />
-                                ) : (
-                                  <div className="flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4 flex-1 min-w-0 py-2">
-                                      <div className="h-14 w-14 rounded-2xl bg-muted overflow-hidden flex-shrink-0 border border-border shadow-inner">
-                                        {item.imageUrl ? (
-                                          <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                          <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                                            <ImageIcon size={20} />
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEndItem(category._id, e)}>
+                              <SortableContext items={(category.items || []).map((i: any) => i._id)} strategy={verticalListSortingStrategy}>
+                                {category.items.map((item: any) => (
+                                  <SortableItemWrapper key={item._id} id={item._id} isEditing={editingItem === item._id}>
+                                    <motion.div
+                                      layout
+                                      className={cn(
+                                        "rounded-3xl transition-all border-2",
+                                        editingItem === item._id ? "bg-white border-primary shadow-2xl p-6" : "bg-card border-border/40 hover:border-primary/30 p-2 pl-4",
+                                        !item.isAvailable && editingItem !== item._id && "opacity-50"
+                                      )}
+                                    >
+                                      {editingItem === item._id ? (
+                                        <ItemForm
+                                          data={editingItemData}
+                                          onChange={setEditingItemData}
+                                          onSave={() => handleEditItem(category._id, item._id)}
+                                          onCancel={() => setEditingItem(null)}
+                                          loading={loading}
+                                          mode="edit"
+                                          tenantSlug={tenantSlug}
+                                          allItems={(currentMenu?.categories || []).flatMap((c: any) => c.items).filter((i: any) => i._id !== item._id)}
+                                        />
+                                      ) : (
+                                        <div className="flex items-center justify-between gap-4">
+                                          <div className="flex items-center gap-4 flex-1 min-w-0 py-2">
+                                            <div className="h-14 w-14 rounded-2xl bg-muted overflow-hidden flex-shrink-0 border border-border shadow-inner">
+                                              {item.imageUrl ? (
+                                                <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                                              ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
+                                                  <ImageIcon size={20} />
+                                                </div>
+                                              )}
+                                            </div>
+      
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="text-foreground text-base font-bold tracking-tight">{item.name}</p>
+                                                {item.isFeatured && (
+                                                  <Badge className="bg-amber-100 text-amber-600 hover:bg-amber-100 border-amber-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                                    ★ Destacado
+                                                  </Badge>
+                                                )}
+                                                {!item.isAvailable && (
+                                                  <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                                    No disponible
+                                                  </Badge>
+                                                )}
+                                              </div>
+                                              <p className="text-muted-foreground text-xs font-medium truncate opacity-80">{item.description || 'Sin descripción'}</p>
+                                              <div className="flex items-center gap-3 mt-1.5">
+                                                <span className="text-primary font-bold tabular-nums text-sm">${item.price.toLocaleString('es-AR')}</span>
+                                                <div className="flex gap-1 flex-wrap">
+                                                  {item.tags?.map((tag: string) => (
+                                                    <span key={tag} className="text-[10px] font-bold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-lg border border-border/40">
+                                                      {tag}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            </div>
                                           </div>
-                                        )}
-                                      </div>
-
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <p className="text-foreground text-base font-bold tracking-tight">{item.name}</p>
-                                          {item.isFeatured && (
-                                            <Badge className="bg-amber-100 text-amber-600 hover:bg-amber-100 border-amber-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
-                                              ★ Destacado
-                                            </Badge>
-                                          )}
-                                          {!item.isAvailable && (
-                                            <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
-                                              No disponible
-                                            </Badge>
-                                          )}
-                                        </div>
-                                        <p className="text-muted-foreground text-xs font-medium truncate opacity-80">{item.description || 'Sin descripción'}</p>
-                                        <div className="flex items-center gap-3 mt-1.5">
-                                          <span className="text-primary font-bold tabular-nums text-sm">${item.price.toLocaleString('es-AR')}</span>
-                                          <div className="flex gap-1 flex-wrap">
-                                            {item.tags?.map((tag: string) => (
-                                              <span key={tag} className="text-[10px] font-bold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-lg border border-border/40">
-                                                {tag}
-                                              </span>
-                                            ))}
+      
+                                          <div className="flex items-center gap-1 pr-2">
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              title={item.isAvailable ? 'Deshabilitar item' : 'Habilitar item'}
+                                              className={cn(
+                                                "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                                item.isAvailable
+                                                  ? "text-emerald-500 hover:bg-emerald-500/10"
+                                                  : "text-orange-400 hover:bg-orange-400/10"
+                                              )}
+                                              onClick={() => handleToggleItemAvailability(category._id, item._id, item.isAvailable ?? true)}
+                                            >
+                                              {item.isAvailable ? <Eye size={18} /> : <EyeOff size={18} />}
+                                            </Button>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className={cn(
+                                                "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                                item.isFeatured ? "text-amber-500 scale-105" : "text-muted-foreground hover:text-amber-500"
+                                              )}
+                                              onClick={() => handleToggleFeatured(category._id, item._id, item.isFeatured ?? false)}
+                                            >
+                                              <Star size={18} fill={item.isFeatured ? "currentColor" : "none"} />
+                                            </Button>
+      
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
+                                              onClick={() => {
+                                                setEditingItem(item._id)
+                                                setEditingItemData({
+                                                  name: item.name,
+                                                  description: item.description || '',
+                                                  price: item.price.toString(),
+                                                  tags: (item.tags || []).join(', '),
+                                                  isFeatured: item.isFeatured ?? false,
+                                                  imageUrl: item.imageUrl || '',
+                                                  suggestWith: item.suggestWith ?? [],
+                                                  customizationGroups: deserializeGroups(item.customizationGroups || []),
+                                                  availabilityMode: item.availabilityMode ?? 'always',
+                                                  availabilitySchedule: item.availabilitySchedule ?? [],
+                                                })
+                                              }}
+                                            >
+                                              <Pencil size={18} />
+                                            </Button>
+      
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                                              onClick={() => handleDeleteItem(category._id, item._id)}
+                                            >
+                                              <Trash2 size={18} />
+                                            </Button>
                                           </div>
                                         </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-1 pr-2">
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        title={item.isAvailable ? 'Deshabilitar item' : 'Habilitar item'}
-                                        className={cn(
-                                          "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
-                                          item.isAvailable
-                                            ? "text-emerald-500 hover:bg-emerald-500/10"
-                                            : "text-orange-400 hover:bg-orange-400/10"
-                                        )}
-                                        onClick={() => handleToggleItemAvailability(category._id, item._id, item.isAvailable ?? true)}
-                                      >
-                                        {item.isAvailable ? <Eye size={18} /> : <EyeOff size={18} />}
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className={cn(
-                                          "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
-                                          item.isFeatured ? "text-amber-500 scale-105" : "text-muted-foreground hover:text-amber-500"
-                                        )}
-                                        onClick={() => handleToggleFeatured(category._id, item._id, item.isFeatured ?? false)}
-                                      >
-                                        <Star size={18} fill={item.isFeatured ? "currentColor" : "none"} />
-                                      </Button>
-
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
-                                        onClick={() => {
-                                          setEditingItem(item._id)
-                                          setEditingItemData({
-                                            name: item.name,
-                                            description: item.description || '',
-                                            price: item.price.toString(),
-                                            tags: (item.tags || []).join(', '),
-                                            isFeatured: item.isFeatured ?? false,
-                                            imageUrl: item.imageUrl || '',
-                                            suggestWith: item.suggestWith ?? [],
-                                            customizationGroups: deserializeGroups(item.customizationGroups || []),
-                                            availabilityMode: item.availabilityMode ?? 'always',
-                                            availabilitySchedule: item.availabilitySchedule ?? [],
-                                          })
-                                        }}
-                                      >
-                                        <Pencil size={18} />
-                                      </Button>
-
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
-                                        onClick={() => handleDeleteItem(category._id, item._id)}
-                                      >
-                                        <Trash2 size={18} />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                              </motion.div>
-                            ))}
+                                      )}
+                                    </motion.div>
+                                  </SortableItemWrapper>
+                                ))}
+                              </SortableContext>
+                            </DndContext>
                           </div>
 
                           <div className="pt-2">
@@ -786,9 +854,12 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                     )}
                   </AnimatePresence>
                 </Card>
-              )
-            })}
-        </div>
+                  </SortableCategoryWrapper>
+                )
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {showImport && currentLocation && (
@@ -1304,6 +1375,46 @@ function ItemForm({
         >
           Descartar
         </Button>
+      </div>
+    </div>
+  )
+}
+
+function SortableCategoryWrapper({ id, children }: { id: string, children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : 1, opacity: isDragging ? 0.5 : 1 }
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-start gap-2 relative">
+      <div 
+        {...attributes} 
+        {...listeners} 
+        className="mt-6 cursor-grab active:cursor-grabbing text-border hover:text-primary p-2 transition-colors touch-none"
+      >
+        <GripVertical size={24} />
+      </div>
+      <div className="flex-1 min-w-0">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function SortableItemWrapper({ id, children, isEditing }: { id: string, children: React.ReactNode, isEditing: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : 1, opacity: isDragging ? 0.5 : 1 }
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2 relative group/item">
+      {!isEditing && (
+        <div 
+          {...attributes} 
+          {...listeners} 
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary transition-opacity touch-none"
+        >
+          <GripVertical size={20} />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        {children}
       </div>
     </div>
   )
