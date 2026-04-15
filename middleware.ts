@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import NextAuth from 'next-auth'
 import { authConfig } from '@/lib/auth.config'
 
+export const runtime = 'nodejs'
+
 const { auth } = NextAuth(authConfig)
 
 const EXCLUDED_PATHS = [
@@ -42,10 +44,24 @@ export async function middleware(request: NextRequest) {
   // Proteger rutas admin
   const isAdminRoute = pathname.includes('/admin')
   if (isAdminRoute) {
-    const session = await auth()
+    try {
+      const session = await auth()
 
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      // SECURITY: Superadmin puede acceder a cualquier tenant admin sin sesión específica del tenant
+      if (session?.user?.role === 'superadmin') {
+        return NextResponse.next({
+          request: { headers: requestHeaders },
+        })
+      }
+
+      if (!session) {
+        const loginUrl = new URL('/login', request.url)
+        loginUrl.searchParams.set('callbackUrl', pathname)
+        return NextResponse.redirect(loginUrl)
+      }
+    } catch (error) {
+      // Si falla la verificación de sesión, permitir acceso y dejar que la página lo maneje
+      console.error('Auth middleware error:', error)
     }
   }
 

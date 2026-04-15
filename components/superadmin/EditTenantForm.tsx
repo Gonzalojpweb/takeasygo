@@ -80,12 +80,15 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           features: { reservations: form.featuresReservations },
         }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Error al actualizar el tenant')
+      }
       toast.success('Tenant actualizado correctamente')
       router.push('/superadmin/tenants')
       router.refresh()
-    } catch {
-      toast.error('Error al actualizar el tenant')
+    } catch (err: any) {
+      toast.error(err.message || 'Error al actualizar el tenant')
     } finally {
       setLoading(false)
     }
@@ -96,12 +99,15 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     setDeleting(true)
     try {
       const res = await fetch(`/api/superadmin/tenants/${tenant._id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Error al eliminar el tenant')
+      }
       toast.success('Tenant eliminado del sistema')
       router.push('/superadmin/tenants')
       router.refresh()
-    } catch {
-      toast.error('Error al eliminar el tenant')
+    } catch (err: any) {
+      toast.error(err.message || 'Error al eliminar el tenant')
     } finally {
       setDeleting(false)
     }

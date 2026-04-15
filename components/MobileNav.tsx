@@ -14,9 +14,12 @@ interface Props {
 export default function MobileNav({ children, title = 'Menu Platform' }: Props) {
     const [open, setOpen] = useState(false)
     const pathname = usePathname()
+    const [mounted, setMounted] = useState(false)
 
-    // Automatically close the sheet when the route changes
-    // Fallback: close if pathname changes (e.g., router.push from outside)
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
     useEffect(() => {
         setOpen(false)
     }, [pathname])
@@ -25,6 +28,16 @@ export default function MobileNav({ children, title = 'Menu Platform' }: Props) 
         if ((e.target as HTMLElement).closest('a[href]')) {
             setOpen(false)
         }
+    }
+
+    if (!mounted) {
+        return (
+            <header className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-30">
+                <div className="flex items-center gap-3">
+                    <h1 className="text-foreground font-bold text-lg tracking-tight">{title}</h1>
+                </div>
+            </header>
+        )
     }
 
     return (

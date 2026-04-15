@@ -24,6 +24,13 @@ export default async function AdminLayout({
     redirect('/login')
   }
 
+  const isSuperadmin = session.user.role === 'superadmin'
+  const isOwnerOfTenant = session.user.tenantSlug === tenant
+
+  if (!isSuperadmin && !isOwnerOfTenant) {
+    redirect('/login')
+  }
+
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
     .select('plan')

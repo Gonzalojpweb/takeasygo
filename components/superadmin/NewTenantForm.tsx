@@ -51,7 +51,7 @@ export default function NewTenantForm() {
         }),
       })
       if (!tenantRes.ok) {
-        const err = await tenantRes.json()
+        const err = await tenantRes.json().catch(() => ({}))
         throw new Error(err.error || 'Error al crear tenant')
       }
       const { tenant } = await tenantRes.json()
@@ -68,7 +68,10 @@ export default function NewTenantForm() {
           tenantId: tenant._id,
         }),
       })
-      if (!userRes.ok) throw new Error('Error al crear usuario admin')
+      if (!userRes.ok) {
+        const err = await userRes.json().catch(() => ({}))
+        throw new Error(err.error || 'Error al crear usuario admin')
+      }
 
       toast.success(`Tenant "${form.name}" creado`)
       router.push('/superadmin/tenants')
