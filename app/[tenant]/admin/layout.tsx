@@ -58,11 +58,11 @@ export default async function AdminLayout({
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-72 h-full flex-col border-r border-border shrink-0">
+      <aside className="hidden lg:flex w-72 h-full flex-col border-r border-border shrink-0 overflow-hidden">
         <AdminSidebar {...sidebarProps} />
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         {/* Mobile Header */}
         <MobileNav>
           <AdminSidebar {...sidebarProps} />

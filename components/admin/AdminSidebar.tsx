@@ -187,7 +187,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 px-4 space-y-2 overflow-y-auto overscroll-y-none">
         {visibleItems.map((item) => {
           const Icon = item.icon
 

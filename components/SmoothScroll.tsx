@@ -18,7 +18,6 @@ export default function SmoothScroll({ children }: SmoothScrollProps) {
             infinite: false,
         })
 
-        // Webkit fix for scroll-behavior: smooth conflict
         document.documentElement.style.scrollBehavior = 'auto'
 
         function raf(time: number) {
@@ -28,7 +27,6 @@ export default function SmoothScroll({ children }: SmoothScrollProps) {
 
         requestAnimationFrame(raf)
 
-        // Connect Lenis to GSAP ScrollTrigger
         lenis.on('scroll', ScrollTrigger.update)
 
         gsap.ticker.add((time) => {
@@ -37,9 +35,20 @@ export default function SmoothScroll({ children }: SmoothScrollProps) {
 
         gsap.ticker.lagSmoothing(0)
 
+        const handleWheel = (e: WheelEvent) => {
+            const target = e.target as HTMLElement
+            const preventEl = target.closest('[data-lenis-prevent]')
+            if (preventEl) {
+                e.stopImmediatePropagation()
+            }
+        }
+
+        document.addEventListener('wheel', handleWheel, { passive: false, capture: true })
+
         return () => {
             lenis.destroy()
             gsap.ticker.remove(raf)
+            document.removeEventListener('wheel', handleWheel, { capture: true })
         }
     }, [])
 

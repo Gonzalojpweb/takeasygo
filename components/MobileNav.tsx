@@ -60,7 +60,9 @@ export default function MobileNav({ children, title = 'Menu Platform' }: Props) 
                         <SheetTitle>Navegación Móvil</SheetTitle>
                         <SheetDescription>Accede a las diferentes secciones del panel administrativo.</SheetDescription>
                     </div>
-                    {children}
+                    <div data-lenis-prevent>
+                        {children}
+                    </div>
                 </SheetContent>
             </Sheet>
         </header>
