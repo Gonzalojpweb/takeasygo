@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Store, BarChart3, LogOut, UserCheck, Globe, BookMarked, Settings, HeartPulse, Shield } from 'lucide-react'
+import { LayoutDashboard, Store, BarChart3, LogOut, UserCheck, Globe, BookMarked, Settings, HeartPulse, Shield, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { signOut } from 'next-auth/react'
@@ -13,6 +13,7 @@ export default function SuperAdminSidebar() {
     const navItems = [
         { href: '/superadmin', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/superadmin/tenants', label: 'Tenants', icon: Store },
+        { href: '/superadmin/sellers', label: 'Vendedores', icon: Users },
         { href: '/superadmin/leads', label: 'Leads', icon: UserCheck },
         { href: '/superadmin/red', label: 'Red', icon: Globe },
         { href: '/superadmin/directory', label: 'Directorio', icon: BookMarked },

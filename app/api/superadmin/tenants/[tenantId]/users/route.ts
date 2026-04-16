@@ -57,15 +57,23 @@ export async function POST(
         }
 
         const hashedPassword = await bcrypt.hash(password, 12)
-        const user = await User.create({
+        
+        const userData: any = {
             name,
             email: email.toLowerCase(),
             password: hashedPassword,
             role,
-            tenantId,
-        })
+        }
 
-        // Return user without password
+        if (role === 'seller') {
+            userData.assignedTenants = [tenantId]
+            userData.tenantId = null
+        } else {
+            userData.tenantId = tenantId
+        }
+
+        const user = await User.create(userData)
+
         const { password: _pwd, ...safeUser } = user.toObject()
         return NextResponse.json({ user: safeUser }, { status: 201 })
     } catch (error) {

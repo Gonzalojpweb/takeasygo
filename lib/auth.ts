@@ -89,7 +89,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           role: user.role,
           tenantId: user.tenantId?.toString() ?? null,
           tenantSlug,
-          assignedLocation: user.assignedLocation?.toString() ?? null,
+          assignedLocation: user.assignedLocations?.[0]?.toString() ?? null,
+          assignedLocations: user.assignedLocations?.map((id: any) => id.toString()) ?? [],
+          assignedTenants: user.assignedTenants?.map((id: any) => id.toString()) ?? [],
         }
       },
     }),

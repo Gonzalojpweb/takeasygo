@@ -1,15 +1,16 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
-export type UserRole = 'superadmin' | 'admin' | 'manager' | 'staff' | 'cashier' | 'consumer'
+export type UserRole = 'superadmin' | 'admin' | 'manager' | 'staff' | 'cashier' | 'consumer' | 'seller'
 
 export interface IUser extends Document {
   name: string
   email: string
-  password?: string // Optional for OAuth users
-  image?: string    // Profile picture
+  password?: string
+  image?: string
   role: UserRole
   tenantId: mongoose.Types.ObjectId | null
-  assignedLocation: mongoose.Types.ObjectId | null
+  assignedLocations: mongoose.Types.ObjectId[]
+  assignedTenants: mongoose.Types.ObjectId[]
   isActive: boolean
   resetToken: string | null
   resetTokenExpiry: Date | null
@@ -46,7 +47,7 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['superadmin', 'admin', 'manager', 'staff', 'cashier', 'consumer'],
+      enum: ['superadmin', 'admin', 'manager', 'staff', 'cashier', 'consumer', 'seller'],
       required: true,
       default: 'consumer',
     },
@@ -55,10 +56,15 @@ const UserSchema = new Schema<IUser>(
       ref: 'Tenant',
       default: null,
     },
-    assignedLocation: {
-      type: Schema.Types.ObjectId,
+    assignedLocations: {
+      type: [Schema.Types.ObjectId],
       ref: 'Location',
-      default: null,
+      default: [],
+    },
+    assignedTenants: {
+      type: [Schema.Types.ObjectId],
+      ref: 'Tenant',
+      default: [],
     },
     isActive: {
       type: Boolean,

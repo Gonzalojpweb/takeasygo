@@ -13,6 +13,8 @@ const EXCLUDED_PATHS = [
   '/_next',
   '/favicon',
   '/login',
+  '/seller',
+  '/api/seller',
 ]
 
 // R-MT-04 — Sanitización de slug antes de usar como identificador de tenant

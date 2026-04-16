@@ -8,6 +8,8 @@ declare module 'next-auth' {
       tenantId: string | null
       tenantSlug: string | null
       assignedLocation: string | null
+      assignedLocations: string[]
+      assignedTenants: string[]
     } & DefaultSession['user']
   }
 
@@ -17,6 +19,8 @@ declare module 'next-auth' {
     tenantId: string | null
     tenantSlug: string | null
     assignedLocation: string | null
+    assignedLocations: string[]
+    assignedTenants: string[]
   }
 }
 
@@ -27,5 +31,7 @@ declare module 'next-auth/jwt' {
     tenantId: string | null
     tenantSlug: string | null
     assignedLocation: string | null
+    assignedLocations: string[]
+    assignedTenants: string[]
   }
 }

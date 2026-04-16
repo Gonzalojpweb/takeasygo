@@ -33,17 +33,16 @@ export const authConfig = {
       return true
     },
     async jwt({ token, user, account, trigger, session }) {
-      // For Credentials login, 'user' already contains our custom fields from authorize()
       if (user && account?.provider === 'credentials') {
         token.id = user.id
         token.role = (user as any).role || 'consumer'
         token.tenantId = (user as any).tenantId
         token.tenantSlug = (user as any).tenantSlug
         token.assignedLocation = (user as any).assignedLocation
+        token.assignedLocations = (user as any).assignedLocations || []
+        token.assignedTenants = (user as any).assignedTenants || []
         token.image = user.image
       } 
-      // For Google login or session updates, we need to ensure we fetch from DB 
-      // because Google's user object only gives us the google ID and email
       else if (token.email) {
         const { connectDB } = await import('@/lib/mongoose')
         const User = (await import('@/models/User')).default
@@ -56,6 +55,8 @@ export const authConfig = {
           token.role = dbUser.role || 'consumer'
           token.tenantId = dbUser.tenantId?.toString() || null
           token.assignedLocation = dbUser.assignedLocation?.toString() || null
+          token.assignedLocations = dbUser.assignedLocations?.map((id: any) => id.toString()) || []
+          token.assignedTenants = dbUser.assignedTenants?.map((id: any) => id.toString()) || []
           
           if (dbUser.tenantId) {
             const tenant = await Tenant.findById(dbUser.tenantId).select('slug').lean<{ slug: string }>()
@@ -72,6 +73,8 @@ export const authConfig = {
         session.user.tenantId = token.tenantId as string | null
         session.user.tenantSlug = token.tenantSlug as string | null
         session.user.assignedLocation = token.assignedLocation as string | null
+        session.user.assignedLocations = token.assignedLocations as string[]
+        session.user.assignedTenants = token.assignedTenants as string[]
         session.user.image = token.image as string | null
       }
       return session

@@ -37,6 +37,8 @@ export default function LoginPage() {
 
             if (role === 'superadmin') {
                 router.push('/superadmin')
+            } else if (role === 'seller') {
+                router.push('/seller')
             } else if (tenantSlug) {
                 router.push(`/${tenantSlug}/admin`)
             } else {
