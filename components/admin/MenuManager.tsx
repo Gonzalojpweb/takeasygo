@@ -49,11 +49,11 @@ const EMPTY_ITEM = {
 type ItemFormData = typeof EMPTY_ITEM
 
 function serializeGroups(groups: CustomizationGroupForm[]) {
-  return groups.map(g => ({
+  return groups.map((g: CustomizationGroupForm) => ({
     name: g.name,
     type: g.type,
     required: g.required,
-    options: g.options.map(o => ({ name: o.name, extraPrice: parseFloat(o.extraPrice) || 0 })),
+    options: g.options.map((o: any) => ({ name: o.name, extraPrice: parseFloat(o.extraPrice) || 0 })),
   }))
 }
 
@@ -62,7 +62,7 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
     name: g.name,
     type: g.type ?? 'single',
     required: g.required ?? false,
-    options: (g.options || []).map((o: any) => ({ name: o.name, extraPrice: o.extraPrice.toString() })),
+    options: (g.options || []).map((o: any) => ({ name: o.name, extraPrice: o.extraPrice?.toString() ?? '0' })),
   }))
 }
 
@@ -112,7 +112,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
         fetch(`/api/${tenantSlug}/menu/reorder`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ locationId: selectedLocation, type: 'categories', orderedIds: newArray.map(c => c._id) })
+          body: JSON.stringify({ locationId: selectedLocation, type: 'categories', orderedIds: newArray.map((c: any) => c._id) })
         }).then(res => { if(res.ok) router.refresh() })
         
         return newArray
@@ -136,7 +136,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           fetch(`/api/${tenantSlug}/menu/reorder`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ locationId: selectedLocation, type: 'items', categoryId, orderedIds: newItemsArray.map(i => i._id) })
+            body: JSON.stringify({ locationId: selectedLocation, type: 'items', categoryId, orderedIds: newItemsArray.map((i: any) => i._id) })
           }).then(res => { if(res.ok) router.refresh() })
         }
         return newCats
@@ -469,7 +469,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
         </Card>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndCategory}>
-          <SortableContext items={localCategories.map(c => c._id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={localCategories.map((c: any) => c._id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-6">
               {localCategories.map((category: any) => {
                 const isExpanded = expandedCategories.includes(category._id)
