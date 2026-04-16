@@ -1,9 +1,17 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import Menu, { IMenuCategory, IMenuItem } from '@/models/Menu'
+import Menu from '@/models/Menu'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { Types } from 'mongoose'
+import mongoose from 'mongoose'
+
+type MenuCategory = {
+  _id?: Types.ObjectId
+  name: string
+  items: any[]
+  sortOrder: number
+}
 
 export async function PUT(
   request: Request,
@@ -46,12 +54,13 @@ export async function PUT(
     }
 
     if (type === 'categories') {
-      const categoryMap = new Map<string, IMenuCategory>()
-      for (const cat of menu.categories) {
+      const categories = menu.categories as unknown as MenuCategory[]
+      const categoryMap = new Map<string, MenuCategory>()
+      for (const cat of categories) {
         categoryMap.set(cat._id?.toString() ?? '', cat)
       }
 
-      const newCategories: IMenuCategory[] = []
+      const newCategories: MenuCategory[] = []
       for (const id of orderedIds) {
         const cat = categoryMap.get(id)
         if (cat) {
@@ -67,17 +76,25 @@ export async function PUT(
         return NextResponse.json({ error: 'Falta categoryId para reordenar ítems' }, { status: 400 })
       }
 
-      const targetCategory = menu.categories.find((c) => c._id?.toString() === categoryId)
+      const categories = menu.categories as unknown as MenuCategory[]
+      let targetCategory: MenuCategory | null = null
+      for (const c of categories) {
+        if (c._id?.toString() === categoryId) {
+          targetCategory = c
+          break
+        }
+      }
+
       if (!targetCategory) {
         return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
       }
 
-      const itemMap = new Map<string, IMenuItem>()
+      const itemMap = new Map<string, any>()
       for (const item of targetCategory.items) {
         itemMap.set(item._id?.toString() ?? '', item)
       }
 
-      const newItems: IMenuItem[] = []
+      const newItems: any[] = []
       for (const id of orderedIds) {
         const item = itemMap.get(id)
         if (item) {
