@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import NextAuth from 'next-auth'
 import { authConfig } from '@/lib/auth.config'
+import { Types } from 'mongoose'
 
 export const runtime = 'nodejs'
 
@@ -19,6 +20,37 @@ const EXCLUDED_PATHS = [
 
 // R-MT-04 — Sanitización de slug antes de usar como identificador de tenant
 const SLUG_REGEX = /^[a-z0-9-]{2,50}$/
+
+function getDeviceType(userAgent: string | null): 'mobile' | 'desktop' | 'unknown' {
+  if (!userAgent) return 'unknown'
+  const ua = userAgent.toLowerCase()
+  if (/mobile|android|iphone|ipod|blackberry|windows phone/i.test(ua)) return 'mobile'
+  if (/tablet|ipad|playbook|silk/i.test(ua)) return 'desktop'
+  if (/bot|crawler|spider|crawl/i.test(ua)) return 'unknown'
+  return 'desktop'
+}
+
+async function logMenuVisit(tenantSlug: string, ip: string | null, userAgent: string | null) {
+  try {
+    const { connectDB } = await import('@/lib/mongoose')
+    const Tenant = (await import('@/models/Tenant')).default
+    const MenuVisit = (await import('@/models/MenuVisit')).default
+
+    await connectDB()
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id').lean()
+    if (!tenant) return
+
+    await MenuVisit.create({
+      tenantId: new Types.ObjectId(tenant._id.toString()),
+      visitedAt: new Date(),
+      ip: ip?.split(',')[0]?.trim() || null,
+      userAgent,
+      deviceType: getDeviceType(userAgent),
+    })
+  } catch (err) {
+    console.error('MenuVisit log error:', err)
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -62,9 +94,15 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(loginUrl)
       }
     } catch (error) {
-      // Si falla la verificación de sesión, permitir acceso y dejar que la página lo maneje
       console.error('Auth middleware error:', error)
     }
+  }
+
+  // Log visit to menu (public menu, not admin, not api)
+  if (!isAdminRoute && !isApiRoute) {
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('cf-connecting-ip') || null
+    const userAgent = request.headers.get('user-agent')
+    logMenuVisit(tenantSlug, ip, userAgent)
   }
 
   return NextResponse.next({
