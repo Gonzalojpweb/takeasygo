@@ -124,7 +124,7 @@ export async function POST(
     }
 
     // Validar cada item del pedido y calcular precios desde la DB
-    const resolvedItems = []
+    const resolvedItems: any[] = []
     for (const clientItem of body.items) {
       const menuItem = menuItemMap.get(clientItem.menuItemId?.toString())
       if (!menuItem) {
@@ -139,7 +139,7 @@ export async function POST(
       // Precio base siempre de la DB
       const basePrice: number = menuItem.price
       let extraPrice = 0
-      const resolvedCustomizations = []
+      const resolvedCustomizations: any[] = []
 
       if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
         for (const clientGroup of clientItem.customizations) {
@@ -153,7 +153,7 @@ export async function POST(
             )
           }
 
-          const resolvedOptions = []
+          const resolvedOptions: any[] = []
           for (const clientOption of clientGroup.selectedOptions ?? []) {
             const dbOption = dbGroup.options.find((o: any) => o.name === clientOption.name)
             if (!dbOption) {
