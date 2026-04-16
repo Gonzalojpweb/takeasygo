@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import Menu from '@/models/Menu'
+import Menu, { IMenuCategory } from '@/models/Menu'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { Types } from 'mongoose'
