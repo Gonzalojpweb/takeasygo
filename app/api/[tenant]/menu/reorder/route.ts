@@ -12,7 +12,6 @@ export async function PUT(
   try {
     const { tenant: tenantSlug } = await params
     
-    // Auth validation
     const headerList = await headers()
     if (headerList.get('x-tenant-slug') !== tenantSlug) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -26,7 +25,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    // Body parsing
     const { 
       locationId, 
       type, 
@@ -38,7 +36,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Faltan parámetros requeridos' }, { status: 400 })
     }
 
-    // Get the menu document
     const menu = await Menu.findOne({
       tenantId: tenant._id,
       locationId: locationId
@@ -50,24 +47,18 @@ export async function PUT(
 
     if (type === 'categories') {
       const categoryMap = new Map<string, IMenuCategory>()
-      menu.categories.forEach((cat: IMenuCategory) => {
+      for (const cat of menu.categories) {
         categoryMap.set(cat._id?.toString() ?? '', cat)
-      })
+      }
 
       const newCategories: IMenuCategory[] = []
-      orderedIds.forEach((id: string, index: number) => {
+      for (const id of orderedIds) {
         const cat = categoryMap.get(id)
         if (cat) {
-          cat.sortOrder = index
+          cat.sortOrder = newCategories.length
           newCategories.push(cat)
-          categoryMap.delete(id)
         }
-      })
-
-      categoryMap.forEach((cat: IMenuCategory) => {
-        cat.sortOrder = newCategories.length
-        newCategories.push(cat)
-      })
+      }
 
       menu.categories = newCategories
     } 
@@ -76,28 +67,23 @@ export async function PUT(
         return NextResponse.json({ error: 'Falta categoryId para reordenar ítems' }, { status: 400 })
       }
 
-      const targetCategory = menu.categories.find(c => c._id?.toString() === categoryId)
+      const targetCategory = menu.categories.find((c) => c._id?.toString() === categoryId)
       if (!targetCategory) {
         return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
       }
 
       const itemMap = new Map<string, IMenuItem>()
-      targetCategory.items.forEach((item: IMenuItem) => {
+      for (const item of targetCategory.items) {
         itemMap.set(item._id?.toString() ?? '', item)
-      })
+      }
 
       const newItems: IMenuItem[] = []
-      orderedIds.forEach((id: string) => {
+      for (const id of orderedIds) {
         const item = itemMap.get(id)
         if (item) {
           newItems.push(item)
-          itemMap.delete(id)
         }
-      })
-
-      itemMap.forEach((item: IMenuItem) => {
-        newItems.push(item)
-      })
+      }
 
       targetCategory.items = newItems
     } 
