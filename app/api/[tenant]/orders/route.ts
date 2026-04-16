@@ -155,19 +155,17 @@ export async function POST(
 
           const resolvedOptions: any[] = []
           for (const clientOption of clientGroup.selectedOptions ?? []) {
-            const dbOption = dbGroup.options.find((o: any) => o.name === clientOption.name)
+            const dbOption: any = dbGroup.options.find((o: any) => o.name === clientOption.name)
             if (!dbOption) {
               return NextResponse.json(
                 { error: `Opción inválida "${clientOption.name}" en grupo "${dbGroup.name}"` },
                 { status: 400 }
               )
             }
-            // extraPrice de la opción siempre de la DB
             extraPrice += dbOption.extraPrice
-            resolvedOptions.push({ name: dbOption.name, extraPrice: dbOption.extraPrice })
+            resolvedOptions.push({ name: dbOption.name, extraPrice: dbOption.extraPrice } as any)
           }
-
-          resolvedCustomizations.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions })
+          resolvedCustomizations.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions } as any)
         }
       }
 
