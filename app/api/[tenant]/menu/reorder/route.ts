@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import Menu, { IMenuCategory } from '@/models/Menu'
+import Menu, { IMenuCategory, IMenuItem } from '@/models/Menu'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { Types } from 'mongoose'
@@ -49,14 +49,12 @@ export async function PUT(
     }
 
     if (type === 'categories') {
-      // Create a map of categories for quick lookup
-      const categoryMap = new Map()
-      menu.categories.forEach((cat) => {
-        categoryMap.set(cat._id.toString(), cat)
+      const categoryMap = new Map<string, IMenuCategory>()
+      menu.categories.forEach((cat: IMenuCategory) => {
+        categoryMap.set(cat._id?.toString() ?? '', cat)
       })
 
-      // Reconstruct the categories array based on orderedIds
-      const newCategories: any[] = []
+      const newCategories: IMenuCategory[] = []
       orderedIds.forEach((id: string, index: number) => {
         const cat = categoryMap.get(id)
         if (cat) {
@@ -66,13 +64,12 @@ export async function PUT(
         }
       })
 
-      // Append any categories that weren't in orderedIds to avoid losing data
-      categoryMap.forEach((cat) => {
+      categoryMap.forEach((cat: IMenuCategory) => {
         cat.sortOrder = newCategories.length
         newCategories.push(cat)
       })
 
-      menu.categories = newCategories as any
+      menu.categories = newCategories
     } 
     else if (type === 'items') {
       if (!categoryId) {
@@ -84,12 +81,12 @@ export async function PUT(
         return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
       }
 
-      const itemMap = new Map()
-      targetCategory.items.forEach(item => {
-        itemMap.set(item._id?.toString(), item)
+      const itemMap = new Map<string, IMenuItem>()
+      targetCategory.items.forEach((item: IMenuItem) => {
+        itemMap.set(item._id?.toString() ?? '', item)
       })
 
-      const newItems: any[] = []
+      const newItems: IMenuItem[] = []
       orderedIds.forEach((id: string) => {
         const item = itemMap.get(id)
         if (item) {
@@ -98,8 +95,7 @@ export async function PUT(
         }
       })
 
-      // Append any remaining items
-      itemMap.forEach(item => {
+      itemMap.forEach((item: IMenuItem) => {
         newItems.push(item)
       })
 
