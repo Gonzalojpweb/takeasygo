@@ -31,7 +31,7 @@ export default function SuperAdminSidebar() {
                 <p className="text-primary text-[10px] mt-1 uppercase tracking-[0.2em] font-bold">Super Admin</p>
             </div>
 
-            <nav className="flex-1 px-4 space-y-2">
+            <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
                 {navItems.map((item) => {
                     const Icon = item.icon
                     const isActive = pathname === item.href

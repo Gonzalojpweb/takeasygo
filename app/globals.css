@@ -208,6 +208,15 @@ html.lenis body {
   overscroll-behavior: contain;
 }
 
+.lenis.lenis-smooth aside[data-lenis-prevent] {
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+}
+
+.lenis.lenis-smooth aside[data-lenis-prevent] * {
+  overscroll-behavior: auto;
+}
+
 .lenis.lenis-stopped {
   overflow: hidden;
 }
