@@ -28,7 +28,7 @@ export async function GET(
   const name: string = tenant.name || 'Menu'
   // Keep short_name under 12 chars for home screen label
   const shortName = name.length > 12 ? name.split(' ')[0] : name
-  const primaryColor: string = branding.primaryColor || '#000000'
+  const primaryColor: string = branding.primaryColor || '#f47211'
   const bgColor: string = branding.backgroundColor || '#ffffff'
 
   // Force Cloudinary images to exact square dimensions using URL transformations
@@ -69,9 +69,9 @@ export async function GET(
       // Tenant logo resized to exact 512×512 via Cloudinary transform (preferred icon)
       ...(tenantLogo
         ? [
-            { src: tenantLogo, sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: tenantLogo, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-          ]
+          { src: tenantLogo, sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: tenantLogo, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ]
         : []),
     ],
   }
