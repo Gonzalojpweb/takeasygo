@@ -26,7 +26,7 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'inicial-mensual',
         name: 'Inicial',
-        price: '65.000',
+        price: '75.000',
         sub: 'Para empezar a vender online',
         planKey: 'try',
         featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
@@ -35,7 +35,7 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'crecimiento-mensual',
         name: 'Crecimiento',
-        price: '75.000',
+        price: '80.000',
         sub: 'Para escalar tu operación',
         planKey: 'buy',
         featured: true,
@@ -46,7 +46,7 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'premium-mensual',
         name: 'Premium',
-        price: '90.000',
+        price: '95.000',
         sub: 'Para optimizar con datos',
         planKey: 'full',
         featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
