@@ -18,6 +18,7 @@ import {
   Smartphone, Eye, AlertCircle,
   Film, Loader2,
   CalendarDays, Plus, X, Trash2,
+  ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -48,6 +49,9 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
       instagram: tenant.profile?.social?.instagram ?? '',
       facebook: tenant.profile?.social?.facebook ?? '',
       twitter: tenant.profile?.social?.twitter ?? '',
+    },
+    branding: {
+      behance: tenant.profile?.branding?.behance ?? '',
     },
   })
 
@@ -230,6 +234,15 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
         body: JSON.stringify(profile),
       })
       if (!res.ok) throw new Error()
+      const data = await res.json()
+      if (data.profile) {
+        setProfile(prev => ({
+          ...prev,
+          ...data.profile,
+          social: { ...prev.social, ...data.profile.social },
+          branding: { ...prev.branding, ...data.profile.branding },
+        }))
+      }
       toast.success('Información de perfil actualizada')
       router.refresh()
     } catch {
@@ -577,6 +590,20 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                         </div>
                       </div>
                     ))}
+                    <div className="space-y-2 md:col-span-2">
+                      <label className={labelCls}>Behance</label>
+                      <div className="relative group">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors">
+                          <ExternalLink size={14} />
+                        </div>
+                        <input
+                          value={profile.branding?.behance ?? ''}
+                          onChange={e => setProfile(p => ({ ...p, branding: { ...p.branding, behance: e.target.value } }))}
+                          placeholder="behance.net/miusuario"
+                          className={cn(inputCls, "pl-11")}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </section>
 

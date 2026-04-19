@@ -30,6 +30,7 @@ export default async function MenuSelectorPage({ params }: Props) {
   const instagram = profile.social?.instagram || ''
   const phone = location.phone || ''
   const mapsUrl = location.mapsUrl || ''
+  const behance = profile.branding?.behance || ''
 
   // Show reservations button if tenant module is enabled and location hasn't explicitly disabled it
   const reservationsEnabled =
@@ -353,7 +354,7 @@ export default async function MenuSelectorPage({ params }: Props) {
 
         {/* ── Footer ── */}
         <div className="mh-footer">
-          {(instagram || phone || mapsUrl) && (
+          {(instagram || phone || mapsUrl || behance) && (
             <div className="mh-social">
               {instagram && (
                 <a
@@ -397,6 +398,20 @@ export default async function MenuSelectorPage({ params }: Props) {
                   <svg viewBox="0 0 24 24">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                     <circle cx="12" cy="10" r="3" />
+                  </svg>
+                </a>
+              )}
+              {behance && (
+                <a
+                  href={behance.startsWith('http') ? behance : `https://behance.net/${behance}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mh-social-btn"
+                  aria-label="Behance"
+                >
+                  {/* Behance icon */}
+                  <svg viewBox="0 0 24 24">
+                    <path d="M22 7h-7v-2h7v2zm1.726 10c-.442 1.297-2.029 3-5.101 3-3.074 0-5.564-1.729-5.564-5.675 0-3.91 2.325-5.92 5.466-5.92 3.082 0 4.964 1.782 5.375 4.426.078.506.109 1.188.095 2.14h-8.027c.13 3.211 3.483 3.312 4.588 2.029h3.168zm-7.686-4h4.965c-.105-1.547-1.136-2.219-2.477-2.219-1.466 0-2.277.768-2.488 2.219zm-9.574 6.988h-6.466v-14.967h6.953c5.476.081 5.58 5.444 2.72 6.906 3.461 1.26 3.577 8.061-3.207 8.061zm-3.466-8.988h3.584c-2.508 0-2.906-3-2.906-3.027 0-2.039 2.507-2.022 2.507-2.022 0 2.584-2.507 2.95-3.185 5.049zm-3.54-6.012h-4.326v14.028h4.326c5.143 0 6.826-3.979 6.826-7.037 0-3.022-1.669-6.991-6.826-6.991z"/>
                   </svg>
                 </a>
               )}
