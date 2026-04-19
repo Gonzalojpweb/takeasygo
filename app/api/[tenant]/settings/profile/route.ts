@@ -18,7 +18,7 @@ export async function PUT(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { menuDescription, about, social } = await request.json()
+    const { menuDescription, about, social, branding } = await request.json()
 
     const update: Record<string, unknown> = {}
     if (menuDescription !== undefined) update['profile.menuDescription'] = menuDescription
@@ -26,6 +26,7 @@ export async function PUT(
     if (social?.instagram !== undefined) update['profile.social.instagram'] = social.instagram
     if (social?.facebook !== undefined) update['profile.social.facebook'] = social.facebook
     if (social?.twitter !== undefined) update['profile.social.twitter'] = social.twitter
+    if (branding?.behance !== undefined) update['profile.branding.behance'] = branding.behance
 
     const updated = await Tenant.findByIdAndUpdate(
       tenant._id,

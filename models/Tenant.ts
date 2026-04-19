@@ -34,6 +34,9 @@ export interface ITenant extends Document {
       facebook: string
       twitter: string
     }
+    branding: {
+      behance: string
+    }
   }
   features: {
     reservations: boolean
@@ -137,6 +140,9 @@ const TenantSchema = new Schema<ITenant>(
         instagram: { type: String, default: '' },
         facebook: { type: String, default: '' },
         twitter: { type: String, default: '' },
+      },
+      branding: {
+        behance: { type: String, default: '' },
       },
     },
     features: {
