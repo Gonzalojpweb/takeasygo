@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter } from 'lucide-react'
 import { isAvailableNow } from '@/lib/availability'
+import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 
 interface Props {
   tenant: any
@@ -77,6 +78,19 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const [menuData, setMenuData] = useState(menu)
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [modalItem, setModalItem] = useState<any | null>(null)
+  const [promotions, setPromotions] = useState<any[]>([])
+  const [promotionsLoading, setPromotionsLoading] = useState(true)
+  const [showCartPopup, setShowCartPopup] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=dine-in`)
+      .then(r => r.ok ? r.json() : { promotions: [] })
+      .then(data => {
+        setPromotions(data.promotions || [])
+        setPromotionsLoading(false)
+      })
+      .catch(() => setPromotionsLoading(false))
+  }, [tenant.slug, location._id])
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
@@ -313,9 +327,23 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             style={{ color: mutedText, border: `1.5px solid ${branding.primaryColor}40` }}>
             {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
-        </div>
-      </div>
+</div>
 
+        {/* Promotions Section */}
+        {promotions.length > 0 && (
+          <section className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span style={{ color: text, fontWeight: 700, fontSize: '17px' }}>🏷️</span>
+              <p style={{ color: text, fontWeight: 700, fontSize: '17px' }}>Promociones</p>
+            </div>
+            <PromotionCarousel 
+              promotions={promotions}
+              primary={branding.primaryColor}
+            />
+          </section>
+        )}
+
+      </div>
       {/* ── Menu sections ─────────────────────────────────── */}
       <main className="max-w-4xl mx-auto px-4 py-8">
         {categories.map((cat: any) => (

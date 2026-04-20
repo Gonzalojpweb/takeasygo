@@ -13,6 +13,7 @@ import type { ICoOccurrencePair } from '@/models/MenuInsights'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import CustomizationModal from '@/components/menu/CustomizationModal'
 import UpsellSheet from '@/components/menu/UpsellSheet'
+import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import { isAvailableNow } from '@/lib/availability'
 import { getSuggestions } from '@/lib/upsell-menu'
 
@@ -437,83 +438,11 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
               <span className="text-xl">🏷️</span>
               <p className="text-lg font-bold">Promociones</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {promotions.map(promo => {
-                const discount = promo.originalPrice 
-                  ? Math.round(((promo.originalPrice - promo.price) / promo.originalPrice) * 100)
-                  : 0
-                const styles = promo.customStyles || {}
-                const cardStyle = styles.cardStyle || 'modern'
-                
-                return (
-                  <div 
-                    key={promo._id}
-                    className="relative rounded-xl overflow-hidden border-2 transition-all hover:scale-[1.02]"
-                    style={{
-                      backgroundColor: styles.backgroundColor || '#1a1a1a',
-                      borderColor: styles.accentColor || primary,
-                      borderRadius: styles.borderRadius || '12px',
-                    }}
-                    onClick={() => addPromotionToCart(promo)}
-                  >
-                    {promo.imageUrl && (
-                      <img src={promo.imageUrl} alt={promo.title} className="w-full h-32 object-cover" />
-                    )}
-                    {discount > 0 && (
-                      <span 
-                        className="absolute top-2 left-2 text-xs font-black px-2 py-1 rounded-full"
-                        style={{ 
-                          backgroundColor: styles.badgeColor || primary,
-                          color: styles.textColor || '#fff',
-                        }}
-                      >
-                        -{discount}%
-                      </span>
-                    )}
-                    <div className="p-3">
-                      <p 
-                        className="font-bold text-sm mb-1"
-                        style={{ color: styles.textColor || '#fff' }}
-                      >
-                        {promo.title}
-                      </p>
-                      {promo.shortDescription && (
-                        <p 
-                          className="text-xs opacity-70 mb-2"
-                          style={{ color: styles.textColor || '#fff' }}
-                        >
-                          {promo.shortDescription}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <span 
-                          className="text-lg font-black"
-                          style={{ color: styles.accentColor || primary }}
-                        >
-                          ${promo.price}
-                        </span>
-                        {promo.originalPrice && (
-                          <span 
-                            className="text-sm line-through opacity-50"
-                            style={{ color: styles.textColor || '#fff' }}
-                          >
-                            ${promo.originalPrice}
-                          </span>
-                        )}
-                      </div>
-                      {promo.conditions && (
-                        <p 
-                          className="text-[10px] mt-2 opacity-60"
-                          style={{ color: styles.textColor || '#fff' }}
-                        >
-                          * {promo.conditions}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            <PromotionCarousel 
+              promotions={promotions} 
+              onAdd={addPromotionToCart}
+              primary={primary}
+            />
           </section>
         )}
 
