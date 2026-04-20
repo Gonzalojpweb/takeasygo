@@ -88,6 +88,7 @@ export default function CustomizationModal({
       quantity,
       customizations,
       customizationSummary,
+      type: 'menuItem',
     }
     onConfirm(cartItem)
   }
