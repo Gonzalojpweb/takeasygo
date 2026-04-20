@@ -34,7 +34,12 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
       router.back()
       return
     }
-    setCart(JSON.parse(saved))
+    const parsedCart = JSON.parse(saved)
+    const cartWithType = parsedCart.map((item: any) => ({
+      ...item,
+      type: item.type || (item.promotionId ? 'promotion' : 'menuItem'),
+    }))
+    setCart(cartWithType)
 
     const hints = sessionStorage.getItem('upsellHints')
     if (hints) {
@@ -85,6 +90,7 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
         customizations: [],
         customizationSummary: '',
         addedFrom: 'checkout_banner' as const,
+        type: 'menuItem',
       }]
     })
     setUpsellHints(prev => prev.filter(h => h._id !== item._id))

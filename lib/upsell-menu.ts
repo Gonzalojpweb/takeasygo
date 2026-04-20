@@ -21,7 +21,7 @@ function median(values: number[]): number {
 export function getSuggestions(
   categories: any[],
   cart: CartItem[],
-  justAddedItemId: string,
+  justAddedItemId: string | undefined,
   insights: ICoOccurrencePair[] | null,
   maxSuggestions = 2,
 ): any[] {
@@ -31,9 +31,9 @@ export function getSuggestions(
 
   if (allItems.length < 2) return []
 
-  const cartItemIds = new Set([
-    ...cart.map((i) => i.menuItemId),
-    justAddedItemId,
+  const cartItemIds = new Set<string>([
+    ...cart.map((i) => i.menuItemId).filter((id): id is string => !!id),
+    ...(justAddedItemId ? [justAddedItemId] : []),
   ])
 
   const itemById = new Map<string, any>(allItems.map((i) => [String(i._id), i]))
@@ -54,7 +54,7 @@ export function getSuggestions(
   }
 
   // ── Capa 0: Manual (suggestWith configurado por el admin) ────────────────
-  const justAdded = itemById.get(justAddedItemId)
+  const justAdded = justAddedItemId ? itemById.get(justAddedItemId) : null
   if (justAdded?.suggestWith?.length > 0) {
     const manualItems = (justAdded.suggestWith as string[])
       .map((id) => itemById.get(id))
@@ -65,7 +65,7 @@ export function getSuggestions(
   if (result.length >= maxSuggestions) return result
 
   // ── Capa 1: Behavioral (co-ocurrencia real de órdenes) ──────────────────
-  if (insights && insights.length > 0) {
+  if (insights && insights.length > 0 && justAddedItemId) {
     const behavioralItems = insights
       .filter((p) => p.itemA === justAddedItemId || p.itemB === justAddedItemId)
       .sort((a, b) => b.count - a.count)

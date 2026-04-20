@@ -7,6 +7,7 @@ import {
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 import type { ICoOccurrencePair } from '@/models/MenuInsights'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
@@ -109,6 +110,22 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const router = useRouter()
   const t = UI[locale]
 
+  const [promotions, setPromotions] = useState<any[]>([])
+  const [promotionsLoading, setPromotionsLoading] = useState(true)
+
+  useEffect(() => {
+    fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=${mode}`)
+      .then(r => r.ok ? r.json() : { promotions: [] })
+      .then(data => {
+        setPromotions(data.promotions || [])
+        setPromotionsLoading(false)
+      })
+      .catch(() => setPromotionsLoading(false))
+  }, [tenant.slug, location._id, mode])
+
+  const featuredPromotions = promotions.filter(p => p.isFeatured)
+  const regularPromotions = promotions.filter(p => !p.isFeatured)
+
   const categories = menuData.categories
     .filter((cat: any) => cat.isAvailable && (!mounted || isAvailableNow(cat.availabilityMode, cat.availabilitySchedule)))
     .sort((a: any, b: any) => {
@@ -200,6 +217,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         customizations: [],
         customizationSummary: '',
         addedFrom,
+        type: 'menuItem',
       }]
     })
     if (triggerUpsell && isNew) {
@@ -208,13 +226,35 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
     }
   }
 
+  function addPromotionToCart(promotion: any) {
+    const promoId = `promo:${promotion._id}`
+    setCart(prev => {
+      const existing = prev.find(i => i.cartItemId === promoId)
+      if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
+      return [...prev, {
+        cartItemId: promoId,
+        promotionId: promotion._id,
+        name: promotion.title,
+        basePrice: promotion.price,
+        extraPrice: 0,
+        price: promotion.price,
+        quantity: 1,
+        customizations: [],
+        customizationSummary: '',
+        addedFrom: 'menu',
+        type: 'promotion',
+      }]
+    })
+    toast.success(`${promotion.title} agregado al pedido`)
+  }
+
   function handleConfirmCustomization(cartItem: CartItem) {
     const taggedItem: CartItem = upsellModalRef.current
       ? { ...cartItem, addedFrom: 'upsell_sheet' }
       : cartItem
     setCart(prev => [...prev, taggedItem])
     setCustomizingItem(null)
-    if (!skipUpsellRef.current) {
+    if (!skipUpsellRef.current && cartItem.menuItemId) {
       const suggestions = getSuggestions(categories, cart, cartItem.menuItemId, insights)
       if (suggestions.length > 0) setUpsellSuggestions(suggestions)
     }
@@ -389,6 +429,93 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
       {/* ── Main menu content ── */}
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-10">
+
+        {/* Promotions Section */}
+        {promotions.length > 0 && (
+          <section className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl">🏷️</span>
+              <p className="text-lg font-bold">Promociones</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {promotions.map(promo => {
+                const discount = promo.originalPrice 
+                  ? Math.round(((promo.originalPrice - promo.price) / promo.originalPrice) * 100)
+                  : 0
+                const styles = promo.customStyles || {}
+                const cardStyle = styles.cardStyle || 'modern'
+                
+                return (
+                  <div 
+                    key={promo._id}
+                    className="relative rounded-xl overflow-hidden border-2 transition-all hover:scale-[1.02]"
+                    style={{
+                      backgroundColor: styles.backgroundColor || '#1a1a1a',
+                      borderColor: styles.accentColor || primary,
+                      borderRadius: styles.borderRadius || '12px',
+                    }}
+                    onClick={() => addPromotionToCart(promo)}
+                  >
+                    {promo.imageUrl && (
+                      <img src={promo.imageUrl} alt={promo.title} className="w-full h-32 object-cover" />
+                    )}
+                    {discount > 0 && (
+                      <span 
+                        className="absolute top-2 left-2 text-xs font-black px-2 py-1 rounded-full"
+                        style={{ 
+                          backgroundColor: styles.badgeColor || primary,
+                          color: styles.textColor || '#fff',
+                        }}
+                      >
+                        -{discount}%
+                      </span>
+                    )}
+                    <div className="p-3">
+                      <p 
+                        className="font-bold text-sm mb-1"
+                        style={{ color: styles.textColor || '#fff' }}
+                      >
+                        {promo.title}
+                      </p>
+                      {promo.shortDescription && (
+                        <p 
+                          className="text-xs opacity-70 mb-2"
+                          style={{ color: styles.textColor || '#fff' }}
+                        >
+                          {promo.shortDescription}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <span 
+                          className="text-lg font-black"
+                          style={{ color: styles.accentColor || primary }}
+                        >
+                          ${promo.price}
+                        </span>
+                        {promo.originalPrice && (
+                          <span 
+                            className="text-sm line-through opacity-50"
+                            style={{ color: styles.textColor || '#fff' }}
+                          >
+                            ${promo.originalPrice}
+                          </span>
+                        )}
+                      </div>
+                      {promo.conditions && (
+                        <p 
+                          className="text-[10px] mt-2 opacity-60"
+                          style={{ color: styles.textColor || '#fff' }}
+                        >
+                          * {promo.conditions}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Featured strip at top */}
         {featuredItems.length > 0 && (

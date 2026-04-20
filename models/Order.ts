@@ -14,7 +14,9 @@ export interface ISelectedCustomizationGroup {
 }
 
 export interface IOrderItem {
-  menuItemId: mongoose.Types.ObjectId
+  menuItemId?: mongoose.Types.ObjectId
+  promotionId?: string
+  itemType: 'menuItem' | 'promotion'
   categoryName: string
   name: string
   basePrice: number
@@ -84,7 +86,16 @@ const SelectedCustomizationGroupSchema = new Schema<ISelectedCustomizationGroup>
 const OrderItemSchema = new Schema<IOrderItem>({
   menuItemId: {
     type: Schema.Types.ObjectId,
-    required: true,
+    default: null,
+  },
+  promotionId: {
+    type: String,
+    default: null,
+  },
+  itemType: {
+    type: String,
+    enum: ['menuItem', 'promotion'],
+    default: 'menuItem',
   },
   categoryName: { type: String, default: '' },
   name: { type: String, required: true },
