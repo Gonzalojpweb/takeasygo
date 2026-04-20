@@ -5,8 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { 
   Plus, Edit2, Trash2, Eye, EyeOff, Star, 
-  GripVertical, Tag, Image, DollarSign, Clock,
-  Palette, X, Check
+  Tag, Upload, Palette, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -57,6 +56,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [uploading, setUploading] = useState(false)
 
   const [form, setForm] = useState({
     title: '',
@@ -89,6 +89,31 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
     if (filter === 'inactive') return !p.isActive
     return true
   })
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const res = await fetch(`/api/${tenantSlug}/upload`, {
+        method: 'POST',
+        body: formData,
+      })
+      
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setForm(prev => ({ ...prev, imageUrl: data.url }))
+      toast.success('Imagen subida')
+    } catch {
+      toast.error('Error al subir imagen')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   function openCreateModal() {
     setEditingPromotion(null)
@@ -228,7 +253,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
         body: JSON.stringify({ isFeatured: !promotion.isFeatured }),
       })
       if (!res.ok) throw new Error()
-      setPromotions(prev => prev.map(p => p._id === promotion._id ? { ...p, isFeatured: !promotion.isFeatured } : p))
+      setPromotions(prev => prev.map(p => p._id === promotion._id ? { ...p, isFeatured: !p.isFeatured } : p))
     } catch {
       toast.error('Error al actualizar')
     }
@@ -241,7 +266,6 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
 
   return (
     <div>
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="flex bg-muted/50 rounded-xl p-1">
@@ -270,7 +294,6 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
         </Button>
       </div>
 
-      {/* Grid */}
       {filteredPromotions.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <Tag size={48} className="mx-auto mb-4 opacity-30" />
@@ -357,7 +380,6 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
         </div>
       )}
 
-      {/* Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div 
@@ -378,7 +400,6 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Basic Info */}
                 <div className="space-y-4">
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Título *</Label>
@@ -409,17 +430,41 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     />
                   </div>
                   <div>
-                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Imagen URL</Label>
-                    <Input 
-                      value={form.imageUrl}
-                      onChange={e => setForm({ ...form, imageUrl: e.target.value })}
-                      placeholder="https://..."
-                      className="mt-1.5"
-                    />
+                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Imagen</Label>
+                    <div className="mt-1.5 flex items-center gap-3">
+                      <label className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg cursor-pointer transition-colors">
+                        {uploading ? (
+                          <span className="text-sm font-medium">Subiendo...</span>
+                        ) : (
+                          <>
+                            <Upload size={16} />
+                            <span className="text-sm font-medium">Seleccionar</span>
+                          </>
+                        )}
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          disabled={uploading}
+                          className="hidden"
+                        />
+                      </label>
+                      {form.imageUrl && (
+                        <div className="relative w-16 h-16 rounded-lg overflow-hidden border">
+                          <img src={form.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setForm(prev => ({ ...prev, imageUrl: '' }))}
+                            className="absolute top-0 right-0 bg-destructive text-white p-1 rounded-bl-lg"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Price */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Precio *</Label>
@@ -442,13 +487,13 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   </div>
                 </div>
 
-                {/* Visibility */}
                 <div>
                   <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Publicar en</Label>
                   <div className="flex gap-3">
                     {(['both', 'dine-in', 'takeaway'] as const).map(v => (
                       <button
                         key={v}
+                        type="button"
                         onClick={() => setForm({ ...form, visibility: v })}
                         className={cn(
                           'flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all',
@@ -463,7 +508,6 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   </div>
                 </div>
 
-                {/* Schedule */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Inicio</Label>
@@ -485,7 +529,6 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   </div>
                 </div>
 
-                {/* Conditions */}
                 <div>
                   <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Términos y Condiciones</Label>
                   <Textarea 
@@ -497,7 +540,6 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   />
                 </div>
 
-                {/* Custom Styles */}
                 <div className="space-y-4 bg-muted/30 p-5 rounded-2xl">
                   <div className="flex items-center gap-2 mb-2">
                     <Palette size={16} className="text-primary" />
@@ -561,6 +603,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                       {(['modern', 'classic', 'minimal'] as const).map(style => (
                         <button
                           key={style}
+                          type="button"
                           onClick={() => setForm({ ...form, customStyles: { ...form.customStyles, cardStyle: style } })}
                           className={cn(
                             'flex-1 py-2 rounded-lg text-xs font-bold uppercase border-2 transition-all',
@@ -576,7 +619,6 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   </div>
                 </div>
 
-                {/* Preview */}
                 <div>
                   <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Vista Previa</Label>
                   <div 
