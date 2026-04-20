@@ -442,6 +442,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
               promotions={promotions} 
               onAdd={addPromotionToCart}
               primary={primary}
+              mode="takeaway"
             />
           </section>
         )}

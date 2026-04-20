@@ -21,15 +21,18 @@ interface PromotionCardProps {
   }
   onAdd?: (promotion: any) => void
   primary?: string
+  mode?: 'takeaway' | 'dine-in'
 }
 
-export function PromotionCard({ promotion, onAdd, primary }: PromotionCardProps) {
+export function PromotionCard({ promotion, onAdd, primary, mode }: PromotionCardProps) {
   const styles = promotion.customStyles || {}
   const accent = styles.accentColor || primary || '#f14722'
   
   const discount = promotion.originalPrice 
     ? Math.round(((promotion.originalPrice - promotion.price) / promotion.originalPrice) * 100)
     : 0
+
+  const buttonText = mode === 'dine-in' ? 'No te lo pierdas!' : 'Agregar'
 
   return (
     <div
@@ -107,7 +110,7 @@ export function PromotionCard({ promotion, onAdd, primary }: PromotionCardProps)
                 onAdd?.(promotion)
               }}
             >
-              Agregar
+              {buttonText}
             </button>
           </div>
         </div>
@@ -128,9 +131,10 @@ interface PromotionCarouselProps {
   promotions: any[] 
   onAdd?: (promotion: any) => void
   primary?: string
+  mode?: 'takeaway' | 'dine-in'
 }
 
-export function PromotionCarousel({ promotions, onAdd, primary }: PromotionCarouselProps) {
+export function PromotionCarousel({ promotions, onAdd, primary, mode }: PromotionCarouselProps) {
   return (
     <div className="flex flex-col gap-3">
       {promotions.map((promo) => (
@@ -139,6 +143,7 @@ export function PromotionCarousel({ promotions, onAdd, primary }: PromotionCarou
           promotion={promo} 
           onAdd={onAdd}
           primary={primary}
+          mode={mode}
         />
       ))}
     </div>

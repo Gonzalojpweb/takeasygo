@@ -339,6 +339,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             <PromotionCarousel 
               promotions={promotions}
               primary={branding.primaryColor}
+              mode="dine-in"
             />
           </section>
         )}
