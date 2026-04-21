@@ -130,6 +130,7 @@ export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: st
       'Impresión automática de tickets en cocina',
     ],
     extra: [
+      'Club de Fidelización (hasta 150 miembros)',
       'Carrito de compras y checkout optimizado',
       'Importación de menú desde CSV',
       'Historial de órdenes',
@@ -141,32 +142,32 @@ export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: st
   buy: {
     featured: [
       'Todo el plan Inicial incluido',
-      'Reportes de ventas con comparativa mensual y exportación Excel/PDF',
-      'Múltiples sedes y usuarios con roles',
-      'ICO — Score de Fiabilidad Operativa',
+      'Integración POS (Fudo / Bistrosoft / API)',
+      'Gestión de Reservas con pago de seña',
+      'Club de Fidelización ilimitado y exportable',
     ],
     extra: [
-      'Roles de equipo: staff, cajero, gerente',
+      'Reportes de ventas con comparativa mensual y exportación',
+      'Múltiples sedes y usuarios con roles',
+      'ICO — Score de Fiabilidad Operativa',
       'Múltiples impresoras por local',
       'Log de auditoría de acciones del equipo',
-      'Comparativa de ventas mes a mes (MoM)',
-      'Top 5 productos más vendidos e ingresos generados',
       'Historial completo de pedidos con filtros',
     ],
   },
   full: {
     featured: [
       'Todo el plan Crecimiento incluido',
-      'KPIs operativos: TPP, cumplimiento de tiempos y tasa de cancelación',
-      'Distribución horaria de pedidos y hora pico',
-      'Tasa de recompra y frecuencia de clientes (últimos 90 días)',
+      'Advanced Analytics: Recompra y Hora Pico',
+      'ICO avanzado con diagnóstico por factores',
+      'KPIs operativos: TPP y Tasa de Cancelación',
     ],
     extra: [
-      'ICO avanzado con diagnóstico completo por factores',
-      'Tiempo de preparación: media, desvío estándar e intervalo de confianza',
-      'Tasa de cancelación con tendencia vs mes anterior',
+      'Distribución horaria de pedidos y performance',
+      'Tasa de recompra y frecuencia de clientes (90 días)',
       'Modo Dine-in (menú para consumo en el local)',
       'Conversión de pagos MercadoPago',
+      'Loyalty Analytics detallado',
     ],
   },
   anfitrion: {

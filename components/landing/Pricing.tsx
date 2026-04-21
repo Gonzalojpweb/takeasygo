@@ -26,16 +26,17 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'inicial-mensual',
         name: 'Inicial',
-        price: '75.000',
+        price: '65.000',
         sub: 'Para empezar a vender online',
         planKey: 'try',
         featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
         extraFeatures: PLAN_FEATURES_LANDING.try.extra,
+        anchorHint: 'Con pago anual pagás $55.250/mes · Ahorrás $117.000/año',
     },
     {
         id: 'crecimiento-mensual',
         name: 'Crecimiento',
-        price: '80.000',
+        price: '75.000',
         sub: 'Para escalar tu operación',
         planKey: 'buy',
         featured: true,
@@ -46,11 +47,12 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'premium-mensual',
         name: 'Premium',
-        price: '95.000',
+        price: '90.000',
         sub: 'Para optimizar con datos',
         planKey: 'full',
         featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
         extraFeatures: PLAN_FEATURES_LANDING.full.extra,
+        anchorHint: 'Con pago anual pagás $76.500/mes · Ahorrás $162.000/año',
     },
 ]
 
@@ -63,6 +65,8 @@ const anualPlans: LandingPlan[] = [
         planKey: 'try',
         featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
         extraFeatures: PLAN_FEATURES_LANDING.try.extra,
+        anchorPrice: '780.000',
+        anchorSavings: 'Ahorrás $117.000',
     },
     {
         id: 'crecimiento-anual',
@@ -84,6 +88,8 @@ const anualPlans: LandingPlan[] = [
         planKey: 'full',
         featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
         extraFeatures: PLAN_FEATURES_LANDING.full.extra,
+        anchorPrice: '1.080.000',
+        anchorSavings: 'Ahorrás $162.000',
     },
 ]
 
