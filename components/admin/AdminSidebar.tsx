@@ -21,6 +21,7 @@ import {
   BookOpen,
   QrCode,
   Tag,
+  Database
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -151,6 +152,13 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       label: 'Configuración',
       icon: Settings,
       roles: ['admin'],
+    },
+    {
+      href: `${base}/settings/pos`,
+      label: 'Integración POS',
+      icon: Database,
+      roles: ['admin'],
+      feature: 'posIntegration',
     },
     {
       href: `${base}/billing`,

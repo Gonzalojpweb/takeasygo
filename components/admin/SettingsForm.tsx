@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -19,9 +19,12 @@ import {
   Film, Loader2,
   CalendarDays, Plus, X, Trash2,
   ExternalLink,
+  Database,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { canAccess } from '@/lib/plans'
+import type { Plan } from '@/lib/plans'
 
 
 type HeroMediaType = 'none' | 'image' | 'video'
@@ -39,6 +42,11 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   const [loading, setLoading] = useState(false)
   const [branding, setBranding] = useState(tenant.branding)
   const [activeTab, setActiveTab] = useState('branding')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Profile state
   const [profileLoading, setProfileLoading] = useState(false)
@@ -347,9 +355,11 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   const labelCls = "text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50 mb-2 block"
   const inputCls = "w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-2xl px-4 py-3 outline-none transition-all shadow-sm"
 
+  if (!mounted) return <div className="max-w-6xl h-96 flex items-center justify-center"><Loader2 className="animate-spin text-primary/20" size={40} /></div>
+
   return (
     <div className="max-w-6xl">
-      <Tabs id="settings-tabs" defaultValue="branding" className="w-full" onValueChange={setActiveTab}>
+      <Tabs defaultValue="branding" className="w-full" onValueChange={setActiveTab}>
         <div className="flex overflow-x-auto pb-4 mb-2 no-scrollbar">
           <TabsList className="bg-muted/50 border border-border/40 p-1.5 rounded-2xl h-auto gap-1">
             <TabTrigger value="branding" icon={<Palette size={16} />} label="Identidad" />
@@ -359,6 +369,9 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             <TabTrigger value="mercadopago" icon={<CreditCard size={16} />} label="Pagos" />
             {tenant.features?.reservations && (
               <TabTrigger value="reservas" icon={<CalendarDays size={16} />} label="Reservas" />
+            )}
+            {canAccess(plan as Plan, 'posIntegration') && (
+              <TabTrigger value="pos" icon={<Database size={16} />} label="POS" />
             )}
           </TabsList>
         </div>
@@ -1192,6 +1205,43 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                 </div>
               </TabsContent>
             )}
+            {/* ── POS Integration ── */}
+            <TabsContent value="pos" className="m-0 mt-2">
+              <div className="max-w-2xl bg-muted/20 border border-border/40 p-8 rounded-[2.5rem] space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+                    <Database size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold tracking-tight">Integración con Sistemas POS</h3>
+                    <p className="text-xs text-muted-foreground font-medium mt-1">Conecta TakeasyGO con FUDO o BISTROSOFT.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    La integración POS permite inyectar pedidos automáticamente en tu sistema de gestión, sincronizar el catálogo de productos y mantener el estado de las órdenes actualizado en tiempo real.
+                  </p>
+
+                  <div className="p-4 bg-white border rounded-2xl flex items-center justify-between group hover:border-primary/40 transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <SettingsIcon size={16} />
+                      </div>
+                      <span className="text-sm font-bold">Configuración Avanzada de POS</span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      className="text-primary hover:bg-primary/5 font-bold flex items-center gap-2"
+                      onClick={() => router.push(`/${tenantSlug}/admin/settings/pos`)}
+                    >
+                      Configurar
+                      <ExternalLink size={14} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
           </motion.div>
         </AnimatePresence>
       </Tabs>

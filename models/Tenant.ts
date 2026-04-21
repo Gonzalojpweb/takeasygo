@@ -53,6 +53,32 @@ export interface ITenant extends Document {
     webhookSecret: string | null
     isConfigured: boolean
   }
+  // ── Integración POS (FUDO / BISTROSOFT / etc.) ─────────────────────────────
+  posIntegration: {
+    provider: 'fudo' | 'bistrosoft' | 'none'
+    enabled: boolean
+    credentials: {
+      clientId: string | null      // Cifrado AES-256-GCM
+      clientSecret: string | null  // Cifrado AES-256-GCM
+      apiEndpoint: string | null   // URL base override (opcional)
+    }
+    productMapping: {
+      takeasyGoItemId: string       // ObjectId del item en TakeasyGO
+      posItemId: string             // ID del item en el POS
+      posItemName: string           // Nombre legible del item en el POS
+    }[]
+    lastSyncAt: Date | null         // Última vez que se sincronizó el catálogo del POS
+    webhookSecret: string | null    // Para verificar firma de webhooks entrantes del POS. Cifrado.
+  }
+  // ── API Keys externas (estilo Stripe) ──────────────────────────────────────
+  // Permite que un POS, PWA o sistema externo se autentique sin cookies
+  externalApiKeys: {
+    keyHash: string       // SHA-256 del key real — nunca guardamos el key en claro
+    label: string         // "POS App", "PWA Cocina", etc.
+    createdAt: Date
+    lastUsedAt: Date | null
+    isActive: boolean
+  }[]
   cachedScores: {
     icoScore: number | null
     capacityScore: number | null
@@ -159,6 +185,41 @@ const TenantSchema = new Schema<ITenant>(
       publicKey: { type: String, default: null },
       webhookSecret: { type: String, default: null },
       isConfigured: { type: Boolean, default: false },
+    },
+    // ── Integración POS ──────────────────────────────────────────────────────
+    posIntegration: {
+      provider: {
+        type: String,
+        enum: ['fudo', 'bistrosoft', 'none'],
+        default: 'none',
+      },
+      enabled: { type: Boolean, default: false },
+      credentials: {
+        clientId:    { type: String, default: null },
+        clientSecret: { type: String, default: null },
+        apiEndpoint: { type: String, default: null },
+      },
+      productMapping: {
+        type: [{
+          takeasyGoItemId: { type: String, required: true },
+          posItemId:       { type: String, required: true },
+          posItemName:     { type: String, default: '' },
+        }],
+        default: [],
+      },
+      lastSyncAt:    { type: Date, default: null },
+      webhookSecret: { type: String, default: null },
+    },
+    // ── API Keys externas (estilo Stripe) ─────────────────────────────────────
+    externalApiKeys: {
+      type: [{
+        keyHash:    { type: String, required: true },
+        label:      { type: String, default: 'API Key' },
+        createdAt:  { type: Date, default: Date.now },
+        lastUsedAt: { type: Date, default: null },
+        isActive:   { type: Boolean, default: true },
+      }],
+      default: [],
     },
     cachedScores: {
       icoScore: { type: Number, default: null },

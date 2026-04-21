@@ -75,6 +75,9 @@ export const PLAN_ACCESS = {
   loyaltyClub:       ['trial', 'try', 'buy', 'full'] as const,
   loyaltyExport:     ['buy', 'full'] as const,
   loyaltyAnalytics:  ['full'] as const,  // Fase 2: métricas avanzadas del club
+
+  // Integración POS — disponible en Crecimiento y Premium
+  posIntegration:    ['buy', 'full'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS

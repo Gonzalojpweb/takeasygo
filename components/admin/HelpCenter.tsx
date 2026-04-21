@@ -6,7 +6,7 @@ import {
   Settings, Printer, ClipboardList, Shield, Activity, CalendarDays,
   CreditCard, Search, ChevronRight, X, BookOpen,
   Target, CheckCircle2, Star, HelpCircle, ArrowRight,
-  Sparkles, ShieldCheck, Lock,
+  Sparkles, ShieldCheck, Lock, Database
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
@@ -395,6 +395,35 @@ const SECTIONS: Section[] = [
       'Hacé el upgrade antes de que tu plan venza para no perder continuidad en el servicio.',
     ],
   },
+  {
+    id: 'integracion-pos',
+    icon: Database,
+    label: 'Integración POS',
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-500/10',
+    plan: 'crecimiento',
+    roles: ['admin'],
+    objective: 'Conectar TakeasyGO con tu sistema de gestión (FUDO/BISTROSOFT) para inyectar pedidos automáticamente.',
+    description: 'El módulo de Integración POS permite que los pedidos pagados en TakeasyGO lleguen directamente a tu cocina a través de tu software de gestión actual. Esto elimina la necesidad de cargar pedidos manualmente en el POS.',
+    features: [
+      { title: 'Inyección automática', desc: 'Los pedidos pagados viajan al POS en segundos con reintentos automáticos.' },
+      { title: 'Mapeo de productos', desc: 'Vincula ítems de TakeasyGO con IDs del POS para mantener stock y reportes sincronizados.' },
+      { title: 'Sincronización de estados', desc: 'Cuando marcás un pedido como listo en el POS, TakeasyGO notifica al cliente.' },
+      { title: 'API Keys externas', desc: 'Generá llaves de acceso para integrar pantallas de cocina o aplicaciones de terceros.' },
+      { title: 'Seguridad AES-256', desc: 'Tus credenciales de FUDO se almacenan con cifrado de grado bancario.', highlight: 'security' as const },
+    ],
+    steps: [
+      { action: 'Obtené las credenciales en tu POS', detail: 'Entrá a FUDO → Aplicaciones Externas y generá Client ID, Secret y Webhook Secret.' },
+      { action: 'Configurá en TakeasyGO', detail: 'Pegá las credenciales en el panel y probá la conexión.' },
+      { action: 'Mapeá los productos', detail: 'Sincronizá el catálogo del POS y vinculá cada item de TakeasyGO con su par en el POS.' },
+      { action: 'Guardá y activá', detail: 'Una vez activada, la inyección es automática para todos los nuevos pedidos pagados.' },
+    ],
+    tips: [
+      'Configurá el webhook en FUDO para que los cambios de estado vuelvan a TakeasyGO en tiempo real.',
+      'Si un producto no está mapeado, se intentará inyectar por nombre como fallback.',
+      'Las API Keys te permiten construir tus propias integraciones o usar nuestro Panel de Cocina PWA.',
+    ],
+  },
 ]
 
 // ── Visibility per plan ────────────────────────────────────────────────────────
@@ -418,6 +447,7 @@ const VISIBILITY: Record<string, Record<Plan, SectionVisibility>> = {
   auditoria:    { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
   configuracion:{ anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
   facturacion:  { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+  'integracion-pos': { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
 }
 
 function getVisibility(plan: Plan, sectionId: string): SectionVisibility {

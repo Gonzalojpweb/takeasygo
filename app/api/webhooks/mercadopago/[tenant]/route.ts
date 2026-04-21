@@ -9,6 +9,7 @@ import PaymentNotification from '@/models/PaymentNotification'
 import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
+import { injectOrderToPOS } from '@/lib/pos/inject-order'
 
 /**
  * Verifica la firma HMAC-SHA256 que MercadoPago envía en el header x-signature.
@@ -161,6 +162,18 @@ export async function POST(
                   },
                   { session, upsert: false }
                 ).catch(() => {})
+              }
+
+              // ── Inyección POS (fire-and-forget) ──────────────────────────
+              // Se llama fuera de la transacción MongoDB para no bloquearla.
+              // Si falla, el pedido igual existe en TakeasyGO y aparece como
+              // posSync.status = 'failed' en el panel del restaurante.
+              if (tenant.posIntegration?.enabled) {
+                setImmediate(() => {
+                  injectOrderToPOS(order._id.toString(), tenant).catch(err =>
+                    console.error('[POS inject] Error asíncrono:', err)
+                  )
+                })
               }
             } else if (['rejected', 'cancelled'].includes(paymentData.status!)) {
               order.status = 'cancelled'

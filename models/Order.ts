@@ -69,6 +69,14 @@ export interface IOrder extends Document {
   printed: boolean
   printLog: IPrintLogEntry[]
   statusTimestamps: IStatusTimestamps
+  // ── Sincronización con POS (FUDO / BISTROSOFT) ─────────────────────────────
+  posSync: {
+    status: 'not_applicable' | 'pending' | 'synced' | 'failed'
+    posOrderId: string | null    // ID que le asignó el POS a este pedido
+    attempts: number             // Número de intentos de inyección
+    lastAttemptAt: Date | null   // Timestamp del último intento
+    error: string | null         // Mensaje del último error (para debug)
+  } | null
   createdAt: Date
   updatedAt: Date
 }
@@ -178,6 +186,18 @@ const OrderSchema = new Schema<IOrder>(
         printedAt: { type: Date, default: Date.now },
       }],
       default: [],
+    },
+    // ── Sincronización con POS ───────────────────────────────────────────────
+    posSync: {
+      status: {
+        type: String,
+        enum: ['not_applicable', 'pending', 'synced', 'failed'],
+        default: 'not_applicable',
+      },
+      posOrderId:    { type: String, default: null },
+      attempts:      { type: Number, default: 0 },
+      lastAttemptAt: { type: Date,   default: null },
+      error:         { type: String, default: null },
     },
   },
   {

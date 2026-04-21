@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      // CORS: las rutas de API admin sólo aceptan requests del mismo origen
+      // ── CORS same-origin: rutas admin (solo acepta el propio dominio) ────────
       {
         source: '/api/:tenant/settings/:path*',
         headers: [
@@ -65,6 +65,33 @@ const nextConfig: NextConfig = {
           { key: 'Access-Control-Allow-Origin', value: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      // ── CORS abierto: rutas consumidas por clientes externos (POS, PWA) ──────
+      // Protegidas por API Key (Bearer Token), no por CORS
+      {
+        source: '/api/:tenant/orders/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PATCH,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      {
+        source: '/api/:tenant/menu/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      // Webhook POS: FUDO/BISTROSOFT necesitan poder hacer POST desde sus servidores
+      {
+        source: '/api/webhooks/pos/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'POST,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, X-POS-Signature, X-POS-Provider' },
         ],
       },
     ]
