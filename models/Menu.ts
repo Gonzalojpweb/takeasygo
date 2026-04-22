@@ -25,6 +25,7 @@ export interface IMenuItem {
   name: string
   description: string
   price: number
+  takeawayPrice?: number
   imageUrl: string
   isAvailable: boolean
   tags: string[]
@@ -87,6 +88,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
     type: Number,
     required: [true, 'El precio es obligatorio'],
     min: [0, 'El precio no puede ser negativo'],
+  },
+  takeawayPrice: {
+    type: Number,
+    min: [0, 'El precio para llevar no puede ser negativo'],
   },
   imageUrl: {
     type: String,

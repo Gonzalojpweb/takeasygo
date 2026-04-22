@@ -8,6 +8,7 @@ interface ImportItem {
   name: string
   description?: string
   price: number
+  takeawayPrice?: number
   tags?: string[]
   isFeatured?: boolean
   imageUrl?: string
@@ -26,6 +27,7 @@ function validatePayload(categories: unknown): categories is ImportCategory[] {
     for (const item of cat.items) {
       if (typeof item.name !== 'string' || !item.name.trim()) return false
       if (typeof item.price !== 'number' || item.price < 0) return false
+      if (item.dineInPrice !== undefined && (typeof item.dineInPrice !== 'number' || item.dineInPrice < 0)) return false
     }
   }
   return true
@@ -73,6 +75,7 @@ export async function POST(
         name: item.name.trim(),
         description: item.description?.trim() ?? '',
         price: item.price,
+        takeawayPrice: item.takeawayPrice,
         tags: Array.isArray(item.tags) ? item.tags.map((t: string) => t.trim()).filter(Boolean) : [],
         isFeatured: item.isFeatured ?? false,
         imageUrl: item.imageUrl ?? '',

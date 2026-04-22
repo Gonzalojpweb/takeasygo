@@ -15,7 +15,7 @@ interface Props {
 
 interface ParsedCategory {
   name: string
-  items: { name: string; price: number }[]
+  items: { name: string; price: number; takeawayPrice?: number }[]
 }
 
 const EXAMPLE_JSON = `{
@@ -27,6 +27,7 @@ const EXAMPLE_JSON = `{
           "name": "Empanadas de carne",
           "description": "Masa casera, jugosas",
           "price": 1500,
+          "takeawayPrice": 1700,
           "tags": ["Popular"],
           "isFeatured": true
         },
@@ -97,7 +98,7 @@ export default function ImportMenuModal({ tenantSlug, locationId, locationName, 
             return
           }
         }
-        result.push({ name: cat.name, items: cat.items.map((i: any) => ({ name: i.name, price: i.price })) })
+        result.push({ name: cat.name, items: cat.items.map((i: any) => ({ name: i.name, price: i.price, takeawayPrice: i.takeawayPrice })) })
       }
 
       setPreview(result)

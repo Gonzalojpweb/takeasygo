@@ -39,7 +39,7 @@ const EMPTY_CUSTOMIZATION_GROUP: CustomizationGroupForm = {
 }
 
 const EMPTY_ITEM = {
-  name: '', description: '', price: '', tags: '', isFeatured: false, imageUrl: '',
+  name: '', description: '', price: '', takeawayPrice: '', tags: '', isFeatured: false, imageUrl: '',
   suggestWith: [] as string[],
   customizationGroups: [] as CustomizationGroupForm[],
   availabilityMode: 'always' as 'always' | 'scheduled',
@@ -227,6 +227,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           name: newItem.name,
           description: newItem.description,
           price: parseFloat(newItem.price),
+          takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
           imageUrl: newItem.imageUrl,
@@ -259,6 +260,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           name: editingItemData.name,
           description: editingItemData.description,
           price: parseFloat(editingItemData.price),
+          takeawayPrice: editingItemData.takeawayPrice ? parseFloat(editingItemData.takeawayPrice) : undefined,
           tags: parseTags(editingItemData.tags),
           isFeatured: editingItemData.isFeatured,
           imageUrl: editingItemData.imageUrl,
@@ -351,6 +353,41 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       router.refresh()
     } catch {
       toast.error('Error al actualizar disponibilidad')
+    }
+  }
+
+  async function handleBulkPriceUpdate(categoryId: string) {
+    const percentage = prompt('Ingrese el porcentaje de aumento para el precio Para llevar (ej: 10 para aumentar un 10%)')
+    if (!percentage) return
+    const perc = parseFloat(percentage)
+    if (isNaN(perc)) return toast.error('Ingrese un número válido')
+
+    setLoading(true)
+    try {
+      const category = localCategories.find(c => c._id === categoryId)
+      if (!category) return
+
+      // Bucle SECUENCIAL para evitar conflictos de concurrencia en la DB (Error 500)
+      for (const item of category.items) {
+        const newTakeawayPrice = Math.round(item.price * (1 + perc / 100))
+        const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            locationId: selectedLocation,
+            itemId: item._id,
+            takeawayPrice: newTakeawayPrice,
+          }),
+        })
+        if (!res.ok) console.error(`Error actualizando item ${item._id}`)
+      }
+
+      toast.success(`Precios Para llevar actualizados (+${perc}%)`)
+      router.refresh()
+    } catch {
+      toast.error('Error al actualizar precios masivamente')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -560,6 +597,15 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               animate={{ opacity: 1 }}
                               className="flex gap-1"
                             >
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Actualización masiva de precios %"
+                                className="h-10 w-10 text-primary hover:bg-primary/10 rounded-xl"
+                                onClick={(e) => { e.stopPropagation(); handleBulkPriceUpdate(category._id) }}
+                              >
+                                <Sparkles size={18} />
+                              </Button>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -728,8 +774,17 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                 )}
                                               </div>
                                               <p className="text-muted-foreground text-xs font-medium truncate opacity-80">{item.description || 'Sin descripción'}</p>
-                                              <div className="flex items-center gap-3 mt-1.5">
-                                                <span className="text-primary font-bold tabular-nums text-sm">${item.price.toLocaleString('es-AR')}</span>
+                                              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest">Dine-in:</span>
+                                                  <span className="text-foreground font-bold tabular-nums text-sm">${item.price.toLocaleString('es-AR')}</span>
+                                                </div>
+                                                {item.takeawayPrice && item.takeawayPrice !== item.price && (
+                                                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-orange-50 border border-orange-200">
+                                                    <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest leading-none">Takeaway:</span>
+                                                    <span className="text-orange-600 font-bold tabular-nums text-sm leading-none">${item.takeawayPrice.toLocaleString('es-AR')}</span>
+                                                  </div>
+                                                )}
                                                 <div className="flex gap-1 flex-wrap">
                                                   {item.tags?.map((tag: string) => (
                                                     <span key={tag} className="text-[10px] font-bold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-lg border border-border/40">
@@ -778,6 +833,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                   name: item.name,
                                                   description: item.description || '',
                                                   price: item.price.toString(),
+                                                  takeawayPrice: item.takeawayPrice?.toString() ?? '',
                                                   tags: (item.tags || []).join(', '),
                                                   isFeatured: item.isFeatured ?? false,
                                                   imageUrl: item.imageUrl || '',
@@ -934,7 +990,7 @@ function ItemForm({
               />
             </div>
             <div>
-              <label className={labelCls}>Precio (en pesos)</label>
+              <label className={labelCls}>Precio Comer acá (Dine-in)</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">$</span>
                 <input
@@ -943,6 +999,19 @@ function ItemForm({
                   type="number"
                   value={data.price}
                   onChange={e => onChange({ ...data, price: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>Precio Para llevar (Takeaway - Opcional)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">$</span>
+                <input
+                  className={cn(inputCls, "pl-8 tabular-nums font-bold text-orange-600")}
+                  placeholder="Mismo que el precio para comer acá"
+                  type="number"
+                  value={data.takeawayPrice}
+                  onChange={e => onChange({ ...data, takeawayPrice: e.target.value })}
                 />
               </div>
             </div>

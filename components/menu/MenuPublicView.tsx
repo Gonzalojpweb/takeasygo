@@ -110,6 +110,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const profile = tenant.profile ?? {}
   const router = useRouter()
   const t = UI[locale]
+  const getItemPrice = (item: any) => mode === 'takeaway' ? (item.takeawayPrice ?? item.price) : item.price
 
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
@@ -211,9 +212,9 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         cartItemId: plainId,
         menuItemId: item._id,
         name: item.name,
-        basePrice: item.price,
+        basePrice: getItemPrice(item),
         extraPrice: 0,
-        price: item.price,
+        price: getItemPrice(item),
         quantity: 1,
         customizations: [],
         customizationSummary: '',
@@ -473,7 +474,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                       {item.description && <p className="text-xs opacity-50 truncate">{tn(item, 'description', locale)}</p>}
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className="font-bold text-sm" style={{ color: primary }}>
-                          ${item.price.toLocaleString('es-AR')}
+                          ${getItemPrice(item).toLocaleString('es-AR')}
                         </span>
                         {(item.tags || []).map((tag: string) => (
                           <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
@@ -528,7 +529,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                           )}
                           <div className="flex items-center justify-between">
                             <p className="font-bold text-sm" style={{ color: primary }}>
-                              ${item.price.toLocaleString('es-AR')}
+                              ${getItemPrice(item).toLocaleString('es-AR')}
                             </p>
                             <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact />
                           </div>
@@ -557,7 +558,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                         )}
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                           <span className="font-bold text-sm" style={{ color: primary }}>
-                            ${item.price.toLocaleString('es-AR')}
+                            ${getItemPrice(item).toLocaleString('es-AR')}
                           </span>
                           {(item.tags || []).map((tag: string) => (
                             <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
@@ -606,7 +607,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                         {tn(item, 'name', locale)}
                       </p>
                       <p className="text-xs font-bold" style={{ color: primary }}>
-                        ${item.price.toLocaleString('es-AR')}
+                        ${getItemPrice(item).toLocaleString('es-AR')}
                       </p>
                     </div>
                   )}
@@ -734,7 +735,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
       {/* ── Customization Modal ── */}
       {customizingItem && (
         <CustomizationModal
-          item={customizingItem}
+          item={{ ...customizingItem, price: getItemPrice(customizingItem) }}
           onConfirm={handleConfirmCustomization}
           onClose={() => setCustomizingItem(null)}
           primaryColor={primary}
@@ -780,7 +781,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                       </button>
                       <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
                       {item.customizations.length === 0 && (
-                        <button onClick={() => addPlainToCart({ _id: item.menuItemId, name: item.name, price: item.basePrice })}
+                        <button onClick={() => addPlainToCart(item)}
                           className="w-7 h-7 rounded-full flex items-center justify-center"
                           style={{ backgroundColor: primary, color: bg }}>
                           <Plus size={13} />
