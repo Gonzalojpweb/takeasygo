@@ -20,6 +20,7 @@ import {
   CalendarDays, Plus, X, Trash2,
   ExternalLink,
   Database,
+  ImageIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -213,6 +214,26 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
       slots[idx] = { ...slots[idx], days }
       return { ...prev, [locationId]: { ...prev[locationId], [type]: slots } }
     })
+  }
+
+  const [logoSaving, setLogoSaving] = useState(false)
+
+  async function handleLogoUpload(file: File | undefined) {
+    if (!file) return
+    setLogoSaving(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploadRes = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
+      if (!uploadRes.ok) throw new Error()
+      const { url } = await uploadRes.json()
+      setBranding((p: any) => ({ ...p, logoUrl: url }))
+      toast.success('Logo actualizado')
+    } catch {
+      toast.error('Error al subir el logo')
+    } finally {
+      setLogoSaving(false)
+    }
   }
 
   async function handleSaveBranding() {
@@ -466,18 +487,45 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                         </div>
                       </div>
 
-                      <div>
-                        <label className={labelCls}>Logotipo del Restaurante (URL)</label>
-                        <div className="relative group">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors">
-                            <Globe size={18} />
+                      <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            id="logo-upload"
+                            onChange={e => handleLogoUpload(e.target.files?.[0])}
+                          />
+                          <div
+                            onClick={() => !logoSaving && document.getElementById('logo-upload')?.click()}
+                            className={cn(
+                              'w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all relative overflow-hidden group cursor-pointer',
+                              logoSaving
+                                ? 'cursor-wait opacity-70'
+                                : branding.logoUrl
+                                  ? 'border-primary/40 bg-primary/5 h-40'
+                                  : 'border-border hover:border-primary/40 hover:bg-muted/50 h-28'
+                            )}
+                          >
+                            {logoSaving ? (
+                              <div className="flex flex-col items-center gap-2 p-4">
+                                <Loader2 size={22} className="animate-spin text-primary" />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Subiendo…</p>
+                              </div>
+                            ) : branding.logoUrl ? (
+                              <>
+                                <img src={branding.logoUrl} alt="" className="h-full w-full object-contain p-4" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-2">
+                                  <Camera className="text-white" size={20} />
+                                  <span className="text-white text-[10px] font-black uppercase tracking-widest">Cambiar</span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex flex-col items-center gap-2 p-4">
+                                <ImageIcon size={26} className="text-muted-foreground/40" />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-center">Click para subir logo</p>
+                                <p className="text-[9px] text-muted-foreground/40">PNG · JPG · WEBP</p>
+                              </div>
+                            )}
                           </div>
-                          <input value={branding.logoUrl}
-                            onChange={e => setBranding((p: any) => ({ ...p, logoUrl: e.target.value }))}
-                            placeholder="https://example.com/logo.png"
-                            className={cn(inputCls, "pl-12")} />
-                        </div>
-                      </div>
                     </div>
                   </section>
 
