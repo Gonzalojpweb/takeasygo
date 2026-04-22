@@ -81,6 +81,9 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [editingItemData, setEditingItemData] = useState<ItemFormData>(EMPTY_ITEM)
   const [loading, setLoading] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState<string | null>(null)
+  const [bulkPercentage, setBulkPercentage] = useState('')
+  const [bulkTarget, setBulkTarget] = useState<'dine-in' | 'takeaway' | 'both'>('takeaway')
   const router = useRouter()
 
   const currentMenu = menus.find(m => m.locationId.toString() === selectedLocation)
@@ -356,9 +359,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }
 
-  async function handleBulkPriceUpdate(categoryId: string) {
-    const percentage = prompt('Ingrese el porcentaje de aumento para el precio Para llevar (ej: 10 para aumentar un 10%)')
-    if (!percentage) return
+  async function handleBulkPriceUpdate(categoryId: string, percentage: string, target: 'dine-in' | 'takeaway' | 'both') {
     const perc = parseFloat(percentage)
     if (isNaN(perc)) return toast.error('Ingrese un número válido')
 
@@ -369,20 +370,32 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 
       // Bucle SECUENCIAL para evitar conflictos de concurrencia en la DB (Error 500)
       for (const item of category.items) {
-        const newTakeawayPrice = Math.round(item.price * (1 + perc / 100))
+        const updateBody: any = {
+          locationId: selectedLocation,
+          itemId: item._id,
+        }
+
+        if (target === 'dine-in' || target === 'both') {
+          updateBody.price = Math.round(item.price * (1 + perc / 100))
+        }
+        
+        if (target === 'takeaway' || target === 'both') {
+          // Si tiene precio takeaway, calculamos sobre ese. Si no, calculamos sobre el base.
+          const currentTakeaway = item.takeawayPrice || item.price
+          updateBody.takeawayPrice = Math.round(currentTakeaway * (1 + perc / 100))
+        }
+
         const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            locationId: selectedLocation,
-            itemId: item._id,
-            takeawayPrice: newTakeawayPrice,
-          }),
+          body: JSON.stringify(updateBody),
         })
         if (!res.ok) console.error(`Error actualizando item ${item._id}`)
       }
 
-      toast.success(`Precios Para llevar actualizados (+${perc}%)`)
+      toast.success(`Precios actualizados (+${perc}%)`)
+      setShowBulkModal(null)
+      setBulkPercentage('')
       router.refresh()
     } catch {
       toast.error('Error al actualizar precios masivamente')
@@ -598,13 +611,16 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               className="flex gap-1"
                             >
                               <Button
-                                size="icon"
+                                size="sm"
                                 variant="ghost"
-                                title="Actualización masiva de precios %"
-                                className="h-10 w-10 text-primary hover:bg-primary/10 rounded-xl"
-                                onClick={(e) => { e.stopPropagation(); handleBulkPriceUpdate(category._id) }}
+                                className="h-8 text-[11px] font-bold text-muted-foreground hover:text-primary gap-2"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setShowBulkModal(category._id)
+                                }}
                               >
-                                <Sparkles size={18} />
+                                <Sparkles size={14} />
+                                Ajustar Precios
                               </Button>
                               <input
                                 type="file"
@@ -917,6 +933,110 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           </SortableContext>
         </DndContext>
       )}
+
+
+
+      {/* Modal Ajuste de Precios Masivo */}
+      <AnimatePresence>
+        {showBulkModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowBulkModal(null)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-card border-2 border-border shadow-2xl rounded-[2.5rem] overflow-hidden"
+            >
+              <div className="p-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <Sparkles size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black tracking-tight">Ajustar Precios</h3>
+                    <p className="text-sm text-muted-foreground font-medium">Actualización masiva por categoría</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-3 block">
+                      Porcentaje de aumento
+                    </label>
+                    <div className="relative">
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-black text-xl">%</span>
+                      <input
+                        type="number"
+                        className="w-full bg-muted/30 border-2 border-border/80 focus:border-primary/40 focus:bg-white text-foreground text-2xl font-black rounded-2xl px-6 py-4 outline-none transition-all shadow-sm"
+                        placeholder="0"
+                        value={bulkPercentage}
+                        onChange={(e) => setBulkPercentage(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-3 block">
+                      Aplicar a:
+                    </label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { id: 'dine-in', label: 'Comer acá (Dine-in)', icon: Eye },
+                        { id: 'takeaway', label: 'Para llevar (Takeaway)', icon: Clock },
+                        { id: 'both', label: 'Ambos Menús', icon: Sparkles }
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setBulkTarget(opt.id as any)}
+                          className={cn(
+                            "flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left",
+                            bulkTarget === opt.id 
+                              ? "border-primary bg-primary/5 text-primary shadow-sm" 
+                              : "border-border/60 hover:border-border text-muted-foreground hover:bg-muted/30"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-10 h-10 rounded-xl flex items-center justify-center",
+                            bulkTarget === opt.id ? "bg-primary/10" : "bg-muted"
+                          )}>
+                            <opt.icon size={20} />
+                          </div>
+                          <span className="font-bold text-sm">{opt.label}</span>
+                          {bulkTarget === opt.id && <Check className="ml-auto" size={20} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-8">
+                  <Button
+                    variant="outline"
+                    className="rounded-2xl h-14 font-bold border-2"
+                    onClick={() => setShowBulkModal(null)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    className="rounded-2xl h-14 font-black text-lg shadow-lg shadow-primary/20"
+                    disabled={loading || !bulkPercentage}
+                    onClick={() => handleBulkPriceUpdate(showBulkModal, bulkPercentage, bulkTarget)}
+                  >
+                    {loading ? 'Procesando...' : 'Aplicar'}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {showImport && currentLocation && (
         <ImportMenuModal
