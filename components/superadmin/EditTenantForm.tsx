@@ -168,7 +168,18 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                   <button
                     key={p}
                     type="button"
-                    onClick={() => setForm(prev => ({ ...prev, plan: p }))}
+                    onClick={() => {
+                      setForm(prev => {
+                        const newForm = { ...prev, plan: p }
+                        // Sincronizar Reservaciones
+                        if (p === 'buy' || p === 'full') {
+                          newForm.featuresReservations = true
+                        } else if (p === 'try' || p === 'trial' || p === 'anfitrion') {
+                          newForm.featuresReservations = false
+                        }
+                        return newForm
+                      })
+                    }}
                     className={cn(
                       'text-left p-5 rounded-2xl border-2 transition-all',
                       form.plan === p
