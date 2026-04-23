@@ -37,6 +37,7 @@ export const createOrderSchema = z.object({
     birthDate: z.string().optional(), // formato YYYY-MM-DD
   }),
   notes: z.string().max(500).trim().default(''),
+  mode: z.enum(['takeaway', 'dine-in']),
   clientToken: z.string().uuid().optional().nullable(),
   joinClub: z.boolean().optional().default(false),
 })

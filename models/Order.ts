@@ -143,6 +143,12 @@ const OrderSchema = new Schema<IOrder>(
       enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'],
       default: 'pending',
     },
+    orderMode: {
+      type: String,
+      enum: ['takeaway', 'dine-in'],
+      required: true,
+      index: true,
+    },
     items: [OrderItemSchema],
     total: {
       type: Number,

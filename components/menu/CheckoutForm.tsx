@@ -118,6 +118,7 @@ async function handleSubmit(e: React.FormEvent) {
           ...(joinClub && form.birthDate && { birthDate: form.birthDate })
         },
         items: cart,
+        mode: mode,
         notes: form.notes,
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,
         joinClub: joinClub && loyaltyConfig?.enabled,

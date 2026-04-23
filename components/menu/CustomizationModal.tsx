@@ -19,6 +19,7 @@ interface Props {
   primaryColor: string
   bgColor: string
   textColor: string
+  mode: 'takeaway' | 'dine-in'
 }
 
 export default function CustomizationModal({
@@ -28,6 +29,7 @@ export default function CustomizationModal({
   primaryColor,
   bgColor,
   textColor,
+  mode,
 }: Props) {
   const groups: CustomizationGroup[] = item.customizationGroups ?? []
 
@@ -45,7 +47,8 @@ export default function CustomizationModal({
     )
   ).reduce((sum, opt) => sum + opt.extraPrice, 0)
 
-  const unitPrice = item.price + extraPrice
+  const basePrice = mode === 'takeaway' ? (item.takeawayPrice ?? item.price) : item.price
+  const unitPrice = basePrice + extraPrice
   const totalPrice = unitPrice * quantity
 
   function toggleOption(group: CustomizationGroup, optionName: string) {
@@ -82,7 +85,7 @@ export default function CustomizationModal({
       cartItemId: `${item._id}:${Date.now()}`,
       menuItemId: item._id,
       name: item.name,
-      basePrice: item.price,
+      basePrice: basePrice,
       extraPrice,
       price: unitPrice,
       quantity,
@@ -117,7 +120,7 @@ export default function CustomizationModal({
               {item.name}
             </h2>
             <p className="text-sm mt-0.5" style={{ color: primaryColor }}>
-              ${item.price.toLocaleString('es-AR')}
+              ${basePrice.toLocaleString('es-AR')}
             </p>
           </div>
           <button

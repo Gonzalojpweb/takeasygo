@@ -136,8 +136,11 @@ export async function POST(
 
       const quantity = clientItem.quantity  // ya validado como number.int().min(1) por Zod
 
-      // Precio base siempre de la DB
-      const basePrice: number = menuItem.price
+      // Precio base depende del modo (takeaway vs dine-in)
+      const basePrice: number = body.mode === 'takeaway' 
+        ? (menuItem.takeawayPrice ?? menuItem.price) 
+        : menuItem.price
+        
       let extraPrice = 0
       const resolvedCustomizations: any[] = []
 
@@ -200,6 +203,7 @@ export async function POST(
       tenantId: tenant._id,
       locationId: body.locationId,
       orderNumber: generateOrderNumber(tenantSlug),
+      orderMode: body.mode,
       items: resolvedItems,
       total,
       customer: encryptedCustomer,

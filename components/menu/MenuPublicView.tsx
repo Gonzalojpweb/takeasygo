@@ -740,7 +740,8 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
           onClose={() => setCustomizingItem(null)}
           primaryColor={primary}
           bgColor={bg}
-          textColor={text}
+          textColor={tenant.design.textColor}
+          mode={mode}
         />
       )}
 
