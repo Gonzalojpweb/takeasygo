@@ -32,23 +32,32 @@ export async function PUT(
 
     // 3. Sincronización lógica de features/modos según el plan
     if (body.plan && oldTenant.plan !== body.plan) {
+      const isCommercePlan = ['trial', 'try', 'buy', 'full'].includes(body.plan)
       
-      // A. SHIFT DESDE ANFITRION -> Habilitar Pedidos (Takeaway)
-      // El plan anfitrion suele tener orderModes vacíos o solo dine-in. 
-      // Al pasar a un plan comercial, habilitamos takeaway en todos los locales para que 'Pedidos' funcione.
-      if (oldTenant.plan === 'anfitrion' && body.plan !== 'anfitrion') {
+      // A. Habilitar Pedidos (Takeaway) si el nuevo plan es comercial
+      // Esto asegura que la sidebar no se bloquee por "dine-in only"
+      if (isCommercePlan) {
         await Location.updateMany(
           { tenantId: tenant?._id },
           { $addToSet: { 'settings.orderModes': 'takeaway' } }
         )
       }
 
-      // B. AUTO-ENABLE RESERVATIONS para Crecimiento/Premium si no están definidas en el body
-      // (Si el superadmin no las envió explícitamente, las forzamos por plan)
-      if ((body.plan === 'buy' || body.plan === 'full') && !body.features?.reservations) {
-        await Tenant.findByIdAndUpdate(tenantId, {
-          $set: { 'features.reservations': true }
-        })
+      // B. Sincronización de features específicas por plan
+      const updates: Record<string, any> = {}
+      
+      // Reservas: habilitar automáticamente para Crecimiento (buy) y Premium (full)
+      if (['buy', 'full'].includes(body.plan)) {
+        updates['features.reservations'] = true
+      }
+      
+      // Fidelización: habilitar para todos los planes comerciales
+      if (isCommercePlan) {
+        updates['loyalty.enabled'] = true
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await Tenant.findByIdAndUpdate(tenantId, { $set: updates })
       }
     }
 
