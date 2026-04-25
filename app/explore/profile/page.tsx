@@ -183,7 +183,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <BottomNav activeView="profile" />
+      <BottomNav />
     </div>
   )
 }
