@@ -6,11 +6,11 @@ import { Home, Map, Compass, Utensils, User } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const TABS = [
-  { id: 'home', href: '/explore', label: 'Inicio', icon: Home },
-  { id: 'map', href: '/explore?view=map', label: 'Mapa', icon: Map },
+  { id: 'home', href: '/explore', label: 'Inicio', icon: Home, isCenter: false },
+  { id: 'map', href: '/explore?view=map', label: 'Mapa', icon: Map, isCenter: false },
   { id: 'explore', href: '/explore', label: 'Explorar', icon: Compass, isCenter: true },
-  { id: 'rests', href: '/explore?view=list', label: 'Restós', icon: Utensils },
-  { id: 'profile', href: '/explore/profile', label: 'Perfil', icon: User },
+  { id: 'rests', href: '/explore?view=list', label: 'Restós', icon: Utensils, isCenter: false },
+  { id: 'profile', href: '/explore/profile', label: 'Perfil', icon: User, isCenter: false },
 ] as const
 
 export default function BottomNav() {
