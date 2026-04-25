@@ -91,7 +91,7 @@ export default function OnboardingCarousel({ onComplete }: Props) {
               animate={{ 
                 width: idx < currentStep ? '100%' : idx === currentStep ? `${progress}%` : '0%' 
               }}
-              transition={{ line: 'linear', duration: 0.05 }}
+              transition={{ ease: 'linear', duration: 0.05 }}
             />
           </div>
         ))}
