@@ -101,13 +101,13 @@ const LocationSchema = new Schema<ILocation>(
       type: Boolean,
       default: true,
     },
-    settings: {
-      acceptsOrders: { type: Boolean, default: true },
-      orderModes: {
-        type: [String],
-        enum: ['takeaway', 'dine-in'],
-        default: ['takeaway'],
-      },
+settings: {
+        acceptsOrders: { type: Boolean, default: true },
+        orderModes: {
+          type: [String],
+          enum: ['takeaway', 'dine-in'] as const,
+          default: ['takeaway'],
+        },
       estimatedPickupTime: { type: Number, default: 20 },
     },
     reservationConfig: {

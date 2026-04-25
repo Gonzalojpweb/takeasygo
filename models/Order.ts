@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
+export type OrderMode = 'takeaway' | 'dine-in'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 export interface ISelectedCustomizationOption {
@@ -50,6 +51,7 @@ export interface IOrder extends Document {
   locationId: mongoose.Types.ObjectId
   orderNumber: string
   status: OrderStatus
+  orderMode: OrderMode
   items: IOrderItem[]
   total: number
   customer: {
@@ -72,11 +74,11 @@ export interface IOrder extends Document {
   // ── Sincronización con POS (FUDO / BISTROSOFT) ─────────────────────────────
   posSync: {
     status: 'not_applicable' | 'pending' | 'synced' | 'failed'
-    posOrderId: string | null    // ID que le asignó el POS a este pedido
-    attempts: number             // Número de intentos de inyección
-    lastAttemptAt: Date | null   // Timestamp del último intento
-    error: string | null         // Mensaje del último error (para debug)
-  } | null
+    posOrderId: string | null
+    attempts: number
+    lastAttemptAt: Date | null
+    error: string | null
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -119,7 +121,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
   addedFrom: { type: String, default: null },
 })
 
-const OrderSchema = new Schema<IOrder>(
+const OrderSchema = new Schema(
   {
     tenantId: {
       type: Schema.Types.ObjectId,
@@ -140,12 +142,12 @@ const OrderSchema = new Schema<IOrder>(
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'],
+      enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] as const,
       default: 'pending',
     },
     orderMode: {
-      type: String,
-      enum: ['takeaway', 'dine-in'],
+      type: 'String' as const,
+      enum: ['takeaway', 'dine-in'] as const,
       required: true,
       index: true,
     },
@@ -164,7 +166,7 @@ const OrderSchema = new Schema<IOrder>(
     payment: {
       status: {
         type: String,
-        enum: ['pending', 'approved', 'rejected', 'cancelled'],
+        enum: ['pending', 'approved', 'rejected', 'cancelled'] as const,
         default: 'pending',
       },
       method: { type: String, default: 'mercadopago' },
