@@ -34,11 +34,6 @@ export async function POST(req: NextRequest) {
       phone:            phone?.trim() || '',
       cuisineTypes:     Array.isArray(cuisineTypes) ? cuisineTypes : [],
       openingHours:     openingHours?.trim() || '',
-      takeawayConfirmed: true,
-      status:           'listed',
-      addedBy:          'self_reported',
-      convertedToTenantId: null,
-      notes:            '',
     })
 
     return NextResponse.json({ ok: true }, { status: 201 })
