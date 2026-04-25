@@ -38,11 +38,9 @@ const RestaurantDirectorySchema = new Schema<IRestaurantDirectory>(
       type: {
         type: String,
         enum: ['Point'],
-        default: 'Point',
       },
       coordinates: {
         type: [Number],
-        default: undefined,
       },
     },
     phone: {
