@@ -16,6 +16,7 @@ import SelfReportModal from '@/components/consumer/SelfReportModal'
 import LoadingScreen from './LoadingScreen'
 import OnboardingCarousel from './OnboardingCarousel'
 import { AnimatePresence } from 'framer-motion'
+import { useTenant } from '@/contexts/TenantContext'
 
 const ExploreMap = dynamic(() => import('./ExploreMap'), {
   ssr: false,
@@ -41,6 +42,7 @@ export default function ExploreClient() {
 function ExploreClientInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { setTenantSlug } = useTenant()
   const [view, setView] = useState<View>('list')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsError, setGpsError] = useState<string | null>(null)
@@ -248,7 +250,10 @@ function ExploreClientInner() {
                             <FeaturedCard
                               restaurant={r}
                               index={i}
-                              onNavigate={() => router.push(`/explore/${r.id}?type=${r.type}`)}
+                              onNavigate={() => {
+                                setTenantSlug(r.id)
+                                router.push(`/explore/${r.id}?type=${r.type}`)
+                              }}
                             />
                           </BlurFade>
                         ))}
@@ -268,7 +273,10 @@ function ExploreClientInner() {
                         <BlurFade key={r.id} delay={Math.min(i * 0.05, 0.4)} inView>
                           <RestaurantCard
                             restaurant={r}
-                            onNavigate={() => router.push(`/explore/${r.id}?type=${r.type}`)}
+                            onNavigate={() => {
+                              setTenantSlug(r.id)
+                              router.push(`/explore/${r.id}?type=${r.type}`)
+                            }}
                           />
                         </BlurFade>
                       ))}
@@ -305,7 +313,10 @@ function ExploreClientInner() {
                 userLat={coords.lat}
                 userLng={coords.lng}
                 restaurants={restaurants}
-                onSelect={r => router.push(`/explore/${r.id}?type=${r.type}`)}
+                onSelect={r => {
+                  setTenantSlug(r.id)
+                  router.push(`/explore/${r.id}?type=${r.type}`)
+                }}
               />
             </div>
           )}

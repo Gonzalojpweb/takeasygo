@@ -3,10 +3,13 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import User from '@/models/User'
 import { NextRequest, NextResponse } from 'next/server'
 import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import crypto from 'crypto'
+import { auth } from '@/lib/auth'
+import mongoose from 'mongoose'
 
 // Rate limiting simple en memoria (para Next.js serverless usar Upstash en producción)
 const ipCounts = new Map<string, { count: number; resetAt: number }>()
@@ -142,8 +145,17 @@ export async function POST(
     }
 
     // Crear miembro
+    // Obtener usuario autenticado si existe para vincular
+    let userId: mongoose.Types.ObjectId | null = null
+    const session = await auth()
+    if (session?.user?.email) {
+      const user = await User.findOne({ email: session.user.email }).select('_id').lean()
+      if (user) userId = user._id
+    }
+
     const member = await LoyaltyMember.create({
       tenantId:  tenant._id,
+      userId:     userId,
       name:      cleanName,
       phone:     cleanPhone,
       email:     cleanEmail,

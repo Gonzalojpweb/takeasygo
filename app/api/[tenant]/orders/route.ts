@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import User from '@/models/User'
 import { generateOrderNumber } from '@/lib/orderNumber'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
@@ -12,6 +13,7 @@ import { encrypt, safeDecrypt, hashPhone } from '@/lib/crypto'
 import crypto from 'crypto'
 import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
+import { auth } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -217,8 +219,17 @@ export async function POST(
       if (!existing) {
         const limit = LOYALTY_MEMBER_LIMIT[tenant.plan as Plan]
         if (limit === null || await LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }) < limit) {
+          // Obtener usuario autenticado si existe
+          let userId: mongoose.Types.ObjectId | null = null
+          const session = await auth()
+          if (session?.user?.email) {
+            const user = await User.findOne({ email: session.user.email }).select('_id').lean()
+            if (user) userId = user._id
+          }
+
           await LoyaltyMember.create({
             tenantId:  tenant._id,
+            userId:     userId,
             name:      body.customer.name,
             phone:     body.customer.phone,
             email:     body.customer.email || '',

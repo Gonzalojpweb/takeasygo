@@ -35,86 +35,48 @@ yarn-error.log*
 .env*
 
 # vercel
-
 .vercel
-
 
 .env.local
 /env.local
 env.local
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
+# Archive files
 takeasyGo.zip
 .takeasyGo.zip
 /takeasyGo.zip
 takeasyGo.zip*
-
 /scale_extracted
 /takeasygo_extracted
 .takeasygo_extracted
 takeasygo_extracted
 takeasygo_extracted*
 
-secutiry.md
-
-SECURITY.md
-
-anality.md
-
-ANALITY.mds
-
-
-ESQUEMA.md
-ICO.md
-icoDos.md
-OPERATION_INDEX.md
-wireframe.png 
-
-/FUNCIONALIDAD.md
-
-fundamentos.md
-rrss.md
-rrss.md
-/rrss.md
-/fundamentos.md
-
-estrategia_instagram.md
-instagramstrategic.zip
-anuncios_redes_sociales.md
-asuntos_email.md
-guion_reel_promotion.md
-estrategia_frases_cta.md
-
-estrategia_ventas_instagram.md
-email_prospeccion.html
-guion_reel_promocion.md
-guion_reel_promocion.md
-compana_el_problema_real.md
-
-/MARKETING
-/TECNICAL
-
-
-
-mockup-consumer.html
-
-UPSELLING_TECNICO.md
-UPSELLING_VENTAS.md
-CAMPANA_UPSELLING_RRSS.MD
-
-negocios.md
-
-campana_7dias.md
-
-/kilo
-
-/CAMPAÑAS
-/PAUSED
+# Agent
 /.agent
 
+# HTML files
+mockup-consumer.html
+
+# Zip files
+instagramstrategic.zip
+
+# Directories
+/kilo
+
+env.local
+.env.local
 
 
-/public/demos
+
+
+/TECNICAL
+/PAUSED
+/MARKETING
+/CAMPAÑAS
 /RED
+wireframe.png
