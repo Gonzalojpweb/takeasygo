@@ -47,6 +47,20 @@ export interface ITenant extends Document {
     welcomeMessage: string   // mensaje de bienvenida editable
     createdAt:      Date | null
   }
+  /** Configuración de Wallet Digital (Google & Apple) */
+  wallet: {
+    enabled: boolean
+    /** Colores de la tarjeta digital */
+    cardColor: string       // Color de fondo de la tarjeta (hex)
+    labelColor: string      // Color de texto/labels (hex)
+    logoUrl: string         // Logo del restaurante en la tarjeta
+    heroImageUrl: string    // Imagen hero de la tarjeta
+    /** Configuración Apple Wallet (opcional, para tenants premium) */
+    applePassTypeIdentifier?: string  // pass.com.tenantname.loyalty
+    appleTeamIdentifier?: string      // Team ID de Apple Developer
+    /** Configuración Google Wallet */
+    googleIssuerId?: string             // Issuer ID de Google Cloud
+  }
   mercadopago: {
     accessToken: string | null
     publicKey: string | null
@@ -179,6 +193,17 @@ const TenantSchema = new Schema<ITenant>(
       clubName:       { type: String,  default: '' },
       welcomeMessage: { type: String,  default: '' },
       createdAt:      { type: Date,    default: null },
+    },
+    // Configuración de Wallet Digital
+    wallet: {
+      enabled:        { type: Boolean, default: false },
+      cardColor:      { type: String,  default: '#000000' },
+      labelColor:     { type: String,  default: '#FFFFFF' },
+      logoUrl:        { type: String,  default: '' },
+      heroImageUrl:   { type: String,  default: '' },
+      applePassTypeIdentifier: { type: String, default: null },
+      appleTeamIdentifier:     { type: String, default: null },
+      googleIssuerId:          { type: String, default: null },
     },
     mercadopago: {
       accessToken: { type: String, default: null },

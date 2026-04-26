@@ -16,8 +16,8 @@ export async function GET(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan loyalty name')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string }>()
+      .select('_id plan loyalty name wallet branding')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; wallet: any; branding: any }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -38,6 +38,12 @@ export async function GET(
         welcomeMessage: '',
         createdAt:      null,
       },
+      wallet: tenant.wallet ?? {
+        enabled: false,
+        cardColor: tenant.branding?.primaryColor || '#000000',
+        labelColor: tenant.branding?.textColor || '#FFFFFF',
+        logoUrl: tenant.branding?.logoUrl || '',
+      },
       plan: tenant.plan,
     })
   } catch (error) {
@@ -55,8 +61,8 @@ export async function PUT(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan loyalty name')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string }>()
+      .select('_id plan loyalty name wallet branding')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; wallet: any; branding: any }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -70,7 +76,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { enabled, clubName, welcomeMessage } = body
+    const { enabled, clubName, welcomeMessage, wallet } = body
 
     const update: Record<string, any> = {}
     const changes: Record<string, { from: any; to: any }> = {}
@@ -101,6 +107,30 @@ export async function PUT(
       }
     }
 
+    // Wallet settings
+    if (wallet) {
+      if (typeof wallet.enabled === 'boolean') {
+        const wasWalletEnabled = tenant.wallet?.enabled ?? false
+        update['wallet.enabled'] = wallet.enabled
+        changes['wallet.enabled'] = { from: wasWalletEnabled, to: wallet.enabled }
+      }
+
+      if (wallet.cardColor !== undefined) {
+        update['wallet.cardColor'] = String(wallet.cardColor).trim()
+        changes['wallet.cardColor'] = { from: tenant.wallet?.cardColor, to: wallet.cardColor }
+      }
+
+      if (wallet.labelColor !== undefined) {
+        update['wallet.labelColor'] = String(wallet.labelColor).trim()
+        changes['wallet.labelColor'] = { from: tenant.wallet?.labelColor, to: wallet.labelColor }
+      }
+
+      if (wallet.logoUrl !== undefined) {
+        update['wallet.logoUrl'] = String(wallet.logoUrl).trim()
+        changes['wallet.logoUrl'] = { from: tenant.wallet?.logoUrl, to: wallet.logoUrl }
+      }
+    }
+
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ loyalty: tenant.loyalty }, { status: 200 })
     }
@@ -109,7 +139,7 @@ export async function PUT(
       tenant._id,
       { $set: update },
       { new: true }
-    ).select('loyalty').lean()
+    ).select('loyalty wallet').lean()
 
     logAudit({
       tenantId: tenant._id.toString(),
@@ -120,7 +150,10 @@ export async function PUT(
       request,
     })
 
-    return NextResponse.json({ loyalty: updated?.loyalty })
+    return NextResponse.json({ 
+      loyalty: updated?.loyalty,
+      wallet: updated?.wallet
+    })
   } catch (error) {
     console.error('[loyalty/settings PUT]', error)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
