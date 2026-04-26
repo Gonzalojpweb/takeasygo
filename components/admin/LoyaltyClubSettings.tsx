@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, QrCode, Save, Eye, EyeOff } from 'lucide-react'
+import { Loader2, QrCode, Save, Eye, EyeOff, Smartphone, Palette, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -17,6 +17,12 @@ interface Props {
     enabled: boolean
     clubName: string
     welcomeMessage: string
+    wallet?: {
+      enabled: boolean
+      cardColor: string
+      labelColor: string
+      logoUrl: string
+    }
   }
 }
 
@@ -33,12 +39,22 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
   const [welcomeMsg, setWelcomeMsg] = useState(initial?.welcomeMessage ?? '')
   const [loading, setLoading]       = useState(false)
   const [saving, setSaving]         = useState(false)
+  
+  // Wallet states
+  const [walletEnabled, setWalletEnabled] = useState(initial?.wallet?.enabled ?? false)
+  const [cardColor, setCardColor]         = useState(initial?.wallet?.cardColor ?? '#000000')
+  const [labelColor, setLabelColor]       = useState(initial?.wallet?.labelColor ?? '#FFFFFF')
+  const [walletLogoUrl, setWalletLogoUrl] = useState(initial?.wallet?.logoUrl ?? '')
 
   useEffect(() => {
     if (initial) {
       setEnabled(initial.enabled)
       setClubName(initial.clubName)
       setWelcomeMsg(initial.welcomeMessage)
+      setWalletEnabled(initial.wallet?.enabled ?? false)
+      setCardColor(initial.wallet?.cardColor ?? '#000000')
+      setLabelColor(initial.wallet?.labelColor ?? '#FFFFFF')
+      setWalletLogoUrl(initial.wallet?.logoUrl ?? '')
     }
   }, [initial])
 
@@ -48,7 +64,17 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
       const res = await fetch(`/api/${tenantSlug}/loyalty/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled, clubName, welcomeMessage: welcomeMsg }),
+        body: JSON.stringify({ 
+          enabled, 
+          clubName, 
+          welcomeMessage: welcomeMsg,
+          wallet: {
+            enabled: walletEnabled,
+            cardColor,
+            labelColor,
+            logoUrl: walletLogoUrl
+          }
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al guardar')
@@ -148,6 +174,140 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
               className="w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all resize-none"
             />
             <p className="text-[10px] text-muted-foreground/50 text-right">{welcomeMsg.length}/300</p>
+          </div>
+        </div>
+
+        {/* ─────────────────────────────────────────────────────────────────────
+            WALLET DIGITAL
+        ───────────────────────────────────────────────────────────────────── */}
+        <div className="pt-6 border-t border-border/40">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-500">
+              <Smartphone size={24} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold">Wallet Digital</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Google Wallet & Apple Wallet para tus clientes
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40 mb-6">
+            <div className="flex items-center gap-4">
+              <div className={cn(
+                'w-12 h-12 rounded-2xl flex items-center justify-center transition-colors',
+                walletEnabled ? 'bg-violet-500/10 text-violet-500' : 'bg-muted text-muted-foreground'
+              )}>
+                <CreditCard size={24} />
+              </div>
+              <div>
+                <Label className="text-base font-bold cursor-pointer" htmlFor="wallet-enabled">
+                  {walletEnabled ? 'Wallet activo' : 'Wallet desactivado'}
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {walletEnabled
+                    ? 'Los clientes pueden agregar su tarjeta a Google/Apple Wallet.'
+                    : 'Activalo para que los clientes tengan su tarjeta digital.'}
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="wallet-enabled"
+              checked={walletEnabled}
+              onCheckedChange={setWalletEnabled}
+              className="data-[state=checked]:bg-violet-500"
+            />
+          </div>
+
+          <div className={cn('space-y-6 transition-opacity', walletEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none')}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Color de tarjeta
+                </Label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={cardColor}
+                    onChange={e => setCardColor(e.target.value)}
+                    className="w-12 h-12 rounded-xl cursor-pointer border-2 border-border/60"
+                  />
+                  <Input
+                    value={cardColor}
+                    onChange={e => setCardColor(e.target.value)}
+                    placeholder="#000000"
+                    className="flex-1 bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Color de texto
+                </Label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={labelColor}
+                    onChange={e => setLabelColor(e.target.value)}
+                    className="w-12 h-12 rounded-xl cursor-pointer border-2 border-border/60"
+                  />
+                  <Input
+                    value={labelColor}
+                    onChange={e => setLabelColor(e.target.value)}
+                    placeholder="#FFFFFF"
+                    className="flex-1 bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                URL del logo
+              </Label>
+              <Input
+                value={walletLogoUrl}
+                onChange={e => setWalletLogoUrl(e.target.value)}
+                placeholder="https://..."
+                className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+              />
+              <p className="text-[10px] text-muted-foreground/50">
+                Se usará el logo del branding si está vacío
+              </p>
+            </div>
+
+            {/* Preview de la tarjeta */}
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                Preview
+              </Label>
+              <div 
+                className="rounded-2xl p-6 text-white shadow-xl"
+                style={{ backgroundColor: cardColor, color: labelColor }}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider opacity-70">Club de Fidelización</p>
+                    <h3 className="text-lg font-bold">{clubName || 'Tu Restaurante'}</h3>
+                  </div>
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <QrCode size={20} />
+                  </div>
+                </div>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-3xl font-black">1,250</p>
+                    <p className="text-xs uppercase tracking-wider opacity-70">Puntos</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">Oro</p>
+                    <p className="text-xs uppercase tracking-wider opacity-70">Nivel</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

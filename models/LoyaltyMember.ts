@@ -34,6 +34,22 @@ export interface ILoyaltyMember extends Document {
     tier:   LoyaltyTier
   }
 
+  // FASE WALLET: Integración Google & Apple Wallet
+  wallet: {
+    /** ID único público para QR (no expone ObjectId de Mongo) */
+    publicId: string
+    /** Google Wallet: ID del objeto loyalty en Google API */
+    googleObjectId?: string
+    /** Apple Wallet: Device Library Identifier para push updates */
+    appleDeviceLibraryIdentifier?: string
+    /** Apple Wallet: Push token para notificaciones de actualización */
+    pushToken?: string
+    /** Fecha de instalación en wallets */
+    installedAt?: Date | null
+    /** Última sincronización de puntos */
+    lastSyncAt?: Date | null
+  }
+
   notes:     string   // nota interna del admin
   createdAt: Date
   updatedAt: Date
@@ -105,6 +121,37 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
       },
     },
 
+    // FASE WALLET: Schema para integración con billeteras
+    wallet: {
+      publicId: {
+        type: String,
+        required: false,
+        unique: true,
+        index: true,
+      },
+      googleObjectId: {
+        type: String,
+        default: null,
+        index: true,
+      },
+      appleDeviceLibraryIdentifier: {
+        type: String,
+        default: null,
+      },
+      pushToken: {
+        type: String,
+        default: null,
+      },
+      installedAt: {
+        type: Date,
+        default: null,
+      },
+      lastSyncAt: {
+        type: Date,
+        default: null,
+      },
+    },
+
     notes: {
       type:    String,
       default: '',
@@ -126,6 +173,34 @@ LoyaltyMemberSchema.statics.hashPhone = function (phone: string): string {
   const normalized = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '')
   return crypto.createHash('sha256').update(normalized).digest('hex')
 }
+
+// ── Helper: generar publicId único para QR/Wallets ────────────────────────────
+function generatePublicId(): string {
+  // Formato: TGO-XXXX-XXXX-XXXX (ej: TGO-A3F7-K9M2-P8R5)
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const segment = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  return `TGO-${segment()}-${segment()}-${segment()}`
+}
+
+// ── Middleware pre-save: generar publicId si no existe ───────────────────────
+LoyaltyMemberSchema.pre('save', async function () {
+  if (!this.wallet?.publicId) {
+    // Generar ID único (con reintentos por si hay colisión)
+    let publicId = generatePublicId()
+    let attempts = 0
+    const maxAttempts = 5
+
+    while (attempts < maxAttempts) {
+      const exists = await (this.constructor as any).findOne({ 'wallet.publicId': publicId }).lean()
+      if (!exists) break
+      publicId = generatePublicId()
+      attempts++
+    }
+
+    if (!this.wallet) this.wallet = {} as any
+    this.wallet.publicId = publicId
+  }
+})
 
 const LoyaltyMember =
   mongoose.models.LoyaltyMember ||
