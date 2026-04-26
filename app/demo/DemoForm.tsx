@@ -15,7 +15,7 @@ export default function DemoForm({ canal }: DemoFormProps) {
     const [submitState, setSubmitState] = useState<SubmitState>('idle')
     const [errorMsg, setErrorMsg] = useState('')
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
     }
 
