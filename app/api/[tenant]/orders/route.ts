@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
