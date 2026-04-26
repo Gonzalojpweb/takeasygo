@@ -19,7 +19,7 @@ type SubmitState = 'idle' | 'loading' | 'success' | 'error'
 
 export default function DemoSection() {
     const [isPaused, setIsPaused] = useState(false)
-    const [formData, setFormData] = useState({ name: '', business: '', email: '', phone: '' })
+    const [formData, setFormData] = useState({ name: '', business: '', email: '', phone: '', countryCode: '+54' })
     const [submitState, setSubmitState] = useState<SubmitState>('idle')
     const [errorMsg, setErrorMsg] = useState('')
 
@@ -37,7 +37,10 @@ export default function DemoSection() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ...formData,
+                    name: formData.name,
+                    business: formData.business,
+                    email: formData.email,
+                    phone: `${formData.countryCode} ${formData.phone}`,
                     plan: 'Demo – Solicitud de demostración',
                     planId: 'demo',
                 }),
@@ -169,26 +172,48 @@ export default function DemoSection() {
                                 />
                             </div>
 
-                            {/* Phone */}
-                            <div className="flex flex-col gap-2 w-full md:min-w-[160px] md:flex-1 text-left">
+                            {/* Phone with Country Code */}
+                            <div className="flex flex-col gap-2 w-full md:min-w-[200px] md:flex-1 text-left">
                                 <label
                                     htmlFor="demo-phone"
                                     className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
                                 >
                                     Teléfono
                                 </label>
-                                <input
-                                    id="demo-phone"
-                                    name="phone"
-                                    type="tel"
-                                    autoComplete="tel"
-                                    placeholder="+54 9 11 0000 0000"
-                                    required
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    disabled={submitState === 'loading'}
-                                    className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
-                                />
+                                <div className="flex gap-2">
+                                    <select
+                                        name="countryCode"
+                                        value={formData.countryCode}
+                                        onChange={handleChange}
+                                        disabled={submitState === 'loading'}
+                                        className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 text-sm disabled:opacity-50 focus:outline-none focus:border-zinc-900 w-[80px]"
+                                    >
+                                        <option value="+54">🇦🇷 +54</option>
+                                        <option value="+598">🇺🇾 +598</option>
+                                        <option value="+56">🇨🇱 +56</option>
+                                        <option value="+55">🇧🇷 +55</option>
+                                        <option value="+51">🇵🇪 +51</option>
+                                        <option value="+52">🇲🇽 +52</option>
+                                        <option value="+1">🇺🇸 +1</option>
+                                        <option value="+34">🇪🇸 +34</option>
+                                        <option value="+44">🇬🇧 +44</option>
+                                        <option value="+49">🇩🇪 +49</option>
+                                        <option value="+33">🇫🇷 +33</option>
+                                        <option value="+39">🇮🇹 +39</option>
+                                    </select>
+                                    <input
+                                        id="demo-phone"
+                                        name="phone"
+                                        type="tel"
+                                        autoComplete="tel"
+                                        placeholder="9 11 0000 0000"
+                                        required
+                                        value={formData.phone}
+                                        onChange={handleChange}
+                                        disabled={submitState === 'loading'}
+                                        className="flex-1 bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
+                                    />
+                                </div>
                             </div>
 
                             <div className="w-full md:w-auto flex flex-col items-stretch md:items-end gap-2 shrink-0">
