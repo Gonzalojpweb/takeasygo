@@ -3,16 +3,18 @@
 import { signIn, signOut, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn } from 'lucide-react'
+import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle } from 'lucide-react'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { BorderBeam } from '@/components/ui/border-beam'
 import { AnimatedShinyText } from '@/components/ui/animated-shiny-text'
 import BottomNav from '@/components/explore/BottomNav'
+import { useTenant } from '@/contexts/TenantContext'
 
 export default function ProfilePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { tenantSlug } = useTenant()
   const loading = status === 'loading'
 
   if (loading) {
@@ -151,6 +153,32 @@ export default function ProfilePage() {
               </div>
               <ChevronRight size={16} className="text-[#5a524d] group-hover:translate-x-1 transition-transform" />
             </button>
+
+            {tenantSlug ? (
+              <button 
+                onClick={() => router.push(`/explore/profile/club/${tenantSlug}`)}
+                className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-amber-500">
+                  <Trophy size={20} />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-bold text-[#f7f4f2]">Club de Fidelización</p>
+                  <p className="text-[10px] text-[#5a524d]">Puntos y beneficios</p>
+                </div>
+                <ChevronRight size={16} className="text-[#5a524d] group-hover:translate-x-1 transition-transform" />
+              </button>
+            ) : (
+              <div className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 border-[var(--c-border)]">
+                <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-[#5a524d]">
+                  <AlertCircle size={20} />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-bold text-[#f7f4f2]">Club de Fidelización</p>
+                  <p className="text-[10px] text-[#5a524d]">Seleccioná un restaurante primero</p>
+                </div>
+              </div>
+            )}
 
             <div className="h-4" />
             <h3 className="text-[10px] font-black uppercase tracking-widest text-[#5a524d] ml-1 mb-2">

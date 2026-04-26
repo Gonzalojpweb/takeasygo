@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { TenantProvider } from '@/contexts/TenantContext'
 
 export const viewport: Viewport = {
   themeColor: '#10b981',
@@ -27,8 +28,10 @@ export const metadata: Metadata = {
 
 export default function ExploreLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="consumer-dark min-h-screen bg-[#0d0b0a]">
-      {children}
-    </div>
+    <TenantProvider>
+      <div className="consumer-dark min-h-screen bg-[#0d0b0a]">
+        {children}
+      </div>
+    </TenantProvider>
   )
 }

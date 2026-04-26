@@ -8,6 +8,9 @@ export type LoyaltyTier = 'none' | 'bronze' | 'silver' | 'gold'
 export interface ILoyaltyMember extends Document {
   tenantId:  mongoose.Types.ObjectId
 
+  // Vinculación con User (autenticación)
+  userId?: mongoose.Types.ObjectId | null  // ID del usuario autenticado (opcional)
+
   // Identificación del cliente
   name:      string
   phone:     string
@@ -61,6 +64,14 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
       type:     Schema.Types.ObjectId,
       ref:      'Tenant',
       required: true,
+      index:    true,
+    },
+
+    // Vinculación con User (autenticación)
+    userId: {
+      type:     Schema.Types.ObjectId,
+      ref:      'User',
+      default:  null,
       index:    true,
     },
 
@@ -167,6 +178,8 @@ LoyaltyMemberSchema.index({ tenantId: 1, phoneHash: 1 }, { unique: true, sparse:
 LoyaltyMemberSchema.index({ tenantId: 1, email: 1 })
 LoyaltyMemberSchema.index({ tenantId: 1, status: 1, joinedAt: -1 })
 LoyaltyMemberSchema.index({ tenantId: 1, source: 1 })
+// Índice para buscar membresía por usuario autenticado
+LoyaltyMemberSchema.index({ userId: 1, tenantId: 1 }, { unique: true, sparse: true })
 
 // ── Helper estático: generar phoneHash ───────────────────────────────────────
 LoyaltyMemberSchema.statics.hashPhone = function (phone: string): string {
