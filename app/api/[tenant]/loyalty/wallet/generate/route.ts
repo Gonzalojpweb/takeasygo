@@ -185,7 +185,7 @@ export async function GET(
     }
 
     const passBuffer = await generateAppleWalletPass(member._id, tenant._id)
-    
+
     if (!passBuffer) {
       return NextResponse.json(
         { error: 'Error generando pase' },
@@ -194,7 +194,7 @@ export async function GET(
     }
 
     // Devolver como archivo descargable
-    return new NextResponse(passBuffer, {
+    return new NextResponse(new Uint8Array(passBuffer), {
       headers: {
         'Content-Type': 'application/vnd.apple.pkpass',
         'Content-Disposition': `attachment; filename="${member.wallet.publicId}.pkpass"`,
