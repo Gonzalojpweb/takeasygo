@@ -20,6 +20,16 @@ export interface ILocation extends Document {
     acceptsOrders: boolean
     orderModes: ('takeaway' | 'dine-in')[]
     estimatedPickupTime: number
+    /** Historial de ajustes automáticos del tiempo estimado (anti-gaming audit) */
+    adjustmentHistory?: Array<{
+      previousValue: number
+      newValue: number
+      reason: string
+      icoScore: number | null
+      sampleSize: number
+      triggeredBy: 'cron' | 'order_completed' | 'admin_request' | 'system_init'
+      timestamp: Date
+    }>
   }
   reservationConfig: {
     enabled: boolean
@@ -108,7 +118,23 @@ settings: {
           enum: ['takeaway', 'dine-in'] as const,
           default: ['takeaway'],
         },
-      estimatedPickupTime: { type: Number, default: 20 },
+        estimatedPickupTime: { type: Number, default: 20 },
+        adjustmentHistory: {
+          type: [{
+            previousValue: { type: Number, required: true },
+            newValue: { type: Number, required: true },
+            reason: { type: String, required: true },
+            icoScore: { type: Number, default: null },
+            sampleSize: { type: Number, required: true },
+            triggeredBy: {
+              type: String,
+              enum: ['cron', 'order_completed', 'admin_request', 'system_init'],
+              required: true
+            },
+            timestamp: { type: Date, default: Date.now }
+          }],
+          default: []
+        }
     },
     reservationConfig: {
       enabled: { type: Boolean, default: false },
