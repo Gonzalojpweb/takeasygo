@@ -6,6 +6,7 @@ import PushSubscription from '@/models/PushSubscription'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
+import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
 import webpush from 'web-push'
 
 webpush.setVapidDetails(
@@ -109,6 +110,13 @@ export async function PATCH(
         // No fallar el endpoint por un error de push
         console.warn('[push] Error enviando notificación:', pushErr?.message)
       }
+    }
+
+    // ── Trigger ajuste automático de tiempo estimado (anti-gaming) ───────────
+    // Se ejecuta en background cuando un pedido se completa (delivered)
+    // para recalcular el tiempo óptimo basado en datos reales
+    if (status === 'delivered') {
+      triggerBackgroundAdjustment(order.locationId.toString(), tenant._id.toString())
     }
 
     // Milestone detection: notificar al cliente cuando el pedido #30 es procesado (solo plan trial)
