@@ -113,8 +113,8 @@ export default async function MenuSelectorPage({ params }: Props) {
           margin-bottom: 36px;
         }
         .mh-logo {
-          height: 72px;
-          max-width: 180px;
+          height: 80px;
+          max-width: 190px;
           object-fit: contain;
           filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
         }
@@ -313,7 +313,7 @@ export default async function MenuSelectorPage({ params }: Props) {
                 <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, flexShrink: 0, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
                   <path d="M3 11l19-9-9 19-2-8-8-2z" />
                 </svg>
-                Consumir aquí
+                Consumir en Local
               </Link>
             )}
             {modes.includes('takeaway') && (
@@ -346,7 +346,7 @@ export default async function MenuSelectorPage({ params }: Props) {
                   <line x1="8" y1="2" x2="8" y2="6" />
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
-                Reservar mesa
+                Reservar
               </Link>
             )}
           </div>
