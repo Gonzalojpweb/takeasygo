@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
 const MP_CHECK_CACHE_TTL = 30_000 // 30 seg caching
 
-async function verifyPaymentStatus(order: any, accessToken: string | null) {
+async function verifyPaymentStatus(order: any, accessToken: string, tenantId: string) {
   if (!order.payment.mercadopagoId || !accessToken) return order.status
 
   const cacheKey = order.payment.mercadopagoId
@@ -20,8 +20,8 @@ async function verifyPaymentStatus(order: any, accessToken: string | null) {
   }
 
   try {
-    // Buscar payments por external_reference (que es el orderNumber)
-    const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=${order.orderNumber}&sort=date_created&criteria=desc`
+    // Buscar payments por external_reference (orderNumber) - el más reciente primero
+    const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=${order.orderNumber}&sort=date_created&criteria=desc&limit=1`
     
     const response = await fetch(searchUrl, {
       headers: {
@@ -30,10 +30,15 @@ async function verifyPaymentStatus(order: any, accessToken: string | null) {
       }
     })
 
-    const searchResult = await response.json() as any
-    console.log(`[track] MP search results:`, JSON.stringify(searchResult).slice(0, 500))
+    if (!response.ok) {
+      console.log(`[track] MP API error:`, response.status)
+      return order.payment.status
+    }
 
-    // Obtener el último payment encontrado
+    const searchResult = await response.json() as any
+    console.log(`[track] MP search for order ${order.orderNumber}:`, searchResult.paging?.total || 0, 'results')
+
+    // Obtener el payment
     const paymentData = searchResult.results?.[0]
 
     if (!paymentData) {
@@ -41,7 +46,7 @@ async function verifyPaymentStatus(order: any, accessToken: string | null) {
       return 'pending'
     }
 
-    console.log(`[track] Found payment ${paymentData.id} with status ${paymentData.status}`)
+    console.log(`[track] Found payment ${paymentData.id} with status ${paymentData.status},collector ${paymentData.collector?.id}`)
     
     mpStatusCache.set(cacheKey, { status: paymentData.status || 'pending', timestamp: Date.now() })
     return paymentData.status || 'pending'
@@ -74,10 +79,11 @@ export async function GET(
     let currentStatus = order.status
     console.log(`[track] Order ${order.orderNumber}:status=${order.status}, mpId=${order.payment?.mercadopagoId}`)
 
-    if (order.status === 'awaiting_payment' && order.payment?.mercadopagoId && hasMpConfigured) {
-      const accessToken = decrypt(tenant.mercadopago.accessToken)
-      console.log(`[track] Calling MP verify for preference ${order.payment.mercadopagoId}, token exists=${!!accessToken}`)
-      const mpStatus = await verifyPaymentStatus(order, accessToken)
+    if (order.status === 'awaiting_payment' && order.payment?.mercadopagoId && hasMpConfigured && tenant.mercadopago?.accessToken) {
+      const accessToken = decrypt(tenant.mercadopago.accessToken) as string
+      const tenantId = (tenant as any)._id?.toString()
+      console.log(`[track] Calling MP verify for order ${order.orderNumber}, token exists=${!!accessToken}`)
+      const mpStatus = await verifyPaymentStatus(order, accessToken, tenantId)
       console.log(`[track] MP status: ${mpStatus}`)
 
       // Si MP aprobó el pago, actualizamos el pedido en DB
