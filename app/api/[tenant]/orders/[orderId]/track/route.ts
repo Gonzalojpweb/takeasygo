@@ -10,8 +10,8 @@ import { NextRequest, NextResponse } from 'next/server'
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
 const MP_CHECK_CACHE_TTL = 30_000 // 30 seg caching
 
-async function verifyPaymentStatus(order: any, tenant: any) {
-  if (!order.payment.mercadopagoId) return order.status
+async function verifyPaymentStatus(order: any, accessToken: string | null) {
+  if (!order.payment.mercadopagoId || !accessToken) return order.status
 
   const cacheKey = order.payment.mercadopagoId
   const cached = mpStatusCache.get(cacheKey)
@@ -21,11 +21,29 @@ async function verifyPaymentStatus(order: any, tenant: any) {
   }
 
   try {
-    const accessToken = decrypt(tenant.mercadopago.accessToken)
     const client = new MercadoPagoConfig({ accessToken })
     const paymentClient = new Payment(client)
-    const paymentData = await paymentClient.get({ id: order.payment.mercadopagoId })
 
+    // El mercadopagoId guardado es el preference ID, no el payment ID
+    // Necesitamos buscar el payment asociado a esta preferencia
+    console.log(`[track] Searching MP payments for preference_id: ${order.payment.mercadopagoId}`)
+    
+    const searchResult = await paymentClient.search({
+      filters: { preference_id: order.payment.mercadopagoId }
+    })
+
+    console.log(`[track] MP search results:`, JSON.stringify(searchResult).slice(0, 500))
+
+    // Obtener el último payment encontrado
+    const paymentData = searchResult.results?.[0]
+
+    if (!paymentData) {
+      console.log(`[track] No payment found for preference`)
+      return 'pending'
+    }
+
+    console.log(`[track] Found payment ${paymentData.id} with status ${paymentData.status}`)
+    
     mpStatusCache.set(cacheKey, { status: paymentData.status || 'pending', timestamp: Date.now() })
     return paymentData.status || 'pending'
   } catch (err) {
@@ -42,8 +60,11 @@ export async function GET(
     const { tenant: tenantSlug, orderId } = await params
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } }).lean() as any
+    const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    const hasMpConfigured = tenant.mercadopago?.isConfigured && tenant.mercadopago?.accessToken
+    console.log(`[track] Tenant ${tenantSlug}: mpConfigured=${hasMpConfigured}`)
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
       .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.mercadopagoId')
@@ -52,18 +73,28 @@ export async function GET(
 
     // Si el pedido está esperando pago, verificamos el estado real en MercadoPago
     let currentStatus = order.status
-    if (order.status === 'awaiting_payment' && order.payment?.mercadopagoId && tenant.mercadopago?.accessToken) {
-      const mpStatus = await verifyPaymentStatus(order, tenant)
+    console.log(`[track] Order ${order.orderNumber}:status=${order.status}, mpId=${order.payment?.mercadopagoId}`)
+
+    if (order.status === 'awaiting_payment' && order.payment?.mercadopagoId && hasMpConfigured) {
+      const accessToken = decrypt(tenant.mercadopago.accessToken)
+      console.log(`[track] Calling MP verify for preference ${order.payment.mercadopagoId}, token exists=${!!accessToken}`)
+      const mpStatus = await verifyPaymentStatus(order, accessToken)
+      console.log(`[track] MP status: ${mpStatus}`)
 
       // Si MP aprobó el pago, actualizamos el pedido en DB
       if (mpStatus === 'approved') {
-        const dbOrder = await Order.findById(order._id)
-        if (dbOrder && dbOrder.status === 'awaiting_payment') {
+        const dbOrder = await Order.findOne({ _id: order._id, status: 'awaiting_payment' })
+        if (dbOrder) {
           dbOrder.payment.status = 'approved'
           dbOrder.status = 'confirmed'
           await dbOrder.save()
           currentStatus = 'confirmed'
           console.log(`[track] Order ${order.orderNumber} confirmed via MP verification`)
+        } else {
+          // El pedido ya fue actualizado por el webhook
+          const updatedOrder = await Order.findById(order._id)
+          currentStatus = updatedOrder?.status || 'confirmed'
+          console.log(`[track] Order ${order.orderNumber} status from DB: ${currentStatus}`)
         }
       } else if (['rejected', 'cancelled'].includes(mpStatus)) {
         const dbOrder = await Order.findById(order._id)

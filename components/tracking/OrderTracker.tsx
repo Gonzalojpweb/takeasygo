@@ -63,6 +63,14 @@ export default function OrderTracker({
     } catch { /* ignora errores de red */ }
   }, [tenantSlug, orderId])
 
+  // Verificar inmediatamente si está esperando pago al cargar
+  useEffect(() => {
+    if (initialStatus === 'awaiting_payment') {
+      poll()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Ejecutar solo al montar
+
   // Polling cada 10s mientras el pedido no sea terminal
   useEffect(() => {
     const terminal = ['delivered', 'cancelled']
