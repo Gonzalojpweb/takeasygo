@@ -3,7 +3,6 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { decrypt } from '@/lib/crypto'
-import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
@@ -21,24 +20,24 @@ async function verifyPaymentStatus(order: any, accessToken: string | null) {
   }
 
   try {
-    const client = new MercadoPagoConfig({ accessToken })
-    const paymentClient = new Payment(client)
-
-    // El mercadopagoId guardado es el preference ID, no el payment ID
-    // Necesitamos buscar el payment asociado a esta preferencia
-    console.log(`[track] Searching MP payments for preference_id: ${order.payment.mercadopagoId}`)
+    // Buscar payments por external_reference (que es el orderNumber)
+    const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=${order.orderNumber}&sort=date_created&criteria=desc`
     
-    const searchResult = await paymentClient.search({
-      filters: { preference_id: order.payment.mercadopagoId }
+    const response = await fetch(searchUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
     })
 
+    const searchResult = await response.json() as any
     console.log(`[track] MP search results:`, JSON.stringify(searchResult).slice(0, 500))
 
     // Obtener el último payment encontrado
     const paymentData = searchResult.results?.[0]
 
     if (!paymentData) {
-      console.log(`[track] No payment found for preference`)
+      console.log(`[track] No payment found for order ${order.orderNumber}`)
       return 'pending'
     }
 
