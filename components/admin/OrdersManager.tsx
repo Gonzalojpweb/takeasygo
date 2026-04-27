@@ -19,6 +19,7 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
+  awaiting_payment: { label: 'Esperando pago', dot: 'bg-gray-400', badge: 'bg-gray-50 text-gray-600 border-gray-200' },
   pending:   { label: 'Pendiente',   dot: 'bg-amber-400',   badge: 'bg-amber-50 text-amber-700 border-amber-200' },
   confirmed: { label: 'Confirmado',  dot: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 border-blue-200' },
   preparing: { label: 'Preparando',  dot: 'bg-orange-400',  badge: 'bg-orange-50 text-orange-700 border-orange-200' },
