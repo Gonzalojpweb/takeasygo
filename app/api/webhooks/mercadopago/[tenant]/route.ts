@@ -141,7 +141,10 @@ export async function POST(
             order.payment.mercadopagoId = mpPaymentId
 
             if (paymentData.status === 'approved') {
-              order.status = 'confirmed'
+              // Solo cambiar a confirmed si estaba en awaiting_payment
+              if (order.status === 'awaiting_payment') {
+                order.status = 'confirmed'
+              }
 
               if (order.customer?.phoneHash) {
                 await LoyaltyMember.findOneAndUpdate(

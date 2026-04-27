@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
 
-const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
+const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered']
 
 const STATUS_INFO: Record<string, { label: string; description: string; emoji: string; pulse?: boolean }> = {
+  awaiting_payment: { label: 'Esperando pago', description: 'Completá el pago para confirmar tu pedido', emoji: '💳' },
   pending:   { label: 'Recibido',   description: 'Tu pedido fue recibido y está esperando confirmación', emoji: '📋' },
   confirmed: { label: 'Confirmado', description: 'El restaurante confirmó tu pedido', emoji: '✅', pulse: true },
   preparing: { label: 'Preparando', description: 'Tu pedido está siendo preparado', emoji: '👨‍🍳', pulse: true },

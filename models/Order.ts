@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
-export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
+export type OrderStatus = 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
 export type OrderMode = 'takeaway' | 'dine-in'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
@@ -142,14 +142,13 @@ const OrderSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] as const,
-      default: 'pending',
+      enum: ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] as const,
+      default: 'awaiting_payment',
     },
     orderMode: {
       type: 'String' as const,
       enum: ['takeaway', 'dine-in'] as const,
       required: true,
-      index: true,
     },
     items: [OrderItemSchema],
     total: {

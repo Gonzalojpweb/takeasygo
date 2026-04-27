@@ -31,7 +31,7 @@ export async function GET(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const filter: Record<string, any> = { tenantId: tenant._id }
+    const filter: Record<string, any> = { tenantId: tenant._id, status: { $ne: 'awaiting_payment' } }
     if (locationId) filter.locationId = locationId
 
     const rawOrders = await Order.find(filter).sort({ createdAt: -1 }).limit(50).lean()
@@ -90,7 +90,7 @@ export async function POST(
       const activeOrder = await Order.findOne({
         tenantId: tenant._id,
         'customer.phoneHash': ph,
-        status: { $in: ['pending', 'confirmed', 'preparing', 'ready'] },
+        status: { $in: ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready'] },
       }).select('orderNumber status').lean() as any
 
       if (activeOrder) {
@@ -206,6 +206,7 @@ export async function POST(
       tenantId: tenant._id,
       locationId: body.locationId,
       orderNumber: generateOrderNumber(tenantSlug),
+      status: 'awaiting_payment',
       orderMode: body.mode,
       items: resolvedItems,
       total,
