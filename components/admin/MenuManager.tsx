@@ -26,7 +26,11 @@ interface Props {
   tenantSlug: string
 }
 
-type CustomizationOptionForm = { name: string; extraPrice: string }
+type CustomizationOptionForm = {
+  name: string
+  extraPrice: string
+  subGroups: CustomizationGroupForm[]   // grupos que se activan si esta opción es elegida
+}
 type CustomizationGroupForm = {
   name: string
   type: 'single' | 'multiple'
@@ -48,12 +52,16 @@ const EMPTY_ITEM = {
 
 type ItemFormData = typeof EMPTY_ITEM
 
-function serializeGroups(groups: CustomizationGroupForm[]) {
+function serializeGroups(groups: CustomizationGroupForm[]): any[] {
   return groups.map((g: CustomizationGroupForm) => ({
     name: g.name,
     type: g.type,
     required: g.required,
-    options: g.options.map((o: any) => ({ name: o.name, extraPrice: parseFloat(o.extraPrice) || 0 })),
+    options: g.options.map((o: CustomizationOptionForm) => ({
+      name: o.name,
+      extraPrice: parseFloat(o.extraPrice) || 0,
+      subGroups: serializeGroups(o.subGroups ?? []),
+    })),
   }))
 }
 
@@ -62,7 +70,11 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
     name: g.name,
     type: g.type ?? 'single',
     required: g.required ?? false,
-    options: (g.options || []).map((o: any) => ({ name: o.name, extraPrice: o.extraPrice?.toString() ?? '0' })),
+    options: (g.options || []).map((o: any) => ({
+      name: o.name,
+      extraPrice: o.extraPrice?.toString() ?? '0',
+      subGroups: deserializeGroups(o.subGroups ?? []),
+    })),
   }))
 }
 
@@ -71,10 +83,13 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [expandedCategories, setExpandedCategories] = useState<string[]>([])
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryDescription, setNewCategoryDescription] = useState('')
   const [showAddItem, setShowAddItem] = useState<string | null>(null)
   const [newItem, setNewItem] = useState<ItemFormData>(EMPTY_ITEM)
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [editingCategoryName, setEditingCategoryName] = useState('')
+  const [editingCategoryDescription, setEditingCategoryDescription] = useState('')
+  const [editingCategoryGroups, setEditingCategoryGroups] = useState<CustomizationGroupForm[]>([])
   const [editingCategoryAvailMode, setEditingCategoryAvailMode] = useState<'always' | 'scheduled'>('always')
   const [editingCategoryAvailSchedule, setEditingCategoryAvailSchedule] = useState<ScheduleSlot[]>([])
   const [editingItem, setEditingItem] = useState<string | null>(null)
@@ -164,11 +179,12 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       const res = await fetch(`/api/${tenantSlug}/menu/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locationId: selectedLocation, name: newCategoryName }),
+        body: JSON.stringify({ locationId: selectedLocation, name: newCategoryName, description: newCategoryDescription }),
       })
       if (!res.ok) throw new Error()
       toast.success('Categoría agregada')
       setNewCategoryName('')
+      setNewCategoryDescription('')
       setShowAddCategory(false)
       router.refresh()
     } catch {
@@ -188,6 +204,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
         body: JSON.stringify({
           locationId: selectedLocation,
           name: editingCategoryName,
+          description: editingCategoryDescription,
+          customizationGroups: serializeGroups(editingCategoryGroups),
           availabilityMode: editingCategoryAvailMode,
           availabilitySchedule: editingCategoryAvailMode === 'scheduled' ? editingCategoryAvailSchedule : [],
         }),
@@ -491,6 +509,13 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                       onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
                       autoFocus
                     />
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60 mb-2 mt-3 block">Subtítulo / descripción (opcional)</label>
+                    <input
+                      className="w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-sm rounded-xl px-4 py-2.5 outline-none transition-all shadow-sm"
+                      placeholder="Ej: Agrega una infusión a tu elección y un shot de naranja por $4500"
+                      value={newCategoryDescription}
+                      onChange={e => setNewCategoryDescription(e.target.value)}
+                    />
                   </div>
                   <div className="flex items-end gap-2">
                     <Button onClick={handleAddCategory} disabled={loading} className="bg-primary hover:bg-primary/90 rounded-xl font-bold px-8 h-12 shadow-md shadow-primary/10">
@@ -645,6 +670,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 onClick={() => {
                                   setEditingCategory(category._id)
                                   setEditingCategoryName(category.name)
+                                  setEditingCategoryDescription(category.description ?? '')
+                                  setEditingCategoryGroups(deserializeGroups(category.customizationGroups ?? []))
                                   setEditingCategoryAvailMode(category.availabilityMode ?? 'always')
                                   setEditingCategoryAvailSchedule(category.availabilitySchedule ?? [])
                                   // Expand to show availability editor
@@ -703,6 +730,18 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                           {/* Category availability editor (shows when editing category) */}
                           {editingCategory === category._id && (
                             <div className="mb-6 p-4 bg-white rounded-2xl border-2 border-primary/20 space-y-3" onClick={e => e.stopPropagation()}>
+                              {/* Subtítulo de la categoría */}
+                              <div>
+                                <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1.5 block">
+                                  Subtítulo / descripción de la categoría
+                                </label>
+                                <input
+                                  className="w-full bg-muted/30 border-2 border-border/80 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-xl px-4 py-2.5 outline-none transition-all"
+                                  placeholder="Ej: Agrega una infusión a tu elección (S/M) y un shot exprimido de naranja por $4500"
+                                  value={editingCategoryDescription}
+                                  onChange={e => setEditingCategoryDescription(e.target.value)}
+                                />
+                              </div>
                               <div className="flex items-center gap-2">
                                 <Clock size={14} className="text-primary" />
                                 <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/70">Disponibilidad de la categoría</span>
@@ -730,6 +769,147 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                   onChange={setEditingCategoryAvailSchedule}
                                 />
                               )}
+
+                              {/* Editor de grupos de personalización a nivel categoría */}
+                              <div className="pt-3 border-t border-border/60">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <Settings2 size={13} className="text-primary" />
+                                    <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/70">
+                                      Personalizaciones globales de la categoría
+                                    </span>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-[10px] font-black text-primary hover:bg-primary/5 px-3 rounded-lg"
+                                    onClick={() =>
+                                      setEditingCategoryGroups(prev => [
+                                        ...prev,
+                                        { name: '', type: 'single', required: false, options: [] },
+                                      ])
+                                    }
+                                  >
+                                    <Plus size={11} className="mr-1" strokeWidth={4} /> Agregar grupo
+                                  </Button>
+                                </div>
+                                {editingCategoryGroups.length === 0 && (
+                                  <p className="text-[10px] text-muted-foreground/50 italic">
+                                    Sin personalizaciones globales. Los grupos que agregues aquí
+                                    se mostrarán automáticamente al pedir cualquier ítem de esta categoría.
+                                  </p>
+                                )}
+                                <div className="space-y-4">
+                                  {editingCategoryGroups.map((cg, cgi) => (
+                                    <div key={cgi} className="p-4 bg-muted/20 rounded-2xl border border-border/60 relative group/cg">
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingCategoryGroups(prev => prev.filter((_, i) => i !== cgi))}
+                                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-border text-muted-foreground hover:text-destructive hover:border-destructive shadow-sm opacity-0 group-hover/cg:opacity-100 transition-all flex items-center justify-center"
+                                      >
+                                        <X size={11} strokeWidth={3} />
+                                      </button>
+                                      {/* Cabecera del grupo */}
+                                      <div className="flex gap-3 mb-3">
+                                        <div className="flex-1">
+                                          <input
+                                            className="w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-2 outline-none transition-all"
+                                            placeholder="Ej: Bebida a elección"
+                                            value={cg.name}
+                                            onChange={e => {
+                                              const updated = [...editingCategoryGroups]
+                                              updated[cgi] = { ...updated[cgi], name: e.target.value }
+                                              setEditingCategoryGroups(updated)
+                                            }}
+                                          />
+                                        </div>
+                                        <select
+                                          className="bg-white border-2 border-border/80 text-xs font-medium rounded-xl px-3 py-2 outline-none w-32 appearance-none cursor-pointer"
+                                          value={cg.type}
+                                          onChange={e => {
+                                            const updated = [...editingCategoryGroups]
+                                            updated[cgi] = { ...updated[cgi], type: e.target.value as 'single' | 'multiple' }
+                                            setEditingCategoryGroups(updated)
+                                          }}
+                                        >
+                                          <option value="single">Selección única</option>
+                                          <option value="multiple">Selección libre</option>
+                                        </select>
+                                        <button
+                                          type="button"
+                                          className={cn(
+                                            'h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all whitespace-nowrap',
+                                            cg.required
+                                              ? 'bg-primary/5 border-primary/40 text-primary'
+                                              : 'bg-muted text-muted-foreground border-transparent'
+                                          )}
+                                          onClick={() => {
+                                            const updated = [...editingCategoryGroups]
+                                            updated[cgi] = { ...updated[cgi], required: !updated[cgi].required }
+                                            setEditingCategoryGroups(updated)
+                                          }}
+                                        >
+                                          {cg.required ? 'Obligatorio' : 'Opcional'}
+                                        </button>
+                                      </div>
+                                      {/* Opciones del grupo */}
+                                      <div className="space-y-2 pl-2 border-l-2 border-border/40">
+                                        {cg.options.map((opt, oi) => (
+                                          <div key={oi} className="flex items-center gap-2 group/cgopt">
+                                            <input
+                                              className="flex-1 bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-xs font-medium rounded-lg px-3 py-2 outline-none transition-all"
+                                              placeholder="Ej: Agua"
+                                              value={opt.name}
+                                              onChange={e => {
+                                                const updated = [...editingCategoryGroups]
+                                                updated[cgi].options[oi] = { ...opt, name: e.target.value }
+                                                setEditingCategoryGroups(updated)
+                                              }}
+                                            />
+                                            <div className="w-24 relative">
+                                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
+                                              <input
+                                                type="number" min="0"
+                                                className="w-full bg-white border-2 border-border/80 text-foreground text-xs font-medium rounded-lg pl-6 pr-3 py-2 outline-none"
+                                                placeholder="0"
+                                                value={opt.extraPrice}
+                                                onChange={e => {
+                                                  const updated = [...editingCategoryGroups]
+                                                  updated[cgi].options[oi] = { ...opt, extraPrice: e.target.value }
+                                                  setEditingCategoryGroups(updated)
+                                                }}
+                                              />
+                                            </div>
+                                            <button
+                                              type="button"
+                                              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive opacity-0 group-hover/cgopt:opacity-100 transition-all"
+                                              onClick={() => {
+                                                const updated = [...editingCategoryGroups]
+                                                updated[cgi].options = updated[cgi].options.filter((_, i) => i !== oi)
+                                                setEditingCategoryGroups(updated)
+                                              }}
+                                            >
+                                              <X size={11} strokeWidth={3} />
+                                            </button>
+                                          </div>
+                                        ))}
+                                        <button
+                                          type="button"
+                                          className="text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-all"
+                                          onClick={() => {
+                                            const updated = [...editingCategoryGroups]
+                                            updated[cgi].options.push({ name: '', extraPrice: '0', subGroups: [] })
+                                            setEditingCategoryGroups(updated)
+                                          }}
+                                        >
+                                          <Plus size={10} className="inline mr-1" strokeWidth={4} /> Agregar opción
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
                           )}
                           <div className="space-y-4 mb-8">
@@ -1321,54 +1501,235 @@ function ItemForm({
                 <div className="flex items-center gap-4 mb-2">
                   <span className={labelCls}>Opciones y precios adicionales</span>
                 </div>
-                {group.options.map((opt, oi) => (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    key={oi}
-                    className="flex items-center gap-3 group/opt"
-                  >
-                    <div className="flex-1 relative">
-                      <input
-                        className={cn(inputCls, "bg-white border-border/80 h-10")}
-                        placeholder="Ej: Papas fritas"
-                        value={opt.name}
-                        onChange={e => {
-                          const updated = [...data.customizationGroups]
-                          updated[gi].options[oi] = { ...opt, name: e.target.value }
-                          onChange({ ...data, customizationGroups: updated })
-                        }}
-                      />
+                {group.options.map((opt, oi) => {
+                  const hasSubGroups = (opt.subGroups ?? []).length > 0
+                  return (
+                    <div key={oi} className="group/opt space-y-2">
+                      {/* Option row */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 relative">
+                          <input
+                            className={cn(inputCls, "bg-white border-border/80 h-10")}
+                            placeholder="Ej: Papas fritas"
+                            value={opt.name}
+                            onChange={e => {
+                              const updated = [...data.customizationGroups]
+                              updated[gi].options[oi] = { ...opt, name: e.target.value }
+                              onChange({ ...data, customizationGroups: updated })
+                            }}
+                          />
+                        </div>
+                        <div className="w-28 relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
+                          <input
+                            className={cn(inputCls, "bg-white border-border/80 h-10 pl-7 tabular-nums")}
+                            placeholder="Precio"
+                            type="number"
+                            min="0"
+                            value={opt.extraPrice}
+                            onChange={e => {
+                              const updated = [...data.customizationGroups]
+                              updated[gi].options[oi] = { ...opt, extraPrice: e.target.value }
+                              onChange({ ...data, customizationGroups: updated })
+                            }}
+                          />
+                        </div>
+
+                        {/* Toggle sub-grupo */}
+                        <button
+                          type="button"
+                          title={hasSubGroups ? 'Sub-opciones configuradas' : 'Agregar sub-opciones'}
+                          className={cn(
+                            'h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 border-2 transition-all',
+                            hasSubGroups
+                              ? 'bg-primary/10 border-primary/30 text-primary'
+                              : 'bg-transparent border-dashed border-border/60 text-muted-foreground hover:border-primary/30 hover:text-primary'
+                          )}
+                          onClick={() => {
+                            const updated = [...data.customizationGroups]
+                            const currentSubGroups = updated[gi].options[oi].subGroups ?? []
+                            updated[gi].options[oi] = {
+                              ...updated[gi].options[oi],
+                              subGroups: [...currentSubGroups, { name: '', type: 'single', required: false, options: [] }],
+                            }
+                            onChange({ ...data, customizationGroups: updated })
+                          }}
+                        >
+                          <Layers size={14} />
+                        </button>
+
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0 opacity-40 group-hover/opt:opacity-100 transition-opacity"
+                          onClick={() => {
+                            const updated = [...data.customizationGroups]
+                            updated[gi].options = updated[gi].options.filter((_, i) => i !== oi)
+                            onChange({ ...data, customizationGroups: updated })
+                          }}
+                        >
+                          <X size={12} strokeWidth={4} />
+                        </Button>
+                      </div>
+
+                      {/* Sub-groups editor — aparece si la opción tiene sub-grupos configurados */}
+                      {hasSubGroups && (
+                        <div className="ml-8 pl-4 border-l-2 space-y-3" style={{ borderColor: 'hsl(var(--primary) / 0.2)' }}>
+                          {(opt.subGroups ?? []).map((sg, sgi) => (
+                            <div key={sgi} className="bg-white rounded-2xl p-4 border border-primary/15 relative group/sg">
+
+                              {/* Eliminar sub-grupo */}
+                              <button
+                                type="button"
+                                className="absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-white border border-border text-muted-foreground hover:text-destructive hover:border-destructive shadow-sm opacity-0 group-hover/sg:opacity-100 transition-all flex items-center justify-center z-10"
+                                onClick={() => {
+                                  const updated = [...data.customizationGroups]
+                                  const newSubGroups = (updated[gi].options[oi].subGroups ?? []).filter((_, i) => i !== sgi)
+                                  updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSubGroups }
+                                  onChange({ ...data, customizationGroups: updated })
+                                }}
+                              >
+                                <X size={11} strokeWidth={3} />
+                              </button>
+
+                              {/* Cabecera del sub-grupo */}
+                              <div className="flex flex-wrap gap-3 mb-4">
+                                <div className="flex-1 min-w-[160px]">
+                                  <label className={labelCls}>Nombre del sub-grupo</label>
+                                  <input
+                                    className={cn(inputCls, 'bg-muted/30 h-9 text-sm')}
+                                    placeholder="Ej: Tipo de café"
+                                    value={sg.name}
+                                    onChange={e => {
+                                      const updated = [...data.customizationGroups]
+                                      const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
+                                      newSgs[sgi] = { ...newSgs[sgi], name: e.target.value }
+                                      updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
+                                      onChange({ ...data, customizationGroups: updated })
+                                    }}
+                                  />
+                                </div>
+                                <div className="w-32">
+                                  <label className={labelCls}>Tipo</label>
+                                  <select
+                                    className={cn(inputCls, 'bg-muted/30 h-9 text-sm appearance-none cursor-pointer')}
+                                    value={sg.type}
+                                    onChange={e => {
+                                      const updated = [...data.customizationGroups]
+                                      const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
+                                      newSgs[sgi] = { ...newSgs[sgi], type: e.target.value as 'single' | 'multiple' }
+                                      updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
+                                      onChange({ ...data, customizationGroups: updated })
+                                    }}
+                                  >
+                                    <option value="single">Selección única</option>
+                                    <option value="multiple">Selección libre</option>
+                                  </select>
+                                </div>
+                                <div className="w-28">
+                                  <label className={labelCls}>Req.</label>
+                                  <button
+                                    type="button"
+                                    className={cn(
+                                      'w-full h-9 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all',
+                                      sg.required
+                                        ? 'bg-primary/5 border-primary/40 text-primary'
+                                        : 'bg-muted text-muted-foreground border-transparent'
+                                    )}
+                                    onClick={() => {
+                                      const updated = [...data.customizationGroups]
+                                      const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
+                                      newSgs[sgi] = { ...newSgs[sgi], required: !newSgs[sgi].required }
+                                      updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
+                                      onChange({ ...data, customizationGroups: updated })
+                                    }}
+                                  >
+                                    {sg.required ? 'Obligatorio' : 'Opcional'}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Opciones del sub-grupo */}
+                              <div className="space-y-2 pl-2 border-l-2 border-border/40">
+                                {sg.options.map((sopt, soI) => (
+                                  <div key={soI} className="flex items-center gap-2 group/sopt">
+                                    <div className="flex-1">
+                                      <input
+                                        className={cn(inputCls, 'bg-white border-border/80 h-9 text-xs')}
+                                        placeholder="Ej: Espresso"
+                                        value={sopt.name}
+                                        onChange={e => {
+                                          const updated = [...data.customizationGroups]
+                                          const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
+                                          const newOpts = [...newSgs[sgi].options]
+                                          newOpts[soI] = { ...newOpts[soI], name: e.target.value }
+                                          newSgs[sgi] = { ...newSgs[sgi], options: newOpts }
+                                          updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
+                                          onChange({ ...data, customizationGroups: updated })
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="w-24 relative">
+                                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        className={cn(inputCls, 'bg-white border-border/80 h-9 pl-6 text-xs tabular-nums')}
+                                        placeholder="0"
+                                        value={sopt.extraPrice}
+                                        onChange={e => {
+                                          const updated = [...data.customizationGroups]
+                                          const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
+                                          const newOpts = [...newSgs[sgi].options]
+                                          newOpts[soI] = { ...newOpts[soI], extraPrice: e.target.value }
+                                          newSgs[sgi] = { ...newSgs[sgi], options: newOpts }
+                                          updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
+                                          onChange({ ...data, customizationGroups: updated })
+                                        }}
+                                      />
+                                    </div>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0 opacity-40 group-hover/sopt:opacity-100 transition-opacity"
+                                      onClick={() => {
+                                        const updated = [...data.customizationGroups]
+                                        const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
+                                        newSgs[sgi] = { ...newSgs[sgi], options: newSgs[sgi].options.filter((_, i) => i !== soI) }
+                                        updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
+                                        onChange({ ...data, customizationGroups: updated })
+                                      }}
+                                    >
+                                      <X size={11} strokeWidth={4} />
+                                    </Button>
+                                  </div>
+                                ))}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-primary hover:bg-primary/5 text-[10px] font-black uppercase tracking-widest mt-1 px-3 h-8 rounded-lg"
+                                  onClick={() => {
+                                    const updated = [...data.customizationGroups]
+                                    const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
+                                    newSgs[sgi] = {
+                                      ...newSgs[sgi],
+                                      options: [...newSgs[sgi].options, { name: '', extraPrice: '0', subGroups: [] }],
+                                    }
+                                    updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
+                                    onChange({ ...data, customizationGroups: updated })
+                                  }}
+                                >
+                                  <Plus size={10} className="mr-1" strokeWidth={4} /> Agregar opción
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="w-28 relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
-                      <input
-                        className={cn(inputCls, "bg-white border-border/80 h-10 pl-7 tabular-nums")}
-                        placeholder="Precio"
-                        type="number"
-                        min="0"
-                        value={opt.extraPrice}
-                        onChange={e => {
-                          const updated = [...data.customizationGroups]
-                          updated[gi].options[oi] = { ...opt, extraPrice: e.target.value }
-                          onChange({ ...data, customizationGroups: updated })
-                        }}
-                      />
-                    </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0 opacity-40 group-hover/opt:opacity-100 transition-opacity"
-                      onClick={() => {
-                        const updated = [...data.customizationGroups]
-                        updated[gi].options = updated[gi].options.filter((_, i) => i !== oi)
-                        onChange({ ...data, customizationGroups: updated })
-                      }}
-                    >
-                      <X size={12} strokeWidth={4} />
-                    </Button>
-                  </motion.div>
-                ))}
+                  )
+                })}
 
                 <Button
                   type="button"
@@ -1376,7 +1737,7 @@ function ItemForm({
                   size="sm"
                   onClick={() => {
                     const updated = [...data.customizationGroups]
-                    updated[gi].options.push({ name: '', extraPrice: '0' })
+                    updated[gi].options.push({ name: '', extraPrice: '0', subGroups: [] })
                     onChange({ ...data, customizationGroups: updated })
                   }}
                   className="text-primary hover:bg-primary/5 text-[10px] font-black uppercase tracking-widest mt-2 px-4 h-9 rounded-lg"

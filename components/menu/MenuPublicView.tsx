@@ -279,9 +279,14 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
     })
   }
 
-  function openCustomizationModal(item: any) {
+  function openCustomizationModal(item: any, categoryGroups?: any[]) {
     setShowCart(false)
-    setCustomizingItem(item)
+    // Los grupos de la categoría se anteponen a los del ítem (heredados automáticamente)
+    const mergedGroups = [
+      ...(categoryGroups ?? []),
+      ...(item.customizationGroups ?? []),
+    ]
+    setCustomizingItem({ ...item, customizationGroups: mergedGroups })
   }
 
   function goToCheckout() {
@@ -498,10 +503,16 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
             key={category._id}
             ref={el => { sectionRefs.current[category._id] = el }}
             className="mb-8 scroll-mt-44">
-            <h2 className="text-xs font-bold mb-3 pb-2 border-b tracking-widest uppercase"
-              style={{ borderColor: primary + '30', color: primary }}>
-              {tn(category, 'name', locale)}
-            </h2>
+            <div className="mb-3 pb-2 border-b" style={{ borderColor: primary + '30' }}>
+              <h2 className="text-xs font-bold tracking-widest uppercase" style={{ color: primary }}>
+                {tn(category, 'name', locale)}
+              </h2>
+              {tn(category, 'description', locale) && (
+                <p className="text-xs mt-1 italic" style={{ color: primary + 'aa' }}>
+                  {tn(category, 'description', locale)}
+                </p>
+              )}
+            </div>
 
             <div className={branding.menuLayout === 'grid' ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-0'}>
               {category.items
@@ -509,6 +520,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                 .map((item: any) => {
                   const veg = isVegetarian(item.tags || [])
                   const qty = itemTotalQty(item._id)
+                  const catGroups = category.customizationGroups ?? []
 
                   if (branding.menuLayout === 'grid') {
                     return (
@@ -531,7 +543,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                             <p className="font-bold text-sm" style={{ color: primary }}>
                               ${getItemPrice(item).toLocaleString('es-AR')}
                             </p>
-                            <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact />
+                            <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} />
                           </div>
                         </div>
                       </div>
@@ -568,7 +580,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                           ))}
                         </div>
                       </div>
-                      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} />
+                      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} categoryGroups={catGroups} />
                     </div>
                   )
                 })}
@@ -821,7 +833,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
 /* ── Cart control sub-component ── */
 function CartControl({
-  item, cart, onAdd, onOpenModal, onRemove, totalQty, primary, bg, compact = false,
+  item, cart, onAdd, onOpenModal, onRemove, totalQty, primary, bg, compact = false, categoryGroups = [],
 }: {
   item: any
   cart: CartItem[]
@@ -832,10 +844,12 @@ function CartControl({
   primary: string
   bg: string
   compact?: boolean
+  categoryGroups?: any[]   // grupos heredados de la categoría
 }) {
   const sz = compact ? 11 : 13
   const btnSz = compact ? 'w-6 h-6' : 'w-7 h-7'
-  const hasCustomizations = (item.customizationGroups ?? []).length > 0
+  // El ítem requiere modal si tiene sus propios grupos O si la categoría tiene grupos globales
+  const hasCustomizations = (item.customizationGroups ?? []).length > 0 || (categoryGroups ?? []).length > 0
 
   if (hasCustomizations) {
     return (
