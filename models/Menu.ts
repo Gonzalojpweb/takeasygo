@@ -4,6 +4,7 @@ export interface ICustomizationOption {
   _id?: mongoose.Types.ObjectId
   name: string
   extraPrice: number
+  subGroups?: ICustomizationGroup[]  // Grupos que se activan si esta opción es elegida
 }
 
 export interface ICustomizationGroup {
@@ -46,6 +47,7 @@ export interface IMenuCategory {
   isAvailable: boolean
   sortOrder: number
   items: IMenuItem[]
+  customizationGroups?: ICustomizationGroup[]   // grupos heredados por todos los items de la categoría
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
   availabilityMode?: 'always' | 'scheduled'
@@ -61,16 +63,22 @@ export interface IMenu extends Document {
   updatedAt: Date
 }
 
-const CustomizationOptionSchema = new Schema<ICustomizationOption>({
-  name: { type: String, required: true, trim: true },
+// Declarados como Schema genérico primero para permitir referencia circular opción ↔ grupo
+const CustomizationOptionSchema: Schema = new Schema({})
+const CustomizationGroupSchema: Schema = new Schema({})
+
+// Se agregan los campos después de que ambos schemas existen (resuelve la referencia circular)
+CustomizationOptionSchema.add({
+  name:       { type: String, required: true, trim: true },
   extraPrice: { type: Number, default: 0, min: 0 },
+  subGroups:  { type: [CustomizationGroupSchema], default: [] },
 })
 
-const CustomizationGroupSchema = new Schema<ICustomizationGroup>({
-  name: { type: String, required: true, trim: true },
-  type: { type: String, enum: ['single', 'multiple'], default: 'single' },
+CustomizationGroupSchema.add({
+  name:     { type: String, required: true, trim: true },
+  type:     { type: String, enum: ['single', 'multiple'], default: 'single' },
   required: { type: Boolean, default: false },
-  options: [CustomizationOptionSchema],
+  options:  { type: [CustomizationOptionSchema], default: [] },
 })
 
 const MenuItemSchema = new Schema<IMenuItem>({
@@ -158,6 +166,7 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
     default: 0,
   },
   items: [MenuItemSchema],
+  customizationGroups: { type: [CustomizationGroupSchema], default: [] },
   nameTranslations: {
     en: { type: String, default: '' },
   },
