@@ -4,13 +4,16 @@ import Location from '@/models/Location'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
+import QrPromoBanner from '@/components/menu/QrPromoBanner'
 
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
+  searchParams: Promise<{ source?: string }>
 }
 
-export default async function MenuSelectorPage({ params }: Props) {
+export default async function MenuSelectorPage({ params, searchParams }: Props) {
   const { tenant: tenantSlug, locationId } = await params
+  const { source } = await searchParams
 
   await connectDB()
 
@@ -42,6 +45,9 @@ export default async function MenuSelectorPage({ params }: Props) {
 
   return (
     <>
+      {/* QR Promo Banner - aparece al escanear QR por primera vez */}
+      <QrPromoBanner tenantSlug={tenantSlug} source={source || ''} />
+
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
 

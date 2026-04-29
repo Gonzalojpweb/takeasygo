@@ -197,8 +197,8 @@ export default function VisitsPanel({ tenants }: VisitsPanelProps) {
                 <div className="bg-card border-2 border-border/60 rounded-2xl p-4">
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Fuentes de tráfico</p>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                        {bySource.map((s: any) => (
-                            <div key={s._id || 'other'} className="flex items-center gap-2 bg-muted/30 rounded-lg p-2">
+                        {bySource.map((s: any, index: number) => (
+                            <div key={s._id || `other-${index}`} className="flex items-center gap-2 bg-muted/30 rounded-lg p-2">
                                 <span className={cn('p-1.5 rounded-lg', SOURCE_COLORS[s._id || 'other'])}>
                                     {sourceIcon(s._id)}
                                 </span>
