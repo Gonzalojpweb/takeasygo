@@ -5,6 +5,7 @@ import Tenant from '@/models/Tenant'
 import { Eye, Link2 } from 'lucide-react'
 import VisitsPanel from '@/components/superadmin/VisitsPanel'
 import UrlGenerator from '@/components/superadmin/UrlGenerator'
+import QrPromoDefaultsConfig from '@/components/superadmin/QrPromoDefaultsConfig'
 
 export default async function VisitsPage() {
   const session = await auth()
@@ -35,6 +36,8 @@ export default async function VisitsPage() {
           Registro de accesos a los menús públicos de cada tenant
         </p>
       </div>
+
+      <QrPromoDefaultsConfig />
 
       <UrlGenerator tenants={serializedTenants} />
 

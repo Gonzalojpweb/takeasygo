@@ -98,6 +98,16 @@ export interface ITenant extends Document {
     capacityScore: number | null
     updatedAt: Date | null
   }
+  /** Promoción de takeaway para primer scan QR */
+  qrPromo: {
+    isEnabled: boolean
+    discountPercentage: number // 0-100
+    frequency: 'once' | 'every_visit' | 'daily'
+    title: string
+    subtitle: string
+    buttonText: string
+    termsText: string
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -250,6 +260,16 @@ const TenantSchema = new Schema<ITenant>(
       icoScore: { type: Number, default: null },
       capacityScore: { type: Number, default: null },
       updatedAt: { type: Date, default: null },
+    },
+    /** Promoción de takeaway para primer scan QR */
+    qrPromo: {
+      isEnabled: { type: Boolean, default: false },
+      discountPercentage: { type: Number, default: 15, min: 0, max: 100 },
+      frequency: { type: String, enum: ['once', 'every_visit', 'daily'], default: 'once' },
+      title: { type: String, default: '¡Primera vez por QR!' },
+      subtitle: { type: String, default: 'Obtené {discount}% OFF en tu primer pedido takeaway' },
+      buttonText: { type: String, default: 'Ver menú' },
+      termsText: { type: String, default: 'Válido solo para pedidos takeaway. No acumulable con otras promociones.' },
     },
   },
   {
