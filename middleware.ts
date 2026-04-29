@@ -30,7 +30,51 @@ function getDeviceType(userAgent: string | null): 'mobile' | 'desktop' | 'unknow
   return 'desktop'
 }
 
-async function logMenuVisit(tenantSlug: string, ip: string | null, userAgent: string | null) {
+// Detectar fuente de tráfico basado en referrer, URL params y user-agent
+function detectTrafficSource(
+  referer: string | null,
+  urlSource: string | null,
+  userAgent: string | null
+): 'instagram' | 'facebook' | 'qr' | 'whatsapp' | 'google' | 'direct' | 'other' | null {
+  // Prioridad 1: Parámetro explicito en URL (?source=instagram, ?source=qr, etc.)
+  if (urlSource) {
+    const validSources = ['instagram', 'facebook', 'qr', 'whatsapp', 'google', 'direct', 'other']
+    if (validSources.includes(urlSource.toLowerCase())) {
+      return urlSource.toLowerCase() as any
+    }
+  }
+
+  // Prioridad 2: User-Agent de Instagram in-app browser
+  if (userAgent) {
+    const ua = userAgent.toLowerCase()
+    if (ua.includes('instagram')) return 'instagram'
+  }
+
+  // Prioridad 3: Referer
+  if (referer) {
+    const ref = referer.toLowerCase()
+    if (ref.includes('instagram.com')) return 'instagram'
+    if (ref.includes('facebook.com') || ref.includes('fb.com')) return 'facebook'
+    if (ref.includes('whatsapp.com') || ref.includes('wa.me')) return 'whatsapp'
+    if (ref.includes('google.com')) return 'google'
+  }
+
+  // Si no hay referer, es tráfico directo
+  if (!referer || referer === '') {
+    return 'direct'
+  }
+
+  return 'other'
+}
+
+async function logMenuVisit(
+  tenantSlug: string,
+  ip: string | null,
+  userAgent: string | null,
+  referer: string | null,
+  urlSource: string | null,
+  pathname: string | null
+) {
   try {
     const { connectDB } = await import('@/lib/mongoose')
     const Tenant = (await import('@/models/Tenant')).default
@@ -40,12 +84,17 @@ async function logMenuVisit(tenantSlug: string, ip: string | null, userAgent: st
     const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id').lean()
     if (!tenant) return
 
+    const source = detectTrafficSource(referer, urlSource, userAgent)
+
     await MenuVisit.create({
       tenantId: new Types.ObjectId(tenant._id.toString()),
       visitedAt: new Date(),
       ip: ip?.split(',')[0]?.trim() || null,
       userAgent,
       deviceType: getDeviceType(userAgent),
+      source,
+      referrer: referer,
+      locationPath: pathname,
     })
   } catch (err) {
     console.error('MenuVisit log error:', err)
@@ -102,7 +151,9 @@ export async function middleware(request: NextRequest) {
   if (!isAdminRoute && !isApiRoute) {
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('cf-connecting-ip') || null
     const userAgent = request.headers.get('user-agent')
-    logMenuVisit(tenantSlug, ip, userAgent)
+    const referer = request.headers.get('referer')
+    const urlSource = request.nextUrl.searchParams.get('source')
+    logMenuVisit(tenantSlug, ip, userAgent, referer, urlSource, pathname)
   }
 
   return NextResponse.next({

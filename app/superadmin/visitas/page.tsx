@@ -2,8 +2,9 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { Smartphone, Monitor, Globe, Eye } from 'lucide-react'
+import { Eye, Link2 } from 'lucide-react'
 import VisitsPanel from '@/components/superadmin/VisitsPanel'
+import UrlGenerator from '@/components/superadmin/UrlGenerator'
 
 export default async function VisitsPage() {
   const session = await auth()
@@ -24,7 +25,7 @@ export default async function VisitsPage() {
   }))
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Eye size={24} className="text-primary" />
@@ -34,6 +35,8 @@ export default async function VisitsPage() {
           Registro de accesos a los menús públicos de cada tenant
         </p>
       </div>
+
+      <UrlGenerator tenants={serializedTenants} />
 
       <VisitsPanel tenants={serializedTenants} />
     </div>

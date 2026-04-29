@@ -21,7 +21,9 @@ import {
   BookOpen,
   QrCode,
   Tag,
-  Database
+  Database,
+  TrendingUp,
+  Eye
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -108,6 +110,12 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       roles: ['admin', 'manager'],
       feature: 'reports',
       requiresTakeaway: true,
+    },
+    {
+      href: `${base}/analytics`,
+      label: 'Analytics',
+      icon: TrendingUp,
+      roles: ['admin', 'manager'],
     },
     {
       href: `${base}/ico`,
