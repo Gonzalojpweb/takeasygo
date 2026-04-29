@@ -1,25 +1,25 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Percent, ShoppingBag, AlertCircle, Info } from 'lucide-react'
+import { Save, Palette, ShoppingBag, AlertCircle, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-interface QrPromoDefaultsData {
-  title: string
-  subtitle: string
-  buttonText: string
-  termsText: string
-  defaultDiscountPercentage: number
+interface QrPromoStylesData {
+  primaryColor: string
+  backgroundColor: string
+  badgeColor: string
+  borderRadius: string
+  buttonColor: string
 }
 
 export default function QrPromoDefaultsConfig() {
-  const [config, setConfig] = useState<QrPromoDefaultsData>({
-    title: '¡Primera vez por QR!',
-    subtitle: 'Obtené {discount}% OFF en tu primer pedido takeaway',
-    buttonText: 'Ver menú',
-    termsText: 'Válido solo para pedidos takeaway. No acumulable con otras promociones.',
-    defaultDiscountPercentage: 15,
+  const [config, setConfig] = useState<QrPromoStylesData>({
+    primaryColor: '#F74211',
+    backgroundColor: '#FFF5F0',
+    badgeColor: '#F74211',
+    borderRadius: '1.5rem',
+    buttonColor: '#F74211',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -34,8 +34,8 @@ export default function QrPromoDefaultsConfig() {
     try {
       const res = await fetch('/api/superadmin/qr-promo-defaults')
       const data = await res.json()
-      if (data.qrPromoDefaults) {
-        setConfig(data.qrPromoDefaults)
+      if (data.qrPromoStyles) {
+        setConfig(data.qrPromoStyles)
       }
     } catch (e) {
       console.error('Error fetching config:', e)
@@ -70,7 +70,7 @@ export default function QrPromoDefaultsConfig() {
     }
   }
 
-  const updateConfig = (key: keyof QrPromoDefaultsData, value: any) => {
+  const updateConfig = (key: keyof QrPromoStylesData, value: any) => {
     setConfig(prev => ({ ...prev, [key]: value }))
   }
 
@@ -87,83 +87,115 @@ export default function QrPromoDefaultsConfig() {
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <ShoppingBag size={24} className="text-[#F74211]" />
-          Configuración Global de Promo QR
+          <Palette size={24} className="text-[#F74211]" />
+          Estilos Estándar de Promo QR
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Textos y valores por defecto para la promoción de takeaway (aplica a todos los tenants nuevos)
+          Configuración visual de los banners (aplica a todos los tenants)
         </p>
       </div>
 
-      {/* Descuento por defecto */}
-      <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
-        <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
-          <Percent size={16} className="text-[#F74211]" />
-          Descuento por defecto para nuevos tenants
-        </label>
-        <div className="flex items-center gap-4">
-          <input
-            type="range"
-            min="5"
-            max="50"
-            value={config.defaultDiscountPercentage}
-            onChange={(e) => updateConfig('defaultDiscountPercentage', parseInt(e.target.value))}
-            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#F74211]"
-          />
-          <div 
-            className="w-20 h-12 flex items-center justify-center rounded-xl font-bold text-lg"
-            style={{ backgroundColor: '#F74211', color: 'white' }}
-          >
-            {config.defaultDiscountPercentage}%
-          </div>
-        </div>
-      </div>
-
-      {/* Textos editables */}
+      {/* Colores */}
       <div className="space-y-4">
         <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
-          <label className="text-sm font-medium text-foreground mb-2 block">Título</label>
-          <input
-            type="text"
-            value={config.title}
-            onChange={(e) => updateConfig('title', e.target.value)}
-            className="w-full h-10 px-3 border border-border/60 rounded-lg text-sm"
-            placeholder="Título de la promoción"
-          />
+          <label className="text-sm font-medium text-foreground mb-2 block">Color principal</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={config.primaryColor}
+              onChange={(e) => updateConfig('primaryColor', e.target.value)}
+              className="w-12 h-12 rounded-lg cursor-pointer border-0"
+            />
+            <input
+              type="text"
+              value={config.primaryColor}
+              onChange={(e) => updateConfig('primaryColor', e.target.value)}
+              className="flex-1 h-10 px-3 border border-border/60 rounded-lg text-sm font-mono"
+            />
+          </div>
         </div>
 
         <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
-          <label className="text-sm font-medium text-foreground mb-2 block">
-            Subtítulo (usa <code className="bg-gray-100 px-1 rounded">{'{discount}'}</code> para el porcentaje)
-          </label>
-          <input
-            type="text"
-            value={config.subtitle}
-            onChange={(e) => updateConfig('subtitle', e.target.value)}
-            className="w-full h-10 px-3 border border-border/60 rounded-lg text-sm"
-            placeholder="Descripción de la promoción"
-          />
+          <label className="text-sm font-medium text-foreground mb-2 block">Color de fondo</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={config.backgroundColor}
+              onChange={(e) => updateConfig('backgroundColor', e.target.value)}
+              className="w-12 h-12 rounded-lg cursor-pointer border-0"
+            />
+            <input
+              type="text"
+              value={config.backgroundColor}
+              onChange={(e) => updateConfig('backgroundColor', e.target.value)}
+              className="flex-1 h-10 px-3 border border-border/60 rounded-lg text-sm font-mono"
+            />
+          </div>
         </div>
 
         <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
-          <label className="text-sm font-medium text-foreground mb-2 block">Texto del botón</label>
-          <input
-            type="text"
-            value={config.buttonText}
-            onChange={(e) => updateConfig('buttonText', e.target.value)}
-            className="w-full h-10 px-3 border border-border/60 rounded-lg text-sm"
-            placeholder="Botón de acción"
-          />
+          <label className="text-sm font-medium text-foreground mb-2 block">Color del badge</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={config.badgeColor}
+              onChange={(e) => updateConfig('badgeColor', e.target.value)}
+              className="w-12 h-12 rounded-lg cursor-pointer border-0"
+            />
+            <input
+              type="text"
+              value={config.badgeColor}
+              onChange={(e) => updateConfig('badgeColor', e.target.value)}
+              className="flex-1 h-10 px-3 border border-border/60 rounded-lg text-sm font-mono"
+            />
+          </div>
         </div>
 
         <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
-          <label className="text-sm font-medium text-foreground mb-2 block">Términos y condiciones</label>
-          <textarea
-            value={config.termsText}
-            onChange={(e) => updateConfig('termsText', e.target.value)}
-            className="w-full h-20 px-3 border border-border/60 rounded-lg text-sm resize-none"
-            placeholder="Términos de la promoción"
-          />
+          <label className="text-sm font-medium text-foreground mb-2 block">Color del botón</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={config.buttonColor}
+              onChange={(e) => updateConfig('buttonColor', e.target.value)}
+              className="w-12 h-12 rounded-lg cursor-pointer border-0"
+            />
+            <input
+              type="text"
+              value={config.buttonColor}
+              onChange={(e) => updateConfig('buttonColor', e.target.value)}
+              className="flex-1 h-10 px-3 border border-border/60 rounded-lg text-sm font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
+          <label className="text-sm font-medium text-foreground mb-2 block">Border radius</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={config.borderRadius}
+              onChange={(e) => updateConfig('borderRadius', e.target.value)}
+              className="flex-1 h-10 px-3 border border-border/60 rounded-lg text-sm font-mono"
+              placeholder="Ej: 1.5rem, 12px, 50%"
+            />
+            <div className="flex gap-2">
+              {['0.5rem', '1rem', '1.5rem', '2rem'].map((val) => (
+                <button
+                  key={val}
+                  onClick={() => updateConfig('borderRadius', val)}
+                  className={cn(
+                    'px-3 py-2 rounded-lg text-xs font-medium transition-colors',
+                    config.borderRadius === val
+                      ? 'bg-[#F74211] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  )}
+                >
+                  {val}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -176,31 +208,31 @@ export default function QrPromoDefaultsConfig() {
         <div 
           className="rounded-xl p-6 text-center space-y-2"
           style={{ 
-            background: 'linear-gradient(135deg, #FFF5F0 0%, #FFFFFF 100%)',
-            border: '1px solid #F74211/20'
+            background: `linear-gradient(135deg, ${config.backgroundColor} 0%, #FFFFFF 100%)`,
+            border: `1px solid ${config.primaryColor}20`,
+            borderRadius: config.borderRadius,
           }}
         >
           <div 
             className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold mb-2"
-            style={{ backgroundColor: '#F74211', color: 'white' }}
+            style={{ backgroundColor: config.badgeColor, color: 'white' }}
           >
-            <Percent size={12} />
-            {config.defaultDiscountPercentage}% OFF
+            <span>20% OFF</span>
           </div>
           <p className="font-bold text-foreground" style={{ color: '#1A1A1A' }}>
-            {config.title}
+            ¡Primera vez por QR!
           </p>
           <p className="text-sm text-gray-600">
-            {config.subtitle.replace('{discount}', String(config.defaultDiscountPercentage))}
+            Obtené 20% OFF en tu primer pedido takeaway
           </p>
           <button 
             className="mt-3 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#F74211' }}
+            style={{ backgroundColor: config.buttonColor }}
           >
-            {config.buttonText}
+            Ver menú
           </button>
           <p className="text-xs text-gray-400 mt-2">
-            {config.termsText}
+            Válido solo para pedidos takeaway
           </p>
         </div>
       </div>
@@ -212,10 +244,9 @@ export default function QrPromoDefaultsConfig() {
           <div className="text-sm text-blue-800 space-y-1">
             <p className="font-medium">Información:</p>
             <ul className="list-disc list-inside space-y-1 text-blue-700">
-              <li>Estos textos se usan como valores por defecto para nuevos tenants</li>
-              <li>Los tenants existentes pueden sobrescribir estos valores</li>
-              <li>El estilo visual (color naranja #F74211) es fijo y no se puede cambiar</li>
-              <li>Los cambios afectan solo a tenants que aún no han configurado su promo</li>
+              <li>Estos estilos se aplican a todos los tenants</li>
+              <li>Los textos y % de descuento los configura cada admin de tenant</li>
+              <li>Los cambios afectan inmediatamente a todos los banners activos</li>
             </ul>
           </div>
         </div>
