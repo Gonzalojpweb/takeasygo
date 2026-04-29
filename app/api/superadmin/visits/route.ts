@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     startDate.setDate(startDate.getDate() - days)
     query.visitedAt = { $gte: startDate }
 
-    const [visits, total, byTenant] = await Promise.all([
+    const [visits, total, byTenant, bySource] = await Promise.all([
       MenuVisit.find(query)
         .sort({ visitedAt: -1 })
         .skip(offset)
@@ -38,6 +38,11 @@ export async function GET(request: NextRequest) {
       MenuVisit.aggregate([
         { $match: { visitedAt: { $gte: startDate } } },
         { $group: { _id: '$tenantId', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      MenuVisit.aggregate([
+        { $match: { visitedAt: { $gte: startDate } } },
+        { $group: { _id: '$source', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]),
     ])
@@ -57,6 +62,9 @@ export async function GET(request: NextRequest) {
       ip: v.ip,
       userAgent: v.userAgent,
       deviceType: v.deviceType,
+      source: v.source,
+      referrer: v.referrer,
+      locationPath: v.locationPath,
     }))
 
     const byTenantWithName = byTenant.map((b: any) => ({
@@ -69,6 +77,7 @@ export async function GET(request: NextRequest) {
       visits: visitsWithTenant,
       total,
       byTenant: byTenantWithName,
+      bySource,
       summary: {
         totalVisits: total,
         days,
@@ -76,6 +85,7 @@ export async function GET(request: NextRequest) {
           { $match: { visitedAt: { $gte: startDate } } },
           { $group: { _id: '$deviceType', count: { $sum: 1 } } },
         ]),
+        bySource,
       },
     })
   } catch (error) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Smartphone, Monitor, Globe, Calendar, ChevronDown, ChevronUp, Download, RefreshCw } from 'lucide-react'
+import { Smartphone, Monitor, Globe, Calendar, ChevronDown, ChevronUp, Download, RefreshCw, Instagram, QrCode, Link2, MessageCircle, Search, MousePointer } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
@@ -20,6 +20,9 @@ interface Visit {
     ip: string | null
     userAgent: string | null
     deviceType: string
+    source: string | null
+    referrer: string | null
+    locationPath: string | null
 }
 
 interface VisitsPanelProps {
@@ -38,10 +41,41 @@ const DEVICE_COLORS = {
     unknown: 'bg-gray-500/10 text-gray-500',
 }
 
+const SOURCE_ICONS: Record<string, any> = {
+    instagram: Instagram,
+    facebook: MessageCircle,
+    qr: QrCode,
+    whatsapp: MessageCircle,
+    google: Search,
+    direct: MousePointer,
+    other: Globe,
+}
+
+const SOURCE_COLORS: Record<string, string> = {
+    instagram: 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 text-pink-500',
+    facebook: 'bg-blue-600/10 text-blue-600',
+    qr: 'bg-emerald-500/10 text-emerald-500',
+    whatsapp: 'bg-green-500/10 text-green-500',
+    google: 'bg-red-500/10 text-red-500',
+    direct: 'bg-gray-500/10 text-gray-500',
+    other: 'bg-slate-500/10 text-slate-500',
+}
+
+const SOURCE_NAMES: Record<string, string> = {
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    qr: 'QR',
+    whatsapp: 'WhatsApp',
+    google: 'Google',
+    direct: 'Directo',
+    other: 'Otro',
+}
+
 export default function VisitsPanel({ tenants }: VisitsPanelProps) {
     const searchParams = useSearchParams()
     const [visits, setVisits] = useState<Visit[]>([])
     const [byTenant, setByTenant] = useState<any[]>([])
+    const [bySource, setBySource] = useState<any[]>([])
     const [summary, setSummary] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [days, setDays] = useState(30)
@@ -59,6 +93,7 @@ export default function VisitsPanel({ tenants }: VisitsPanelProps) {
             const data = await res.json()
             setVisits(data.visits || [])
             setByTenant(data.byTenant || [])
+            setBySource(data.bySource || [])
             setSummary(data.summary || null)
         } catch (e) {
             console.error(e)
@@ -83,6 +118,12 @@ export default function VisitsPanel({ tenants }: VisitsPanelProps) {
     const deviceIcon = (device: string) => {
         const Icon = DEVICE_ICONS[device as keyof typeof DEVICE_ICONS] || Globe
         return <Icon size={12} />
+    }
+
+    const sourceIcon = (source: string | null) => {
+        const key = source || 'other'
+        const Icon = SOURCE_ICONS[key] || Globe
+        return <Icon size={14} />
     }
 
     const toggleExpand = (tenantId: string) => {
@@ -128,7 +169,7 @@ export default function VisitsPanel({ tenants }: VisitsPanelProps) {
                 </Button>
             </div>
 
-            {/* Summary */}
+            {/* Summary - Total and Devices */}
             {summary && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-card border-2 border-border/60 rounded-2xl p-4">
@@ -148,6 +189,26 @@ export default function VisitsPanel({ tenants }: VisitsPanelProps) {
                             <p className="text-2xl font-bold text-foreground mt-1">{d.count}</p>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Summary - Traffic Sources */}
+            {bySource && bySource.length > 0 && (
+                <div className="bg-card border-2 border-border/60 rounded-2xl p-4">
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Fuentes de tráfico</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                        {bySource.map((s: any) => (
+                            <div key={s._id || 'other'} className="flex items-center gap-2 bg-muted/30 rounded-lg p-2">
+                                <span className={cn('p-1.5 rounded-lg', SOURCE_COLORS[s._id || 'other'])}>
+                                    {sourceIcon(s._id)}
+                                </span>
+                                <div>
+                                    <p className="text-xs font-medium text-muted-foreground">{SOURCE_NAMES[s._id || 'other']}</p>
+                                    <p className="text-lg font-bold text-foreground">{s.count}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 
@@ -195,7 +256,15 @@ export default function VisitsPanel({ tenants }: VisitsPanelProps) {
                                                         <span className={cn('p-1 rounded', DEVICE_COLORS[visit.deviceType as keyof typeof DEVICE_COLORS])}>
                                                             {deviceIcon(visit.deviceType)}
                                                         </span>
+                                                        {visit.source && (
+                                                            <span className={cn('p-1 rounded', SOURCE_COLORS[visit.source] || SOURCE_COLORS.other)} title={visit.referrer || undefined}>
+                                                                {sourceIcon(visit.source)}
+                                                            </span>
+                                                        )}
                                                         <span className="text-xs text-muted-foreground font-mono">{visit.ip || '—'}</span>
+                                                        {visit.locationPath && (
+                                                            <span className="text-xs text-muted-foreground truncate max-w-[150px]">{visit.locationPath}</span>
+                                                        )}
                                                     </div>
                                                     <span className="text-xs text-muted-foreground">{formatDate(visit.visitedAt)}</span>
                                                 </div>
