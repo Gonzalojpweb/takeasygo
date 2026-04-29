@@ -67,7 +67,7 @@ export async function GET(
     return NextResponse.json({
       show: true,
       promo: {
-        ...qrPromo.toObject(),
+        ...qrPromo,
         subtitle,
         discountPercentage: qrPromo.discountPercentage,
       },
