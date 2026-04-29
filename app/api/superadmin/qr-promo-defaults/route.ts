@@ -17,9 +17,9 @@ export async function GET() {
       config = await PlatformConfig.create({ _id: 'platform' })
     }
 
-    return NextResponse.json({ qrPromoDefaults: config.qrPromoDefaults })
+    return NextResponse.json({ qrPromoStyles: config.qrPromoStyles })
   } catch (error) {
-    console.error('QR Promo Defaults GET error:', error)
+    console.error('QR Promo Styles GET error:', error)
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
@@ -33,25 +33,21 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
     const { 
-      title, 
-      subtitle, 
-      buttonText, 
-      termsText,
-      defaultDiscountPercentage 
+      primaryColor,
+      backgroundColor,
+      badgeColor,
+      borderRadius,
+      buttonColor
     } = body
-
-    if (defaultDiscountPercentage !== undefined && (defaultDiscountPercentage < 0 || defaultDiscountPercentage > 100)) {
-      return NextResponse.json({ error: 'El descuento debe estar entre 0 y 100' }, { status: 400 })
-    }
 
     await connectDB()
 
     const updateData: any = {}
-    if (typeof title === 'string') updateData['qrPromoDefaults.title'] = title
-    if (typeof subtitle === 'string') updateData['qrPromoDefaults.subtitle'] = subtitle
-    if (typeof buttonText === 'string') updateData['qrPromoDefaults.buttonText'] = buttonText
-    if (typeof termsText === 'string') updateData['qrPromoDefaults.termsText'] = termsText
-    if (typeof defaultDiscountPercentage === 'number') updateData['qrPromoDefaults.defaultDiscountPercentage'] = defaultDiscountPercentage
+    if (typeof primaryColor === 'string') updateData['qrPromoStyles.primaryColor'] = primaryColor
+    if (typeof backgroundColor === 'string') updateData['qrPromoStyles.backgroundColor'] = backgroundColor
+    if (typeof badgeColor === 'string') updateData['qrPromoStyles.badgeColor'] = badgeColor
+    if (typeof borderRadius === 'string') updateData['qrPromoStyles.borderRadius'] = borderRadius
+    if (typeof buttonColor === 'string') updateData['qrPromoStyles.buttonColor'] = buttonColor
 
     const config = await PlatformConfig.findByIdAndUpdate(
       'platform',
@@ -59,9 +55,9 @@ export async function PUT(request: NextRequest) {
       { new: true, upsert: true }
     )
 
-    return NextResponse.json({ qrPromoDefaults: config?.qrPromoDefaults })
+    return NextResponse.json({ qrPromoStyles: config?.qrPromoStyles })
   } catch (error) {
-    console.error('QR Promo Defaults PUT error:', error)
+    console.error('QR Promo Styles PUT error:', error)
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }

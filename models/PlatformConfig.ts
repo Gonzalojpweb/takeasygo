@@ -8,13 +8,13 @@ export interface IPlatformConfig {
     webhookSecret: string | null // encriptado con AES-256
     isConfigured: boolean
   }
-  /** Configuración por defecto para promoción QR de takeaway */
-  qrPromoDefaults: {
-    title: string
-    subtitle: string
-    buttonText: string
-    termsText: string
-    defaultDiscountPercentage: number
+  /** Configuración de estilos estándar para promoción QR de takeaway */
+  qrPromoStyles: {
+    primaryColor: string
+    backgroundColor: string
+    badgeColor: string
+    borderRadius: string
+    buttonColor: string
   }
   updatedAt: Date
 }
@@ -27,13 +27,13 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
       webhookSecret: { type: String, default: null },
       isConfigured:  { type: Boolean, default: false },
     },
-    /** Configuración por defecto para promoción QR de takeaway */
-    qrPromoDefaults: {
-      title: { type: String, default: '¡Primera vez por QR!' },
-      subtitle: { type: String, default: 'Obtené {discount}% OFF en tu primer pedido takeaway' },
-      buttonText: { type: String, default: 'Ver menú' },
-      termsText: { type: String, default: 'Válido solo para pedidos takeaway. No acumulable con otras promociones.' },
-      defaultDiscountPercentage: { type: Number, default: 15, min: 0, max: 100 },
+    /** Configuración de estilos estándar para promoción QR de takeaway */
+    qrPromoStyles: {
+      primaryColor: { type: String, default: '#F74211' },
+      backgroundColor: { type: String, default: '#FFF5F0' },
+      badgeColor: { type: String, default: '#F74211' },
+      borderRadius: { type: String, default: '1.5rem' },
+      buttonColor: { type: String, default: '#F74211' },
     },
   },
   { timestamps: true }
