@@ -83,8 +83,11 @@ export async function POST(
     await connectDB()
     const body = await request.json()
 
+    console.log('[Webhook MP] Webhook recibido:', body.type, 'ID:', body.data?.id)
+
     // Solo nos interesan pagos por ahora
     if (body.type !== 'payment') {
+      console.log('[Webhook MP] Ignorando evento tipo:', body.type)
       return NextResponse.json({ received: true })
     }
 
@@ -179,7 +182,9 @@ export async function POST(
 
               if (order.customer?.phoneHash) {
                 // Calcular puntos según configuración del tenant
+                console.log('[Webhook MP] Calculando puntos - Order total:', order.total, 'PointsConfig:', tenant.pointsConfig)
                 const pointsToAdd = calculatePoints(order.total ?? 0, tenant.pointsConfig)
+                console.log('[Webhook MP] Puntos a agregar:', pointsToAdd)
 
                 // Actualizar miembro con puntos y cache
                 const member = await LoyaltyMember.findOneAndUpdate(
@@ -201,6 +206,8 @@ export async function POST(
                   },
                   { session, upsert: false, new: true }
                 ).catch(() => null)
+
+                console.log('[Webhook MP] Miembro actualizado:', member ? 'YES' : 'NO', 'Member ID:', member?._id)
 
                 // Sincronizar puntos con wallets digitales si se agregaron puntos
                 if (member && pointsToAdd > 0 && member.wallet?.googleObjectId) {

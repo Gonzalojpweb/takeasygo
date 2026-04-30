@@ -25,8 +25,9 @@ export default function MenuWithExploreNav({ tenantSlug, children }: Props) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
-    setIsAuthenticated(!!session?.user)
-  }, [session])
+    console.log('[MenuWithExploreNav] Session status:', status, 'Session:', session)
+    setIsAuthenticated(status === 'authenticated' && !!session?.user)
+  }, [session, status])
 
   return (
     <TenantProvider>
