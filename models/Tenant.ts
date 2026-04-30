@@ -108,6 +108,15 @@ export interface ITenant extends Document {
     buttonText: string
     termsText: string
   }
+  /** Configuración de sistema de puntos para club de fidelización */
+  pointsConfig: {
+    enabled: boolean
+    mode: 'fixed_per_currency' | 'percentage' | 'hybrid' // fijo por moneda, % del monto, o ambos
+    pointsPerCurrency: number // puntos por cada $1 gastado (ej: 0.1 = 1 punto cada $10)
+    pointsPercentage: number // % del monto que se convierte en puntos (ej: 10 = 10%)
+    pointsPerOrder: number // puntos fijos por pedido (opcional)
+    minOrderForPoints: number // monto mínimo para acumular puntos
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -270,6 +279,15 @@ const TenantSchema = new Schema<ITenant>(
       subtitle: { type: String, default: 'Obtené {discount}% OFF en tu primer pedido takeaway' },
       buttonText: { type: String, default: 'Ver menú' },
       termsText: { type: String, default: 'Válido solo para pedidos takeaway. No acumulable con otras promociones.' },
+    },
+    /** Configuración de sistema de puntos para club de fidelización */
+    pointsConfig: {
+      enabled: { type: Boolean, default: false },
+      mode: { type: String, enum: ['fixed_per_currency', 'percentage', 'hybrid'], default: 'fixed_per_currency' },
+      pointsPerCurrency: { type: Number, default: 0.1, min: 0 }, // 0.1 = 1 punto cada $10
+      pointsPercentage: { type: Number, default: 10, min: 0, max: 100 }, // 10% del monto
+      pointsPerOrder: { type: Number, default: 0, min: 0 }, // puntos fijos por pedido
+      minOrderForPoints: { type: Number, default: 0, min: 0 }, // monto mínimo
     },
   },
   {
