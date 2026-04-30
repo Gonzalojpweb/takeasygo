@@ -44,6 +44,14 @@ export async function GET(
         labelColor: tenant.branding?.textColor || '#FFFFFF',
         logoUrl: tenant.branding?.logoUrl || '',
       },
+      pointsConfig: tenant.pointsConfig ?? {
+        enabled: false,
+        mode: 'fixed_per_currency',
+        pointsPerCurrency: 0.1,
+        pointsPercentage: 10,
+        pointsPerOrder: 0,
+        minOrderForPoints: 0,
+      },
       plan: tenant.plan,
     })
   } catch (error) {
@@ -76,7 +84,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { enabled, clubName, welcomeMessage, wallet } = body
+    const { enabled, clubName, welcomeMessage, wallet, pointsConfig } = body
 
     const update: Record<string, any> = {}
     const changes: Record<string, { from: any; to: any }> = {}
@@ -131,6 +139,40 @@ export async function PUT(
       }
     }
 
+    // Points config settings
+    if (pointsConfig) {
+      if (typeof pointsConfig.enabled === 'boolean') {
+        const wasEnabled = tenant.pointsConfig?.enabled ?? false
+        update['pointsConfig.enabled'] = pointsConfig.enabled
+        changes['pointsConfig.enabled'] = { from: wasEnabled, to: pointsConfig.enabled }
+      }
+
+      if (pointsConfig.mode !== undefined) {
+        update['pointsConfig.mode'] = pointsConfig.mode
+        changes['pointsConfig.mode'] = { from: tenant.pointsConfig?.mode, to: pointsConfig.mode }
+      }
+
+      if (pointsConfig.pointsPerCurrency !== undefined) {
+        update['pointsConfig.pointsPerCurrency'] = parseFloat(pointsConfig.pointsPerCurrency)
+        changes['pointsConfig.pointsPerCurrency'] = { from: tenant.pointsConfig?.pointsPerCurrency, to: pointsConfig.pointsPerCurrency }
+      }
+
+      if (pointsConfig.pointsPercentage !== undefined) {
+        update['pointsConfig.pointsPercentage'] = parseFloat(pointsConfig.pointsPercentage)
+        changes['pointsConfig.pointsPercentage'] = { from: tenant.pointsConfig?.pointsPercentage, to: pointsConfig.pointsPercentage }
+      }
+
+      if (pointsConfig.pointsPerOrder !== undefined) {
+        update['pointsConfig.pointsPerOrder'] = parseInt(pointsConfig.pointsPerOrder)
+        changes['pointsConfig.pointsPerOrder'] = { from: tenant.pointsConfig?.pointsPerOrder, to: pointsConfig.pointsPerOrder }
+      }
+
+      if (pointsConfig.minOrderForPoints !== undefined) {
+        update['pointsConfig.minOrderForPoints'] = parseFloat(pointsConfig.minOrderForPoints)
+        changes['pointsConfig.minOrderForPoints'] = { from: tenant.pointsConfig?.minOrderForPoints, to: pointsConfig.minOrderForPoints }
+      }
+    }
+
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ loyalty: tenant.loyalty }, { status: 200 })
     }
@@ -139,7 +181,7 @@ export async function PUT(
       tenant._id,
       { $set: update },
       { new: true }
-    ).select('loyalty wallet').lean()
+    ).select('loyalty wallet pointsConfig').lean()
 
     logAudit({
       tenantId: tenant._id.toString(),
@@ -152,7 +194,8 @@ export async function PUT(
 
     return NextResponse.json({ 
       loyalty: updated?.loyalty,
-      wallet: updated?.wallet
+      wallet: updated?.wallet,
+      pointsConfig: updated?.pointsConfig
     })
   } catch (error) {
     console.error('[loyalty/settings PUT]', error)

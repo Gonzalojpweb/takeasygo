@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, QrCode, Save, Eye, EyeOff, Smartphone, Palette, CreditCard } from 'lucide-react'
+import { Loader2, QrCode, Save, Eye, EyeOff, Smartphone, Palette, CreditCard, Percent, Calculator } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +22,14 @@ interface Props {
       cardColor: string
       labelColor: string
       logoUrl: string
+    }
+    pointsConfig?: {
+      enabled: boolean
+      mode: 'fixed_per_currency' | 'percentage' | 'hybrid'
+      pointsPerCurrency: number
+      pointsPercentage: number
+      pointsPerOrder: number
+      minOrderForPoints: number
     }
   }
 }
@@ -46,6 +54,14 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
   const [labelColor, setLabelColor]       = useState(initial?.wallet?.labelColor ?? '#FFFFFF')
   const [walletLogoUrl, setWalletLogoUrl] = useState(initial?.wallet?.logoUrl ?? '')
 
+  // Points config states
+  const [pointsEnabled, setPointsEnabled] = useState(initial?.pointsConfig?.enabled ?? false)
+  const [pointsMode, setPointsMode] = useState<'fixed_per_currency' | 'percentage' | 'hybrid'>(initial?.pointsConfig?.mode ?? 'fixed_per_currency')
+  const [pointsPerCurrency, setPointsPerCurrency] = useState(initial?.pointsConfig?.pointsPerCurrency ?? 0.1)
+  const [pointsPercentage, setPointsPercentage] = useState(initial?.pointsConfig?.pointsPercentage ?? 10)
+  const [pointsPerOrder, setPointsPerOrder] = useState(initial?.pointsConfig?.pointsPerOrder ?? 0)
+  const [minOrderForPoints, setMinOrderForPoints] = useState(initial?.pointsConfig?.minOrderForPoints ?? 0)
+
   useEffect(() => {
     if (initial) {
       setEnabled(initial.enabled)
@@ -55,6 +71,12 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
       setCardColor(initial.wallet?.cardColor ?? '#000000')
       setLabelColor(initial.wallet?.labelColor ?? '#FFFFFF')
       setWalletLogoUrl(initial.wallet?.logoUrl ?? '')
+      setPointsEnabled(initial.pointsConfig?.enabled ?? false)
+      setPointsMode(initial.pointsConfig?.mode ?? 'fixed_per_currency')
+      setPointsPerCurrency(initial.pointsConfig?.pointsPerCurrency ?? 0.1)
+      setPointsPercentage(initial.pointsConfig?.pointsPercentage ?? 10)
+      setPointsPerOrder(initial.pointsConfig?.pointsPerOrder ?? 0)
+      setMinOrderForPoints(initial.pointsConfig?.minOrderForPoints ?? 0)
     }
   }, [initial])
 
@@ -73,6 +95,14 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
             cardColor,
             labelColor,
             logoUrl: walletLogoUrl
+          },
+          pointsConfig: {
+            enabled: pointsEnabled,
+            mode: pointsMode,
+            pointsPerCurrency,
+            pointsPercentage,
+            pointsPerOrder,
+            minOrderForPoints
           }
         }),
       })
@@ -305,6 +335,212 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
                     <p className="text-sm font-medium">Oro</p>
                     <p className="text-xs uppercase tracking-wider opacity-70">Nivel</p>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ─────────────────────────────────────────────────────────────────────
+            SISTEMA DE PUNTOS
+        ───────────────────────────────────────────────────────────────────── */}
+        <div className="pt-6 border-t border-border/40">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+              <Calculator size={24} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold">Sistema de Puntos</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Configurá cómo se acumulan puntos automáticamente
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40 mb-6">
+            <div className="flex items-center gap-4">
+              <div className={cn(
+                'w-12 h-12 rounded-2xl flex items-center justify-center transition-colors',
+                pointsEnabled ? 'bg-orange-500/10 text-orange-500' : 'bg-muted text-muted-foreground'
+              )}>
+                <Percent size={24} />
+              </div>
+              <div>
+                <Label className="text-base font-bold cursor-pointer" htmlFor="points-enabled">
+                  {pointsEnabled ? 'Puntos activos' : 'Puntos desactivados'}
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {pointsEnabled
+                    ? 'Los puntos se suman automáticamente después de cada pago.'
+                    : 'Activalo para que los clientes acumulen puntos en sus compras.'}
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="points-enabled"
+              checked={pointsEnabled}
+              onCheckedChange={setPointsEnabled}
+              className="data-[state=checked]:bg-orange-500"
+            />
+          </div>
+
+          <div className={cn('space-y-6 transition-opacity', pointsEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none')}>
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                Modo de cálculo
+              </Label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPointsMode('fixed_per_currency')}
+                  className={cn(
+                    'p-4 rounded-xl border-2 text-left transition-all',
+                    pointsMode === 'fixed_per_currency'
+                      ? 'border-orange-500 bg-orange-500/10'
+                      : 'border-border/60 bg-muted/20 hover:border-border/80'
+                  )}
+                >
+                  <p className="font-bold text-sm mb-1">Fijo por monto</p>
+                  <p className="text-xs text-muted-foreground">1 punto cada $10</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPointsMode('percentage')}
+                  className={cn(
+                    'p-4 rounded-xl border-2 text-left transition-all',
+                    pointsMode === 'percentage'
+                      ? 'border-orange-500 bg-orange-500/10'
+                      : 'border-border/60 bg-muted/20 hover:border-border/80'
+                  )}
+                >
+                  <p className="font-bold text-sm mb-1">Porcentaje</p>
+                  <p className="text-xs text-muted-foreground">10% del monto</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPointsMode('hybrid')}
+                  className={cn(
+                    'p-4 rounded-xl border-2 text-left transition-all',
+                    pointsMode === 'hybrid'
+                      ? 'border-orange-500 bg-orange-500/10'
+                      : 'border-border/60 bg-muted/20 hover:border-border/80'
+                  )}
+                >
+                  <p className="font-bold text-sm mb-1">Híbrido</p>
+                  <p className="text-xs text-muted-foreground">Ambos métodos</p>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {pointsMode === 'fixed_per_currency' || pointsMode === 'hybrid' ? (
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                    Puntos por cada $1
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="1"
+                      value={pointsPerCurrency}
+                      onChange={e => setPointsPerCurrency(parseFloat(e.target.value) || 0)}
+                      className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                    />
+                    <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                      Ej: 0.1 = 1 punto cada $10
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {pointsMode === 'percentage' || pointsMode === 'hybrid' ? (
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                    Porcentaje del monto
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="100"
+                      value={pointsPercentage}
+                      onChange={e => setPointsPercentage(parseFloat(e.target.value) || 0)}
+                      className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                    />
+                    <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                      % del monto
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Puntos fijos por pedido
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={pointsPerOrder}
+                    onChange={e => setPointsPerOrder(parseInt(e.target.value) || 0)}
+                    className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                  />
+                  <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                    Opcional
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Monto mínimo
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={minOrderForPoints}
+                    onChange={e => setMinOrderForPoints(parseFloat(e.target.value) || 0)}
+                    className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                  />
+                  <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                    $ mínimo
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview de cálculo */}
+            <div className="p-4 rounded-xl bg-muted/20 border border-border/40">
+              <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50 mb-3">
+                Ejemplo de cálculo
+              </Label>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Monto del pedido:</span>
+                  <span className="font-bold">$1,000</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Puntos ganados:</span>
+                  <span className="font-bold text-orange-500">
+                    {(() => {
+                      const total = 1000
+                      let points = 0
+                      if (pointsMode === 'fixed_per_currency' || pointsMode === 'hybrid') {
+                        points += Math.floor(total * pointsPerCurrency)
+                      }
+                      if (pointsMode === 'percentage' || pointsMode === 'hybrid') {
+                        points += Math.floor(total * pointsPercentage / 100)
+                      }
+                      points += pointsPerOrder
+                      return points.toLocaleString()
+                    })()} puntos
+                  </span>
                 </div>
               </div>
             </div>

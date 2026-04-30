@@ -17,6 +17,31 @@ import { syncWalletPoints } from '@/lib/walletService'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
+
+/**
+ * Calcula puntos según la configuración del tenant
+ */
+function calculatePoints(orderTotal: number, pointsConfig: any): number {
+  if (!pointsConfig?.enabled || orderTotal < (pointsConfig.minOrderForPoints || 0)) {
+    return 0
+  }
+
+  let points = 0
+  const mode = pointsConfig.mode || 'fixed_per_currency'
+
+  if (mode === 'fixed_per_currency') {
+    points = Math.floor(orderTotal * (pointsConfig.pointsPerCurrency || 0.1))
+  } else if (mode === 'percentage') {
+    points = Math.floor(orderTotal * (pointsConfig.pointsPercentage || 10) / 100)
+  } else if (mode === 'hybrid') {
+    const fromCurrency = Math.floor(orderTotal * (pointsConfig.pointsPerCurrency || 0.1))
+    const fromPercentage = Math.floor(orderTotal * (pointsConfig.pointsPercentage || 10) / 100)
+    points = fromCurrency + fromPercentage
+  }
+
+  points += pointsConfig.pointsPerOrder || 0
+  return Math.max(0, points)
+}
 import mongoose from 'mongoose'
 
 export async function POST(
@@ -94,8 +119,8 @@ export async function POST(
 
     // Acción: Acumular puntos (después de una compra)
     if (action === 'earn' && (pointsToAdd || orderTotal)) {
-      // Calcular puntos si viene orderTotal
-      const earnedPoints = pointsToAdd || Math.floor(orderTotal * 0.1) // 10% por defecto
+      // Calcular puntos según configuración del tenant
+      const earnedPoints = pointsToAdd || calculatePoints(orderTotal, tenant.pointsConfig)
       const newPoints = member.loyalty.points + earnedPoints
 
       // Actualizar miembro
