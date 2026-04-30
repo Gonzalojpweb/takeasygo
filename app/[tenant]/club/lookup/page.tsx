@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, use } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +32,7 @@ interface WalletData {
 }
 
 export default function ClubLookupPage({ params }: { params: Promise<{ tenant: string }> }) {
+  const { tenant: tenantSlug } = use(params)
   const [searchInput, setSearchInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [member, setMember] = useState<MemberData | null>(null)
@@ -46,7 +47,6 @@ export default function ClubLookupPage({ params }: { params: Promise<{ tenant: s
 
     setLoading(true)
     try {
-      const tenantSlug = await params.tenant
       const isPhone = /^\d+$/.test(searchInput.replace(/\s/g, ''))
       
       const url = `/api/${tenantSlug}/loyalty/lookup?${isPhone ? `phone=${searchInput}` : `publicId=${searchInput}`}`
@@ -162,7 +162,7 @@ export default function ClubLookupPage({ params }: { params: Promise<{ tenant: s
                       </p>
                     </div>
                     <AddToWalletButtons
-                      tenantSlug={await params.tenant}
+                      tenantSlug={tenantSlug}
                       memberId={member.publicId}
                       publicId={member.publicId}
                       points={member.points}
