@@ -18,6 +18,7 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import Tenant from '@/models/Tenant'
 import crypto from 'crypto'
 import mongoose from 'mongoose'
+import jwt from 'jsonwebtoken'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIGURACIÓN Y CONSTANTES
@@ -75,13 +76,18 @@ export async function generateGoogleWalletJWT(
   try {
     await connectDB()
 
+    console.log('[WalletService] GOOGLE_WALLET_SERVICE_ACCOUNT_KEY:', !!GOOGLE_WALLET_SERVICE_ACCOUNT_KEY)
+    console.log('[WalletService] GOOGLE_WALLET_ISSUER_ID:', GOOGLE_WALLET_ISSUER_ID)
+
     if (!GOOGLE_WALLET_SERVICE_ACCOUNT_KEY || !GOOGLE_WALLET_ISSUER_ID) {
-      console.warn('[WalletService] Google Wallet no configurado')
+      console.warn('[WalletService] Google Wallet no configurado - faltan variables de entorno')
       return null
     }
 
     const member = await LoyaltyMember.findById(memberId).lean()
     const tenant = await Tenant.findById(tenantId).lean()
+
+    console.log('[WalletService] Member encontrado:', !!member, 'Tenant encontrado:', !!tenant)
 
     if (!member || !tenant) return null
 
@@ -140,7 +146,7 @@ export async function generateGoogleWalletJWT(
     }
 
     // Firmar JWT
-    const jwt = await (client as any).signJWT(jwtPayload)
+    const token = jwt.sign(jwtPayload, credentials.private_key, { algorithm: 'RS256' })
 
     // Guardar referencia en el miembro
     await LoyaltyMember.updateOne(
@@ -153,7 +159,7 @@ export async function generateGoogleWalletJWT(
       }
     )
 
-    return { jwt, objectId }
+    return { jwt: token, objectId }
 
   } catch (error) {
     console.error('[WalletService] Error generando Google JWT:', error)
@@ -170,26 +176,38 @@ async function ensureGoogleLoyaltyClass(
   client: any
 ): Promise<void> {
   try {
+    const logoUrl = tenant.wallet?.logoUrl || tenant.branding?.logoUrl || ''
+    
+    // Si no hay logo, usar un placeholder genérico o dejar vacío
+    const programLogo = logoUrl 
+      ? { sourceUri: { uri: logoUrl } }
+      : undefined
+
     const loyaltyClass = {
       id: classId,
-      issuerName: tenant.name,
-      programName: tenant.loyalty.clubName || `Club ${tenant.name}`,
-      programLogo: {
-        sourceUri: {
-          uri: tenant.wallet?.logoUrl || tenant.branding?.logoUrl || ''
-        }
-      },
+      issuerName: tenant.name || 'TakeasyGO',
+      programName: tenant.loyalty?.clubName || `Club ${tenant.name}`,
+      ...(programLogo && { programLogo }),
       hexBackgroundColor: tenant.wallet?.cardColor || '#000000',
-      hexFontColor: tenant.wallet?.labelColor || '#FFFFFF'
+      hexFontColor: tenant.wallet?.labelColor || '#FFFFFF',
+      reviewStatus: 'underReview' // Requerido por Google Wallet para nuevas clases
     }
 
+    console.log('[WalletService] Creando LoyaltyClass:', JSON.stringify(loyaltyClass, null, 2))
+
     // Intentar crear, si ya existe ignorar el error 409
+    // Si falla por permisos (403), asumir que ya existe o continuar sin crearla
     await (client as any).request({
       url: `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass`,
       method: 'POST',
-      body: loyaltyClass
+      body: JSON.stringify(loyaltyClass),
+      headers: {
+        'Content-Type': 'application/json'
+      }
     }).catch((err: any) => {
-      if (err.code !== 409) throw err // 409 = ya existe
+      console.log('[WalletService] Error creando LoyaltyClass:', err.code, err.message)
+      // Ignorar errores 409 (ya existe) y 403 (permisos - asumir que ya existe)
+      if (err.code !== 409 && err.code !== 403) throw err
     })
 
   } catch (error) {
