@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import QrPromoBanner from '@/components/menu/QrPromoBanner'
+import MenuWithExploreNav from '@/components/menu/MenuWithExploreNav'
 
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
@@ -44,7 +45,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
   const br = branding.borderRadius === 'pill' ? '10px' : branding.borderRadius === 'sharp' ? '4px' : '10px'
 
   return (
-    <>
+    <MenuWithExploreNav tenantSlug={tenantSlug}>
       {/* QR Promo Banner - aparece al escanear QR por primera vez */}
       <QrPromoBanner tenantSlug={tenantSlug} source={source || ''} />
 
@@ -427,6 +428,6 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           <PoweredByTakeasy variant="dark" label="network" />
         </div>
       </div>
-    </>
+    </MenuWithExploreNav>
   )
 }
