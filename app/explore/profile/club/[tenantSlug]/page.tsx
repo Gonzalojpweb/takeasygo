@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 import BottomNav from '@/components/explore/BottomNav'
 import { useTenant } from '@/contexts/TenantContext'
+import { use } from 'react'
 
 interface MemberData {
   id: string
@@ -44,14 +45,19 @@ interface ClubData {
   message?: string
 }
 
-export default function ClubProfilePage() {
+export default function ClubProfilePage({ params }: { params: Promise<{ tenantSlug: string }> }) {
+  const { tenantSlug } = use(params)
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { tenantSlug } = useTenant()
+  const { setTenantSlug: setContextTenantSlug } = useTenant()
 
   const [clubData, setClubData] = useState<ClubData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setContextTenantSlug(tenantSlug)
+  }, [tenantSlug, setContextTenantSlug])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -62,7 +68,6 @@ export default function ClubProfilePage() {
     if (status === 'authenticated' && tenantSlug) {
       fetchClubData()
     } else if (status === 'authenticated' && !tenantSlug) {
-      // Si no hay tenant seleccionado, redirigir a explore
       router.push('/explore')
     }
   }, [status, tenantSlug, router])
@@ -298,15 +303,13 @@ export default function ClubProfilePage() {
                 </p>
               </div>
 
-              {tenantSlug && (
-                <AddToWalletButtons
-                  tenantSlug={tenantSlug}
-                  memberId={clubData.member.id}
-                  publicId={clubData.member.publicId}
-                  points={clubData.member.points}
-                  tier={clubData.member.tier}
-                />
-              )}
+              <AddToWalletButtons
+                tenantSlug={tenantSlug}
+                memberId={clubData.member.id}
+                publicId={clubData.member.publicId}
+                points={clubData.member.points}
+                tier={clubData.member.tier}
+              />
             </div>
           )}
         </div>
