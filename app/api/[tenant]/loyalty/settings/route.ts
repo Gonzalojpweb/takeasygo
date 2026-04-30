@@ -16,8 +16,8 @@ export async function GET(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan loyalty name wallet branding')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; wallet: any; branding: any }>()
+      .select('_id plan loyalty name wallet branding pointsConfig')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; wallet: any; branding: any; pointsConfig: any }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -69,8 +69,8 @@ export async function PUT(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan loyalty name wallet branding')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; wallet: any; branding: any }>()
+      .select('_id plan loyalty name wallet branding pointsConfig')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; wallet: any; branding: any; pointsConfig: any }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
