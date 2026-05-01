@@ -32,7 +32,9 @@ export default function MenuWithExploreNav({ tenantSlug, children }: Props) {
   return (
     <TenantProvider>
       <MenuContent tenantSlug={tenantSlug}>
-        {children}
+        <div className={isAuthenticated ? 'has-nav' : ''}>
+          {children}
+        </div>
       </MenuContent>
       {isAuthenticated && <BottomNav />}
     </TenantProvider>
