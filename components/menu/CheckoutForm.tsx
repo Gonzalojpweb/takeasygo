@@ -70,13 +70,13 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
       .then(r => r.json())
       .then(data => {
         if (data.location) {
-          setScheduledOrdersConfig(data.location.scheduledOrdersConfig || { enabled: true, minAdvanceMinutes: 30, maxAdvanceHours: 24 })
+          setScheduledOrdersConfig(data.location.scheduledOrdersConfig || null)
         } else {
-          setScheduledOrdersConfig({ enabled: true, minAdvanceMinutes: 30, maxAdvanceHours: 24 })
+          setScheduledOrdersConfig(null)
         }
       })
       .catch(() => {
-        setScheduledOrdersConfig({ enabled: true, minAdvanceMinutes: 30, maxAdvanceHours: 24 })
+        setScheduledOrdersConfig(null)
       })
   }, [])
 
@@ -356,7 +356,7 @@ async function handleSubmit(e: React.FormEvent) {
             className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400 resize-none"
           />
 
-          {scheduledOrdersConfig && mode === 'takeaway' && (
+          {scheduledOrdersConfig?.enabled && mode === 'takeaway' && (
             <div className="space-y-3">
               <div>
                 <h3 className="font-semibold text-sm text-zinc-700 mb-2">¿Cuándo querés retirar?</h3>

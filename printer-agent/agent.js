@@ -146,6 +146,16 @@ function generateTicket(order, role, columns = 32) {
         chunks.push(Buffer.from(`Tipo: ${order.deliveryMethod}\n`));
     }
 
+    // Hora programada (destacado en negrita)
+    if (order.orderTiming === 'scheduled' && order.scheduledPickupAt) {
+        const schedDate = new Date(order.scheduledPickupAt);
+        const schedTime = schedDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        const schedDateStr = schedDate.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+        chunks.push(ESC_POS.BOLD_ON);
+        chunks.push(Buffer.from(`PROGRAMADO: ${schedDateStr} ${schedTime} hs\n`));
+        chunks.push(ESC_POS.BOLD_OFF);
+    }
+
     // Info del cliente
     chunks.push(ESC_POS.BOLD_ON);
     chunks.push(Buffer.from(`Cliente: ${customer.name || ''} ${customer.lastname || ''}\n`));
