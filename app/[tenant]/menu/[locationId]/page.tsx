@@ -60,8 +60,24 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 32px 20px 24px;
+          padding: 24px 20px;
           gap: 0;
+        }
+
+        .has-nav .mh-root {
+          padding-bottom: 90px;
+        }
+
+        .has-nav .mh-header {
+          margin-bottom: 20px;
+        }
+
+        .has-nav .mh-logo {
+          height: 60px;
+        }
+        
+        .has-nav .mh-footer {
+          padding-top: 12px;
         }
 
         /* ── Backgrounds ── */
