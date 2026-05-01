@@ -10,6 +10,26 @@ async function resolveTenant(tenantSlug: string) {
   return Tenant.findOne({ slug: tenantSlug, isActive: true })
 }
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ tenant: string; locationId: string }> }
+) {
+  try {
+    const { tenant: tenantSlug, locationId } = await params
+    const tenant = await resolveTenant(tenantSlug)
+    if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+
+    const location = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
+      .select('name scheduledOrdersConfig serviceHours')
+      .lean()
+    if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
+
+    return NextResponse.json({ location })
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string; locationId: string }> }

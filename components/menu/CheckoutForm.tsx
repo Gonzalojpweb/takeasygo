@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, Minus, Trash2, Star } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, Star, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
+import SchedulePicker from './SchedulePicker'
 
 interface Props {
   tenantSlug: string
@@ -18,6 +19,12 @@ interface LoyaltyConfig {
   welcomeMessage: string
 }
 
+interface ScheduledOrdersConfig {
+  enabled: boolean
+  minAdvanceMinutes: number
+  maxAdvanceHours: number
+}
+
 export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
@@ -27,6 +34,9 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
   const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig | null>(null)
   const [joinClub, setJoinClub] = useState(false)
+  const [scheduledOrdersConfig, setScheduledOrdersConfig] = useState<ScheduledOrdersConfig | null>(null)
+  const [scheduleOrder, setScheduleOrder] = useState(false)
+  const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(null)
 
   useEffect(() => {
     const saved = sessionStorage.getItem('cart')
@@ -55,6 +65,19 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
         }
       })
       .catch(() => {})
+
+    fetch(`/api/${tenantSlug}/locations/${locationId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.location) {
+          setScheduledOrdersConfig(data.location.scheduledOrdersConfig || { enabled: true, minAdvanceMinutes: 30, maxAdvanceHours: 24 })
+        } else {
+          setScheduledOrdersConfig({ enabled: true, minAdvanceMinutes: 30, maxAdvanceHours: 24 })
+        }
+      })
+      .catch(() => {
+        setScheduledOrdersConfig({ enabled: true, minAdvanceMinutes: 30, maxAdvanceHours: 24 })
+      })
   }, [])
 
   function increaseQty(cartItemId: string) {
@@ -101,15 +124,12 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault()
-  if (!form.name.trim()) return toast.error('El nombre es obligatorio')
-  setLoading(true)
+    if (!form.name.trim()) return toast.error('El nombre es obligatorio')
+    if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
+    setLoading(true)
 
-  try {
-    // 1. Crear la orden
-    const orderRes = await fetch(`/api/${tenantSlug}/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      const orderBody: Record<string, any> = {
         locationId,
         customer: {
           name: form.name,
@@ -122,8 +142,18 @@ async function handleSubmit(e: React.FormEvent) {
         notes: form.notes,
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,
         joinClub: joinClub && loyaltyConfig?.enabled,
-      }),
-    })
+      }
+
+      if (scheduleOrder && scheduledPickupAt) {
+        orderBody.orderTiming = 'scheduled'
+        orderBody.scheduledPickupAt = scheduledPickupAt
+      }
+
+      const orderRes = await fetch(`/api/${tenantSlug}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderBody),
+      })
 
     if (orderRes.status === 409) {
       const data = await orderRes.json()
@@ -326,6 +356,38 @@ async function handleSubmit(e: React.FormEvent) {
             className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400 resize-none"
           />
 
+          {scheduledOrdersConfig && mode === 'takeaway' && (
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 p-4 rounded-2xl border-2 border-zinc-200 bg-zinc-50 cursor-pointer hover:bg-zinc-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={scheduleOrder}
+                  onChange={e => {
+                    setScheduleOrder(e.target.checked)
+                    if (!e.target.checked) setScheduledPickupAt(null)
+                  }}
+                  className="w-5 h-5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500"
+                />
+                <div className="flex items-center gap-2 flex-1">
+                  <Clock size={16} className="text-zinc-600" />
+                  <span className="text-sm font-bold text-zinc-900">
+                    Programar mi pedido
+                  </span>
+                </div>
+              </label>
+
+              {scheduleOrder && (
+                <div>
+                  <SchedulePicker
+                    tenantSlug={tenantSlug}
+                    locationId={locationId}
+                    onSelect={(pickupAt) => setScheduledPickupAt(pickupAt)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {loyaltyConfig?.enabled && (
             <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-amber-200 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
               <input
@@ -372,7 +434,7 @@ async function handleSubmit(e: React.FormEvent) {
   type="submit"
   disabled={loading || cart.length === 0}
   className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50">
-  {loading ? 'Procesando...' : '💳 Pagar con MercadoPago'}
+  {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : '💳 Pagar con MercadoPago'}
 </button>
         </form>
       </div>

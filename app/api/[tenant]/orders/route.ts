@@ -15,6 +15,7 @@ import crypto from 'crypto'
 import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { auth } from '@/lib/auth'
+import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 
 export async function GET(
   request: NextRequest,
@@ -115,6 +116,28 @@ export async function POST(
       return NextResponse.json({ error: 'Menú no encontrado para esta sede' }, { status: 404 })
     }
 
+    // Validar pedido programado si corresponde
+    let scheduledPickupAt: Date | null = null
+    let scheduledStatus: 'pending_schedule' | 'active' | null = null
+
+    if (body.orderTiming === 'scheduled' && body.scheduledPickupAt) {
+      scheduledPickupAt = new Date(body.scheduledPickupAt)
+
+      const menuItemAvailability = body.items.map((clientItem: any) => {
+        const menuItem = menuItemMap.get(clientItem.menuItemId?.toString())
+        return menuItem
+          ? { availabilityMode: menuItem.availabilityMode, availabilitySchedule: menuItem.availabilitySchedule }
+          : { availabilityMode: 'always' as const, availabilitySchedule: undefined }
+      })
+
+      const validation = await validateScheduledPickupTime(body.locationId, scheduledPickupAt, menuItemAvailability)
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error }, { status: 400 })
+      }
+
+      scheduledStatus = 'pending_schedule'
+    }
+
     // Construir un mapa de lookup: menuItemId (string) → { item, categoryName }
     const menuItemMap = new Map<string, any>()
     for (const category of menu.categories) {
@@ -213,6 +236,9 @@ export async function POST(
       customer: encryptedCustomer,
       notes: body.notes || '',
       clientToken: body.clientToken ?? null,
+      orderTiming: body.orderTiming,
+      scheduledPickupAt,
+      scheduledStatus,
     })
 
     if (joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled) {

@@ -71,7 +71,7 @@ export async function GET(
     console.log(`[track] Tenant ${tenantSlug}: mpConfigured=${hasMpConfigured}`)
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.mercadopagoId')
+      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.mercadopagoId orderTiming scheduledPickupAt scheduledStatus')
       .lean() as any
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -117,6 +117,9 @@ export async function GET(
       orderNumber:      order.orderNumber,
       estimatedReadyAt: order.statusTimestamps?.estimatedReadyAt ?? null,
       readyAt:          order.statusTimestamps?.readyAt ?? null,
+      orderTiming:      order.orderTiming ?? 'immediate',
+      scheduledPickupAt: order.scheduledPickupAt ?? null,
+      scheduledStatus:  order.scheduledStatus ?? null,
     }, {
       headers: { 'Cache-Control': 'no-store' },
     })

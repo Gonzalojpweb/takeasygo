@@ -79,6 +79,10 @@ export interface IOrder extends Document {
     lastAttemptAt: Date | null
     error: string | null
   }
+  // ── Pedidos programados ────────────────────────────────────────────────────
+  orderTiming: 'immediate' | 'scheduled'
+  scheduledPickupAt: Date | null
+  scheduledStatus: 'pending_schedule' | 'active' | 'expired' | null
   createdAt: Date
   updatedAt: Date
 }
@@ -206,6 +210,18 @@ const OrderSchema = new Schema(
       lastAttemptAt: { type: Date,   default: null },
       error:         { type: String, default: null },
     },
+    // ── Pedidos programados ──────────────────────────────────────────────────
+    orderTiming: {
+      type: String,
+      enum: ['immediate', 'scheduled'],
+      default: 'immediate',
+    },
+    scheduledPickupAt: { type: Date, default: null },
+    scheduledStatus: {
+      type: String,
+      enum: ['pending_schedule', 'active', 'expired'],
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -216,6 +232,7 @@ OrderSchema.index({ tenantId: 1, createdAt: -1 })
 OrderSchema.index({ tenantId: 1, locationId: 1, createdAt: -1 })
 OrderSchema.index({ orderNumber: 1 })
 OrderSchema.index({ tenantId: 1, 'customer.phoneHash': 1 })  // tasa de recompra
+OrderSchema.index({ tenantId: 1, scheduledPickupAt: 1, scheduledStatus: 1 })
 
 const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema)
 export default Order

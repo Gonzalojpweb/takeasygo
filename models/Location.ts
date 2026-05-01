@@ -47,6 +47,14 @@ export interface ILocation extends Document {
     takeaway: Array<{ days: number[]; open: string; close: string }>
     dineIn: Array<{ days: number[]; open: string; close: string }>
   }
+  scheduledOrdersConfig?: {
+    enabled: boolean
+    maxAdvanceHours: number
+    minAdvanceMinutes: number
+    slotDurationMinutes: number
+    maxOrdersPerSlot: number
+    gracePeriodMinutes: number
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -151,6 +159,14 @@ settings: {
     serviceHours: {
       takeaway: { type: [{ days: [Number], open: String, close: String }], default: [] },
       dineIn: { type: [{ days: [Number], open: String, close: String }], default: [] },
+    },
+    scheduledOrdersConfig: {
+      enabled: { type: Boolean, default: false },
+      maxAdvanceHours: { type: Number, default: 24 },
+      minAdvanceMinutes: { type: Number, default: 30 },
+      slotDurationMinutes: { type: Number, default: 15 },
+      maxOrdersPerSlot: { type: Number, default: 10 },
+      gracePeriodMinutes: { type: Number, default: 15 },
     },
   },
   {
