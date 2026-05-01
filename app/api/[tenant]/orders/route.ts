@@ -116,6 +116,17 @@ export async function POST(
       return NextResponse.json({ error: 'Menú no encontrado para esta sede' }, { status: 404 })
     }
 
+    // Construir un mapa de lookup: menuItemId (string) → { item, categoryName }
+    const menuItemMap = new Map<string, any>()
+    for (const category of menu.categories) {
+      if (!category.isAvailable) continue
+      for (const item of category.items) {
+        if (item.isAvailable && item._id) {
+          menuItemMap.set(item._id.toString(), { ...item.toObject(), categoryName: category.name })
+        }
+      }
+    }
+
     // Validar pedido programado si corresponde
     let scheduledPickupAt: Date | null = null
     let scheduledStatus: 'pending_schedule' | 'active' | null = null
@@ -136,17 +147,6 @@ export async function POST(
       }
 
       scheduledStatus = 'pending_schedule'
-    }
-
-    // Construir un mapa de lookup: menuItemId (string) → { item, categoryName }
-    const menuItemMap = new Map<string, any>()
-    for (const category of menu.categories) {
-      if (!category.isAvailable) continue
-      for (const item of category.items) {
-        if (item.isAvailable && item._id) {
-          menuItemMap.set(item._id.toString(), { ...item.toObject(), categoryName: category.name })
-        }
-      }
     }
 
     // Validar cada item del pedido y calcular precios desde la DB

@@ -34,6 +34,19 @@ function isTimeWithinServiceHours(
   })
 }
 
+const DEFAULT_SERVICE_HOURS: ServiceSlot[] = [
+  { days: [1, 2, 3, 4, 5], open: '08:00', close: '23:00' },
+  { days: [6], open: '09:00', close: '23:00' },
+  { days: [0], open: '10:00', close: '22:00' },
+]
+
+function getEffectiveServiceHours(
+  serviceHours: { takeaway: ServiceSlot[] } | undefined
+): ServiceSlot[] {
+  if (!serviceHours?.takeaway?.length) return DEFAULT_SERVICE_HOURS
+  return serviceHours.takeaway
+}
+
 function isItemAvailableAtTime(
   itemAvailabilityMode: 'always' | 'scheduled' | undefined,
   itemSchedule: AvailabilitySlot[] | undefined,
@@ -177,8 +190,9 @@ export async function getAvailableSlotsForDate(
   const maxAdvance = new Date(now.getTime() + config.maxAdvanceHours * 60 * 60 * 1000)
 
   const slots: AvailableSlot[] = []
+  const effectiveHours = getEffectiveServiceHours(location.serviceHours)
 
-  for (const slot of location.serviceHours?.takeaway || []) {
+  for (const slot of effectiveHours) {
     if (!slot.days.includes(dayOfWeek)) continue
 
     const openMin = timeToMinutes(slot.open)

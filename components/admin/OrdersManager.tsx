@@ -58,8 +58,9 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
   useEffect(() => {
     setLastUpdated(new Date())
   }, [])
-  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
   const playSound = useNotificationSound()
+  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
+  const [upcomingScheduledIds, setUpcomingScheduledIds] = useState<Set<string>>(new Set())
   const knownIdsRef = useRef<Set<string>>(new Set(orders.map(o => o._id)))
 
   const doRefresh = useCallback(() => {
@@ -107,6 +108,48 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
       }, 8000)
     }
     knownIdsRef.current = new Set(orders.map(o => o._id))
+  }, [orders, playSound])
+
+  // Alertas para pedidos programados próximos (5 min antes)
+  useEffect(() => {
+    const checkUpcoming = () => {
+      const now = new Date().getTime()
+      const upcoming = new Set<string>()
+      
+      orders.forEach(order => {
+        if (order.orderTiming === 'scheduled' && !['delivered', 'cancelled'].includes(order.status)) {
+          const pickupAt = new Date(order.scheduledPickupAt).getTime()
+          const diff = pickupAt - now
+          
+          // Alerta si falta menos de 5 min y más de 0
+          if (diff > 0 && diff <= 5 * 60 * 1000) {
+            upcoming.add(order._id)
+          }
+        }
+      })
+      
+      setUpcomingScheduledIds(prev => {
+        const next = new Set(upcoming)
+        // Detectar nuevos que entran en la ventana de alerta
+        const newAlerts = [...next].filter(id => !prev.has(id))
+        newAlerts.forEach(id => {
+          const order = orders.find(o => o._id === id)
+          if (order) {
+            toast.warning(`⏰ Pedido próximo a retirar`, {
+              description: `Orden #${order.orderNumber} programada para las ${new Date(order.scheduledPickupAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`,
+              duration: 10000,
+              position: 'top-center',
+            })
+            playSound()
+          }
+        })
+        return next
+      })
+    }
+
+    const interval = setInterval(checkUpcoming, 30_000)
+    checkUpcoming()
+    return () => clearInterval(interval)
   }, [orders, playSound])
 
   function handleRefresh() { doRefresh() }
@@ -297,9 +340,11 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                     "bg-card border rounded-2xl overflow-hidden flex flex-col hover:shadow-md transition-all",
                     newOrderIds.has(order._id)
                       ? "border-emerald-400 shadow-emerald-100 shadow-lg ring-2 ring-emerald-300/40"
-                      : order.orderTiming === 'scheduled' && order.scheduledStatus === 'pending_schedule'
-                        ? "border-blue-300 ring-1 ring-blue-200/50"
-                        : "border-border/70 hover:border-primary/30"
+                      : upcomingScheduledIds.has(order._id)
+                        ? "border-red-400 ring-2 ring-red-500/40 shadow-red-100 shadow-lg animate-pulse"
+                        : order.orderTiming === 'scheduled' && order.scheduledStatus === 'pending_schedule'
+                          ? "border-blue-300 ring-1 ring-blue-200/50"
+                          : "border-border/70 hover:border-primary/30"
                   )}
                 >
                   {/* Card header */}
@@ -314,6 +359,12 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                           <span className="text-[9px] font-bold uppercase">
                             {order.scheduledStatus === 'pending_schedule' ? 'Programado' : 'Activo'}
                           </span>
+                        </span>
+                      )}
+                      {upcomingScheduledIds.has(order._id) && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 border border-red-200 animate-bounce">
+                          <AlertCircle size={10} />
+                          <span className="text-[9px] font-black uppercase">¡Retiro pronto!</span>
                         </span>
                       )}
                       <span className={cn(

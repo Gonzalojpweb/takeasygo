@@ -115,6 +115,28 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   )
   const [serviceHoursSaving, setServiceHoursSaving] = useState<string | null>(null)
 
+  // Scheduled orders config state
+  type ScheduledOrdersConfig = {
+    enabled: boolean
+    maxAdvanceHours: number
+    minAdvanceMinutes: number
+    slotDurationMinutes: number
+    maxOrdersPerSlot: number
+  }
+  const [scheduledOrdersMap, setScheduledOrdersMap] = useState<Record<string, ScheduledOrdersConfig>>(
+    Object.fromEntries(locations.map((l: any) => [
+      l._id,
+      {
+        enabled: l.scheduledOrdersConfig?.enabled ?? false,
+        maxAdvanceHours: l.scheduledOrdersConfig?.maxAdvanceHours ?? 24,
+        minAdvanceMinutes: l.scheduledOrdersConfig?.minAdvanceMinutes ?? 30,
+        slotDurationMinutes: l.scheduledOrdersConfig?.slotDurationMinutes ?? 15,
+        maxOrdersPerSlot: l.scheduledOrdersConfig?.maxOrdersPerSlot ?? 10,
+      },
+    ]))
+  )
+  const [scheduledOrdersSaving, setScheduledOrdersSaving] = useState<string | null>(null)
+
   async function handleSaveReservationConfig(locationId: string) {
     setReservationSaving(locationId)
     try {
@@ -152,6 +174,23 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
       const current = prev[locationId]
       return { ...prev, [locationId]: { ...current, timeSlots: current.timeSlots.filter(s => s !== slot) } }
     })
+  }
+
+  async function handleSaveScheduledOrdersConfig(locationId: string) {
+    setScheduledOrdersSaving(locationId)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledOrdersConfig: scheduledOrdersMap[locationId] }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Configuración de pedidos programados guardada')
+    } catch {
+      toast.error('Error al guardar configuración')
+    } finally {
+      setScheduledOrdersSaving(null)
+    }
   }
 
   async function handleSaveServiceHours(locationId: string) {
@@ -941,6 +980,116 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                             disabled={serviceHoursSaving === loc._id}
                           >
                             {serviceHoursSaving === loc._id ? 'Guardando...' : 'Guardar horarios de servicio'}
+                          </Button>
+                        </div>
+
+                        {/* ── Scheduled Orders config ── */}
+                        <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Clock size={12} className="text-primary" />
+                              <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+                                Pedidos Programados
+                              </label>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setScheduledOrdersMap(prev => ({
+                                ...prev,
+                                [loc._id]: { ...prev[loc._id], enabled: !prev[loc._id].enabled }
+                              }))}
+                              className={cn(
+                                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                                scheduledOrdersMap[loc._id]?.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+                              )}
+                            >
+                              <span className={cn(
+                                'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200',
+                                scheduledOrdersMap[loc._id]?.enabled ? 'translate-x-5' : 'translate-x-0'
+                              )} />
+                            </button>
+                          </div>
+
+                          {scheduledOrdersMap[loc._id]?.enabled && (
+                            <div className="space-y-4 pt-2">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1.5 block">
+                                    Anticipación mín. (min)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={scheduledOrdersMap[loc._id]?.minAdvanceMinutes ?? 30}
+                                    onChange={e => setScheduledOrdersMap(prev => ({
+                                      ...prev,
+                                      [loc._id]: { ...prev[loc._id], minAdvanceMinutes: Number(e.target.value) }
+                                    }))}
+                                    className={cn(inputCls, "bg-white border-none shadow-inner h-10 text-center")}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1.5 block">
+                                    Anticipación máx. (hs)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={scheduledOrdersMap[loc._id]?.maxAdvanceHours ?? 24}
+                                    onChange={e => setScheduledOrdersMap(prev => ({
+                                      ...prev,
+                                      [loc._id]: { ...prev[loc._id], maxAdvanceHours: Number(e.target.value) }
+                                    }))}
+                                    className={cn(inputCls, "bg-white border-none shadow-inner h-10 text-center")}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1.5 block">
+                                    Duración franja (min)
+                                  </label>
+                                  <select
+                                    value={scheduledOrdersMap[loc._id]?.slotDurationMinutes ?? 15}
+                                    onChange={e => setScheduledOrdersMap(prev => ({
+                                      ...prev,
+                                      [loc._id]: { ...prev[loc._id], slotDurationMinutes: Number(e.target.value) }
+                                    }))}
+                                    className={cn(inputCls, "bg-white border-none shadow-inner h-10 text-center appearance-none")}
+                                  >
+                                    <option value={15}>15 min</option>
+                                    <option value={20}>20 min</option>
+                                    <option value={30}>30 min</option>
+                                    <option value={60}>1 hora</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1.5 block">
+                                    Pedidos por franja
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={scheduledOrdersMap[loc._id]?.maxOrdersPerSlot ?? 10}
+                                    onChange={e => setScheduledOrdersMap(prev => ({
+                                      ...prev,
+                                      [loc._id]: { ...prev[loc._id], maxOrdersPerSlot: Number(e.target.value) }
+                                    }))}
+                                    className={cn(inputCls, "bg-white border-none shadow-inner h-10 text-center")}
+                                  />
+                                  <p className="text-[8px] text-muted-foreground/40 mt-1 text-center">0 = sin límite</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          <Button
+                            className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
+                            onClick={() => handleSaveScheduledOrdersConfig(loc._id)}
+                            disabled={scheduledOrdersSaving === loc._id}
+                          >
+                            {scheduledOrdersSaving === loc._id ? 'Guardando...' : 'Guardar configuración programados'}
                           </Button>
                         </div>
 
