@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
+import { Calendar } from 'lucide-react'
 
 const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered']
 
@@ -26,6 +27,9 @@ interface Props {
   textColor: string
   orderNumber: string
   ratingToken: string | null
+  initialOrderTiming?: string
+  initialScheduledPickupAt?: string | null
+  initialScheduledStatus?: string | null
 }
 
 function formatCountdown(target: string): string {
@@ -33,6 +37,18 @@ function formatCountdown(target: string): string {
   if (diff <= 0) return 'en cualquier momento'
   const mins = Math.ceil(diff / 60_000)
   return `en ~${mins} min`
+}
+
+function formatScheduledDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+  const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+  const day = dayNames[date.getDay()]
+  const d = date.getDate()
+  const month = monthNames[date.getMonth()]
+  const hours = date.getHours().toString().padStart(2, '0')
+  const mins = date.getMinutes().toString().padStart(2, '0')
+  return `${day} ${d} de ${month} a las ${hours}:${mins}`
 }
 
 export default function OrderTracker({
@@ -46,11 +62,20 @@ export default function OrderTracker({
   textColor,
   orderNumber,
   ratingToken,
+  initialOrderTiming = 'immediate',
+  initialScheduledPickupAt = null,
+  initialScheduledStatus = null,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [estimatedReadyAt, setEstimatedReadyAt] = useState(initialEstimatedReadyAt)
   const [countdown, setCountdown]         = useState('')
   const [lastChecked, setLastChecked]     = useState<Date>(new Date())
+  const [orderTiming, setOrderTiming]     = useState(initialOrderTiming)
+  const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(initialScheduledPickupAt)
+  const [scheduledStatus, setScheduledStatus] = useState<string | null>(initialScheduledStatus)
+  const [scheduleCountdown, setScheduleCountdown] = useState('')
+
+  const isScheduledPending = orderTiming === 'scheduled' && scheduledStatus === 'pending_schedule'
 
   const poll = useCallback(async () => {
     try {
@@ -59,6 +84,9 @@ export default function OrderTracker({
       const data = await res.json()
       setStatus(data.status)
       setEstimatedReadyAt(data.estimatedReadyAt ?? null)
+      setOrderTiming(data.orderTiming ?? 'immediate')
+      setScheduledPickupAt(data.scheduledPickupAt ?? null)
+      setScheduledStatus(data.scheduledStatus ?? null)
       setLastChecked(new Date())
     } catch { /* ignora errores de red */ }
   }, [tenantSlug, orderId])
@@ -87,19 +115,71 @@ export default function OrderTracker({
     return () => clearInterval(interval)
   }, [estimatedReadyAt])
 
+  // Countdown para pedido programado pendiente
+  useEffect(() => {
+    if (!isScheduledPending || !scheduledPickupAt) return
+    const updateScheduleCountdown = () => {
+      const diff = new Date(scheduledPickupAt).getTime() - Date.now()
+      if (diff <= 0) {
+        setScheduleCountdown('Tu pedido está siendo activado...')
+        return
+      }
+      const hours = Math.floor(diff / 3_600_000)
+      const mins = Math.ceil((diff % 3_600_000) / 60_000)
+      if (hours > 0) {
+        setScheduleCountdown(`Faltan ${hours}h ${mins}min`)
+      } else {
+        setScheduleCountdown(`Faltan ~${mins} min`)
+      }
+    }
+    updateScheduleCountdown()
+    const interval = setInterval(updateScheduleCountdown, 30_000)
+    return () => clearInterval(interval)
+  }, [isScheduledPending, scheduledPickupAt])
+
   const info = STATUS_INFO[status] ?? STATUS_INFO['pending']
   const currentStep = STATUS_STEPS.indexOf(status)
   const isCancelled = status === 'cancelled'
 
   return (
     <div>
+      {/* Badge de pedido programado */}
+      {isScheduledPending && scheduledPickupAt && (
+        <div className="mb-6 flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-zinc-100 w-fit mx-auto">
+          <Calendar size={14} className="text-zinc-600" />
+          <span className="text-xs font-semibold text-zinc-700">Pedido programado</span>
+        </div>
+      )}
+
       {/* Status principal */}
       <div className="text-center mb-10">
-        <div className={`text-6xl mb-4 ${info.pulse ? 'animate-bounce' : ''}`}>
-          {info.emoji}
-        </div>
-        <h1 className="text-2xl font-black mb-2">{info.label}</h1>
-        <p className="text-sm opacity-60">{info.description}</p>
+        {isScheduledPending ? (
+          <>
+            <div className="text-6xl mb-4">📅</div>
+            <h1 className="text-2xl font-black mb-2">Pedido programado</h1>
+            {scheduledPickupAt && (
+              <p className="text-sm opacity-60 mb-3">
+                {formatScheduledDate(scheduledPickupAt)}
+              </p>
+            )}
+            {scheduleCountdown && (
+              <p className="text-sm font-semibold" style={{ color: primaryColor }}>
+                ⏱ {scheduleCountdown}
+              </p>
+            )}
+            <p className="mt-3 text-xs opacity-40">
+              Tu pedido comenzará a prepararse cerca de la hora programada
+            </p>
+          </>
+        ) : (
+          <>
+            <div className={`text-6xl mb-4 ${info.pulse ? 'animate-bounce' : ''}`}>
+              {info.emoji}
+            </div>
+            <h1 className="text-2xl font-black mb-2">{info.label}</h1>
+            <p className="text-sm opacity-60">{info.description}</p>
+          </>
+        )}
 
         {/* Tiempo estimado */}
         {estimatedReadyAt && ['confirmed', 'preparing'].includes(status) && (

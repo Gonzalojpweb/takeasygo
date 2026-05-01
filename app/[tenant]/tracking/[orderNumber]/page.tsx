@@ -55,6 +55,9 @@ export default async function TrackingPage({ params }: Props) {
           textColor={branding.textColor}
           orderNumber={order.orderNumber}
           ratingToken={ratingToken}
+          initialOrderTiming={order.orderTiming ?? 'immediate'}
+          initialScheduledPickupAt={order.scheduledPickupAt?.toISOString() ?? null}
+          initialScheduledStatus={order.scheduledStatus ?? null}
         />
 
         {/* Resumen del pedido */}

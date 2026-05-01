@@ -40,6 +40,8 @@ export const createOrderSchema = z.object({
   mode: z.enum(['takeaway', 'dine-in']),
   clientToken: z.string().uuid().optional().nullable(),
   joinClub: z.boolean().optional().default(false),
+  orderTiming: z.enum(['immediate', 'scheduled']).optional().default('immediate'),
+  scheduledPickupAt: z.string().datetime().optional(),
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>

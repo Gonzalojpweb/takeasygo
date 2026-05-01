@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2, Radio } from 'lucide-react'
+import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2, Radio, Calendar } from 'lucide-react'
 import OrderStatusButton from './OrderStatusButton'
 import { cn } from '@/lib/utils'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
@@ -35,6 +35,7 @@ const FILTER_TABS = [
   { value: 'confirmed', label: 'Confirmados' },
   { value: 'preparing', label: 'Preparando' },
   { value: 'ready',     label: 'Listos' },
+  { value: 'scheduled', label: 'Programados' },
   { value: 'delivered', label: 'Completados' },
   { value: 'cancelled', label: 'Cancelados' },
 ]
@@ -122,9 +123,12 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
       order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.customer.phone || '').includes(searchTerm)
 
+    const isScheduled = order.orderTiming === 'scheduled' && order.scheduledStatus !== 'expired'
+
     const matchFilter =
-      activeFilter === 'all'    ? true :
-      activeFilter === 'active' ? ACTIVE_STATUSES.includes(order.status) :
+      activeFilter === 'all'       ? true :
+      activeFilter === 'active'    ? ACTIVE_STATUSES.includes(order.status) :
+      activeFilter === 'scheduled' ? isScheduled :
       order.status === activeFilter
 
     return matchSearch && matchFilter
@@ -293,7 +297,9 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                     "bg-card border rounded-2xl overflow-hidden flex flex-col hover:shadow-md transition-all",
                     newOrderIds.has(order._id)
                       ? "border-emerald-400 shadow-emerald-100 shadow-lg ring-2 ring-emerald-300/40"
-                      : "border-border/70 hover:border-primary/30"
+                      : order.orderTiming === 'scheduled' && order.scheduledStatus === 'pending_schedule'
+                        ? "border-blue-300 ring-1 ring-blue-200/50"
+                        : "border-border/70 hover:border-primary/30"
                   )}
                 >
                   {/* Card header */}
@@ -302,6 +308,14 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                       <span className="font-black text-base tracking-tight text-foreground">
                         #{order.orderNumber}
                       </span>
+                      {order.orderTiming === 'scheduled' && order.scheduledPickupAt && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 border border-blue-200">
+                          <Calendar size={10} />
+                          <span className="text-[9px] font-bold uppercase">
+                            {order.scheduledStatus === 'pending_schedule' ? 'Programado' : 'Activo'}
+                          </span>
+                        </span>
+                      )}
                       <span className={cn(
                         'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border',
                         status.badge
@@ -311,10 +325,19 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} />
-                        {date} {time}
-                      </span>
+                      {order.orderTiming === 'scheduled' && order.scheduledPickupAt ? (
+                        <span className="flex items-center gap-1 text-blue-600 font-semibold">
+                          <Clock size={11} />
+                          {new Date(order.scheduledPickupAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      ) : (
+                        <>
+                          <span className="flex items-center gap-1">
+                            <Clock size={11} />
+                            {date} {time}
+                          </span>
+                        </>
+                      )}
                       <span className="flex items-center gap-1">
                         <MapPin size={11} />
                         {locationName}
