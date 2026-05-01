@@ -61,23 +61,37 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           align-items: center;
           justify-content: center;
           padding: 24px 20px;
-          gap: 0;
         }
 
         .has-nav .mh-root {
-          padding-bottom: 90px;
+          padding-bottom: 110px;
+          justify-content: space-between;
         }
 
         .has-nav .mh-header {
-          margin-bottom: 20px;
+          margin-bottom: 0;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
 
         .has-nav .mh-logo {
-          height: 60px;
+          height: clamp(50px, 15vh, 70px);
         }
         
         .has-nav .mh-footer {
-          padding-top: 12px;
+          padding-top: 16px;
+        }
+
+        /* Viewport height tweaks */
+        @media (max-height: 740px) {
+          .mh-header { margin-bottom: 12px; }
+          .mh-logo { height: 50px; }
+          .mh-name { font-size: 24px; }
+          .mh-tagline { font-size: 12px; }
+          .mh-btn { padding: 10px; font-size: 13px; }
+          .mh-social-btn { width: 38px; height: 38px; }
         }
 
         /* ── Backgrounds ── */

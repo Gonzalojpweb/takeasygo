@@ -127,8 +127,8 @@ function BottomSheet({ r, onClose, onNavigate }: {
   return (
     <>
       <div className="absolute inset-0 z-[900] bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="absolute bottom-0 left-0 right-0 z-[1000] safe-area-bottom animate-slide-up pb-[80px]">
-        <div className="glass-card-elevated rounded-t-[32px] border-t border-white/10 shadow-2xl">
+      <div className="absolute bottom-[84px] left-0 right-0 z-[1100] animate-slide-up px-4">
+        <div className="glass-card-elevated rounded-[24px] border border-white/10 shadow-2xl overflow-hidden">
           <div className="flex justify-center pt-3 pb-2" onClick={onClose}>
             <div className="w-12 h-1.5 rounded-full bg-white/10" />
           </div>
