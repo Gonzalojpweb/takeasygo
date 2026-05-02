@@ -52,7 +52,7 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
       return
     }
 
-    if (!source.toLowerCase().includes('qr')) {
+    if (!source.toLowerCase().includes('qr') && source !== 'qr-test') {
       console.log(' [QR Promo] El "source" no contiene la palabra "qr":', source)
       setLoading(false)
       return
