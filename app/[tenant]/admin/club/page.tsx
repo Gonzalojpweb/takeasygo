@@ -23,8 +23,8 @@ export default async function ClubPage({ params }: PageProps) {
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .select('plan loyalty name wallet')
-    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; wallet: any }>()
+    .select('plan loyalty name wallet pointsConfig')
+    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; wallet: any; pointsConfig: any }>()
 
   if (!tenant) {
     redirect('/')
@@ -69,7 +69,8 @@ export default async function ClubPage({ params }: PageProps) {
             cardColor: tenant.wallet?.cardColor ?? '#000000',
             labelColor: tenant.wallet?.labelColor ?? '#FFFFFF',
             logoUrl: tenant.wallet?.logoUrl ?? ''
-          }
+          },
+          pointsConfig: tenant.pointsConfig
         }}
       />
 

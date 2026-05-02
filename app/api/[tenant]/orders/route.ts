@@ -278,9 +278,9 @@ export async function POST(
             status:    'active',
             source:    'checkout',
             cache: {
-              totalOrders: 1,
-              totalSpent:  total,
-              lastOrderAt: new Date(),
+              totalOrders: 0,
+              totalSpent:  0,
+              lastOrderAt: null,
               updatedAt:   new Date(),
             },
           }).catch(() => {})
