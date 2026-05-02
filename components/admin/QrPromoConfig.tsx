@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle } from 'lucide-react'
+import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +11,7 @@ interface QrPromoConfigProps {
 
 interface QrPromoData {
   isEnabled: boolean
+  type: 'discount' | 'info' | 'loyalty'
   discountPercentage: number
   frequency: 'once' | 'every_visit' | 'daily'
   title: string
@@ -22,6 +23,7 @@ interface QrPromoData {
 export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
   const [config, setConfig] = useState<QrPromoData>({
     isEnabled: false,
+    type: 'discount',
     discountPercentage: 15,
     frequency: 'once',
     title: '¡Primera vez por QR!',
@@ -97,10 +99,10 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
         <div>
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             <Gift size={24} className="text-[#F74211]" />
-            Promoción QR Takeaway
+            Marketing QR
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Mostrás un descuento especial a quienes escanean el QR por primera vez
+            Configurá campañas personalizadas para quienes escanean el código QR
           </p>
         </div>
         <button
@@ -122,35 +124,58 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
 
       {config.isEnabled && (
         <div className="space-y-6">
-          {/* Descuento */}
+          {/* Tipo de Banner */}
           <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
-              <Percent size={16} className="text-[#F74211]" />
-              Beneficio del escaneo
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+              <QrCode size={16} className="text-[#F74211]" />
+              Tipo de Campaña
             </label>
-            <p className="text-xs text-muted-foreground mb-3">
-              Si elegís 0%, el banner será puramente informativo.
-            </p>
-            <div className="flex items-center gap-4">
-              <input
-                type="range"
-                min="0"
-                max="50"
-                step="5"
-                value={config.discountPercentage}
-                onChange={(e) => updateConfig('discountPercentage', parseInt(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#F74211]"
-              />
-              <div 
-                className={cn(
-                  "w-20 h-12 flex items-center justify-center rounded-xl font-bold text-lg",
-                  config.discountPercentage > 0 ? "bg-[#F74211] text-white" : "bg-gray-100 text-gray-400"
-                )}
-              >
-                {config.discountPercentage > 0 ? `${config.discountPercentage}%` : 'INFO'}
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {[
+                { value: 'discount', label: 'Promocional', desc: 'Ofrece un % de descuento' },
+                { value: 'info', label: 'Informativo', desc: 'Solo mensaje (sin descuento)' },
+                { value: 'loyalty', label: 'Captación Club', desc: 'Registro Nombre + Teléfono' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => updateConfig('type', option.value as any)}
+                  className={cn(
+                    'p-3 rounded-lg border-2 text-left transition-all',
+                    config.type === option.value
+                      ? 'border-[#F74211] bg-[#F74211]/5'
+                      : 'border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  <p className="font-bold text-sm">{option.label}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{option.desc}</p>
+                </button>
+              ))}
             </div>
           </div>
+
+          {/* Descuento (Solo si es Promocional) */}
+          {config.type === 'discount' && (
+            <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
+              <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
+                <Percent size={16} className="text-[#F74211]" />
+                Beneficio del escaneo
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  step="5"
+                  value={config.discountPercentage}
+                  onChange={(e) => updateConfig('discountPercentage', parseInt(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#F74211]"
+                />
+                <div className="w-20 h-12 flex items-center justify-center rounded-xl font-bold text-lg bg-[#F74211] text-white">
+                  {config.discountPercentage}%
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Frecuencia */}
           <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
@@ -188,13 +213,13 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
               Vista previa
             </label>
             <div 
-              className="rounded-xl p-6 text-center space-y-2"
+              className="rounded-xl p-6 text-center space-y-2 relative overflow-hidden"
               style={{ 
                 background: 'linear-gradient(135deg, #FFF5F0 0%, #FFFFFF 100%)',
                 border: '1px solid #F74211/20'
               }}
             >
-              {config.discountPercentage > 0 ? (
+              {config.type === 'discount' && (
                 <div 
                   className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold mb-2"
                   style={{ backgroundColor: '#F74211', color: 'white' }}
@@ -202,22 +227,44 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
                   <Percent size={12} />
                   {config.discountPercentage}% OFF
                 </div>
-              ) : (
+              )}
+              
+              {config.type === 'loyalty' && (
                 <div 
                   className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold mb-2 bg-zinc-800 text-white"
                 >
-                  <Info size={12} />
-                  INFORMATIVO
+                  <Users size={12} />
+                  UNITE AL CLUB
                 </div>
               )}
+
+              {config.type === 'info' && (
+                <div 
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold mb-2 bg-blue-600 text-white"
+                >
+                  <Info size={12} />
+                  INFO
+                </div>
+              )}
+
               <p className="font-bold text-foreground" style={{ color: '#1A1A1A' }}>
                 {config.title}
               </p>
-              <p className="text-sm text-gray-600">
-                {config.subtitle.replace('{discount}', config.discountPercentage > 0 ? `${config.discountPercentage}%` : '')}
+              <p className="text-xs text-gray-600">
+                {config.type === 'discount' 
+                  ? config.subtitle.replace('{discount}', `${config.discountPercentage}%`)
+                  : config.subtitle}
               </p>
+
+              {config.type === 'loyalty' && (
+                <div className="mt-4 space-y-2 pointer-events-none opacity-50">
+                  <div className="h-9 bg-white border border-gray-200 rounded-lg" />
+                  <div className="h-9 bg-white border border-gray-200 rounded-lg" />
+                </div>
+              )}
+
               <button 
-                className="mt-3 px-4 py-2 rounded-lg text-white text-sm font-medium"
+                className="mt-3 w-full py-2.5 rounded-lg text-white text-sm font-bold flex items-center justify-center gap-2"
                 style={{ backgroundColor: '#F74211' }}
               >
                 {config.buttonText}

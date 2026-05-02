@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, ShoppingBag, Percent, ArrowRight } from 'lucide-react'
+import { X, ShoppingBag, Percent, ArrowRight, Star, CheckCircle2, Users, Info } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 
 interface QrPromoData {
   isEnabled: boolean
+  type: 'discount' | 'info' | 'loyalty'
   discountPercentage: number
   frequency: string
   title: string
@@ -33,6 +34,10 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
   const [promo, setPromo] = useState<QrPromoData | null>(null)
   const [styles, setStyles] = useState<QrPromoStyles | null>(null)
   const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState({ name: '', phone: '' })
+  const [registering, setRegistering] = useState(false)
+  const [registered, setRegistered] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     // Solo mostrar si viene de QR
@@ -119,11 +124,49 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
   }
 
   const handleCTA = () => {
+    if (promo?.type === 'loyalty') return // Form handles it
     handleClose()
     // Scroll al menú o sección de takeaway
     const menuSection = document.getElementById('takeaway-section') || document.getElementById('menu-grid')
     if (menuSection) {
       menuSection.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.name || !form.phone) return
+    
+    setRegistering(true)
+    setError('')
+    
+    try {
+      const res = await fetch(`/api/${tenantSlug}/loyalty/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          source: 'qr_scan'
+        }),
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        if (data.code === 'ALREADY_REGISTERED') {
+          setError('Este número ya es parte del club.')
+        } else {
+          setError(data.error || 'Ocurrió un error al registrarse')
+        }
+        return
+      }
+      
+      setRegistered(true)
+      setTimeout(() => handleClose(), 3000)
+    } catch (e) {
+      setError('Error de conexión')
+    } finally {
+      setRegistering(false)
     }
   }
 
@@ -173,8 +216,8 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
  
               {/* Contenido */}
               <div className="p-6 pt-8 text-center flex flex-col items-center">
-                {/* Badge de descuento */}
-                {promo.discountPercentage > 0 && (
+                {/* Badge dinámico */}
+                {promo.type === 'discount' && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
@@ -188,6 +231,20 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
                     </span>
                   </motion.div>
                 )}
+
+                {promo.type === 'loyalty' && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 bg-zinc-800 text-white">
+                    <Star size={16} className="text-yellow-400 fill-yellow-400" />
+                    <span className="font-bold text-sm uppercase tracking-wider">Club de Fidelidad</span>
+                  </div>
+                )}
+
+                {promo.type === 'info' && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 bg-blue-600 text-white">
+                    <Info size={16} />
+                    <span className="font-bold text-sm uppercase tracking-wider">Anuncio Importante</span>
+                  </div>
+                )}
  
                 {/* Título */}
                 <h2 
@@ -199,64 +256,134 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
  
                 {/* Subtítulo */}
                 <p className="text-base text-gray-600 mb-6 leading-relaxed max-w-[280px]">
-                  {promo.subtitle.replace('{discount}', promo.discountPercentage > 0 ? `${promo.discountPercentage}%` : '')}
+                  {promo.type === 'discount' 
+                    ? promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)
+                    : promo.subtitle}
                 </p>
 
-                {/* Imagen decorativa / Icono */}
-                <div className="flex justify-center mb-6">
-                  <motion.div
-                    initial={{ y: 10 }}
-                    animate={{ y: [0, -5, 0] }}
-                    transition={{ 
-                      duration: 2, 
-                      repeat: Infinity, 
-                      ease: 'easeInOut' 
-                    }}
-                    className="relative w-32 h-32"
-                  >
-                    {/* Círculo de fondo */}
-                    <div 
-                      className="absolute inset-0 rounded-full opacity-20"
-                      style={{ backgroundColor: styles.primaryColor }}
-                    />
-                    <div 
-                      className="absolute inset-4 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: styles.primaryColor }}
-                    >
-                      <ShoppingBag size={48} className="text-white" />
-                    </div>
-                    {/* Elementos decorativos */}
-                    <div 
-                      className="absolute -top-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg"
-                      style={{ backgroundColor: styles.primaryColor }}
-                    >
-                      -{promo.discountPercentage}%
-                    </div>
-                  </motion.div>
-                </div>
+                {/* UI específica por tipo */}
+                {promo.type === 'loyalty' ? (
+                  <div className="w-full space-y-4 mb-6">
+                    {registered ? (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center"
+                      >
+                        <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <CheckCircle2 className="text-white" />
+                        </div>
+                        <p className="font-bold text-emerald-900">¡Bienvenido al Club!</p>
+                        <p className="text-sm text-emerald-700 mt-1">Ya sos parte. Redirigiendo...</p>
+                      </motion.div>
+                    ) : (
+                      <form onSubmit={handleRegister} className="space-y-3">
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Nombre Completo</label>
+                          <input 
+                            required
+                            type="text"
+                            placeholder="Ej: Juan Pérez"
+                            value={form.name}
+                            onChange={e => setForm(s => ({ ...s, name: e.target.value }))}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          />
+                        </div>
+                        <div className="space-y-1 text-left">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Teléfono (WhatsApp)</label>
+                          <input 
+                            required
+                            type="tel"
+                            placeholder="Ej: +54 9 11 ..."
+                            value={form.phone}
+                            onChange={e => setForm(s => ({ ...s, phone: e.target.value }))}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          />
+                        </div>
+                        
+                        {error && (
+                          <motion.p 
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-xs text-red-600 font-medium bg-red-50 py-2 rounded-lg"
+                          >
+                            {error}
+                          </motion.p>
+                        )}
 
-                {/* CTA Button */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleCTA}
-                  className="w-full py-4 rounded-xl font-semibold text-white text-lg flex items-center justify-center gap-2 shadow-lg transition-shadow hover:shadow-xl"
-                  style={{ backgroundColor: styles.buttonColor }}
-                >
-                  {promo.buttonText}
-                  <ArrowRight size={20} />
-                </motion.button>
+                        <button
+                          type="submit"
+                          disabled={registering}
+                          className="w-full py-4 rounded-xl font-bold text-white text-lg flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+                          style={{ backgroundColor: styles.buttonColor }}
+                        >
+                          {registering ? 'Registrando...' : promo.buttonText}
+                          <ArrowRight size={20} />
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* Imagen decorativa / Icono (Solo para no-loyalty) */}
+                    <div className="flex justify-center mb-6">
+                      <motion.div
+                        initial={{ y: 10 }}
+                        animate={{ y: [0, -5, 0] }}
+                        transition={{ 
+                          duration: 2, 
+                          repeat: Infinity, 
+                          ease: 'easeInOut' 
+                        }}
+                        className="relative w-32 h-32"
+                      >
+                        <div 
+                          className="absolute inset-0 rounded-full opacity-20"
+                          style={{ backgroundColor: styles.primaryColor }}
+                        />
+                        <div 
+                          className="absolute inset-4 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: styles.primaryColor }}
+                        >
+                          {promo.type === 'discount' ? <ShoppingBag size={48} className="text-white" /> : <Info size={48} className="text-white" />}
+                        </div>
+                        {promo.type === 'discount' && (
+                          <div 
+                            className="absolute -top-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-lg"
+                            style={{ backgroundColor: styles.primaryColor }}
+                          >
+                            -{promo.discountPercentage}%
+                          </div>
+                        )}
+                      </motion.div>
+                    </div>
+
+                    {/* CTA Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleCTA}
+                      className="w-full py-4 rounded-xl font-semibold text-white text-lg flex items-center justify-center gap-2 shadow-lg transition-shadow hover:shadow-xl"
+                      style={{ backgroundColor: styles.buttonColor }}
+                    >
+                      {promo.buttonText}
+                      <ArrowRight size={20} />
+                    </motion.button>
+                  </>
+                )}
 
                 {/* Botón cerrar secundario */}
-                <button
-                  onClick={handleClose}
-                  className="w-full mt-3 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  Cerrar y continuar
-                </button>
+                {!registered && (
+                  <button
+                    onClick={handleClose}
+                    className="w-full mt-3 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    Cerrar y continuar
+                  </button>
+                )}
 
                 {/* Términos */}
-                <p className="text-xs text-gray-400 text-center mt-4">
+                <p className="text-[10px] text-gray-400 text-center mt-4">
                   {promo.termsText}
                 </p>
               </div>

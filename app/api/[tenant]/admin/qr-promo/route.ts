@@ -80,6 +80,9 @@ export async function PUT(
     const updateData: any = {}
     
     if (typeof isEnabled === 'boolean') updateData['qrPromo.isEnabled'] = isEnabled
+    if (body.type && ['discount', 'info', 'loyalty'].includes(body.type)) {
+      updateData['qrPromo.type'] = body.type
+    }
     if (typeof discountPercentage === 'number') updateData['qrPromo.discountPercentage'] = discountPercentage
     if (frequency && ['once', 'every_visit', 'daily'].includes(frequency)) {
       updateData['qrPromo.frequency'] = frequency

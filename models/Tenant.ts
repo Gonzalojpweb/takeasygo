@@ -101,6 +101,7 @@ export interface ITenant extends Document {
   /** Promoción de takeaway para primer scan QR */
   qrPromo: {
     isEnabled: boolean
+    type: 'discount' | 'info' | 'loyalty'
     discountPercentage: number // 0-100
     frequency: 'once' | 'every_visit' | 'daily'
     title: string
@@ -273,6 +274,7 @@ const TenantSchema = new Schema<ITenant>(
     /** Promoción de takeaway para primer scan QR */
     qrPromo: {
       isEnabled: { type: Boolean, default: false },
+      type: { type: String, enum: ['discount', 'info', 'loyalty'], default: 'discount' },
       discountPercentage: { type: Number, default: 15, min: 0, max: 100 },
       frequency: { type: String, enum: ['once', 'every_visit', 'daily'], default: 'once' },
       title: { type: String, default: '¡Primera vez por QR!' },
