@@ -193,18 +193,20 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
             className="relative w-full max-w-md overflow-hidden"
           >
             {/* Card principal - Estilos dinámicos del superadmin */}
-            <div 
-              className="relative overflow-hidden shadow-2xl"
-              style={{ 
-                background: `linear-gradient(135deg, ${styles.backgroundColor} 0%, #FFFFFF 50%, ${styles.backgroundColor} 100%)`,
-                borderRadius: styles.borderRadius,
-              }}
-            >
-              {/* Header decorativo */}
               <div 
-                className="h-2 w-full"
-                style={{ backgroundColor: styles.primaryColor }}
-              />
+                className="relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.2)]"
+                style={{ 
+                  background: `rgba(255, 255, 255, 0.95)`,
+                  backdropFilter: 'blur(20px)',
+                  borderRadius: styles.borderRadius,
+                  border: `1px solid rgba(0, 0, 0, 0.05)`,
+                }}
+              >
+                {/* Header decorativo con gradiente sutil */}
+                <div 
+                  className="h-1.5 w-full"
+                  style={{ background: `linear-gradient(90deg, ${styles.primaryColor}, ${styles.badgeColor})` }}
+                />
               
               {/* Botón cerrar */}
               <button
@@ -222,40 +224,40 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4"
+                    className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5 shadow-sm border border-white/20"
                     style={{ backgroundColor: styles.badgeColor, color: 'white' }}
                   >
-                    <Percent size={16} />
-                    <span className="font-bold text-sm">
+                    <Percent size={14} className="stroke-[3]" />
+                    <span className="font-black text-xs uppercase tracking-tight">
                       {promo.discountPercentage}% OFF
                     </span>
                   </motion.div>
                 )}
 
                 {promo.type === 'loyalty' && (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 bg-zinc-800 text-white">
-                    <Star size={16} className="text-yellow-400 fill-yellow-400" />
-                    <span className="font-bold text-sm uppercase tracking-wider">Club de Fidelidad</span>
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5 bg-zinc-950 text-white shadow-lg border border-white/10">
+                    <Star size={14} className="text-yellow-400 fill-yellow-400" />
+                    <span className="font-black text-[10px] uppercase tracking-[0.15em]">Club de Fidelidad</span>
                   </div>
                 )}
 
                 {promo.type === 'info' && (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 bg-blue-600 text-white">
-                    <Info size={16} />
-                    <span className="font-bold text-sm uppercase tracking-wider">Anuncio Importante</span>
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5 bg-blue-600 text-white shadow-md">
+                    <Info size={14} className="stroke-[3]" />
+                    <span className="font-black text-[10px] uppercase tracking-[0.15em]">Info Importante</span>
                   </div>
                 )}
  
                 {/* Título */}
                 <h2 
-                  className="text-2xl font-bold mb-2"
-                  style={{ color: '#1A1A1A' }}
+                  className="text-3xl font-black mb-3 tracking-tight leading-none"
+                  style={{ color: '#0F172A' }}
                 >
                   {promo.title}
                 </h2>
  
                 {/* Subtítulo */}
-                <p className="text-base text-gray-600 mb-6 leading-relaxed max-w-[280px]">
+                <p className="text-sm text-slate-600 mb-8 leading-relaxed max-w-[300px] font-medium">
                   {promo.type === 'discount' 
                     ? promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)
                     : promo.subtitle}
@@ -326,33 +328,40 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
                 ) : (
                   <>
                     {/* Imagen decorativa / Icono (Solo para no-loyalty) */}
-                    <div className="flex justify-center mb-6">
+                    <div className="flex justify-center mb-10">
                       <motion.div
                         initial={{ y: 10 }}
-                        animate={{ y: [0, -5, 0] }}
+                        animate={{ y: [0, -8, 0] }}
                         transition={{ 
-                          duration: 2, 
+                          duration: 3, 
                           repeat: Infinity, 
                           ease: 'easeInOut' 
                         }}
-                        className="relative w-32 h-32"
+                        className="relative w-28 h-28"
                       >
                         <div 
-                          className="absolute inset-0 rounded-full opacity-20"
+                          className="absolute inset-0 rounded-3xl rotate-6 opacity-10"
                           style={{ backgroundColor: styles.primaryColor }}
                         />
                         <div 
-                          className="absolute inset-4 rounded-full flex items-center justify-center"
+                          className="absolute inset-0 rounded-3xl -rotate-3 opacity-10"
                           style={{ backgroundColor: styles.primaryColor }}
+                        />
+                        <div 
+                          className="absolute inset-0 rounded-3xl flex items-center justify-center shadow-xl border border-white/50"
+                          style={{ 
+                            background: `linear-gradient(135deg, ${styles.primaryColor}, ${styles.badgeColor})`,
+                          }}
                         >
-                          {promo.type === 'discount' ? <ShoppingBag size={48} className="text-white" /> : <Info size={48} className="text-white" />}
+                          {promo.type === 'discount' ? <ShoppingBag size={42} className="text-white" /> : <Info size={42} className="text-white" />}
                         </div>
                         {promo.type === 'discount' && (
                           <div 
-                            className="absolute -top-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-lg"
-                            style={{ backgroundColor: styles.primaryColor }}
+                            className="absolute -top-3 -right-3 w-12 h-12 rounded-full flex flex-col items-center justify-center text-white shadow-2xl border-2 border-white"
+                            style={{ backgroundColor: styles.badgeColor }}
                           >
-                            -{promo.discountPercentage}%
+                            <span className="text-[10px] font-black leading-none">OFF</span>
+                            <span className="text-base font-black leading-none">-{promo.discountPercentage}%</span>
                           </div>
                         )}
                       </motion.div>
@@ -360,14 +369,14 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
 
                     {/* CTA Button */}
                     <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.03, translateY: -2 }}
+                      whileTap={{ scale: 0.97 }}
                       onClick={handleCTA}
-                      className="w-full py-4 rounded-xl font-semibold text-white text-lg flex items-center justify-center gap-2 shadow-lg transition-shadow hover:shadow-xl"
+                      className="w-full py-5 rounded-2xl font-black text-white text-lg flex items-center justify-center gap-3 shadow-[0_15px_30px_-10px_rgba(0,0,0,0.3)] transition-all uppercase tracking-tight"
                       style={{ backgroundColor: styles.buttonColor }}
                     >
                       {promo.buttonText}
-                      <ArrowRight size={20} />
+                      <ArrowRight size={22} className="stroke-[3]" />
                     </motion.button>
                   </>
                 )}
