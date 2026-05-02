@@ -1,8 +1,8 @@
- {
+{
        "crons": [
          {
            "path": "/api/cron/activate-scheduled-orders",
-           "schedule": "*/5 * * * *"
+           "schedule": "0 0 * * *"
          }
        ]
      }
