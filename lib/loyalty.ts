@@ -97,3 +97,28 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
 
   return member
 }
+
+/**
+ * Busca órdenes pagadas que no hayan sumado puntos para un miembro y las procesa.
+ * Esto sirve como "fail-safe" si el webhook falló o fue muy rápido.
+ */
+export async function reconcileMissingPoints(member: any, tenant: any) {
+  if (!tenant.loyalty?.enabled || !tenant.pointsConfig?.enabled) return 0
+
+  const orders = await Order.find({
+    tenantId: tenant._id,
+    'customer.phoneHash': member.phoneHash,
+    'payment.status': 'approved',
+    loyaltyPointsCredited: { $ne: true }
+  })
+
+  let totalReconciled = 0
+  for (const order of orders) {
+    const memberUpdated = await addPointsFromOrder(order, tenant)
+    if (memberUpdated) {
+      totalReconciled++
+    }
+  }
+
+  return totalReconciled
+}
