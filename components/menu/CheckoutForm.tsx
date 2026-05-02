@@ -141,9 +141,10 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault()
-    if (!form.name.trim()) return toast.error('El nombre es obligatorio')
-    if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
-    setLoading(true)
+  if (!form.name.trim()) return toast.error('El nombre es obligatorio')
+  if (joinClub && !form.phone.trim()) return toast.error('El teléfono es obligatorio para unirse al club')
+  if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
+  setLoading(true)
 
     try {
       const orderBody: Record<string, any> = {
@@ -372,11 +373,17 @@ async function handleSubmit(e: React.FormEvent) {
               <option value="+39">🇮🇹 +39</option>
             </select>
             <input
-              placeholder="Teléfono (opcional)"
+              required={joinClub}
+              placeholder={joinClub ? "Teléfono (obligatorio) *" : "Teléfono (opcional)"}
               type="tel"
               value={form.phone}
-              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-              className="flex-1 border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
+              onChange={e => setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, '') }))}
+              className={cn(
+                "flex-1 border rounded-xl px-4 py-3 text-base focus:outline-none transition-all",
+                joinClub && !form.phone.trim() 
+                  ? "border-amber-300 bg-amber-50/30 focus:border-amber-500" 
+                  : "border-zinc-200 focus:border-zinc-400"
+              )}
             />
           </div>
           <input

@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
-import { Calendar } from 'lucide-react'
+import { Calendar, Star, Sparkles } from 'lucide-react'
+import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 
 const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered']
 
@@ -30,6 +31,13 @@ interface Props {
   initialOrderTiming?: string
   initialScheduledPickupAt?: string | null
   initialScheduledStatus?: string | null
+  loyaltyData?: {
+    memberId: string
+    publicId: string
+    points: number
+    tier: string
+    name: string
+  } | null
 }
 
 function formatCountdown(target: string): string {
@@ -65,6 +73,7 @@ export default function OrderTracker({
   initialOrderTiming = 'immediate',
   initialScheduledPickupAt = null,
   initialScheduledStatus = null,
+  loyaltyData = null,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [estimatedReadyAt, setEstimatedReadyAt] = useState(initialEstimatedReadyAt)
@@ -270,6 +279,37 @@ export default function OrderTracker({
             style={{ backgroundColor: primaryColor, color: backgroundColor }}>
             Volver al menú
           </a>
+        </div>
+      )}
+
+      {/* SECCIÓN LOYALTY PARA INVITADOS/MIEMBROS */}
+      {loyaltyData && (
+        <div className="mt-12 pt-8 border-t border-zinc-100">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+              <Star size={16} className="text-amber-600 fill-amber-600" />
+            </div>
+            <h3 className="font-black text-lg">Tu Club de Puntos</h3>
+          </div>
+          
+          <div className="bg-white rounded-3xl p-6 border-2 border-amber-100 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+              <Sparkles size={80} className="text-amber-600" />
+            </div>
+            
+            <p className="text-sm text-zinc-600 mb-6 leading-relaxed">
+              ¡Hola <span className="font-bold text-zinc-900">{loyaltyData.name}</span>! Ya sos parte del club. 
+              Guardá tu tarjeta para no perder tus puntos y recibir beneficios.
+            </p>
+
+            <AddToWalletButtons
+              tenantSlug={tenantSlug}
+              memberId={loyaltyData.memberId}
+              publicId={loyaltyData.publicId}
+              points={loyaltyData.points}
+              tier={loyaltyData.tier}
+            />
+          </div>
         </div>
       )}
     </div>
