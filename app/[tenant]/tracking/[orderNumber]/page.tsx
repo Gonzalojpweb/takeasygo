@@ -41,7 +41,7 @@ export default async function TrackingPage({ params }: Props) {
       tenantId: tenant._id,
       phoneHash: order.customer.phoneHash,
       status: 'active'
-    }).select('wallet.publicId name loyalty.points').lean() as any
+    }).select('wallet.publicId name phone loyalty.points').lean() as any
 
     if (member) {
       // RECONCILIACIÓN: Si hay puntos de esta orden (u otras) que no se sumaron, lo hacemos ahora.

@@ -7,28 +7,34 @@ import { syncWalletPoints } from '@/lib/walletService'
  * Calcula puntos según la configuración del tenant
  */
 export function calculatePoints(orderTotal: number, pointsConfig: any): number {
-  if (!pointsConfig?.enabled || orderTotal < (pointsConfig.minOrderForPoints || 0)) {
+  // Si no hay configuración o está explícitamente deshabilitado el sistema de puntos, no sumamos.
+  // Pero si el objeto existe, intentamos ser flexibles.
+  const isEnabled = pointsConfig?.enabled === true
+  if (!isEnabled) return 0
+
+  if (orderTotal < (pointsConfig.minOrderForPoints || 0)) {
     return 0
   }
 
   let points = 0
   const mode = pointsConfig.mode || 'fixed_per_currency'
+  
+  // Safe defaults: Si no hay valores, usamos 0.1 (1 punto cada $10) como base
+  const pointsPerCurrency = pointsConfig.pointsPerCurrency ?? 0.1
+  const pointsPercentage = pointsConfig.pointsPercentage ?? 10
 
   if (mode === 'fixed_per_currency') {
-    // Puntos por cada $1 gastado (ej: 0.1 = 1 punto cada $10)
-    points = Math.floor(orderTotal * (pointsConfig.pointsPerCurrency || 0.1))
+    points = Math.floor(orderTotal * pointsPerCurrency)
   } else if (mode === 'percentage') {
-    // % del monto convertido a puntos (ej: 10% = 0.1 del monto)
-    points = Math.floor(orderTotal * (pointsConfig.pointsPercentage || 10) / 100)
+    points = Math.floor(orderTotal * pointsPercentage / 100)
   } else if (mode === 'hybrid') {
-    // Combinación de ambos métodos
-    const fromCurrency = Math.floor(orderTotal * (pointsConfig.pointsPerCurrency || 0.1))
-    const fromPercentage = Math.floor(orderTotal * (pointsConfig.pointsPercentage || 10) / 100)
+    const fromCurrency = Math.floor(orderTotal * pointsPerCurrency)
+    const fromPercentage = Math.floor(orderTotal * pointsPercentage / 100)
     points = fromCurrency + fromPercentage
   }
 
   // Sumar puntos fijos por pedido si está configurado
-  points += pointsConfig.pointsPerOrder || 0
+  points += (pointsConfig.pointsPerOrder || 0)
 
   return Math.max(0, points)
 }
@@ -103,17 +109,32 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
  * Esto sirve como "fail-safe" si el webhook falló o fue muy rápido.
  */
 export async function reconcileMissingPoints(member: any, tenant: any) {
-  if (!tenant.loyalty?.enabled || !tenant.pointsConfig?.enabled) return 0
+  // En la página de éxito, somos más permisivos: si el club está activo, intentamos sumar.
+  if (!tenant.loyalty?.enabled) return 0
 
+  // 1. Identificar posibles hashes (el actual y el legacy de 10 dígitos)
+  const hashes = [member.phoneHash]
+  
+  // Si el member tiene el teléfono guardado, intentamos generar el hash legacy para rescatar órdenes viejas
+  if (member.phone) {
+    const digitsOnly = member.phone.replace(/\D/g, '')
+    const legacyNumber = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly
+    const crypto = await import('crypto')
+    const legacyHash = crypto.createHash('sha256').update(legacyNumber).digest('hex')
+    if (!hashes.includes(legacyHash)) hashes.push(legacyHash)
+  }
+
+  // 2. Buscar órdenes pagadas que coincidan con CUALQUIERA de los hashes
   const orders = await Order.find({
     tenantId: tenant._id,
-    'customer.phoneHash': member.phoneHash,
+    'customer.phoneHash': { $in: hashes },
     'payment.status': 'approved',
     loyaltyPointsCredited: { $ne: true }
   })
 
   let totalReconciled = 0
   for (const order of orders) {
+    // Forzamos la suma usando la configuración del tenant (con los defaults que pusimos antes)
     const memberUpdated = await addPointsFromOrder(order, tenant)
     if (memberUpdated) {
       totalReconciled++
