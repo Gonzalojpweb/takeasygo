@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, Minus, Trash2, Star, Clock } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 import SchedulePicker from './SchedulePicker'
