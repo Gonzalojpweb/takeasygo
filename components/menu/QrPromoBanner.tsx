@@ -33,7 +33,7 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
   const [promo, setPromo] = useState<QrPromoData | null>(null)
   const [styles, setStyles] = useState<QrPromoStyles | null>(null)
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ name: '', phone: '' })
+  const [form, setForm] = useState({ name: '', phone: '', countryCode: '+54' })
   const [registering, setRegistering] = useState(false)
   const [registered, setRegistered] = useState(false)
   const [error, setError] = useState('')
@@ -114,7 +114,7 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
       const res = await fetch(`/api/${tenantSlug}/loyalty/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, source: 'qr_scan' }),
+        body: JSON.stringify({ name: form.name, phone: `${form.countryCode} ${form.phone}`, source: 'qr_scan' }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -241,14 +241,34 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
                           onChange={e => setForm(s => ({ ...s, name: e.target.value }))}
                           className="w-full h-14 px-5 bg-slate-100 border-none rounded-2xl text-base font-bold focus:ring-2 focus:ring-black/5 transition-all outline-none"
                         />
-                        <input 
-                          required
-                          type="tel"
-                          placeholder="Tu WhatsApp"
-                          value={form.phone}
-                          onChange={e => setForm(s => ({ ...s, phone: e.target.value }))}
-                          className="w-full h-14 px-5 bg-slate-100 border-none rounded-2xl text-base font-bold focus:ring-2 focus:ring-black/5 transition-all outline-none"
-                        />
+                        <div className="flex gap-2">
+                          <select
+                            value={form.countryCode}
+                            onChange={e => setForm(s => ({ ...s, countryCode: e.target.value }))}
+                            className="h-14 w-[88px] px-2 bg-slate-100 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-black/5 transition-all outline-none text-center"
+                          >
+                            <option value="+54">🇦🇷 +54</option>
+                            <option value="+598">🇺🇾 +598</option>
+                            <option value="+56">🇨🇱 +56</option>
+                            <option value="+55">🇧🇷 +55</option>
+                            <option value="+51">🇵🇪 +51</option>
+                            <option value="+52">🇲🇽 +52</option>
+                            <option value="+1">🇺🇸 +1</option>
+                            <option value="+34">🇪🇸 +34</option>
+                            <option value="+44">🇬🇧 +44</option>
+                            <option value="+49">🇩🇪 +49</option>
+                            <option value="+33">🇫🇷 +33</option>
+                            <option value="+39">🇮🇹 +39</option>
+                          </select>
+                          <input 
+                            required
+                            type="tel"
+                            placeholder="Tu WhatsApp"
+                            value={form.phone}
+                            onChange={e => setForm(s => ({ ...s, phone: e.target.value }))}
+                            className="flex-1 h-14 px-5 bg-slate-100 border-none rounded-2xl text-base font-bold focus:ring-2 focus:ring-black/5 transition-all outline-none"
+                          />
+                        </div>
                       </div>
                       {error && <p className="text-xs text-red-600 font-bold text-center md:text-left">{error}</p>}
                       <button

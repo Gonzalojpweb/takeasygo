@@ -30,7 +30,7 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const [cart, setCart] = useState<CartItem[]>([])
   const [upsellHints, setUpsellHints] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ name: '', phone: '', email: '', birthDate: '', notes: '' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '', birthDate: '', notes: '', countryCode: '+54' })
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
   const [activeQrPromo, setActiveQrPromo] = useState<{ discountPercentage: number } | null>(null)
 
@@ -150,7 +150,7 @@ async function handleSubmit(e: React.FormEvent) {
         locationId,
         customer: {
           name: form.name,
-          phone: form.phone,
+          phone: form.phone ? `${form.countryCode} ${form.phone}` : '',
           email: form.email,
           ...(joinClub && form.birthDate && { birthDate: form.birthDate })
         },
@@ -352,13 +352,33 @@ async function handleSubmit(e: React.FormEvent) {
             onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
             className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
           />
-          <input
-            placeholder="Teléfono (opcional)"
-            type="tel"
-            value={form.phone}
-            onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
-          />
+          <div className="flex gap-2">
+            <select
+              value={form.countryCode}
+              onChange={e => setForm(p => ({ ...p, countryCode: e.target.value }))}
+              className="w-[88px] border border-zinc-200 rounded-xl px-2 py-3 text-sm focus:outline-none focus:border-zinc-400 text-center"
+            >
+              <option value="+54">🇦🇷 +54</option>
+              <option value="+598">🇺🇾 +598</option>
+              <option value="+56">🇨🇱 +56</option>
+              <option value="+55">🇧🇷 +55</option>
+              <option value="+51">🇵🇪 +51</option>
+              <option value="+52">🇲🇽 +52</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+34">🇪🇸 +34</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+49">🇩🇪 +49</option>
+              <option value="+33">🇫🇷 +33</option>
+              <option value="+39">🇮🇹 +39</option>
+            </select>
+            <input
+              placeholder="Teléfono (opcional)"
+              type="tel"
+              value={form.phone}
+              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+              className="flex-1 border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
+            />
+          </div>
           <input
             placeholder="Email (opcional)"
             type="email"
