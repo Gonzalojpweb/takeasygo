@@ -2,10 +2,9 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { Eye, Link2 } from 'lucide-react'
+import { Eye } from 'lucide-react'
 import VisitsPanel from '@/components/superadmin/VisitsPanel'
 import UrlGenerator from '@/components/superadmin/UrlGenerator'
-import QrPromoDefaultsConfig from '@/components/superadmin/QrPromoDefaultsConfig'
 
 export default async function VisitsPage() {
   const session = await auth()
@@ -37,7 +36,6 @@ export default async function VisitsPage() {
         </p>
       </div>
 
-      <QrPromoDefaultsConfig />
 
       <UrlGenerator tenants={serializedTenants} />
 

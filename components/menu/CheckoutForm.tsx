@@ -32,6 +32,21 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', email: '', birthDate: '', notes: '' })
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
+  const [activeQrPromo, setActiveQrPromo] = useState<{ discountPercentage: number } | null>(null)
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('tgo-active-qr-promo')
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored)
+        if (parsed.tenantSlug === tenantSlug && parsed.discountPercentage > 0) {
+          setActiveQrPromo(parsed)
+        }
+      } catch (e) {
+        console.error('Error parsing QR promo:', e)
+      }
+    }
+  }, [tenantSlug])
   const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig | null>(null)
   const [joinClub, setJoinClub] = useState(false)
   const [scheduledOrdersConfig, setScheduledOrdersConfig] = useState<ScheduledOrdersConfig | null>(null)
@@ -119,7 +134,9 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
     setUpsellHints(prev => prev.filter(h => h._id !== item._id))
   }
 
-  const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const discountAmount = activeQrPromo ? Math.round(subtotal * (activeQrPromo.discountPercentage / 100)) : 0
+  const total = subtotal - discountAmount
   // total se recalcula automáticamente al agregar hints (cart es estado)
 
 async function handleSubmit(e: React.FormEvent) {
@@ -142,6 +159,7 @@ async function handleSubmit(e: React.FormEvent) {
         notes: form.notes,
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,
         joinClub: joinClub && loyaltyConfig?.enabled,
+        qrPromoApplied: !!activeQrPromo,
       }
 
       if (scheduleOrder && scheduledPickupAt) {
@@ -457,12 +475,34 @@ async function handleSubmit(e: React.FormEvent) {
             </div>
           )}
 
-<button
-  type="submit"
-  disabled={loading || cart.length === 0}
-  className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50">
-  {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : '💳 Pagar con MercadoPago'}
-</button>
+          {/* Resumen de precios */}
+          <div className="pt-4 border-t border-zinc-100 space-y-2 mb-6">
+            <div className="flex justify-between text-sm text-zinc-500">
+              <span>Subtotal</span>
+              <span>${subtotal.toLocaleString('es-AR')}</span>
+            </div>
+            {activeQrPromo && (
+              <div className="flex justify-between text-sm text-green-600 font-semibold">
+                <span className="flex items-center gap-1">
+                  <Percent size={12} />
+                  Descuento QR ({activeQrPromo.discountPercentage}%)
+                </span>
+                <span>-${discountAmount.toLocaleString('es-AR')}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-lg font-black text-zinc-900">
+              <span>Total</span>
+              <span>${total.toLocaleString('es-AR')}</span>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || cart.length === 0}
+            className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50"
+          >
+            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : '💳 Pagar con MercadoPago'}
+          </button>
         </form>
       </div>
     </div>

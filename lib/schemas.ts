@@ -42,6 +42,7 @@ export const createOrderSchema = z.object({
   joinClub: z.boolean().optional().default(false),
   orderTiming: z.enum(['immediate', 'scheduled']).optional().default('immediate'),
   scheduledPickupAt: z.string().datetime().optional(),
+  qrPromoApplied: z.boolean().optional().default(false),
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>

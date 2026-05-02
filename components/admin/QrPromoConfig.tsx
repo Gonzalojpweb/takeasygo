@@ -124,24 +124,30 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
         <div className="space-y-6">
           {/* Descuento */}
           <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
               <Percent size={16} className="text-[#F74211]" />
-              Porcentaje de descuento
+              Beneficio del escaneo
             </label>
+            <p className="text-xs text-muted-foreground mb-3">
+              Si elegís 0%, el banner será puramente informativo.
+            </p>
             <div className="flex items-center gap-4">
               <input
                 type="range"
-                min="5"
+                min="0"
                 max="50"
+                step="5"
                 value={config.discountPercentage}
                 onChange={(e) => updateConfig('discountPercentage', parseInt(e.target.value))}
                 className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#F74211]"
               />
               <div 
-                className="w-20 h-12 flex items-center justify-center rounded-xl font-bold text-lg"
-                style={{ backgroundColor: '#F74211', color: 'white' }}
+                className={cn(
+                  "w-20 h-12 flex items-center justify-center rounded-xl font-bold text-lg",
+                  config.discountPercentage > 0 ? "bg-[#F74211] text-white" : "bg-gray-100 text-gray-400"
+                )}
               >
-                {config.discountPercentage}%
+                {config.discountPercentage > 0 ? `${config.discountPercentage}%` : 'INFO'}
               </div>
             </div>
           </div>
@@ -188,18 +194,27 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
                 border: '1px solid #F74211/20'
               }}
             >
-              <div 
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold mb-2"
-                style={{ backgroundColor: '#F74211', color: 'white' }}
-              >
-                <Percent size={12} />
-                {config.discountPercentage}% OFF
-              </div>
+              {config.discountPercentage > 0 ? (
+                <div 
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold mb-2"
+                  style={{ backgroundColor: '#F74211', color: 'white' }}
+                >
+                  <Percent size={12} />
+                  {config.discountPercentage}% OFF
+                </div>
+              ) : (
+                <div 
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold mb-2 bg-zinc-800 text-white"
+                >
+                  <Info size={12} />
+                  INFORMATIVO
+                </div>
+              )}
               <p className="font-bold text-foreground" style={{ color: '#1A1A1A' }}>
                 {config.title}
               </p>
               <p className="text-sm text-gray-600">
-                {config.subtitle.replace('{discount}', String(config.discountPercentage))}
+                {config.subtitle.replace('{discount}', config.discountPercentage > 0 ? `${config.discountPercentage}%` : '')}
               </p>
               <button 
                 className="mt-3 px-4 py-2 rounded-lg text-white text-sm font-medium"
