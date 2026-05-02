@@ -44,10 +44,18 @@ export default async function TrackingPage({ params }: Props) {
     }).select('wallet.publicId name loyalty.points').lean() as any
 
     if (member) {
+      // RECONCILIACIÓN: Si hay puntos de esta orden (u otras) que no se sumaron, lo hacemos ahora.
+      // Esto previene el problema de "0 puntos" si el webhook fue más lento que el usuario.
+      const { reconcileMissingPoints } = await import('@/lib/loyalty')
+      await reconcileMissingPoints(member, tenant)
+      
+      // Volvemos a buscar para tener los puntos actualizados
+      const updatedMember = await LoyaltyMember.findById(member._id).select('loyalty.points wallet.publicId').lean() as any
+
       loyaltyData = {
         memberId: member._id.toString(),
-        publicId: member.wallet?.publicId,
-        points: member.loyalty?.points ?? 0,
+        publicId: updatedMember.wallet?.publicId || member.wallet?.publicId,
+        points: updatedMember.loyalty?.points ?? member.loyalty?.points ?? 0,
         name: member.name,
         tier: member.loyalty?.tier ?? 'none'
       }

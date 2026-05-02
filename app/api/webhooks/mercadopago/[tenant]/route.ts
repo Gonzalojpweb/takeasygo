@@ -62,7 +62,7 @@ export async function POST(
       return NextResponse.json({ received: true })
     }
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug })
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
     if (!tenant?.mercadopago?.accessToken) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
