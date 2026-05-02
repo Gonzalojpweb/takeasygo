@@ -203,20 +203,22 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {filtered.map((tenant) => (
             <Card key={tenant._id} className="bg-card border-2 border-border/60 shadow-md hover:shadow-xl transition-all duration-300 group overflow-hidden rounded-2xl">
               <CardHeader className="pb-4 relative">
-                <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center font-bold text-primary text-xl shadow-inner group-hover:bg-primary group-hover:text-white transition-all duration-500 transform group-hover:rotate-2">
-                    {tenant.name.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-foreground font-bold text-lg truncate group-hover:text-primary transition-colors">{tenant.name}</p>
-                    <p className="text-muted-foreground text-xs font-mono font-bold">{tenant.slug}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center font-bold text-primary text-xl shadow-inner group-hover:bg-primary group-hover:text-white transition-all duration-500 transform group-hover:rotate-2 shrink-0">
+                      {tenant.name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-foreground font-bold text-lg truncate group-hover:text-primary transition-colors leading-tight">{tenant.name}</p>
+                      <p className="text-muted-foreground text-[10px] font-mono font-bold mt-0.5 opacity-60">{tenant.slug}</p>
+                    </div>
                   </div>
                   <Badge className={cn(
-                    "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border-2",
+                    "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border-2 shrink-0 whitespace-nowrap",
                     PLAN_COLORS[tenant.plan] ?? "bg-muted text-muted-foreground border-muted"
                   )}>
                     {PLAN_LABELS[tenant.plan] ?? tenant.plan}
@@ -243,50 +245,53 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
                    </p>
                  </div>
 
-                 <div className="flex items-center gap-2">
-                   <Link href={`/${tenant.slug}/admin`} target="_blank" className="flex-1">
-                     <Button variant="outline" size="sm" className="w-full rounded-xl font-bold text-xs border-2 hover:bg-primary hover:border-primary hover:text-white transition-all group/btn">
-                       <ExternalLink className="mr-2 h-3 w-3 group-hover/btn:scale-110 transition-transform" /> Admin
-                     </Button>
-                   </Link>
-                   <Link href={`/superadmin/tenants/${tenant._id}/locations`} className="flex-1">
-                     <Button variant="outline" size="sm" className="w-full rounded-xl font-bold text-xs border-2 hover:bg-primary hover:border-primary hover:text-white transition-all group/btn">
-                       <MapPin className="mr-2 h-3 w-3 group-hover/btn:scale-110 transition-transform" /> Sedes
-                     </Button>
-                   </Link>
-                   <Link href={`/superadmin/tenants/${tenant._id}/users`}>
-                     <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all" title="Usuarios">
-                       <Users className="h-4 w-4" />
-                     </Button>
-                   </Link>
-                   <Link href={`/superadmin/tenants/${tenant._id}/edit`}>
-                     <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all">
-                       <Settings className="h-4 w-4" />
-                     </Button>
-                   </Link>
-                   {tenant.status === 'active' && (
-                     <Button
-                       variant="outline"
-                       size="sm"
-                       onClick={() => handlePause(tenant._id)}
-                       className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-amber-500 hover:border-amber-500 hover:text-white transition-all"
-                       title="Pausar tenant"
-                     >
-                       <Pause className="h-4 w-4" />
-                     </Button>
-                   )}
-                   {tenant.status === 'paused' && (
-                     <Button
-                       variant="outline"
-                       size="sm"
-                       onClick={() => handleResume(tenant._id)}
-                       className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-emerald-500 hover:border-emerald-500 hover:text-white transition-all"
-                       title="Reactivar tenant"
-                     >
-                       <Play className="h-4 w-4" />
-                     </Button>
-                   )}
-                 </div>
+                 <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/${tenant.slug}/admin`} target="_blank" className="flex-1 min-w-[80px]">
+                      <Button variant="outline" size="sm" className="w-full h-9 rounded-xl font-bold text-[11px] border-2 hover:bg-primary hover:border-primary hover:text-white transition-all group/btn">
+                        <ExternalLink className="mr-1.5 h-3.5 w-3.5 group-hover/btn:scale-110 transition-transform" /> Admin
+                      </Button>
+                    </Link>
+                    <Link href={`/superadmin/tenants/${tenant._id}/locations`} className="flex-1 min-w-[80px]">
+                      <Button variant="outline" size="sm" className="w-full h-9 rounded-xl font-bold text-[11px] border-2 hover:bg-primary hover:border-primary hover:text-white transition-all group/btn">
+                        <MapPin className="mr-1.5 h-3.5 w-3.5 group-hover/btn:scale-110 transition-transform" /> Sedes
+                      </Button>
+                    </Link>
+                    
+                    <div className="flex items-center gap-2">
+                      <Link href={`/superadmin/tenants/${tenant._id}/users`}>
+                        <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all" title="Usuarios">
+                          <Users className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Link href={`/superadmin/tenants/${tenant._id}/edit`}>
+                        <Button variant="outline" size="sm" className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-primary hover:border-primary hover:text-white transition-all">
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      {tenant.status === 'active' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePause(tenant._id)}
+                          className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-amber-500 hover:border-amber-500 hover:text-white transition-all"
+                          title="Pausar tenant"
+                        >
+                          <Pause className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {tenant.status === 'paused' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResume(tenant._id)}
+                          className="h-9 w-9 rounded-xl p-0 border-2 hover:bg-emerald-500 hover:border-emerald-500 hover:text-white transition-all"
+                          title="Reactivar tenant"
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
               </CardContent>
             </Card>
           ))}
