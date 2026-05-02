@@ -46,11 +46,25 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
   }, [tenantSlug, source])
 
   const checkPromo = async () => {
+    if (!source) {
+      console.log(' [QR Promo] No se detectó parámetro "source" en la URL.')
+      setLoading(false)
+      return
+    }
+
+    if (!source.toLowerCase().includes('qr')) {
+      console.log(' [QR Promo] El "source" no contiene la palabra "qr":', source)
+      setLoading(false)
+      return
+    }
+
     try {
+      console.log(' [QR Promo] Verificando elegibilidad para:', source)
       const res = await fetch(`/api/${tenantSlug}/qr-promo?source=${source}`)
       const data = await res.json()
       
       if (data.show && data.promo) {
+        console.log(' [QR Promo] ¡Promo activada!', data.promo.title)
         setPromo(data.promo)
         setShow(true)
         // Guardar en sesión para el checkout
@@ -58,9 +72,11 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
           discountPercentage: data.promo.discountPercentage,
           tenantSlug
         }))
+      } else {
+        console.log(' [QR Promo] El servidor decidió no mostrarla. Razón:', data.reason || 'Desconocida')
       }
     } catch (e) {
-      console.error('Error checking promo:', e)
+      console.error(' [QR Promo] Error al verificar promo:', e)
     } finally {
       setLoading(false)
     }
@@ -69,12 +85,22 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
   const fetchStyles = async () => {
     try {
       const res = await fetch('/api/superadmin/qr-promo-defaults')
+      if (!res.ok) throw new Error('Failed to fetch global styles')
       const data = await res.json()
       if (data.qrPromoStyles) {
         setStyles(data.qrPromoStyles)
+      } else {
+        throw new Error('No styles found in response')
       }
     } catch (e) {
-      console.error('Error fetching styles:', e)
+      console.warn(' [QR Promo] Usando estilos por defecto debido a error:', e)
+      setStyles({
+        primaryColor: '#F74211',
+        backgroundColor: '#FFF5F0',
+        badgeColor: '#F74211',
+        borderRadius: '24px',
+        buttonColor: '#F74211',
+      })
     }
   }
 
