@@ -42,10 +42,15 @@ export function safeDecrypt(value: string): string {
 
 /**
  * SHA-256 estable del teléfono — permite agrupar por cliente sin exponer el número.
- * Normaliza el número eliminando espacios y caracteres no numéricos (excepto +) 
- * para asegurar consistencia entre el Club y las Órdenes.
+ * NORMALIZACIÓN AGRESIVA: Solo mantiene los últimos 10 dígitos numéricos para evitar 
+ * fallos por prefijos (+54, 9, etc.) o formatos de espacios/guiones.
  */
 export function hashPhone(phone: string): string {
-  const normalized = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '')
-  return crypto.createHash('sha256').update(normalized).digest('hex')
+  // 1. Eliminar todo lo que no sea número
+  const digitsOnly = phone.replace(/\D/g, '')
+  // 2. Tomar los últimos 10 dígitos (típico en Argentina y otros países para celular)
+  // Si el número es más corto, lo toma entero.
+  const coreNumber = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly
+  
+  return crypto.createHash('sha256').update(coreNumber).digest('hex')
 }

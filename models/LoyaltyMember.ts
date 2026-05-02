@@ -183,8 +183,10 @@ LoyaltyMemberSchema.index({ userId: 1, tenantId: 1 }, { unique: true, sparse: tr
 
 // ── Helper estático: generar phoneHash ───────────────────────────────────────
 LoyaltyMemberSchema.statics.hashPhone = function (phone: string): string {
-  const normalized = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '')
-  return crypto.createHash('sha256').update(normalized).digest('hex')
+  // NORMALIZACIÓN AGRESIVA: Solo mantiene los últimos 10 dígitos numéricos
+  const digitsOnly = phone.replace(/\D/g, '')
+  const coreNumber = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly
+  return crypto.createHash('sha256').update(coreNumber).digest('hex')
 }
 
 // ── Helper: generar publicId único para QR/Wallets ────────────────────────────
