@@ -7,6 +7,7 @@ import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
+import { addPointsFromOrder } from '@/lib/loyalty'
 
 export async function GET(
   request: NextRequest,
@@ -69,6 +70,9 @@ export async function GET(
             order.payment.mercadopagoData = payment as any
             order.status = 'confirmed'
             await order.save({ session })
+
+            // Sumar puntos al club de fidelidad si corresponde
+            await addPointsFromOrder(order, tenant, session)
 
             // Registrar en PaymentNotification para que no lo procese un webhook tardío
             await PaymentNotification.findOneAndUpdate(
