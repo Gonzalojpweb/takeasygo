@@ -216,7 +216,16 @@ export async function POST(
     }
 
     // Total calculado 100% en el servidor
-    const total = resolvedItems.reduce((sum, item) => sum + item.subtotal, 0)
+    const subtotal = resolvedItems.reduce((sum, item) => sum + item.subtotal, 0)
+    let discountAmount = 0
+    let qrPromoApplied = false
+
+    if (body.qrPromoApplied && tenant.qrPromo?.isEnabled && (tenant.qrPromo.discountPercentage || 0) > 0) {
+      discountAmount = Math.round(subtotal * (tenant.qrPromo.discountPercentage / 100))
+      qrPromoApplied = true
+    }
+
+    const total = subtotal - discountAmount
 
     const encryptedCustomer = {
       name:  encrypt(body.customer.name),
@@ -232,6 +241,9 @@ export async function POST(
       status: 'awaiting_payment',
       orderMode: body.mode,
       items: resolvedItems,
+      subtotal,
+      discountAmount,
+      qrPromoApplied,
       total,
       customer: encryptedCustomer,
       notes: body.notes || '',

@@ -53,6 +53,11 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
       if (data.show && data.promo) {
         setPromo(data.promo)
         setShow(true)
+        // Guardar en sesión para el checkout
+        sessionStorage.setItem('tgo-active-qr-promo', JSON.stringify({
+          discountPercentage: data.promo.discountPercentage,
+          tenantSlug
+        }))
       }
     } catch (e) {
       console.error('Error checking promo:', e)
@@ -106,7 +111,7 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -20, scale: 0.95 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) handleClose()
           }}
@@ -139,23 +144,25 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
               >
                 <X size={18} className="text-gray-500" />
               </button>
-
+ 
               {/* Contenido */}
-              <div className="p-6 pt-8">
+              <div className="p-6 pt-8 text-center flex flex-col items-center">
                 {/* Badge de descuento */}
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4"
-                  style={{ backgroundColor: styles.badgeColor, color: 'white' }}
-                >
-                  <Percent size={16} />
-                  <span className="font-bold text-sm">
-                    {promo.discountPercentage}% OFF
-                  </span>
-                </motion.div>
-
+                {promo.discountPercentage > 0 && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4"
+                    style={{ backgroundColor: styles.badgeColor, color: 'white' }}
+                  >
+                    <Percent size={16} />
+                    <span className="font-bold text-sm">
+                      {promo.discountPercentage}% OFF
+                    </span>
+                  </motion.div>
+                )}
+ 
                 {/* Título */}
                 <h2 
                   className="text-2xl font-bold mb-2"
@@ -163,10 +170,10 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
                 >
                   {promo.title}
                 </h2>
-
+ 
                 {/* Subtítulo */}
-                <p className="text-base text-gray-600 mb-6 leading-relaxed">
-                  {promo.subtitle}
+                <p className="text-base text-gray-600 mb-6 leading-relaxed max-w-[280px]">
+                  {promo.subtitle.replace('{discount}', promo.discountPercentage > 0 ? `${promo.discountPercentage}%` : '')}
                 </p>
 
                 {/* Imagen decorativa / Icono */}

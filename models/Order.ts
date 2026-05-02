@@ -155,6 +155,20 @@ const OrderSchema = new Schema(
       required: true,
     },
     items: [OrderItemSchema],
+    subtotal: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    qrPromoApplied: {
+      type: Boolean,
+      default: false,
+    },
     total: {
       type: Number,
       required: true,

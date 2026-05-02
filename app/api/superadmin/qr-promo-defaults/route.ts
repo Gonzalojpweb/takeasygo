@@ -5,11 +5,6 @@ import { auth } from '@/lib/auth'
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session || session.user.role !== 'superadmin') {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
-
     await connectDB()
 
     let config = await PlatformConfig.findById('platform')

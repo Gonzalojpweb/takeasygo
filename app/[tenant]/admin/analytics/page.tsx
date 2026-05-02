@@ -5,7 +5,6 @@ import Tenant from '@/models/Tenant'
 import { BarChart3, TrendingUp, Users, Smartphone, QrCode, Instagram, Link2 } from 'lucide-react'
 import TrafficAnalyticsPanel from '@/components/admin/TrafficAnalyticsPanel'
 import UrlGeneratorPanel from '@/components/admin/UrlGeneratorPanel'
-import QrPromoConfig from '@/components/admin/QrPromoConfig'
 
 export default async function AnalyticsPage({
   params,
@@ -47,8 +46,6 @@ export default async function AnalyticsPage({
         </p>
       </div>
 
-      {/* QR Promo Config */}
-      <QrPromoConfig tenantSlug={tenantSlug} />
 
       {/* URL Generator para el tenant */}
       <UrlGeneratorPanel tenantSlug={tenantSlug} tenantName={tenant.name} />

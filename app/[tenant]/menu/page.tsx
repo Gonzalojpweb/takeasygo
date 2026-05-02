@@ -7,8 +7,12 @@ interface Props {
   params: Promise<{ tenant: string }>
 }
 
-export default async function MenuIndexPage({ params }: Props) {
+export default async function MenuIndexPage({ params, searchParams }: {
+  params: Promise<{ tenant: string }>,
+  searchParams: Promise<{ source?: string }>
+}) {
   const { tenant: tenantSlug } = await params
+  const { source } = await searchParams
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
@@ -21,5 +25,6 @@ export default async function MenuIndexPage({ params }: Props) {
 
   if (!firstLocation) notFound()
 
-  redirect(`/${tenantSlug}/menu/${firstLocation._id}`)
+  const query = source ? `?source=${source}` : ''
+  redirect(`/${tenantSlug}/menu/${firstLocation._id}${query}`)
 }

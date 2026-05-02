@@ -21,6 +21,7 @@ import {
   BookOpen,
   QrCode,
   Tag,
+  Gift,
   Database,
   TrendingUp,
   Eye
@@ -186,6 +187,12 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       icon: QrCode,
       roles: ['admin', 'manager'],
       feature: 'loyaltyClub',
+    },
+    {
+      href: `${base}/marketing-qr`,
+      label: 'Marketing QR',
+      icon: Gift,
+      roles: ['admin', 'manager'],
     },
     {
       href: `${base}/promotions`,
