@@ -6,7 +6,7 @@ import {
   Settings, Printer, ClipboardList, Shield, Activity, CalendarDays,
   CreditCard, Search, ChevronRight, X, BookOpen,
   Target, CheckCircle2, Star, HelpCircle, ArrowRight,
-  Sparkles, ShieldCheck, Lock, Database
+  Sparkles, ShieldCheck, Lock, Database, Clock
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
@@ -92,6 +92,40 @@ const SECTIONS: Section[] = [
       'Confirmá los pedidos lo más rápido posible — el tiempo desde que llega hasta que se confirma impacta directamente en tu score ICO.',
       'Las notas del cliente aparecen destacadas en el detalle del pedido. Revisalas siempre antes de empezar a preparar.',
       'Podés imprimir el ticket en cualquier momento desde el detalle del pedido si la impresión automática falla.',
+    ],
+  },
+  {
+    id: 'pedidos-programados',
+    icon: Clock,
+    label: 'Pedidos Programados',
+    color: 'text-sky-600',
+    bgColor: 'bg-sky-500/10',
+    plan: 'inicial',
+    roles: ['admin', 'gerente', 'staff', 'cajero'],
+    objective: 'Permitir a los clientes programar la fecha y hora de retiro de su pedido, y gestionar esas órdenes desde el panel.',
+    description: 'Los Pedidos Programados permiten que tus clientes no solo pidan para ya, sino que agenden su pedido para un momento específico del día. El sistema valida automáticamente horarios del local, capacidad por franja y anticipación. Los pedidos agendados aparecen en el panel con badges azules y se activan automáticamente cuando llega la hora.',
+    features: [
+      { title: 'Selector Ahora vs Programar', desc: 'En el checkout, el cliente elige si quiere su pedido inmediato o programado. Si elige programar, se despliega un calendario + grilla de horarios disponibles.' },
+      { title: 'Validación automática', desc: 'El sistema verifica que la fecha y hora elegida esté dentro del horario del local, que tenga la anticipación mínima requerida y que la franja no esté llena.' },
+      { title: 'Configuración por sede', desc: 'Cada local configura sus propios parámetros: anticipación mínima (default 30 min), máxima (default 24 hs), duración de franjas (default 15 min), capacidad por franja (default 10 pedidos) y ventana de gracia (default 15 min).' },
+      { title: 'Badge visual en el panel', desc: 'Los pedidos programados muestran un badge azul ("Programado" o "Activo") y un borde diferenciador en la lista de pedidos.' },
+      { title: 'Filtro "Programados"', desc: 'Nuevo tab en el módulo Pedidos para ver solo los pedidos agendados, ordenados por hora programada.' },
+      { title: 'Activación automática (Cron)', desc: 'Cada 5 minutos, el sistema revisa los pedidos pendientes de activación y los pasa a estado "active" cuando llega su hora programada.' },
+      { title: 'Tracking con countdown', desc: 'El cliente ve una vista especial en el tracking con la fecha/hora programada y una cuenta regresiva en tiempo real hasta que el pedido se activa.' },
+      { title: 'Comanda impresa con indicador', desc: 'Los tickets de cocina y caja muestran "PROGRAMADO: DD/MM HH:MM hs" en negrita para que el personal identifique pedidos agendados.' },
+      { title: 'Horarios fallback inteligentes', desc: 'Si el admin no configuró horarios de servicio, el sistema usa horarios por defecto: Lun-Vie 08-23, Sáb 09-23, Dom 10-22.' },
+    ],
+    steps: [
+      { action: 'Configurá los parámetros por sede', detail: 'En Configuración → Pedidos Programados, ajustá la anticipación mínima/máxima, duración de franjas y capacidad.' },
+      { action: 'Activá la funcionalidad', detail: 'Asegurate de que el toggle "Pedidos programados" esté activado para cada sede donde querés ofrecerlo.' },
+      { action: 'Revisá los pedidos programados en el panel', detail: 'En Pedidos → tab "Programados", vas a ver todos los pedidos agendados ordenados por hora.' },
+      { action: 'El sistema activa automáticamente', detail: 'No necesitás hacer nada: el cron job activa los pedidos cuando llega su hora. Solo preparalos como un pedido normal.' },
+    ],
+    tips: [
+      'La anticipación mínima de 30 minutos evita que un cliente programe un pedido para dentro de 5 minutos, lo cual no tiene sentido operativo.',
+      'Si una franja horaria se llena (llega al máximo de pedidos configurado), esa hora ya no aparece disponible para nuevos clientes.',
+      'La ventana de gracia de 15 minutos permite que un pedido programado para las 12:00 siga siendo válido hasta las 12:15 antes de expirar.',
+      'El cron job se ejecuta cada 5 minutos. Si configurás la activación justo después de que corrió, el pedido se activa en el siguiente ciclo (máx 5 min de espera).',
     ],
   },
   {
@@ -436,6 +470,7 @@ type SectionVisibility = 'full' | 'hook' | 'hidden'
 const VISIBILITY: Record<string, Record<Plan, SectionVisibility>> = {
   dashboard:    { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
   pedidos:      { anfitrion: 'hook',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
+  'pedidos-programados': { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
   menu:         { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
   upselling:    { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
   usuarios:     { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },

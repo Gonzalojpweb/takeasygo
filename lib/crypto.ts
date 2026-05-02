@@ -42,8 +42,10 @@ export function safeDecrypt(value: string): string {
 
 /**
  * SHA-256 estable del teléfono — permite agrupar por cliente sin exponer el número.
- * No tiene IV aleatorio, por eso es apto para $group en MongoDB.
+ * Normaliza el número eliminando espacios y caracteres no numéricos (excepto +) 
+ * para asegurar consistencia entre el Club y las Órdenes.
  */
 export function hashPhone(phone: string): string {
-  return crypto.createHash('sha256').update(phone.trim().toLowerCase()).digest('hex')
+  const normalized = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '')
+  return crypto.createHash('sha256').update(normalized).digest('hex')
 }
