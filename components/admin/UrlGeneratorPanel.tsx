@@ -32,7 +32,9 @@ export default function UrlGeneratorPanel({ tenantSlug, tenantName }: UrlGenerat
   const [copied, setCopied] = useState<string | null>(null)
   const [showAllQr, setShowAllQr] = useState(false)
 
-  const baseUrl = `https://takeasygo.com/${tenantSlug}/menu`
+  const baseUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}/${tenantSlug}/menu`
+    : `https://takeasygo.com/${tenantSlug}/menu`
 
   const generateUrl = (source: string, label?: string) => {
     const sourceParam = label ? `${source}-${label}` : source

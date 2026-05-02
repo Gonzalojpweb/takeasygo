@@ -36,28 +36,31 @@ export async function GET(
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown'
     const userAgent = request.headers.get('user-agent') || ''
 
-    // Verificar si ya vio la promo según la frecuencia configurada
-    if (qrPromo.frequency === 'once') {
-      const existingView = await QrPromoView.findOne({
-        tenantId: tenant._id,
-        ip,
-      })
+    // Si la frecuencia es 'every_visit', no bloqueamos nunca
+    if (qrPromo.frequency !== 'every_visit') {
+      // Verificar si ya vio la promo según la frecuencia configurada
+      if (qrPromo.frequency === 'once') {
+        const existingView = await QrPromoView.findOne({
+          tenantId: tenant._id,
+          ip,
+        })
 
-      if (existingView) {
-        return NextResponse.json({ show: false, reason: 'already_viewed' })
-      }
-    } else if (qrPromo.frequency === 'daily') {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      
-      const existingView = await QrPromoView.findOne({
-        tenantId: tenant._id,
-        ip,
-        viewedAt: { $gte: today }
-      })
+        if (existingView) {
+          return NextResponse.json({ show: false, reason: 'already_viewed' })
+        }
+      } else if (qrPromo.frequency === 'daily') {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        
+        const existingView = await QrPromoView.findOne({
+          tenantId: tenant._id,
+          ip,
+          viewedAt: { $gte: today }
+        })
 
-      if (existingView) {
-        return NextResponse.json({ show: false, reason: 'already_viewed_today' })
+        if (existingView) {
+          return NextResponse.json({ show: false, reason: 'already_viewed_today' })
+        }
       }
     }
 
@@ -100,15 +103,17 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    // Registrar la vista
-    await QrPromoView.create({
-      tenantId: tenant._id,
-      ip,
-      userAgent,
-      source,
-      viewedAt: new Date(),
-      discountPercentage: tenant.qrPromo?.discountPercentage || 0,
-    })
+    // Solo registrar si no es 'every_visit' para no saturar la DB de logs innecesarios
+    if (tenant.qrPromo?.frequency !== 'every_visit') {
+      await QrPromoView.create({
+        tenantId: tenant._id,
+        ip,
+        userAgent,
+        source,
+        viewedAt: new Date(),
+        discountPercentage: tenant.qrPromo?.discountPercentage || 0,
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
