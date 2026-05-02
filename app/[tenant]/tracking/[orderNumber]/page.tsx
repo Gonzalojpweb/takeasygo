@@ -28,7 +28,13 @@ export default async function TrackingPage({ params }: Props) {
     : null
 
   // FASE WALLET: Buscar si el cliente es miembro del club para mostrar el botón de Wallet
-  let loyaltyData = null
+  let loyaltyData: {
+    memberId: string
+    publicId: string
+    points: number
+    name: string
+    tier: string
+  } | null = null
   if (tenant.loyalty?.enabled && tenant.wallet?.enabled) {
     const LoyaltyMember = (await import('@/models/LoyaltyMember')).default
     const member = await LoyaltyMember.findOne({
