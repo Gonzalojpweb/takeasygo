@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Copy, Check, Link2, Instagram, QrCode, MessageCircle, Facebook, Download, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -32,9 +32,13 @@ export default function UrlGeneratorPanel({ tenantSlug, tenantName }: UrlGenerat
   const [copied, setCopied] = useState<string | null>(null)
   const [showAllQr, setShowAllQr] = useState(false)
 
-  const baseUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/${tenantSlug}/menu`
-    : `https://takeasygo.com/${tenantSlug}/menu`
+  const [baseUrl, setBaseUrl] = useState(`https://takeasygo.com/${tenantSlug}/menu`)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBaseUrl(`${window.location.origin}/${tenantSlug}/menu`)
+    }
+  }, [tenantSlug])
 
   const generateUrl = (source: string, label?: string) => {
     const sourceParam = label ? `${source}-${label}` : source
