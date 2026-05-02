@@ -39,12 +39,23 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
   const [error, setError] = useState('')
 
   useEffect(() => {
-    checkPromo()
-    fetchStyles()
+    // Iniciamos las peticiones en paralelo para máxima velocidad
+    Promise.all([checkPromo(), fetchStyles()])
   }, [tenantSlug, source])
 
   const checkPromo = async () => {
-    if (!source || (!source.toLowerCase().includes('qr') && source !== 'qr-test')) {
+    // DETECCIÓN AUTOMÁTICA: Si no hay source pero estamos en una mesa (locationId), asumimos QR
+    let effectiveSource = source
+    if (!effectiveSource && typeof window !== 'undefined') {
+      const pathParts = window.location.pathname.split('/')
+      // Si el path es /[tenant]/menu/[locationId], el locationId es el 4to elemento (index 3)
+      const locationId = pathParts[3]
+      if (locationId && locationId.length === 24) {
+        effectiveSource = 'qr-auto'
+      }
+    }
+
+    if (!effectiveSource || (!effectiveSource.toLowerCase().includes('qr') && effectiveSource !== 'qr-test')) {
       setLoading(false)
       return
     }
@@ -139,7 +150,7 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
             className="relative w-full max-w-lg bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl overflow-hidden"
             style={{ borderRadius: typeof window !== 'undefined' && window.innerWidth > 640 ? styles.borderRadius : '32px 32px 0 0' }}
           >
