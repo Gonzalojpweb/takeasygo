@@ -27,6 +27,27 @@ export default async function TrackingPage({ params }: Props) {
     ? generateRatingToken(order._id.toString())
     : null
 
+  // FASE WALLET: Buscar si el cliente es miembro del club para mostrar el botón de Wallet
+  let loyaltyData = null
+  if (tenant.loyalty?.enabled && tenant.wallet?.enabled) {
+    const LoyaltyMember = (await import('@/models/LoyaltyMember')).default
+    const member = await LoyaltyMember.findOne({
+      tenantId: tenant._id,
+      phoneHash: order.customer.phoneHash,
+      status: 'active'
+    }).select('wallet.publicId name loyalty.points').lean() as any
+
+    if (member) {
+      loyaltyData = {
+        memberId: member._id.toString(),
+        publicId: member.wallet?.publicId,
+        points: member.loyalty?.points ?? 0,
+        name: member.name,
+        tier: member.loyalty?.tier ?? 'none'
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: branding.backgroundColor, color: branding.textColor }}>
 
@@ -58,6 +79,7 @@ export default async function TrackingPage({ params }: Props) {
           initialOrderTiming={order.orderTiming ?? 'immediate'}
           initialScheduledPickupAt={order.scheduledPickupAt?.toISOString() ?? null}
           initialScheduledStatus={order.scheduledStatus ?? null}
+          loyaltyData={loyaltyData}
         />
 
         {/* Resumen del pedido */}

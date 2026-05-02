@@ -46,11 +46,7 @@ export function safeDecrypt(value: string): string {
  * fallos por prefijos (+54, 9, etc.) o formatos de espacios/guiones.
  */
 export function hashPhone(phone: string): string {
-  // 1. Eliminar todo lo que no sea número
-  const digitsOnly = phone.replace(/\D/g, '')
-  // 2. Tomar los últimos 10 dígitos (típico en Argentina y otros países para celular)
-  // Si el número es más corto, lo toma entero.
-  const coreNumber = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly
-  
-  return crypto.createHash('sha256').update(coreNumber).digest('hex')
+  // Solo mantiene números y el símbolo +
+  const normalized = phone.replace(/[^\d+]/g, '')
+  return crypto.createHash('sha256').update(normalized).digest('hex')
 }

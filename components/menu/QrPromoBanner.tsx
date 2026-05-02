@@ -265,7 +265,7 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
                             type="tel"
                             placeholder="Tu WhatsApp"
                             value={form.phone}
-                            onChange={e => setForm(s => ({ ...s, phone: e.target.value }))}
+                            onChange={e => setForm(s => ({ ...s, phone: e.target.value.replace(/\D/g, '') }))}
                             className="flex-1 h-14 px-5 bg-slate-100 border-none rounded-2xl text-base font-bold focus:ring-2 focus:ring-black/5 transition-all outline-none"
                           />
                         </div>
