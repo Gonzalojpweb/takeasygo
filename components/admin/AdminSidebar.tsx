@@ -24,7 +24,8 @@ import {
   Gift,
   Database,
   TrendingUp,
-  Eye
+  Eye,
+  Bell
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -38,6 +39,7 @@ interface Props {
   userName: string
   plan: Plan
   dineInOnly?: boolean
+  unreadAnnouncements?: number
 }
 
 interface NavItem {
@@ -47,6 +49,7 @@ interface NavItem {
   roles: string[]
   feature?: Feature
   requiresTakeaway?: boolean
+  badge?: number
 }
 
 function LockedNavItem({
@@ -72,7 +75,7 @@ function LockedNavItem({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false, unreadAnnouncements = 0 }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
 
@@ -182,6 +185,13 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       roles: ['admin', 'manager', 'staff', 'cashier'],
     },
     {
+      href: `${base}/updates`,
+      label: 'Novedades',
+      icon: Bell,
+      roles: ['admin', 'manager'],
+      badge: unreadAnnouncements,
+    },
+    {
       href: `${base}/club`,
       label: 'Club',
       icon: QrCode,
@@ -268,7 +278,12 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
                   isActive ? 'text-white' : 'text-primary'
                 )} />
                 <span className="tracking-wide">{item.label}</span>
-                {isActive && (
+                {!!item.badge && item.badge > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {item.badge}
+                  </span>
+                )}
+                {isActive && !item.badge && (
                   <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white]" />
                 )}
               </div>
