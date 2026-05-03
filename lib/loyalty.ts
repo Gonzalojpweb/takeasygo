@@ -42,40 +42,76 @@ export function calculatePoints(orderTotal: number, pointsConfig: any): number {
 /**
  * Agrega puntos a un miembro basado en una orden
  */
-export async function addPointsFromOrder(order: any, tenant: any, session?: mongoose.ClientSession) {
+export async function addPointsFromOrder(order: any, tenant: any, session?: mongoose.ClientSession, forceMemberId?: any) {
   // Evitar duplicados si ya se acreditaron puntos
   if (order.loyaltyPointsCredited) {
     console.log(`[Loyalty] Puntos ya acreditados para la orden ${order.orderNumber}`)
     return null
   }
 
-  if (!order.customer?.phoneHash) return null
+  if (!order.customer?.phoneHash && !forceMemberId) return null
 
   const pointsToAdd = calculatePoints(order.total ?? 0, tenant.pointsConfig)
   if (pointsToAdd <= 0) return null
 
-  console.log(`[Loyalty] Agregando ${pointsToAdd} puntos a miembro con hash ${order.customer.phoneHash}`)
+  console.log(`[Loyalty] Agregando ${pointsToAdd} puntos a orden ${order.orderNumber}`)
+
+  // Construir query robusta para encontrar al miembro
+  const query: any = {
+    tenantId: tenant._id,
+    status: 'active',
+  }
+
+  if (forceMemberId) {
+    query._id = forceMemberId
+  } else {
+    const hashes = [order.customer.phoneHash]
+    
+    // Rescate de hashes legacy: Si tenemos el teléfono encriptado de la orden, 
+    // calculamos ambas versiones del hash para asegurar el match.
+    if (order.customer.phone) {
+      try {
+        const { safeDecrypt } = require('@/lib/crypto')
+        const phoneRaw = safeDecrypt(order.customer.phone)
+        const digitsOnly = phoneRaw.replace(/\D/g, '')
+        const legacyNumber = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly
+        const legacyHash = require('crypto').createHash('sha256').update(legacyNumber).digest('hex')
+        
+        // También regeneramos el hash moderno por si acaso
+        const modernHash = require('crypto').createHash('sha256').update(digitsOnly).digest('hex')
+        
+        if (!hashes.includes(legacyHash)) hashes.push(legacyHash)
+        if (!hashes.includes(modernHash)) hashes.push(modernHash)
+      } catch (err) {
+        console.error('[Loyalty] Error desencriptando teléfono para hash fallback', err)
+      }
+    }
+    
+    query.phoneHash = { $in: hashes.filter(Boolean) }
+  }
 
   // 1. Actualizar el miembro
-  const member = await LoyaltyMember.findOneAndUpdate(
-    {
-      tenantId:  tenant._id,
-      phoneHash: order.customer.phoneHash,
-      status:   'active',
-    },
-    {
-      $inc: {
-        'cache.totalOrders': 1,
-        'cache.totalSpent':  order.total ?? 0,
-        'loyalty.points': pointsToAdd,
+  let member = null
+  try {
+    member = await LoyaltyMember.findOneAndUpdate(
+      query,
+      {
+        $inc: {
+          'cache.totalOrders': 1,
+          'cache.totalSpent':  order.total ?? 0,
+          'loyalty.points': pointsToAdd,
+        },
+        $set: {
+          'cache.lastOrderAt': new Date(),
+          'cache.updatedAt':  new Date(),
+        },
       },
-      $set: {
-        'cache.lastOrderAt': new Date(),
-        'cache.updatedAt':  new Date(),
-      },
-    },
-    { session, upsert: false, new: true }
-  ).catch(() => null)
+      { session, upsert: false, new: true }
+    )
+  } catch (err) {
+    console.error('[Loyalty] Error actualizando miembro:', err)
+    return null
+  }
 
   // 2. Marcar la orden como procesada para lealtad
   if (member) {
@@ -133,7 +169,7 @@ export async function reconcileMissingPoints(member: any, tenant: any) {
 
   let totalReconciled = 0
   for (const order of orders) {
-    const memberUpdated = await addPointsFromOrder(order, tenant)
+    const memberUpdated = await addPointsFromOrder(order, tenant, undefined, member._id)
     if (memberUpdated) totalReconciled++
   }
 
