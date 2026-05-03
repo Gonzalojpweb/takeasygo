@@ -7,10 +7,12 @@ import { generateRatingToken } from '@/lib/rating-token'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default async function TrackingPage({ params }: Props) {
+export default async function TrackingPage({ params, searchParams }: Props) {
   const { tenant: tenantSlug, orderNumber } = await params
+  const resolvedSearchParams = await searchParams
 
   await connectDB()
 
@@ -46,7 +48,7 @@ export default async function TrackingPage({ params }: Props) {
     if (member) {
       // RECONCILIACIÓN: Si hay puntos de esta orden que no se sumaron, lo hacemos ahora.
       // Le pasamos explicitly si MP lo aprobó por URL params para saltarnos la demora del Webhook
-      const isMpApproved = searchParams.status === 'approved' || searchParams.collection_status === 'approved'
+      const isMpApproved = resolvedSearchParams.status === 'approved' || resolvedSearchParams.collection_status === 'approved'
       const { reconcileMissingPoints } = await import('@/lib/loyalty')
       await reconcileMissingPoints(member, tenant, isMpApproved ? order._id : undefined)
       
