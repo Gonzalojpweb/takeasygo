@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Store, BarChart3, LogOut, UserCheck, Globe, BookMarked, Settings, HeartPulse, Shield, Users, Eye, Gift } from 'lucide-react'
+import { LayoutDashboard, Store, BarChart3, LogOut, UserCheck, Globe, BookMarked, Settings, HeartPulse, Shield, Users, Eye, Gift, Megaphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { signOut } from 'next-auth/react'
@@ -22,6 +22,7 @@ export default function SuperAdminSidebar() {
         { href: '/superadmin/auditoria', label: 'Auditoría', icon: Shield },
         { href: '/superadmin/salud', label: 'Salud de Red', icon: HeartPulse },
         { href: '/superadmin/marketing-qr', label: 'Marketing QR', icon: Gift },
+        { href: '/superadmin/announcements', label: 'Anuncios', icon: Megaphone },
         { href: '/superadmin/configuracion', label: 'Configuracion', icon: Settings },
     ]
 

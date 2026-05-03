@@ -9,6 +9,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
+import SystemAnnouncement from '@/models/SystemAnnouncement'
 
 export default async function AdminLayout({
   children,
@@ -47,12 +48,24 @@ export default async function AdminLayout({
     dineInOnly = !!hasAny && !hasTakeaway
   }
 
+  // Count unread announcements for this user
+  let unreadAnnouncements = 0
+  if (session.user.id) {
+    const userId = new mongoose.Types.ObjectId(session.user.id)
+    unreadAnnouncements = await SystemAnnouncement.countDocuments({
+      status: 'published',
+      $or: [{ targetPlans: { $size: 0 } }, { targetPlans: plan }],
+      readBy: { $ne: userId }
+    })
+  }
+
   const sidebarProps = {
     tenantSlug: tenant,
     userRole: session.user.role ?? 'staff',
     userName: session.user.name ?? session.user.email ?? '',
     plan,
     dineInOnly,
+    unreadAnnouncements,
   }
 
   return (
