@@ -91,7 +91,7 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
   }
 
   // 1. Actualizar el miembro
-  let member = null
+  let member: any = null
   try {
     member = await LoyaltyMember.findOneAndUpdate(
       query,
