@@ -9,7 +9,7 @@ import { syncWalletPoints } from '@/lib/walletService'
 export function calculatePoints(orderTotal: number, pointsConfig: any): number {
   // Si no hay configuración o está explícitamente deshabilitado el sistema de puntos, no sumamos.
   // Pero si el objeto existe, intentamos ser flexibles.
-  const isEnabled = pointsConfig?.enabled === true
+  const isEnabled = pointsConfig?.enabled === true || pointsConfig?.enabled === 'true'
   if (!isEnabled) return 0
 
   if (orderTotal < (pointsConfig.minOrderForPoints || 0)) {
