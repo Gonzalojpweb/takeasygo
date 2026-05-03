@@ -144,27 +144,35 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
  * Busca órdenes pagadas que no hayan sumado puntos para un miembro y las procesa.
  * Esto sirve como "fail-safe" si el webhook falló o fue muy rápido.
  */
-export async function reconcileMissingPoints(member: any, tenant: any) {
+export async function reconcileMissingPoints(member: any, tenant: any, explicitlyApprovedOrderId?: any) {
   if (!tenant.loyalty?.enabled) return 0
 
   const hashes = [member.phoneHash]
   
   if (member.phone) {
+    // Rescate del teléfono original legacy
     const digitsOnly = member.phone.replace(/\D/g, '')
     const legacyNumber = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly
-    const legacyHash = require('crypto').createHash('sha256').update(legacyNumber).digest('hex')
+    const crypto = await import('crypto')
+    const legacyHash = crypto.createHash('sha256').update(legacyNumber).digest('hex')
     if (!hashes.includes(legacyHash)) hashes.push(legacyHash)
   }
 
-  // Búsqueda Ultra-Segura: Si la orden está confirmada o pagada, suma puntos.
+  // Búsqueda Ultra-Segura: Si la orden está confirmada o pagada en DB, suma puntos.
+  // También sumamos si explicitlyApprovedOrderId coincide (MP aprobó en URL pero webhook demoró)
+  const orConditions: any[] = [
+    { 'payment.status': 'approved' },
+    { status: { $in: ['confirmed', 'preparing', 'ready', 'delivered'] } }
+  ]
+  if (explicitlyApprovedOrderId) {
+    orConditions.push({ _id: explicitlyApprovedOrderId })
+  }
+
   const orders = await Order.find({
     tenantId: tenant._id,
     'customer.phoneHash': { $in: hashes },
     loyaltyPointsCredited: { $ne: true },
-    $or: [
-      { 'payment.status': 'approved' },
-      { status: { $in: ['confirmed', 'preparing', 'ready', 'delivered'] } }
-    ]
+    $or: orConditions
   })
 
   let totalReconciled = 0
