@@ -16,6 +16,7 @@ interface Announcement {
   publishedAt?: string
   targetPlans: string[]
   readBy: string[]
+  createdAt: string
 }
 
 const TYPE_LABELS = {
