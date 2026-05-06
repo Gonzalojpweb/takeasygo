@@ -73,10 +73,14 @@ export async function PUT(
     const body = await request.json()
     const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, availabilityMode, availabilitySchedule, takeawayPrice } = body
 
-    console.log('[PUT items]', { tenantSlug, categoryId, locationId, itemId })
+    console.log('[PUT items] BODY:', { tenantSlug, categoryId, locationId: locationId?.toString(), itemId: itemId?.toString() })
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
-    if (!menu) return NextResponse.json({ error: 'Menú no encontrado', tenantId: tenant._id.toString(), locationId }, { status: 404 })
+    if (!menu) {
+      console.error('[PUT items] Menú no encontrado:', { tenantId: tenant._id.toString(), locationId: locationId?.toString() })
+      return NextResponse.json({ error: 'Menú no encontrado', tenantId: tenant._id.toString(), locationId }, { status: 404 })
+    }
+    console.log('[PUT items] Menú encontrado:', { menuId: menu._id.toString(), categoriesCount: menu.categories.length })
 
     const category = menu.categories.id(categoryId)
     if (!category) {
@@ -110,7 +114,26 @@ export async function PUT(
     if (takeawayPrice !== undefined) item.takeawayPrice = takeawayPrice
 
     menu.markModified('categories')
-    await menu.save()
+    try {
+      await menu.save()
+      
+      // Verificación inmediata: re-leer el item para confirmar el cambio
+      const verifyMenu = await Menu.findOne({ tenantId: tenant._id, locationId })
+      const verifyCategory = verifyMenu?.categories.id(categoryId)
+      const verifyItem = verifyCategory?.items.id(itemId)
+      console.log('[PUT items] Verificación post-save:', { 
+        itemId, 
+        price: verifyItem?.price, 
+        takeawayPrice: verifyItem?.takeawayPrice 
+      })
+    } catch (saveError: any) {
+      console.error('[PUT items] Error guardando menú:', saveError)
+      return NextResponse.json({ 
+        error: 'Error guardando los cambios', 
+        details: saveError.message,
+        validationErrors: saveError.errors 
+      }, { status: 500 })
+    }
 
     logAudit({ tenantId: tenant._id.toString(), action: 'menu.item.updated', entity: 'item', entityId: itemId, details: { name, price, categoryId, locationId }, request })
     return NextResponse.json({ menu })
