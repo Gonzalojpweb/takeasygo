@@ -20,6 +20,7 @@ interface LoyaltyConfig {
   welcomeMessage: string
   pointsConfig?: {
     pointsRedemptionValue: number
+    redemptionEnabled: boolean
   }
 }
 
@@ -136,6 +137,9 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
     return () => clearTimeout(timer)
   }, [form.phone, form.countryCode, tenantSlug])
 
+  const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const discountAmount = activeQrPromo ? Math.round(subtotal * (activeQrPromo.discountPercentage / 100)) : 0
+
   // Calculate how many points can be redeemed
   // For now, we redeem ALL points or NONE, up to the total price
   const pointsValue = loyaltyConfig?.pointsConfig?.pointsRedemptionValue ?? 10 
@@ -189,10 +193,9 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
     setUpsellHints(prev => prev.filter(h => h._id !== item._id))
   }
 
-  const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
-  const discountAmount = activeQrPromo ? Math.round(subtotal * (activeQrPromo.discountPercentage / 100)) : 0
   const loyaltyDiscountAmount = loyaltyPointsToRedeem * pointsValue
   const total = Math.max(0, subtotal - discountAmount - loyaltyDiscountAmount)
+  // total se recalcula automáticamente al agregar hints (cart es estado)
   // total se recalcula automáticamente al agregar hints (cart es estado)
 
 async function handleSubmit(e: React.FormEvent) {
@@ -517,10 +520,10 @@ async function handleSubmit(e: React.FormEvent) {
             </div>
           )}
 
-          {loyaltyConfig?.enabled && (
-            <div className="space-y-3">
-              {/* Card VIP si ya es miembro */}
-              {loyaltyMember && (
+           {loyaltyConfig?.enabled && loyaltyConfig?.pointsConfig?.redemptionEnabled && (
+             <div className="space-y-3">
+               {/* Card VIP si ya es miembro */}
+               {loyaltyMember && (
                 <div className="p-4 rounded-2xl border-2 border-zinc-900 bg-zinc-900 text-white shadow-xl shadow-zinc-200 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <Star size={80} className="fill-white" />

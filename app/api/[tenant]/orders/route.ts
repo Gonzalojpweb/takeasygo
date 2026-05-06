@@ -229,16 +229,16 @@ export async function POST(
     let loyaltyDiscountAmount = 0
     let loyaltyPointsUsed = 0
 
-    if (body.loyaltyPointsUsed > 0 && tenant.loyalty?.enabled && body.customer.phone) {
-      const pHash = hashPhone(body.customer.phone)
-      const member = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash, status: 'active' }).select('loyalty').lean()
-      
-      if (member && member.loyalty.points >= body.loyaltyPointsUsed) {
-        const redemptionValue = tenant.pointsConfig?.pointsRedemptionValue ?? 10
-        loyaltyPointsUsed = body.loyaltyPointsUsed
-        loyaltyDiscountAmount = loyaltyPointsUsed * redemptionValue
-      }
-    }
+     if (body.loyaltyPointsUsed > 0 && tenant.loyalty?.enabled && tenant.pointsConfig?.redemptionEnabled && body.customer.phone) {
+       const pHash = hashPhone(body.customer.phone)
+       const member = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash, status: 'active' }).select('loyalty').lean()
+       
+       if (member && member.loyalty.points >= body.loyaltyPointsUsed) {
+         const redemptionValue = tenant.pointsConfig?.pointsRedemptionValue ?? 10
+         loyaltyPointsUsed = body.loyaltyPointsUsed
+         loyaltyDiscountAmount = loyaltyPointsUsed * redemptionValue
+       }
+     }
 
     const total = Math.max(0, subtotal - discountAmount - loyaltyDiscountAmount)
 

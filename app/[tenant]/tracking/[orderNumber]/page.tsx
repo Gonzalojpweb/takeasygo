@@ -97,6 +97,10 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           initialScheduledPickupAt={order.scheduledPickupAt?.toISOString() ?? null}
           initialScheduledStatus={order.scheduledStatus ?? null}
           loyaltyData={loyaltyData}
+          loyaltyPointsUsed={order.loyaltyPointsUsed}
+          loyaltyDiscountAmount={order.loyaltyDiscountAmount}
+          tenantName={tenant.name}
+          clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
         />
 
         {/* Resumen del pedido */}

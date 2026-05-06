@@ -16,6 +16,7 @@ import { GoogleAuth } from 'google-auth-library'
 import { connectDB } from './mongoose'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import crypto from 'crypto'
 import mongoose from 'mongoose'
 import jwt from 'jsonwebtoken'
@@ -183,6 +184,13 @@ async function ensureGoogleLoyaltyClass(
       ? { sourceUri: { uri: logoUrl } }
       : undefined
 
+    // Buscar locaciones activas para Geofencing
+    const locations = await Location.find({ tenantId: tenant._id, isActive: true, 'geo.coordinates': { $exists: true } }).lean()
+    const googleLocations = locations.map(loc => ({
+      latitude: loc.geo!.coordinates[1],
+      longitude: loc.geo!.coordinates[0]
+    }))
+
     const loyaltyClass = {
       id: classId,
       issuerName: tenant.name || 'TakeasyGO',
@@ -190,7 +198,8 @@ async function ensureGoogleLoyaltyClass(
       ...(programLogo && { programLogo }),
       hexBackgroundColor: tenant.wallet?.cardColor || '#000000',
       hexFontColor: tenant.wallet?.labelColor || '#FFFFFF',
-      reviewStatus: 'underReview' // Requerido por Google Wallet para nuevas clases
+      reviewStatus: 'underReview', // Requerido por Google Wallet para nuevas clases
+      locations: googleLocations.length > 0 ? googleLocations : undefined
     }
 
     console.log('[WalletService] Creando LoyaltyClass:', JSON.stringify(loyaltyClass, null, 2))
@@ -279,6 +288,14 @@ export async function generateAppleWalletPass(
 
     if (!member || !tenant) return null
 
+    // Buscar locaciones activas para Geofencing (Apple Wallet soporta hasta 10)
+    const locations = await Location.find({ tenantId: tenant._id, isActive: true, 'geo.coordinates': { $exists: true } }).limit(10).lean()
+    const appleLocations = locations.map(loc => ({
+      latitude: loc.geo!.coordinates[1],
+      longitude: loc.geo!.coordinates[0],
+      relevantText: `¡Estás cerca de ${loc.name}! Tenés puntos para canjear.`
+    }))
+
     // Datos del pase
     const passData: WalletPassData = {
       publicId: member.wallet.publicId,
@@ -341,7 +358,9 @@ export async function generateAppleWalletPass(
       },
       // Web Service para actualizaciones push
       webServiceURL: `${process.env.NEXT_PUBLIC_APP_URL}/api/wallet/apple`,
-      authenticationToken: generateAuthToken(member._id.toString())
+      authenticationToken: generateAuthToken(member._id.toString()),
+      // Geofencing
+      locations: appleLocations.length > 0 ? appleLocations : undefined
     }
 
     // En una implementación completa:

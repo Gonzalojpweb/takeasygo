@@ -51,6 +51,8 @@ export async function GET(
         pointsPercentage: 10,
         pointsPerOrder: 0,
         minOrderForPoints: 0,
+        pointsRedemptionValue: 10,
+        redemptionEnabled: true,
       },
       plan: tenant.plan,
     })
@@ -175,6 +177,11 @@ export async function PUT(
       if (pointsConfig.pointsRedemptionValue !== undefined) {
         update['pointsConfig.pointsRedemptionValue'] = parseInt(pointsConfig.pointsRedemptionValue)
         changes['pointsConfig.pointsRedemptionValue'] = { from: tenant.pointsConfig?.pointsRedemptionValue, to: pointsConfig.pointsRedemptionValue }
+      }
+
+      if (pointsConfig.redemptionEnabled !== undefined) {
+        update['pointsConfig.redemptionEnabled'] = pointsConfig.redemptionEnabled === true || pointsConfig.redemptionEnabled === 'true'
+        changes['pointsConfig.redemptionEnabled'] = { from: tenant.pointsConfig?.redemptionEnabled, to: update['pointsConfig.redemptionEnabled'] }
       }
     }
 
