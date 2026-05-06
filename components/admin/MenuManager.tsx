@@ -380,8 +380,12 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   async function handleBulkPriceUpdate(categoryId: string, percentage: string, target: 'dine-in' | 'takeaway' | 'both') {
     const perc = parseFloat(percentage)
     if (isNaN(perc)) return toast.error('Ingrese un número válido')
+    if (!selectedLocation) return toast.error('Seleccioná una ubicación primero')
 
     setLoading(true)
+    let updatedCount = 0
+    let errorCount = 0
+    
     try {
       const category = localCategories.find(c => c._id === categoryId)
       if (!category) return
@@ -408,15 +412,27 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updateBody),
         })
-        if (!res.ok) console.error(`Error actualizando item ${item._id}`)
+        
+        if (res.ok) {
+          updatedCount++
+        } else {
+          errorCount++
+          const errorData = await res.json().catch(() => ({}))
+          console.error(`Error actualizando item ${item._id}:`, errorData)
+        }
       }
 
-      toast.success(`Precios actualizados (+${perc}%)`)
+      if (errorCount > 0) {
+        toast.error(`Actualizados ${updatedCount} items. ${errorCount} fallaron. Revisá la consola.`)
+      } else {
+        toast.success(`${updatedCount} precios actualizados (+${perc}%)`)
+      }
+      
       setShowBulkModal(null)
       setBulkPercentage('')
       router.refresh()
-    } catch {
-      toast.error('Error al actualizar precios masivamente')
+    } catch (err: any) {
+      toast.error(`Error: ${err.message}`)
     } finally {
       setLoading(false)
     }
