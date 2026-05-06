@@ -67,6 +67,20 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    // Aplicar defaults para tenants creados antes de pointsConfig
+    if (!tenant.pointsConfig) {
+      tenant.pointsConfig = {
+        enabled: true,
+        mode: 'fixed_per_currency',
+        pointsPerCurrency: 0.1,
+        pointsPercentage: 10,
+        pointsPerOrder: 0,
+        minOrderForPoints: 0,
+        pointsRedemptionValue: 10,
+        redemptionEnabled: true,
+      }
+    }
+
     if (!tenant.mercadopago.webhookSecret) {
       return NextResponse.json({ error: 'Webhook no configurado' }, { status: 401 })
     }

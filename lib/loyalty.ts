@@ -7,6 +7,18 @@ import { syncWalletPoints } from '@/lib/walletService'
  * Calcula puntos según la configuración del tenant
  */
 export function calculatePoints(orderTotal: number, pointsConfig: any): number {
+  // Aplicar defaults para tenants que no tienen pointsConfig (creados antes del schema)
+  if (!pointsConfig) {
+    pointsConfig = {
+      enabled: true,
+      mode: 'fixed_per_currency',
+      pointsPerCurrency: 0.1,
+      pointsPercentage: 10,
+      pointsPerOrder: 0,
+      minOrderForPoints: 0,
+    }
+  }
+
   // Si no hay configuración o está explícitamente deshabilitado el sistema de puntos, no sumamos.
   // Pero si el objeto existe, intentamos ser flexibles.
   const isEnabled = pointsConfig?.enabled === true || pointsConfig?.enabled === 'true'
