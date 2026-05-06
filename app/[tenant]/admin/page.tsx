@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, Calendar,
   ArrowUpRight, Activity, AlertTriangle, Sparkles, ChevronRight,
-  TrendingUp, Zap,
+  TrendingUp, Zap, UtensilsCrossed, Tag, CreditCard,
 } from 'lucide-react'
 import type { Types } from 'mongoose'
 import { cn } from '@/lib/utils'
@@ -173,7 +173,7 @@ export default async function AdminDashboard() {
                            { label: 'Ajustes necesarios', color: 'border-destructive', text: 'text-destructive' }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <PlanBanner plan={plan} trialOrderCount={trialOrderCount} tenantSlug={tenantSlug!} />
 
       <OnboardingChecklist
@@ -182,40 +182,52 @@ export default async function AdminDashboard() {
         logoUrl={tenant.branding?.logoUrl ?? ''}
       />
 
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-foreground text-4xl font-bold tracking-tight leading-none">Restaurante</h1>
-          <p className="text-muted-foreground mt-3 font-medium flex items-center gap-2" suppressHydrationWarning>
-            <Calendar size={14} className="text-primary" />
-            Panel de control administrativo · {new Date().toLocaleDateString('es-AR')}
+      {/* Welcome Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-slate-900 text-white p-6">
+        <div className="relative z-10 max-w-xl">
+          <h2 className="text-xl font-semibold tracking-tight">Panel de control</h2>
+          <p className="text-slate-400 text-sm mt-1" suppressHydrationWarning>
+            Resumen operativo · {new Date().toLocaleDateString('es-AR')}
           </p>
         </div>
+        <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <Card key={stat.label} className="bg-card border-2 border-border/60 shadow-lg hover:shadow-2xl transition-all duration-500 group rounded-3xl overflow-hidden relative">
-              <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:scale-150 group-hover:rotate-12 transition-transform duration-700 pointer-events-none">
-                <Icon size={120} />
+            <Card key={stat.label} className="rounded-2xl border shadow-sm p-5 bg-card hover:shadow-md transition-shadow duration-300">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">{stat.label}</span>
+                <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center bg-muted/60')}>
+                  <Icon size={16} className={stat.color} />
+                </div>
               </div>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em]">{stat.label}</CardTitle>
-                <div className={cn("p-2.5 rounded-xl bg-muted/50 group-hover:bg-primary transition-colors duration-500", stat.color.replace('text-', 'text-opacity-70 '))}>
-                  <Icon size={20} className={cn("transition-colors duration-500", stat.color, "group-hover:text-white")} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-foreground text-4xl font-bold tracking-tighter tabular-nums">{stat.value}</p>
-                  <ArrowUpRight size={18} className="text-primary/70 animate-pulse group-hover:scale-125 transition-transform" />
-                </div>
-              </CardContent>
+              <p className="text-3xl font-bold tracking-tight mt-3 tabular-nums">{stat.value}</p>
             </Card>
           )
         })}
+      </div>
+
+      {/* Acciones rápidas */}
+      <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-5 text-white">
+        <p className="text-sm font-medium text-white/80 mb-3">Acciones de Gestión</p>
+        <div className="flex flex-wrap gap-3">
+          <Link href={`/${tenantSlug}/admin/menu`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
+            <UtensilsCrossed size={16} />
+            Gestionar Productos
+          </Link>
+          <Link href={`/${tenantSlug}/admin/promotions`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
+            <Tag size={16} />
+            Ver Upselling
+          </Link>
+          <Link href={`/${tenantSlug}/admin/billing`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
+            <CreditCard size={16} />
+            Control de Caja
+          </Link>
+        </div>
       </div>
 
       {/* Alertas operativas */}
@@ -224,7 +236,7 @@ export default async function AdminDashboard() {
           {alerts.map((alert, i) => (
             <Link key={i} href={alert.href}>
               <div className={cn(
-                'flex items-center gap-3 px-5 py-3.5 rounded-2xl border text-sm font-medium transition-opacity hover:opacity-80 cursor-pointer',
+                'flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-opacity hover:opacity-80 cursor-pointer',
                 alert.level === 'error'
                   ? 'bg-destructive/5 border-destructive/20 text-destructive'
                   : 'bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400'
@@ -238,68 +250,68 @@ export default async function AdminDashboard() {
         </div>
       )}
 
-      {/* ICO + Tendencia */}
-      <Card className="bg-card border-2 border-border/60 shadow-lg rounded-3xl overflow-hidden">
-        <CardHeader className="border-b border-border/40 bg-muted/30 p-6 flex flex-row items-center justify-between">
+      {/* ICO */}
+      <Card className="rounded-2xl border shadow-sm overflow-hidden">
+        <CardHeader className="border-b border-border/40 p-5 flex flex-row items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10">
-              <Activity size={20} className="text-primary" />
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Activity size={18} className="text-primary" />
             </div>
             <div>
-              <CardTitle className="text-foreground text-base font-bold">ICO</CardTitle>
-              <p className="text-muted-foreground text-xs mt-0.5 font-medium">Índice de Consistencia Operativa · últimos 30 días</p>
+              <CardTitle className="text-base font-semibold">ICO</CardTitle>
+              <p className="text-muted-foreground text-xs mt-0.5">Índice de Consistencia Operativa · últimos 30 días</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-[0.2em] border-primary/40 text-primary bg-primary/5 px-3 py-1">
+            <Badge variant="outline" className="text-xs font-medium border-primary/30 text-primary bg-primary/5 px-2.5 py-0.5">
               Interno
             </Badge>
-            <Link href={icoHref} className="text-[10px] font-bold text-primary/70 hover:text-primary flex items-center gap-1 transition-colors">
-              Ver detalle <ChevronRight size={10} />
+            <Link href={icoHref} className="text-xs font-medium text-primary/70 hover:text-primary flex items-center gap-0.5 transition-colors">
+              Ver detalle <ChevronRight size={12} />
             </Link>
           </div>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-5">
           {!hasEnoughData ? (
             <div className="flex items-center gap-3 text-muted-foreground">
               <AlertTriangle size={16} className="text-amber-500" />
               <p className="text-sm font-medium">Se necesitan al menos 10 pedidos en los últimos 30 días para calcular el ICO.</p>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row gap-8">
+            <div className="flex flex-col sm:flex-row gap-6">
               {/* Score gauge */}
               <div className="flex flex-col items-center gap-2 shrink-0">
                 {realIco !== null && icoBand ? (
                   <>
                     <div className={cn(
-                      'w-24 h-24 rounded-full border-8 flex flex-col items-center justify-center',
+                      'w-20 h-20 rounded-full border-[6px] flex flex-col items-center justify-center',
                       icoBand.color
                     )}>
-                      <span className={cn('text-2xl font-black tabular-nums', icoBand.text)}>{realIco}</span>
-                      <span className="text-muted-foreground text-[10px] font-bold">/100</span>
+                      <span className={cn('text-xl font-bold tabular-nums', icoBand.text)}>{realIco}</span>
+                      <span className="text-muted-foreground text-[10px] font-semibold">/100</span>
                     </div>
-                    <p className={cn('text-[10px] font-black uppercase tracking-wider', icoBand.text)}>
+                    <p className={cn('text-[10px] font-semibold uppercase tracking-wide', icoBand.text)}>
                       {icoBand.label}
                     </p>
                   </>
                 ) : (
-                  <div className="w-24 h-24 rounded-full border-8 border-muted flex items-center justify-center text-muted-foreground text-xs font-bold text-center px-2 leading-tight">
+                  <div className="w-20 h-20 rounded-full border-[6px] border-muted flex items-center justify-center text-muted-foreground text-xs font-semibold text-center px-2 leading-tight">
                     Sin datos aún
                   </div>
                 )}
               </div>
 
               {/* Sparkline histórico + métricas */}
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 space-y-3">
                 {/* Capacidad */}
                 {realCapacity !== null && (
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 flex items-center gap-1.5">
-                        <Zap size={10} />
+                      <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <Zap size={12} />
                         Capacidad operativa
                       </span>
-                      <span className="text-xs font-black tabular-nums">{Math.round(realCapacity * 100)}%</span>
+                      <span className="text-sm font-semibold tabular-nums">{Math.round(realCapacity * 100)}%</span>
                     </div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
                       <div
@@ -316,11 +328,11 @@ export default async function AdminDashboard() {
                 {/* Sparkline tendencia */}
                 {icoHistorySorted.length >= 2 && (
                   <div>
-                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-2 flex items-center gap-1.5">
-                      <TrendingUp size={10} />
+                    <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <TrendingUp size={12} />
                       Tendencia ({icoHistorySorted.length} mediciones)
                     </p>
-                    <div className="flex items-end gap-1 h-12">
+                    <div className="flex items-end gap-1 h-10">
                       {icoHistorySorted.map((snap, i) => {
                         const pct = snap.icoScore
                         const barColor =
@@ -331,9 +343,9 @@ export default async function AdminDashboard() {
                         return (
                           <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                             {isLatest && (
-                              <span className="text-[8px] font-black tabular-nums text-foreground">{snap.icoScore}</span>
+                              <span className="text-[9px] font-semibold tabular-nums text-foreground">{snap.icoScore}</span>
                             )}
-                            <div className="w-full flex items-end" style={{ height: 36 }}>
+                            <div className="w-full flex items-end" style={{ height: 28 }}>
                               <div
                                 className={cn('w-full rounded-t', barColor, isLatest ? 'opacity-100' : 'opacity-40')}
                                 style={{ height: `${Math.max(6, pct)}%` }}
@@ -343,14 +355,14 @@ export default async function AdminDashboard() {
                         )
                       })}
                     </div>
-                    <p className="text-[9px] text-muted-foreground/40 mt-1">
+                    <p className="text-[10px] text-muted-foreground/50 mt-1">
                       Última medición: {new Date(icoHistorySorted.at(-1)!.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
                     </p>
                   </div>
                 )}
 
                 {icoHistorySorted.length < 2 && realIco !== null && (
-                  <p className="text-xs text-muted-foreground/60 font-medium">
+                  <p className="text-xs text-muted-foreground/60">
                     El historial de tendencia se construye con cada visita al panel ICO. Volvé mañana para ver la evolución.
                   </p>
                 )}
@@ -364,40 +376,40 @@ export default async function AdminDashboard() {
       <RatingsWidget tenantSlug={tenantSlug!} />
 
       {/* Pedidos recientes */}
-      <Card className="bg-card border-2 border-border/60 shadow-xl rounded-3xl overflow-hidden">
-        <CardHeader className="border-b border-border/40 bg-muted/30 p-6 flex flex-row items-center justify-between">
+      <Card className="rounded-2xl border shadow-sm overflow-hidden">
+        <CardHeader className="border-b border-border/40 p-5 flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-foreground text-xl font-bold">Pedidos recientes</CardTitle>
-            <p className="text-muted-foreground text-xs mt-1 font-bold">Actualización automática en tiempo real</p>
+            <CardTitle className="text-base font-semibold">Pedidos recientes</CardTitle>
+            <p className="text-muted-foreground text-xs mt-0.5">Actualización automática en tiempo real</p>
           </div>
-          <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-[0.2em] border-primary/40 text-primary bg-primary/5 px-3 py-1">
+          <Badge variant="outline" className="text-xs font-medium border-primary/30 text-primary bg-primary/5 px-2.5 py-0.5">
             Live
           </Badge>
         </CardHeader>
         <CardContent className="p-0">
           {recentOrders.length === 0 ? (
-            <div className="p-20 text-center">
-              <div className="bg-muted/30 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-border/60">
-                <ShoppingBag className="text-muted-foreground" size={24} />
+            <div className="p-16 text-center">
+              <div className="bg-muted/40 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-dashed border-border/50">
+                <ShoppingBag className="text-muted-foreground" size={22} />
               </div>
-              <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">No hay pedidos registrados</p>
+              <p className="text-muted-foreground text-sm font-medium">No hay pedidos registrados</p>
             </div>
           ) : (
-            <div className="divide-y divide-border/40">
+            <div className="divide-y divide-border/30">
               {recentOrders.map((order: any) => (
-                <div key={order._id} className="flex items-center justify-between p-6 hover:bg-muted/50 transition-all group">
-                  <div className="flex items-center gap-5">
-                    <div className="h-12 w-12 rounded-2xl bg-muted border border-border/50 flex items-center justify-center font-bold text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/20 transition-all duration-300">
+                <div key={order._id} className="flex items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors group">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-xl bg-muted border border-border/40 flex items-center justify-center font-semibold text-sm text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/20 transition-colors">
                       {order.orderNumber.slice(-2)}
                     </div>
                     <div>
-                      <p className="text-foreground text-base font-bold group-hover:text-primary transition-colors">#{order.orderNumber}</p>
-                      <p className="text-muted-foreground text-xs font-bold">{order.customer.name}</p>
+                      <p className="text-foreground text-sm font-semibold group-hover:text-primary transition-colors">#{order.orderNumber}</p>
+                      <p className="text-muted-foreground text-xs">{order.customer.name}</p>
                     </div>
                   </div>
-                  <div className="text-right flex flex-col items-end gap-2">
-                    <p className="text-foreground text-lg font-bold tracking-tight tabular-nums">${order.total.toLocaleString('es-AR')}</p>
-                    <Badge variant="outline" className={cn("text-[10px] font-bold uppercase tracking-widest px-3 py-1 border-2", STATUS_COLORS[order.status] || 'border-border text-muted-foreground')}>
+                  <div className="text-right flex flex-col items-end gap-1.5">
+                    <p className="text-foreground text-base font-semibold tracking-tight tabular-nums">${order.total.toLocaleString('es-AR')}</p>
+                    <Badge variant="outline" className={cn("text-[10px] font-medium uppercase tracking-wide px-2 py-0.5", STATUS_COLORS[order.status] || 'border-border text-muted-foreground')}>
                       {order.status}
                     </Badge>
                   </div>
