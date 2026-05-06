@@ -171,6 +171,11 @@ export async function PUT(
         update['pointsConfig.minOrderForPoints'] = parseFloat(pointsConfig.minOrderForPoints)
         changes['pointsConfig.minOrderForPoints'] = { from: tenant.pointsConfig?.minOrderForPoints, to: pointsConfig.minOrderForPoints }
       }
+
+      if (pointsConfig.pointsRedemptionValue !== undefined) {
+        update['pointsConfig.pointsRedemptionValue'] = parseInt(pointsConfig.pointsRedemptionValue)
+        changes['pointsConfig.pointsRedemptionValue'] = { from: tenant.pointsConfig?.pointsRedemptionValue, to: pointsConfig.pointsRedemptionValue }
+      }
     }
 
     if (Object.keys(update).length === 0) {

@@ -133,6 +133,10 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [importText, setImportText]  = useState('')
   const [importLoading, setImportLoading] = useState(false)
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
+  const [scanDialog, setScanDialog] = useState(false)
+  const [scanId, setScanId] = useState('')
+  const [scanLoading, setScanLoading] = useState(false)
+  const [scannedMember, setScannedMember] = useState<any | null>(null)
 
   const fetchMembers = useCallback(async () => {
     setLoading(true)
@@ -275,6 +279,21 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
     }
   }
 
+  async function handleScan() {
+    if (!scanId.trim()) return
+    setScanLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?publicId=${scanId.trim()}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setScannedMember(data.member)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setScanLoading(false)
+    }
+  }
+
   function openEdit(member: Member) {
     setEditingMember(member)
     setEditForm({
@@ -319,6 +338,14 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
               <Download size={16} className="mr-2 stroke-[2.5px]" /> Exportar
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setScanDialog(true)}
+            className="rounded-xl h-10 px-4 font-bold text-sm bg-zinc-900 text-white hover:bg-zinc-800"
+          >
+            <QrCode size={16} className="mr-2 stroke-[2.5px]" /> Escanear QR
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -580,6 +607,110 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
               Importar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={scanDialog} onOpenChange={(open) => {
+        setScanDialog(open)
+        if (!open) {
+          setScanId('')
+          setScannedMember(null)
+        }
+      }}>
+        <DialogContent className="max-w-md rounded-[2.5rem] overflow-hidden p-0 border-none">
+          <div className="bg-zinc-950 text-white p-8">
+            <DialogHeader className="mb-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center">
+                    <QrCode size={20} className="text-amber-400" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-lg font-bold text-white">Lector de Miembros</DialogTitle>
+                    <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Escaneo o ingreso manual</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setScanDialog(false)} className="text-white hover:bg-white/10 rounded-xl flex-shrink-0">
+                  <X size={20} />
+                </Button>
+              </div>
+            </DialogHeader>
+
+            {!scannedMember ? (
+              <div className="space-y-6">
+                <div className="relative aspect-square rounded-3xl border-2 border-dashed border-zinc-800 flex flex-col items-center justify-center bg-zinc-900/50 group overflow-hidden">
+                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                   <div className="w-20 h-20 mb-4 text-zinc-700 group-hover:text-amber-400/50 transition-colors">
+                     <QrCode size={80} strokeWidth={1} />
+                   </div>
+                   <p className="text-sm text-zinc-500 font-medium px-8 text-center">
+                     Apuntá la cámara al QR de la Wallet del cliente o ingresá el ID debajo.
+                   </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500">ID de Miembro (TGO-XXXX...)</label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={scanId}
+                      onChange={e => setScanId(e.target.value.toUpperCase())}
+                      placeholder="TGO-..."
+                      className="bg-zinc-900 border-zinc-800 focus:border-amber-500/50 h-12 rounded-xl font-mono text-center tracking-widest"
+                    />
+                    <Button
+                      onClick={handleScan}
+                      disabled={scanLoading || !scanId.trim()}
+                      className="bg-amber-400 hover:bg-amber-500 text-zinc-950 font-black rounded-xl px-6 h-12 transition-all active:scale-95"
+                    >
+                      {scanLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'BUSCAR'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 animate-in zoom-in-95 duration-200">
+                <div className="p-6 rounded-[2rem] bg-gradient-to-br from-zinc-800 to-zinc-900 border border-white/5 shadow-2xl relative overflow-hidden">
+                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-400/10 blur-[80px]" />
+                  
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 rounded-full bg-amber-400 flex items-center justify-center text-zinc-950 text-2xl font-black">
+                      {scannedMember.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black tracking-tight">{scannedMember.name}</h4>
+                      <Badge className="bg-amber-400 text-zinc-950 border-none font-bold text-[9px] uppercase tracking-tighter">
+                        Nivel {scannedMember.tier || 'Bronce'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
+                      <p className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Puntos</p>
+                      <p className="text-2xl font-black text-amber-400 tabular-nums">{scannedMember.points}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
+                      <p className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Total pedidos</p>
+                      <p className="text-2xl font-black tabular-nums">{scannedMember.totalOrders}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-3">
+                    <Button className="w-full h-14 bg-white text-zinc-950 hover:bg-zinc-100 font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-95">
+                      Canjear Beneficio
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setScannedMember(null)}
+                      className="w-full text-zinc-500 hover:text-white hover:bg-white/5 font-bold"
+                    >
+                      Escanear otro
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

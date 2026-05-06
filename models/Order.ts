@@ -83,6 +83,8 @@ export interface IOrder extends Document {
   orderTiming: 'immediate' | 'scheduled'
   scheduledPickupAt: Date | null
   scheduledStatus: 'pending_schedule' | 'active' | 'expired' | null
+  loyaltyPointsUsed?: number
+  loyaltyDiscountAmount?: number
   loyaltyPointsCredited: boolean
   createdAt: Date
   updatedAt: Date
@@ -236,6 +238,14 @@ const OrderSchema = new Schema(
       type: String,
       enum: ['pending_schedule', 'active', 'expired'],
       default: null,
+    },
+    loyaltyPointsUsed: {
+      type: Number,
+      default: 0,
+    },
+    loyaltyDiscountAmount: {
+      type: Number,
+      default: 0,
     },
     loyaltyPointsCredited: {
       type: Boolean,

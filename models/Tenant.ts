@@ -117,6 +117,7 @@ export interface ITenant extends Document {
     pointsPercentage: number // % del monto que se convierte en puntos (ej: 10 = 10%)
     pointsPerOrder: number // puntos fijos por pedido (opcional)
     minOrderForPoints: number // monto mínimo para acumular puntos
+    pointsRedemptionValue: number // valor en pesos de cada 1 punto
   }
   createdAt: Date
   updatedAt: Date
@@ -290,6 +291,7 @@ const TenantSchema = new Schema<ITenant>(
       pointsPercentage: { type: Number, default: 10, min: 0, max: 100 }, // 10% del monto
       pointsPerOrder: { type: Number, default: 0, min: 0 }, // puntos fijos por pedido
       minOrderForPoints: { type: Number, default: 0, min: 0 }, // monto mínimo
+      pointsRedemptionValue: { type: Number, default: 10, min: 0 }, // valor en pesos de cada 1 punto (ej: 10 = $10)
     },
   },
   {

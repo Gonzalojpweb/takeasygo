@@ -225,7 +225,22 @@ export async function POST(
       qrPromoApplied = true
     }
 
-    const total = subtotal - discountAmount
+    // --- LÓGICA DE CANJE DE PUNTOS ---
+    let loyaltyDiscountAmount = 0
+    let loyaltyPointsUsed = 0
+
+    if (body.loyaltyPointsUsed > 0 && tenant.loyalty?.enabled && body.customer.phone) {
+      const pHash = hashPhone(body.customer.phone)
+      const member = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash, status: 'active' }).select('loyalty').lean()
+      
+      if (member && member.loyalty.points >= body.loyaltyPointsUsed) {
+        const redemptionValue = tenant.pointsConfig?.pointsRedemptionValue ?? 10
+        loyaltyPointsUsed = body.loyaltyPointsUsed
+        loyaltyDiscountAmount = loyaltyPointsUsed * redemptionValue
+      }
+    }
+
+    const total = Math.max(0, subtotal - discountAmount - loyaltyDiscountAmount)
 
     const encryptedCustomer = {
       name:  encrypt(body.customer.name),
@@ -244,6 +259,8 @@ export async function POST(
       subtotal,
       discountAmount,
       qrPromoApplied,
+      loyaltyPointsUsed,
+      loyaltyDiscountAmount,
       total,
       customer: encryptedCustomer,
       notes: body.notes || '',

@@ -183,3 +183,50 @@ export async function reconcileMissingPoints(member: any, tenant: any, explicitl
 
   return totalReconciled
 }
+
+/**
+ * Deduce puntos de un miembro basado en una orden que aplicó descuento por lealtad.
+ * Esta operación debe ser atómica y ejecutarse usualmente tras la aprobación del pago.
+ */
+export async function deductPointsFromOrder(order: any, tenant: any, session?: mongoose.ClientSession) {
+  if (!order.loyaltyPointsUsed || order.loyaltyPointsUsed <= 0) return null
+
+  // Evitar doble deducción si ya se marcaron como deducidos (podríamos agregar un flag loyaltyPointsDeducted)
+  // Por ahora confiamos en la lógica del webhook que valida el estado de la orden.
+
+  const query: any = {
+    tenantId: tenant._id,
+    'customer.phoneHash': order.customer.phoneHash,
+    status: 'active',
+  }
+
+  console.log(`[Loyalty] Deduciendo ${order.loyaltyPointsUsed} puntos de la orden ${order.orderNumber}`)
+
+  try {
+    const member = await LoyaltyMember.findOneAndUpdate(
+      query,
+      {
+        $inc: {
+          'loyalty.points': -order.loyaltyPointsUsed,
+        },
+      },
+      { session, new: true }
+    )
+
+    if (member && member.wallet?.googleObjectId) {
+      setImmediate(async () => {
+        try {
+          await syncWalletPoints(member._id)
+          console.log(`[Loyalty] Wallet sincronizada tras deducción para miembro ${member._id}`)
+        } catch (err) {
+          console.error('[Loyalty] Error sincronizando wallet tras deducción:', err)
+        }
+      })
+    }
+
+    return member
+  } catch (err) {
+    console.error('[Loyalty] Error deduciendo puntos:', err)
+    return null
+  }
+}

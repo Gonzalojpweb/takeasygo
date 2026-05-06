@@ -30,6 +30,7 @@ interface Props {
       pointsPercentage: number
       pointsPerOrder: number
       minOrderForPoints: number
+      pointsRedemptionValue: number
     }
   }
 }
@@ -61,6 +62,7 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
   const [pointsPercentage, setPointsPercentage] = useState(initial?.pointsConfig?.pointsPercentage ?? 10)
   const [pointsPerOrder, setPointsPerOrder] = useState(initial?.pointsConfig?.pointsPerOrder ?? 0)
   const [minOrderForPoints, setMinOrderForPoints] = useState(initial?.pointsConfig?.minOrderForPoints ?? 0)
+  const [pointsRedemptionValue, setPointsRedemptionValue] = useState(initial?.pointsConfig?.pointsRedemptionValue ?? 10)
 
   useEffect(() => {
     if (initial) {
@@ -77,6 +79,7 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
       setPointsPercentage(initial.pointsConfig?.pointsPercentage ?? 10)
       setPointsPerOrder(initial.pointsConfig?.pointsPerOrder ?? 0)
       setMinOrderForPoints(initial.pointsConfig?.minOrderForPoints ?? 0)
+      setPointsRedemptionValue(initial.pointsConfig?.pointsRedemptionValue ?? 10)
     }
   }, [initial])
 
@@ -102,7 +105,8 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
             pointsPerCurrency,
             pointsPercentage,
             pointsPerOrder,
-            minOrderForPoints
+            minOrderForPoints,
+            pointsRedemptionValue
           }
         }),
       })
@@ -510,6 +514,25 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
                   />
                   <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">
                     $ mínimo
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Valor de canje (ARS)
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={pointsRedemptionValue}
+                    onChange={e => setPointsRedemptionValue(parseInt(e.target.value) || 0)}
+                    className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                  />
+                  <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                    $ cada 1 punto
                   </div>
                 </div>
               </div>
