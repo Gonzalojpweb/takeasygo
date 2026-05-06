@@ -18,6 +18,9 @@ interface LoyaltyConfig {
   enabled: boolean
   clubName: string
   welcomeMessage: string
+  pointsConfig?: {
+    pointsRedemptionValue: number
+  }
 }
 
 interface ScheduledOrdersConfig {
@@ -34,6 +37,10 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const [form, setForm] = useState({ name: '', phone: '', email: '', birthDate: '', notes: '', countryCode: '+54' })
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
   const [activeQrPromo, setActiveQrPromo] = useState<{ discountPercentage: number } | null>(null)
+  const [loyaltyMember, setLoyaltyMember] = useState<any | null>(null)
+  const [usePoints, setUsePoints] = useState(false)
+  const [pointsLookupLoading, setPointsLookupLoading] = useState(false)
+  const [loyaltyPointsToRedeem, setLoyaltyPointsToRedeem] = useState(0)
 
   useEffect(() => {
     const stored = sessionStorage.getItem('tgo-active-qr-promo')
@@ -77,7 +84,10 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
       .then(r => r.json())
       .then(data => {
         if (data.loyalty?.enabled) {
-          setLoyaltyConfig(data.loyalty)
+          setLoyaltyConfig({
+            ...data.loyalty,
+            pointsConfig: data.pointsConfig
+          })
         }
       })
       .catch(() => {})
@@ -95,6 +105,50 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
         setScheduledOrdersConfig(null)
       })
   }, [])
+
+  // Lookup loyalty member when phone changes
+  useEffect(() => {
+    if (form.phone.length < 8) {
+      setLoyaltyMember(null)
+      setUsePoints(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setPointsLookupLoading(true)
+      try {
+        const fullPhone = `${form.countryCode}${form.phone}`
+        const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?phone=${encodeURIComponent(fullPhone)}`)
+        const data = await res.json()
+        if (res.ok && data.member) {
+          setLoyaltyMember(data.member)
+        } else {
+          setLoyaltyMember(null)
+          setUsePoints(false)
+        }
+      } catch (err) {
+        console.error('Loyalty lookup error', err)
+      } finally {
+        setPointsLookupLoading(false)
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [form.phone, form.countryCode, tenantSlug])
+
+  // Calculate how many points can be redeemed
+  // For now, we redeem ALL points or NONE, up to the total price
+  const pointsValue = loyaltyConfig?.pointsConfig?.pointsRedemptionValue ?? 10 
+  
+  useEffect(() => {
+    if (usePoints && loyaltyMember) {
+      const maxRedeemableValue = subtotal - discountAmount
+      const neededPoints = Math.ceil(maxRedeemableValue / pointsValue)
+      setLoyaltyPointsToRedeem(Math.min(loyaltyMember.points, neededPoints))
+    } else {
+      setLoyaltyPointsToRedeem(0)
+    }
+  }, [usePoints, loyaltyMember, subtotal, discountAmount, pointsValue])
 
   function increaseQty(cartItemId: string) {
     setCart(prev => prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + 1 } : i))
@@ -137,7 +191,8 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const discountAmount = activeQrPromo ? Math.round(subtotal * (activeQrPromo.discountPercentage / 100)) : 0
-  const total = subtotal - discountAmount
+  const loyaltyDiscountAmount = loyaltyPointsToRedeem * pointsValue
+  const total = Math.max(0, subtotal - discountAmount - loyaltyDiscountAmount)
   // total se recalcula automáticamente al agregar hints (cart es estado)
 
 async function handleSubmit(e: React.FormEvent) {
@@ -162,6 +217,7 @@ async function handleSubmit(e: React.FormEvent) {
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,
         joinClub: joinClub && loyaltyConfig?.enabled,
         qrPromoApplied: !!activeQrPromo,
+        loyaltyPointsUsed: loyaltyPointsToRedeem,
       }
 
       if (scheduleOrder && scheduledPickupAt) {
@@ -462,25 +518,76 @@ async function handleSubmit(e: React.FormEvent) {
           )}
 
           {loyaltyConfig?.enabled && (
-            <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-amber-200 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
-              <input
-                type="checkbox"
-                checked={joinClub}
-                onChange={e => setJoinClub(e.target.checked)}
-                className="mt-1 w-5 h-5 rounded border-amber-300 text-amber-500 focus:ring-amber-400"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Star size={16} className="text-amber-500 fill-amber-500" />
-                  <span className="text-sm font-bold text-amber-900">
-                    Unirme a {loyaltyConfig.clubName || 'Club de Fidelización'}
-                  </span>
+            <div className="space-y-3">
+              {/* Card VIP si ya es miembro */}
+              {loyaltyMember && (
+                <div className="p-4 rounded-2xl border-2 border-zinc-900 bg-zinc-900 text-white shadow-xl shadow-zinc-200 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Star size={80} className="fill-white" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="bg-amber-400 text-zinc-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                        VIP Member
+                      </div>
+                      <span className="text-xs font-medium text-zinc-400">¡Hola, {loyaltyMember.name}!</span>
+                    </div>
+                    
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <p className="text-2xl font-black tabular-nums">{loyaltyMember.points}</p>
+                        <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-500">Puntos disponibles</p>
+                      </div>
+                      
+                      <div className="flex flex-col items-end">
+                        <button
+                          type="button"
+                          onClick={() => setUsePoints(!usePoints)}
+                          className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95",
+                            usePoints 
+                              ? "bg-amber-400 text-zinc-900" 
+                              : "bg-white/10 text-white hover:bg-white/20"
+                          )}
+                        >
+                          {usePoints ? '✅ Aplicado' : '✨ Usar puntos'}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {usePoints && (
+                      <div className="mt-3 pt-3 border-t border-white/10 text-[11px] text-amber-200 font-medium animate-in fade-in slide-in-from-top-1">
+                        Usarás {loyaltyPointsToRedeem} puntos para obtener un descuento de ${loyaltyDiscountAmount.toLocaleString('es-AR')}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-amber-700 mt-1">
-                  {loyaltyConfig.welcomeMessage || 'Completá tu registro para recibir beneficios exclusivos.'}
-                </p>
-              </div>
-            </label>
+              )}
+
+              {/* Registro si no es miembro */}
+              {!loyaltyMember && (
+                <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-amber-200 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={joinClub}
+                    onChange={e => setJoinClub(e.target.checked)}
+                    className="mt-1 w-5 h-5 rounded border-amber-300 text-amber-500 focus:ring-amber-400"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Star size={16} className="text-amber-500 fill-amber-500" />
+                      <span className="text-sm font-bold text-amber-900">
+                        Unirme a {loyaltyConfig.clubName || 'Club de Fidelización'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-700 mt-1">
+                      {loyaltyConfig.welcomeMessage || 'Completá tu registro para recibir beneficios exclusivos.'}
+                    </p>
+                  </div>
+                </label>
+              )}
+            </div>
           )}
 
           {/* Fecha de nacimiento cuando se une al club */}
@@ -516,6 +623,15 @@ async function handleSubmit(e: React.FormEvent) {
                   Descuento QR ({activeQrPromo.discountPercentage}%)
                 </span>
                 <span>-${discountAmount.toLocaleString('es-AR')}</span>
+              </div>
+            )}
+            {loyaltyPointsToRedeem > 0 && (
+              <div className="flex justify-between text-sm text-amber-600 font-semibold">
+                <span className="flex items-center gap-1">
+                  <Star size={12} className="fill-amber-600" />
+                  Descuento Club ({loyaltyPointsToRedeem} puntos)
+                </span>
+                <span>-${loyaltyDiscountAmount.toLocaleString('es-AR')}</span>
               </div>
             )}
             <div className="flex justify-between text-lg font-black text-zinc-900">

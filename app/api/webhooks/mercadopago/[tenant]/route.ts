@@ -10,7 +10,7 @@ import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
-import { addPointsFromOrder } from '@/lib/loyalty'
+import { addPointsFromOrder, deductPointsFromOrder } from '@/lib/loyalty'
 
 
 /**
@@ -154,6 +154,11 @@ export async function POST(
               if (order.customer?.phoneHash) {
                 // Usar el helper centralizado para sumar puntos y sincronizar wallet
                 await addPointsFromOrder(order, tenant, session)
+                
+                // Si la orden usó puntos para un descuento, deducirlos ahora
+                if (order.loyaltyPointsUsed && order.loyaltyPointsUsed > 0) {
+                  await deductPointsFromOrder(order, tenant, session)
+                }
               }
 
               // ── Inyección POS (fire-and-forget) ──────────────────────────
