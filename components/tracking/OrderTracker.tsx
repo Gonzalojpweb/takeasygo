@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
 import { Calendar, Star, Sparkles } from 'lucide-react'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
+import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 
 const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered']
 
@@ -38,6 +39,10 @@ interface Props {
     tier: string
     name: string
   } | null
+  loyaltyPointsUsed?: number
+  loyaltyDiscountAmount?: number
+  tenantName: string
+  clubName: string
 }
 
 function formatCountdown(target: string): string {
@@ -74,6 +79,10 @@ export default function OrderTracker({
   initialScheduledPickupAt = null,
   initialScheduledStatus = null,
   loyaltyData = null,
+  loyaltyPointsUsed = 0,
+  loyaltyDiscountAmount = 0,
+  tenantName,
+  clubName,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [estimatedReadyAt, setEstimatedReadyAt] = useState(initialEstimatedReadyAt)
@@ -281,6 +290,19 @@ export default function OrderTracker({
           </a>
         </div>
       )}
+      
+      {/* Estrategia B: Share-to-Earn (UGC) */}
+      {loyaltyDiscountAmount > 0 && status !== 'cancelled' && (
+        <div className="mb-8">
+          <LoyaltySharePrompt 
+            tenantName={tenantName}
+            clubName={clubName}
+            discountAmount={loyaltyDiscountAmount}
+            pointsUsed={loyaltyPointsUsed}
+          />
+        </div>
+      )}
+
 
       {/* SECCIÓN LOYALTY PARA INVITADOS/MIEMBROS */}
       {loyaltyData && (

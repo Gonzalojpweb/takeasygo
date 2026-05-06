@@ -31,6 +31,7 @@ interface Props {
       pointsPerOrder: number
       minOrderForPoints: number
       pointsRedemptionValue: number
+      redemptionEnabled: boolean
     }
   }
 }
@@ -63,6 +64,7 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
   const [pointsPerOrder, setPointsPerOrder] = useState(initial?.pointsConfig?.pointsPerOrder ?? 0)
   const [minOrderForPoints, setMinOrderForPoints] = useState(initial?.pointsConfig?.minOrderForPoints ?? 0)
   const [pointsRedemptionValue, setPointsRedemptionValue] = useState(initial?.pointsConfig?.pointsRedemptionValue ?? 10)
+  const [redemptionEnabled, setRedemptionEnabled] = useState(initial?.pointsConfig?.redemptionEnabled ?? true)
 
   useEffect(() => {
     if (initial) {
@@ -80,6 +82,7 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
       setPointsPerOrder(initial.pointsConfig?.pointsPerOrder ?? 0)
       setMinOrderForPoints(initial.pointsConfig?.minOrderForPoints ?? 0)
       setPointsRedemptionValue(initial.pointsConfig?.pointsRedemptionValue ?? 10)
+      setRedemptionEnabled(initial.pointsConfig?.redemptionEnabled ?? true)
     }
   }, [initial])
 
@@ -106,7 +109,8 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
             pointsPercentage,
             pointsPerOrder,
             minOrderForPoints,
-            pointsRedemptionValue
+            pointsRedemptionValue,
+            redemptionEnabled
           }
         }),
       })
@@ -518,25 +522,52 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
-                  Valor de canje (ARS)
-                </Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={pointsRedemptionValue}
-                    onChange={e => setPointsRedemptionValue(parseInt(e.target.value) || 0)}
-                    className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
-                  />
-                  <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">
-                    $ cada 1 punto
-                  </div>
-                </div>
-              </div>
-            </div>
+               <div className="space-y-2">
+                 <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                   Valor de canje (ARS)
+                 </Label>
+                 <div className="flex items-center gap-3">
+                   <Input
+                     type="number"
+                     min="0"
+                     step="1"
+                     value={pointsRedemptionValue}
+                     onChange={e => setPointsRedemptionValue(parseInt(e.target.value) || 0)}
+                     className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                   />
+                   <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                     $ cada 1 punto
+                   </div>
+                 </div>
+               </div>
+
+               <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40">
+                 <div className="flex items-center gap-4">
+                   <div className={cn(
+                     'w-12 h-12 rounded-2xl flex items-center justify-center transition-colors',
+                     redemptionEnabled ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'
+                   )}>
+                     <Percent size={24} />
+                   </div>
+                   <div>
+                     <Label className="text-base font-bold cursor-pointer" htmlFor="redemption-enabled">
+                       {redemptionEnabled ? 'Canje activo' : 'Canje desactivado'}
+                     </Label>
+                     <p className="text-xs text-muted-foreground mt-0.5">
+                       {redemptionEnabled
+                         ? 'Los clientes pueden usar puntos en el checkout.'
+                         : 'Desactivá para pausar el uso de puntos temporalmente.'}
+                     </p>
+                   </div>
+                 </div>
+                 <Switch
+                   id="redemption-enabled"
+                   checked={redemptionEnabled}
+                   onCheckedChange={setRedemptionEnabled}
+                   className="data-[state=checked]:bg-emerald-500"
+                 />
+               </div>
+             </div>
 
             {/* Preview de cálculo */}
             <div className="p-4 rounded-xl bg-muted/20 border border-border/40">
