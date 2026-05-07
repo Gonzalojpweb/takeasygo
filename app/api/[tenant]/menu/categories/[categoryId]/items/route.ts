@@ -20,7 +20,7 @@ export async function POST(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { locationId, name, description, price, imageUrl, tags, isFeatured, suggestWith, customizationGroups } = await request.json()
+    const { locationId, name, description, price, takeawayPrice, imageUrl, tags, isFeatured, suggestWith, customizationGroups } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
