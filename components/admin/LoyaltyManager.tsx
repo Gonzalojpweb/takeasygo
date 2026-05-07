@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,8 @@ import {
   Edit,
   X,
   FileSpreadsheet,
+  Camera,
+  CameraOff,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -137,6 +140,9 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [scanId, setScanId] = useState('')
   const [scanLoading, setScanLoading] = useState(false)
   const [scannedMember, setScannedMember] = useState<any | null>(null)
+  const [cameraActive, setCameraActive] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null)
 
   const fetchMembers = useCallback(async () => {
     setLoading(true)
@@ -287,12 +293,81 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setScannedMember(data.member)
+      if (cameraActive) {
+        stopCamera()
+      }
     } catch (err: any) {
       toast.error(err.message)
     } finally {
       setScanLoading(false)
     }
   }
+
+  const startCamera = async () => {
+    setCameraError(null)
+    try {
+      if (!html5QrCodeRef.current) {
+        html5QrCodeRef.current = new Html5Qrcode('reader')
+      }
+
+      await html5QrCodeRef.current.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        async (decodedText) => {
+          // QR escaneado exitosamente
+          setScanId(decodedText)
+          await handleScanById(decodedText)
+        },
+        (errorMessage) => {
+          // Ignorar errores de escaneo intermitente
+        }
+      )
+
+      setCameraActive(true)
+    } catch (err: any) {
+      console.error('Error starting camera:', err)
+      setCameraError('No se pudo acceder a la cámara. Verifica los permisos.')
+      toast.error('Error al iniciar la cámara')
+    }
+  }
+
+  const stopCamera = async () => {
+    if (html5QrCodeRef.current && cameraActive) {
+      try {
+        await html5QrCodeRef.current.stop()
+        setCameraActive(false)
+      } catch (err) {
+        console.error('Error stopping camera:', err)
+      }
+    }
+  }
+
+  const handleScanById = async (publicId: string) => {
+    setScanLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?publicId=${publicId.trim()}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setScannedMember(data.member)
+      await stopCamera()
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setScanLoading(false)
+    }
+  }
+
+  // Limpiar cámara cuando se cierra el diálogo
+  useEffect(() => {
+    return () => {
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current.stop().catch(console.error)
+      }
+    }
+  }, [])
 
   function openEdit(member: Member) {
     setEditingMember(member)
@@ -615,6 +690,10 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
         if (!open) {
           setScanId('')
           setScannedMember(null)
+          stopCamera()
+        } else {
+          // Iniciar cámara automáticamente al abrir el diálogo
+          setTimeout(() => startCamera(), 100)
         }
       }}>
         <DialogContent className="max-w-md rounded-[2.5rem] overflow-hidden p-0 border-none">
@@ -638,16 +717,32 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
 
             {!scannedMember ? (
               <div className="space-y-6">
-                <div className="relative aspect-square rounded-3xl border-2 border-dashed border-zinc-800 flex flex-col items-center justify-center bg-zinc-900/50 group overflow-hidden">
-                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                   <div className="w-20 h-20 mb-4 text-zinc-700 group-hover:text-amber-400/50 transition-colors">
-                     <QrCode size={80} strokeWidth={1} />
-                   </div>
-                   <p className="text-sm text-zinc-500 font-medium px-8 text-center">
-                     Apuntá la cámara al QR de la Wallet del cliente o ingresá el ID debajo.
-                   </p>
+                {/* Scanner de QR */}
+                <div className="relative aspect-square rounded-3xl overflow-hidden bg-zinc-900">
+                  {cameraActive ? (
+                    <div id="reader" className="w-full h-full" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/50">
+                      <div className="w-20 h-20 mb-4 text-zinc-700">
+                        <QrCode size={80} strokeWidth={1} />
+                      </div>
+                      <p className="text-sm text-zinc-500 font-medium px-8 text-center">
+                        {cameraError || 'Cámara inactiva'}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Botón de control de cámara */}
+                  <Button
+                    onClick={cameraActive ? stopCamera : startCamera}
+                    className="absolute bottom-4 right-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full p-3 shadow-xl"
+                    size="icon"
+                  >
+                    {cameraActive ? <CameraOff size={20} /> : <Camera size={20} />}
+                  </Button>
                 </div>
 
+                {/* Input manual */}
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500">ID de Miembro (TGO-XXXX...)</label>
                   <div className="flex gap-2">
@@ -701,7 +796,11 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={() => setScannedMember(null)}
+                      onClick={() => {
+                        setScannedMember(null)
+                        setScanId('')
+                        setTimeout(() => startCamera(), 100)
+                      }}
                       className="w-full text-zinc-500 hover:text-white hover:bg-white/5 font-bold"
                     >
                       Escanear otro

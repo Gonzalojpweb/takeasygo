@@ -140,13 +140,19 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
   // El descuento QR solo aplica sobre items que NO tienen descuento de categoría.
   // Un item tiene descuento si su precio actual es menor al precio original guardado.
-  // Si no tiene originalPrice, comparamos contra su precio actual (no hay descuento).
+  // Considerar el modo (takeaway vs dine-in) para usar los precios correctos.
   const qrEligibleSubtotal = cart
     .filter(i => {
-      // Si no tiene originalPrice guardado, no está en promoción
-      if (!i.originalPrice) return true
-      // Si tiene originalPrice, verificar si el precio fue rebajado
-      return i.price >= i.originalPrice
+      // Determinar el precio original según el modo
+      const originalPriceToCompare = mode === 'takeaway' 
+        ? (i.takeawayOriginalPrice ?? i.originalPrice)
+        : i.originalPrice
+      
+      // Si no tiene precio original guardado, no está en promoción
+      if (!originalPriceToCompare) return true
+      
+      // Si tiene precio original, verificar si el precio fue rebajado
+      return i.price >= originalPriceToCompare
     })
     .reduce((sum, i) => sum + i.price * i.quantity, 0)
   const discountAmount = activeQrPromo ? Math.round(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100)) : 0

@@ -201,6 +201,12 @@ export async function POST(
       const price = basePrice + extraPrice
       const subtotal = price * quantity
 
+      // Detectar si el item tiene descuento de categoría comparando precio actual vs original
+      // Considerar el modo (takeaway vs dine-in) para usar los precios correctos
+      const hasCategoryDiscount = body.mode === 'takeaway'
+        ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
+        : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
+
       resolvedItems.push({
         menuItemId: menuItem._id,
         categoryName: menuItem.categoryName || '',
@@ -212,9 +218,7 @@ export async function POST(
         subtotal,
         customizations: resolvedCustomizations,
         addedFrom: clientItem.addedFrom ?? null,
-        // Detectar si el item tiene descuento de categoría comparando precio actual vs original
-        // Un item tiene descuento si su precio fue rebajado respecto al original
-        hasCategoryDiscount: !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice,
+        hasCategoryDiscount,
       })
     }
 
