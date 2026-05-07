@@ -146,6 +146,7 @@ export default function CustomizationModal({
       customizations,
       customizationSummary,
       type: 'menuItem',
+      originalPrice: item.originalPrice,
     }
     onConfirm(cartItem)
   }

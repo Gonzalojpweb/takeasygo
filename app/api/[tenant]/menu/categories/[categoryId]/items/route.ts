@@ -71,7 +71,7 @@ export async function PUT(
     if (authError) return authError
 
     const body = await request.json()
-    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, availabilityMode, availabilitySchedule, takeawayPrice } = body
+    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, availabilityMode, availabilitySchedule, takeawayPrice, originalPrice, takeawayOriginalPrice } = body
 
     console.log('[PUT items] BODY:', { tenantSlug, categoryId, locationId: locationId?.toString(), itemId: itemId?.toString() })
 
@@ -112,6 +112,8 @@ export async function PUT(
     if (availabilityMode !== undefined) item.availabilityMode = availabilityMode
     if (availabilitySchedule !== undefined) item.availabilitySchedule = availabilitySchedule
     if (takeawayPrice !== undefined) item.takeawayPrice = takeawayPrice
+    if (originalPrice !== undefined) item.originalPrice = originalPrice
+    if (takeawayOriginalPrice !== undefined) item.takeawayOriginalPrice = takeawayOriginalPrice
 
     menu.markModified('categories')
     try {

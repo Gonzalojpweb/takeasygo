@@ -27,6 +27,8 @@ export interface IOrderItem {
   subtotal: number
   customizations: ISelectedCustomizationGroup[]
   addedFrom?: string
+  /** Si true, el item tenía descuento de categoría (originalPrice definido en el menú). El QR no aplicó sobre él. */
+  hasCategoryDiscount?: boolean
 }
 
 export interface IPrintLogEntry {

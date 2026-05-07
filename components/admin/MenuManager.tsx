@@ -398,12 +398,20 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
         }
 
         if (target === 'dine-in' || target === 'both') {
+          // Guardar precio original de lista una sola vez (antes de modificar)
+          if (!item.originalPrice) {
+            updateBody.originalPrice = item.price
+          }
           updateBody.price = Math.round(item.price * (1 + perc / 100))
         }
-        
+
         if (target === 'takeaway' || target === 'both') {
           // Si tiene precio takeaway, calculamos sobre ese. Si no, calculamos sobre el base.
           const currentTakeaway = item.takeawayPrice || item.price
+          // Guardar precio takeaway original una sola vez
+          if (!item.takeawayOriginalPrice) {
+            updateBody.takeawayOriginalPrice = currentTakeaway
+          }
           updateBody.takeawayPrice = Math.round(currentTakeaway * (1 + perc / 100))
         }
 
