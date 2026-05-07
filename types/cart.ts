@@ -25,4 +25,6 @@ export interface CartItem {
   type: CartItemType          // 'menuItem' or 'promotion'
   /** Precio original de lista del menú. Si existe, significa que el item tiene descuento de categoría y el QR no aplica sobre él. */
   originalPrice?: number
+  /** Precio takeaway original de lista del menú. Si existe, significa que el item tiene descuento de categoría en modo takeaway y el QR no aplica sobre él. */
+  takeawayOriginalPrice?: number
 }

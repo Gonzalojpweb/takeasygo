@@ -221,6 +221,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         addedFrom,
         type: 'menuItem',
         originalPrice: item.originalPrice,
+        takeawayOriginalPrice: item.takeawayOriginalPrice,
       }]
     })
     if (triggerUpsell && isNew) {
