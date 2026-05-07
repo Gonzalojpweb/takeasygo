@@ -212,8 +212,9 @@ export async function POST(
         subtotal,
         customizations: resolvedCustomizations,
         addedFrom: clientItem.addedFrom ?? null,
-        // Si el item tiene originalPrice en la DB, significa que está en descuento de categoría y el QR no aplica
-        hasCategoryDiscount: !!menuItem.originalPrice,
+        // Detectar si el item tiene descuento de categoría comparando precio actual vs original
+        // Un item tiene descuento si su precio fue rebajado respecto al original
+        hasCategoryDiscount: !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice,
       })
     }
 

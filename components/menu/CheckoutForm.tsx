@@ -139,9 +139,15 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
   // El descuento QR solo aplica sobre items que NO tienen descuento de categoría.
-  // Un item tiene descuento de categoría si tiene originalPrice definido (precio original guardado antes del bulk update).
+  // Un item tiene descuento si su precio actual es menor al precio original guardado.
+  // Si no tiene originalPrice, comparamos contra su precio actual (no hay descuento).
   const qrEligibleSubtotal = cart
-    .filter(i => !i.originalPrice)
+    .filter(i => {
+      // Si no tiene originalPrice guardado, no está en promoción
+      if (!i.originalPrice) return true
+      // Si tiene originalPrice, verificar si el precio fue rebajado
+      return i.price >= i.originalPrice
+    })
     .reduce((sum, i) => sum + i.price * i.quantity, 0)
   const discountAmount = activeQrPromo ? Math.round(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100)) : 0
 

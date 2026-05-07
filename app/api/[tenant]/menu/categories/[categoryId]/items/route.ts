@@ -37,6 +37,7 @@ export async function POST(
       name,
       description: description || '',
       price,
+      takeawayPrice: takeawayPrice || undefined,
       isAvailable: true,
       imageUrl: imageUrl || '',
       tags: tags || [],
@@ -45,6 +46,9 @@ export async function POST(
       customizationGroups: customizationGroups || [],
       nameTranslations: { en: nameEn },
       descriptionTranslations: { en: descEn },
+      // Guardar precio original de lista al crear el item
+      originalPrice: price,
+      takeawayOriginalPrice: takeawayPrice || price,
     } as any)
     menu.markModified('categories')
     await menu.save()
@@ -102,7 +106,20 @@ export async function PUT(
       item.description = description
       item.descriptionTranslations = { en: description ? await translateToEnglish(description) : '' }
     }
-    if (price !== undefined) item.price = price
+    if (price !== undefined) {
+      // Si no tiene originalPrice guardado, guardarlo antes de cambiar el precio
+      if (!item.originalPrice) {
+        item.originalPrice = item.price
+      }
+      item.price = price
+    }
+    if (takeawayPrice !== undefined) {
+      // Si no tiene takeawayOriginalPrice guardado, guardarlo antes de cambiar
+      if (!item.takeawayOriginalPrice) {
+        item.takeawayOriginalPrice = item.takeawayPrice || item.price
+      }
+      item.takeawayPrice = takeawayPrice
+    }
     if (isAvailable !== undefined) item.isAvailable = isAvailable
     if (imageUrl !== undefined) item.imageUrl = imageUrl
     if (tags !== undefined) item.tags = tags
@@ -111,7 +128,7 @@ export async function PUT(
     if (customizationGroups !== undefined) item.customizationGroups = customizationGroups
     if (availabilityMode !== undefined) item.availabilityMode = availabilityMode
     if (availabilitySchedule !== undefined) item.availabilitySchedule = availabilitySchedule
-    if (takeawayPrice !== undefined) item.takeawayPrice = takeawayPrice
+    // Permitir guardar explícitamente (para bulk update)
     if (originalPrice !== undefined) item.originalPrice = originalPrice
     if (takeawayOriginalPrice !== undefined) item.takeawayOriginalPrice = takeawayOriginalPrice
 
