@@ -27,6 +27,10 @@ export interface IMenuItem {
   description: string
   price: number
   takeawayPrice?: number
+  /** Precio original de lista (antes de descuentos de categoría). Se guarda una sola vez. */
+  originalPrice?: number
+  /** Precio takeaway original de lista (antes de descuentos de categoría). Se guarda una sola vez. */
+  takeawayOriginalPrice?: number
   imageUrl: string
   isAvailable: boolean
   tags: string[]
@@ -100,6 +104,14 @@ const MenuItemSchema = new Schema<IMenuItem>({
   takeawayPrice: {
     type: Number,
     min: [0, 'El precio para llevar no puede ser negativo'],
+  },
+  originalPrice: {
+    type: Number,
+    min: [0, 'El precio original no puede ser negativo'],
+  },
+  takeawayOriginalPrice: {
+    type: Number,
+    min: [0, 'El precio takeaway original no puede ser negativo'],
   },
   imageUrl: {
     type: String,

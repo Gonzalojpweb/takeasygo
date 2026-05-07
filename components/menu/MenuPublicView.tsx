@@ -220,6 +220,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         customizationSummary: '',
         addedFrom,
         type: 'menuItem',
+        originalPrice: item.originalPrice,
       }]
     })
     if (triggerUpsell && isNew) {

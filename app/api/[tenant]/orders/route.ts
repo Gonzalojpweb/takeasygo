@@ -212,6 +212,8 @@ export async function POST(
         subtotal,
         customizations: resolvedCustomizations,
         addedFrom: clientItem.addedFrom ?? null,
+        // Si el item tiene originalPrice en la DB, significa que está en descuento de categoría y el QR no aplica
+        hasCategoryDiscount: !!menuItem.originalPrice,
       })
     }
 
@@ -221,7 +223,12 @@ export async function POST(
     let qrPromoApplied = false
 
     if (body.qrPromoApplied && tenant.qrPromo?.isEnabled && (tenant.qrPromo.discountPercentage || 0) > 0) {
-      discountAmount = Math.round(subtotal * (tenant.qrPromo.discountPercentage / 100))
+      // El descuento QR solo aplica sobre items que NO tienen descuento de categoría.
+      // Esto previene acumulación de descuentos que generaría pérdidas para el restaurante.
+      const qrEligibleSubtotal = resolvedItems
+        .filter(item => !item.hasCategoryDiscount)
+        .reduce((sum, item) => sum + item.subtotal, 0)
+      discountAmount = Math.round(qrEligibleSubtotal * (tenant.qrPromo.discountPercentage / 100))
       qrPromoApplied = true
     }
 

@@ -138,7 +138,12 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   }, [form.phone, form.countryCode, tenantSlug])
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
-  const discountAmount = activeQrPromo ? Math.round(subtotal * (activeQrPromo.discountPercentage / 100)) : 0
+  // El descuento QR solo aplica sobre items que NO tienen descuento de categoría.
+  // Un item tiene descuento de categoría si tiene originalPrice definido (precio original guardado antes del bulk update).
+  const qrEligibleSubtotal = cart
+    .filter(i => !i.originalPrice)
+    .reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const discountAmount = activeQrPromo ? Math.round(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100)) : 0
 
   // Calculate how many points can be redeemed
   // For now, we redeem ALL points or NONE, up to the total price
