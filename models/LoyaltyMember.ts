@@ -37,6 +37,13 @@ export interface ILoyaltyMember extends Document {
     tier:   LoyaltyTier
   }
 
+  // Estadísticas de Store (canjes de puntos por artículos)
+  store: {
+    totalRedemptions: number
+    totalPointsSpent: number
+    lastRedemptionAt?: Date | null
+  }
+
   // FASE WALLET: Integración Google & Apple Wallet
   wallet: {
     /** ID único público para QR (no expone ObjectId de Mongo) */
@@ -130,6 +137,13 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
         enum:    ['none', 'bronze', 'silver', 'gold'],
         default: 'none',
       },
+    },
+
+    // Estadísticas de Store
+    store: {
+      totalRedemptions: { type: Number, default: 0 },
+      totalPointsSpent: { type: Number, default: 0 },
+      lastRedemptionAt: { type: Date, default: null },
     },
 
     // FASE WALLET: Schema para integración con billeteras

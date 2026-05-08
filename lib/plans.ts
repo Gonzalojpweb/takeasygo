@@ -64,6 +64,7 @@ export const PLAN_ACCESS = {
   // Solo Plan Premium
   analyticsAdv:  ['full'] as const,  // performance + menú + horarios inteligentes
   icoAdvanced:   ['full'] as const,  // diagnóstico completo con factores
+  store:         ['full'] as const,  // Tienda de canje de puntos
   dineIn:        ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
 
   // Plan Crecimiento y superior
