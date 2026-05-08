@@ -120,6 +120,15 @@ export interface ITenant extends Document {
     pointsRedemptionValue: number // valor en pesos de cada 1 punto
     redemptionEnabled: boolean
   }
+  /** Configuración de Store (tienda de canje de puntos) */
+  store: {
+    enabled: boolean
+    title: string  // "Tienda de Recompensas"
+    description: string
+    heroImageUrl?: string
+    allowOnlineRedemption: boolean  // Si requiere presencial o puede ser online
+    redemptionExpiryHours?: number  // Horas para expirar código de canje
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -294,6 +303,15 @@ const TenantSchema = new Schema<ITenant>(
       minOrderForPoints: { type: Number, default: 0, min: 0 }, // monto mínimo
       pointsRedemptionValue: { type: Number, default: 10, min: 0 }, // valor en pesos de cada 1 punto (ej: 10 = $10)
       redemptionEnabled: { type: Boolean, default: true },
+    },
+    /** Configuración de Store (tienda de canje de puntos) */
+    store: {
+      enabled: { type: Boolean, default: false },
+      title: { type: String, default: 'Tienda de Recompensas' },
+      description: { type: String, default: 'Canjea tus puntos por recompensas exclusivas' },
+      heroImageUrl: { type: String, default: '' },
+      allowOnlineRedemption: { type: Boolean, default: false },
+      redemptionExpiryHours: { type: Number, default: 24, min: 1, max: 168 }, // 1 hora a 7 días
     },
   },
   {

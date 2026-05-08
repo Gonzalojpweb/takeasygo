@@ -14,6 +14,7 @@ import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import CustomizationModal from '@/components/menu/CustomizationModal'
 import UpsellSheet from '@/components/menu/UpsellSheet'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
+import StoreCarousel from '@/components/menu/StoreCarousel'
 import { isAvailableNow } from '@/lib/availability'
 import { getSuggestions } from '@/lib/upsell-menu'
 
@@ -114,6 +115,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
+  const [memberPoints, setMemberPoints] = useState(0)
 
   useEffect(() => {
     fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=${mode}`)
@@ -123,6 +125,16 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         setPromotionsLoading(false)
       })
       .catch(() => setPromotionsLoading(false))
+
+    // Fetch member points if loyalty club is enabled
+    fetch(`/api/${tenant.slug}/loyalty/me`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.member?.points) {
+          setMemberPoints(data.member.points)
+        }
+      })
+      .catch(() => {})
   }, [tenant.slug, location._id, mode])
 
   const featuredPromotions = promotions.filter(p => p.isFeatured)
@@ -454,6 +466,9 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
             />
           </section>
         )}
+
+        {/* Store Points Carousel */}
+        <StoreCarousel tenantSlug={tenant.slug} memberPoints={memberPoints} />
 
         {/* Featured strip at top */}
         {featuredItems.length > 0 && (

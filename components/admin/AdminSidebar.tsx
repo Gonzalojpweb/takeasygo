@@ -154,6 +154,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
         { href: `${base}/promotions`, label: 'Promociones', icon: Tag, roles: ['admin', 'manager'] },
         { href: `${base}/marketing-qr`, label: 'Marketing QR', icon: Gift, roles: ['admin', 'manager'] },
         { href: `${base}/club`, label: 'Club', icon: QrCode, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/store`, label: 'Tienda', icon: Gift, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
       ],
     },
     {
