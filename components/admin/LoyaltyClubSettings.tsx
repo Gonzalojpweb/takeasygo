@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, QrCode, Save, Eye, EyeOff, Smartphone, Palette, CreditCard, Percent, Calculator } from 'lucide-react'
+import { Loader2, QrCode, Save, Eye, EyeOff, Smartphone, Palette, CreditCard, Percent, Calculator, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -66,6 +66,11 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
   const [pointsRedemptionValue, setPointsRedemptionValue] = useState(initial?.pointsConfig?.pointsRedemptionValue ?? 10)
   const [redemptionEnabled, setRedemptionEnabled] = useState(initial?.pointsConfig?.redemptionEnabled ?? true)
 
+  // Proximity notification states
+  const [notificationTitle, setNotificationTitle] = useState('')
+  const [notificationBody, setNotificationBody] = useState('')
+  const [sendingNotification, setSendingNotification] = useState(false)
+
   useEffect(() => {
     if (initial) {
       setEnabled(initial.enabled)
@@ -92,9 +97,9 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
       const res = await fetch(`/api/${tenantSlug}/loyalty/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          enabled, 
-          clubName, 
+        body: JSON.stringify({
+          enabled,
+          clubName,
           welcomeMessage: welcomeMsg,
           wallet: {
             enabled: walletEnabled,
@@ -121,6 +126,29 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
       toast.error(err.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSendProximityNotification() {
+    setSendingNotification(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/loyalty/notifications/proximity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: notificationTitle || undefined,
+          body: notificationBody || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al enviar notificaciones')
+      toast.success(`Notificaciones enviadas: ${data.sent}`)
+      setNotificationTitle('')
+      setNotificationBody('')
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setSendingNotification(false)
     }
   }
 
@@ -600,6 +628,65 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
             </div>
           </div>
         </div>
+
+        {/* ─────────────────────────────────────────────────────────────────────
+            NOTIFICACIONES DE PROXIMIDAD
+        ───────────────────────────────────────────────────────────────────── */}
+        {walletEnabled && (
+          <div className="pt-6 border-t border-border/40">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                <Bell size={24} strokeWidth={2.5} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold">Notificaciones de Proximidad</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Envía notificaciones personalizadas a miembros del club
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 p-6 rounded-2xl bg-muted/30 border border-border/40">
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Título (opcional)
+                </Label>
+                <Input
+                  value={notificationTitle}
+                  onChange={e => setNotificationTitle(e.target.value)}
+                  placeholder={`Estás cerca de ${clubName || 'nuestro local'}`}
+                  maxLength={100}
+                  className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                />
+                <p className="text-[10px] text-muted-foreground/50 text-right">{notificationTitle.length}/100</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Mensaje (opcional)
+                </Label>
+                <textarea
+                  value={notificationBody}
+                  onChange={e => setNotificationBody(e.target.value.slice(0, 200))}
+                  placeholder="No olvides que con tus puntos también puedes visitarnos y canjear. Valida nuestras promociones actuales."
+                  maxLength={200}
+                  rows={2}
+                  className="w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all resize-none"
+                />
+                <p className="text-[10px] text-muted-foreground/50 text-right">{notificationBody.length}/200</p>
+              </div>
+
+              <Button
+                onClick={handleSendProximityNotification}
+                disabled={sendingNotification}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold uppercase tracking-widest h-12 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+              >
+                {sendingNotification ? <Loader2 className="animate-spin h-5 w-5" /> : <Bell size={16} className="mr-2" />}
+                {sendingNotification ? 'Enviando...' : 'Enviar notificación'}
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-3 pt-4 border-t border-border/40">
           <Button
