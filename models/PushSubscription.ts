@@ -9,6 +9,8 @@ const PushSubscriptionSchema = new Schema(
     auth:        { type: String, required: true },
     // Opcional: asociado a un tenant cuando viene de un pedido
     tenantId:    { type: Schema.Types.ObjectId, ref: 'Tenant', index: true },
+    // Opcional: asociado a un miembro del club de fidelización
+    memberId:    { type: Schema.Types.ObjectId, ref: 'LoyaltyMember', index: true },
   },
   { timestamps: true }
 )

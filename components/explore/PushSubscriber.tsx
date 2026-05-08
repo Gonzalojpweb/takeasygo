@@ -21,7 +21,12 @@ function getClientToken(): string {
   return token
 }
 
-export default function PushSubscriber() {
+interface PushSubscriberProps {
+  tenantId?: string
+  memberId?: string
+}
+
+export default function PushSubscriber({ tenantId, memberId }: PushSubscriberProps) {
   const [state, setState] = useState<'idle' | 'prompt' | 'subscribed' | 'denied'>('idle')
   const [dismissed, setDismissed] = useState(false)
 
@@ -54,10 +59,14 @@ export default function PushSubscriber() {
       })
 
       const clientToken = getClientToken()
+      const body: any = { clientToken, subscription: sub.toJSON() }
+      if (tenantId) body.tenantId = tenantId
+      if (memberId) body.memberId = memberId
+
       await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientToken, subscription: sub.toJSON() }),
+        body: JSON.stringify(body),
       })
       setState('subscribed')
     } catch {
@@ -92,7 +101,8 @@ export default function PushSubscriber() {
       </div>
       <button
         onClick={handleAllow}
-        className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shrink-0 transition-colors">
+        className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shrink-0 transition-colors"
+      >
         Activar
       </button>
       <button onClick={dismiss} className="text-zinc-500 hover:text-zinc-300">

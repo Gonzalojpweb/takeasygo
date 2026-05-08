@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { clientToken, subscription, tenantId } = await request.json()
+    const { clientToken, subscription, tenantId, memberId } = await request.json()
 
     if (!clientToken || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
       return NextResponse.json({ error: 'Datos de suscripción inválidos' }, { status: 400 })
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
         p256dh:   subscription.keys.p256dh,
         auth:     subscription.keys.auth,
         ...(tenantId ? { tenantId } : {}),
+        ...(memberId ? { memberId } : {}),
       },
       { upsert: true, new: true }
     )
