@@ -108,6 +108,7 @@ export interface ITenant extends Document {
     subtitle: string
     buttonText: string
     termsText: string
+    imageUrl?: string
   }
   /** Configuración de sistema de puntos para club de fidelización */
   pointsConfig: {
@@ -292,6 +293,7 @@ const TenantSchema = new Schema<ITenant>(
       subtitle: { type: String, default: 'Obtené {discount}% OFF en tu primer pedido takeaway' },
       buttonText: { type: String, default: 'Ver menú' },
       termsText: { type: String, default: 'Válido solo para pedidos takeaway. No acumulable con otras promociones.' },
+      imageUrl: { type: String, default: '' },
     },
     /** Configuración de sistema de puntos para club de fidelización */
     pointsConfig: {

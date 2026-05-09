@@ -68,7 +68,8 @@ export async function PUT(
       title,
       subtitle,
       buttonText,
-      termsText
+      termsText,
+      imageUrl
     } = body
 
     if (discountPercentage !== undefined && (discountPercentage < 0 || discountPercentage > 100)) {
@@ -91,6 +92,7 @@ export async function PUT(
     if (typeof subtitle === 'string') updateData['qrPromo.subtitle'] = subtitle
     if (typeof buttonText === 'string') updateData['qrPromo.buttonText'] = buttonText
     if (typeof termsText === 'string') updateData['qrPromo.termsText'] = termsText
+    if (typeof imageUrl === 'string') updateData['qrPromo.imageUrl'] = imageUrl
 
     const tenant = await Tenant.findOneAndUpdate(
       { slug: tenantSlug },

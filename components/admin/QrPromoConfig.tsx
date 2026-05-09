@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, Users, Star, ArrowRight } from 'lucide-react'
+import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, Users, Star, ArrowRight, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import ImageUpload from './ImageUpload'
 import { cn } from '@/lib/utils'
 
 interface QrPromoConfigProps {
@@ -18,6 +19,7 @@ interface QrPromoData {
   subtitle: string
   buttonText: string
   termsText: string
+  imageUrl?: string
 }
 
 export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
@@ -30,6 +32,7 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
     subtitle: 'Obtené {discount}% OFF en tu primer pedido takeaway',
     buttonText: 'Ver menú',
     termsText: 'Válido solo para pedidos takeaway. No acumulable con otras promociones.',
+    imageUrl: '',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -84,9 +87,7 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
     setConfig(prev => {
       const next = { ...prev, [key]: value }
       
-      // Lógica inteligente de cambio de tipo
       if (key === 'type' && value !== prev.type) {
-        // Solo cambiamos textos si son los defaults
         const currentTitleDefault = prev.type === 'discount' ? '¡Primera vez por QR!' : 
                                   prev.type === 'loyalty' ? '¡Unite a nuestro Club!' : 
                                   '¡Información Importante!'
@@ -127,7 +128,6 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
 
   return (
     <div className="bg-gradient-to-br from-[#FFF5F0] to-white border-2 border-[#F74211]/20 rounded-2xl p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -157,7 +157,6 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
 
       {config.isEnabled && (
         <div className="space-y-6">
-          {/* Tipo de Banner */}
           <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
             <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
               <QrCode size={16} className="text-[#F74211]" />
@@ -186,7 +185,6 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
             </div>
           </div>
 
-          {/* Descuento (Solo si es Promocional) */}
           {config.type === 'discount' && (
             <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
               <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
@@ -210,7 +208,23 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
             </div>
           )}
 
-          {/* Frecuencia */}
+          <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+              <ImageIcon size={16} className="text-[#F74211]" />
+              Imagen del Banner
+            </label>
+            <div className="max-w-xs">
+              <ImageUpload
+                value={config.imageUrl || ''}
+                tenantSlug={tenantSlug}
+                onChange={(url) => updateConfig('imageUrl', url)}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Recomendado: Imagen horizontal (4:3 o 16:9) de alta calidad.
+            </p>
+          </div>
+
           <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
             <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
               <QrCode size={16} className="text-[#F74211]" />
@@ -239,75 +253,65 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
             </div>
           </div>
 
-          {/* Preview */}
           <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
             <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
               <Info size={16} className="text-[#F74211]" />
               Vista previa
             </label>
+            
             <div 
-              className="rounded-[24px] p-6 text-center space-y-2 relative overflow-hidden shadow-xl border border-gray-100"
-              style={{ 
-                background: `white`,
-              }}
+              className="rounded-[32px] text-center relative overflow-hidden shadow-2xl border border-gray-100 flex flex-col bg-white mx-auto max-w-[280px]"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#F74211] to-[#F74211]/60" />
-              
-              {config.type === 'discount' && (
-                <div 
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black mb-2 shadow-sm"
-                  style={{ backgroundColor: '#F74211', color: 'white' }}
-                >
-                  <Percent size={10} className="stroke-[3]" />
-                  {config.discountPercentage}% OFF
-                </div>
-              )}
-              
-              {config.type === 'loyalty' && (
-                <div 
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black mb-2 bg-zinc-950 text-white shadow-md"
-                >
-                  <Star size={10} className="text-yellow-400 fill-yellow-400" />
-                  CLUB DE FIDELIDAD
-                </div>
-              )}
-
-              {config.type === 'info' && (
-                <div 
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black mb-2 bg-blue-600 text-white shadow-sm"
-                >
-                  <Info size={10} className="stroke-[3]" />
-                  INFO
-                </div>
-              )}
-
-              <p className="font-black text-slate-900 text-lg leading-tight">
-                {config.title}
-              </p>
-              <p className="text-[10px] text-slate-500 font-medium leading-relaxed max-w-[200px] mx-auto">
-                {config.type === 'discount' 
-                  ? config.subtitle.replace('{discount}', `${config.discountPercentage}%`)
-                  : config.subtitle}
-              </p>
-
-              {config.type === 'loyalty' && (
-                <div className="mt-4 space-y-2 pointer-events-none opacity-50">
-                  <div className="h-8 bg-gray-50 border border-gray-100 rounded-xl" />
-                  <div className="h-8 bg-gray-50 border border-gray-100 rounded-xl" />
-                </div>
-              )}
-
-              <button 
-                className="mt-3 w-full py-2.5 rounded-xl text-white text-xs font-black flex items-center justify-center gap-2 uppercase tracking-tight shadow-lg"
+              <div 
+                className="h-36 flex relative overflow-hidden"
                 style={{ backgroundColor: '#F74211' }}
               >
-                {config.buttonText}
-                <ArrowRight size={14} className="stroke-[3]" />
-              </button>
+                <div className="w-1/2 p-3 flex items-center justify-center">
+                  <div className="w-full h-full rounded-2xl bg-white/10 border-2 border-white/20 overflow-hidden flex items-center justify-center">
+                    {config.imageUrl ? (
+                      <img src={config.imageUrl} className="w-full h-full object-cover" alt="Preview" />
+                    ) : (
+                      <Gift size={24} className="text-white opacity-80" />
+                    )}
+                  </div>
+                </div>
+                <div className="w-1/2 flex flex-col justify-center text-left text-white pr-4 pl-1">
+                   <p className="text-[8px] font-black uppercase opacity-70 mb-1">Hoy</p>
+                   <div className="flex flex-col leading-none">
+                     <span className="text-3xl font-black tracking-tighter">
+                       {config.type === 'discount' ? `${config.discountPercentage}%` : 'PROMO'}
+                     </span>
+                     <span className="text-sm font-black opacity-90 uppercase">
+                       {config.type === 'discount' ? 'OFF' : ''}
+                     </span>
+                   </div>
+                </div>
+              </div>
+
+              <div className="p-8">
+                <p className="font-black text-slate-900 text-sm leading-tight mb-2">
+                  {config.title}
+                </p>
+                <p className="text-[9px] text-slate-500 font-medium leading-tight mb-6 line-clamp-2">
+                  {config.type === 'discount' 
+                    ? config.subtitle.replace('{discount}', `${config.discountPercentage}%`)
+                    : config.subtitle}
+                </p>
+
+                <div className="flex flex-col gap-2">
+                  <div 
+                    className="w-full py-3 rounded-xl text-white text-[10px] font-black flex items-center justify-center gap-2 uppercase tracking-tight shadow-lg"
+                    style={{ backgroundColor: '#F74211' }}
+                  >
+                    {config.buttonText}
+                    <ArrowRight size={12} className="stroke-[3]" />
+                  </div>
+                  <button className="text-blue-600 font-bold text-[10px]">Entendido</button>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Instrucciones */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <div className="flex items-start gap-2">
               <AlertCircle size={18} className="text-blue-500 mt-0.5" />
@@ -315,9 +319,8 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
                 <p className="font-medium">¿Cómo funciona?</p>
                 <ul className="list-disc list-inside space-y-1 text-blue-700">
                   <li>Esta promoción aparece cuando un cliente escanea el QR por primera vez</li>
-                  <li>El estilo es estándar de TakeasyGO (color naranja #F74211)</li>
-                  <li>El cliente ve el descuento y puede usarlo en su pedido takeaway</li>
-                  <li>Usa los QR por ubicación para trackear desde qué mesa escanean</li>
+                  <li>El estilo es premium con soporte de imagen personalizada</li>
+                  <li>El cliente ve el beneficio y puede usarlo en su pedido</li>
                 </ul>
               </div>
             </div>
@@ -325,14 +328,12 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
           {error}
         </div>
       )}
 
-      {/* Save button */}
       <div className="flex justify-end pt-4 border-t border-border/40">
         <Button
           onClick={handleSave}
