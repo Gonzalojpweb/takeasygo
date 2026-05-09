@@ -69,12 +69,12 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
       return
     }
 
-    if (status === 'authenticated' && tenantSlug && currentTab === 'club') {
+    if (status === 'authenticated' && tenantSlug) {
       fetchClubData()
     } else if (status === 'authenticated' && !tenantSlug) {
       router.push('/explore')
     }
-  }, [status, tenantSlug, router, currentTab])
+  }, [status, tenantSlug, router])
 
   const fetchClubData = async () => {
     try {

@@ -111,8 +111,8 @@ function generateRedemptionCode(): string {
   return `TGO-${segment()}-${segment()}`
 }
 
-// Middleware pre-save: generar redemptionCode único
-StoreRedemptionSchema.pre('save', async function () {
+// Middleware pre-validate: generar redemptionCode único
+StoreRedemptionSchema.pre('validate', async function () {
   if (!this.redemptionCode) {
     let code = generateRedemptionCode()
     let attempts = 0
@@ -129,8 +129,8 @@ StoreRedemptionSchema.pre('save', async function () {
   }
 })
 
-// Middleware pre-save: calcular expiresAt si no existe
-StoreRedemptionSchema.pre('save', function () {
+// Middleware pre-validate: calcular expiresAt si no existe
+StoreRedemptionSchema.pre('validate', function () {
   if (!this.expiresAt && this.status === 'pending') {
     // Por defecto, expira en 24 horas (puede ser configurado por tenant)
     this.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)

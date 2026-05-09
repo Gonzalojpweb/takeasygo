@@ -128,7 +128,7 @@ export async function POST(
       const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000)
 
       // Crear redención
-      const redemption = await StoreRedemption.create([{
+      const redemption = new StoreRedemption({
         tenantId: tenant._id,
         memberId,
         storeItemId,
@@ -136,7 +136,8 @@ export async function POST(
         cashValue: item.cashValue,
         status: 'pending',
         expiresAt,
-      }], { session })
+      })
+      await redemption.save({ session })
 
       // Deductir puntos del miembro
       await LoyaltyMember.updateOne(
@@ -183,7 +184,7 @@ export async function POST(
       }
 
       return NextResponse.json({
-        redemption: redemption[0],
+        redemption,
         item,
         member: {
           name: member.name,
