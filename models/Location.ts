@@ -36,6 +36,13 @@ export interface ILocation extends Document {
     minPayment: number
     timeSlots: string[]
     maxPartySize: number
+    slotConfig?: {
+      enabled: boolean
+      operatingHours: Array<{ days: number[]; open: string; close: string }>
+      slotIntervalMinutes: number
+      blockDurationMinutes: number
+      maxReservationsPerSlot: number
+    }
   }
   hero: {
     mediaType: 'none' | 'image' | 'video'
@@ -149,6 +156,13 @@ settings: {
       minPayment: { type: Number, default: 0 },
       timeSlots: { type: [String], default: [] },
       maxPartySize: { type: Number, default: 10 },
+      slotConfig: {
+        enabled: { type: Boolean, default: false },
+        operatingHours: { type: [{ days: [Number], open: String, close: String }], default: [] },
+        slotIntervalMinutes: { type: Number, default: 30 },
+        blockDurationMinutes: { type: Number, default: 90 },
+        maxReservationsPerSlot: { type: Number, default: 1 },
+      },
     },
     hero: {
       mediaType: { type: String, enum: ['none', 'image', 'video'], default: 'none' },
