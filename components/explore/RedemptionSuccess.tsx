@@ -26,14 +26,22 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
   }
 
   function handleShare() {
+    const platformUrl = 'https://www.takeasygo.com/explore'
+    const shareText = `¡Acabo de canjear mis puntos por ${item.name} en ${tenantSlug}! 🎁✨\n\nSumate vos también a la red de beneficios de TakeasyGO y empezá a ganar premios en tus locales favoritos. @takeasygo`
+    
     if (navigator.share) {
       navigator.share({
-        title: `¡Canjeé ${item.name}!`,
-        text: `Canjeé ${item.name} por ${redemption.pointsUsed} puntos en ${tenantSlug}.`,
-        url: window.location.href,
+        title: `¡Beneficio exclusivo en TakeasyGO!`,
+        text: shareText,
+        url: platformUrl,
+      }).catch(err => {
+        console.error('Error al compartir:', err)
       })
     } else {
-      toast.error('Compartir no disponible en este navegador')
+      // Fallback: Copy to clipboard if navigator.share is not available
+      const fullText = `${shareText}\n\n${platformUrl}`
+      navigator.clipboard.writeText(fullText)
+      toast.success('Mensaje copiado para compartir')
     }
   }
 
@@ -118,9 +126,19 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
               Compartir
             </Button>
 
-            <p className="text-xs text-muted-foreground">
-              Compartí tu canje y ganá puntos extra
+            <p className="text-xs text-muted-foreground mb-4">
+              Compartí tu canje y ganá puntos extra invitando amigos a la red <b>TakeasyGO</b>
             </p>
+
+            <div className="pt-6 border-t border-border/50 flex flex-col items-center gap-2">
+               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Powered by</span>
+               <img 
+                 src="https://res.cloudinary.com/dypcq8lsa/image/upload/v1773077771/ChatGPT_Image_9_mar_2026__02_28_19_p.m.-removebg-preview-removebg-preview_1_yrwjdm.png" 
+                 alt="TakeasyGO" 
+                 className="h-6 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                 onClick={() => window.open('https://www.takeasygo.com', '_blank')}
+               />
+            </div>
           </CardContent>
         </Card>
       </div>
