@@ -38,9 +38,8 @@ export async function GET(
       })
     }
 
-    const authError = await requireAuth(request, tenant._id.toString())
-    if (authError) return authError
-
+    // Acceso público: devuelve config sin requerir auth (StoreView lo necesita)
+    // Para modificar la config se requiere auth (endpoint PUT)
     return NextResponse.json({ 
       config: tenant.store || {
         enabled: false,
