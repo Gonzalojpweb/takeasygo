@@ -4,6 +4,7 @@ import Reservation from '@/models/Reservation'
 import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function POST(
   request: NextRequest,
@@ -11,6 +12,13 @@ export async function POST(
 ) {
   try {
     const { tenant: tenantSlug } = await params
+
+    const ip = request.headers.get('x-forwarded-for') || 'unknown'
+    const { success } = await rateLimit(`preference:${ip}`, 10, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes. Esperá un minuto.' }, { status: 429 })
+    }
+
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })

@@ -1,6 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+interface SlotItem {
+  time: string
+  available: boolean
+}
 
 interface Props {
   tenant: any
@@ -20,6 +25,8 @@ const UI = {
     date: 'Fecha',
     time: 'Horario',
     noSlots: 'No hay horarios configurados',
+    slotUnavailable: 'No disponible',
+    loadingSlots: 'Cargando horarios...',
     partySize: 'Personas',
     name: 'Nombre',
     namePlaceholder: 'Tu nombre',
@@ -45,6 +52,8 @@ const UI = {
     date: 'Date',
     time: 'Time',
     noSlots: 'No time slots available',
+    slotUnavailable: 'Unavailable',
+    loadingSlots: 'Loading times...',
     partySize: 'Party size',
     name: 'Name',
     namePlaceholder: 'Your name',
@@ -69,23 +78,61 @@ const UI = {
 export default function ReservaForm({ tenant, location }: Props) {
   const branding = tenant.branding
   const config = location.reservationConfig || {}
-  const timeSlots: string[] = config.timeSlots || []
+  const staticTimeSlots: string[] = config.timeSlots || []
   const minPayment: number = config.minPayment || 0
   const maxPartySize: number = config.maxPartySize || 10
+  const useAutoSlots = config.slotConfig?.enabled && config.slotConfig?.operatingHours?.length > 0
 
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [step, setStep] = useState<'form' | 'paying' | 'free_done'>('form')
   const [loading, setLoading] = useState(false)
+  const [slotsLoading, setSlotsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const [slots, setSlots] = useState<SlotItem[]>(
+    useAutoSlots ? [] : staticTimeSlots.map(t => ({ time: t, available: true }))
+  )
 
   const [form, setForm] = useState({
     date: getTodayStr(),
-    time: timeSlots[0] || '',
+    time: useAutoSlots ? '' : (staticTimeSlots[0] || ''),
     partySize: 2,
     name: '',
     phone: '',
     notes: '',
   })
+
+  // Fetch available slots when date changes (auto mode)
+  useEffect(() => {
+    if (!useAutoSlots) return
+    let cancelled = false
+    async function fetchSlots() {
+      setSlotsLoading(true)
+      try {
+        const res = await fetch(`/api/${tenant.slug}/locations/${location._id}/reservation-slots?date=${form.date}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        setSlots(data.slots || [])
+        // Reset selected time if no longer available
+        if (data.slots?.length > 0) {
+          const currentStillAvailable = data.slots.some((s: SlotItem) => s.time === form.time && s.available)
+          if (!currentStillAvailable) {
+            const firstAvailable = data.slots.find((s: SlotItem) => s.available)
+            setForm(f => ({ ...f, time: firstAvailable?.time || '' }))
+          }
+        } else {
+          setForm(f => ({ ...f, time: '' }))
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setSlotsLoading(false)
+      }
+    }
+    fetchSlots()
+    return () => { cancelled = true }
+  }, [form.date, location._id, useAutoSlots])
 
   const t = UI[locale]
   const primary = branding.primaryColor
@@ -240,27 +287,32 @@ export default function ReservaForm({ tenant, location }: Props) {
           {/* Time slots */}
           <div>
             <label style={labelStyle}>{t.time}</label>
-            {timeSlots.length === 0 ? (
+            {slotsLoading ? (
+              <p style={{ fontSize: '13px', opacity: 0.5 }}>{t.loadingSlots}</p>
+            ) : slots.length === 0 ? (
               <p style={{ fontSize: '13px', opacity: 0.5 }}>{t.noSlots}</p>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {timeSlots.map(slot => (
+                {slots.map(slot => (
                   <button
-                    key={slot}
+                    key={slot.time}
                     type="button"
-                    onClick={() => setForm(f => ({ ...f, time: slot }))}
+                    disabled={!slot.available}
+                    onClick={() => slot.available && setForm(f => ({ ...f, time: slot.time }))}
                     style={{
                       padding: '8px 16px',
                       borderRadius: br,
-                      border: `1.5px solid ${primary}`,
-                      backgroundColor: form.time === slot ? primary : 'transparent',
-                      color: form.time === slot ? '#ffffff' : primary,
+                      border: `1.5px solid ${form.time === slot.time ? primary : primary}40`,
+                      backgroundColor: !slot.available ? '#f5f5f5' : form.time === slot.time ? primary : 'transparent',
+                      color: !slot.available ? '#ccc' : form.time === slot.time ? '#ffffff' : primary,
                       fontSize: '13px',
                       fontWeight: 700,
-                      cursor: 'pointer',
+                      cursor: slot.available ? 'pointer' : 'not-allowed',
+                      opacity: !slot.available ? 0.5 : 1,
+                      textDecoration: !slot.available ? 'line-through' : 'none',
                     }}
                   >
-                    {slot}
+                    {slot.time}
                   </button>
                 ))}
               </div>
@@ -338,7 +390,7 @@ export default function ReservaForm({ tenant, location }: Props) {
 
           <button
             type="submit"
-            disabled={loading || timeSlots.length === 0}
+            disabled={loading || slots.length === 0}
             style={{
               width: '100%',
               padding: '15px',

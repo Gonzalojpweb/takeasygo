@@ -2,8 +2,10 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
+import Counter from '@/models/Counter'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
 import { encrypt, safeDecrypt } from '@/lib/crypto'
 
@@ -55,6 +57,13 @@ export async function POST(
 ) {
   try {
     const { tenant: tenantSlug } = await params
+
+    const ip = request.headers.get('x-forwarded-for') || 'unknown'
+    const { success } = await rateLimit(`create-reserva:${ip}`, 5, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes. Esperá un minuto.' }, { status: 429 })
+    }
+
     const tenant = await resolveTenant(tenantSlug)
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
@@ -80,9 +89,26 @@ export async function POST(
       return NextResponse.json({ error: 'Reservaciones no habilitadas para esta sede' }, { status: 400 })
     }
 
-    // Generate reservation number
-    const count = await Reservation.countDocuments({ tenantId: tenant._id })
-    const reservationNumber = `R${String(count + 1).padStart(4, '0')}`
+    // Validate slot availability for auto-generated slots
+    if (location.reservationConfig?.slotConfig?.enabled) {
+      const { generateReservationSlots } = await import('@/lib/reservation-slots')
+      const available = await generateReservationSlots(locationId, date, location.reservationConfig)
+      const requestedSlot = available.slots.find(s => s.time === time)
+      if (!requestedSlot || !requestedSlot.available) {
+        return NextResponse.json({
+          error: 'El horario seleccionado ya no está disponible. Elegí otro.',
+          availableSlots: available.slots.filter(s => s.available).map(s => s.time),
+        }, { status: 409 })
+      }
+    }
+
+    // Generate reservation number (atomic counter)
+    const counter = await Counter.findOneAndUpdate(
+      { tenantId: tenant._id },
+      { $inc: { seq: 1 } },
+      { upsert: true, new: true }
+    )
+    const reservationNumber = `R${String(counter.seq).padStart(4, '0')}`
 
     const reservation = await Reservation.create({
       tenantId: tenant._id,
