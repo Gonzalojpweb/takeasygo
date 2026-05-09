@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Reservation from '@/models/Reservation'
+import { safeDecrypt } from '@/lib/crypto'
 import { notFound } from 'next/navigation'
 
 interface Props {
@@ -19,7 +20,10 @@ export default async function ReservaExitoPage({ params, searchParams }: Props) 
 
   let reservation: any = null
   if (reservaId) {
-    reservation = await Reservation.findOne({ _id: reservaId, tenantId: tenant._id }).lean()
+    const raw = await Reservation.findOne({ _id: reservaId, tenantId: tenant._id }).lean()
+    if (raw) {
+      reservation = { ...raw, name: safeDecrypt(raw.name) }
+    }
   }
 
   const branding = tenant.branding

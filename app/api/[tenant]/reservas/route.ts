@@ -2,8 +2,10 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
+import Counter from '@/models/Counter'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
 import { encrypt, safeDecrypt } from '@/lib/crypto'
 
@@ -55,6 +57,13 @@ export async function POST(
 ) {
   try {
     const { tenant: tenantSlug } = await params
+
+    const ip = request.headers.get('x-forwarded-for') || 'unknown'
+    const { success } = await rateLimit(`create-reserva:${ip}`, 5, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes. Esperá un minuto.' }, { status: 429 })
+    }
+
     const tenant = await resolveTenant(tenantSlug)
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
@@ -93,9 +102,13 @@ export async function POST(
       }
     }
 
-    // Generate reservation number
-    const count = await Reservation.countDocuments({ tenantId: tenant._id })
-    const reservationNumber = `R${String(count + 1).padStart(4, '0')}`
+    // Generate reservation number (atomic counter)
+    const counter = await Counter.findOneAndUpdate(
+      { tenantId: tenant._id },
+      { $inc: { seq: 1 } },
+      { upsert: true, new: true }
+    )
+    const reservationNumber = `R${String(counter.seq).padStart(4, '0')}`
 
     const reservation = await Reservation.create({
       tenantId: tenant._id,
