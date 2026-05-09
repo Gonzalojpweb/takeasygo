@@ -35,6 +35,7 @@ export default async function SuperAdminAnalyticsPage() {
     recentOrders,
     activeTenants30,
     globalTppData,
+    tgoImpactStats,
   ] = await Promise.all([
     Order.aggregate([
       { $match: { createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
@@ -75,7 +76,14 @@ export default async function SuperAdminAnalyticsPage() {
         count: { $sum: 1 }
       }},
     ]),
+    // Impacto de TakeasyGO (Pedidos con source tgo-*)
+    Order.aggregate([
+      { $match: { source: { $regex: /^tgo-/i }, status: { $ne: 'cancelled' } } },
+      { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
+    ]),
   ])
+
+  const tgoImpact = tgoImpactStats[0] || { total: 0, count: 0 }
 
   // Enriquecer topTenants con nombres
   const tenantIds = topTenants.map((t: any) => t._id)
@@ -169,12 +177,55 @@ export default async function SuperAdminAnalyticsPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em]">Mes anterior</CardTitle>
             <div className="p-2.5 rounded-xl bg-muted/60 group-hover:bg-primary transition-colors">
-              <Store size={20} className="text-muted-foreground group-hover:text-white" />
+               <Store size={20} className="text-muted-foreground group-hover:text-white" />
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-foreground text-3xl font-bold tracking-tighter tabular-nums">${lastMonth.total.toLocaleString('es-AR')}</p>
             <p className="text-muted-foreground text-[10px] font-bold mt-1 uppercase tracking-tighter">{lastMonth.count} pedidos totales</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Impacto TakeasyGO */}
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+        <Card className="bg-zinc-900 border-none shadow-2xl rounded-3xl overflow-hidden relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <CardContent className="p-8 relative z-10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-primary">
+                    <TrendingUp size={16} className="text-white" />
+                  </div>
+                  <h3 className="text-white text-sm font-black uppercase tracking-[0.3em]">Impacto TakeasyGO</h3>
+                </div>
+                <p className="text-zinc-400 text-xs font-medium max-w-sm">
+                  Ventas generadas directamente por campañas de invitación y la red oficial de la plataforma.
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-8 md:gap-16">
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Ingresos traccionados</p>
+                  <p className="text-white text-4xl font-black tabular-nums tracking-tighter">
+                    ${tgoImpact.total.toLocaleString('es-AR')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Pedidos generados</p>
+                  <p className="text-white text-4xl font-black tabular-nums tracking-tighter">
+                    {tgoImpact.count}
+                  </p>
+                </div>
+                <div className="hidden sm:block">
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">% de la red</p>
+                  <p className="text-primary text-4xl font-black tabular-nums tracking-tighter">
+                    {thisMonth.total > 0 ? Math.round((tgoImpact.total / thisMonth.total) * 100) : 0}%
+                  </p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

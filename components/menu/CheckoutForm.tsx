@@ -238,6 +238,7 @@ async function handleSubmit(e: React.FormEvent) {
         joinClub: joinClub && loyaltyConfig?.enabled,
         qrPromoApplied: !!activeQrPromo,
         loyaltyPointsUsed: loyaltyPointsToRedeem,
+        source: sessionStorage.getItem('tgo_attribution_source') || undefined,
       }
 
       if (scheduleOrder && scheduledPickupAt) {
