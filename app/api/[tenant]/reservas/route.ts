@@ -80,6 +80,19 @@ export async function POST(
       return NextResponse.json({ error: 'Reservaciones no habilitadas para esta sede' }, { status: 400 })
     }
 
+    // Validate slot availability for auto-generated slots
+    if (location.reservationConfig?.slotConfig?.enabled) {
+      const { generateReservationSlots } = await import('@/lib/reservation-slots')
+      const available = await generateReservationSlots(locationId, date, location.reservationConfig)
+      const requestedSlot = available.slots.find(s => s.time === time)
+      if (!requestedSlot || !requestedSlot.available) {
+        return NextResponse.json({
+          error: 'El horario seleccionado ya no está disponible. Elegí otro.',
+          availableSlots: available.slots.filter(s => s.available).map(s => s.time),
+        }, { status: 409 })
+      }
+    }
+
     // Generate reservation number
     const count = await Reservation.countDocuments({ tenantId: tenant._id })
     const reservationNumber = `R${String(count + 1).padStart(4, '0')}`
