@@ -49,7 +49,7 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
     
     setLoading(true)
     try {
-      onRedeem(item._id)
+      await onRedeem(item._id)
     } finally {
       setLoading(false)
     }

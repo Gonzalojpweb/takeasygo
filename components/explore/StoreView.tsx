@@ -106,22 +106,21 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
       const res = await fetch(`/api/${tenantSlug}/store/redemptions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId }),
+        body: JSON.stringify({ memberId, storeItemId: itemId }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al canjear')
       
+      const redemption = data.redemption || data
+      
       setRedeemedItem({
         item: items.find(i => i._id === itemId)!,
-        redemptionCode: data.redemptionCode,
-        expiresAt: data.expiresAt,
+        redemptionCode: redemption.redemptionCode,
+        expiresAt: redemption.expiresAt,
       })
       
       // Update points
-      setPoints(data.newPoints || points - items.find(i => i._id === itemId)!.pointsCost)
-      
-      // Refresh items and member data
-      fetchData()
+      setPoints(data.member?.points ?? points - items.find(i => i._id === itemId)!.pointsCost)
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -148,7 +147,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
         item={redeemedItem.item}
         member={{
           id: memberId,
-          loyalty: { points: memberPoints, tier: memberTier },
+          loyalty: { points, tier: memberTier },
         }}
         onBack={() => {
           setRedeemedItem(null)

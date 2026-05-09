@@ -30,20 +30,26 @@ export async function GET(
       return NextResponse.json({ items: [] })
     }
 
-    // Requiere autenticación de admin
+    // Si es admin autenticado, devuelve todos los items (incluyendo inactivos según query)
+    // Si es público/miembro, devuelve solo items activos
     const authError = await requireAuth(request, tenant._id.toString())
-    if (authError) return authError
+    const isAdmin = !authError
 
     const { searchParams } = new URL(request.url)
-    const category = searchParams.get('category')
-    const isActive = searchParams.get('isActive')
-    const isFeatured = searchParams.get('isFeatured')
 
     const query: any = { tenantId: tenant._id }
 
-    if (category) query.category = category
-    if (isActive !== null) query.isActive = isActive === 'true'
-    if (isFeatured !== null) query.isFeatured = isFeatured === 'true'
+    if (isAdmin) {
+      const category = searchParams.get('category')
+      const isActive = searchParams.get('isActive')
+      const isFeatured = searchParams.get('isFeatured')
+      if (category) query.category = category
+      if (isActive !== null) query.isActive = isActive === 'true'
+      if (isFeatured !== null) query.isFeatured = isFeatured === 'true'
+    } else {
+      // Modo público: solo items activos
+      query.isActive = true
+    }
 
     const items = await StoreItem.find(query).sort({ sortOrder: 1, createdAt: -1 }).lean()
 

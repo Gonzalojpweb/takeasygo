@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { 
@@ -47,8 +47,7 @@ interface ClubData {
   message?: string
 }
 
-export default function ClubProfilePage({ params }: { params: Promise<{ tenantSlug: string }> }) {
-  const { tenantSlug } = use(params)
+function ClubContent({ tenantSlug }: { tenantSlug: string }) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { setTenantSlug: setContextTenantSlug } = useTenant()
@@ -160,7 +159,6 @@ export default function ClubProfilePage({ params }: { params: Promise<{ tenantSl
         />
       ) : (
         <>
-          {/* Header */}
           <div className="p-6">
             <Button
               variant="ghost"
@@ -179,7 +177,6 @@ export default function ClubProfilePage({ params }: { params: Promise<{ tenantSl
             )}
           </div>
 
-          {/* Tab Bar */}
           {clubData?.member && (
             <div className="px-6 pb-4">
               <div className="flex items-center gap-2 bg-zinc-900/50 rounded-xl p-1">
@@ -258,9 +255,9 @@ export default function ClubProfilePage({ params }: { params: Promise<{ tenantSl
                         Miembro desde
                       </p>
                       <p className="text-sm text-zinc-300">
-                        {new Date(clubData.member.joinedAt).toLocaleDateString('es-AR', {
-                          month: 'short',
-                          year: 'numeric'
+                        {new Date(clubData.member.joinedAt).toLocaleDateString('es-AR', { 
+                          month: 'short', 
+                          year: 'numeric' 
                         })}
                       </p>
                     </div>
@@ -358,5 +355,19 @@ export default function ClubProfilePage({ params }: { params: Promise<{ tenantSl
 
       <BottomNav />
     </div>
+  )
+}
+
+export default function ClubProfilePage({ params }: { params: Promise<{ tenantSlug: string }> }) {
+  const { tenantSlug } = use(params)
+
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col h-full bg-[var(--c-bg)] items-center justify-center">
+        <Loader2 size={32} className="text-[#f14722] animate-spin" />
+      </div>
+    }>
+      <ClubContent tenantSlug={tenantSlug} />
+    </Suspense>
   )
 }
