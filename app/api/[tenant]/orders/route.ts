@@ -280,6 +280,7 @@ export async function POST(
       orderTiming: body.orderTiming,
       scheduledPickupAt,
       scheduledStatus,
+      source: body.source ?? null,
     })
 
     if (joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled) {
@@ -305,7 +306,7 @@ export async function POST(
             birthDate: body.customer.birthDate ? new Date(body.customer.birthDate) : null,
             phoneHash: pHash,
             status:    'active',
-            source:    'checkout',
+            source:    body.source || 'checkout',
             cache: {
               totalOrders: 0,
               totalSpent:  0,

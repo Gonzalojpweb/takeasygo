@@ -44,6 +44,7 @@ export const createOrderSchema = z.object({
   scheduledPickupAt: z.string().datetime().optional(),
   qrPromoApplied: z.boolean().optional().default(false),
   loyaltyPointsUsed: z.number().int().min(0).optional().default(0),
+  source: z.string().optional().nullable(),
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>

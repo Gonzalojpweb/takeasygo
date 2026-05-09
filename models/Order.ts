@@ -88,6 +88,7 @@ export interface IOrder extends Document {
   loyaltyPointsUsed?: number
   loyaltyDiscountAmount?: number
   loyaltyPointsCredited: boolean
+  source?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -252,6 +253,11 @@ const OrderSchema = new Schema(
     loyaltyPointsCredited: {
       type: Boolean,
       default: false,
+    },
+    source: {
+      type: String,
+      default: null,
+      index: true,
     },
   },
   {

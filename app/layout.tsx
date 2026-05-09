@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
+import { Suspense } from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import SmoothScroll from '@/components/SmoothScroll'
 import NavigationProgress from '@/components/NavigationProgress'
+import SourceTracker from '@/components/SourceTracker'
 import './globals.css'
 import AuthProvider from '@/components/AuthProvider'
 
@@ -26,6 +28,9 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={geist.className}>
         <AuthProvider>
+          <Suspense fallback={null}>
+            <SourceTracker />
+          </Suspense>
           <NavigationProgress />
           <SmoothScroll>
             {children}

@@ -16,6 +16,7 @@ interface UrlGeneratorProps {
 }
 
 const SOURCES = [
+  { id: 'tgo-invite', name: 'Invitación TGO', icon: Globe, color: 'text-[#F74211]' },
   { id: 'instagram', name: 'Instagram', icon: Instagram, color: 'text-pink-500' },
   { id: 'facebook', name: 'Facebook', icon: Facebook, color: 'text-blue-600' },
   { id: 'qr', name: 'QR Code', icon: QrCode, color: 'text-emerald-500' },

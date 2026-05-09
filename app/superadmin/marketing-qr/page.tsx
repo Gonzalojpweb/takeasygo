@@ -2,10 +2,17 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { Gift } from 'lucide-react'
 import SuperadminQrPromoStyles from '@/components/superadmin/SuperadminQrPromoStyles'
+import UrlGenerator from '@/components/superadmin/UrlGenerator'
+import Tenant from '@/models/Tenant'
+import { connectDB } from '@/lib/mongoose'
 
 export default async function SuperAdminMarketingQrPage() {
   const session = await auth()
   if (!session || session.user.role !== 'superadmin') redirect('/login')
+
+  await connectDB()
+  const tenants = await Tenant.find({ isActive: true }).select('_id name slug').lean()
+  const serializedTenants = JSON.parse(JSON.stringify(tenants))
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -15,12 +22,17 @@ export default async function SuperAdminMarketingQrPage() {
           Marketing QR Global
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Configurá la estética base de las promociones y banners que usan los restaurantes
+          Configurá la estética base y generá enlaces de invitación para la red
         </p>
       </div>
 
-      <div className="max-w-4xl">
-        <SuperadminQrPromoStyles />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <div className="space-y-8">
+          <SuperadminQrPromoStyles />
+        </div>
+        <div className="space-y-8">
+          <UrlGenerator tenants={serializedTenants} />
+        </div>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 max-w-4xl">
