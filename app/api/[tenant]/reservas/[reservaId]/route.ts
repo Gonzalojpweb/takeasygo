@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Reservation from '@/models/Reservation'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { rateLimit } from '@/lib/rateLimit'
 import { safeDecrypt } from '@/lib/crypto'
 
 function decryptReservation(r: any) {
@@ -14,13 +15,19 @@ async function resolveTenant(tenantSlug: string) {
   return Tenant.findOne({ slug: tenantSlug, isActive: true })
 }
 
-// GET /api/[tenant]/reservas/[reservaId]
+// GET /api/[tenant]/reservas/[reservaId] — público con rate limiting
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string; reservaId: string }> }
 ) {
   try {
     const { tenant: tenantSlug, reservaId } = await params
+
+    const { success } = await rateLimit(`get-reserva:${reservaId}`, 10, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes. Esperá un minuto.' }, { status: 429 })
+    }
+
     const tenant = await resolveTenant(tenantSlug)
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
