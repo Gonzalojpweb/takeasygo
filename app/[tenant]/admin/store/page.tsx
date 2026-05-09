@@ -5,8 +5,11 @@ import { redirect } from 'next/navigation'
 import { canAccess } from '@/lib/plans'
 import StoreManager from '@/components/admin/StoreManager'
 import StoreSettings from '@/components/admin/StoreSettings'
+import RedemptionValidator from '@/components/admin/RedemptionValidator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
+import { Package, QrCode, Settings } from 'lucide-react'
 
 interface PageProps {
   params: Promise<{ tenant: string }>
@@ -70,12 +73,38 @@ export default async function StorePage({ params }: PageProps) {
       <div>
         <h1 className="text-3xl font-black tracking-tight">Tienda de Recompensas</h1>
         <p className="text-muted-foreground mt-1">
-          Gestiona los artículos canjeables por puntos y la configuración de la tienda.
+          Gestiona los artículos canjeables por puntos y valida los canjes de los clientes.
         </p>
       </div>
 
-      <StoreSettings tenantSlug={tenantSlug} />
-      <StoreManager tenantSlug={tenantSlug} />
+      <Tabs defaultValue="validator" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 h-14 p-1 bg-muted/50 rounded-2xl border border-border/40 mb-8">
+          <TabsTrigger value="validator" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <QrCode className="mr-2 h-4 w-4" />
+            Validar Canje
+          </TabsTrigger>
+          <TabsTrigger value="inventory" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Package className="mr-2 h-4 w-4" />
+            Inventario
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Settings className="mr-2 h-4 w-4" />
+            Configuración
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="validator" className="mt-0">
+          <RedemptionValidator tenantSlug={tenantSlug} />
+        </TabsContent>
+
+        <TabsContent value="inventory" className="mt-0">
+          <StoreManager tenantSlug={tenantSlug} />
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-0">
+          <StoreSettings tenantSlug={tenantSlug} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
