@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import ReservasPanel from '@/components/admin/ReservasPanel'
 import type { Plan } from '@/lib/plans'
 import { canAccess, requiredPlanFor, PLAN_LABELS } from '@/lib/plans'
+import { safeDecrypt } from '@/lib/crypto'
 import { Lock } from 'lucide-react'
 
 export default async function ReservasPage() {
@@ -73,10 +74,16 @@ export default async function ReservasPage() {
   const fromStr = from.toISOString().split('T')[0]
   const toStr = to.toISOString().split('T')[0]
 
-  const reservations = await Reservation.find({
+  const rawReservations = await Reservation.find({
     tenantId,
     date: { $gte: fromStr, $lte: toStr },
   }).sort({ date: 1, time: 1 }).lean() as any[]
+
+  const reservations = rawReservations.map(r => ({
+    ...r,
+    name: safeDecrypt(r.name),
+    phone: safeDecrypt(r.phone),
+  }))
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">

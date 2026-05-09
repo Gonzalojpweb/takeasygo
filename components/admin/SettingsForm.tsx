@@ -86,7 +86,20 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   const [heroSaving, setHeroSaving] = useState<string | null>(null)
 
   // Reservation config state
-  type ReservationConfig = { enabled: boolean; minPayment: number; timeSlots: string[]; maxPartySize: number }
+  type OperatingHourConfig = { days: number[]; open: string; close: string }
+  type ReservationConfig = {
+    enabled: boolean
+    minPayment: number
+    timeSlots: string[]
+    maxPartySize: number
+    slotConfig?: {
+      enabled: boolean
+      operatingHours: OperatingHourConfig[]
+      slotIntervalMinutes: number
+      blockDurationMinutes: number
+      maxReservationsPerSlot: number
+    }
+  }
   const [reservationMap, setReservationMap] = useState<Record<string, ReservationConfig>>(
     Object.fromEntries(locations.map((l: any) => [
       l._id,
@@ -95,6 +108,13 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
         minPayment: l.reservationConfig?.minPayment ?? 0,
         timeSlots: l.reservationConfig?.timeSlots ?? [],
         maxPartySize: l.reservationConfig?.maxPartySize ?? 10,
+        slotConfig: {
+          enabled: l.reservationConfig?.slotConfig?.enabled ?? false,
+          operatingHours: l.reservationConfig?.slotConfig?.operatingHours ?? [],
+          slotIntervalMinutes: l.reservationConfig?.slotConfig?.slotIntervalMinutes ?? 30,
+          blockDurationMinutes: l.reservationConfig?.slotConfig?.blockDurationMinutes ?? 90,
+          maxReservationsPerSlot: l.reservationConfig?.slotConfig?.maxReservationsPerSlot ?? 1,
+        },
       },
     ]))
   )
@@ -252,6 +272,44 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
         : [...slots[idx].days, day].sort((a, b) => a - b)
       slots[idx] = { ...slots[idx], days }
       return { ...prev, [locationId]: { ...prev[locationId], [type]: slots } }
+    })
+  }
+
+  // ── Reservation auto-slot helpers ──────────────────────────────────
+  function addReservationOperatingHour(locationId: string) {
+    setReservationMap(prev => {
+      const current = prev[locationId]
+      const hours = [...(current.slotConfig?.operatingHours ?? []), { days: [1, 2, 3, 4, 5], open: '09:00', close: '22:00' }]
+      return { ...prev, [locationId]: { ...current, slotConfig: { ...current.slotConfig!, operatingHours: hours } } }
+    })
+  }
+
+  function removeReservationOperatingHour(locationId: string, idx: number) {
+    setReservationMap(prev => {
+      const current = prev[locationId]
+      const hours = current.slotConfig!.operatingHours.filter((_, i) => i !== idx)
+      return { ...prev, [locationId]: { ...current, slotConfig: { ...current.slotConfig!, operatingHours: hours } } }
+    })
+  }
+
+  function updateReservationOperatingHour(locationId: string, idx: number, field: 'open' | 'close', value: string) {
+    setReservationMap(prev => {
+      const current = prev[locationId]
+      const hours = [...current.slotConfig!.operatingHours]
+      hours[idx] = { ...hours[idx], [field]: value }
+      return { ...prev, [locationId]: { ...current, slotConfig: { ...current.slotConfig!, operatingHours: hours } } }
+    })
+  }
+
+  function toggleReservationOperatingDay(locationId: string, idx: number, day: number) {
+    setReservationMap(prev => {
+      const current = prev[locationId]
+      const hours = [...current.slotConfig!.operatingHours]
+      const days = hours[idx].days.includes(day)
+        ? hours[idx].days.filter(d => d !== day)
+        : [...hours[idx].days, day].sort((a, b) => a - b)
+      hours[idx] = { ...hours[idx], days }
+      return { ...prev, [locationId]: { ...current, slotConfig: { ...current.slotConfig!, operatingHours: hours } } }
     })
   }
 
@@ -1345,44 +1403,191 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                             </div>
                           </div>
 
-                          <div>
-                            <label className={labelCls}>Horarios disponibles</label>
-                            <div className="flex flex-wrap gap-2 mb-3 min-h-[36px]">
-                              {(reservationMap[loc._id]?.timeSlots || []).map(slot => (
-                                <span
-                                  key={slot}
-                                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-primary/10 text-primary border border-primary/20"
-                                >
-                                  {slot}
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSlot(loc._id, slot)}
-                                    className="text-primary/50 hover:text-red-500 transition-colors"
-                                  >
-                                    <X size={12} />
-                                  </button>
-                                </span>
-                              ))}
-                              {(reservationMap[loc._id]?.timeSlots || []).length === 0 && (
-                                <span className="text-xs text-muted-foreground/50 italic">Sin horarios cargados</span>
+                          {/* ── Toggle: Manual vs Automático ── */}
+                          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-2xl border border-border/40">
+                            <div className="flex items-center gap-2">
+                              <Clock size={14} className="text-muted-foreground" />
+                              <span className="text-xs font-bold text-muted-foreground">Generación automática</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setReservationMap(prev => {
+                                const current = prev[loc._id]
+                                const wasAuto = current.slotConfig?.enabled ?? false
+                                return {
+                                  ...prev,
+                                  [loc._id]: {
+                                    ...current,
+                                    slotConfig: { ...current.slotConfig!, enabled: !wasAuto },
+                                  },
+                                }
+                              })}
+                              className={cn(
+                                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                                reservationMap[loc._id]?.slotConfig?.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
                               )}
-                            </div>
-                            <div className="flex gap-2">
-                              <input
-                                type="time"
-                                value={newSlotMap[loc._id] || ''}
-                                onChange={e => setNewSlotMap(prev => ({ ...prev, [loc._id]: e.target.value }))}
-                                className={cn(inputCls, "flex-1")}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => addSlot(loc._id)}
-                                className="flex items-center gap-1.5 px-4 h-[50px] rounded-2xl bg-primary text-white text-xs font-black hover:bg-primary/90 transition-colors active:scale-95 shrink-0"
-                              >
-                                <Plus size={14} /> Agregar
-                              </button>
-                            </div>
+                            >
+                              <span className={cn(
+                                'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200',
+                                reservationMap[loc._id]?.slotConfig?.enabled ? 'translate-x-5' : 'translate-x-0'
+                              )} />
+                            </button>
                           </div>
+
+                          {reservationMap[loc._id]?.slotConfig?.enabled ? (
+                            /* ── Modo automático: operating hours + configuración ── */
+                            <div className="space-y-4">
+                              <div>
+                                <label className={labelCls}>Horarios operativos</label>
+                                {(reservationMap[loc._id]?.slotConfig?.operatingHours ?? []).map((oh, idx) => (
+                                  <div key={idx} className="flex flex-col gap-2 p-3 bg-white rounded-xl border border-border/60 shadow-sm mb-2">
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                      {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((d, di) => (
+                                        <button
+                                          key={di}
+                                          type="button"
+                                          onClick={() => toggleReservationOperatingDay(loc._id, idx, di)}
+                                          className={cn(
+                                            'w-9 h-7 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all',
+                                            oh.days.includes(di)
+                                              ? 'bg-primary text-white shadow-sm'
+                                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                          )}
+                                        >
+                                          {d}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="time"
+                                        value={oh.open}
+                                        onChange={e => updateReservationOperatingHour(loc._id, idx, 'open', e.target.value)}
+                                        className="flex-1 bg-muted/40 border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-1.5 outline-none transition-all"
+                                      />
+                                      <span className="text-muted-foreground text-xs font-bold">—</span>
+                                      <input
+                                        type="time"
+                                        value={oh.close}
+                                        onChange={e => updateReservationOperatingHour(loc._id, idx, 'close', e.target.value)}
+                                        className="flex-1 bg-muted/40 border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-1.5 outline-none transition-all"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => removeReservationOperatingHour(loc._id, idx)}
+                                        className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                                <button
+                                  type="button"
+                                  onClick={() => addReservationOperatingHour(loc._id)}
+                                  className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors px-1 py-1"
+                                >
+                                  <Plus size={13} strokeWidth={3} />
+                                  Agregar franja horaria
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                  <label className={labelCls}>Intervalo</label>
+                                  <select
+                                    value={reservationMap[loc._id]?.slotConfig?.slotIntervalMinutes ?? 30}
+                                    onChange={e => setReservationMap(prev => ({
+                                      ...prev,
+                                      [loc._id]: {
+                                        ...prev[loc._id],
+                                        slotConfig: { ...prev[loc._id].slotConfig!, slotIntervalMinutes: Number(e.target.value) },
+                                      },
+                                    }))}
+                                    className={cn(inputCls, "text-center appearance-none")}
+                                  >
+                                    <option value={15}>15 min</option>
+                                    <option value={20}>20 min</option>
+                                    <option value={30}>30 min</option>
+                                    <option value={60}>60 min</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className={labelCls}>Bloqueo (min)</label>
+                                  <input
+                                    type="number"
+                                    min={15}
+                                    step={15}
+                                    value={reservationMap[loc._id]?.slotConfig?.blockDurationMinutes ?? 90}
+                                    onChange={e => setReservationMap(prev => ({
+                                      ...prev,
+                                      [loc._id]: {
+                                        ...prev[loc._id],
+                                        slotConfig: { ...prev[loc._id].slotConfig!, blockDurationMinutes: Number(e.target.value) },
+                                      },
+                                    }))}
+                                    className={cn(inputCls, "text-center")}
+                                  />
+                                </div>
+                                <div>
+                                  <label className={labelCls}>Máx. x slot</label>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={reservationMap[loc._id]?.slotConfig?.maxReservationsPerSlot ?? 1}
+                                    onChange={e => setReservationMap(prev => ({
+                                      ...prev,
+                                      [loc._id]: {
+                                        ...prev[loc._id],
+                                        slotConfig: { ...prev[loc._id].slotConfig!, maxReservationsPerSlot: Number(e.target.value) },
+                                      },
+                                    }))}
+                                    className={cn(inputCls, "text-center")}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            /* ── Modo manual: timeSlots individuales (existente) ── */
+                            <div>
+                              <label className={labelCls}>Horarios disponibles</label>
+                              <div className="flex flex-wrap gap-2 mb-3 min-h-[36px]">
+                                {(reservationMap[loc._id]?.timeSlots || []).map(slot => (
+                                  <span
+                                    key={slot}
+                                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-primary/10 text-primary border border-primary/20"
+                                  >
+                                    {slot}
+                                    <button
+                                      type="button"
+                                      onClick={() => removeSlot(loc._id, slot)}
+                                      className="text-primary/50 hover:text-red-500 transition-colors"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </span>
+                                ))}
+                                {(reservationMap[loc._id]?.timeSlots || []).length === 0 && (
+                                  <span className="text-xs text-muted-foreground/50 italic">Sin horarios cargados</span>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <input
+                                  type="time"
+                                  value={newSlotMap[loc._id] || ''}
+                                  onChange={e => setNewSlotMap(prev => ({ ...prev, [loc._id]: e.target.value }))}
+                                  className={cn(inputCls, "flex-1")}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => addSlot(loc._id)}
+                                  className="flex items-center gap-1.5 px-4 h-[50px] rounded-2xl bg-primary text-white text-xs font-black hover:bg-primary/90 transition-colors active:scale-95 shrink-0"
+                                >
+                                  <Plus size={14} /> Agregar
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           <Button
                             className="w-full bg-zinc-900 text-white font-bold h-12 rounded-xl active:scale-95 transition-all"
