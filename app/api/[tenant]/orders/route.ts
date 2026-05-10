@@ -316,6 +316,23 @@ export async function POST(
           }).catch(() => {})
         }
       }
+    } else {
+      // SI NO ESTÁ UNIÉNDOSE (porque ya es miembro o no quiere), 
+      // pero está autenticado, intentamos vincular su userId al miembro existente por email.
+      const session = await auth()
+      if (session?.user?.email) {
+        const user = await User.findOne({ email: session.user.email }).select('_id').lean()
+        if (user) {
+          await LoyaltyMember.updateOne(
+            { 
+              tenantId: tenant._id, 
+              email: session.user.email.toLowerCase().trim(), 
+              userId: null 
+            },
+            { $set: { userId: user._id } }
+          ).catch(() => {})
+        }
+      }
     }
 
     return NextResponse.json({ order }, { status: 201 })

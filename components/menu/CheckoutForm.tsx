@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -32,6 +33,7 @@ interface ScheduledOrdersConfig {
 
 export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const router = useRouter()
+  const { data: session } = useSession()
   const [cart, setCart] = useState<CartItem[]>([])
   const [upsellHints, setUpsellHints] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -106,6 +108,32 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
         setScheduledOrdersConfig(null)
       })
   }, [])
+  
+  // Auto-fill from session and lookup loyalty by email
+  useEffect(() => {
+    if (session?.user?.email) {
+      setForm(p => ({ 
+        ...p, 
+        email: session.user.email || p.email, 
+        name: p.name || session.user.name || '' 
+      }))
+      
+      // Intentar buscar miembro por email si el club está habilitado
+      fetch(`/api/${tenantSlug}/loyalty/lookup?email=${encodeURIComponent(session.user.email)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.member) {
+            setLoyaltyMember(data.member)
+            // Si tiene teléfono guardado en el miembro, actualizar el form para que lookup por phone también de match
+            if (data.member.phone) {
+              const digits = data.member.phone.replace(/\D/g, '')
+              setForm(p => ({ ...p, phone: digits.length > 10 ? digits.slice(-10) : digits }))
+            }
+          }
+        })
+        .catch(() => {})
+    }
+  }, [session, tenantSlug])
 
   // Lookup loyalty member when phone changes
   useEffect(() => {
@@ -464,6 +492,11 @@ async function handleSubmit(e: React.FormEvent) {
               )}
             />
           </div>
+          {form.countryCode === '+54' && (
+            <p className="text-[10px] text-zinc-400 mt-1 ml-1 font-medium italic">
+              Ej: 11 6001 9734 (Sin el 0 ni el 9)
+            </p>
+          )}
           <input
             placeholder="Email (opcional)"
             type="email"
