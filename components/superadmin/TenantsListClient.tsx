@@ -18,6 +18,7 @@ type Tenant = {
   plan: Plan
   status: 'active' | 'paused' | 'deleted'
   isActive: boolean
+  isOperational: boolean
   pausedAt?: string | null
   pausedReason?: string
   createdAt: string
@@ -45,6 +46,7 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
   const [sort, setSort]       = useState<SortKey>('newest')
   const [plan, setPlan]       = useState('all')
   const [status, setStatus]   = useState('all') // 'all' | 'active' | 'paused' | 'deleted'
+  const [operational, setOperational] = useState('all') // 'all' | 'true' | 'false'
 
   const handlePause = async (tenantId: string) => {
     const reason = prompt('Razón para pausar el tenant:')
@@ -110,6 +112,10 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
     if (status === 'active')  list = list.filter(t => t.status === 'active')
     if (status === 'paused')  list = list.filter(t => t.status === 'paused')
     if (status === 'deleted') list = list.filter(t => t.status === 'deleted')
+    
+    // Filtro operativo
+    if (operational === 'true')  list = list.filter(t => t.isOperational !== false)
+    if (operational === 'false') list = list.filter(t => t.isOperational === false)
 
     // Ordenamiento
     list.sort((a, b) => {
@@ -161,6 +167,17 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
           <option value="paused">Pausados</option>
           <option value="deleted">Eliminados</option>
         </select>
+        
+        {/* Filtro operativo */}
+        <select
+          value={operational}
+          onChange={e => setOperational(e.target.value)}
+          className="px-3 py-2.5 rounded-xl border-2 border-border/60 bg-background text-sm font-medium focus:outline-none focus:border-primary transition-colors cursor-pointer"
+        >
+          <option value="all">Todo el flujo</option>
+          <option value="true">Operativo (Ventas)</option>
+          <option value="false">Catálogo (Próximamente)</option>
+        </select>
 
         {/* Orden */}
         <div className="flex gap-1 p-1 rounded-xl border-2 border-border/60 bg-background">
@@ -196,7 +213,7 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
           <Search size={32} className="text-muted-foreground/40" />
           <p className="text-muted-foreground font-bold">Sin resultados para &quot;{search}&quot;</p>
           <button
-            onClick={() => { setSearch(''); setPlan('all'); setStatus('all') }}
+            onClick={() => { setSearch(''); setPlan('all'); setStatus('all'); setOperational('all') }}
             className="text-xs text-primary font-bold underline underline-offset-4"
           >
             Limpiar filtros
@@ -217,12 +234,19 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
                       <p className="text-muted-foreground text-[10px] font-mono font-bold mt-0.5 opacity-60">{tenant.slug}</p>
                     </div>
                   </div>
-                  <Badge className={cn(
-                    "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border-2 shrink-0 whitespace-nowrap",
-                    PLAN_COLORS[tenant.plan] ?? "bg-muted text-muted-foreground border-muted"
-                  )}>
-                    {PLAN_LABELS[tenant.plan] ?? tenant.plan}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <Badge className={cn(
+                      "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border-2 shrink-0 whitespace-nowrap",
+                      PLAN_COLORS[tenant.plan] ?? "bg-muted text-muted-foreground border-muted"
+                    )}>
+                      {PLAN_LABELS[tenant.plan] ?? tenant.plan}
+                    </Badge>
+                    {tenant.isOperational === false && (
+                      <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[8px] font-black uppercase tracking-[0.1em] px-2 py-0.5 rounded-lg">
+                        ✨ Catálogo
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6 pt-0">

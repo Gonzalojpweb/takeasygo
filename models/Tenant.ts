@@ -6,6 +6,7 @@ export interface ITenant extends Document {
   plan: 'trial' | 'try' | 'buy' | 'full' | 'anfitrion'
   status: 'active' | 'paused' | 'deleted'
   isActive: boolean  // Computed: status === 'active' || status === 'paused'
+  isOperational: boolean // Si el local ya está aceptando pedidos o está en modo catálogo
   pausedAt?: Date | null
   pausedReason?: string
   subscription: {
@@ -160,6 +161,10 @@ const TenantSchema = new Schema<ITenant>(
       default: 'active',
     },
     isActive: {
+      type: Boolean,
+      default: true,
+    },
+    isOperational: {
       type: Boolean,
       default: true,
     },

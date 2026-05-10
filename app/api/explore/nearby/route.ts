@@ -31,6 +31,7 @@ export interface NearbyRestaurant {
   acceptsOrders?: boolean
   estimatedPickupTime?: number
   orderModes?: string[]
+  isOperational?: boolean
   // Solo en type = 'listed'
   externalMenuUrl?: string
   status?: string
@@ -122,6 +123,7 @@ export async function GET(request: NextRequest) {
             'tenant.branding.primaryColor': 1,
             'tenant.cachedScores.icoScore': 1,
             'tenant.cachedScores.capacityScore': 1,
+            'tenant.isOperational': 1,
           },
         },
       ])
@@ -202,6 +204,7 @@ export async function GET(request: NextRequest) {
         acceptsOrders,
         estimatedPickupTime,
         orderModes: loc.settings?.orderModes ?? ['takeaway'],
+        isOperational: loc.tenant?.isOperational ?? true,
         visibilityScore,
       }
     })
