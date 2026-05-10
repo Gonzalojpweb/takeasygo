@@ -16,6 +16,7 @@ export default async function TenantsPage() {
     plan:         t.plan,
     status:       t.status,
     isActive:     t.isActive,
+    isOperational: t.isOperational !== false,
     pausedAt:     t.pausedAt?.toISOString() || null,
     pausedReason: t.pausedReason || '',
     createdAt:    t.createdAt.toISOString(),
