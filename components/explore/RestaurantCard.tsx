@@ -70,7 +70,7 @@ export function FeaturedCard({
         }`}>
           {isNetwork 
             ? (r.isOperational === false ? '✨ Catálogo' : '● Red TakeasyGO') 
-            : '○ Directorio'}
+            : (r.status === 'converted' ? '✨ Cliente' : '○ Directorio')}
         </span>
         <span className="text-[10px] font-semibold text-white/70 bg-black/30 backdrop-blur-md px-2 py-0.5 rounded-full">
           {distLabel(r.distanceM)}

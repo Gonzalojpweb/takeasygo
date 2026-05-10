@@ -98,7 +98,7 @@ function HoverCard({ r, pos, containerW, containerH }: {
           <div className="flex items-center gap-2">
             <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isNetwork ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-white/10 text-[#8a7f7a]'
               }`}>
-              {isNetwork ? 'Red' : 'Directorio'}
+              {isNetwork ? 'Red' : (r.status === 'converted' ? 'Cliente' : 'Directorio')}
             </span>
             <span className="text-[#8a7f7a] text-[10px] ml-auto">{distLabel(r.distanceM)}</span>
           </div>
@@ -154,7 +154,7 @@ function BottomSheet({ r, onClose, onNavigate }: {
                     }`}>
                     {isNetwork 
                       ? (r.isOperational === false ? '● Catálogo' : '● En Red') 
-                      : '○ Directorio'}
+                      : (r.status === 'converted' ? '● Cliente' : '○ Directorio')}
                   </span>
                   <span className="text-[#8a7f7a] text-xs">{distLabel(r.distanceM)}</span>
                 </div>
