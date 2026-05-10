@@ -42,11 +42,13 @@ export function safeDecrypt(value: string): string {
 
 /**
  * SHA-256 estable del teléfono — permite agrupar por cliente sin exponer el número.
- * NORMALIZACIÓN AGRESIVA: Solo mantiene los últimos 10 dígitos numéricos para evitar 
- * fallos por prefijos (+54, 9, etc.) o formatos de espacios/guiones.
+ * NORMALIZACIÓN ROBUSTA: Solo mantiene los últimos 10 dígitos numéricos para evitar 
+ * fallos por prefijos (+54, 9, 0, etc.) que varían según el origen del dato.
+ * Esto es crítico para Argentina y otros países con prefijos móviles variables.
  */
 export function hashPhone(phone: string): string {
-  // Solo mantiene números y el símbolo +
-  const normalized = phone.replace(/[^\d+]/g, '')
+  if (!phone) return ''
+  const digits = phone.replace(/\D/g, '')
+  const normalized = digits.length >= 10 ? digits.slice(-10) : digits
   return crypto.createHash('sha256').update(normalized).digest('hex')
 }

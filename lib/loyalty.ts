@@ -79,23 +79,27 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
   } else {
     const hashes = [order.customer.phoneHash]
     
-    // Rescate de hashes legacy: Si tenemos el teléfono encriptado de la orden, 
-    // calculamos ambas versiones del hash para asegurar el match.
+    // Rescate de hashes: Calculamos múltiples variantes para asegurar el match 
+    // entre miembros antiguos (con prefijos) y órdenes nuevas (normalizadas).
     if (order.customer.phone) {
       try {
         const { safeDecrypt } = require('@/lib/crypto')
         const phoneRaw = safeDecrypt(order.customer.phone)
-        const digitsOnly = phoneRaw.replace(/\D/g, '')
-        const legacyNumber = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly
-        const legacyHash = require('crypto').createHash('sha256').update(legacyNumber).digest('hex')
+        const digits = phoneRaw.replace(/\D/g, '')
         
-        // También regeneramos el hash moderno por si acaso
-        const modernHash = require('crypto').createHash('sha256').update(digitsOnly).digest('hex')
+        // 1. Versión con + (Legacy principal)
+        const hashWithPlus = require('crypto').createHash('sha256').update('+' + digits).digest('hex')
+        // 2. Versión solo dígitos (Moderno intermedio)
+        const hashDigits = require('crypto').createHash('sha256').update(digits).digest('hex')
+        // 3. Versión 10 dígitos (Nuevo Estándar)
+        const last10 = digits.length >= 10 ? digits.slice(-10) : digits
+        const hash10 = require('crypto').createHash('sha256').update(last10).digest('hex')
         
-        if (!hashes.includes(legacyHash)) hashes.push(legacyHash)
-        if (!hashes.includes(modernHash)) hashes.push(modernHash)
+        if (!hashes.includes(hashWithPlus)) hashes.push(hashWithPlus)
+        if (!hashes.includes(hashDigits)) hashes.push(hashDigits)
+        if (!hashes.includes(hash10)) hashes.push(hash10)
       } catch (err) {
-        console.error('[Loyalty] Error desencriptando teléfono para hash fallback', err)
+        console.error('[Loyalty] Error generando variantes de hash para búsqueda', err)
       }
     }
     
@@ -162,12 +166,20 @@ export async function reconcileMissingPoints(member: any, tenant: any, explicitl
   const hashes = [member.phoneHash]
   
   if (member.phone) {
-    // Rescate del teléfono original legacy
-    const digitsOnly = member.phone.replace(/\D/g, '')
-    const legacyNumber = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly
-    const crypto = await import('crypto')
-    const legacyHash = crypto.createHash('sha256').update(legacyNumber).digest('hex')
-    if (!hashes.includes(legacyHash)) hashes.push(legacyHash)
+    const digits = member.phone.replace(/\D/g, '')
+    const crypto = require('crypto')
+    
+    // Variante 1: Con +
+    const hashPlus = crypto.createHash('sha256').update('+' + digits).digest('hex')
+    // Variante 2: Solo dígitos
+    const hashDigits = crypto.createHash('sha256').update(digits).digest('hex')
+    // Variante 3: 10 dígitos (Nuevo Estándar)
+    const last10 = digits.length >= 10 ? digits.slice(-10) : digits
+    const hash10 = crypto.createHash('sha256').update(last10).digest('hex')
+
+    if (!hashes.includes(hashPlus)) hashes.push(hashPlus)
+    if (!hashes.includes(hashDigits)) hashes.push(hashDigits)
+    if (!hashes.includes(hash10)) hashes.push(hash10)
   }
 
   // Búsqueda Ultra-Segura: Si la orden está confirmada o pagada en DB, suma puntos.

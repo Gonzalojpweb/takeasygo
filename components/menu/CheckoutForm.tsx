@@ -538,7 +538,7 @@ async function handleSubmit(e: React.FormEvent) {
             </div>
           )}
 
-           {loyaltyConfig?.enabled && loyaltyConfig?.pointsConfig?.redemptionEnabled && (
+           {loyaltyConfig?.enabled && (
              <div className="space-y-3">
                {/* Card VIP si ya es miembro */}
                {loyaltyMember && (
@@ -561,20 +561,22 @@ async function handleSubmit(e: React.FormEvent) {
                         <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-500">Puntos disponibles</p>
                       </div>
                       
-                      <div className="flex flex-col items-end">
-                        <button
-                          type="button"
-                          onClick={() => setUsePoints(!usePoints)}
-                          className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95",
-                            usePoints 
-                              ? "bg-amber-400 text-zinc-900" 
-                              : "bg-white/10 text-white hover:bg-white/20"
-                          )}
-                        >
-                          {usePoints ? '✅ Aplicado' : '✨ Usar puntos'}
-                        </button>
-                      </div>
+                      {loyaltyConfig?.pointsConfig?.redemptionEnabled && (
+                        <div className="flex flex-col items-end">
+                          <button
+                            type="button"
+                            onClick={() => setUsePoints(!usePoints)}
+                            className={cn(
+                              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95",
+                              usePoints 
+                                ? "bg-amber-400 text-zinc-900" 
+                                : "bg-white/10 text-white hover:bg-white/20"
+                            )}
+                          >
+                            {usePoints ? '✅ Aplicado' : '✨ Usar puntos'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                     
                     {usePoints && (
