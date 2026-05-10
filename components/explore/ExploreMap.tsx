@@ -104,6 +104,7 @@ function HoverCard({ r, pos, containerW, containerH }: {
           </div>
           <p className="font-bold text-[#f7f4f2] text-sm leading-tight">{r.name}</p>
           <p className="text-[#5a524d] text-[11px] truncate">{r.address}</p>
+          {isNetwork && r.estimatedPickupTime && (
             <p className="text-[#10b981] text-[11px] font-semibold flex items-center gap-1">
               <Clock size={10} /> ~{r.estimatedPickupTime} min
             </p>
