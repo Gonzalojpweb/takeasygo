@@ -103,7 +103,22 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
       }
     }
     
-    query.phoneHash = { $in: hashes.filter(Boolean) }
+    // Búsqueda multi-factor: por teléfono (varios hashes) o por email
+    const orConditions: any[] = [
+      { phoneHash: { $in: hashes.filter(Boolean) } }
+    ]
+
+    if (order.customer.email) {
+      try {
+        const { safeDecrypt } = require('@/lib/crypto')
+        const emailRaw = safeDecrypt(order.customer.email).toLowerCase().trim()
+        if (emailRaw) orConditions.push({ email: emailRaw })
+      } catch (err) {
+        console.error('[Loyalty] Error desencriptando email para búsqueda de miembro', err)
+      }
+    }
+
+    query.$or = orConditions
   }
 
   // 1. Actualizar el miembro
@@ -182,8 +197,6 @@ export async function reconcileMissingPoints(member: any, tenant: any, explicitl
     if (!hashes.includes(hash10)) hashes.push(hash10)
   }
 
-  // Búsqueda Ultra-Segura: Si la orden está confirmada o pagada en DB, suma puntos.
-  // También sumamos si explicitlyApprovedOrderId coincide (MP aprobó en URL pero webhook demoró)
   const orConditions: any[] = [
     { 'payment.status': 'approved' },
     { status: { $in: ['confirmed', 'preparing', 'ready', 'delivered'] } }
@@ -192,12 +205,21 @@ export async function reconcileMissingPoints(member: any, tenant: any, explicitl
     orConditions.push({ _id: explicitlyApprovedOrderId })
   }
 
-  const orders = await Order.find({
+  const query: any = {
     tenantId: tenant._id,
-    'customer.phoneHash': { $in: hashes },
     loyaltyPointsCredited: { $ne: true },
-    $or: orConditions
-  })
+    $or: orConditions,
+    $and: [
+      {
+        $or: [
+          { 'customer.phoneHash': { $in: hashes } },
+          { email: member.email ? member.email.toLowerCase().trim() : '___never___' }
+        ]
+      }
+    ]
+  }
+
+  const orders = await Order.find(query)
 
   let totalReconciled = 0
   for (const order of orders) {

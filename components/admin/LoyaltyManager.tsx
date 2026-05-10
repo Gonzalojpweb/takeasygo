@@ -878,9 +878,12 @@ function MemberFormDialog({
             <input
               value={form.phone}
               onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))}
-              placeholder="Ej: +5491112345678"
+              placeholder="Ej: +541160019734"
               className={inputCls}
             />
+            <p className="text-[9px] text-muted-foreground/60 italic font-medium">
+              Argentina: Usar +54 seguido de área y número (Sin el 9 ni el 0). Ej: +541160019734
+            </p>
           </div>
           <div className="space-y-2">
             <label className={labelCls}>Email</label>

@@ -36,13 +36,23 @@ export async function GET(
         tenantId: tenant._id,
         status: 'active'
       }).lean()
-    } else if (phone) {
-      const phoneHash = hashPhone(phone)
       member = await LoyaltyMember.findOne({
         phoneHash,
         tenantId: tenant._id,
         status: 'active'
       }).lean()
+    }
+
+    // Si no se encontró por teléfono o ID, intentamos por email (si se proveyó)
+    if (!member) {
+      const email = searchParams.get('email')
+      if (email) {
+        member = await LoyaltyMember.findOne({
+          email: email.toLowerCase().trim(),
+          tenantId: tenant._id,
+          status: 'active'
+        }).lean()
+      }
     }
 
     if (!member) {
