@@ -338,9 +338,9 @@ function StoreItemForm({
       const body = {
         ...formData,
         pointsCost: parseInt(formData.pointsCost.toString()),
-        cashValue: formData.cashValue ? parseInt(formData.cashValue) : null,
-        stock: formData.stock !== '' ? parseInt(formData.stock) : null,
-        maxPerMember: formData.maxPerMember ? parseInt(formData.maxPerMember) : null,
+        cashValue: formData.cashValue ? parseInt(formData.cashValue.toString()) : null,
+        stock: formData.stock !== '' && formData.stock !== null ? parseInt(formData.stock.toString()) : null,
+        maxPerMember: formData.maxPerMember ? parseInt(formData.maxPerMember.toString()) : null,
         sortOrder: parseInt(formData.sortOrder.toString()),
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
       }

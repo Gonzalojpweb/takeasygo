@@ -6,7 +6,8 @@ import {
   Settings, Printer, ClipboardList, Shield, Activity, CalendarDays,
   CreditCard, Search, ChevronRight, X, BookOpen,
   Target, CheckCircle2, Star, HelpCircle, ArrowRight,
-  Sparkles, ShieldCheck, Lock, Database, Clock
+  Sparkles, ShieldCheck, Lock, Database, Clock,
+  Gift, Globe
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
@@ -458,6 +459,70 @@ const SECTIONS: Section[] = [
       'Las API Keys te permiten construir tus propias integraciones o usar nuestro Panel de Cocina PWA.',
     ],
   },
+  {
+    id: 'tienda',
+    icon: Gift,
+    label: 'Tienda de Canje',
+    color: 'text-pink-600',
+    bgColor: 'bg-pink-500/10',
+    plan: 'crecimiento',
+    roles: ['admin', 'gerente'],
+    objective: 'Crear un catálogo de productos que los miembros del club pueden canjear con sus puntos de fidelidad.',
+    description: 'El módulo de Tienda de Canje permite configurar los productos disponibles para canje por puntos del club de fidelidad. Los miembros acumulan puntos en cada visita y pueden canjearlos por productos del catálogo. El flujo completo incluye: publicación de productos en la tienda, canje desde la app del miembro, generación de código de canje único y validación presencial en el local.',
+    features: [
+      { title: 'Catálogo de productos', desc: 'Agregá productos canjeables con nombre, descripción, imagen, costo en puntos, stock y nivel de fidelidad requerido.' },
+      { title: 'Control de stock automático', desc: 'Cada producto tiene stock disponible que se descuenta automáticamente al realizarse un canje.' },
+      { title: 'Límite por miembro', desc: 'Configurás cuántas veces un mismo miembro puede canjear un producto (maxPerMember).' },
+      { title: 'Carrusel de destacados', desc: 'Los productos marcados como destacados aparecen en el carrusel de la página de exploración.' },
+      { title: 'Código de canje único', desc: 'Cada canje genera un código único (formato TGO-XXXX-XXXX) para validación presencial.' },
+      { title: 'Validación presencial', desc: 'El staff del local puede buscar un canje por código y marcarlo como entregado desde el panel de administración.' },
+      { title: 'Tokens de wallet', desc: 'Los miembros pueden sincronizar sus canjes con Google Wallet / Apple Wallet automáticamente.' },
+    ],
+    steps: [
+      { action: 'Activá la tienda en Configuración', detail: 'Asegurate de que el toggle "Tienda de Canje" esté activado en la configuración del club.' },
+      { action: 'Creá los productos canjeables', detail: 'Ingresá nombre, costo en puntos, stock disponible y nivel de fidelidad requerido para cada producto.' },
+      { action: 'Publicá los productos destacados', detail: 'Marcá como "destacado" los productos que quieras que aparezcan en el carrusel de exploración.' },
+      { action: 'Comunicá a tus miembros', detail: 'Los miembros ven la tienda desde su perfil del club en la app. Pueden canjear puntos directamente.' },
+      { action: 'Validá los canjes en el local', detail: 'Cuando un miembro llega a retirar, usá el validador de canjes en el panel para buscar el código y marcar como entregado.' },
+    ],
+    tips: [
+      'Ofrecé productos de distintos niveles de puntos para que todos los miembros puedan participar.',
+      'Revisá el stock periódicamente para evitar que un producto aparezca disponible cuando ya no hay existencias.',
+      'El código de canje se genera automáticamente, no hace falta que configures nada adicional.',
+      'Usá productos destacados para promover los canjes más populares o las novedades de tu tienda.',
+    ],
+  },
+  {
+    id: 'trafico',
+    icon: Globe,
+    label: 'Tráfico y Fuentes',
+    color: 'text-cyan-600',
+    bgColor: 'bg-cyan-500/10',
+    plan: 'crecimiento',
+    roles: ['admin', 'gerente'],
+    objective: 'Entender de dónde vienen tus clientes para optimizar tus campañas de marketing.',
+    description: 'El módulo de Tráfico registra automáticamente la fuente de cada visita al menú de tu restaurante. El sistema detecta si el cliente llegó desde Instagram, Facebook, WhatsApp, un código QR, Google o directamente, y te muestra estas métricas en el panel de analytics para que puedas enfocar tus esfuerzos de marketing donde realmente funcionan.',
+    features: [
+      { title: 'Detección automática de fuente', desc: 'El sistema identifica la fuente en orden de prioridad: parámetro URL, User-Agent (Instagram in-app), Referer header y sin referer (marca como directo).' },
+      { title: 'Dashboard de fuentes', desc: 'Visualizá el resumen de visitas por fuente de tráfico con contadores y gráficos.' },
+      { title: 'Filtros por período', desc: 'Filtrá por 7, 30 o 90 días para ver tendencias y picos de tráfico.' },
+      { title: 'Detalle por fuente', desc: 'Expandí cada fuente para ver las visitas individuales con su origen exacto.' },
+      { title: 'Enlaces rastreables', desc: 'Agregá ?source=instagram, ?source=qr, etc. a tu link del menú para trackear campañas específicas.' },
+      { title: 'Datos por visita', desc: 'Cada visita guarda: fuente detectada, referrer, path del menú, tipo de dispositivo y timestamp.' },
+    ],
+    steps: [
+      { action: 'Identificá dónde compartís tu menú', detail: 'Pensá en todos los canales: Instagram, Facebook, WhatsApp, códigos QR impresos, Google, etc.' },
+      { action: 'Usá los parámetros de fuente', detail: 'Agregá ?source=instagram, ?source=qr, ?source=whatsapp a los links según donde los compartas.' },
+      { action: 'Revisá el dashboard de tráfico', detail: 'En Analytics → Tráfico, analizá qué fuentes generan más visitas a tu menú.' },
+      { action: 'Optimizá tus campañas', detail: 'Invertí más esfuerzo en las fuentes que mejor funcionan para tu restaurante.' },
+    ],
+    tips: [
+      'Usá códigos QR con ?source=qr en las mesas para medir cuántas visitas genera el material impreso.',
+      'En Instagram Stories, usá el link directo con ?source=instagram para diferenciar de otras fuentes.',
+      'Si ves muchas visitas "directas", es probable que los clientes estén guardando el link o llegando desde marcadores.',
+      'Los datos comienzan a registrarse desde el momento en que activás la funcionalidad — no hay datos históricos previos.',
+    ],
+  },
 ]
 
 // ── Visibility per plan ────────────────────────────────────────────────────────
@@ -483,6 +548,8 @@ const VISIBILITY: Record<string, Record<Plan, SectionVisibility>> = {
   configuracion:{ anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
   facturacion:  { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
   'integracion-pos': { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
+  tienda:  { anfitrion: 'hidden', trial: 'hidden', try: 'hook',  buy: 'full', full: 'full' },
+  trafico: { anfitrion: 'hidden', trial: 'hook',   try: 'hook',  buy: 'full', full: 'full' },
 }
 
 function getVisibility(plan: Plan, sectionId: string): SectionVisibility {
@@ -500,6 +567,16 @@ const HOOK_CONTENT: Record<string, { headline: string; body: string; upgradeLabe
   reportes: {
     headline: 'Reportes de ventas y analytics operativos',
     body: 'Visualizá el revenue del mes, ticket promedio, top 5 productos más vendidos y tasa de cancelación. Exportá en Excel o PDF. Con plan Premium, accedés a KPIs avanzados: tiempo de preparación, tasa de recompra de clientes, distribución horaria, hora pico y analytics de upselling.',
+    upgradeLabel: 'Disponible desde el plan Crecimiento',
+  },
+  tienda: {
+    headline: 'Tienda de canje con puntos de fidelidad',
+    body: 'Creá un catálogo de productos que los miembros del club pueden canjear con sus puntos. Cada canje genera un código único TGO-XXXX-XXXX para validación presencial. Control de stock automático, límites por miembro y sincronización con Google Wallet / Apple Wallet.',
+    upgradeLabel: 'Disponible desde el plan Crecimiento',
+  },
+  trafico: {
+    headline: 'Analytics de fuentes de tráfico',
+    body: 'Descubrí de dónde vienen tus clientes: Instagram, Facebook, WhatsApp, códigos QR, Google o visitas directas. El sistema detecta automáticamente la fuente y te muestra métricas por período para que optimices tus campañas de marketing.',
     upgradeLabel: 'Disponible desde el plan Crecimiento',
   },
 }
