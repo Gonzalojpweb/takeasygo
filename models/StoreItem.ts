@@ -141,7 +141,7 @@ StoreItemSchema.index({ tenantId: 1, isFeatured: 1, isActive: 1 })
 
 // Middleware pre-save para validar stock
 StoreItemSchema.pre('save', function () {
-  if (this.stock !== null && this.stock < 0) {
+  if (typeof this.stock === 'number' && this.stock < 0) {
     this.stock = 0
   }
 })
