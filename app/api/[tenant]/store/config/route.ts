@@ -96,6 +96,10 @@ export async function PUT(
       { new: true }
     )
 
+    if (!updatedTenant) {
+      return NextResponse.json({ error: 'Error al actualizar configuración' }, { status: 500 })
+    }
+
     return NextResponse.json({ 
       config: updatedTenant.store 
     })
