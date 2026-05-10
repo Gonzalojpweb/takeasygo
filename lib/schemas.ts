@@ -111,6 +111,7 @@ export const superadminCreateTenantSchema = z.object({
   slug:    z.string().regex(/^[a-z0-9-]{2,50}$/, 'Slug inválido — solo minúsculas, números y guiones'),
   plan:    z.enum(['trial', 'anfitrion', 'try', 'buy', 'full']).default('trial'),
   isActive: z.boolean().default(true),
+  isOperational: z.boolean().default(true),
   // El resto de los campos opcionales del tenant se permiten pero limitados
   ownerName:  z.string().max(100).trim().optional(),
   ownerEmail: z.string().email().max(200).trim().optional().or(z.literal('')),

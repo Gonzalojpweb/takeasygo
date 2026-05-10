@@ -111,6 +111,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const profile = tenant.profile ?? {}
   const router = useRouter()
   const t = UI[locale]
+  const isOperational = tenant.isOperational !== false
   const getItemPrice = (item: any) => mode === 'takeaway' ? (item.takeawayPrice ?? item.price) : item.price
 
   const [promotions, setPromotions] = useState<any[]>([])
@@ -304,6 +305,10 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   }
 
   function goToCheckout() {
+    if (!isOperational) {
+      toast.info('Este local está en modo catálogo. Próximamente habilitaremos pedidos.')
+      return
+    }
     sessionStorage.setItem('cart', JSON.stringify(cart))
     sessionStorage.setItem('mode', mode)
 
@@ -342,6 +347,12 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
   return (
     <div style={{ backgroundColor: bg, color: text }} className="min-h-screen">
+      {!isOperational && (
+        <div className="sticky top-0 z-[100] w-full px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg animate-in slide-in-from-top duration-500"
+          style={{ backgroundColor: '#f59e0b', color: '#fff' }}>
+          ✨ Modo Catálogo · Próximamente Takeaway en TakeasyGO
+        </div>
+      )}
 
       {/* ── Translating overlay ── */}
       {translating && (
@@ -506,7 +517,13 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                         ))}
                       </div>
                     </div>
-                    <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={itemTotalQty(item._id)} primary={primary} bg={bg} />
+                    {isOperational ? (
+                      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={itemTotalQty(item._id)} primary={primary} bg={bg} />
+                    ) : (
+                      <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
+                        CATÁLOGO
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -560,7 +577,11 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                             <p className="font-bold text-sm" style={{ color: primary }}>
                               ${getItemPrice(item).toLocaleString('es-AR')}
                             </p>
-                            <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} />
+                            {isOperational ? (
+                              <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} />
+                            ) : (
+                              <span className="text-[9px] font-bold opacity-30">CATÁLOGO</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -597,7 +618,13 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                           ))}
                         </div>
                       </div>
-                      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} categoryGroups={catGroups} />
+                      {isOperational ? (
+                        <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} categoryGroups={catGroups} />
+                      ) : (
+                        <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
+                          CATÁLOGO
+                        </div>
+                      )}
                     </div>
                   )
                 })}

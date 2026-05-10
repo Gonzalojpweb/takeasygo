@@ -63,10 +63,14 @@ export function FeaturedCard({
       <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
         <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full backdrop-blur-md ${
           isNetwork
-            ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30'
+            ? (r.isOperational === false 
+                ? 'bg-[#f59e0b]/20 text-[#f59e0b] border border-[#f59e0b]/30' 
+                : 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30')
             : 'bg-white/10 text-[#8a7f7a] border border-white/10'
         }`}>
-          {isNetwork ? '● Red TakeasyGO' : '○ Directorio'}
+          {isNetwork 
+            ? (r.isOperational === false ? '✨ Catálogo' : '● Red TakeasyGO') 
+            : '○ Directorio'}
         </span>
         <span className="text-[10px] font-semibold text-white/70 bg-black/30 backdrop-blur-md px-2 py-0.5 rounded-full">
           {distLabel(r.distanceM)}
@@ -92,10 +96,15 @@ export function FeaturedCard({
               {r.cuisineTypes.slice(0, 2).join(' · ')}
             </span>
           )}
-          {isNetwork && r.estimatedPickupTime && (
+          {isNetwork && r.isOperational !== false && r.estimatedPickupTime && (
             <span className="text-[#10b981] text-[10px] font-semibold flex items-center gap-1">
               <Clock size={9} />
               ~{r.estimatedPickupTime} min
+            </span>
+          )}
+          {isNetwork && r.isOperational === false && (
+            <span className="text-[#f59e0b] text-[10px] font-black uppercase tracking-widest">
+              Próximamente
             </span>
           )}
           {r.isOpenNow === true && (
@@ -139,8 +148,8 @@ export default function RestaurantCard({
           <Utensils size={18} className="text-[#5a524d]" />
         )}
         {isNetwork && (
-          <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#10b981] border-2 border-[var(--c-bg)] flex items-center justify-center">
-            <span className="text-white text-[6px] font-black">✓</span>
+          <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ${r.isOperational === false ? 'bg-[#f59e0b]' : 'bg-[#10b981]'} border-2 border-[var(--c-bg)] flex items-center justify-center`}>
+            <span className="text-white text-[6px] font-black">{r.isOperational === false ? '★' : '✓'}</span>
           </div>
         )}
       </div>
@@ -157,7 +166,7 @@ export default function RestaurantCard({
             <MapPin size={9} />
             {distLabel(r.distanceM)}
           </span>
-          {isNetwork && r.estimatedPickupTime && (
+          {isNetwork && r.isOperational !== false && r.estimatedPickupTime && (
             <>
               <span className="text-[#5a524d]/50 text-[10px]">·</span>
               <span className="text-[#10b981] text-[10px] font-medium flex items-center gap-1">
@@ -165,6 +174,9 @@ export default function RestaurantCard({
                 ~{r.estimatedPickupTime} min
               </span>
             </>
+          )}
+          {isNetwork && r.isOperational === false && (
+             <span className="text-[#f59e0b] text-[9px] font-bold uppercase ml-1">Catálogo</span>
           )}
           {r.isOpenNow === true && (
             <>
@@ -196,12 +208,15 @@ export default function RestaurantCard({
             href={`/${r.tenantSlug}/menu/${r.id}/takeaway`}
             className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200"
             style={{
-              background: 'linear-gradient(135deg, #f14722, #e03e1d)',
-              color: 'white',
-              boxShadow: '0 2px 12px rgba(241,71,34,0.25)',
+              background: r.isOperational === false 
+                ? 'rgba(255,255,255,0.05)' 
+                : 'linear-gradient(135deg, #f14722, #e03e1d)',
+              color: r.isOperational === false ? '#8a7f7a' : 'white',
+              border: r.isOperational === false ? '1px solid rgba(255,255,255,0.1)' : 'none',
+              boxShadow: r.isOperational === false ? 'none' : '0 2px 12px rgba(241,71,34,0.25)',
             }}
           >
-            Pedir
+            {r.isOperational === false ? 'Ver carta' : 'Pedir'}
             <ExternalLink size={11} />
           </Link>
         ) : (

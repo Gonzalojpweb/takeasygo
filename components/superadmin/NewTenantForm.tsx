@@ -28,6 +28,7 @@ export default function NewTenantForm() {
     adminEmail: '',
     adminPassword: '',
     featuresReservations: false,
+    isOperational: true,
   })
 
   function handleNameChange(name: string) {
@@ -47,6 +48,7 @@ export default function NewTenantForm() {
           name: form.name,
           slug: form.slug,
           plan: form.plan,
+          isOperational: form.isOperational,
           features: { reservations: form.featuresReservations },
         }),
       })
@@ -142,6 +144,20 @@ export default function NewTenantForm() {
 
           <div className="border-t border-zinc-700 pt-4">
             <p className="text-zinc-400 text-sm font-medium mb-3">Módulos adicionales</p>
+            <div className="flex items-center justify-between px-4 py-3 bg-zinc-700/50 border border-zinc-600 rounded-xl">
+              <div>
+                <p className="text-white text-sm font-bold">Estado Operativo</p>
+                <p className="text-zinc-500 text-xs">Habilitar ventas inmediatas</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm(p => ({ ...p, isOperational: !p.isOperational }))}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${form.isOperational ? 'bg-primary' : 'bg-zinc-600'}`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200 ${form.isOperational ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+
             <div className="flex items-center justify-between px-4 py-3 bg-zinc-700/50 border border-zinc-600 rounded-xl">
               <div>
                 <p className="text-white text-sm font-bold">Reservaciones</p>

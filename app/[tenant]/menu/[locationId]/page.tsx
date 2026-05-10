@@ -193,6 +193,11 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           border: 1px solid rgba(239, 68, 68, 0.35);
           color: #fca5a5;
         }
+        .mh-badge-catalog {
+          background: rgba(245, 158, 11, 0.18);
+          border: 1px solid rgba(245, 158, 11, 0.35);
+          color: #fcd34d;
+        }
         .mh-dot {
           width: 7px;
           height: 7px;
@@ -206,6 +211,10 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
         }
         .mh-dot-closed {
           background: #ef4444;
+        }
+        .mh-dot-catalog {
+          background: #f59e0b;
+          box-shadow: 0 0 8px rgba(245,158,11,0.5);
         }
         @keyframes mh-pulse {
           0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); }
@@ -333,10 +342,15 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
               </p>
             ) : null}
 
-            <div className={`mh-badge ${isOpen ? 'mh-badge-open' : 'mh-badge-closed'}`}>
-              <span className={`mh-dot ${isOpen ? 'mh-dot-open' : 'mh-dot-closed'}`} />
-              {isOpen ? 'Abierto ahora' : 'Cerrado'}
+            <div className={`mh-badge ${tenant.isOperational === false ? 'mh-badge-catalog' : (isOpen ? 'mh-badge-open' : 'mh-badge-closed')}`}>
+              <span className={`mh-dot ${tenant.isOperational === false ? 'mh-dot-catalog' : (isOpen ? 'mh-dot-open' : 'mh-dot-closed')}`} />
+              {tenant.isOperational === false ? 'Catálogo Disponible' : (isOpen ? 'Abierto ahora' : 'Cerrado')}
             </div>
+            {tenant.isOperational === false && (
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mt-1">
+                Próximamente takeaway
+              </p>
+            )}
           </div>
 
           {/* Mode buttons */}

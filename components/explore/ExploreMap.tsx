@@ -104,9 +104,13 @@ function HoverCard({ r, pos, containerW, containerH }: {
           </div>
           <p className="font-bold text-[#f7f4f2] text-sm leading-tight">{r.name}</p>
           <p className="text-[#5a524d] text-[11px] truncate">{r.address}</p>
-          {isNetwork && r.estimatedPickupTime && (
             <p className="text-[#10b981] text-[11px] font-semibold flex items-center gap-1">
               <Clock size={10} /> ~{r.estimatedPickupTime} min
+            </p>
+          )}
+          {isNetwork && r.isOperational === false && (
+            <p className="text-[#f59e0b] text-[10px] font-bold uppercase tracking-wider">
+              ✨ Catálogo / Próximamente
             </p>
           )}
         </div>
@@ -142,14 +146,24 @@ function BottomSheet({ r, onClose, onNavigate }: {
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isNetwork ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-white/10 text-[#8a7f7a]'
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    isNetwork 
+                      ? (r.isOperational === false ? 'bg-[#f59e0b]/20 text-[#f59e0b]' : 'bg-[#10b981]/20 text-[#10b981]')
+                      : 'bg-white/10 text-[#8a7f7a]'
                     }`}>
-                    {isNetwork ? '● En Red' : '○ Directorio'}
+                    {isNetwork 
+                      ? (r.isOperational === false ? '● Catálogo' : '● En Red') 
+                      : '○ Directorio'}
                   </span>
                   <span className="text-[#8a7f7a] text-xs">{distLabel(r.distanceM)}</span>
                 </div>
                 <h3 className="font-bold text-[#f7f4f2] text-xl leading-tight truncate">{r.name}</h3>
                 <p className="text-[#5a524d] text-sm mt-0.5 truncate">{r.address}</p>
+                {isNetwork && r.isOperational === false && (
+                   <p className="text-[#f59e0b] text-[10px] font-black uppercase tracking-widest mt-1 animate-pulse">
+                     Próximamente takeaway
+                   </p>
+                )}
               </div>
             </div>
 
@@ -158,9 +172,20 @@ function BottomSheet({ r, onClose, onNavigate }: {
                 <button
                   onClick={onNavigate}
                   className="col-span-2 flex items-center justify-center gap-2.5 py-4 rounded-2xl text-white font-bold transition-transform active:scale-95"
-                  style={{ background: 'linear-gradient(135deg, #f14722, #e03e1d)', boxShadow: '0 4px 16px rgba(241,71,34,0.3)' }}
+                  style={{ 
+                    background: r.isOperational === false 
+                      ? 'linear-gradient(135deg, #444, #222)' 
+                      : 'linear-gradient(135deg, #f14722, #e03e1d)', 
+                    boxShadow: r.isOperational === false
+                      ? 'none'
+                      : '0 4px 16px rgba(241,71,34,0.3)' 
+                  }}
                 >
-                  <ShoppingBag size={18} /> Ver menú y pedir
+                  {r.isOperational === false ? (
+                    <>Ver carta (Próximamente)</>
+                  ) : (
+                    <><ShoppingBag size={18} /> Ver menú y pedir</>
+                  )}
                 </button>
               ) : (
                 <>
@@ -246,8 +271,11 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
       // Restaurant markers
       restaurants.forEach(r => {
         const isNetwork = r.type === 'network'
+        const isOperational = r.isOperational ?? true
         const isClosed = r.isOpenNow === false
-        const fill = isNetwork ? '#10b981' : '#5a524d'
+        const fill = isNetwork 
+          ? (isOperational ? '#10b981' : '#f59e0b') 
+          : '#5a524d'
 
         const icon = L.divIcon({
           className: '',

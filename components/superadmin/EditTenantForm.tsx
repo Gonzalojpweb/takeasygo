@@ -62,6 +62,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     slug: tenant.slug,
     plan: tenant.plan,
     isActive: tenant.isActive,
+    isOperational: tenant.isOperational ?? true,
     featuresReservations: tenant.features?.reservations ?? false,
   })
 
@@ -77,6 +78,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           slug: form.slug,
           plan: form.plan,
           isActive: form.isActive,
+          isOperational: form.isOperational,
           features: { reservations: form.featuresReservations },
         }),
       })
@@ -249,6 +251,29 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                   )} />
                 </button>
               </div>
+
+              <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
+                <div className="flex items-center gap-3">
+                  <div className={cn("w-2 h-2 rounded-full", form.isOperational ? "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]")} />
+                  <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Ventas Activas (Operativo)</span>
+                </div>
+                <button type="button"
+                  onClick={() => setForm(p => ({ ...p, isOperational: !p.isOperational }))}
+                  className={cn(
+                    "w-12 h-6 rounded-full transition-all relative flex items-center",
+                    form.isOperational ? 'bg-primary' : 'bg-amber-500'
+                  )}>
+                  <div className={cn(
+                    "w-4 h-4 rounded-full bg-white shadow-sm transition-all absolute",
+                    form.isOperational ? 'left-[26px]' : 'left-1'
+                  )} />
+                </button>
+              </div>
+              {!form.isOperational && (
+                <p className="text-[10px] text-amber-600 font-bold px-5">
+                  ⚠️ El local se mostrará como "Próximamente". Se podrá ver el menú pero no comprar.
+                </p>
+              )}
 
               <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
                 <div className="flex items-center gap-3">
