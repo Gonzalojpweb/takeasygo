@@ -433,7 +433,7 @@ function StoreItemForm({
               <label className="text-sm font-medium">Valor en Cash (opcional)</label>
               <input
                 type="number"
-                value={formData.cashValue}
+                value={formData.cashValue ?? ''}
                 onChange={e => setFormData({ ...formData, cashValue: e.target.value })}
                 min="0"
                 className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
@@ -443,7 +443,7 @@ function StoreItemForm({
               <label className="text-sm font-medium">Stock (vacío = ilimitado)</label>
               <input
                 type="number"
-                value={formData.stock}
+                value={formData.stock ?? ''}
                 onChange={e => setFormData({ ...formData, stock: e.target.value })}
                 min="0"
                 className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
@@ -456,7 +456,7 @@ function StoreItemForm({
               <label className="text-sm font-medium">Max por Miembro (opcional)</label>
               <input
                 type="number"
-                value={formData.maxPerMember}
+                value={formData.maxPerMember ?? ''}
                 onChange={e => setFormData({ ...formData, maxPerMember: e.target.value })}
                 min="1"
                 className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
