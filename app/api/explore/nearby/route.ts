@@ -4,8 +4,8 @@ import RestaurantDirectory from '@/models/RestaurantDirectory'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkIsOpenNow } from '@/lib/service-hours'
 
-const DEFAULT_RADIUS_M = 5000  // 5 km
-const MAX_RADIUS_M     = 50000 // 20 km — techo de seguridad
+const DEFAULT_RADIUS_M = 20000 // 20 km
+const MAX_RADIUS_M     = 50000 // 50 km — techo de seguridad
 const MAX_RESULTS      = 20    // por colección
 
 // ── Tipos del response público ───────────────────────────────────────────────
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
         {
           $geoNear: {
             ...geoNearStage.$geoNear,
-            query: { status: { $in: ['listed', 'claimed'] } },
+            query: { status: { $in: ['listed', 'claimed', 'converted'] } },
           },
         },
         { $limit: MAX_RESULTS },
