@@ -36,8 +36,9 @@ export async function GET(
         tenantId: tenant._id,
         status: 'active'
       }).lean()
+    } else if (phone) {
       member = await LoyaltyMember.findOne({
-        phoneHash,
+        phoneHash: hashPhone(phone),
         tenantId: tenant._id,
         status: 'active'
       }).lean()
