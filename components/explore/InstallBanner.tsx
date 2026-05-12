@@ -51,27 +51,27 @@ export default function InstallBanner() {
           <Download size={16} className="text-[#f14722]" />
         </div>
         <div className="flex-1 min-w-0">
-          <AnimatedShinyText className="text-xs font-bold text-[#f7f4f2] inline-block">
+          <AnimatedShinyText className="text-xs font-black text-slate-900 inline-block uppercase tracking-tight">
             Instalá TakeasyGO
           </AnimatedShinyText>
-          <p className="text-[#5a524d] text-[10px] leading-tight">
+          <p className="text-slate-500 text-[10px] font-medium leading-tight">
             Acceso rápido desde tu pantalla de inicio
           </p>
         </div>
         <button
           onClick={handleInstall}
-          className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all duration-200"
+          className="shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95"
           style={{
             background: 'linear-gradient(135deg, #f14722, #e03e1d)',
             color: 'white',
-            boxShadow: '0 2px 10px rgba(241,71,34,0.3)',
+            boxShadow: '0 4px 12px rgba(241,71,34,0.3)',
           }}
         >
           Instalar
         </button>
         <button
           onClick={handleDismiss}
-          className="shrink-0 p-1 text-[#5a524d] hover:text-[#8a7f7a] transition-colors cursor-pointer"
+          className="shrink-0 p-1 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
         >
           <X size={14} />
         </button>

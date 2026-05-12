@@ -135,102 +135,97 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
   return (
     <AnimatePresence>
       {show && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 overflow-y-auto">
           {/* Backdrop */}
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-[4px]"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
           />
 
           {/* Banner Card */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 30 }}
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 30 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-md bg-white shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden"
-            style={{ borderRadius: styles.borderRadius || '32px' }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+            className="relative w-full max-w-[400px] bg-white shadow-2xl overflow-hidden border border-slate-100"
+            style={{ borderRadius: styles.borderRadius || '24px' }}
           >
-            {/* Close Button (X) */}
+            {/* Close Button */}
             <button 
               onClick={handleClose}
-              className="absolute top-4 right-4 z-40 p-2 rounded-full bg-black/10 hover:bg-black/20 text-white transition-all backdrop-blur-md border border-white/20"
+              className="absolute top-3 right-3 z-50 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all backdrop-blur-sm border border-white/30 active:scale-90"
             >
-              <X size={20} strokeWidth={3} />
+              <X size={18} strokeWidth={2.5} />
             </button>
 
-            {/* HEADER DUAL (ML Style) */}
+            {/* HEADER INTEGRATED */}
             <div 
-              className="h-56 sm:h-64 flex overflow-hidden relative"
-              style={{ backgroundColor: accentColor }}
+              className="h-44 sm:h-52 relative flex items-center justify-center overflow-hidden"
+              style={{ 
+                background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%)` 
+              }}
             >
-              {/* Left Part: Image/Illustration */}
-              <div className="w-1/2 relative p-4 flex items-center justify-center">
-                <div className="relative w-full h-full rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/20">
-                  {promo.imageUrl ? (
-                    <img 
-                      src={promo.imageUrl} 
-                      alt={promo.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                       <div className="text-white opacity-80 scale-125">
-                        {promo.type === 'discount' && <Gift size={64} strokeWidth={1.5} />}
-                        {promo.type === 'loyalty' && <Star size={64} className="fill-white" />}
-                        {promo.type === 'info' && <Info size={64} />}
-                       </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* Decorative background circles */}
+              <div className="absolute top-[-10%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+              <div className="absolute bottom-[-10%] left-[-10%] w-32 h-32 bg-black/10 rounded-full blur-2xl" />
 
-              {/* Right Part: Promo Highlight */}
-              <div className="w-1/2 flex flex-col justify-center pr-8 pl-2 text-white">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70 mb-2">
-                  Solo por hoy
-                </p>
-                <div className="flex flex-col">
+              <div className="relative flex items-center gap-6 px-6 w-full">
+                {/* Image Container */}
+                <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative">
+                  <div className="absolute inset-0 bg-white/20 rounded-2xl blur-md" />
+                  <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-white/40 shadow-lg bg-white/10">
+                    {promo.imageUrl ? (
+                      <img 
+                        src={promo.imageUrl} 
+                        alt={promo.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white/90">
+                        {promo.type === 'discount' && <Gift size={40} strokeWidth={1.5} />}
+                        {promo.type === 'loyalty' && <Star size={40} className="fill-white" />}
+                        {promo.type === 'info' && <Info size={40} />}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Promo Text Highlight */}
+                <div className="flex flex-col text-white">
+                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">
+                    Solo por hoy
+                  </p>
                   {promo.type === 'discount' ? (
-                    <>
+                    <div className="flex flex-col">
                       <div className="flex items-baseline leading-none">
-                        <span className="text-5xl sm:text-6xl font-black tracking-tighter">
+                        <span className="text-4xl sm:text-5xl font-extrabold tracking-tight">
                           {promo.discountPercentage}%
                         </span>
-                        <span className="text-2xl font-black ml-1">OFF</span>
+                        <span className="text-xl font-bold ml-1">OFF</span>
                       </div>
-                      <span className="text-[11px] font-black uppercase mt-1 tracking-widest bg-white/20 px-2 py-0.5 rounded-md inline-block w-fit">
-                        Sin tope
-                      </span>
-                    </>
+                      <div className="mt-1 bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider w-fit">
+                        Sin tope de reintegro
+                      </div>
+                    </div>
                   ) : (
-                    <span className="text-3xl font-black leading-tight tracking-tight">
+                    <span className="text-2xl font-bold leading-tight tracking-tight">
                       {promo.title}
                     </span>
                   )}
                 </div>
               </div>
-
-              {/* Subtly decorative background pattern */}
-              <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none">
-                <svg width="100%" height="100%" viewBox="0 0 100 100">
-                  <pattern id="pattern-circles" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
-                    <circle cx="2" cy="2" r="1" fill="white" />
-                  </pattern>
-                  <rect width="100%" height="100%" fill="url(#pattern-circles)" />
-                </svg>
-              </div>
             </div>
 
             {/* BODY SECTION */}
-            <div className="p-10 sm:p-12 text-center">
-              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3 leading-tight tracking-tight">
+            <div className="p-6 sm:p-8 text-center bg-white">
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 leading-tight">
                 {promo.title}
               </h3>
-              <p className="text-base sm:text-lg text-slate-500 font-medium leading-snug mb-10 px-4">
+              <p className="text-sm sm:text-base text-slate-500 font-medium leading-relaxed mb-8 px-2">
                 {promo.type === 'discount' 
                   ? promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)
                   : promo.subtitle}
@@ -238,28 +233,28 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
 
               {/* Loyalty Form */}
               {promo.type === 'loyalty' && !registered && (
-                <form onSubmit={handleRegister} className="space-y-4 mb-10">
+                <form onSubmit={handleRegister} className="space-y-3 mb-8">
                   <input 
                     required
                     type="text"
                     placeholder="Nombre completo"
                     value={form.name}
                     onChange={e => setForm(s => ({ ...s, name: e.target.value }))}
-                    className="w-full h-16 px-6 bg-slate-50 border-2 border-slate-100 rounded-2xl text-base font-bold focus:border-blue-500/30 focus:ring-0 transition-all outline-none"
+                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500/30 focus:bg-white transition-all outline-none"
                   />
                   <div className="flex gap-2">
                     <select
                       value={form.countryCode}
                       onChange={e => setForm(s => ({ ...s, countryCode: e.target.value }))}
-                      className="h-16 w-24 px-2 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold focus:border-blue-500/30 outline-none text-center"
+                      className="h-12 w-20 px-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:border-blue-500/30 outline-none text-center"
                     >
-                      <option value="+54">🇦🇷 +54</option>
-                      <option value="+598">🇺🇾 +598</option>
-                      <option value="+56">🇨🇱 +56</option>
-                      <option value="+55">🇧🇷 +55</option>
-                      <option value="+51">🇵🇪 +51</option>
-                      <option value="+52">🇲🇽 +52</option>
-                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+54">🇦🇷</option>
+                      <option value="+598">🇺🇾</option>
+                      <option value="+56">🇨🇱</option>
+                      <option value="+55">🇧🇷</option>
+                      <option value="+51">🇵🇪</option>
+                      <option value="+52">🇲🇽</option>
+                      <option value="+1">🇺🇸</option>
                     </select>
                     <input 
                       required
@@ -267,17 +262,17 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
                       placeholder="WhatsApp"
                       value={form.phone}
                       onChange={e => setForm(s => ({ ...s, phone: e.target.value.replace(/\D/g, '') }))}
-                      className="flex-1 h-16 px-6 bg-slate-50 border-2 border-slate-100 rounded-2xl text-base font-bold focus:border-blue-500/30 outline-none"
+                      className="flex-1 h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500/30 focus:bg-white outline-none"
                     />
                   </div>
-                  {error && <p className="text-xs text-red-600 font-bold">{error}</p>}
+                  {error && <p className="text-[10px] text-red-600 font-bold">{error}</p>}
                   <button
                     type="submit"
                     disabled={registering}
-                    className="w-full h-16 rounded-2xl text-white font-black text-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] transition-all active:scale-95 disabled:opacity-50"
+                    className="w-full h-12 rounded-xl text-white font-bold text-base shadow-lg shadow-black/10 transition-all active:scale-[0.98] disabled:opacity-50"
                     style={{ backgroundColor: accentColor }}
                   >
-                    {registering ? 'Cargando...' : promo.buttonText}
+                    {registering ? 'Procesando...' : promo.buttonText}
                   </button>
                 </form>
               )}
@@ -285,43 +280,43 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
               {/* Success Message */}
               {registered && (
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center gap-4 p-8 bg-emerald-50 rounded-[2.5rem] mb-10 border-2 border-emerald-100"
+                  className="flex flex-col items-center gap-3 p-6 bg-emerald-50 rounded-2xl mb-8 border border-emerald-100"
                 >
-                  <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg">
-                    <CheckCircle2 className="text-white" size={32} />
+                  <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-md">
+                    <CheckCircle2 className="text-white" size={24} />
                   </div>
                   <div className="text-center">
-                    <p className="font-black text-emerald-900 text-xl">¡Perfecto!</p>
-                    <p className="text-sm text-emerald-700 font-bold">Bienvenido al club de beneficios.</p>
+                    <p className="font-bold text-emerald-900 text-lg">¡Registro exitoso!</p>
+                    <p className="text-xs text-emerald-700 font-medium">Bienvenido a nuestro club exclusivo.</p>
                   </div>
                 </motion.div>
               )}
 
-              {/* ACTION BUTTONS (Non-loyalty or closed) */}
+              {/* ACTION BUTTONS */}
               {(promo.type !== 'loyalty' || registered) && (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                   <button
                     onClick={handleClose}
-                    className="w-full h-16 rounded-2xl text-white font-black text-xl shadow-[0_15px_35px_-5px_rgba(0,0,0,0.2)] transition-all active:scale-95 flex items-center justify-center gap-3"
+                    className="w-full h-12 rounded-xl text-white font-bold text-base shadow-lg shadow-black/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                     style={{ backgroundColor: accentColor }}
                   >
                     {promo.buttonText}
-                    <ArrowRight size={24} strokeWidth={3} />
+                    <ArrowRight size={18} strokeWidth={2.5} />
                   </button>
                   
                   <button
                     onClick={handleClose}
-                    className="w-full h-12 rounded-xl text-blue-600 font-bold text-base hover:bg-blue-50 transition-all active:bg-blue-100"
+                    className="w-full h-10 rounded-lg text-slate-400 font-semibold text-xs hover:text-slate-600 hover:bg-slate-50 transition-all"
                   >
-                    Entendido
+                    Cerrar ventana
                   </button>
                 </div>
               )}
 
               {promo.termsText && (
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-10 leading-relaxed max-w-[280px] mx-auto">
+                <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest mt-8 leading-relaxed max-w-[240px] mx-auto">
                   {promo.termsText}
                 </p>
               )}
@@ -331,4 +326,5 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
       )}
     </AnimatePresence>
   )
+
 }

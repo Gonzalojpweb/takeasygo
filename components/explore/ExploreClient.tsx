@@ -17,6 +17,7 @@ import LoadingScreen from './LoadingScreen'
 import OnboardingCarousel from './OnboardingCarousel'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '@/contexts/TenantContext'
+import { Button } from '@/components/ui/button'
 
 const ExploreMap = dynamic(() => import('./ExploreMap'), {
   ssr: false,
@@ -27,7 +28,9 @@ const ExploreMap = dynamic(() => import('./ExploreMap'), {
   ),
 })
 
-type View = 'list' | 'map'
+import HomeView from './HomeView'
+
+type View = 'home' | 'list' | 'map' | 'orders'
 
 const BUENOS_AIRES = { lat: -34.6037, lng: -58.3816 }
 
@@ -43,7 +46,7 @@ function ExploreClientInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setTenantSlug } = useTenant()
-  const [view, setView] = useState<View>('list')
+  const [view, setView] = useState<View>('home')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsError, setGpsError] = useState<string | null>(null)
   const [gpsLoading, setGpsLoading] = useState(true)
@@ -82,7 +85,9 @@ function ExploreClientInner() {
   useEffect(() => {
     const v = searchParams.get('view')
     if (v === 'map') setView('map')
-    else setView('list')
+    else if (v === 'list') setView('list')
+    else if (v === 'orders') setView('orders')
+    else setView('home')
   }, [searchParams])
 
   // ── GPS ──────────────────────────────────────────────────────────────
@@ -162,7 +167,7 @@ function ExploreClientInner() {
   const listRestaurants = filtered
 
   return (
-    <div className="flex flex-col h-full bg-[#0d0b0a] overflow-hidden">
+    <div className="flex flex-col h-full bg-[#fafafa] overflow-hidden">
       <AnimatePresence mode="wait">
         {showSplash && <LoadingScreen key="splash" />}
         {showOnboarding && <OnboardingCarousel key="onboarding" onComplete={handleOnboardingComplete} />}
@@ -173,35 +178,39 @@ function ExploreClientInner() {
         <InstallBanner />
         <PushSubscriber />
 
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <ExploreHeader
-          gpsError={gpsError}
-          radius={radius}
-          setRadius={setRadius}
-          activeCuisine={activeCuisine}
-          setActiveCuisine={setActiveCuisine}
-          openNowOnly={openNowOnly}
-          setOpenNowOnly={setOpenNowOnly}
-          allCuisines={allCuisines}
-          networkCount={networkCount}
-          listedCount={listedCount}
-          activeFilters={activeFilters}
-          filteredCount={filtered.length}
-          onClearFilters={() => { setActiveCuisine(null); setOpenNowOnly(false); setSearchQuery('') }}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onOpenLeadModal={() => setShowLeadModal(true)}
-        />
-
         {/* ── Content ─────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-hidden relative">
 
           {/* Fetch overlay */}
           {fetching && <FetchOverlay />}
 
+          {/* === HOME VIEW === */}
+          {view === 'home' && (
+            <HomeView onOpenLeadModal={() => setShowLeadModal(true)} />
+          )}
+
           {/* === LIST VIEW === */}
-          {view === 'list' && !fetching && (
-            <div className="h-full overflow-y-auto pb-24">
+          {view === 'list' && (
+            <>
+              <ExploreHeader
+                gpsError={gpsError}
+                radius={radius}
+                setRadius={setRadius}
+                activeCuisine={activeCuisine}
+                setActiveCuisine={setActiveCuisine}
+                openNowOnly={openNowOnly}
+                setOpenNowOnly={setOpenNowOnly}
+                allCuisines={allCuisines}
+                networkCount={networkCount}
+                listedCount={listedCount}
+                activeFilters={activeFilters}
+                filteredCount={filtered.length}
+                onClearFilters={() => { setActiveCuisine(null); setOpenNowOnly(false); setSearchQuery('') }}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                onOpenLeadModal={() => setShowLeadModal(true)}
+              />
+              <div className="h-full overflow-y-auto pb-24">
               {filtered.length === 0 ? (
                 /* Empty state */
                 <div className="flex flex-col items-center justify-center h-full gap-4 px-6 py-20">
@@ -303,6 +312,19 @@ function ExploreClientInner() {
                   <div className="h-8" />
                 </div>
               )}
+            </div>
+            </>
+          )}
+
+          {/* === ORDERS VIEW === */}
+          {view === 'orders' && (
+            <div className="h-full bg-white p-8 flex flex-col items-center justify-center text-center space-y-4">
+               <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center text-3xl">📦</div>
+               <div>
+                  <h3 className="font-black text-xl text-slate-900">Tus pedidos</h3>
+                  <p className="text-sm text-slate-500">Pronto podrás ver el historial de tus compras aquí.</p>
+               </div>
+               <Button variant="outline" className="rounded-xl" onClick={() => router.push('/explore')}>Explorar ahora</Button>
             </div>
           )}
 

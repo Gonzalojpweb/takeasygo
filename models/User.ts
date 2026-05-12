@@ -70,6 +70,18 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
     },
+    savedAddresses: [
+      {
+        label: { type: String, required: true }, // "Casa", "Trabajo"
+        address: { type: String, required: true },
+        city: { type: String },
+        coordinates: {
+          lat: { type: Number, required: true },
+          lng: { type: Number, required: true }
+        },
+        isDefault: { type: Boolean, default: false }
+      }
+    ],
     resetToken: {
       type: String,
       default: null,
