@@ -7,6 +7,7 @@ import NavigationProgress from '@/components/NavigationProgress'
 import SourceTracker from '@/components/SourceTracker'
 import './globals.css'
 import AuthProvider from '@/components/AuthProvider'
+import { LocationProvider } from '@/components/explore/LocationContext'
 
 const geist = Geist({ subsets: ['latin'] })
 
@@ -28,14 +29,16 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={geist.className}>
         <AuthProvider>
-          <Suspense fallback={null}>
-            <SourceTracker />
-          </Suspense>
-          <NavigationProgress />
-          <SmoothScroll>
-            {children}
-          </SmoothScroll>
-          <Toaster />
+          <LocationProvider>
+            <Suspense fallback={null}>
+              <SourceTracker />
+            </Suspense>
+            <NavigationProgress />
+            <SmoothScroll>
+              {children}
+            </SmoothScroll>
+            <Toaster />
+          </LocationProvider>
         </AuthProvider>
       </body>
     </html>

@@ -135,21 +135,20 @@ export default function RestaurantCard({
   return (
     <div
       onClick={onNavigate}
-      className="relative flex items-center gap-3 p-3 rounded-2xl transition-all duration-200 cursor-pointer group hover:bg-[var(--c-surface-elevated)] active:scale-[0.99]"
-      style={{ border: '1px solid var(--c-border)' }}
+      className="relative flex items-center gap-3 p-3 rounded-3xl transition-all duration-300 cursor-pointer group hover:bg-zinc-50 border-2 border-zinc-50 hover:border-zinc-100 active:scale-[0.99] bg-white shadow-sm"
     >
       {/* Logo / Image */}
-      <div className={`relative shrink-0 w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center ${
-        isNetwork && r.logoUrl ? '' : 'bg-[var(--c-surface-elevated)]'
+      <div className={`relative shrink-0 w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${
+        isNetwork && r.logoUrl ? 'bg-zinc-50' : 'bg-zinc-100'
       }`}>
         {isNetwork && r.logoUrl ? (
           <img src={r.logoUrl} alt={r.name} className="w-full h-full object-cover" />
         ) : (
-          <Utensils size={18} className="text-[#5a524d]" />
+          <Utensils size={20} className="text-zinc-400" />
         )}
         {isNetwork && (
-          <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ${r.isOperational === false ? 'bg-[#f59e0b]' : 'bg-[#10b981]'} border-2 border-[var(--c-bg)] flex items-center justify-center`}>
-            <span className="text-white text-[6px] font-black">{r.isOperational === false ? '★' : '✓'}</span>
+          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full ${r.isOperational === false ? 'bg-amber-500' : 'bg-emerald-500'} border-2 border-white flex items-center justify-center shadow-sm`}>
+            <span className="text-white text-[7px] font-black">{r.isOperational === false ? '★' : '✓'}</span>
           </div>
         )}
       </div>
@@ -157,45 +156,30 @@ export default function RestaurantCard({
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <h3 className="font-semibold text-[#f7f4f2] text-sm leading-tight truncate">
+          <h3 className="font-bold text-slate-900 text-xs leading-tight truncate">
             {r.name}
           </h3>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[#5a524d] text-[10px] flex items-center gap-1">
-            <MapPin size={9} />
+          <span className="text-slate-500 text-[9px] font-black flex items-center gap-1">
+            <MapPin size={10} className="text-primary" />
             {distLabel(r.distanceM)}
           </span>
           {isNetwork && r.isOperational !== false && r.estimatedPickupTime && (
             <>
-              <span className="text-[#5a524d]/50 text-[10px]">·</span>
-              <span className="text-[#10b981] text-[10px] font-medium flex items-center gap-1">
-                <Clock size={9} />
-                ~{r.estimatedPickupTime} min
+              <span className="text-slate-300">·</span>
+              <span className="text-emerald-600 text-[9px] font-black flex items-center gap-1">
+                <Clock size={10} />
+                {r.estimatedPickupTime} min
               </span>
             </>
           )}
           {isNetwork && r.isOperational === false && (
-             <span className="text-[#f59e0b] text-[9px] font-bold uppercase ml-1">Catálogo</span>
-          )}
-          {r.isOpenNow === true && (
-            <>
-              <span className="text-[#5a524d]/50 text-[10px]">·</span>
-              <span className="text-[#10b981] text-[10px] font-medium flex items-center gap-0.5">
-                <span className="w-1 h-1 rounded-full bg-[#10b981]" />
-                Abierto
-              </span>
-            </>
-          )}
-          {r.isOpenNow === false && (
-            <>
-              <span className="text-[#5a524d]/50 text-[10px]">·</span>
-              <span className="text-[#ef4444]/70 text-[10px] font-medium">Cerrado</span>
-            </>
+             <span className="text-amber-600 text-[8px] font-black uppercase ml-1 tracking-widest">Catálogo</span>
           )}
         </div>
         {r.cuisineTypes && r.cuisineTypes.length > 0 && (
-          <p className="text-[#5a524d] text-[10px] mt-0.5 truncate">
+          <p className="text-slate-400 text-[9px] font-bold mt-0.5 truncate uppercase tracking-tighter">
             {r.cuisineTypes.join(' · ')}
           </p>
         )}

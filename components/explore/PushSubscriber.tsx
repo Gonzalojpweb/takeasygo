@@ -93,20 +93,22 @@ export default function PushSubscriber({ tenantId, memberId }: PushSubscriberPro
   if (state !== 'prompt') return null
 
   return (
-    <div className="flex items-center gap-3 bg-zinc-900 text-white px-4 py-2.5 shrink-0">
-      <Bell size={16} className="text-emerald-400 shrink-0" />
+    <div className="flex items-center gap-3 bg-emerald-50 text-slate-900 px-4 py-3 shrink-0 border-b border-emerald-100">
+      <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+        <Bell size={16} className="text-emerald-600 shrink-0" />
+      </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold leading-tight">¿Activás las notificaciones?</p>
-        <p className="text-[11px] text-zinc-400 leading-tight">Te avisamos cuando tu pedido esté listo</p>
+        <p className="text-xs font-black uppercase tracking-tight leading-tight">¿Notificaciones?</p>
+        <p className="text-[10px] text-emerald-700/70 font-medium leading-tight">Te avisamos cuando tu pedido esté listo</p>
       </div>
       <button
         onClick={handleAllow}
-        className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shrink-0 transition-colors"
+        className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shrink-0 transition-all shadow-sm"
       >
         Activar
       </button>
-      <button onClick={dismiss} className="text-zinc-500 hover:text-zinc-300">
-        <X size={15} />
+      <button onClick={dismiss} className="text-emerald-300 hover:text-emerald-500 p-1">
+        <X size={16} />
       </button>
     </div>
   )
