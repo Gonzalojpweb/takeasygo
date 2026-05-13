@@ -8,12 +8,18 @@ import { useRouter } from 'next/navigation'
 import { CheckCircle2, AlertCircle, ExternalLink, ShieldCheck, Key, Lock, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+import MpOAuthConnectButton from './MpOAuthConnectButton'
+
 interface Props {
   tenantSlug: string
   isConfigured: boolean
+  mpOAuth?: {
+    isConnected: boolean
+    authorizedAt?: string | null
+  }
 }
 
-export default function MercadoPagoSettings({ tenantSlug, isConfigured }: Props) {
+export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ accessToken: '', publicKey: '', webhookSecret: '' })
@@ -69,7 +75,15 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured }: Props)
         </div>
       </CardHeader>
 
-      <CardContent className="p-8">
+      <CardContent className="p-8 space-y-8">
+        {/* ── OAuth Split Payments ── */}
+        <MpOAuthConnectButton
+          tenantSlug={tenantSlug}
+          isConnected={mpOAuth?.isConnected ?? false}
+          authorizedAt={mpOAuth?.authorizedAt}
+        />
+
+        {/* ── API Credentials ── */}
         {isConfigured && !editing ? (
           <div className="space-y-6">
             <div className="flex items-center gap-4 p-6 rounded-3xl bg-emerald-500/5 border-2 border-emerald-500/10">

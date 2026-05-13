@@ -8,6 +8,7 @@ export default async function SuperAdminConfigPage() {
   await connectDB()
   const config = await PlatformConfig.findById('platform').lean() as any
   const mp = config?.mercadopago ?? {}
+  const mpOAuth = config?.mpOAuth ?? {}
 
   function hint(encrypted: string | null | undefined) {
     if (!encrypted) return null
@@ -32,6 +33,13 @@ export default async function SuperAdminConfigPage() {
         hasWebhookSecret={!!mp.webhookSecret}
         accessTokenHint={hint(mp.accessToken)}
         webhookSecretHint={hint(mp.webhookSecret)}
+        mpOAuth={{
+          appId: mpOAuth.appId || null,
+          appSecretHint: hint(mpOAuth.appSecret),
+          redirectUri: mpOAuth.redirectUri || null,
+          platformFeePercent: mpOAuth.platformFeePercent || 5,
+          isConfigured: !!(mpOAuth.appId && mpOAuth.appSecret && mpOAuth.redirectUri),
+        }}
       />
     </div>
   )

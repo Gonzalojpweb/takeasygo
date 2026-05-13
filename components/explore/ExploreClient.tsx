@@ -29,6 +29,7 @@ const ExploreMap = dynamic(() => import('./ExploreMap'), {
 })
 
 import HomeView from './HomeView'
+import OrdersView from './OrdersView'
 
 type View = 'home' | 'list' | 'map' | 'orders'
 
@@ -318,13 +319,8 @@ function ExploreClientInner() {
 
           {/* === ORDERS VIEW === */}
           {view === 'orders' && (
-            <div className="h-full bg-white p-8 flex flex-col items-center justify-center text-center space-y-4">
-               <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center text-3xl">📦</div>
-               <div>
-                  <h3 className="font-black text-xl text-slate-900">Tus pedidos</h3>
-                  <p className="text-sm text-slate-500">Pronto podrás ver el historial de tus compras aquí.</p>
-               </div>
-               <Button variant="outline" className="rounded-xl" onClick={() => router.push('/explore')}>Explorar ahora</Button>
+            <div className="h-full bg-white">
+              <OrdersView />
             </div>
           )}
 

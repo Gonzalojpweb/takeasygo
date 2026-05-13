@@ -1321,7 +1321,11 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             {/* ── MercadoPago ── */}
             <TabsContent value="mercadopago" className="m-0 mt-2">
               <div className="max-w-3xl">
-                <MercadoPagoSettings tenantSlug={tenantSlug} isConfigured={tenant.mercadopago?.isConfigured} />
+                <MercadoPagoSettings
+                  tenantSlug={tenantSlug}
+                  isConfigured={tenant.mercadopago?.isConfigured}
+                  mpOAuth={tenant.mpOAuth}
+                />
               </div>
             </TabsContent>
 
