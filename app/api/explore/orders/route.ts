@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+import { auth } from '@/lib/auth'
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
@@ -19,7 +18,7 @@ export async function GET(request: NextRequest) {
     await connectDB()
 
     // Try authenticated user first
-    const session = await getServerSession(authOptions)
+    const session = await auth()
     const email = session?.user?.email ?? searchParams.get('email')
 
     if (!email) {

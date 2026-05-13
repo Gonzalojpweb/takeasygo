@@ -3,19 +3,22 @@
 import { signIn, signOut, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle } from 'lucide-react'
+import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle, MapPin } from 'lucide-react'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { BorderBeam } from '@/components/ui/border-beam'
 import { AnimatedShinyText } from '@/components/ui/animated-shiny-text'
 import BottomNav from '@/components/explore/BottomNav'
 import { useTenant } from '@/contexts/TenantContext'
+import AddressSelector from '@/components/explore/AddressSelector'
+import { useState } from 'react'
 
 export default function ProfilePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { tenantSlug } = useTenant()
   const loading = status === 'loading'
+  const [showAddressSelector, setShowAddressSelector] = useState(false)
 
   if (loading) {
     return (
@@ -132,13 +135,30 @@ export default function ProfilePage() {
               Actividad
             </h3>
             
-            <button className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all">
+            <button
+              onClick={() => router.push('/explore/orders')}
+              className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all"
+            >
               <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-[#f14722]">
                 <ShoppingBag size={20} />
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-bold text-[#f7f4f2]">Mis Pedidos</p>
                 <p className="text-[10px] text-[#5a524d]">Historial y seguimiento</p>
+              </div>
+              <ChevronRight size={16} className="text-[#5a524d] group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            <button
+              onClick={() => setShowAddressSelector(true)}
+              className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all"
+            >
+              <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-blue-500">
+                <MapPin size={20} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-[#f7f4f2]">Mis Direcciones</p>
+                <p className="text-[10px] text-[#5a524d]">Gestionar direcciones de entrega</p>
               </div>
               <ChevronRight size={16} className="text-[#5a524d] group-hover:translate-x-1 transition-transform" />
             </button>
@@ -207,6 +227,28 @@ export default function ProfilePage() {
                 <p className="text-sm font-bold text-red-500/80">Cerrar Sesión</p>
               </div>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Address Selector Modal */}
+      {showAddressSelector && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[var(--c-bg)] rounded-3xl max-h-[80vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="sticky top-0 z-10 glass-card border-b border-[var(--c-border)] p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-[#f7f4f2]">Mis Direcciones</h2>
+                <button
+                  onClick={() => setShowAddressSelector(false)}
+                  className="w-8 h-8 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-[#5a524d] hover:bg-[var(--c-border)] transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="p-4">
+              <AddressSelector onClose={() => setShowAddressSelector(false)} />
+            </div>
           </div>
         </div>
       )}
