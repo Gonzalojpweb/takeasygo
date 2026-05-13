@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
-import { MapPin, Clock, Phone, Utensils, ExternalLink, ArrowLeft, ShoppingBag, Share2, Navigation } from 'lucide-react'
+import { MapPin, Clock, Phone, Utensils, ExternalLink, ArrowLeft, ShoppingBag, Share2, Navigation, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { BlurFade } from '@/components/ui/blur-fade'
@@ -149,6 +149,12 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
         {/* Badges */}
         <BlurFade delay={0.05} inView>
           <div className="flex items-center gap-2 flex-wrap">
+            {r.averageRating !== null && r.ratingCount > 0 && (
+              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/25">
+                <Star size={10} className="fill-amber-500" />
+                {r.averageRating.toFixed(1)} ({r.ratingCount})
+              </span>
+            )}
             <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
               isNetwork
                 ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/25'

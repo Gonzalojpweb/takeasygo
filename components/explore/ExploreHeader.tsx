@@ -3,6 +3,7 @@
 import { Search, MapPin, AlertCircle, Clock, X, SlidersHorizontal } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
+import AddressSelector from '@/components/explore/AddressSelector'
 
 interface Props {
   gpsError: string | null
@@ -40,6 +41,7 @@ export default function ExploreHeader({
   onOpenLeadModal,
 }: Props) {
   const [showFilters, setShowFilters] = useState(false)
+  const [showAddressSelector, setShowAddressSelector] = useState(false)
 
   return (
     <div className="shrink-0 safe-area-top">
@@ -70,9 +72,18 @@ export default function ExploreHeader({
         </div>
 
         {/* Contextual headline */}
-        <h1 className="text-slate-900 text-lg font-black leading-tight mb-0.5">
-          Takeaway cerca de vos
-        </h1>
+        <div className="flex items-center gap-2 mb-0.5">
+          <h1 className="text-slate-900 text-lg font-black leading-tight">
+            Takeaway cerca de vos
+          </h1>
+          <button
+            onClick={() => setShowAddressSelector(true)}
+            className="p-1.5 rounded-lg bg-zinc-100 text-slate-500 hover:bg-zinc-200 hover:text-slate-700 transition-colors"
+            title="Cambiar ubicación"
+          >
+            <MapPin size={14} />
+          </button>
+        </div>
         <p className="text-slate-500 text-[10px] font-bold mb-3 uppercase tracking-tighter">
           Basado en tu ubicación real
         </p>
@@ -188,6 +199,28 @@ export default function ExploreHeader({
           </div>
         )}
       </div>
+
+      {/* Address Selector Modal */}
+      {showAddressSelector && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl max-h-[80vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="sticky top-0 z-10 bg-white border-b border-zinc-100 p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-900">Seleccionar Ubicación</h2>
+                <button
+                  onClick={() => setShowAddressSelector(false)}
+                  className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-slate-500 hover:bg-zinc-200 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="p-4">
+              <AddressSelector onClose={() => setShowAddressSelector(false)} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
