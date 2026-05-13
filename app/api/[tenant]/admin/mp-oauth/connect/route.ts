@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+import { auth } from '@/lib/auth'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import PlatformConfig from '@/models/PlatformConfig'
@@ -19,7 +18,7 @@ export async function GET(
 ) {
   const { tenant: tenantSlug } = await params
 
-  const session = await getServerSession(authOptions)
+  const session = await auth()
   if (!session?.user) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
