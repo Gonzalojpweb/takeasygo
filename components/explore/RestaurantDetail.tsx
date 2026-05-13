@@ -149,7 +149,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
         {/* Badges */}
         <BlurFade delay={0.05} inView>
           <div className="flex items-center gap-2 flex-wrap">
-            {r.averageRating !== null && r.ratingCount !== undefined && r.ratingCount > 0 && (
+            {r.averageRating !== null && r.averageRating !== undefined && r.ratingCount !== undefined && r.ratingCount > 0 && (
               <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/25">
                 <Star size={10} className="fill-amber-500" />
                 {r.averageRating.toFixed(1)} ({r.ratingCount})
