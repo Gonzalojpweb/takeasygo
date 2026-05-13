@@ -44,17 +44,32 @@ export async function GET(request: NextRequest) {
 
     const activeTenantIds = tenants.map(t => t._id)
 
+    // Construir mapa slug para enriquecer datos
+    const tenantSlugMap = new Map(tenants.map(t => [t._id.toString(), t.slug]))
+    const tenantNameMap = new Map(tenants.map(t => [t._id.toString(), t.name]))
+
     // 3. Obtener Promociones Activas de estos Tenants
-    const promotions = await Promotion.find({
+    const promotionsRaw = await Promotion.find({
       tenantId: { $in: activeTenantIds },
       isActive: true
     }).sort({ isFeatured: -1, sortOrder: 1 }).limit(10).lean()
 
+    const promotions = promotionsRaw.map(p => ({
+      ...p,
+      tenantSlug: tenantSlugMap.get(p.tenantId.toString()) || '',
+    }))
+
     // 4. Obtener Canjes de Fidelización (Store Items)
-    const redemptions = await StoreItem.find({
+    const redemptionsRaw = await StoreItem.find({
       tenantId: { $in: activeTenantIds },
       isActive: true
     }).sort({ isFeatured: -1, sortOrder: 1 }).limit(10).lean()
+
+    const redemptions = redemptionsRaw.map(r => ({
+      ...r,
+      tenantSlug: tenantSlugMap.get(r.tenantId.toString()) || '',
+      tenantName: tenantNameMap.get(r.tenantId.toString()) || '',
+    }))
 
     // 5. Extraer Categorías Únicas de los Tenants cercanos
     const categoriesSet = new Set<string>()

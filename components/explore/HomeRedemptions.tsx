@@ -30,7 +30,7 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
         {items.map((item) => (
           <Link 
             key={item._id}
-            href={`/${item.tenantSlug}/club`}
+            href={`/${item.tenantSlug}/club/lookup`}
             className="bg-white rounded-3xl p-3 border border-slate-100 shadow-md shadow-slate-100 flex flex-col items-center text-center group"
           >
             <div className="w-20 h-20 rounded-2xl overflow-hidden mb-2 relative">

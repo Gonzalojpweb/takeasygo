@@ -12,7 +12,8 @@ interface Promo {
   price: number
   originalPrice?: number
   tenantId: string
-  tenantSlug?: string // Enriquecido en el API
+  locationId?: string
+  tenantSlug?: string
 }
 
 export default function PromoCarousel({ promos }: { promos: Promo[] }) {
@@ -34,7 +35,7 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
         {promos.map((promo) => (
           <Link 
             key={promo._id} 
-            href={`/${promo.tenantSlug}?promo=${promo._id}`}
+            href={promo.locationId ? `/${promo.tenantSlug}/menu/${promo.locationId}` : `/${promo.tenantSlug}`}
             className="shrink-0 w-[240px] h-[140px] bg-white rounded-3xl relative overflow-hidden shadow-lg shadow-slate-200/50 snap-center group border border-slate-100"
           >
             {/* Background Decor */}
