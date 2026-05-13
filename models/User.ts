@@ -12,6 +12,13 @@ export interface IUser extends Document {
   assignedLocations: mongoose.Types.ObjectId[]
   assignedTenants: mongoose.Types.ObjectId[]
   isActive: boolean
+  savedAddresses: {
+    label: string
+    address: string
+    city?: string
+    coordinates: { lat: number; lng: number }
+    isDefault?: boolean
+  }[]
   resetToken: string | null
   resetTokenExpiry: Date | null
   createdAt: Date
