@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import PlatformConfig from '@/models/PlatformConfig'
 import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
@@ -36,16 +37,33 @@ if (!success) {
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
 
-    const accessToken = decrypt(tenant.mercadopago.accessToken)
-    const client = new MercadoPagoConfig({ accessToken })
+    // ── Get platform commission from PlatformConfig ────────────────────────────
+    const platformConfig = await PlatformConfig.findById('platform').lean() as any
+    const platformFeePercent = platformConfig?.mpOAuth?.platformFeePercent ?? 5
+
+    // ── Determine which access token to use ───────────────────────────────────
+    // If OAuth is connected, use the OAuth token (marketplace mode).
+    // Otherwise fall back to the tenant's manually configured access token.
+    const useMarketplace = tenant.mpOAuth?.isConnected && tenant.mpOAuth?.accessToken
+    const rawToken = useMarketplace
+      ? decrypt(tenant.mpOAuth.accessToken!)
+      : decrypt(tenant.mercadopago.accessToken!)
+
+    const client = new MercadoPagoConfig({ accessToken: rawToken })
     const preference = new Preference(client)
 
     const baseUrl = request.nextUrl.origin
 
+    // ── Marketplace fee (platform commission) ─────────────────────────────────
+    // Only charged when tenant has authorized via OAuth (marketplace split mode).
+    const marketplaceFee = useMarketplace
+      ? Math.round(order.total * (platformFeePercent / 100))
+      : undefined
+
     const result = await preference.create({
       body: {
         items: order.items.map((item: any) => ({
-          id: item.menuItemId.toString(),
+          id: item.menuItemId?.toString() ?? item._id.toString(),
           title: item.name,
           quantity: item.quantity,
           unit_price: item.price,
@@ -63,6 +81,11 @@ if (!success) {
         ...(baseUrl.startsWith('https://') ? { auto_return: 'approved' as const } : {}),
         external_reference: order.orderNumber,
         notification_url: `${baseUrl}/api/webhooks/mercadopago/${tenantSlug}`,
+        // Marketplace split — only when OAuth authorized
+        ...(marketplaceFee !== undefined ? {
+          marketplace: 'takeasygo',
+          marketplace_fee: marketplaceFee,
+        } : {}),
       }
     })
 
@@ -74,6 +97,8 @@ if (!success) {
       preferenceId: result.id,
       initPoint: result.init_point,
       sandboxInitPoint: result.sandbox_init_point,
+      splitEnabled: !!marketplaceFee,
+      platformFeeARS: marketplaceFee ?? 0,
     })
   } catch (error: any) {
     console.error('[create-preference] error:', error)

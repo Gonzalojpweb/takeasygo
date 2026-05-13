@@ -8,6 +8,13 @@ export interface IPlatformConfig {
     webhookSecret: string | null // encriptado con AES-256
     isConfigured: boolean
   }
+  /** OAuth configuration for Marketplace Split Payments (configured by superadmin) */
+  mpOAuth: {
+    appId: string | null           // MercadoPago App ID for the platform
+    appSecret: string | null       // MercadoPago App Secret (encrypted AES-256-GCM)
+    redirectUri: string | null     // OAuth redirect URI
+    platformFeePercent: number     // Platform commission percentage (default: 5)
+  }
   /** Configuración de estilos estándar para promoción QR de takeaway */
   qrPromoStyles: {
     primaryColor: string
@@ -26,6 +33,13 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
       accessToken:   { type: String, default: null },
       webhookSecret: { type: String, default: null },
       isConfigured:  { type: Boolean, default: false },
+    },
+    /** OAuth configuration for Marketplace Split Payments (configured by superadmin) */
+    mpOAuth: {
+      appId:              { type: String, default: null },
+      appSecret:          { type: String, default: null },
+      redirectUri:        { type: String, default: null },
+      platformFeePercent: { type: Number, default: 5 },
     },
     /** Configuración de estilos estándar para promoción QR de takeaway */
     qrPromoStyles: {

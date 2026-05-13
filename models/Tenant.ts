@@ -68,6 +68,14 @@ export interface ITenant extends Document {
     webhookSecret: string | null
     isConfigured: boolean
   }
+  /** OAuth credentials for Marketplace Split Payments (marketplace_fee) */
+  mpOAuth: {
+    accessToken: string | null     // OAuth access_token (encrypted AES-256-GCM)
+    refreshToken: string | null    // OAuth refresh_token (encrypted)
+    expiresAt: Date | null         // When the access token expires
+    authorizedAt: Date | null      // When the tenant authorized
+    isConnected: boolean
+  }
   // ── Integración POS (FUDO / BISTROSOFT / etc.) ─────────────────────────────
   posIntegration: {
     provider: 'fudo' | 'bistrosoft' | 'none'
@@ -247,6 +255,14 @@ const TenantSchema = new Schema<ITenant>(
       publicKey: { type: String, default: null },
       webhookSecret: { type: String, default: null },
       isConfigured: { type: Boolean, default: false },
+    },
+    /** OAuth para Split de Pagos (marketplace_fee) */
+    mpOAuth: {
+      accessToken:  { type: String, default: null },
+      refreshToken: { type: String, default: null },
+      expiresAt:    { type: Date, default: null },
+      authorizedAt: { type: Date, default: null },
+      isConnected:  { type: Boolean, default: false },
     },
     // ── Integración POS ──────────────────────────────────────────────────────
     posIntegration: {

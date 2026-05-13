@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
+import Rating from '@/models/Rating'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkIsOpenNow } from '@/lib/service-hours'
 
@@ -32,6 +33,9 @@ export interface NearbyRestaurant {
   estimatedPickupTime?: number
   orderModes?: string[]
   isOperational?: boolean
+  // Ratings
+  averageRating?: number | null
+  ratingCount?: number
   // Solo en type = 'listed'
   externalMenuUrl?: string
   status?: string
@@ -131,6 +135,23 @@ export async function GET(request: NextRequest) {
       console.error('[explore/nearby] network query failed:', e)
     }
 
+    // ── Ratings: aggregate average per tenant ────────────────────────────────
+    const tenantIdsForRatings = networkRaw.map((loc: any) => loc.tenant?._id).filter(Boolean)
+    let ratingsMap: Record<string, { avg: number; count: number }> = {}
+    if (tenantIdsForRatings.length > 0) {
+      try {
+        const ratingAggs = await Rating.aggregate([
+          { $match: { tenantId: { $in: tenantIdsForRatings } } },
+          { $group: { _id: '$tenantId', avg: { $avg: '$stars' }, count: { $sum: 1 } } },
+        ])
+        ratingAggs.forEach((r: any) => {
+          ratingsMap[r._id.toString()] = { avg: Math.round(r.avg * 10) / 10, count: r.count }
+        })
+      } catch (e) {
+        console.error('[explore/nearby] ratings aggregation failed:', e)
+      }
+    }
+
     // ── Directorio: RestaurantDirectory listados o reclamados ────────────────
     let directoryRaw: any[] = []
     try {
@@ -184,6 +205,8 @@ export async function GET(request: NextRequest) {
         distScore * 0.35 + prepScore * 0.30 + capacityScore * 0.20 + icoNorm * 0.15 + penalty
       )
 
+      const tenantRatings = ratingsMap[loc.tenant?._id?.toString()] ?? null
+
       return {
         id: loc._id.toString(),
         type: 'network',
@@ -199,12 +222,14 @@ export async function GET(request: NextRequest) {
         tenantSlug: loc.tenant?.slug,
         tenantName: loc.tenant?.name,
         logoUrl: loc.tenant?.branding?.logoUrl ?? '',
-        heroImage: loc.tenant?.branding?.logoUrl ?? '', // Fallback to logo or empty
+        heroImage: loc.tenant?.branding?.logoUrl ?? '',
         primaryColor: loc.tenant?.branding?.primaryColor ?? '#000000',
         acceptsOrders,
         estimatedPickupTime,
         orderModes: loc.settings?.orderModes ?? ['takeaway'],
         isOperational: loc.tenant?.isOperational ?? true,
+        averageRating: tenantRatings ? tenantRatings.avg : null,
+        ratingCount: tenantRatings ? tenantRatings.count : 0,
         visibilityScore,
       }
     })

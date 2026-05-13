@@ -1,7 +1,7 @@
 'use client'
 
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
-import { MapPin, Clock, Utensils, ExternalLink, Phone, ChevronRight } from 'lucide-react'
+import { MapPin, Clock, Utensils, ExternalLink, Phone, Star } from 'lucide-react'
 import Link from 'next/link'
 import { BorderBeam } from '@/components/ui/border-beam'
 
@@ -116,6 +116,13 @@ export function FeaturedCard({
           {r.isOpenNow === false && (
             <span className="text-[#ef4444]/80 text-[10px] font-semibold">Cerrado</span>
           )}
+          {/* Rating */}
+          {r.averageRating != null && r.ratingCount != null && r.ratingCount > 0 && (
+            <span className="flex items-center gap-0.5 text-[10px] text-amber-400 font-bold">
+              <Star size={9} className="fill-amber-400" />
+              {r.averageRating.toFixed(1)}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -182,6 +189,14 @@ export default function RestaurantCard({
           <p className="text-slate-400 text-[9px] font-bold mt-0.5 truncate uppercase tracking-tighter">
             {r.cuisineTypes.join(' · ')}
           </p>
+        )}
+        {/* Rating */}
+        {isNetwork && r.averageRating != null && r.ratingCount != null && r.ratingCount > 0 && (
+          <div className="flex items-center gap-1 mt-1">
+            <Star size={10} className="fill-amber-400 text-amber-400" />
+            <span className="text-[9px] font-black text-amber-500">{r.averageRating.toFixed(1)}</span>
+            <span className="text-[9px] text-slate-400 font-medium">({r.ratingCount})</span>
+          </div>
         )}
       </div>
 

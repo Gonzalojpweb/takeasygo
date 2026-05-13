@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, AlertCircle, Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Eye, EyeOff, Loader2, ShieldCheck, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -10,6 +10,13 @@ interface Props {
   hasWebhookSecret: boolean
   accessTokenHint: string | null
   webhookSecretHint: string | null
+  mpOAuth?: {
+    appId: string | null
+    appSecretHint: string | null
+    redirectUri: string | null
+    platformFeePercent: number
+    isConfigured: boolean
+  }
 }
 
 export default function PlatformMPSettings({
@@ -18,6 +25,7 @@ export default function PlatformMPSettings({
   hasWebhookSecret: initialHasSecret,
   accessTokenHint: initialTokenHint,
   webhookSecretHint: initialSecretHint,
+  mpOAuth: initialMpOAuth,
 }: Props) {
   const [accessToken, setAccessToken]     = useState('')
   const [webhookSecret, setWebhookSecret] = useState('')
@@ -33,22 +41,43 @@ export default function PlatformMPSettings({
   const [tokenHint, setTokenHint]             = useState(initialTokenHint)
   const [secretHint, setSecretHint]           = useState(initialSecretHint)
 
+  // OAuth state
+  const [oauthAppId, setOauthAppId]           = useState('')
+  const [oauthAppSecret, setOauthAppSecret]   = useState('')
+  const [oauthRedirectUri, setOauthRedirectUri] = useState('')
+  const [oauthPlatformFee, setOauthPlatformFee] = useState(5)
+  const [showOAuthSecret, setShowOAuthSecret] = useState(false)
+  const [oauthIsConfigured, setOAuthIsConfigured] = useState(initialMpOAuth?.isConfigured ?? false)
+  const [oauthAppIdHint, setOAuthAppIdHint]   = useState(initialMpOAuth?.appId ?? null)
+  const [oauthAppSecretHint, setOAuthAppSecretHint] = useState(initialMpOAuth?.appSecretHint ?? null)
+  const [oauthRedirectUriHint, setOAuthRedirectUriHint] = useState(initialMpOAuth?.redirectUri ?? null)
+  const [oauthPlatformFeeHint, setOAuthPlatformFeeHint] = useState(initialMpOAuth?.platformFeePercent ?? 5)
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    if (!accessToken && !webhookSecret) return
+    if (!accessToken && !webhookSecret && !oauthAppId && !oauthAppSecret && !oauthRedirectUri) return
 
     setError(null)
     setSuccess(false)
     setLoading(true)
 
     try {
+      const body: any = {}
+      if (accessToken) body.accessToken = accessToken
+      if (webhookSecret) body.webhookSecret = webhookSecret
+
+      if (oauthAppId || oauthAppSecret || oauthRedirectUri || oauthPlatformFee !== 5) {
+        body.mpOAuth = {}
+        if (oauthAppId) body.mpOAuth.appId = oauthAppId
+        if (oauthAppSecret) body.mpOAuth.appSecret = oauthAppSecret
+        if (oauthRedirectUri) body.mpOAuth.redirectUri = oauthRedirectUri
+        if (oauthPlatformFee !== 5) body.mpOAuth.platformFeePercent = oauthPlatformFee
+      }
+
       const res = await fetch('/api/superadmin/platform-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...(accessToken   && { accessToken }),
-          ...(webhookSecret && { webhookSecret }),
-        }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Error al guardar')
@@ -58,6 +87,17 @@ export default function PlatformMPSettings({
       if (webhookSecret) { setHasSecret(true); setSecretHint('••••••••' + webhookSecret.slice(-6)); setWebhookSecret('') }
       setIsConfigured(
         (accessToken ? true : hasToken) && (webhookSecret ? true : hasSecret)
+      )
+
+      // OAuth updates
+      if (oauthAppId) { setOAuthAppIdHint(oauthAppId); setOauthAppId('') }
+      if (oauthAppSecret) { setOAuthAppSecretHint('••••••••' + oauthAppSecret.slice(-6)); setOauthAppSecret('') }
+      if (oauthRedirectUri) { setOAuthRedirectUriHint(oauthRedirectUri); setOauthRedirectUri('') }
+      if (oauthPlatformFee !== 5) { setOAuthPlatformFeeHint(oauthPlatformFee) }
+      setOAuthIsConfigured(
+        (oauthAppId ? true : !!oauthAppIdHint) &&
+        (oauthAppSecret ? true : !!oauthAppSecretHint) &&
+        (oauthRedirectUri ? true : !!oauthRedirectUriHint)
       )
     } catch (err: any) {
       setError(err.message)
@@ -172,12 +212,142 @@ export default function PlatformMPSettings({
 
         <button
           type="submit"
-          disabled={loading || (!accessToken && !webhookSecret)}
+          disabled={loading || (!accessToken && !webhookSecret && !oauthAppId && !oauthAppSecret && !oauthRedirectUri)}
           className="w-full py-2.5 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-primary/90 transition-colors"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : 'Guardar credenciales'}
         </button>
       </form>
+
+      {/* OAuth Configuration Section */}
+      <div className="border-t border-border/40">
+        <div className="flex items-center gap-4 px-6 py-5 border-b border-border/40 bg-muted/20">
+          <div className="p-2.5 rounded-xl bg-[#009EE3]/10">
+            <Zap size={20} className="text-[#009EE3]" />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold text-foreground text-sm">OAuth — Split de Pagos (Marketplace)</p>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
+              Configuración para que TakeasyGO cobre comisión automática en cada venta. Credenciales encriptadas.
+            </p>
+          </div>
+          <div className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold',
+            oauthIsConfigured
+              ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+              : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+          )}>
+            {oauthIsConfigured
+              ? <><CheckCircle2 size={12} /> Configurado</>
+              : <><AlertCircle size={12} /> Pendiente</>
+            }
+          </div>
+        </div>
+
+        {/* OAuth Estado actual */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-4 bg-muted/10 border-b border-border/40">
+          <StatusRow label="App ID" hint={oauthAppIdHint} ok={!!oauthAppIdHint} />
+          <StatusRow label="App Secret" hint={oauthAppSecretHint} ok={!!oauthAppSecretHint} />
+          <StatusRow label="Redirect URI" hint={oauthRedirectUriHint} ok={!!oauthRedirectUriHint} />
+          <StatusRow label="Comisión %" hint={`${oauthPlatformFeeHint}%`} ok={true} />
+        </div>
+
+        {/* OAuth Form */}
+        <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
+          <p className="text-xs text-muted-foreground font-medium">
+            Configuración de la aplicación de MercadoPago para OAuth Marketplace. Obtenés estas credenciales en{' '}
+            <a
+              href="https://www.mercadopago.com.ar/developers/panel/app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              mercadopago.com.ar/developers/panel/app
+            </a>
+          </p>
+
+          {/* App ID */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              App ID
+            </label>
+            <input
+              type="text"
+              value={oauthAppId}
+              onChange={(e) => setOauthAppId(e.target.value)}
+              placeholder={oauthAppIdHint ?? 'APP_USR-...'}
+              className="w-full bg-muted/30 border border-border/60 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* App Secret */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              App Secret
+            </label>
+            <div className="relative">
+              <input
+                type={showOAuthSecret ? 'text' : 'password'}
+                value={oauthAppSecret}
+                onChange={(e) => setOauthAppSecret(e.target.value)}
+                placeholder={oauthAppSecretHint ?? '••••••••'}
+                className="w-full bg-muted/30 border border-border/60 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowOAuthSecret((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showOAuthSecret ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Redirect URI */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Redirect URI
+            </label>
+            <input
+              type="text"
+              value={oauthRedirectUri}
+              onChange={(e) => setOauthRedirectUri(e.target.value)}
+              placeholder={oauthRedirectUriHint ?? 'https://tudominio.com/api/mp-oauth/callback'}
+              className="w-full bg-muted/30 border border-border/60 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Esta URL debe estar configurada en tu aplicación de MercadoPago como URL de redirección OAuth.
+            </p>
+          </div>
+
+          {/* Platform Fee Percent */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Porcentaje de Comisión (%)
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={oauthPlatformFee}
+              onChange={(e) => setOauthPlatformFee(parseFloat(e.target.value) || 0)}
+              className="w-full bg-muted/30 border border-border/60 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Porcentaje que TakeasyGO cobra en cada venta cuando el tenant tiene OAuth conectado.
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || (!oauthAppId && !oauthAppSecret && !oauthRedirectUri && oauthPlatformFee === 5)}
+            className="w-full py-2.5 rounded-xl bg-[#009EE3] text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-[#008CCC] transition-colors"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : 'Guardar configuración OAuth'}
+          </button>
+        </form>
+      </div>
 
       {/* Instrucciones webhook */}
       <div className="px-6 pb-5">
