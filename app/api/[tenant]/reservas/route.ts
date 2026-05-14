@@ -8,6 +8,7 @@ import { requireAuth } from '@/lib/apiAuth'
 import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
 import { encrypt, safeDecrypt } from '@/lib/crypto'
+import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 
 function decryptReservation(r: any) {
   return {
@@ -76,7 +77,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { locationId, date, time, partySize, name, phone, notes } = body
+    const { locationId, date, time, partySize, name, phone, email, clientToken, notes } = body
 
     if (!locationId || !date || !time || !partySize || !name || !phone) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
@@ -119,6 +120,8 @@ export async function POST(
       partySize,
       name:  encrypt(name.trim()),
       phone: encrypt(phone.trim()),
+      email: email?.trim() || '',
+      clientToken: clientToken || null,
       notes: notes?.trim() || '',
       status: 'pending_payment',
       payment: {
@@ -127,7 +130,28 @@ export async function POST(
         mercadopagoId: null,
         preferenceId: null,
       },
+      notifications: {},
     })
+
+    const isFree = (location.reservationConfig.minPayment ?? 0) <= 0
+    if (isFree) {
+      await sendReservationConfirmation(
+        {
+          reservationNumber,
+          name: name.trim(),
+          phone: phone.trim(),
+          email: email?.trim(),
+          clientToken: clientToken || undefined,
+          date,
+          time,
+          partySize,
+          notes: notes?.trim() || '',
+          status: 'confirmed',
+        },
+        { name: tenant.name, slug: tenant.slug },
+        location.name
+      ).catch(e => console.error('[reservas] notification error:', e))
+    }
 
     return NextResponse.json({ reservation }, { status: 201 })
   } catch (error) {

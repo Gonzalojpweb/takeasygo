@@ -1,10 +1,12 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { rateLimit } from '@/lib/rateLimit'
 import { safeDecrypt } from '@/lib/crypto'
+import { sendReservationConfirmation, sendReservationCancellation } from '@/lib/reservationNotifications'
 
 function decryptReservation(r: any) {
   return { ...r, name: safeDecrypt(r.name), phone: safeDecrypt(r.phone) }
@@ -61,12 +63,61 @@ export async function PUT(
       return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
     }
 
+    const prev = await Reservation.findOne({ _id: reservaId, tenantId: tenant._id }).lean()
+    if (!prev) return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
+
+    const decryptedPrev = decryptReservation(prev)
+    const updateFields: any = { status }
+    if (status === 'confirmed') {
+      updateFields['notifications.confirmationSent'] = true
+    } else if (status === 'cancelled') {
+      updateFields['notifications.cancellationSent'] = true
+    }
+
     const reservation = await Reservation.findOneAndUpdate(
       { _id: reservaId, tenantId: tenant._id },
-      { $set: { status } },
+      { $set: updateFields },
       { returnDocument: 'after', lean: true }
     )
     if (!reservation) return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
+
+    if (status === 'confirmed' && !prev.notifications?.confirmationSent) {
+      const location = await Location.findById(prev.locationId).lean()
+      sendReservationConfirmation(
+        {
+          reservationNumber: prev.reservationNumber,
+          name: decryptedPrev.name,
+          phone: decryptedPrev.phone,
+          email: prev.email || undefined,
+          clientToken: prev.clientToken || undefined,
+          date: prev.date,
+          time: prev.time,
+          partySize: prev.partySize,
+          notes: prev.notes || '',
+          status: 'confirmed',
+        },
+        { name: tenant.name, slug: tenant.slug },
+        location?.name || undefined
+      ).catch(e => console.error('[reservas] notification error:', e))
+    }
+
+    if (status === 'cancelled' && !prev.notifications?.cancellationSent) {
+      sendReservationCancellation(
+        {
+          reservationNumber: prev.reservationNumber,
+          name: decryptedPrev.name,
+          phone: decryptedPrev.phone,
+          email: prev.email || undefined,
+          clientToken: prev.clientToken || undefined,
+          date: prev.date,
+          time: prev.time,
+          partySize: prev.partySize,
+          notes: prev.notes || '',
+          status: 'cancelled',
+        },
+        { name: tenant.name, slug: tenant.slug }
+      ).catch(e => console.error('[reservas] cancel notification error:', e))
+    }
 
     return NextResponse.json({ reservation: decryptReservation(reservation) })
   } catch (error) {

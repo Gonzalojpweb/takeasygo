@@ -6,11 +6,12 @@ import Reservation from '@/models/Reservation'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import PaymentNotification from '@/models/PaymentNotification'
-import { decrypt } from '@/lib/crypto'
+import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, deductPointsFromOrder } from '@/lib/loyalty'
+import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 
 
 /**
@@ -200,6 +201,34 @@ export async function POST(
         notification.processedAt = new Date()
         await notification.save({ session })
       })
+
+      if (externalRef.startsWith('reserva_') && paymentData.status === 'approved') {
+        const reservaId = externalRef.replace('reserva_', '')
+        const reservation = await Reservation.findById(reservaId).lean()
+        if (reservation && !reservation.notifications?.confirmationSent) {
+          const loc = reservation.locationId ? await (await import('@/models/Location')).default.findById(reservation.locationId).lean() : null
+          sendReservationConfirmation(
+            {
+              reservationNumber: reservation.reservationNumber,
+              name: safeDecrypt(reservation.name),
+              phone: safeDecrypt(reservation.phone),
+              email: reservation.email || undefined,
+              clientToken: reservation.clientToken || undefined,
+              date: reservation.date,
+              time: reservation.time,
+              partySize: reservation.partySize,
+              notes: reservation.notes || '',
+              status: 'confirmed',
+            },
+            { name: tenant.name, slug: tenant.slug },
+            (loc as any)?.name || undefined
+          ).catch(e => console.error('[webhook] reservation confirmation error:', e))
+          await Reservation.updateOne(
+            { _id: reservaId },
+            { $set: { 'notifications.confirmationSent': true } }
+          )
+        }
+      }
 
       return NextResponse.json({ received: true })
     } catch (txError: any) {

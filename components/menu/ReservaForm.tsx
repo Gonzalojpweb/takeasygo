@@ -99,8 +99,11 @@ export default function ReservaForm({ tenant, location }: Props) {
     partySize: 2,
     name: '',
     phone: '',
+    email: '',
     notes: '',
   })
+
+  const clientToken = typeof window !== 'undefined' ? localStorage.getItem('push_client_token') : null
 
   // Fetch available slots when date changes (auto mode)
   useEffect(() => {
@@ -151,7 +154,7 @@ export default function ReservaForm({ tenant, location }: Props) {
       const resRes = await fetch(`/api/${tenant.slug}/reservas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, locationId: location._id }),
+        body: JSON.stringify({ ...form, locationId: location._id, clientToken: clientToken || undefined }),
       })
       if (!resRes.ok) {
         const d = await resRes.json()
@@ -369,6 +372,18 @@ export default function ReservaForm({ tenant, location }: Props) {
               placeholder={t.phonePlaceholder}
               style={inputStyle}
               required
+            />
+          </div>
+
+          {/* Email (optional, for notifications) */}
+          <div>
+            <label style={{ ...labelStyle, opacity: 0.35 }}>EMAIL (para confirmación)</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              placeholder="tucorreo@ejemplo.com"
+              style={inputStyle}
             />
           </div>
 

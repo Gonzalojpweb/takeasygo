@@ -2,9 +2,11 @@ import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 import { requireAuth } from '@/lib/apiAuth'
+import { haversineDistance } from '@/lib/geofencing'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -15,14 +17,18 @@ webpush.setVapidDetails(
 /**
  * POST /api/{tenant}/loyalty/notifications/proximity
  * 
- * Envía notificaciones de proximidad personalizadas a miembros del club
+ * Dos modos:
  * 
- * Body:
- * - locationId (opcional): ID de la locación para filtrar miembros cercanos
- * - title (opcional): Título personalizado de la notificación
- * - body (opcional): Cuerpo personalizado de la notificación
+ * Modo Admin (manual):
+ *   - Requiere auth de admin
+ *   - Envía notificaciones a TODOS los miembros con push subscriptions
+ *   - Body: { locationId?, title?, body? }
  * 
- * Si no se proporcionan title/body, usa mensajes genéricos personalizados con el nombre del club
+ * Modo Miembro (automático, desde browser):
+ *   - No requiere auth de admin
+ *   - Usa clientToken para identificar al miembro
+ *   - Solo envía notificación al miembro que activó el geofencing
+ *   - Body: { clientToken, lat, lng, title?, body? }
  */
 export async function POST(
   request: NextRequest,
@@ -32,33 +38,91 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
-    // Buscar tenant
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    // Verificar autenticación de admin
+    const body = await request.json()
+    const { locationId, title, body: customBody, clientToken, lat, lng } = body
+
+    const clubName = tenant.loyalty?.clubName || tenant.name
+    const defaultRadius = tenant.wallet?.geofenceRadius || 500
+    const defaultMessage = tenant.wallet?.geofenceMessage || `¡Estás cerca de ${clubName}! Pasate a visitarnos.`
+    const notificationTitle = title || `Estás cerca de ${clubName}`
+    const notificationBody = customBody || defaultMessage
+
+    // ── Modo Miembro (geofencing automático desde el browser) ─────────────
+    if (clientToken && typeof lat === 'number' && typeof lng === 'number') {
+      const subscription = await PushSubscription.findOne({ clientToken }).lean()
+      if (!subscription) {
+        return NextResponse.json({ error: 'Suscripción no encontrada' }, { status: 404 })
+      }
+
+      // Verificar que el miembro pertenece a este tenant
+      if (subscription.tenantId?.toString() !== tenant._id.toString()) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+      }
+
+      // Buscar locaciones cercanas dentro del radio configurado
+      const locations = await Location.find({
+        tenantId: tenant._id,
+        isActive: true,
+        'geo.coordinates': { $exists: true },
+      }).lean()
+
+      const userPos = { lat, lng }
+      let nearestLocation: string | null = null
+
+      for (const loc of locations) {
+        const locPos = {
+          lat: loc.geo!.coordinates[1],
+          lng: loc.geo!.coordinates[0],
+        }
+        const dist = haversineDistance(userPos, locPos)
+        if (dist <= defaultRadius) {
+          nearestLocation = loc.name
+          break
+        }
+      }
+
+      if (!nearestLocation) {
+        return NextResponse.json({ message: 'No hay locaciones cercanas', sent: 0 })
+      }
+
+      const memberNotificationTitle = title || `¡Estás cerca de ${nearestLocation}!`
+      const memberNotificationBody = customBody || defaultMessage
+
+      const payload = JSON.stringify({
+        title: memberNotificationTitle,
+        body: memberNotificationBody,
+        url: `/${tenantSlug}/menu`,
+        icon: '/tgo192.png',
+        badge: '/tgo192.png',
+      })
+
+      await webpush.sendNotification(
+        { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
+        payload
+      ).catch(async (err: any) => {
+        if (err?.statusCode === 410) {
+          await PushSubscription.deleteOne({ _id: subscription._id })
+        }
+        throw err
+      })
+
+      return NextResponse.json({ success: true, sent: 1, location: nearestLocation })
+    }
+
+    // ── Modo Admin (manual) ──────────────────────────────────────────────
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const body = await request.json()
-    const { locationId, title, body: customBody } = body
-
-    // Mensaje personalizado con el nombre del club
-    const clubName = tenant.loyalty?.clubName || tenant.name
-    const notificationTitle = title || `Estás cerca de ${clubName}`
-    const notificationBody = customBody || 
-      `No olvides que con tus puntos también puedes visitarnos y canjear. Valida nuestras promociones actuales.`
-
-    // Buscar miembros activos del club
     const membersQuery: any = {
       tenantId: tenant._id,
       status: 'active',
     }
 
-    // Si se proporciona locationId, filtrar por miembros que hayan pedido en esa locación
-    // (esto es una aproximación simple de "cercanía")
     if (locationId) {
       membersQuery['cache.lastLocationId'] = locationId
     }
@@ -67,27 +131,25 @@ export async function POST(
     const memberIds = members.map(m => m._id)
 
     if (memberIds.length === 0) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'No hay miembros activos para enviar notificaciones',
         sent: 0
       })
     }
 
-    // Buscar suscripciones push de estos miembros
     const subscriptions = await PushSubscription.find({
       memberId: { $in: memberIds }
     }).lean()
 
     if (subscriptions.length === 0) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'No hay suscripciones push activas para estos miembros',
         sent: 0
       })
     }
 
-    // Enviar notificaciones a cada suscripción
     let sentCount = 0
     let failedCount = 0
 
@@ -107,7 +169,6 @@ export async function POST(
         )
         sentCount++
       } catch (error: any) {
-        // Si el endpoint expiró (410), eliminar la suscripción
         if (error?.statusCode === 410) {
           await PushSubscription.deleteOne({ _id: sub._id })
         }

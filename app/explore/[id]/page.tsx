@@ -58,6 +58,7 @@ async function fetchRestaurant(id: string, type: string): Promise<NearbyRestaura
       cuisineTypes: loc.cuisineTypes ?? [],
       openingHours: '',
       isOpenNow: checkIsOpenNow(loc.serviceHours),
+      serviceHours: loc.serviceHours,
       tenantSlug: loc.tenant?.slug,
       tenantName: loc.tenant?.name,
       logoUrl: loc.tenant?.branding?.logoUrl ?? '',

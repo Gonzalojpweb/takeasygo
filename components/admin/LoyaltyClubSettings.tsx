@@ -22,6 +22,8 @@ interface Props {
       cardColor: string
       labelColor: string
       logoUrl: string
+      geofenceRadius?: number
+      geofenceMessage?: string
     }
     pointsConfig?: {
       enabled: boolean
@@ -66,6 +68,10 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
   const [pointsRedemptionValue, setPointsRedemptionValue] = useState(initial?.pointsConfig?.pointsRedemptionValue ?? 10)
   const [redemptionEnabled, setRedemptionEnabled] = useState(initial?.pointsConfig?.redemptionEnabled ?? true)
 
+  // Geofencing states
+  const [geofenceRadius, setGeofenceRadius] = useState(500)
+  const [geofenceMessage, setGeofenceMessage] = useState('')
+
   // Proximity notification states
   const [notificationTitle, setNotificationTitle] = useState('')
   const [notificationBody, setNotificationBody] = useState('')
@@ -80,6 +86,8 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
       setCardColor(initial.wallet?.cardColor ?? '#000000')
       setLabelColor(initial.wallet?.labelColor ?? '#FFFFFF')
       setWalletLogoUrl(initial.wallet?.logoUrl ?? '')
+      setGeofenceRadius(initial.wallet?.geofenceRadius ?? 500)
+      setGeofenceMessage(initial.wallet?.geofenceMessage ?? '')
       setPointsEnabled(initial.pointsConfig?.enabled ?? false)
       setPointsMode(initial.pointsConfig?.mode ?? 'fixed_per_currency')
       setPointsPerCurrency(initial.pointsConfig?.pointsPerCurrency ?? 0.1)
@@ -105,7 +113,9 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
             enabled: walletEnabled,
             cardColor,
             labelColor,
-            logoUrl: walletLogoUrl
+            logoUrl: walletLogoUrl,
+            geofenceRadius,
+            geofenceMessage,
           },
           pointsConfig: {
             enabled: pointsEnabled,
@@ -630,7 +640,7 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
         </div>
 
         {/* ─────────────────────────────────────────────────────────────────────
-            NOTIFICACIONES DE PROXIMIDAD
+            GEOFENCING (configuración automática)
         ───────────────────────────────────────────────────────────────────── */}
         {walletEnabled && (
           <div className="pt-6 border-t border-border/40">
@@ -639,14 +649,41 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
                 <Bell size={24} strokeWidth={2.5} />
               </div>
               <div>
-                <h3 className="text-base font-bold">Notificaciones de Proximidad</h3>
+                <h3 className="text-base font-bold">Geofencing y Proximidad</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Envía notificaciones personalizadas a miembros del club
+                  Notificaciones automáticas cuando un miembro está cerca
                 </p>
               </div>
             </div>
 
             <div className="space-y-4 p-6 rounded-2xl bg-muted/30 border border-border/40">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                    Radio (metros)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={geofenceRadius}
+                    onChange={e => setGeofenceRadius(Number(e.target.value))}
+                    min={50}
+                    max={5000}
+                    className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                    Mensaje por defecto
+                  </Label>
+                  <Input
+                    value={geofenceMessage}
+                    onChange={e => setGeofenceMessage(e.target.value)}
+                    placeholder={`¡Estás cerca de ${clubName}!`}
+                    maxLength={120}
+                    className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
                   Título (opcional)

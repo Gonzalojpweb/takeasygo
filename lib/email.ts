@@ -12,6 +12,17 @@ function createTransport() {
   })
 }
 
+export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  const from = process.env.SMTP_FROM ?? process.env.SMTP_USER
+  const transporter = createTransport()
+  await transporter.sendMail({
+    from: `Takeasygo <${from}>`,
+    to,
+    subject,
+    html,
+  })
+}
+
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   const from = process.env.SMTP_FROM ?? process.env.SMTP_USER
 

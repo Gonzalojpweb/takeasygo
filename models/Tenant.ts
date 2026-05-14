@@ -61,6 +61,9 @@ export interface ITenant extends Document {
     appleTeamIdentifier?: string      // Team ID de Apple Developer
     /** Configuración Google Wallet */
     googleIssuerId?: string             // Issuer ID de Google Cloud
+    /** Geofencing */
+    geofenceRadius?: number     // Radio en metros para notificaciones de proximidad
+    geofenceMessage?: string    // Mensaje personalizado de proximidad
   }
   mercadopago: {
     accessToken: string | null
@@ -249,6 +252,8 @@ const TenantSchema = new Schema<ITenant>(
       applePassTypeIdentifier: { type: String, default: null },
       appleTeamIdentifier:     { type: String, default: null },
       googleIssuerId:          { type: String, default: null },
+      geofenceRadius:  { type: Number, default: 500 },
+      geofenceMessage: { type: String, default: '¡Estás cerca! Pasate a visitarnos.' },
     },
     mercadopago: {
       accessToken: { type: String, default: null },

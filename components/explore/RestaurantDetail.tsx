@@ -2,10 +2,12 @@
 
 import { useEffect, useRef } from 'react'
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
-import { MapPin, Clock, Phone, Utensils, ExternalLink, ArrowLeft, ShoppingBag, Share2, Navigation, Star } from 'lucide-react'
+import { MapPin, Clock, Phone, Utensils, ExternalLink, ArrowLeft, ShoppingBag, Share2, Navigation, Star, ClockAlert } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { BlurFade } from '@/components/ui/blur-fade'
+import WeeklySchedule from './WeeklySchedule'
+import { getClosingTime, getNextOpenTime } from '@/lib/service-hours'
 import 'leaflet/dist/leaflet.css'
 
 interface Props {
@@ -186,11 +188,34 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
               <MapPin size={14} className="shrink-0 mt-0.5 text-[#5a524d]" />
               {r.address}
             </p>
-            {r.openingHours && (
+            {r.isOpenNow === true && r.serviceHours && (
+              <p className="text-[#f7f4f2] text-sm flex items-start gap-2.5">
+                <Clock size={14} className="shrink-0 mt-0.5 text-[#10b981]" />
+                {(() => {
+                  const closing = getClosingTime(r.serviceHours)
+                  return closing ? `Abierto — Cierra a las ${closing}` : 'Abierto ahora'
+                })()}
+              </p>
+            )}
+            {r.isOpenNow === false && r.serviceHours && (
+              <p className="text-[#f7f4f2] text-sm flex items-start gap-2.5">
+                <ClockAlert size={14} className="shrink-0 mt-0.5 text-[#ef4444]" />
+                {(() => {
+                  const next = getNextOpenTime(r.serviceHours)
+                  return next ? `Cerrado — Abre ${next}` : 'Cerrado ahora'
+                })()}
+              </p>
+            )}
+            {r.openingHours && !r.serviceHours && (
               <p className="text-[#f7f4f2] text-sm flex items-start gap-2.5">
                 <Clock size={14} className="shrink-0 mt-0.5 text-[#5a524d]" />
                 {r.openingHours}
               </p>
+            )}
+            {r.serviceHours && (
+              <div className="pl-[26px]">
+                <WeeklySchedule serviceHours={r.serviceHours} />
+              </div>
             )}
             {r.cuisineTypes && r.cuisineTypes.length > 0 && (
               <p className="text-[#8a7f7a] text-sm flex items-start gap-2.5">
