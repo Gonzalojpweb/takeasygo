@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, ShoppingBag, Percent, ArrowRight, Star, CheckCircle2, Info, Sparkles, Gift } from 'lucide-react'
+import { X, Gift, Star, Info, CheckCircle2, ArrowRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface QrPromoData {
@@ -61,7 +61,7 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
     try {
       const res = await fetch(`/api/${tenantSlug}/qr-promo?source=${source}`)
       const data = await res.json()
-      
+
       if (data.show && data.promo) {
         setPromo(data.promo)
         setShow(true)
@@ -130,146 +130,128 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
 
   if (loading || !show || !promo || !styles) return null
 
-  const accentColor = styles.primaryColor || '#F74211'
+  const accentColor = styles.primaryColor || '#10b981'
 
   return (
     <AnimatePresence>
       {show && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 overflow-y-auto">
           {/* Backdrop */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+            className="absolute inset-0 bg-black/60 backdrop-blur-xl"
           />
 
-          {/* Banner Card */}
+          {/* Modal Card */}
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            initial={{ scale: 0.92, opacity: 0, y: 30 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-            className="relative w-full max-w-[400px] bg-white shadow-2xl overflow-hidden border border-slate-100"
-            style={{ borderRadius: styles.borderRadius || '24px' }}
+            exit={{ scale: 0.92, opacity: 0, y: 30 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+            className="relative w-full max-w-[380px] bg-white shadow-2xl overflow-hidden"
+            style={{ borderRadius: styles.borderRadius || '28px' }}
           >
             {/* Close Button */}
-            <button 
+            <button
               onClick={handleClose}
-              className="absolute top-3 right-3 z-50 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all backdrop-blur-sm border border-white/30 active:scale-90"
+              className="absolute top-4 right-4 z-50 w-9 h-9 flex items-center justify-center rounded-full bg-white/90 hover:bg-white shadow-md text-slate-500 hover:text-slate-900 transition-all active:scale-90"
             >
-              <X size={18} strokeWidth={2.5} />
+              <X size={20} strokeWidth={3} />
             </button>
 
-            {/* HEADER INTEGRATED */}
-            <div 
-              className="h-44 sm:h-52 relative flex items-center justify-center overflow-hidden"
-              style={{ 
-                background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%)` 
+            {/* Header con gradiente mejorado */}
+            <div
+              className="h-52 relative flex items-center justify-center overflow-hidden"
+              style={{
+                background: `linear-gradient(135deg, ${accentColor} 0%, #065f46 100%)`
               }}
             >
-              {/* Decorative background circles */}
-              <div className="absolute top-[-10%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-              <div className="absolute bottom-[-10%] left-[-10%] w-32 h-32 bg-black/10 rounded-full blur-2xl" />
+              <div className="absolute inset-0 bg-[radial-gradient(at_30%_20%,rgba(255,255,255,0.25)_0%,transparent_50%)]" />
 
-              <div className="relative flex items-center gap-6 px-6 w-full">
-                {/* Image Container */}
-                <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative">
-                  <div className="absolute inset-0 bg-white/20 rounded-2xl blur-md" />
-                  <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-white/40 shadow-lg bg-white/10">
-                    {promo.imageUrl ? (
-                      <img 
-                        src={promo.imageUrl} 
-                        alt={promo.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white/90">
-                        {promo.type === 'discount' && <Gift size={40} strokeWidth={1.5} />}
-                        {promo.type === 'loyalty' && <Star size={40} className="fill-white" />}
-                        {promo.type === 'info' && <Info size={40} />}
-                      </div>
-                    )}
+              <div className="relative flex flex-col items-center text-center px-8">
+                {promo.imageUrl ? (
+                  <img
+                    src={promo.imageUrl}
+                    alt={promo.title}
+                    className="w-24 h-24 object-cover rounded-2xl shadow-xl border-4 border-white/30 mb-5"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/30 mb-5">
+                    {promo.type === 'discount' && <Gift size={52} className="text-white" />}
+                    {promo.type === 'loyalty' && <Star size={52} className="text-white fill-white" />}
+                    {promo.type === 'info' && <Info size={52} className="text-white" />}
                   </div>
-                </div>
+                )}
 
-                {/* Promo Text Highlight */}
-                <div className="flex flex-col text-white">
-                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">
-                    Solo por hoy
-                  </p>
-                  {promo.type === 'discount' ? (
-                    <div className="flex flex-col">
-                      <div className="flex items-baseline leading-none">
-                        <span className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-                          {promo.discountPercentage}%
-                        </span>
-                        <span className="text-xl font-bold ml-1">OFF</span>
-                      </div>
-                      <div className="mt-1 bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider w-fit">
-                        Sin tope de reintegro
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-2xl font-bold leading-tight tracking-tight">
-                      {promo.title}
-                    </span>
-                  )}
-                </div>
+                <p className="text-white/90 text-xs font-bold tracking-[2px] uppercase mb-1">SOLO POR HOY</p>
+                
+                {promo.type === 'discount' ? (
+                  <div className="flex items-baseline justify-center gap-1 text-white">
+                    <span className="text-6xl font-black tracking-tighter">{promo.discountPercentage}</span>
+                    <span className="text-4xl font-bold -mt-2">%</span>
+                    <span className="text-3xl font-semibold opacity-90 ml-2">OFF</span>
+                  </div>
+                ) : (
+                  <h2 className="text-3xl font-bold text-white leading-tight">{promo.title}</h2>
+                )}
               </div>
             </div>
 
-            {/* BODY SECTION */}
-            <div className="p-6 sm:p-8 text-center bg-white">
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 leading-tight">
+            {/* Body */}
+            <div className="p-8 text-center">
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">
                 {promo.title}
               </h3>
-              <p className="text-sm sm:text-base text-slate-500 font-medium leading-relaxed mb-8 px-2">
-                {promo.type === 'discount' 
+
+              <p className="text-slate-600 leading-relaxed mb-8">
+                {promo.type === 'discount'
                   ? promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)
                   : promo.subtitle}
               </p>
 
-              {/* Loyalty Form */}
+              {/* Formulario Loyalty */}
               {promo.type === 'loyalty' && !registered && (
-                <form onSubmit={handleRegister} className="space-y-3 mb-8">
-                  <input 
+                <form onSubmit={handleRegister} className="space-y-4 mb-8">
+                  <input
                     required
                     type="text"
                     placeholder="Nombre completo"
                     value={form.name}
                     onChange={e => setForm(s => ({ ...s, name: e.target.value }))}
-                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500/30 focus:bg-white transition-all outline-none"
+                    className="w-full h-14 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-base focus:border-emerald-400 focus:bg-white transition-all outline-none"
                   />
-                  <div className="flex gap-2">
+                  
+                  <div className="flex gap-3">
                     <select
                       value={form.countryCode}
                       onChange={e => setForm(s => ({ ...s, countryCode: e.target.value }))}
-                      className="h-12 w-20 px-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:border-blue-500/30 outline-none text-center"
+                      className="h-14 w-24 px-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:border-emerald-400 outline-none"
                     >
-                      <option value="+54">🇦🇷</option>
-                      <option value="+598">🇺🇾</option>
-                      <option value="+56">🇨🇱</option>
-                      <option value="+55">🇧🇷</option>
-                      <option value="+51">🇵🇪</option>
-                      <option value="+52">🇲🇽</option>
-                      <option value="+1">🇺🇸</option>
+                      <option value="+54">🇦🇷 +54</option>
+                      <option value="+598">🇺🇾 +598</option>
+                      <option value="+56">🇨🇱 +56</option>
+                      <option value="+55">🇧🇷 +55</option>
                     </select>
-                    <input 
+                    
+                    <input
                       required
                       type="tel"
-                      placeholder="WhatsApp"
+                      placeholder="Número de WhatsApp"
                       value={form.phone}
                       onChange={e => setForm(s => ({ ...s, phone: e.target.value.replace(/\D/g, '') }))}
-                      className="flex-1 h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500/30 focus:bg-white outline-none"
+                      className="flex-1 h-14 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-base focus:border-emerald-400 focus:bg-white outline-none"
                     />
                   </div>
-                  {error && <p className="text-[10px] text-red-600 font-bold">{error}</p>}
+
+                  {error && <p className="text-red-600 text-sm font-medium">{error}</p>}
+
                   <button
                     type="submit"
                     disabled={registering}
-                    className="w-full h-12 rounded-xl text-white font-bold text-base shadow-lg shadow-black/10 transition-all active:scale-[0.98] disabled:opacity-50"
+                    className="w-full h-14 rounded-2xl text-white font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.985] disabled:opacity-70"
                     style={{ backgroundColor: accentColor }}
                   >
                     {registering ? 'Procesando...' : promo.buttonText}
@@ -277,46 +259,40 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
                 </form>
               )}
 
-              {/* Success Message */}
+              {/* Success State */}
               {registered && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center gap-3 p-6 bg-emerald-50 rounded-2xl mb-8 border border-emerald-100"
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="py-8 px-6 bg-emerald-50 rounded-3xl border border-emerald-100 mb-8"
                 >
-                  <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-md">
-                    <CheckCircle2 className="text-white" size={24} />
-                  </div>
-                  <div className="text-center">
-                    <p className="font-bold text-emerald-900 text-lg">¡Registro exitoso!</p>
-                    <p className="text-xs text-emerald-700 font-medium">Bienvenido a nuestro club exclusivo.</p>
-                  </div>
+                  <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                  <p className="text-2xl font-bold text-emerald-900">¡Registro exitoso!</p>
+                  <p className="text-emerald-700 mt-1">Bienvenido al club</p>
                 </motion.div>
               )}
 
-              {/* ACTION BUTTONS */}
+              {/* Botón principal para otros tipos */}
               {(promo.type !== 'loyalty' || registered) && (
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={handleClose}
-                    className="w-full h-12 rounded-xl text-white font-bold text-base shadow-lg shadow-black/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                    style={{ backgroundColor: accentColor }}
-                  >
-                    {promo.buttonText}
-                    <ArrowRight size={18} strokeWidth={2.5} />
-                  </button>
-                  
-                  <button
-                    onClick={handleClose}
-                    className="w-full h-10 rounded-lg text-slate-400 font-semibold text-xs hover:text-slate-600 hover:bg-slate-50 transition-all"
-                  >
-                    Cerrar ventana
-                  </button>
-                </div>
+                <button
+                  onClick={handleClose}
+                  className="w-full h-14 rounded-2xl text-white font-bold text-lg shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-3 transition-all active:scale-[0.985]"
+                  style={{ backgroundColor: accentColor }}
+                >
+                  {promo.buttonText}
+                  <ArrowRight size={22} />
+                </button>
               )}
 
+              <button
+                onClick={handleClose}
+                className="mt-6 text-sm text-slate-400 hover:text-slate-500 font-medium transition-colors"
+              >
+                Cerrar
+              </button>
+
               {promo.termsText && (
-                <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest mt-8 leading-relaxed max-w-[240px] mx-auto">
+                <p className="text-[10px] text-slate-400 mt-8 leading-relaxed px-4">
                   {promo.termsText}
                 </p>
               )}
@@ -326,5 +302,4 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
       )}
     </AnimatePresence>
   )
-
 }
