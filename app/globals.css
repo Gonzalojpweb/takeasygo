@@ -116,7 +116,7 @@
   --card-foreground: oklch(0.13 0.01 285);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.13 0.01 285);
-  --primary: hsl(17, 100%, 48%);
+  --primary: #f54500;
   /* #f14722 */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.94 0.01 285);
@@ -125,7 +125,7 @@
   --muted-foreground: oklch(0.40 0.01 285);
   --accent: oklch(0.94 0.01 285);
   --accent-foreground: oklch(0.13 0.01 285);
-  --destructive: oklch(0.5 0.2 27);
+  --destructive: #bb0916;
   --border: oklch(0.13 0.01 285 / 12%);
   /* More visible border */
   --input: oklch(0.13 0.01 285 / 12%);
