@@ -11,6 +11,8 @@ const MAX_RESULTS      = 20    // por colección
 
 // ── Tipos del response público ───────────────────────────────────────────────
 
+export type ServiceSlot = { days: number[]; open: string; close: string }
+
 export interface NearbyRestaurant {
   id: string
   type: 'network' | 'listed'
@@ -23,6 +25,7 @@ export interface NearbyRestaurant {
   cuisineTypes: string[]
   openingHours: string
   isOpenNow: boolean | null    // null = sin horarios estructurados (directorio)
+  serviceHours?: { takeaway: ServiceSlot[] }
   // Solo en type = 'network'
   tenantSlug?: string
   tenantName?: string
@@ -219,6 +222,7 @@ export async function GET(request: NextRequest) {
         cuisineTypes: loc.cuisineTypes ?? [],
         openingHours: '',
         isOpenNow,
+        serviceHours: loc.serviceHours,
         tenantSlug: loc.tenant?.slug,
         tenantName: loc.tenant?.name,
         logoUrl: loc.tenant?.branding?.logoUrl ?? '',

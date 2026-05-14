@@ -139,6 +139,14 @@ export async function PUT(
         update['wallet.logoUrl'] = String(wallet.logoUrl).trim()
         changes['wallet.logoUrl'] = { from: tenant.wallet?.logoUrl, to: wallet.logoUrl }
       }
+      if (wallet.geofenceRadius !== undefined) {
+        update['wallet.geofenceRadius'] = Number(wallet.geofenceRadius)
+        changes['wallet.geofenceRadius'] = { from: tenant.wallet?.geofenceRadius, to: wallet.geofenceRadius }
+      }
+      if (wallet.geofenceMessage !== undefined) {
+        update['wallet.geofenceMessage'] = String(wallet.geofenceMessage).trim()
+        changes['wallet.geofenceMessage'] = { from: tenant.wallet?.geofenceMessage, to: wallet.geofenceMessage }
+      }
     }
 
     // Points config settings

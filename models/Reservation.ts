@@ -9,13 +9,20 @@ export interface IReservation extends Document {
   partySize: number
   name: string
   phone: string
+  email?: string
   notes: string
+  clientToken?: string
   status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show'
   payment: {
     amount: number
     status: 'pending' | 'approved' | 'rejected'
     mercadopagoId: string | null
     preferenceId: string | null
+  }
+  notifications: {
+    confirmationSent?: boolean
+    reminderSent?: boolean
+    cancellationSent?: boolean
   }
   createdAt: Date
   updatedAt: Date
@@ -31,7 +38,9 @@ const ReservationSchema = new Schema<IReservation>(
     partySize: { type: Number, required: true, min: 1 },
     name: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
+    email: { type: String, default: '', trim: true },
     notes: { type: String, default: '', trim: true },
+    clientToken: { type: String, default: null },
     status: {
       type: String,
       enum: ['pending_payment', 'confirmed', 'cancelled', 'seated', 'no_show'],
@@ -42,6 +51,11 @@ const ReservationSchema = new Schema<IReservation>(
       status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
       mercadopagoId: { type: String, default: null },
       preferenceId: { type: String, default: null },
+    },
+    notifications: {
+      confirmationSent: { type: Boolean, default: false },
+      reminderSent: { type: Boolean, default: false },
+      cancellationSent: { type: Boolean, default: false },
     },
   },
   { timestamps: true }

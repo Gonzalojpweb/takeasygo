@@ -19,10 +19,10 @@ function distLabel(m: number) {
 
 // ── SVG pin shapes ────────────────────────────────────────────────────────────
 
-function pinSvg(fill: string, isNetwork: boolean, logoUrl?: string) {
+function pinSvg(fill: string, isNetwork: boolean, logoUrl?: string, opacity = 1) {
   if (isNetwork && logoUrl) {
     return `
-      <div style="position:relative; width:40px; height:40px; transform:translate(-20px, -40px)">
+      <div style="position:relative; width:40px; height:40px; transform:translate(-20px, -40px); opacity:${opacity}">
         <svg width="40" height="48" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 4px 8px rgba(0,0,0,0.4))">
           <path d="M20 48C20 48 40 34 40 20C40 9.0 31.0 0 20 0C9.0 0 0 9.0 0 20C0 34 20 48 20 48Z" fill="${fill}"/>
         </svg>
@@ -33,7 +33,7 @@ function pinSvg(fill: string, isNetwork: boolean, logoUrl?: string) {
   }
 
   return `
-    <div style="transform:translate(-14px, -36px)">
+    <div style="transform:translate(-14px, -36px); opacity:${opacity}">
       <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg"
            style="filter:drop-shadow(0 3px 6px rgba(0,0,0,0.3))">
         <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z"
@@ -109,6 +109,17 @@ function HoverCard({ r, pos, containerW, containerH }: {
               <Clock size={10} /> ~{r.estimatedPickupTime} min
             </p>
           )}
+          {r.isOpenNow === true && (
+            <p className="text-[#10b981] text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+              Abierto ahora
+            </p>
+          )}
+          {r.isOpenNow === false && (
+            <p className="text-[#ef4444] text-[10px] font-bold uppercase tracking-wider">
+              Cerrado ahora
+            </p>
+          )}
           {isNetwork && r.isOperational === false && (
             <p className="text-[#f59e0b] text-[10px] font-bold uppercase tracking-wider">
               ✨ Catálogo / Próximamente
@@ -160,6 +171,17 @@ function BottomSheet({ r, onClose, onNavigate }: {
                 </div>
                 <h3 className="font-bold text-[#f7f4f2] text-xl leading-tight truncate">{r.name}</h3>
                 <p className="text-[#5a524d] text-sm mt-0.5 truncate">{r.address}</p>
+                {r.isOpenNow === true && (
+                  <p className="text-[#10b981] text-[10px] font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+                    Abierto ahora
+                  </p>
+                )}
+                {r.isOpenNow === false && (
+                  <p className="text-[#ef4444] text-[10px] font-bold uppercase tracking-wider mt-1">
+                    Cerrado ahora
+                  </p>
+                )}
                 {isNetwork && r.isOperational === false && (
                    <p className="text-[#f59e0b] text-[10px] font-black uppercase tracking-widest mt-1 animate-pulse">
                      Próximamente takeaway
@@ -277,10 +299,12 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
         const fill = isNetwork 
           ? (isOperational ? '#10b981' : '#f59e0b') 
           : '#5a524d'
+        const opacity = isClosed ? 0.55 : 1
+        const pinColor = isClosed ? '#5a524d' : fill
 
         const icon = L.divIcon({
           className: '',
-          html: pinSvg(fill, isNetwork, r.logoUrl),
+          html: pinSvg(pinColor, isNetwork, r.logoUrl, opacity),
           iconSize: isNetwork ? [40, 48] : [28, 36],
         })
 
