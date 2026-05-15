@@ -42,6 +42,7 @@ interface ClubData {
   member: MemberData | null
   clubEnabled: boolean
   walletEnabled: boolean
+  appleWalletAvailable?: boolean
   clubName: string
   welcomeMessage: string
   message?: string
@@ -345,6 +346,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
                     publicId={clubData.member.publicId}
                     points={clubData.member.points}
                     tier={clubData.member.tier}
+                    appleAvailable={clubData.appleWalletAvailable}
                   />
                 </div>
               )}
