@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X } from 'lucide-react'
+import { terminos, privacidad } from '@/lib/legal-content'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { CartItem } from '@/types/cart'
@@ -63,6 +64,7 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   const [scheduledOrdersConfig, setScheduledOrdersConfig] = useState<ScheduledOrdersConfig | null>(null)
   const [scheduleOrder, setScheduleOrder] = useState(false)
   const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(null)
+  const [activeLegalModal, setActiveLegalModal] = useState<'terminos' | 'privacidad' | null>(null)
 
   useEffect(() => {
     const saved = sessionStorage.getItem('cart')
@@ -703,8 +705,54 @@ async function handleSubmit(e: React.FormEvent) {
           >
             {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : '💳 Pagar con MercadoPago'}
           </button>
+
+          {/* Términos y Privacidad */}
+          <div className="mt-4 text-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setActiveLegalModal('terminos')}
+              className="text-xs text-zinc-400 hover:text-zinc-600 underline underline-offset-2 transition-colors"
+            >
+              Términos y Condiciones
+            </button>
+            <span className="text-xs text-zinc-300">·</span>
+            <button
+              type="button"
+              onClick={() => setActiveLegalModal('privacidad')}
+              className="text-xs text-zinc-400 hover:text-zinc-600 underline underline-offset-2 transition-colors"
+            >
+              Política de Privacidad
+            </button>
+          </div>
         </form>
       </div>
+
+      {/* Modal legal */}
+      {activeLegalModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl max-h-[80vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="sticky top-0 bg-white border-b border-zinc-100 p-4 flex items-center justify-between rounded-t-3xl z-10">
+              <h2 className="font-bold text-base text-zinc-900">
+                {activeLegalModal === 'terminos' ? 'Términos y Condiciones' : 'Política de Privacidad'}
+              </h2>
+              <button
+                onClick={() => setActiveLegalModal(null)}
+                className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {(activeLegalModal === 'terminos' ? terminos : privacidad).map((section, i) => (
+                <div key={i}>
+                  <h3 className="font-bold text-sm text-zinc-900 mb-1">{section.title}</h3>
+                  <p className="text-sm text-zinc-500 leading-relaxed">{section.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
