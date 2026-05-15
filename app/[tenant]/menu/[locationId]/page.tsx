@@ -362,9 +362,14 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
                 style={{ borderRadius: br }}
               >
                 <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, flexShrink: 0, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
-                  <path d="M3 11l19-9-9 19-2-8-8-2z" />
+                  <path d="M8 6h13" />
+                  <path d="M8 12h13" />
+                  <path d="M8 18h13" />
+                  <path d="M3 6h.01" />
+                  <path d="M3 12h.01" />
+                  <path d="M3 18h.01" />
                 </svg>
-                Consumir en Local
+                Menú
               </Link>
             )}
             {modes.includes('takeaway') && (
