@@ -188,7 +188,13 @@ export async function POST(
           hasCategoryDiscount: false,
         })
       } else {
-        const menuItem = menuItemMap.get(clientItem.menuItemId?.toString())
+        if (!clientItem.menuItemId) {
+          return NextResponse.json(
+            { error: 'Item inválido: falta menuItemId' },
+            { status: 400 }
+          )
+        }
+        const menuItem = menuItemMap.get(clientItem.menuItemId.toString())
         if (!menuItem) {
           return NextResponse.json(
             { error: `Item no disponible o no existe: ${clientItem.menuItemId}` },
