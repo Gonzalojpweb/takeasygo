@@ -247,7 +247,10 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="p-4">
-              <AddressSelector onClose={() => setShowAddressSelector(false)} />
+              <AddressSelector onClose={() => {
+                setShowAddressSelector(false)
+                router.push('/explore')
+              }} />
             </div>
           </div>
         </div>
