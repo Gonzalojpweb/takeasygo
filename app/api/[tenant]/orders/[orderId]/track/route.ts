@@ -115,6 +115,7 @@ export async function GET(
     return NextResponse.json({
       status:           currentStatus,
       orderNumber:      order.orderNumber,
+      confirmedAt:      order.statusTimestamps?.confirmedAt ?? null,
       estimatedReadyAt: order.statusTimestamps?.estimatedReadyAt ?? null,
       readyAt:          order.statusTimestamps?.readyAt ?? null,
       orderTiming:      order.orderTiming ?? 'immediate',

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
-import { Calendar, Star, Sparkles } from 'lucide-react'
+import { Calendar, Star, Sparkles, Lock } from 'lucide-react'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 
@@ -85,7 +85,9 @@ export default function OrderTracker({
   clubName,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
+  const [confirmedAt, setConfirmedAt]     = useState<string | null>(null)
   const [estimatedReadyAt, setEstimatedReadyAt] = useState(initialEstimatedReadyAt)
+  const [cancellationClosed, setCancellationClosed] = useState(false)
   const [countdown, setCountdown]         = useState('')
   const [lastChecked, setLastChecked]     = useState<Date>(new Date())
   const [orderTiming, setOrderTiming]     = useState(initialOrderTiming)
@@ -101,6 +103,7 @@ export default function OrderTracker({
       if (!res.ok) return
       const data = await res.json()
       setStatus(data.status)
+      setConfirmedAt(data.confirmedAt ?? null)
       setEstimatedReadyAt(data.estimatedReadyAt ?? null)
       setOrderTiming(data.orderTiming ?? 'immediate')
       setScheduledPickupAt(data.scheduledPickupAt ?? null)
@@ -154,6 +157,29 @@ export default function OrderTracker({
     const interval = setInterval(updateScheduleCountdown, 30_000)
     return () => clearInterval(interval)
   }, [isScheduledPending, scheduledPickupAt])
+
+  // Evaluar si la ventana de cancelación está cerrada
+  useEffect(() => {
+    const check = () => {
+      if (!confirmedAt) {
+        setCancellationClosed(false)
+        return
+      }
+      if (status === 'preparing') {
+        setCancellationClosed(true)
+        return
+      }
+      if (status === 'confirmed') {
+        const elapsed = Date.now() - new Date(confirmedAt).getTime()
+        setCancellationClosed(elapsed >= 180_000)
+        return
+      }
+      setCancellationClosed(false)
+    }
+    check()
+    const interval = setInterval(check, 5_000)
+    return () => clearInterval(interval)
+  }, [confirmedAt, status])
 
   const info = STATUS_INFO[status] ?? STATUS_INFO['pending']
   const currentStep = STATUS_STEPS.indexOf(status)
@@ -248,6 +274,28 @@ export default function OrderTracker({
                 width: `${(currentStep / (STATUS_STEPS.length - 1)) * 100}%`,
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje de cancelación cerrada */}
+      {cancellationClosed && (
+        <div className="mb-8 rounded-2xl p-5 border"
+          style={{ backgroundColor: primaryColor + '08', borderColor: primaryColor + '25' }}>
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+              style={{ backgroundColor: primaryColor + '15' }}>
+              <Lock size={16} style={{ color: primaryColor }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm" style={{ color: textColor }}>
+                Ventana de cancelación cerrada
+              </p>
+              <p className="text-xs mt-1 leading-relaxed" style={{ opacity: 0.6 }}>
+                Tu pedido ya está en preparación y no puede ser cancelado.
+                Si necesitás asistencia, contactá al restaurante directamente.
+              </p>
+            </div>
           </div>
         </div>
       )}
