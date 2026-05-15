@@ -92,6 +92,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
     const newPending = incoming.filter(o => o.status === 'pending')
     if (newPending.length > 0) {
       playSound()
+      setTimeout(() => playSound(), 500)
       setNewOrderIds(prev => new Set([...prev, ...newPending.map(o => o._id)]))
       toast(`🛍️ ${newPending.length === 1 ? 'Nuevo pedido' : `${newPending.length} nuevos pedidos`}`, {
         description: newPending.map(o => `#${o.orderNumber} · ${o.customer.name}`).join(' — '),
@@ -141,6 +142,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
               position: 'top-center',
             })
             playSound()
+            setTimeout(() => playSound(), 500)
           }
         })
         return next
