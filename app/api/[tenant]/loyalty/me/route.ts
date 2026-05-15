@@ -49,7 +49,8 @@ export async function GET(
       return NextResponse.json({ 
         member: null,
         clubEnabled: false,
-        walletEnabled: tenant.wallet?.enabled ?? false
+        walletEnabled: tenant.wallet?.enabled ?? false,
+        appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier)
       })
     }
 
@@ -64,6 +65,7 @@ export async function GET(
         member: null,
         clubEnabled: true,
         walletEnabled: tenant.wallet?.enabled ?? false,
+        appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier),
         message: 'No sos miembro del club de fidelización de este restaurante'
       })
     }
@@ -79,6 +81,7 @@ export async function GET(
         },
         clubEnabled: true,
         walletEnabled: tenant.wallet?.enabled ?? false,
+        appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier),
         message: member.status === 'blocked' ? 'Tu membresía está bloqueada' : 'Tu membresía está inactiva'
       })
     }
@@ -101,6 +104,7 @@ export async function GET(
       },
       clubEnabled: true,
       walletEnabled: tenant.wallet?.enabled ?? false,
+      appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier),
       clubName: tenant.loyalty.clubName || `Club ${tenant.name}`,
       welcomeMessage: tenant.loyalty.welcomeMessage || ''
     })

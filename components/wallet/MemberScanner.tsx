@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,9 +14,12 @@ import {
   XCircle,
   Loader2,
   Plus,
-  Minus
+  Minus,
+  Camera,
+  CameraOff
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Html5Qrcode } from 'html5-qrcode'
 
 interface MemberData {
   id: string
@@ -48,6 +51,20 @@ export default function MemberScanner({ tenantSlug }: MemberScannerProps) {
   const [orderTotal, setOrderTotal] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
+
+  // Cámara QR
+  const [cameraActive, setCameraActive] = useState(false)
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+  const cameraContainerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        try { scannerRef.current.stop() } catch {}
+        try { scannerRef.current.clear() } catch {}
+      }
+    }
+  }, [])
 
   // Buscar miembro por publicId
   const searchMember = async () => {
@@ -176,6 +193,46 @@ export default function MemberScanner({ tenantSlug }: MemberScannerProps) {
     }
   }
 
+  // Iniciar escaneo con cámara
+  const startCamera = async () => {
+    setCameraActive(true)
+    setError('')
+
+    try {
+      const scanner = new Html5Qrcode('qr-reader')
+      scannerRef.current = scanner
+
+      await scanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        (decodedText) => {
+          stopCamera()
+          setPublicId(decodedText)
+          setTimeout(() => searchMember(), 300)
+        },
+        () => {}
+      )
+    } catch (err) {
+      setError('No se pudo acceder a la cámara')
+      setCameraActive(false)
+    }
+  }
+
+  // Detener escaneo
+  const stopCamera = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop()
+        scannerRef.current.clear()
+      } catch {}
+      scannerRef.current = null
+    }
+    setCameraActive(false)
+  }
+
   const getTierColor = (tier: string) => {
     switch (tier) {
       case 'gold': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
@@ -215,6 +272,36 @@ export default function MemberScanner({ tenantSlug }: MemberScannerProps) {
               )}
             </Button>
           </div>
+
+          {/* Escáner QR con cámara */}
+          {cameraActive && (
+            <div className="space-y-3">
+              <div
+                id="qr-reader"
+                ref={cameraContainerRef}
+                className="w-full aspect-square max-w-[300px] mx-auto overflow-hidden rounded-xl bg-zinc-900"
+              />
+              <Button
+                onClick={stopCamera}
+                variant="outline"
+                className="w-full h-10 text-sm"
+              >
+                <CameraOff size={16} className="mr-2" />
+                Detener escaneo
+              </Button>
+            </div>
+          )}
+
+          {!cameraActive && (
+            <Button
+              onClick={startCamera}
+              variant="outline"
+              className="w-full h-10 text-sm"
+            >
+              <Camera size={16} className="mr-2" />
+              Escanear con cámara
+            </Button>
+          )}
 
           {/* Estados */}
           {scanState === 'not_found' && (

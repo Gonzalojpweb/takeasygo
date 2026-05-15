@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { QRCodeSVG } from 'qrcode.react'
 import { Smartphone, QrCode, Loader2, CheckCircle2, CreditCard, Apple } from 'lucide-react'
 
 interface AddToWalletButtonsProps {
@@ -10,6 +11,7 @@ interface AddToWalletButtonsProps {
   publicId: string
   points: number
   tier: string
+  appleAvailable?: boolean
 }
 
 type WalletStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -19,7 +21,8 @@ export default function AddToWalletButtons({
   memberId,
   publicId,
   points,
-  tier
+  tier,
+  appleAvailable = false
 }: AddToWalletButtonsProps) {
   const [googleStatus, setGoogleStatus] = useState<WalletStatus>('idle')
   const [appleStatus, setAppleStatus] = useState<WalletStatus>('idle')
@@ -125,7 +128,7 @@ export default function AddToWalletButtons({
       </div>
 
       {/* Botones de Wallet */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className={`grid gap-3 ${appleAvailable ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
         {/* Google Wallet Button */}
         <Button
           onClick={addToGoogleWallet}
@@ -146,23 +149,25 @@ export default function AddToWalletButtons({
         </Button>
 
         {/* Apple Wallet Button */}
-        <Button
-          onClick={addToAppleWallet}
-          disabled={appleStatus === 'loading' || appleStatus === 'success'}
-          variant="outline"
-          className="h-14 rounded-xl border-2 border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50 transition-all"
-        >
-          {appleStatus === 'loading' ? (
-            <Loader2 size={20} className="animate-spin mr-2" />
-          ) : appleStatus === 'success' ? (
-            <CheckCircle2 size={20} className="text-emerald-500 mr-2" />
-          ) : (
-            <Apple size={20} className="mr-2" />
-          )}
-          <span className="text-sm font-medium">
-            {appleStatus === 'success' ? '¡Descargado!' : 'Apple Wallet'}
-          </span>
-        </Button>
+        {appleAvailable && (
+          <Button
+            onClick={addToAppleWallet}
+            disabled={appleStatus === 'loading' || appleStatus === 'success'}
+            variant="outline"
+            className="h-14 rounded-xl border-2 border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50 transition-all"
+          >
+            {appleStatus === 'loading' ? (
+              <Loader2 size={20} className="animate-spin mr-2" />
+            ) : appleStatus === 'success' ? (
+              <CheckCircle2 size={20} className="text-emerald-500 mr-2" />
+            ) : (
+              <Apple size={20} className="mr-2" />
+            )}
+            <span className="text-sm font-medium">
+              {appleStatus === 'success' ? '¡Descargado!' : 'Apple Wallet'}
+            </span>
+          </Button>
+        )}
       </div>
 
       {/* Botón Mostrar QR */}
@@ -178,14 +183,8 @@ export default function AddToWalletButtons({
       {/* QR Code Display */}
       {showQR && (
         <div className="bg-white rounded-2xl p-6 border-2 border-zinc-100">
-          <div className="aspect-square max-w-[200px] mx-auto bg-zinc-100 rounded-xl flex items-center justify-center">
-            {/* Aquí iría un componente QRCode real */}
-            <div className="text-center">
-              <QrCode size={80} className="mx-auto text-zinc-400 mb-2" />
-              <p className="text-xs text-zinc-500 font-mono break-all px-4">
-                {publicId}
-              </p>
-            </div>
+          <div className="flex justify-center">
+            <QRCodeSVG value={publicId} size={180} />
           </div>
           <p className="text-center text-xs text-zinc-400 mt-4">
             Muestra este código en el local para acumular puntos
