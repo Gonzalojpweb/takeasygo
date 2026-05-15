@@ -173,12 +173,15 @@ export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
   // Considerar el modo (takeaway vs dine-in) para usar los precios correctos.
   const qrEligibleSubtotal = cart
     .filter(i => {
+      // El descuento marketing QR nunca aplica a promociones del menú
+      if (i.type === 'promotion') return false
+      
       // Determinar el precio original según el modo
       const originalPriceToCompare = mode === 'takeaway' 
         ? (i.takeawayOriginalPrice ?? i.originalPrice)
         : i.originalPrice
       
-      // Si no tiene precio original guardado, no está en promoción
+      // Si no tiene precio original guardado, no está en descuento de categoría
       if (!originalPriceToCompare) return true
       
       // Si tiene precio original, verificar si el precio fue rebajado

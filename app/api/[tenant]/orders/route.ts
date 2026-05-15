@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
+import Promotion from '@/models/Promotion'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import User from '@/models/User'
 import { generateOrderNumber } from '@/lib/orderNumber'
@@ -152,74 +153,112 @@ export async function POST(
     // Validar cada item del pedido y calcular precios desde la DB
     const resolvedItems: any[] = []
     for (const clientItem of body.items) {
-      const menuItem = menuItemMap.get(clientItem.menuItemId?.toString())
-      if (!menuItem) {
-        return NextResponse.json(
-          { error: `Item no disponible o no existe: ${clientItem.menuItemId}` },
-          { status: 400 }
-        )
-      }
+      const itemType = clientItem.type === 'promotion' ? 'promotion' : 'menuItem'
 
-      const quantity = clientItem.quantity  // ya validado como number.int().min(1) por Zod
-
-      // Precio base depende del modo (takeaway vs dine-in)
-      const basePrice: number = body.mode === 'takeaway' 
-        ? (menuItem.takeawayPrice ?? menuItem.price) 
-        : menuItem.price
-        
-      let extraPrice = 0
-      const resolvedCustomizations: any[] = []
-
-      if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
-        for (const clientGroup of clientItem.customizations) {
-          const dbGroup = menuItem.customizationGroups.find(
-            (g: any) => g.name === clientGroup.groupName
+      if (itemType === 'promotion') {
+        const promotion = await Promotion.findOne({
+          _id: clientItem.promotionId,
+          tenantId: tenant._id,
+          isActive: true,
+        })
+        if (!promotion) {
+          return NextResponse.json(
+            { error: `Promoción no disponible o no existe: ${clientItem.promotionId}` },
+            { status: 400 }
           )
-          if (!dbGroup) {
-            return NextResponse.json(
-              { error: `Grupo de personalización inválido: ${clientGroup.groupName}` },
-              { status: 400 }
-            )
-          }
+        }
 
-          const resolvedOptions: any[] = []
-          for (const clientOption of clientGroup.selectedOptions ?? []) {
-            const dbOption: any = dbGroup.options.find((o: any) => o.name === clientOption.name)
-            if (!dbOption) {
+        const quantity = clientItem.quantity
+        const price = promotion.price
+        const subtotal = price * quantity
+
+        resolvedItems.push({
+          menuItemId: null,
+          promotionId: promotion._id.toString(),
+          itemType: 'promotion',
+          categoryName: '',
+          name: promotion.title,
+          basePrice: price,
+          extraPrice: 0,
+          price,
+          quantity,
+          subtotal,
+          customizations: [],
+          addedFrom: clientItem.addedFrom ?? null,
+          hasCategoryDiscount: false,
+        })
+      } else {
+        const menuItem = menuItemMap.get(clientItem.menuItemId?.toString())
+        if (!menuItem) {
+          return NextResponse.json(
+            { error: `Item no disponible o no existe: ${clientItem.menuItemId}` },
+            { status: 400 }
+          )
+        }
+
+        const quantity = clientItem.quantity  // ya validado como number.int().min(1) por Zod
+
+        // Precio base depende del modo (takeaway vs dine-in)
+        const basePrice: number = body.mode === 'takeaway' 
+          ? (menuItem.takeawayPrice ?? menuItem.price) 
+          : menuItem.price
+          
+        let extraPrice = 0
+        const resolvedCustomizations: any[] = []
+
+        if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
+          for (const clientGroup of clientItem.customizations) {
+            const dbGroup = menuItem.customizationGroups.find(
+              (g: any) => g.name === clientGroup.groupName
+            )
+            if (!dbGroup) {
               return NextResponse.json(
-                { error: `Opción inválida "${clientOption.name}" en grupo "${dbGroup.name}"` },
+                { error: `Grupo de personalización inválido: ${clientGroup.groupName}` },
                 { status: 400 }
               )
             }
-            extraPrice += dbOption.extraPrice
-            resolvedOptions.push({ name: dbOption.name, extraPrice: dbOption.extraPrice } as any)
+
+            const resolvedOptions: any[] = []
+            for (const clientOption of clientGroup.selectedOptions ?? []) {
+              const dbOption: any = dbGroup.options.find((o: any) => o.name === clientOption.name)
+              if (!dbOption) {
+                return NextResponse.json(
+                  { error: `Opción inválida "${clientOption.name}" en grupo "${dbGroup.name}"` },
+                  { status: 400 }
+                )
+              }
+              extraPrice += dbOption.extraPrice
+              resolvedOptions.push({ name: dbOption.name, extraPrice: dbOption.extraPrice } as any)
+            }
+            resolvedCustomizations.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions } as any)
           }
-          resolvedCustomizations.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions } as any)
         }
+
+        const price = basePrice + extraPrice
+        const subtotal = price * quantity
+
+        // Detectar si el item tiene descuento de categoría comparando precio actual vs original
+        // Considerar el modo (takeaway vs dine-in) para usar los precios correctos
+        const hasCategoryDiscount = body.mode === 'takeaway'
+          ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
+          : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
+
+        resolvedItems.push({
+          menuItemId: menuItem._id,
+          promotionId: null,
+          itemType: 'menuItem',
+          categoryName: menuItem.categoryName || '',
+          name: menuItem.name,
+          basePrice,
+          extraPrice,
+          price,
+          quantity,
+          subtotal,
+          customizations: resolvedCustomizations,
+          addedFrom: clientItem.addedFrom ?? null,
+          hasCategoryDiscount,
+        })
       }
-
-      const price = basePrice + extraPrice
-      const subtotal = price * quantity
-
-      // Detectar si el item tiene descuento de categoría comparando precio actual vs original
-      // Considerar el modo (takeaway vs dine-in) para usar los precios correctos
-      const hasCategoryDiscount = body.mode === 'takeaway'
-        ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
-        : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
-
-      resolvedItems.push({
-        menuItemId: menuItem._id,
-        categoryName: menuItem.categoryName || '',
-        name: menuItem.name,
-        basePrice,
-        extraPrice,
-        price,
-        quantity,
-        subtotal,
-        customizations: resolvedCustomizations,
-        addedFrom: clientItem.addedFrom ?? null,
-        hasCategoryDiscount,
-      })
     }
 
     // Total calculado 100% en el servidor
@@ -228,10 +267,11 @@ export async function POST(
     let qrPromoApplied = false
 
     if (body.qrPromoApplied && tenant.qrPromo?.isEnabled && (tenant.qrPromo.discountPercentage || 0) > 0) {
-      // El descuento QR solo aplica sobre items que NO tienen descuento de categoría.
+      // El descuento marketing QR nunca aplica a promociones del menú,
+      // ni a items que ya tienen descuento de categoría.
       // Esto previene acumulación de descuentos que generaría pérdidas para el restaurante.
       const qrEligibleSubtotal = resolvedItems
-        .filter(item => !item.hasCategoryDiscount)
+        .filter(item => item.itemType !== 'promotion' && !item.hasCategoryDiscount)
         .reduce((sum, item) => sum + item.subtotal, 0)
       discountAmount = Math.round(qrEligibleSubtotal * (tenant.qrPromo.discountPercentage / 100))
       qrPromoApplied = true
