@@ -206,6 +206,18 @@ export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps
                 {promo.title}
               </h3>
 
+              {/* Aviso importante sobre descuentos exclusivos para takeaway */}
+              {promo.type === 'discount' && (
+                <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl">
+                  <p className="text-amber-900 font-bold text-sm leading-tight">
+                    ⚠️ DESCUENTO EXCLUSIVO PARA TAKEAWAY
+                  </p>
+                  <p className="text-amber-800 text-xs mt-1 leading-relaxed">
+                    No aplicable para consumir en el local
+                  </p>
+                </div>
+              )}
+
               <p className="text-slate-600 leading-relaxed mb-8">
                 {promo.type === 'discount'
                   ? promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)
