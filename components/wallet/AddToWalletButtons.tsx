@@ -134,7 +134,7 @@ export default function AddToWalletButtons({
           onClick={addToGoogleWallet}
           disabled={googleStatus === 'loading' || googleStatus === 'success'}
           variant="outline"
-          className="h-14 rounded-xl border-2 border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50 transition-all"
+          className="h-14 text-violet-700 rounded-xl border-2 border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50 transition-all"
         >
           {googleStatus === 'loading' ? (
             <Loader2 size={20} className="animate-spin mr-2" />
@@ -154,7 +154,7 @@ export default function AddToWalletButtons({
             onClick={addToAppleWallet}
             disabled={appleStatus === 'loading' || appleStatus === 'success'}
             variant="outline"
-            className="h-14 rounded-xl border-2 border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50 transition-all"
+            className="text-violet-700 h-14 rounded-xl border-2 border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50 transition-all"
           >
             {appleStatus === 'loading' ? (
               <Loader2 size={20} className="animate-spin mr-2" />
