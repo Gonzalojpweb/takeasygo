@@ -149,7 +149,8 @@ export async function POST(
           status: 'confirmed',
         },
         { name: tenant.name, slug: tenant.slug },
-        location.name
+        location.name,
+        tenant._id.toString()
       ).catch(e => console.error('[reservas] notification error:', e))
     }
 

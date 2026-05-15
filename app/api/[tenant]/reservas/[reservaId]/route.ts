@@ -97,7 +97,8 @@ export async function PUT(
           status: 'confirmed',
         },
         { name: tenant.name, slug: tenant.slug },
-        location?.name || undefined
+        location?.name || undefined,
+        tenant._id.toString()
       ).catch(e => console.error('[reservas] notification error:', e))
     }
 
@@ -115,7 +116,8 @@ export async function PUT(
           notes: prev.notes || '',
           status: 'cancelled',
         },
-        { name: tenant.name, slug: tenant.slug }
+        { name: tenant.name, slug: tenant.slug },
+        tenant._id.toString()
       ).catch(e => console.error('[reservas] cancel notification error:', e))
     }
 

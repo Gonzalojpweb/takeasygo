@@ -1,4 +1,5 @@
 import { sendEmail } from './email'
+import User from '@/models/User'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 
@@ -89,10 +90,62 @@ function wrapHtml(bodyHtml: string): string {
   `
 }
 
+async function sendAdminNotification(
+  tenantId: string,
+  reservation: ReservationInfo,
+  tenant: TenantInfo,
+  locationName?: string,
+  type?: 'confirmed' | 'cancelled'
+): Promise<void> {
+  const admins = await User.find({
+    tenantId,
+    role: { $in: ['admin', 'manager'] },
+    isActive: true,
+  }).lean()
+
+  if (admins.length === 0) return
+
+  const dateFormatted = formatDate(reservation.date)
+  const isConfirmed = type !== 'cancelled'
+  const subject = isConfirmed
+    ? `🆕 Nueva reserva en ${tenant.name} — #${reservation.reservationNumber}`
+    : `❌ Reserva cancelada en ${tenant.name} — #${reservation.reservationNumber}`
+
+  const statusLabel = isConfirmed ? 'Nueva reserva' : 'Reserva cancelada'
+
+  const bodyHtml = `
+    <h1 style="font-size:24px;font-weight:400;color:#0d0b0a;margin:0 0 8px;">${statusLabel}</h1>
+    <p style="font-size:14px;color:#6b6460;line-height:1.6;margin:0 0 24px;">
+      ${isConfirmed ? 'Se recibió una nueva reserva:' : 'Se canceló una reserva:'}
+    </p>
+    <div class="card">
+      <table>
+        <tr><td style="color:#6b6460;">Cliente</td><td>${reservation.name}</td></tr>
+        <tr><td style="color:#6b6460;">Teléfono</td><td>${reservation.phone}</td></tr>
+        ${reservation.email ? `<tr><td style="color:#6b6460;">Email</td><td>${reservation.email}</td></tr>` : ''}
+        ${locationName ? `<tr><td style="color:#6b6460;">Sede</td><td>${locationName}</td></tr>` : ''}
+        <tr><td style="color:#6b6460;">Código</td><td>${reservation.reservationNumber}</td></tr>
+        <tr><td style="color:#6b6460;">Fecha</td><td>${dateFormatted}</td></tr>
+        <tr><td style="color:#6b6460;">Horario</td><td>${reservation.time} hs</td></tr>
+        <tr><td style="color:#6b6460;">Personas</td><td>${reservation.partySize}</td></tr>
+      </table>
+    </div>
+    ${reservation.notes ? `<p style="font-size:13px;color:#6b6460;font-style:italic;margin:0 0 24px;">Notas: ${reservation.notes}</p>` : ''}
+    <p style="font-size:12px;color:#b0aaa6;margin:0;line-height:1.6;">Takeasygo</p>
+  `
+
+  const html = wrapHtml(bodyHtml)
+
+  await Promise.allSettled(
+    admins.map(admin => sendEmail(admin.email, subject, html))
+  )
+}
+
 export async function sendReservationConfirmation(
   reservation: ReservationInfo,
   tenant: TenantInfo,
-  locationName?: string
+  locationName?: string,
+  tenantId?: string
 ): Promise<void> {
   const dateFormatted = formatDate(reservation.date)
   const subject = `Reserva confirmada en ${tenant.name} — #${reservation.reservationNumber}`
@@ -115,6 +168,10 @@ export async function sendReservationConfirmation(
     title: `Reserva confirmada en ${tenant.name}`,
     body: `El ${dateFormatted} a las ${reservation.time} hs. Código: ${reservation.reservationNumber}`,
   })
+
+  if (tenantId) {
+    await sendAdminNotification(tenantId, reservation, tenant, locationName, 'confirmed').catch(() => {})
+  }
 }
 
 export async function sendReservationReminder(
@@ -144,7 +201,8 @@ export async function sendReservationReminder(
 
 export async function sendReservationCancellation(
   reservation: ReservationInfo,
-  tenant: TenantInfo
+  tenant: TenantInfo,
+  tenantId?: string
 ): Promise<void> {
   const dateFormatted = formatDate(reservation.date)
   const subject = `Reserva cancelada en ${tenant.name} — #${reservation.reservationNumber}`
@@ -164,6 +222,10 @@ export async function sendReservationCancellation(
     title: `Reserva cancelada en ${tenant.name}`,
     body: `Tu reserva del ${dateFormatted} a las ${reservation.time} fue cancelada`,
   })
+
+  if (tenantId) {
+    await sendAdminNotification(tenantId, reservation, tenant, undefined, 'cancelled').catch(() => {})
+  }
 }
 
 async function sendPushToClientToken(

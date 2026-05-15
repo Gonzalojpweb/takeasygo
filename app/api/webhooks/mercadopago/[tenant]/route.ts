@@ -221,7 +221,8 @@ export async function POST(
               status: 'confirmed',
             },
             { name: tenant.name, slug: tenant.slug },
-            (loc as any)?.name || undefined
+            (loc as any)?.name || undefined,
+            tenant._id.toString()
           ).catch(e => console.error('[webhook] reservation confirmation error:', e))
           await Reservation.updateOne(
             { _id: reservaId },
