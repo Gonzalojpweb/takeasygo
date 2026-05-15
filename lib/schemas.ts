@@ -16,10 +16,12 @@ const customizationGroupSchema = z.object({
 })
 
 const orderItemSchema = z.object({
-  menuItemId: z.string().min(1),
+  type: z.enum(['menuItem', 'promotion']).optional().default('menuItem'),
+  menuItemId: z.string().optional(),
+  promotionId: z.string().optional(),
   quantity: z.number().int().min(1).max(99),
   customizations: z.array(customizationGroupSchema).max(10).default([]),
-  addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner']).optional(),
+  addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner', 'promotion']).optional(),
 })
 
 export const createOrderSchema = z.object({
