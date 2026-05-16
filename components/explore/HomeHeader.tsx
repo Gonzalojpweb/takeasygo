@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { MapPin, ChevronDown, Search, Bell, ShoppingCart, User, Plus, Trash2, Home, Briefcase, Heart } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { MapPin, ChevronDown, Search, User, Plus, Trash2, Home, Briefcase, Heart } from 'lucide-react'
 import { useLocation, Address } from './LocationContext'
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -12,6 +13,7 @@ import { toast } from 'sonner'
 import Image from 'next/image'
 
 export default function HomeHeader() {
+  const router = useRouter()
   const { currentAddress, savedAddresses, setAddress, addAddress, removeAddress } = useLocation()
   const [showAddressModal, setShowAddressModal] = useState(false)
   const [newAddressForm, setNewAddressForm] = useState(false)
@@ -55,11 +57,10 @@ export default function HomeHeader() {
             unoptimized
           />
           <div className="flex items-center gap-1">
-            <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-zinc-200/50 transition-colors relative">
-              <Bell size={18} className="text-zinc-600" />
-              <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-primary rounded-full border-2 border-white" />
-            </button>
-            <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-zinc-200/50 transition-colors">
+            <button
+              onClick={() => router.push('/explore/profile')}
+              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-zinc-200/50 transition-colors"
+            >
               <User size={18} className="text-zinc-600" />
             </button>
           </div>

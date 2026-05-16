@@ -94,6 +94,18 @@ export default function ProfilePage() {
               <span className="text-[#8a7f7a] underline">Términos y condiciones</span>
             </p>
           </BlurFade>
+
+          <div className="w-full max-w-[320px] mt-10 pt-8 border-t border-[var(--c-border)]">
+            <p className="text-[10px] text-[#5a524d] text-center mb-3 uppercase tracking-widest font-medium">
+              ¿Tenés un restaurante?
+            </p>
+            <button
+              onClick={() => router.push('/login')}
+              className="w-full flex items-center justify-center gap-2 py-3 glass-card-elevated rounded-2xl text-sm font-bold text-[var(--c-text-secondary)] hover:text-[var(--c-text)] hover:bg-[var(--c-surface-elevated)] transition-all active:scale-[0.98]"
+            >
+              Accedé a tu panel de gestión
+            </button>
+          </div>
         </div>
       ) : (
         /* ── PROFILE VIEW ────────────────────────────────────────── */
