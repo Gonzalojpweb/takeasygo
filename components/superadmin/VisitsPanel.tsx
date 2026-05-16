@@ -20,7 +20,7 @@ interface Visit {
     ip: string | null
     userAgent: string | null
     deviceType: string
-    source: string | null
+    source: string
     referrer: string | null
     locationPath: string | null
 }
@@ -69,6 +69,12 @@ const SOURCE_NAMES: Record<string, string> = {
     google: 'Google',
     direct: 'Directo',
     other: 'Otro',
+}
+
+const KNOWN_SOURCES = Object.keys(SOURCE_NAMES)
+
+function getSourceLabel(source: string): string {
+    return SOURCE_NAMES[source] || source
 }
 
 export default function VisitsPanel({ tenants }: VisitsPanelProps) {
@@ -120,8 +126,8 @@ export default function VisitsPanel({ tenants }: VisitsPanelProps) {
         return <Icon size={12} />
     }
 
-    const sourceIcon = (source: string | null) => {
-        const key = source || 'other'
+    const sourceIcon = (source: string) => {
+        const key = KNOWN_SOURCES.includes(source) ? source : 'other'
         const Icon = SOURCE_ICONS[key] || Globe
         return <Icon size={14} />
     }
@@ -197,17 +203,20 @@ export default function VisitsPanel({ tenants }: VisitsPanelProps) {
                 <div className="bg-card border-2 border-border/60 rounded-2xl p-4">
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Fuentes de tráfico</p>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                        {bySource.map((s: any, index: number) => (
+                        {bySource.map((s: any, index: number) => {
+                            const sourceKey = KNOWN_SOURCES.includes(s._id) ? s._id : 'other'
+                            return (
                             <div key={s._id || `other-${index}`} className="flex items-center gap-2 bg-muted/30 rounded-lg p-2">
-                                <span className={cn('p-1.5 rounded-lg', SOURCE_COLORS[s._id || 'other'])}>
+                                <span className={cn('p-1.5 rounded-lg', SOURCE_COLORS[sourceKey])}>
                                     {sourceIcon(s._id)}
                                 </span>
                                 <div>
-                                    <p className="text-xs font-medium text-muted-foreground">{SOURCE_NAMES[s._id || 'other']}</p>
+                                    <p className="text-xs font-medium text-muted-foreground">{getSourceLabel(s._id)}</p>
                                     <p className="text-lg font-bold text-foreground">{s.count}</p>
                                 </div>
                             </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 </div>
             )}
@@ -256,11 +265,9 @@ export default function VisitsPanel({ tenants }: VisitsPanelProps) {
                                                         <span className={cn('p-1 rounded', DEVICE_COLORS[visit.deviceType as keyof typeof DEVICE_COLORS])}>
                                                             {deviceIcon(visit.deviceType)}
                                                         </span>
-                                                        {visit.source && (
-                                                            <span className={cn('p-1 rounded', SOURCE_COLORS[visit.source] || SOURCE_COLORS.other)} title={visit.referrer || undefined}>
-                                                                {sourceIcon(visit.source)}
-                                                            </span>
-                                                        )}
+                                                        <span className={cn('p-1 rounded', SOURCE_COLORS[KNOWN_SOURCES.includes(visit.source) ? visit.source : 'other'])} title={`${getSourceLabel(visit.source)}${visit.referrer ? ` · ${visit.referrer}` : ''}`}>
+                                                            {sourceIcon(visit.source)}
+                                                        </span>
                                                         <span className="text-xs text-muted-foreground font-mono">{visit.ip || '—'}</span>
                                                         {visit.locationPath && (
                                                             <span className="text-xs text-muted-foreground truncate max-w-[150px]">{visit.locationPath}</span>

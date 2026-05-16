@@ -33,6 +33,8 @@ const SOURCE_NAMES: Record<string, string> = {
   other: 'Otro',
 }
 
+const KNOWN_SOURCES = Object.keys(SOURCE_NAMES)
+
 const SOURCE_COLORS: Record<string, string> = {
   instagram: 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 text-pink-500',
   facebook: 'bg-blue-600/10 text-blue-600',
@@ -41,6 +43,14 @@ const SOURCE_COLORS: Record<string, string> = {
   google: 'bg-red-500/10 text-red-500',
   direct: 'bg-gray-500/10 text-gray-500',
   other: 'bg-slate-500/10 text-slate-500',
+}
+
+function getSourceLabel(source: string): string {
+  return SOURCE_NAMES[source] || source
+}
+
+function getSourceColor(source: string): string {
+  return KNOWN_SOURCES.includes(source) ? SOURCE_COLORS[source] : SOURCE_COLORS.other
 }
 
 const DEVICE_ICONS: Record<string, any> = {
@@ -128,21 +138,22 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
       </div>
 
       {/* Fuentes de tráfico */}
-      {summary?.bySource && summary.bySource.length > 0 && (
+            {summary?.bySource && summary.bySource.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
             De dónde vienen tus clientes
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {summary.bySource.map((source: any) => {
-              const Icon = SOURCE_ICONS[source._id || 'other'] || Globe
+              const sourceKey = KNOWN_SOURCES.includes(source._id) ? source._id : 'other'
+              const Icon = SOURCE_ICONS[sourceKey] || Globe
               return (
                 <div key={source._id} className="bg-muted/30 rounded-xl p-4 text-center">
-                  <span className={cn('inline-flex p-2 rounded-lg mb-2', SOURCE_COLORS[source._id || 'other'])}>
+                  <span className={cn('inline-flex p-2 rounded-lg mb-2', getSourceColor(source._id))}>
                     <Icon size={20} />
                   </span>
                   <p className="text-sm font-medium text-foreground">
-                    {SOURCE_NAMES[source._id || 'other']}
+                    {getSourceLabel(source._id)}
                   </p>
                   <p className="text-2xl font-bold text-foreground">{source.count}</p>
                 </div>
@@ -215,12 +226,13 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
           </h3>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {data.visits.slice(0, 20).map((visit: any) => {
-              const SourceIcon = SOURCE_ICONS[visit.source || 'other'] || Globe
+              const sourceKey = KNOWN_SOURCES.includes(visit.source) ? visit.source : 'other'
+              const SourceIcon = SOURCE_ICONS[sourceKey] || Globe
               const DeviceIcon = DEVICE_ICONS[visit.deviceType] || Globe
               return (
                 <div key={visit._id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl">
                   <div className="flex items-center gap-3">
-                    <span className={cn('p-1.5 rounded', SOURCE_COLORS[visit.source || 'other'])}>
+                    <span className={cn('p-1.5 rounded', getSourceColor(visit.source))} title={getSourceLabel(visit.source)}>
                       <SourceIcon size={14} />
                     </span>
                     <DeviceIcon size={14} className="text-muted-foreground" />

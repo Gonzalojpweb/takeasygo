@@ -30,18 +30,29 @@ function getDeviceType(userAgent: string | null): 'mobile' | 'desktop' | 'unknow
   return 'desktop'
 }
 
+const VALID_SOURCES = ['instagram', 'facebook', 'qr', 'whatsapp', 'google', 'direct', 'other']
+
+/** Extraer la fuente base de un source compuesto (ej: "qr-mesa1" → "qr") */
+function extractBaseSource(raw: string): string {
+  const lower = raw.toLowerCase()
+  if (VALID_SOURCES.includes(lower)) return lower
+  const prefix = lower.split('-')[0]
+  if (VALID_SOURCES.includes(prefix)) return prefix
+  return lower
+}
+
 // Detectar fuente de tráfico basado en referrer, URL params y user-agent
 function detectTrafficSource(
   referer: string | null,
   urlSource: string | null,
   userAgent: string | null
-): 'instagram' | 'facebook' | 'qr' | 'whatsapp' | 'google' | 'direct' | 'other' | null {
-  // Prioridad 1: Parámetro explicito en URL (?source=instagram, ?source=qr, etc.)
+): string {
+  // Prioridad 1: Parámetro explicito en URL (?source=...)
+  // Si es un source válido exacto, se usa.
+  // Si es un compuesto como "qr-mesa1", se extrae el prefijo "qr".
+  // Si es un label personalizado como "flyer-julio", se usa tal cual.
   if (urlSource) {
-    const validSources = ['instagram', 'facebook', 'qr', 'whatsapp', 'google', 'direct', 'other']
-    if (validSources.includes(urlSource.toLowerCase())) {
-      return urlSource.toLowerCase() as any
-    }
+    return extractBaseSource(urlSource)
   }
 
   // Prioridad 2: User-Agent de Instagram in-app browser
@@ -59,13 +70,15 @@ function detectTrafficSource(
     if (ref.includes('google.com')) return 'google'
   }
 
-  // Si no hay referer, es tráfico directo
+  // Sin referer = directo
   if (!referer || referer === '') {
     return 'direct'
   }
 
   return 'other'
 }
+
+const DEDUP_WINDOW_MINUTES = 5
 
 async function logMenuVisit(
   tenantSlug: string,
@@ -85,16 +98,34 @@ async function logMenuVisit(
     if (!tenant) return
 
     const source = detectTrafficSource(referer, urlSource, userAgent)
+    const tenantId = new Types.ObjectId(tenant._id.toString())
+    const cleanIp = ip?.split(',')[0]?.trim() || null
+
+    // Deduplicación: si el mismo IP ya visitó en los últimos N minutos, marcar como duplicado
+    let isDuplicate = false
+    if (cleanIp) {
+      const recentWindow = new Date(Date.now() - DEDUP_WINDOW_MINUTES * 60 * 1000)
+      const existing = await MenuVisit.findOne({
+        tenantId,
+        ip: cleanIp,
+        visitedAt: { $gte: recentWindow },
+      }).sort({ visitedAt: -1 }).lean()
+
+      if (existing) {
+        isDuplicate = true
+      }
+    }
 
     await MenuVisit.create({
-      tenantId: new Types.ObjectId(tenant._id.toString()),
+      tenantId,
       visitedAt: new Date(),
-      ip: ip?.split(',')[0]?.trim() || null,
+      ip: cleanIp,
       userAgent,
       deviceType: getDeviceType(userAgent),
       source,
       referrer: referer,
       locationPath: pathname,
+      isDuplicate,
     })
   } catch (err) {
     console.error('MenuVisit log error:', err)
@@ -153,7 +184,25 @@ export async function middleware(request: NextRequest) {
     const userAgent = request.headers.get('user-agent')
     const referer = request.headers.get('referer')
     const urlSource = request.nextUrl.searchParams.get('source')
-    logMenuVisit(tenantSlug, ip, userAgent, referer, urlSource, pathname)
+
+    // Filtrar tráfico de admins/propietario: si tiene sesión activa como admin, no contar
+    let skipVisit = false
+    try {
+      const session = await auth()
+      if (session) {
+        const isTenantAdmin = session.user.tenantSlug === tenantSlug
+        const isSuperAdmin = session.user.role === 'superadmin'
+        if (isTenantAdmin || isSuperAdmin) {
+          skipVisit = true
+        }
+      }
+    } catch {
+      // Si falla auth, registrar igual (no bloquear por un check de session)
+    }
+
+    if (!skipVisit) {
+      logMenuVisit(tenantSlug, ip, userAgent, referer, urlSource, pathname)
+    }
   }
 
   return NextResponse.next({
