@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
-export type TrafficSource = 'instagram' | 'facebook' | 'qr' | 'whatsapp' | 'google' | 'direct' | 'other' | null
+export type TrafficSource = string
 
 export interface IMenuVisit extends Document {
   tenantId: mongoose.Types.ObjectId
@@ -8,9 +8,10 @@ export interface IMenuVisit extends Document {
   ip: string | null
   userAgent: string | null
   deviceType: 'mobile' | 'desktop' | 'unknown'
-  source: TrafficSource
+  source: string
   referrer: string | null
   locationPath: string | null
+  isDuplicate?: boolean
 }
 
 const MenuVisitSchema = new Schema<IMenuVisit>({
@@ -40,8 +41,7 @@ const MenuVisitSchema = new Schema<IMenuVisit>({
   },
   source: {
     type: String,
-    enum: ['instagram', 'facebook', 'qr', 'whatsapp', 'google', 'direct', 'other', null],
-    default: null,
+    default: 'direct',
     index: true,
   },
   referrer: {
@@ -52,11 +52,16 @@ const MenuVisitSchema = new Schema<IMenuVisit>({
     type: String,
     default: null,
   },
+  isDuplicate: {
+    type: Boolean,
+    default: false,
+  },
 }, {
   timestamps: false,
 })
 
 MenuVisitSchema.index({ tenantId: 1, visitedAt: -1 })
+MenuVisitSchema.index({ tenantId: 1, ip: 1, visitedAt: -1 })
 
 const MenuVisit = mongoose.models.MenuVisit || mongoose.model<IMenuVisit>('MenuVisit', MenuVisitSchema)
 export default MenuVisit
