@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose'
-import crypto from 'crypto'
 
 export type LoyaltyMemberStatus = 'active' | 'inactive' | 'blocked'
 export type LoyaltyMemberSource = 'checkout' | 'qr_scan' | 'admin' | 'manual_import'
@@ -196,11 +195,8 @@ LoyaltyMemberSchema.index({ tenantId: 1, source: 1 })
 LoyaltyMemberSchema.index({ userId: 1, tenantId: 1 }, { unique: true, sparse: true })
 
 // ── Helper estático: generar phoneHash ───────────────────────────────────────
-LoyaltyMemberSchema.statics.hashPhone = function (phone: string): string {
-  // NORMALIZACIÓN ESTÁNDAR: Mantiene prefijo y todos los dígitos
-  const normalized = phone.replace(/[^\d+]/g, '')
-  return crypto.createHash('sha256').update(normalized).digest('hex')
-}
+// DEPRECATED: Usar hashPhone de lib/crypto.ts directamente en nuevos desarrollos.
+// Se elimina el método estático para evitar implementaciones inconsistentes.
 
 // ── Helper: generar publicId único para QR/Wallets ────────────────────────────
 function generatePublicId(): string {

@@ -352,14 +352,14 @@ export async function POST(
             birthDate: body.customer.birthDate ? new Date(body.customer.birthDate) : null,
             phoneHash: pHash,
             status:    'active',
-            source:    body.source || 'checkout',
+            source:    'checkout',
             cache: {
               totalOrders: 0,
               totalSpent:  0,
               lastOrderAt: null,
               updatedAt:   new Date(),
             },
-          }).catch(() => {})
+          }).catch(err => console.error('[orders] Error al crear loyalty member:', err))
         }
       }
     } else {

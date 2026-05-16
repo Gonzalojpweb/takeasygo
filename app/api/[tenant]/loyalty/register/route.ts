@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import { hashPhone } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(
@@ -24,7 +25,7 @@ export async function POST(
     }
 
     // Calcular hash del teléfono para la búsqueda
-    const phoneHash = (LoyaltyMember as any).hashPhone(phone)
+    const phoneHash = hashPhone(phone)
 
     // Verificar si ya existe
     const existing = await LoyaltyMember.findOne({
