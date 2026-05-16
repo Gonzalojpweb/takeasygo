@@ -5,13 +5,8 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import { requireAuth } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
+import { hashPhone } from '@/lib/crypto'
 import mongoose from 'mongoose'
-import crypto from 'crypto'
-
-function hashPhone(phone: string): string {
-  const normalized = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '')
-  return crypto.createHash('sha256').update(normalized).digest('hex')
-}
 
 function parseCSV(csvText: string): { name: string; phone: string; email: string }[] {
   const lines = csvText.trim().split('\n')
