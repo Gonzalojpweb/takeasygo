@@ -143,6 +143,9 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null)
+  const [redeemDialog, setRedeemDialog] = useState(false)
+  const [redeemPoints, setRedeemPoints] = useState(0)
+  const [redeemLoading, setRedeemLoading] = useState(false)
 
   const fetchMembers = useCallback(async () => {
     setLoading(true)
@@ -357,6 +360,42 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
       toast.error(err.message)
     } finally {
       setScanLoading(false)
+    }
+  }
+
+  async function handleRedeem() {
+    if (!scannedMember || redeemPoints <= 0) {
+      toast.error('Ingresá una cantidad de puntos válida')
+      return
+    }
+    if (redeemPoints > scannedMember.points) {
+      toast.error('El miembro no tiene suficientes puntos')
+      return
+    }
+    setRedeemLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/loyalty/members/redeem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberPublicId: scannedMember.publicId,
+          points: redeemPoints,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      toast.success(`Se canjearon ${redeemPoints} puntos correctamente`)
+      setScannedMember((prev: any) => ({
+        ...prev,
+        points: data.newTotal,
+      }))
+      setRedeemDialog(false)
+      setRedeemPoints(0)
+      fetchMembers()
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setRedeemLoading(false)
     }
   }
 
@@ -717,12 +756,11 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
 
             {!scannedMember ? (
               <div className="space-y-6">
-                {/* Scanner de QR */}
+                {/* Scanner de QR — #reader siempre en DOM para que Html5Qrcode lo encuentre */}
                 <div className="relative aspect-square rounded-3xl overflow-hidden bg-zinc-900">
-                  {cameraActive ? (
-                    <div id="reader" className="w-full h-full" />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/50">
+                  <div id="reader" className={`w-full h-full ${cameraActive ? '' : 'invisible'}`} />
+                  {!cameraActive && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900">
                       <div className="w-20 h-20 mb-4 text-zinc-700">
                         <QrCode size={80} strokeWidth={1} />
                       </div>
@@ -735,7 +773,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                   {/* Botón de control de cámara */}
                   <Button
                     onClick={cameraActive ? stopCamera : startCamera}
-                    className="absolute bottom-4 right-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full p-3 shadow-xl"
+                    className="absolute bottom-4 right-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full p-3 shadow-xl z-10"
                     size="icon"
                   >
                     {cameraActive ? <CameraOff size={20} /> : <Camera size={20} />}
@@ -791,7 +829,13 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                   </div>
 
                   <div className="mt-6 space-y-3">
-                    <Button className="w-full h-14 bg-white text-zinc-950 hover:bg-zinc-100 font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-95">
+                    <Button
+                      onClick={() => {
+                        setRedeemPoints(0)
+                        setRedeemDialog(true)
+                      }}
+                      className="w-full h-14 bg-white text-zinc-950 hover:bg-zinc-100 font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-95"
+                    >
                       Canjear Beneficio
                     </Button>
                     <Button
@@ -810,6 +854,63 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de canje de puntos */}
+      <Dialog open={redeemDialog} onOpenChange={(open) => {
+        setRedeemDialog(open)
+        if (!open) setRedeemPoints(0)
+      }}>
+        <DialogContent className="max-w-sm rounded-[2rem]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <Star size={20} />
+              </div>
+              <DialogTitle>Canjear puntos</DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="space-y-5 py-4">
+            {scannedMember && (
+              <div className="p-4 rounded-2xl bg-muted/30 border border-border/60">
+                <p className="text-sm font-bold">{scannedMember.name}</p>
+                <p className="text-2xl font-black text-amber-500 tabular-nums mt-1">
+                  {scannedMember.points} puntos disponibles
+                </p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">
+                Puntos a canjear
+              </label>
+              <Input
+                type="number"
+                min={1}
+                max={scannedMember?.points ?? 0}
+                value={redeemPoints || ''}
+                onChange={e => setRedeemPoints(Math.max(0, parseInt(e.target.value) || 0))}
+                placeholder="Ingresá la cantidad..."
+                className="h-12 rounded-xl text-lg font-bold text-center"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => { setRedeemDialog(false); setRedeemPoints(0) }}
+              className="flex-1 rounded-xl h-11 font-bold"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleRedeem}
+              disabled={redeemLoading || redeemPoints <= 0 || redeemPoints > (scannedMember?.points ?? 0)}
+              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest rounded-xl h-11"
+            >
+              {redeemLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Canjear'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
