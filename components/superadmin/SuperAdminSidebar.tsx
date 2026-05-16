@@ -77,8 +77,9 @@ export default function SuperAdminSidebar() {
       section: 'Gestión',
       items: [
         { href: '/superadmin/tenants', label: 'Tenants', icon: Store },
-        { href: '/superadmin/sellers', label: 'Vendedores', icon: Users },
-        { href: '/superadmin/leads', label: 'Leads', icon: UserCheck },
+        { href: '/superadmin/usuarios', label: 'Usuarios', icon: Users },
+        { href: '/superadmin/sellers', label: 'Vendedores', icon: UserCheck },
+        { href: '/superadmin/leads', label: 'Leads', icon: Eye },
       ],
     },
     {
