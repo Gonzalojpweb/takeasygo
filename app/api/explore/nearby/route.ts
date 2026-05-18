@@ -4,6 +4,7 @@ import RestaurantDirectory from '@/models/RestaurantDirectory'
 import Rating from '@/models/Rating'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkIsOpenNow } from '@/lib/service-hours'
+import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 
 const DEFAULT_RADIUS_M = 20000 // 20 km
 const MAX_RADIUS_M     = 50000 // 50 km — techo de seguridad
@@ -264,6 +265,19 @@ export async function GET(request: NextRequest) {
       (a, b) => a.distanceM - b.distanceM
     )
     const all = [...networkSorted, ...directorySorted]
+
+    const searchQuery = request.nextUrl.searchParams.get('q') || undefined
+
+    logExploreEvent({
+      sessionId: request.headers.get('x-session-id') || generateSessionId(),
+      eventType: 'search',
+      view: 'list',
+      searchQuery: searchQuery ?? null,
+      filters: { cuisine: null, openNow: null, radius },
+      coordinates: { lat, lng },
+      request,
+      metadata: { totalResults: all.length, networkCount: networkResults.length },
+    })
 
     return NextResponse.json({
       restaurants: all,

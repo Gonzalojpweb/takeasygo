@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 
 /**
  * GET /api/explore/orders
@@ -63,6 +64,13 @@ export async function GET(request: NextRequest) {
         } : null,
         trackingUrl: tenant ? `/${tenant.slug}/tracking/${order.orderNumber}` : null,
       }
+    })
+
+    logExploreEvent({
+      sessionId: request.headers.get('x-session-id') || generateSessionId(),
+      eventType: 'pageview',
+      view: 'orders',
+      request,
     })
 
     return NextResponse.json({

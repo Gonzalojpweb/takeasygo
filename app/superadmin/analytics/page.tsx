@@ -1,8 +1,9 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import ExploreEvent from '@/models/ExploreEvent'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrendingUp, ShoppingBag, DollarSign, Store, Calendar, Activity, Users, Clock, Zap, PieChart } from 'lucide-react'
+import { TrendingUp, ShoppingBag, DollarSign, Store, Calendar, Activity, Users, Clock, Zap, PieChart, Search, Map, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import type { Plan } from '@/lib/plans'
@@ -36,6 +37,9 @@ export default async function SuperAdminAnalyticsPage() {
     activeTenants30,
     globalTppData,
     tgoImpactStats,
+    exploreVisits30,
+    exploreByView,
+    exploreFunnel,
   ] = await Promise.all([
     Order.aggregate([
       { $match: { createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
@@ -81,6 +85,27 @@ export default async function SuperAdminAnalyticsPage() {
       { $match: { source: { $regex: /^tgo-/i }, status: { $ne: 'cancelled' } } },
       { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
     ]),
+    // Explore: visitas en últimos 30 días
+    ExploreEvent.countDocuments({ createdAt: { $gte: start30 } }),
+    // Explore: desglose por view
+    ExploreEvent.aggregate([
+      { $match: { createdAt: { $gte: start30 }, view: { $ne: null } } },
+      { $group: { _id: '$view', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]),
+    // Explore: funnel (pageviews → menu clicks)
+    ExploreEvent.aggregate([
+      { $match: { createdAt: { $gte: start30 } } },
+      {
+        $group: {
+          _id: null,
+          pageviews: { $sum: { $cond: [{ $eq: ['$eventType', 'pageview'] }, 1, 0] } },
+          restaurantViews: { $sum: { $cond: [{ $eq: ['$eventType', 'restaurant_view'] }, 1, 0] } },
+          menuClicks: { $sum: { $cond: [{ $eq: ['$eventType', 'click_menu'] }, 1, 0] } },
+          searches: { $sum: { $cond: [{ $eq: ['$eventType', 'search'] }, 1, 0] } },
+        },
+      },
+    ]),
   ])
 
   const tgoImpact = tgoImpactStats[0] || { total: 0, count: 0 }
@@ -113,6 +138,15 @@ export default async function SuperAdminAnalyticsPage() {
 
   // ARPU — revenue del mes dividido tenants activos
   const arpu = totalTenants > 0 ? Math.round(thisMonth.total / totalTenants) : 0
+
+  // Explore metrics
+  const exploreFunnelStats = exploreFunnel[0] || { pageviews: 0, restaurantViews: 0, menuClicks: 0, searches: 0 }
+  const exploreViewsMap: Record<string, number> = Object.fromEntries(
+    exploreByView.map((v: any) => [v._id as string, v.count as number])
+  )
+  const exploreClickRate = exploreFunnelStats.pageviews > 0
+    ? Math.round((exploreFunnelStats.menuClicks / exploreFunnelStats.pageviews) * 100)
+    : 0
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -228,6 +262,116 @@ export default async function SuperAdminAnalyticsPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Exploración TakeasyGO */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-1.5 rounded-lg bg-indigo-500/10">
+            <Search size={16} className="text-indigo-500" />
+          </div>
+          <h2 className="text-foreground text-lg font-black uppercase tracking-[0.15em]">Exploración TakeasyGO</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+            <CardContent className="p-5">
+              <div className="p-2 rounded-xl bg-indigo-500/10 w-fit mb-3">
+                <Search size={18} className="text-indigo-500" />
+              </div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Visitas (30d)</p>
+              <p className="text-2xl font-black tabular-nums">{exploreVisits30}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+            <CardContent className="p-5">
+              <div className="p-2 rounded-xl bg-indigo-500/10 w-fit mb-3">
+                <Eye size={18} className="text-indigo-500" />
+              </div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Vistas a restaurantes</p>
+              <p className="text-2xl font-black tabular-nums">{exploreFunnelStats.restaurantViews}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+            <CardContent className="p-5">
+              <div className="p-2 rounded-xl bg-indigo-500/10 w-fit mb-3">
+                <ShoppingBag size={18} className="text-indigo-500" />
+              </div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Clicks a menú</p>
+              <p className="text-2xl font-black tabular-nums">{exploreFunnelStats.menuClicks}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+            <CardContent className="p-5">
+              <div className="p-2 rounded-xl bg-indigo-500/10 w-fit mb-3">
+                <TrendingUp size={18} className="text-indigo-500" />
+              </div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Click rate</p>
+              <p className="text-2xl font-black tabular-nums">{exploreClickRate}%</p>
+              <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">{exploreFunnelStats.pageviews} pageviews</p>
+            </CardContent>
+          </Card>
+        </div>
+        {/* Views breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+            <CardContent className="p-5">
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Vistas por sección</p>
+              <div className="space-y-2">
+                {exploreByView.map((v: any) => {
+                  const pct = exploreVisits30 > 0 ? Math.round((v.count / exploreVisits30) * 100) : 0
+                  return (
+                    <div key={v._id} className="flex items-center gap-3">
+                      <span className="text-xs font-bold capitalize w-16">{v._id}</span>
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full bg-indigo-500/60 transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-xs font-black tabular-nums w-16 text-right">{v.count}</span>
+                    </div>
+                  )
+                })}
+                {exploreByView.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Sin datos todavía</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
+            <CardContent className="p-5">
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Funnel de exploración</p>
+              <div className="space-y-3">
+                {[
+                  { label: 'Pageviews', value: exploreFunnelStats.pageviews, icon: '👀' },
+                  { label: 'Búsquedas', value: exploreFunnelStats.searches, icon: '🔍' },
+                  { label: 'Vistas detalle', value: exploreFunnelStats.restaurantViews, icon: '🏪' },
+                  { label: 'Clicks a menú', value: exploreFunnelStats.menuClicks, icon: '🛒' },
+                ].map((step, i) => {
+                  const pct = exploreFunnelStats.pageviews > 0
+                    ? Math.round((step.value / exploreFunnelStats.pageviews) * 100)
+                    : 0
+                  const prev = i > 0 ? Math.round((step.value / (
+                    i === 1 ? exploreFunnelStats.pageviews :
+                    i === 2 ? exploreFunnelStats.searches :
+                    exploreFunnelStats.restaurantViews
+                  )) * 100) : 100
+                  return (
+                    <div key={step.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold">{step.label}</span>
+                        <span className="text-xs font-black tabular-nums">{step.value} <span className="text-muted-foreground font-medium">({pct}%)</span></span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full bg-indigo-500/60 transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {exploreFunnelStats.pageviews === 0 && (
+                <p className="text-xs text-muted-foreground mt-2">Sin datos todavía</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* KPIs de ecosistema */}

@@ -3,6 +3,7 @@ import Location from '@/models/Location'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
+import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 
 export async function GET(
   request: NextRequest,
@@ -51,6 +52,15 @@ export async function GET(
       ])
 
       if (!loc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+      logExploreEvent({
+        sessionId: request.headers.get('x-session-id') || generateSessionId(),
+        eventType: 'restaurant_view',
+        view: 'detail',
+        restaurantId: loc._id.toString(),
+        tenantSlug: loc.tenant?.slug,
+        request,
+      })
 
       return NextResponse.json({
         id: loc._id.toString(),
