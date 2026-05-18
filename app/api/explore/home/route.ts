@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import Promotion from '@/models/Promotion'
 import StoreItem from '@/models/StoreItem'
 import { NextRequest, NextResponse } from 'next/server'
+import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 
 const SEARCH_RADIUS_M = 20000 // 20 km
 
@@ -104,6 +105,14 @@ export async function GET(request: NextRequest) {
         cuisineTypes: loc?.cuisineTypes || []
       }
     }).sort((a, b) => (a.distanceM || 99999) - (b.distanceM || 99999))
+
+    logExploreEvent({
+      sessionId: request.headers.get('x-session-id') || generateSessionId(),
+      eventType: 'pageview',
+      view: 'home',
+      coordinates: { lat, lng },
+      request,
+    })
 
     return NextResponse.json({
       promotions,

@@ -10,6 +10,25 @@ import WeeklySchedule from './WeeklySchedule'
 import { getClosingTime, getNextOpenTime } from '@/lib/service-hours'
 import 'leaflet/dist/leaflet.css'
 
+function getOrCreateSessionId(): string {
+  const key = 'tgo_explore_session'
+  let sid = sessionStorage.getItem(key)
+  if (!sid) {
+    sid = crypto.randomUUID()
+    sessionStorage.setItem(key, sid)
+  }
+  return sid
+}
+
+function trackEvent(payload: Record<string, any>) {
+  const sid = getOrCreateSessionId()
+  fetch('/api/explore/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-session-id': sid },
+    body: JSON.stringify({ sessionId: sid, ...payload }),
+  }).catch(() => {})
+}
+
 interface Props {
   restaurant: NearbyRestaurant
 }
@@ -78,13 +97,14 @@ function MiniMap({ lat, lng, name }: { lat: number; lng: number; name: string })
   )
 }
 
-async function handleShare(name: string, address: string) {
+async function handleShare(name: string, address: string, tenantSlug?: string) {
   const url = window.location.href
   if (navigator.share) {
     await navigator.share({ title: name, text: `${name} — ${address}`, url })
   } else {
     await navigator.clipboard.writeText(url)
   }
+  trackEvent({ eventType: 'share', tenantSlug })
 }
 
 export default function RestaurantDetail({ restaurant: r }: Props) {
@@ -121,7 +141,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
             <ArrowLeft size={16} className="text-white" />
           </button>
           <button
-            onClick={() => handleShare(r.name, r.address)}
+            onClick={() => handleShare(r.name, r.address, r.tenantSlug)}
             className="flex items-center justify-center w-9 h-9 rounded-xl cursor-pointer transition-colors"
             style={{ background: 'rgba(13,11,10,0.6)', backdropFilter: 'blur(12px)' }}
             title="Compartir"
@@ -288,7 +308,8 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
       >
         {isNetwork ? (
           <Link
-            href={`/${r.tenantSlug}/menu/${r.id}/takeaway`}
+            href={`/${r.tenantSlug}/menu/${r.id}/takeaway?source=tgo-explore`}
+            onClick={() => trackEvent({ eventType: 'click_menu', restaurantId: r.id, tenantSlug: r.tenantSlug })}
             className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl text-base font-bold text-white transition-all duration-200 cursor-pointer active:scale-[0.98]"
             style={{
               background: 'linear-gradient(135deg, #f14722, #e03e1d)',

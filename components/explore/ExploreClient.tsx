@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
@@ -43,10 +43,31 @@ export default function ExploreClient() {
   )
 }
 
+function getOrCreateSessionId(): string {
+  const key = 'tgo_explore_session'
+  let sid = sessionStorage.getItem(key)
+  if (!sid) {
+    sid = crypto.randomUUID()
+    sessionStorage.setItem(key, sid)
+  }
+  return sid
+}
+
+function trackExploreEvent(payload: Record<string, any>) {
+  const sid = getOrCreateSessionId()
+  fetch('/api/explore/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-session-id': sid },
+    body: JSON.stringify({ sessionId: sid, ...payload }),
+  }).catch(() => {})
+}
+
 function ExploreClientInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setTenantSlug } = useTenant()
+  const sidRef = useRef<string>('')
+
   const [view, setView] = useState<View>('home')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsError, setGpsError] = useState<string | null>(null)
@@ -60,6 +81,11 @@ function ExploreClientInner() {
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [showSplash, setShowSplash] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [prevView, setPrevView] = useState<View>('home')
+
+  useEffect(() => {
+    sidRef.current = getOrCreateSessionId()
+  }, [])
 
   // ── Session/Onboarding Logic ────────────────────────────────────
   useEffect(() => {
@@ -82,14 +108,19 @@ function ExploreClientInner() {
     setShowOnboarding(false)
   }
 
-  // ── Sync View with URL ───────────────────────────────────────────
+  // ── Sync View with URL + track view changes ──────────────────────
   useEffect(() => {
     const v = searchParams.get('view')
-    if (v === 'map') setView('map')
-    else if (v === 'list') setView('list')
-    else if (v === 'orders') setView('orders')
-    else setView('home')
+    const newView: View = v === 'map' ? 'map' : v === 'list' ? 'list' : v === 'orders' ? 'orders' : 'home'
+    setView(newView)
   }, [searchParams])
+
+  useEffect(() => {
+    if (sidRef.current && view !== prevView) {
+      trackExploreEvent({ eventType: 'view_change', view })
+      setPrevView(view)
+    }
+  }, [view])
 
   // ── GPS ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -118,7 +149,9 @@ function ExploreClientInner() {
   const fetchNearby = useCallback(async (lat: number, lng: number, r: number) => {
     setFetching(true)
     try {
-      const res = await fetch(`/api/explore/nearby?lat=${lat}&lng=${lng}&radius=${r}`)
+      const res = await fetch(`/api/explore/nearby?lat=${lat}&lng=${lng}&radius=${r}`, {
+        headers: { 'x-session-id': sidRef.current },
+      })
       if (!res.ok) throw new Error('Error al cargar restaurantes')
       const data = await res.json()
       setRestaurants(data.restaurants)
@@ -187,7 +220,10 @@ function ExploreClientInner() {
 
           {/* === HOME VIEW === */}
           {view === 'home' && (
-            <HomeView onOpenLeadModal={() => setShowLeadModal(true)} />
+            <HomeView onOpenLeadModal={() => {
+              trackExploreEvent({ eventType: 'click_lead' })
+              setShowLeadModal(true)
+            }} />
           )}
 
           {/* === LIST VIEW === */}
@@ -209,7 +245,10 @@ function ExploreClientInner() {
                 onClearFilters={() => { setActiveCuisine(null); setOpenNowOnly(false); setSearchQuery('') }}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                onOpenLeadModal={() => setShowLeadModal(true)}
+                onOpenLeadModal={() => {
+                  trackExploreEvent({ eventType: 'click_lead' })
+                  setShowLeadModal(true)
+                }}
               />
               <div className="h-full overflow-y-auto pb-24">
               {filtered.length === 0 ? (
@@ -344,7 +383,12 @@ function ExploreClientInner() {
         <BottomNav />
 
         {/* ── Register Modal ─────────────────────────────────────────── */}
-        {showLeadModal && <SelfReportModal onClose={() => setShowLeadModal(false)} />}
+        {showLeadModal && (
+          <SelfReportModal onClose={() => {
+            setShowLeadModal(false)
+            trackExploreEvent({ eventType: 'click_lead' })
+          }} />
+        )}
       </div>
     </div>
   )
