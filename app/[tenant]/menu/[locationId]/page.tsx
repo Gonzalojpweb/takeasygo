@@ -87,7 +87,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
         /* Viewport height tweaks */
         @media (max-height: 740px) {
           .mh-header { margin-bottom: 12px; }
-          .mh-logo { height: 50px; }
+          .mh-logo { height: 90px; }
           .mh-name { font-size: 24px; }
           .mh-tagline { font-size: 12px; }
           .mh-btn { padding: 10px; font-size: 13px; }
@@ -150,7 +150,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           margin-bottom: 36px;
         }
         .mh-logo {
-          height: 80px;
+          height: 100px;
           max-width: 190px;
           object-fit: contain;
           filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
