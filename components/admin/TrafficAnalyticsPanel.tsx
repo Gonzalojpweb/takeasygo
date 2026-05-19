@@ -126,7 +126,7 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
       </div>
 
       {/* Total */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
             Total Visitas
@@ -143,7 +143,7 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
           <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
             De dónde vienen tus clientes
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {summary.bySource.map((source: any) => {
               const sourceKey = KNOWN_SOURCES.includes(source._id) ? source._id : 'other'
               const Icon = SOURCE_ICONS[sourceKey] || Globe
@@ -192,8 +192,8 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
           <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
             Visitas por día
           </h3>
-          <div className="bg-muted/30 rounded-xl p-4">
-            <div className="flex items-end gap-1 h-32">
+          <div className="bg-muted/30 rounded-xl p-4 overflow-x-auto">
+            <div className="flex items-end gap-1 h-32 min-w-[300px]">
               {data.byDay.map((day: any) => {
                 const maxCount = Math.max(...data.byDay.map((d: any) => d.count))
                 const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0
@@ -207,7 +207,7 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
                       className="w-full bg-primary/60 rounded-t"
                       style={{ height: `${height}%`, minHeight: '4px' }}
                     />
-                    <span className="text-[10px] text-muted-foreground rotate-45 origin-left translate-y-2">
+                    <span className="text-[9px] text-muted-foreground rotate-45 origin-left translate-y-2">
                       {day.date.slice(5)}
                     </span>
                   </div>
@@ -230,17 +230,17 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
               const SourceIcon = SOURCE_ICONS[sourceKey] || Globe
               const DeviceIcon = DEVICE_ICONS[visit.deviceType] || Globe
               return (
-                <div key={visit._id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl">
-                  <div className="flex items-center gap-3">
+                <div key={visit._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-muted/30 rounded-xl">
+                  <div className="flex items-center gap-3 min-w-0">
                     <span className={cn('p-1.5 rounded', getSourceColor(visit.source))} title={getSourceLabel(visit.source)}>
                       <SourceIcon size={14} />
                     </span>
                     <DeviceIcon size={14} className="text-muted-foreground" />
                     {visit.locationPath && (
-                      <span className="text-xs text-muted-foreground">{visit.locationPath}</span>
+                      <span className="text-xs text-muted-foreground truncate">{visit.locationPath}</span>
                     )}
                   </div>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground shrink-0">
                     {new Date(visit.visitedAt).toLocaleString('es-AR', {
                       day: '2-digit',
                       month: 'short',
