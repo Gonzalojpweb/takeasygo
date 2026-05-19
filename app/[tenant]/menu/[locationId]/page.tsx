@@ -474,7 +474,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
             </div>
           )}
 
-          <PoweredByTakeasy variant="dark" label="network" />
+          <PoweredByTakeasy variant="dark" label="network" tenantSlug={tenantSlug} />
         </div>
       </div>
     </MenuWithExploreNav>

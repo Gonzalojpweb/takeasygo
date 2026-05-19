@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
-import { TenantProvider } from '@/contexts/TenantContext'
+import { TenantProvider, TenantRefCapture } from '@/contexts/TenantContext'
 import { LocationProvider } from '@/components/explore/LocationContext'
+import { Suspense } from 'react'
 
 export const viewport: Viewport = {
   themeColor: '#10b981',
@@ -30,6 +31,9 @@ export const metadata: Metadata = {
 export default function ExploreLayout({ children }: { children: React.ReactNode }) {
   return (
     <TenantProvider>
+      <Suspense fallback={null}>
+        <TenantRefCapture />
+      </Suspense>
       <LocationProvider>
         <div className="consumer-dark min-h-screen bg-[#0d0b0a]">
           {children}

@@ -59,6 +59,8 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
   const [clubData, setClubData] = useState<ClubData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [joining, setJoining] = useState(false)
+  const [joinError, setJoinError] = useState<string | null>(null)
 
   useEffect(() => {
     setContextTenantSlug(tenantSlug)
@@ -76,6 +78,23 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
       router.push('/explore')
     }
   }, [status, tenantSlug, router])
+
+  const handleJoinClub = async () => {
+    setJoining(true)
+    setJoinError(null)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/loyalty/join`, { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Error al unirse al club')
+      }
+      await fetchClubData()
+    } catch (err: any) {
+      setJoinError(err.message)
+    } finally {
+      setJoining(false)
+    }
+  }
 
   const fetchClubData = async () => {
     try {
@@ -229,9 +248,16 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
                   <p className="text-[#5a524d] text-sm mb-6">
                     Unite al club para acumular puntos en cada compra y obtener beneficios exclusivos.
                   </p>
-                  <Button className="w-full bg-[#f14722] text-white">
-                    Unirse al Club
+                  <Button
+                    className="w-full bg-[#f14722] text-white"
+                    onClick={handleJoinClub}
+                    disabled={joining}
+                  >
+                    {joining ? 'Uniéndote...' : 'Unirse al Club'}
                   </Button>
+                  {joinError && (
+                    <p className="text-red-500 text-xs mt-2">{joinError}</p>
+                  )}
                 </CardContent>
               </Card>
             </div>

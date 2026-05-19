@@ -7,6 +7,7 @@ const LOGO_URL =
 interface Props {
   variant?: 'dark' | 'light'
   label?: 'powered' | 'network'
+  tenantSlug?: string
 }
 
 /**
@@ -14,7 +15,7 @@ interface Props {
  * variant='dark'  → para fondos oscuros (menú público)
  * variant='light' → para fondos claros (panel admin)
  */
-export default function PoweredByTakeasy({ variant = 'dark', label = 'network' }: Props) {
+export default function PoweredByTakeasy({ variant = 'dark', label = 'network', tenantSlug }: Props) {
   const labelText = label === 'powered' ? 'Powered by' : 'Parte de la red'
 
   const textCls = variant === 'dark'
@@ -27,7 +28,7 @@ export default function PoweredByTakeasy({ variant = 'dark', label = 'network' }
 
   return (
     <Link
-      href="https://takeasygo.com/explore"
+      href={tenantSlug ? `/explore?ref=${tenantSlug}` : 'https://takeasygo.com/explore'}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="TakeasyGO — Plataforma de gestión gastronómica"

@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 interface TenantContextType {
   tenantSlug: string | null
@@ -38,6 +39,21 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       {children}
     </TenantContext.Provider>
   )
+}
+
+// Hook interno para capturar ?ref= y setear el tenant automáticamente
+export function TenantRefCapture() {
+  const searchParams = useSearchParams()
+  const { tenantSlug, setTenantSlug } = useTenant()
+
+  useEffect(() => {
+    const ref = searchParams.get('ref')
+    if (ref && ref !== tenantSlug) {
+      setTenantSlug(ref)
+    }
+  }, [searchParams, tenantSlug, setTenantSlug])
+
+  return null
 }
 
 export function useTenant() {

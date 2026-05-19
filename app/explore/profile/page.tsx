@@ -3,7 +3,7 @@
 import { signIn, signOut, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle, MapPin, X } from 'lucide-react'
+import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle, MapPin, X, Loader2 } from 'lucide-react'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { BorderBeam } from '@/components/ui/border-beam'
@@ -11,7 +11,29 @@ import { AnimatedShinyText } from '@/components/ui/animated-shiny-text'
 import BottomNav from '@/components/explore/BottomNav'
 import { useTenant } from '@/contexts/TenantContext'
 import AddressSelector from '@/components/explore/AddressSelector'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+interface ClubSummary {
+  tenantSlug: string
+  tenantName: string
+  logoUrl: string | null
+  primaryColor: string
+  points: number
+  tier: string
+  totalOrders: number
+  lastOrderAt: string | null
+  clubName: string
+}
+
+interface SuggestedClub {
+  tenantSlug: string
+  tenantName: string
+  logoUrl: string | null
+  primaryColor: string
+  distanceM: number | null
+  hasOrdered: boolean
+  clubName: string
+}
 
 export default function ProfilePage() {
   const { data: session, status } = useSession()
@@ -19,6 +41,24 @@ export default function ProfilePage() {
   const { tenantSlug } = useTenant()
   const loading = status === 'loading'
   const [showAddressSelector, setShowAddressSelector] = useState(false)
+
+  const [myClubs, setMyClubs] = useState<ClubSummary[]>([])
+  const [suggestedClubs, setSuggestedClubs] = useState<SuggestedClub[]>([])
+  const [clubsLoading, setClubsLoading] = useState(false)
+
+  useEffect(() => {
+    if (session) {
+      setClubsLoading(true)
+      fetch('/api/explore/loyalty/clubs')
+        .then(res => res.json())
+        .then(data => {
+          setMyClubs(data.myClubs || [])
+          setSuggestedClubs(data.suggestedClubs || [])
+        })
+        .catch(() => {})
+        .finally(() => setClubsLoading(false))
+    }
+  }, [session])
 
   if (loading) {
     return (
@@ -186,17 +226,78 @@ export default function ProfilePage() {
               <ChevronRight size={16} className="text-[#5a524d] group-hover:translate-x-1 transition-transform" />
             </button>
 
-            {tenantSlug ? (
-              <button 
+            {/* ── Club de Fidelización ─────────────────────────────── */}
+            {clubsLoading ? (
+              <div className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 border-[var(--c-border)]">
+                <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-amber-500">
+                  <Loader2 size={20} className="animate-spin" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-bold text-[#f7f4f2]">Club de Fidelización</p>
+                  <p className="text-[10px] text-[#5a524d]">Cargando...</p>
+                </div>
+              </div>
+            ) : myClubs.length > 0 ? (
+              <div className="w-full glass-card rounded-2xl p-4 border-[var(--c-border)]">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Trophy size={16} className="text-amber-500" />
+                    <p className="text-xs font-bold text-[#f7f4f2]">Tus Clubs</p>
+                  </div>
+                  <button
+                    onClick={() => router.push('/explore/profile/clubs')}
+                    className="text-[10px] font-bold text-amber-500 hover:text-amber-400 transition-colors"
+                  >
+                    Ver todos
+                  </button>
+                </div>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                  {myClubs.slice(0, 5).map(club => (
+                    <button
+                      key={club.tenantSlug}
+                      onClick={() => router.push(`/explore/profile/club/${club.tenantSlug}`)}
+                      className="shrink-0 flex flex-col items-center gap-1.5 p-3 rounded-xl bg-[var(--c-surface)] hover:bg-[var(--c-border)] transition-colors min-w-[80px]"
+                    >
+                      {club.logoUrl ? (
+                        <Image src={club.logoUrl} alt="" width={32} height={32} className="rounded-full" unoptimized />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                          <Trophy size={14} className="text-amber-500" />
+                        </div>
+                      )}
+                      <p className="text-[10px] font-bold text-[#f7f4f2] truncate max-w-[70px] text-center leading-tight">
+                        {club.clubName}
+                      </p>
+                      <p className="text-[9px] font-black text-amber-500 tabular-nums">{club.points} pts</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : tenantSlug && suggestedClubs.some(c => c.tenantSlug === tenantSlug) ? (
+              <button
                 onClick={() => router.push(`/explore/profile/club/${tenantSlug}`)}
+                className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                  <Trophy size={20} />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-bold text-[#f7f4f2]">Unite al Club</p>
+                  <p className="text-[10px] text-[#5a524d]">Acumulá puntos en {suggestedClubs.find(c => c.tenantSlug === tenantSlug)?.clubName}</p>
+                </div>
+                <ChevronRight size={16} className="text-[#5a524d] group-hover:translate-x-1 transition-transform" />
+              </button>
+            ) : suggestedClubs.length > 0 ? (
+              <button
+                onClick={() => router.push('/explore/profile/clubs')}
                 className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all"
               >
                 <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-amber-500">
                   <Trophy size={20} />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-bold text-[#f7f4f2]">Club de Fidelización</p>
-                  <p className="text-[10px] text-[#5a524d]">Puntos y beneficios</p>
+                  <p className="text-sm font-bold text-[#f7f4f2]">Descubrí Clubs</p>
+                  <p className="text-[10px] text-[#5a524d]">{suggestedClubs.length} clubs disponibles cerca tuyo</p>
                 </div>
                 <ChevronRight size={16} className="text-[#5a524d] group-hover:translate-x-1 transition-transform" />
               </button>
@@ -207,7 +308,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-bold text-[#f7f4f2]">Club de Fidelización</p>
-                  <p className="text-[10px] text-[#5a524d]">Seleccioná un restaurante primero</p>
+                  <p className="text-[10px] text-[#5a524d]">Sin clubs disponibles por ahora</p>
                 </div>
               </div>
             )}
