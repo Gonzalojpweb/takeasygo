@@ -77,7 +77,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
         }
 
         .has-nav .mh-logo {
-          height: clamp(50px, 15vh, 70px);
+          height: clamp(50px, 20vh, 70px);
         }
         
         .has-nav .mh-footer {
@@ -150,7 +150,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           margin-bottom: 36px;
         }
         .mh-logo {
-          height: 100px;
+          height: 30vh;
           max-width: 190px;
           object-fit: contain;
           filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
