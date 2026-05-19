@@ -69,24 +69,26 @@ export default function UrlGeneratorPanel({ tenantSlug, tenantName }: UrlGenerat
       </div>
 
       {/* Links principales */}
-      <div className="grid gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {SOURCES.map((source) => {
           const url = generateUrl(source.id)
           const Icon = source.icon
           return (
-            <div key={source.id} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-border/60">
-              <span className={cn('p-3 rounded-xl', source.bgColor, source.color)}>
-                <Icon size={22} />
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground">{source.name}</p>
-                <p className="text-xs text-muted-foreground truncate font-mono">{url}</p>
+            <div key={source.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-card rounded-xl border border-border/60">
+              <div className="flex items-center gap-3">
+                <span className={cn('p-3 rounded-xl', source.bgColor, source.color)}>
+                  <Icon size={22} />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground">{source.name}</p>
+                  <p className="text-xs text-muted-foreground truncate font-mono">{url}</p>
+                </div>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => copyToClipboard(url, source.id)}
-                className="shrink-0"
+                className="shrink-0 w-full sm:w-auto"
               >
                 {copied === source.id ? (
                   <Check size={16} className="text-green-500" />
@@ -113,7 +115,7 @@ export default function UrlGeneratorPanel({ tenantSlug, tenantName }: UrlGenerat
           </Button>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           {(showAllQr ? QR_LOCATIONS : QR_LOCATIONS.slice(0, 4)).map((loc) => {
             const url = generateUrl('qr', loc.id.replace('qr-', ''))
             return (
@@ -122,7 +124,7 @@ export default function UrlGeneratorPanel({ tenantSlug, tenantName }: UrlGenerat
                   <QrCode size={16} className="text-emerald-500" />
                   <span className="text-sm font-medium text-foreground">{loc.name}</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground truncate font-mono">{url}</p>
+                <p className="text-[10px] text-muted-foreground break-all font-mono">{url}</p>
                 <div className="flex gap-1 mt-auto">
                   <Button
                     variant="outline"
