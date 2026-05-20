@@ -485,7 +485,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         {featuredItems.length > 0 && (
           <section className="mb-8 rounded-2xl overflow-hidden border" style={{ borderColor: primary + '25' }}>
             <div className="px-4 py-3 border-b" style={{ borderColor: primary + '25', backgroundColor: primary + '10' }}>
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: primary }}>
+              <p className="text-md font-semibold uppercase tracking-widest" style={{ color: primary }}>
                 {t.featured}
               </p>
             </div>
@@ -504,7 +504,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                     }
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm truncate">{tn(item, 'name', locale)}</p>
-                      {item.description && <p className="text-xs opacity-50 truncate">{tn(item, 'description', locale)}</p>}
+                      {item.description && <p className="text-md opacity-50 truncate">{tn(item, 'description', locale)}</p>}
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className="font-bold text-sm" style={{ color: primary }}>
                           ${getItemPrice(item).toLocaleString('es-AR')}
