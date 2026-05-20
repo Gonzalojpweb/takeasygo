@@ -77,7 +77,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
         }
 
         .has-nav .mh-logo {
-          height: clamp(50px, 20vh, 70px);
+          height: clamp(50px, 20dvh, 70px);
         }
         
         .has-nav .mh-footer {
@@ -100,23 +100,21 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           inset: 0;
           z-index: 0;
         }
-        .mh-bg-img {
+        .mh-bg-container {
           position: absolute;
-          inset: -60px;
-          background-size: cover;
-          background-position: center;
-          filter: blur(2px) saturate(1);
-          transform: scale(1.1);
+          inset: 0;
+          overflow: hidden;
           z-index: 0;
         }
-        .mh-bg-video {
+        .mh-bg-media {
           position: absolute;
-          inset: -60px;
-          width: calc(100% + 120px);
-          height: calc(100% + 120px);
+          inset: 0;
+          width: 100%;
+          height: 100%;
           object-fit: cover;
-          filter: blur(28px) saturate(1.2);
-          transform: scale(1.1);
+          object-position: center;
+          filter: blur(3px) saturate(1.05);
+          transform: scale(1.05);
           z-index: 0;
         }
         .mh-scrim {
@@ -124,6 +122,14 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           inset: 0;
           background: rgba(0, 0, 0, 0.48);
           z-index: 1;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 480px) {
+          .mh-bg-media {
+            filter: blur(2px) saturate(1.02);
+            transform: scale(1.03);
+          }
         }
 
         /* ── Content ── */
@@ -150,7 +156,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           margin-bottom: 36px;
         }
         .mh-logo {
-          height: 40vh;
+          height: 40dvh;
           max-width: 190px;
           object-fit: contain;
           filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
@@ -314,12 +320,31 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
         {!hasHero && (
           <div className="mh-bg-color" style={{ backgroundColor: branding.backgroundColor }} />
         )}
-        {hasHero && hero.mediaType === 'image' && (
-          <div className="mh-bg-img" style={{ backgroundImage: `url(${hero.url})` }} aria-hidden />
-        )}
-        {hasHero && hero.mediaType === 'video' && (
-          // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video aria-hidden autoPlay muted loop playsInline preload="auto" src={hero.url} className="mh-bg-video" />
+        {hasHero && (
+          <div className="mh-bg-container">
+            {hero.mediaType === 'image' && (
+              <img
+                src={hero.url}
+                alt=""
+                className="mh-bg-media"
+                aria-hidden
+                loading="eager"
+              />
+            )}
+            {hero.mediaType === 'video' && (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video
+                aria-hidden
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                src={hero.url}
+                className="mh-bg-media"
+              />
+            )}
+          </div>
         )}
         <div aria-hidden className="mh-scrim" style={!hasHero ? { background: 'rgba(0,0,0,0.15)' } : undefined} />
 

@@ -638,7 +638,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         <section className="py-16 px-4" style={{ backgroundColor: '#1e293b' }}>
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-10">
-              <h3 className="text-3xl font-bold mb-3" style={{ color: primary, fontFamily: 'Georgia, Cambria, serif' }}>
+              <h3 className="text-3xl font-bold mb-3" style={{ color: primary, fontFamily: 'var(--font-heading)' }}>
                 {t.featuredTitle}
               </h3>
               <div className="flex items-center justify-center gap-3 mb-4">
@@ -819,7 +819,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
       {showCart && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowCart(false)} />
-          <div className="relative rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto" style={{ backgroundColor: bg }}>
+          <div className="relative rounded-t-3xl p-6 max-h-[85dvh] overflow-y-auto" style={{ backgroundColor: bg }}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-lg">{t.yourOrder}</h3>
               <button onClick={() => setShowCart(false)} className="opacity-40 hover:opacity-70">

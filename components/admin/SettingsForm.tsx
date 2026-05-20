@@ -26,6 +26,8 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
+import { CURATED_FONTS, FONT_ROLES, FONT_MAP } from '@/lib/fonts'
+import type { FontRole, FontSource } from '@/lib/fonts'
 
 
 type HeroMediaType = 'none' | 'image' | 'video'
@@ -41,7 +43,17 @@ interface Props {
 export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [branding, setBranding] = useState(tenant.branding)
+  const defaultFonts = {
+    heading: { source: 'google' as FontSource, family: 'inter', weight: '' },
+    body: { source: 'google' as FontSource, family: 'inter', weight: '' },
+    display: { source: 'google' as FontSource, family: 'playfair-display', weight: '' },
+    tag: { source: 'google' as FontSource, family: 'inter', weight: '' },
+  }
+
+  const [branding, setBranding] = useState({
+    ...tenant.branding,
+    fonts: tenant.branding?.fonts || defaultFonts,
+  })
   const [activeTab, setActiveTab] = useState('branding')
   const [mounted, setMounted] = useState(false)
 
@@ -314,6 +326,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   }
 
   const [logoSaving, setLogoSaving] = useState(false)
+  const [fontUploading, setFontUploading] = useState<string | null>(null)
 
   async function handleLogoUpload(file: File | undefined) {
     if (!file) return
@@ -330,6 +343,32 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
       toast.error('Error al subir el logo')
     } finally {
       setLogoSaving(false)
+    }
+  }
+
+  async function handleFontUpload(roleKey: string, file: File | undefined) {
+    if (!file) return
+    setFontUploading(roleKey)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`/api/${tenantSlug}/upload/font`, { method: 'POST', body: formData })
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error) }
+      const { url, format } = await res.json()
+      const newFonts = { ...branding.fonts }
+      newFonts[roleKey] = {
+        ...newFonts[roleKey],
+        source: 'custom',
+        family: '',
+        weight: '',
+        files: { ...newFonts[roleKey]?.files, [format]: url },
+      }
+      setBranding((p: any) => ({ ...p, fonts: newFonts }))
+      toast.success(`Fuente ${format.toUpperCase()} subida`)
+    } catch (err: any) {
+      toast.error(err.message || 'Error al subir la fuente')
+    } finally {
+      setFontUploading(null)
     }
   }
 
@@ -583,6 +622,94 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                           </div>
                         </div>
                       </div>
+                    </div>
+                    </section>
+
+                    {/* ── Tipografía ── */}
+                    <section className="space-y-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                          <span className="text-lg font-black">T</span>
+                        </div>
+                        <h3 className="text-xl font-bold tracking-tight">Tipografía</h3>
+                      </div>
+
+                      <div className="bg-muted/20 border border-border/40 p-6 rounded-[2.5rem] space-y-8">
+                        {FONT_ROLES.map(role => {
+                          const config = branding.fonts?.[role.key] || defaultFonts[role.key]
+                          return (
+                            <div key={role.key}>
+                              <div className="flex items-center justify-between mb-3">
+                                <div>
+                                  <p className="text-sm font-bold">{role.label}</p>
+                                  <p className="text-[10px] text-muted-foreground">{role.description}</p>
+                                </div>
+                                <span className="text-[9px] font-mono text-muted-foreground/40">{role.cssVar}</span>
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {CURATED_FONTS.filter(f => f.source !== 'adobe' || process.env.NEXT_PUBLIC_ADOBE_FONTS_PROJECT_ID).map(font => (
+                                  <button
+                                    key={font.id}
+                                    onClick={() => {
+                                      const newFonts = { ...branding.fonts }
+                                      newFonts[role.key] = { ...newFonts[role.key], source: font.source, family: font.id, weight: font.weight || '' }
+                                      setBranding((p: any) => ({ ...p, fonts: newFonts }))
+                                    }}
+                                    className={cn(
+                                      'px-3 py-2.5 rounded-xl border-2 text-left transition-all',
+                                      config.source === 'google' && config.family === font.id
+                                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                                        : 'border-border/60 hover:border-primary/30 hover:bg-muted/30',
+                                    )}
+                                  >
+                                    <p className="text-sm font-bold truncate">{font.label}</p>
+                                    <p className="text-[9px] text-muted-foreground/60 mt-0.5">{font.category} · {font.source}</p>
+                                    <p className="text-[10px] mt-1 opacity-60 truncate" style={{ fontFamily: font.family }}>
+                                      Aa Bb 123
+                                    </p>
+                                  </button>
+                                ))}
+
+                                {/* ── Custom upload ── */}
+                                <div>
+                                  {config.source === 'custom' && config.files?.woff2 ? (
+                                    <div className="h-full px-3 py-2.5 rounded-xl border-2 border-primary bg-primary/5 ring-2 ring-primary/20 flex flex-col items-center justify-center text-center gap-1">
+                                      <p className="text-[9px] font-bold text-primary uppercase tracking-wider">Subida</p>
+                                      <p className="text-[8px] text-muted-foreground truncate max-w-full">{config.files.woff2.split('/').pop()}</p>
+                                      <label className="text-[9px] text-primary underline cursor-pointer">
+                                        {fontUploading === role.key ? 'Subiendo...' : 'Cambiar'}
+                                        <input type="file" accept=".woff2,.woff,.ttf" hidden
+                                          onChange={e => handleFontUpload(role.key, e.target.files?.[0])} />
+                                      </label>
+                                    </div>
+                                  ) : (
+                                    <label className={cn(
+                                      'h-full px-3 py-2.5 rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-center gap-1 cursor-pointer transition-all',
+                                      config.source === 'custom' ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/30 hover:bg-muted/30',
+                                    )}>
+                                      <span className="text-[18px] leading-none text-muted-foreground/60">+</span>
+                                      <p className="text-[9px] font-bold text-muted-foreground/80">Personalizada</p>
+                                      <p className="text-[7px] text-muted-foreground/40">WOFF2 · WOFF · TTF</p>
+                                      <input type="file" accept=".woff2,.woff,.ttf" hidden
+                                        onChange={e => handleFontUpload(role.key, e.target.files?.[0])} />
+                                    </label>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </section>
+
+                    <section className="space-y-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                          <ImageIcon size={20} />
+                        </div>
+                        <h3 className="text-xl font-bold tracking-tight">Logo</h3>
+                      </div>
 
                       <input
                             type="file"
@@ -623,7 +750,6 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               </div>
                             )}
                           </div>
-                    </div>
                   </section>
 
                   <div className="pt-4">

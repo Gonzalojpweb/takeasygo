@@ -107,6 +107,10 @@
 }
 
 :root {
+  --font-heading: 'Geist', system-ui, sans-serif;
+  --font-body: 'Geist', system-ui, sans-serif;
+  --font-display: 'Geist', system-ui, sans-serif;
+  --font-tag: 'Geist', system-ui, sans-serif;
   --radius: 0.75rem;
   --background: oklch(0.985 0 0);
   /* Subtle off-white for depth */

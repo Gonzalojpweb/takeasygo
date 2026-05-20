@@ -46,8 +46,8 @@ function FloatingPhones({
 
         /* Mobile — imágenes y posiciones */
         @media (max-width: 767px) {
-          .pf-img-a { width: 100%; height: 60vh; }
-          .pf-img-b { width: 100%; height: 60vh; }
+          .pf-img-a { width: 100%; height: 60dvh; }
+          .pf-img-b { width: 100%; height: 60dvh; }
           .pf-wrap-b { right: -190px; top: -250px; }
           .pf-wrap-a { left: -180px;  top: -240px; }
         }
