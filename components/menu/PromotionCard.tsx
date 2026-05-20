@@ -170,18 +170,31 @@ export function PromotionCard({
     )
   }
 
-  // Standard Card Style (Row layout)
-  const cardBg = isPageBgLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.05)'
-  const cardBorder = isPageBgLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)'
-  const titleColor = isPageBgLight ? '#1f2937' : '#f9fafb'
-  const subtitleColor = isPageBgLight ? '#4b5563' : '#d1d5db'
-  const labelColor = isPageBgLight ? '#9ca3af' : '#9ca3af'
-  const priceColor = isPageBgLight ? '#111827' : '#ffffff'
+  // Standard Card Style (Row layout) - Respect custom styles if set
+  const isBgLight = isLightColor(styles.backgroundColor || bg)
+  
+  const cardBg = styles.backgroundColor || (isPageBgLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.05)')
+  
+  const cardBorder = styles.accentColor || (isPageBgLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)')
+  
+  const defaultText = isBgLight ? '#1f2937' : '#ffffff'
+  const defaultMutedText = isBgLight ? '#4b5563' : '#d1d5db'
+  const defaultLabelText = isBgLight ? '#9ca3af' : '#9ca3af'
+  
+  const titleColor = styles.textColor || defaultText
+  const subtitleColor = styles.textColor || defaultMutedText
+  const labelColor = styles.textColor || defaultLabelText
+  
+  const priceColor = styles.accentColor || (isBgLight ? '#111827' : '#ffffff')
 
   // Dynamic button contrast calculation
   const isAccentLight = isLightColor(accent)
   const buttonIconColor = isAccentLight ? '#1f2937' : '#ffffff'
   const buttonBorder = isAccentLight ? '1px solid rgba(0, 0, 0, 0.12)' : 'none'
+
+  const borderStyle = styles.accentColor 
+    ? `1.5px solid ${styles.accentColor}`
+    : `1px solid ${cardBorder}`
 
   return (
     <div
@@ -192,7 +205,7 @@ export function PromotionCard({
       )}
       style={{
         backgroundColor: cardBg,
-        border: `1px solid ${cardBorder}`,
+        border: borderStyle,
         borderRadius: styles.borderRadius || '20px',
       }}
     >
