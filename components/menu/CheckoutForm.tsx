@@ -404,6 +404,9 @@ async function handleSubmit(e: React.FormEvent) {
                       {item.customizationSummary && (
                         <p className="text-xs text-zinc-400 truncate">{item.customizationSummary}</p>
                       )}
+                      {item.selectedVariant && !item.customizationSummary && (
+                        <p className="text-xs text-zinc-400 truncate">{item.selectedVariant.name}</p>
+                      )}
                     </div>
 
                     {/* Subtotal */}

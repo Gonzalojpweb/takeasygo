@@ -8,14 +8,14 @@ import QrPromoBanner from '@/components/menu/QrPromoBanner'
 import MenuWithExploreNav from '@/components/menu/MenuWithExploreNav'
 import WelcomeBackground from '@/components/menu/WelcomeBackground'
 
+export const revalidate = 300
+
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
-  searchParams: Promise<{ source?: string }>
 }
 
-export default async function MenuSelectorPage({ params, searchParams }: Props) {
+export default async function MenuSelectorPage({ params }: Props) {
   const { tenant: tenantSlug, locationId } = await params
-  const { source } = await searchParams
 
   await connectDB()
 
@@ -48,7 +48,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
   return (
     <MenuWithExploreNav tenantSlug={tenantSlug}>
       {/* QR Promo Banner - aparece al escanear QR por primera vez */}
-      <QrPromoBanner tenantSlug={tenantSlug} source={source || ''} />
+      <QrPromoBanner tenantSlug={tenantSlug} />
 
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }

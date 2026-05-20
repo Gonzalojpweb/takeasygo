@@ -15,12 +15,19 @@ const customizationGroupSchema = z.object({
   selectedOptions: z.array(customizationOptionSchema).max(20).default([]),
 })
 
+const selectedVariantSchema = z.object({
+  name: z.string().min(1).max(100),
+  price: z.number().min(0),
+  takeawayPrice: z.number().min(0).optional(),
+})
+
 const orderItemSchema = z.object({
   type: z.enum(['menuItem', 'promotion']).optional().default('menuItem'),
   menuItemId: z.string().optional(),
   promotionId: z.string().optional(),
   quantity: z.number().int().min(1).max(99),
   customizations: z.array(customizationGroupSchema).max(10).default([]),
+  selectedVariant: selectedVariantSchema.optional(),
   addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner', 'promotion']).optional(),
 })
 

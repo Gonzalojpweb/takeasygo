@@ -38,14 +38,26 @@ type CustomizationGroupForm = {
   options: CustomizationOptionForm[]
 }
 
+type VariantForm = {
+  name: string
+  price: string
+  takeawayPrice: string
+  nameTranslations: string
+}
+
 const EMPTY_CUSTOMIZATION_GROUP: CustomizationGroupForm = {
   name: '', type: 'single', required: false, options: [],
+}
+
+const EMPTY_VARIANT: VariantForm = {
+  name: '', price: '', takeawayPrice: '', nameTranslations: '',
 }
 
 const EMPTY_ITEM = {
   name: '', description: '', price: '', takeawayPrice: '', tags: '', isFeatured: false, imageUrl: '',
   suggestWith: [] as string[],
   customizationGroups: [] as CustomizationGroupForm[],
+  variants: [] as VariantForm[],
   availabilityMode: 'always' as 'always' | 'scheduled',
   availabilitySchedule: [] as ScheduleSlot[],
 }
@@ -62,6 +74,24 @@ function serializeGroups(groups: CustomizationGroupForm[]): any[] {
       extraPrice: parseFloat(o.extraPrice) || 0,
       subGroups: serializeGroups(o.subGroups ?? []),
     })),
+  }))
+}
+
+function serializeVariants(variants: VariantForm[]): any[] {
+  return (variants || []).map(v => ({
+    name: v.name,
+    price: parseFloat(v.price) || 0,
+    takeawayPrice: v.takeawayPrice ? parseFloat(v.takeawayPrice) : undefined,
+    nameTranslations: v.nameTranslations ? { en: v.nameTranslations } : undefined,
+  }))
+}
+
+function deserializeVariants(variants: any[]): VariantForm[] {
+  return (variants || []).map((v: any) => ({
+    name: v.name || '',
+    price: v.price?.toString() ?? '',
+    takeawayPrice: v.takeawayPrice?.toString() ?? '',
+    nameTranslations: v.nameTranslations?.en ?? '',
   }))
 }
 
@@ -254,6 +284,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           imageUrl: newItem.imageUrl,
           suggestWith: newItem.suggestWith,
           customizationGroups: serializeGroups(newItem.customizationGroups),
+          variants: serializeVariants(newItem.variants),
         }),
       })
       if (!res.ok) throw new Error()
@@ -287,6 +318,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           imageUrl: editingItemData.imageUrl,
           suggestWith: editingItemData.suggestWith,
           customizationGroups: serializeGroups(editingItemData.customizationGroups),
+          variants: serializeVariants(editingItemData.variants),
           availabilityMode: editingItemData.availabilityMode,
           availabilitySchedule: editingItemData.availabilityMode === 'scheduled' ? editingItemData.availabilitySchedule : [],
         }),
@@ -1059,6 +1091,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                   imageUrl: item.imageUrl || '',
                                                   suggestWith: item.suggestWith ?? [],
                                                   customizationGroups: deserializeGroups(item.customizationGroups || []),
+                                                  variants: deserializeVariants(item.variants || []),
                                                   availabilityMode: item.availabilityMode ?? 'always',
                                                   availabilitySchedule: item.availabilitySchedule ?? [],
                                                 })
@@ -1770,6 +1803,129 @@ function ItemForm({
                 </Button>
               </div>
             </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Variants ── */}
+      <div className="pt-6 border-t border-border/60">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Layers size={18} />
+            </div>
+            <div>
+              <h5 className="text-sm font-bold text-foreground leading-none">Variantes del producto</h5>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter opacity-70">
+                Ej: Salmón ($31.000) · Pollo ($24.500) — el precio base del item no se usará
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onChange({
+              ...data,
+              variants: [...data.variants, { ...EMPTY_VARIANT }],
+            })}
+            className="border-2 border-primary/20 text-primary hover:bg-primary/5 font-bold rounded-xl active:scale-95 transition-all px-4"
+          >
+            <Plus size={14} className="mr-2" strokeWidth={3} /> Agregar variante
+          </Button>
+        </div>
+
+        {data.variants.length === 0 && (
+          <p className="text-[10px] text-muted-foreground/50 italic mb-4">
+            Sin variantes. Si agregás variantes, el precio del producto lo definirá la variante seleccionada.
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 gap-3">
+          {data.variants.map((variant, vi) => (
+            <div key={vi} className="p-4 bg-muted/20 rounded-3xl border border-border/60 relative group/card">
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = data.variants.filter((_, i) => i !== vi)
+                  onChange({ ...data, variants: updated })
+                }}
+                className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-border text-muted-foreground hover:text-white hover:bg-destructive hover:border-destructive shadow-sm opacity-0 group-hover/card:opacity-100 transition-all flex items-center justify-center"
+              >
+                <X size={14} strokeWidth={3} />
+              </button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block">
+                    Nombre
+                  </label>
+                  <input
+                    className="w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-xl px-4 py-2.5 outline-none transition-all"
+                    placeholder="Ej: Salmón"
+                    value={variant.name}
+                    onChange={e => {
+                      const updated = [...data.variants]
+                      updated[vi] = { ...updated[vi], name: e.target.value }
+                      onChange({ ...data, variants: updated })
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block">
+                    Precio Dine-in
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
+                    <input
+                      type="number" min="0"
+                      className="w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-xl pl-7 pr-4 py-2.5 outline-none transition-all tabular-nums"
+                      placeholder="0"
+                      value={variant.price}
+                      onChange={e => {
+                        const updated = [...data.variants]
+                        updated[vi] = { ...updated[vi], price: e.target.value }
+                        onChange({ ...data, variants: updated })
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block">
+                    Precio Takeaway
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
+                    <input
+                      type="number" min="0"
+                      className="w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-xl pl-7 pr-4 py-2.5 outline-none transition-all tabular-nums"
+                      placeholder="0"
+                      value={variant.takeawayPrice}
+                      onChange={e => {
+                        const updated = [...data.variants]
+                        updated[vi] = { ...updated[vi], takeawayPrice: e.target.value }
+                        onChange({ ...data, variants: updated })
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2">
+                <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block">
+                  Traducción al inglés (opcional)
+                </label>
+                <input
+                  className="w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-xl px-4 py-2 outline-none transition-all"
+                  placeholder="Ej: Salmon"
+                  value={variant.nameTranslations}
+                  onChange={e => {
+                    const updated = [...data.variants]
+                    updated[vi] = { ...updated[vi], nameTranslations: e.target.value }
+                    onChange({ ...data, variants: updated })
+                  }}
+                />
+              </div>
+            </div>
           ))}
         </div>
       </div>

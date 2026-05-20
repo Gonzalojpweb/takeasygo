@@ -112,7 +112,14 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const router = useRouter()
   const t = UI[locale]
   const isOperational = tenant.isOperational !== false
-  const getItemPrice = (item: any) => mode === 'takeaway' ? (item.takeawayPrice ?? item.price) : item.price
+  const getItemPrice = (item: any) => {
+    const hasVariants = (item.variants ?? []).length > 0
+    if (hasVariants) {
+      const prices = item.variants.map((v: any) => mode === 'takeaway' ? (v.takeawayPrice ?? v.price) : v.price)
+      return Math.min(...prices)
+    }
+    return mode === 'takeaway' ? (item.takeawayPrice ?? item.price) : item.price
+  }
 
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
@@ -216,6 +223,12 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   }, [tenant.slug, location._id])
 
   function addPlainToCart(item: any, triggerUpsell = true, addedFrom: CartItem['addedFrom'] = 'menu') {
+    const hasVariants = (item.variants ?? []).length > 0
+    // Items with variants must go through the customization modal
+    if (hasVariants) {
+      openCustomizationModal(item)
+      return
+    }
     const plainId = `${item._id}:plain`
     const isNew = !cart.some(i => i.cartItemId === plainId)
     setCart(prev => {
@@ -296,7 +309,6 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
   function openCustomizationModal(item: any, categoryGroups?: any[]) {
     setShowCart(false)
-    // Los grupos de la categoría se anteponen a los del ítem (heredados automáticamente)
     const mergedGroups = [
       ...(categoryGroups ?? []),
       ...(item.customizationGroups ?? []),
@@ -820,7 +832,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
       {/* ── Customization Modal ── */}
       {customizingItem && (
         <CustomizationModal
-          item={{ ...customizingItem, price: getItemPrice(customizingItem) }}
+          item={{ ...customizingItem, price: getItemPrice(customizingItem), variants: customizingItem.variants ?? [] }}
           onConfirm={handleConfirmCustomization}
           onClose={() => setCustomizingItem(null)}
           primaryColor={primary}
@@ -879,6 +891,9 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                       {item.customizationSummary && (
                         <span className="text-xs opacity-50 truncate block">{item.customizationSummary}</span>
                       )}
+                      {item.selectedVariant && !item.customizationSummary && (
+                        <span className="text-xs opacity-50 truncate block">{item.selectedVariant.name}</span>
+                      )}
                     </div>
                   </div>
                   <span className="text-sm font-bold flex-shrink-0">
@@ -921,8 +936,9 @@ function CartControl({
 }) {
   const sz = compact ? 11 : 13
   const btnSz = compact ? 'w-6 h-6' : 'w-7 h-7'
-  // El ítem requiere modal si tiene sus propios grupos O si la categoría tiene grupos globales
-  const hasCustomizations = (item.customizationGroups ?? []).length > 0 || (categoryGroups ?? []).length > 0
+  // El ítem requiere modal si tiene variantes, sus propios grupos O si la categoría tiene grupos globales
+  const hasVariants = (item.variants ?? []).length > 0
+  const hasCustomizations = hasVariants || (item.customizationGroups ?? []).length > 0 || (categoryGroups ?? []).length > 0
 
   if (hasCustomizations) {
     return (

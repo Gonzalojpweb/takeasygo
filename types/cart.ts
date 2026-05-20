@@ -10,6 +10,12 @@ export interface SelectedCustomization {
 
 export type CartItemType = 'menuItem' | 'promotion'
 
+export interface SelectedVariant {
+  name: string
+  price: number
+  takeawayPrice?: number
+}
+
 export interface CartItem {
   cartItemId: string           // `${menuItemId}:plain` or `${menuItemId}:${Date.now()}`
   menuItemId?: string
@@ -21,6 +27,7 @@ export interface CartItem {
   quantity: number
   customizations: SelectedCustomization[]
   customizationSummary: string // e.g. "Papa fritas · Al punto"
+  selectedVariant?: SelectedVariant
   addedFrom?: 'menu' | 'upsell_sheet' | 'checkout_banner'
   type: CartItemType          // 'menuItem' or 'promotion'
   /** Precio original de lista del menú. Si existe, significa que el item tiene descuento de categoría y el QR no aplica sobre él. */

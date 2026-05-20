@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Gift, Star, Info, CheckCircle2, ArrowRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSearchParams } from 'next/navigation'
 
 interface QrPromoData {
   isEnabled: boolean
@@ -26,10 +27,12 @@ interface QrPromoStyles {
 
 interface QrPromoBannerProps {
   tenantSlug: string
-  source: string
 }
 
-export default function QrPromoBanner({ tenantSlug, source }: QrPromoBannerProps) {
+export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
+  const searchParams = useSearchParams()
+  const source = searchParams ? (searchParams.get('source') || '') : ''
+
   const [show, setShow] = useState(false)
   const [promo, setPromo] = useState<QrPromoData | null>(null)
   const [styles, setStyles] = useState<QrPromoStyles | null>(null)
