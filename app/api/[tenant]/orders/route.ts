@@ -204,10 +204,44 @@ export async function POST(
 
         const quantity = clientItem.quantity  // ya validado como number.int().min(1) por Zod
 
-        // Precio base depende del modo (takeaway vs dine-in)
-        const basePrice: number = body.mode === 'takeaway' 
-          ? (menuItem.takeawayPrice ?? menuItem.price) 
-          : menuItem.price
+        // ── Precio base: si el item tiene variantes, el precio viene de la variante seleccionada ──
+        let basePrice: number
+        let resolvedSelectedVariant: any = null
+
+        const hasVariants = (menuItem.variants ?? []).length > 0
+
+        if (hasVariants) {
+          const selectedVariant = clientItem.selectedVariant
+          if (!selectedVariant) {
+            return NextResponse.json(
+              { error: `El item "${menuItem.name}" requiere seleccionar una variante` },
+              { status: 400 }
+            )
+          }
+          const dbVariant = menuItem.variants.find(
+            (v: any) => v.name === selectedVariant.name
+          )
+          if (!dbVariant) {
+            return NextResponse.json(
+              { error: `Variante inválida "${selectedVariant.name}" para "${menuItem.name}"` },
+              { status: 400 }
+            )
+          }
+          basePrice = body.mode === 'takeaway'
+            ? (dbVariant.takeawayPrice ?? dbVariant.price)
+            : dbVariant.price
+
+          resolvedSelectedVariant = {
+            name: dbVariant.name,
+            price: dbVariant.price,
+            ...(dbVariant.takeawayPrice != null ? { takeawayPrice: dbVariant.takeawayPrice } : {}),
+          }
+        } else {
+          // Precio base depende del modo (takeaway vs dine-in)
+          basePrice = body.mode === 'takeaway' 
+            ? (menuItem.takeawayPrice ?? menuItem.price) 
+            : menuItem.price
+        }
           
         let extraPrice = 0
         const resolvedCustomizations: any[] = []
@@ -243,11 +277,19 @@ export async function POST(
         const price = basePrice + extraPrice
         const subtotal = price * quantity
 
-        // Detectar si el item tiene descuento de categoría comparando precio actual vs original
-        // Considerar el modo (takeaway vs dine-in) para usar los precios correctos
-        const hasCategoryDiscount = body.mode === 'takeaway'
-          ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
-          : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
+        // Detectar si el item tiene descuento de categoría
+        // Para items con variantes, comparar contra el precio original de la variante
+        let hasCategoryDiscount = false
+        if (hasVariants && resolvedSelectedVariant) {
+          const variantOriginal = body.mode === 'takeaway'
+            ? resolvedSelectedVariant.takeawayPrice ?? resolvedSelectedVariant.price
+            : resolvedSelectedVariant.price
+          hasCategoryDiscount = false  // Los descuentos de categoría no aplican sobre variantes por ahora
+        } else {
+          hasCategoryDiscount = body.mode === 'takeaway'
+            ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
+            : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
+        }
 
         resolvedItems.push({
           menuItemId: menuItem._id,
@@ -261,6 +303,7 @@ export async function POST(
           quantity,
           subtotal,
           customizations: resolvedCustomizations,
+          selectedVariant: resolvedSelectedVariant,
           addedFrom: clientItem.addedFrom ?? null,
           hasCategoryDiscount,
         })

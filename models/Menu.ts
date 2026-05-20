@@ -15,6 +15,16 @@ export interface ICustomizationGroup {
   options: ICustomizationOption[]
 }
 
+export interface IMenuItemVariant {
+  _id?: mongoose.Types.ObjectId
+  name: string
+  nameTranslations?: { en: string }
+  price: number
+  takeawayPrice?: number
+  originalPrice?: number
+  takeawayOriginalPrice?: number
+}
+
 export interface IAvailabilitySlot {
   days: number[]
   timeStart: string
@@ -36,6 +46,8 @@ export interface IMenuItem {
   tags: string[]
   isFeatured: boolean
   suggestWith?: string[]  // IDs de ítems a sugerir cuando este se agrega al carrito
+  /** Variantes del producto. Si existe y tiene elementos, el precio lo define la variante seleccionada (el price base se ignora). */
+  variants?: IMenuItemVariant[]
   customizationGroups: ICustomizationGroup[]
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
@@ -66,6 +78,17 @@ export interface IMenu extends Document {
   createdAt: Date
   updatedAt: Date
 }
+
+const MenuItemVariantSchema = new Schema<IMenuItemVariant>({
+  name: { type: String, required: true, trim: true },
+  nameTranslations: {
+    en: { type: String, default: '' },
+  },
+  price: { type: Number, required: true, min: 0 },
+  takeawayPrice: { type: Number, min: 0 },
+  originalPrice: { type: Number, min: 0 },
+  takeawayOriginalPrice: { type: Number, min: 0 },
+}, { _id: true })
 
 // Declarados como Schema genérico primero para permitir referencia circular opción ↔ grupo
 const CustomizationOptionSchema: Schema = new Schema({})
@@ -131,6 +154,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
   },
   suggestWith: {
     type: [String],
+    default: [],
+  },
+  variants: {
+    type: [MenuItemVariantSchema],
     default: [],
   },
   customizationGroups: {

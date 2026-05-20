@@ -190,6 +190,11 @@ function generateTicket(order, role, columns = 32) {
             chunks.push(Buffer.from(`${line}\n`));
         }
 
+        // Mostrar variante seleccionada
+        if (item.selectedVariant) {
+            chunks.push(Buffer.from(`  > Variante: ${item.selectedVariant.name}\n`));
+        }
+
         // Mostrar customizaciones en todos los tickets (cocina, barra y caja)
         if (item.customizations && item.customizations.length > 0) {
             item.customizations.forEach(c => {

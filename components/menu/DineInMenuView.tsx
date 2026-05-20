@@ -418,7 +418,14 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                           {tn(item, 'name', locale)}
                         </p>
                         <p className="font-bold text-md flex-shrink-0" style={{ color: branding.primaryColor }}>
-                          ${item.price.toLocaleString('es-AR')}
+                          ${(() => {
+                            const hasVariants = (item.variants ?? []).length > 0
+                            if (hasVariants) {
+                              const prices = item.variants.map((v: any) => v.price)
+                              return Math.min(...prices).toLocaleString('es-AR')
+                            }
+                            return item.price.toLocaleString('es-AR')
+                          })()}
                         </p>
                       </div>
                       {item.description && (
@@ -473,7 +480,14 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                         {tn(item, 'name', locale)}
                       </p>
                       <p className="text-xs font-bold" style={{ color: branding.primaryColor }}>
-                        ${item.price.toLocaleString('es-AR')}
+                        ${(() => {
+                          const hasVariants = (item.variants ?? []).length > 0
+                          if (hasVariants) {
+                            const prices = item.variants.map((v: any) => v.price)
+                            return Math.min(...prices).toLocaleString('es-AR')
+                          }
+                          return item.price.toLocaleString('es-AR')
+                        })()}
                       </p>
                     </div>
                   )}
@@ -598,8 +612,32 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                 <p className="text-md mt-1" style={{ color: mutedText }}>{tn(modalItem, 'description', locale)}</p>
               )}
               <p className="font-bold text-lg mt-2" style={{ color: branding.primaryColor }}>
-                ${modalItem.price.toLocaleString('es-AR')}
+                ${(() => {
+                  const hasVariants = (modalItem.variants ?? []).length > 0
+                  if (hasVariants) {
+                    const prices = modalItem.variants.map((v: any) => v.price)
+                    const minPrice = Math.min(...prices)
+                    const maxPrice = Math.max(...prices)
+                    return minPrice === maxPrice
+                      ? minPrice.toLocaleString('es-AR')
+                      : `${minPrice.toLocaleString('es-AR')} - ${maxPrice.toLocaleString('es-AR')}`
+                  }
+                  return modalItem.price.toLocaleString('es-AR')
+                })()}
               </p>
+              {modalItem.variants && modalItem.variants.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {modalItem.variants.map((v: any) => (
+                    <div key={v.name} className="flex items-center justify-between text-sm px-2 py-1 rounded-lg"
+                      style={{ backgroundColor: branding.primaryColor + '10' }}>
+                      <span style={{ color: text }}>{v.name}</span>
+                      <span className="font-semibold" style={{ color: branding.primaryColor }}>
+                        ${v.price.toLocaleString('es-AR')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {modalItem.tags?.length > 0 && (
                 <div className="flex gap-1.5 mt-3 flex-wrap">
                   {modalItem.tags.map((tag: string) => (

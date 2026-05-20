@@ -56,18 +56,25 @@ function buildPOSPayload(order: any, tenant: ITenant): POSOrderPayload {
 
     // Si el item no tiene mapeo, lo inyectamos por nombre (fallback)
     // FUDO permite esto pero es menos confiable
+    const variantModifier = item.selectedVariant
+      ? [{ name: item.selectedVariant.name, extraPrice: 0 }]
+      : []
+
     items.push({
       posItemId:  mapped?.posItemId ?? '',
       name:       item.name,
       quantity:   item.quantity,
       unitPrice:  item.price,
       notes:      '',
-      modifiers:  item.customizations?.flatMap((group: any) =>
-        group.selectedOptions.map((opt: any) => ({
-          name:       opt.name,
-          extraPrice: opt.extraPrice ?? 0,
-        }))
-      ) ?? [],
+      modifiers: [
+        ...variantModifier,
+        ...(item.customizations?.flatMap((group: any) =>
+          group.selectedOptions.map((opt: any) => ({
+            name:       opt.name,
+            extraPrice: opt.extraPrice ?? 0,
+          }))
+        ) ?? []),
+      ],
     })
   }
 

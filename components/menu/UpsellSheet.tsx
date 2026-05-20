@@ -41,7 +41,8 @@ export default function UpsellSheet({
   const L = LABELS[locale]
 
   function handleAdd(item: any) {
-    if ((item.customizationGroups ?? []).length > 0) {
+    const hasVariants = (item.variants ?? []).length > 0
+    if (hasVariants || (item.customizationGroups ?? []).length > 0) {
       onOpenModal(item)
     } else {
       onAddPlain(item)

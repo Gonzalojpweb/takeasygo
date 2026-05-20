@@ -14,6 +14,12 @@ export interface ISelectedCustomizationGroup {
   selectedOptions: ISelectedCustomizationOption[]
 }
 
+export interface ISelectedVariant {
+  name: string
+  price: number
+  takeawayPrice?: number
+}
+
 export interface IOrderItem {
   menuItemId?: mongoose.Types.ObjectId
   promotionId?: string
@@ -26,6 +32,7 @@ export interface IOrderItem {
   quantity: number
   subtotal: number
   customizations: ISelectedCustomizationGroup[]
+  selectedVariant?: ISelectedVariant
   addedFrom?: string
   /** Si true, el item tenía descuento de categoría (originalPrice definido en el menú). El QR no aplicó sobre él. */
   hasCategoryDiscount?: boolean
@@ -93,6 +100,12 @@ export interface IOrder extends Document {
   updatedAt: Date
 }
 
+const SelectedVariantSchema = new Schema<ISelectedVariant>({
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  takeawayPrice: { type: Number },
+}, { _id: false })
+
 const SelectedCustomizationOptionSchema = new Schema<ISelectedCustomizationOption>({
   name: { type: String, required: true },
   extraPrice: { type: Number, default: 0 },
@@ -128,6 +141,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
     type: [SelectedCustomizationGroupSchema],
     default: [],
   },
+  selectedVariant: { type: SelectedVariantSchema, default: null },
   addedFrom: { type: String, default: null },
 })
 

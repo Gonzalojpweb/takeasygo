@@ -2,7 +2,15 @@
 
 import { useState, useMemo } from 'react'
 import { X, Minus, Plus, Check } from 'lucide-react'
-import type { CartItem, SelectedCustomization } from '@/types/cart'
+import type { CartItem, SelectedCustomization, SelectedVariant } from '@/types/cart'
+
+interface VariantInfo {
+  _id?: string
+  name: string
+  nameTranslations?: { en: string }
+  price: number
+  takeawayPrice?: number
+}
 
 interface CustomizationOption {
   _id?: string
@@ -29,12 +37,6 @@ interface Props {
   mode: 'takeaway' | 'dine-in'
 }
 
-/**
- * Recorre el árbol de grupos de forma recursiva y devuelve la lista plana
- * de grupos que deben mostrarse dados los seleccionados actuales.
- * Cuando el usuario elige una opción que tiene subGroups, esos subGroups
- * se insertan inmediatamente después en el flujo.
- */
 function computeActiveGroups(
   rootGroups: CustomizationGroup[],
   selections: Record<string, string[]>
@@ -45,7 +47,6 @@ function computeActiveGroups(
     for (const group of groups) {
       result.push(group)
       const selectedNames = selections[group._id] ?? []
-      // Si alguna opción seleccionada tiene subGroups, los insertamos en el flujo
       for (const opt of group.options) {
         if (selectedNames.includes(opt.name) && opt.subGroups?.length) {
           visit(opt.subGroups)
@@ -68,26 +69,34 @@ export default function CustomizationModal({
   mode,
 }: Props) {
   const rootGroups: CustomizationGroup[] = item.customizationGroups ?? []
+  const variants: VariantInfo[] = item.variants ?? []
+  const hasVariants = variants.length > 0
+
   const [selections, setSelections] = useState<Record<string, string[]>>({})
   const [quantity, setQuantity] = useState(1)
+  const [selectedVariant, setSelectedVariant] = useState<VariantInfo | null>(
+    hasVariants && variants.length === 1 ? variants[0] : null
+  )
 
-  // Lista plana de grupos activos según selecciones actuales
   const activeGroups = useMemo(
     () => computeActiveGroups(rootGroups, selections),
     [rootGroups, selections]
   )
 
-  // Validación: todos los grupos obligatorios activos deben tener al menos una selección
-  const isValid = activeGroups
-    .filter(g => g.required)
-    .every(g => (selections[g._id] ?? []).length > 0)
+  const isValid =
+    (!hasVariants || selectedVariant != null) &&
+    activeGroups
+      .filter(g => g.required)
+      .every(g => (selections[g._id] ?? []).length > 0)
 
-  // Precio extra: suma de extraPrice de todas las opciones seleccionadas en grupos activos
   const extraPrice = activeGroups
     .flatMap(g => g.options.filter(opt => (selections[g._id] ?? []).includes(opt.name)))
     .reduce((sum, opt) => sum + opt.extraPrice, 0)
 
-  const basePrice = mode === 'takeaway' ? (item.takeawayPrice ?? item.price) : item.price
+  const basePrice = hasVariants && selectedVariant
+    ? (mode === 'takeaway' ? (selectedVariant.takeawayPrice ?? selectedVariant.price) : selectedVariant.price)
+    : (mode === 'takeaway' ? (item.takeawayPrice ?? item.price) : item.price)
+
   const unitPrice = basePrice + extraPrice
   const totalPrice = unitPrice * quantity
 
@@ -97,7 +106,6 @@ export default function CustomizationModal({
       let next: Record<string, string[]>
 
       if (group.type === 'single') {
-        // Si ya estaba seleccionado el mismo, no hacemos nada (selección única obligatoria)
         next = { ...prev, [group._id]: [optionName] }
       } else {
         const isAlreadySelected = current.includes(optionName)
@@ -109,7 +117,6 @@ export default function CustomizationModal({
         }
       }
 
-      // Limpiar selecciones huérfanas: grupos que ya no están activos con las nuevas selecciones
       const newActiveGroups = computeActiveGroups(rootGroups, next)
       const newActiveIds = new Set(newActiveGroups.map(g => g._id))
       const cleaned: Record<string, string[]> = {}
@@ -121,7 +128,6 @@ export default function CustomizationModal({
   }
 
   function handleConfirm() {
-    // Solo incluimos grupos que estaban activos al confirmar (lista plana)
     const customizations: SelectedCustomization[] = activeGroups
       .filter(g => (selections[g._id] ?? []).length > 0)
       .map(g => ({
@@ -131,20 +137,39 @@ export default function CustomizationModal({
           .map(opt => ({ name: opt.name, extraPrice: opt.extraPrice })),
       }))
 
-    const customizationSummary = customizations
+    let customizationSummary = customizations
       .flatMap(c => c.selectedOptions.map(o => o.name))
       .join(' · ')
+
+    const selectedVariantData: SelectedVariant | undefined = selectedVariant
+      ? {
+          name: selectedVariant.name,
+          price: selectedVariant.price,
+          takeawayPrice: selectedVariant.takeawayPrice,
+        }
+      : undefined
+
+    const itemName = selectedVariant
+      ? `${item.name} - ${selectedVariant.name}`
+      : item.name
+
+    if (selectedVariant && customizationSummary) {
+      customizationSummary = `${selectedVariant.name} · ${customizationSummary}`
+    } else if (selectedVariant) {
+      customizationSummary = selectedVariant.name
+    }
 
     const cartItem: CartItem = {
       cartItemId: `${item._id}:${Date.now()}`,
       menuItemId: item._id,
-      name: item.name,
+      name: itemName,
       basePrice,
       extraPrice,
       price: unitPrice,
       quantity,
       customizations,
       customizationSummary,
+      selectedVariant: selectedVariantData,
       type: 'menuItem',
       originalPrice: item.originalPrice,
       takeawayOriginalPrice: item.takeawayOriginalPrice,
@@ -154,13 +179,11 @@ export default function CustomizationModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
       />
 
-      {/* Bottom sheet */}
       <div
         className="relative rounded-t-3xl overflow-y-auto"
         style={{
@@ -175,9 +198,11 @@ export default function CustomizationModal({
             <h2 className="font-bold text-lg leading-tight" style={{ color: textColor }}>
               {item.name}
             </h2>
-            <p className="text-sm mt-0.5" style={{ color: primaryColor }}>
-              ${basePrice.toLocaleString('es-AR')}
-            </p>
+            {!hasVariants && (
+              <p className="text-sm mt-0.5" style={{ color: primaryColor }}>
+                ${basePrice.toLocaleString('es-AR')}
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -199,10 +224,62 @@ export default function CustomizationModal({
           </div>
         )}
 
-        {/* Grupos de customización — renderizados en orden de activeGroups (plano + condicional) */}
         <div className="px-5 pb-4 space-y-5">
+          {/* ── Variant Selector ── */}
+          {hasVariants && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="font-semibold text-sm" style={{ color: textColor }}>
+                  Variante
+                </span>
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: primaryColor + '20', color: primaryColor }}
+                >
+                  Obligatorio
+                </span>
+              </div>
+              <div className="space-y-2">
+                {variants.map(v => {
+                  const variantPrice = mode === 'takeaway' ? (v.takeawayPrice ?? v.price) : v.price
+                  const selected = selectedVariant?.name === v.name
+                  return (
+                    <button
+                      key={v.name}
+                      type="button"
+                      onClick={() => setSelectedVariant(v)}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all"
+                      style={{
+                        backgroundColor: selected ? primaryColor + '18' : textColor + '08',
+                        border: `1.5px solid ${selected ? primaryColor : 'transparent'}`,
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-5 h-5 flex items-center justify-center flex-shrink-0 transition-all rounded-full"
+                          style={{
+                            backgroundColor: selected ? primaryColor : 'transparent',
+                            border: `2px solid ${selected ? primaryColor : textColor + '40'}`,
+                          }}
+                        >
+                          {selected && <Check size={11} color={bgColor} strokeWidth={3} />}
+                        </div>
+                        <span className="text-sm font-medium text-left" style={{ color: textColor }}>
+                          {v.name}
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: primaryColor }}>
+                        ${variantPrice.toLocaleString('es-AR')}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Customization Groups ── */}
           {activeGroups.map((group, index) => {
-            // Pequeña animación: los sub-grupos aparecen indentados para diferenciarlos
             const isSubGroup = !rootGroups.some(rg => rg._id === group._id)
 
             return (
@@ -211,7 +288,6 @@ export default function CustomizationModal({
                 className={isSubGroup ? 'ml-4 pl-4 border-l-2' : ''}
                 style={isSubGroup ? { borderColor: primaryColor + '30' } : {}}
               >
-                {/* Group header */}
                 <div className="flex items-center gap-2 mb-3">
                   <span className="font-semibold text-sm" style={{ color: textColor }}>
                     {group.name}
@@ -233,7 +309,6 @@ export default function CustomizationModal({
                   )}
                 </div>
 
-                {/* Options */}
                 <div className="space-y-2">
                   {group.options.map(opt => {
                     const selected = (selections[group._id] ?? []).includes(opt.name)
@@ -249,7 +324,6 @@ export default function CustomizationModal({
                         }}
                       >
                         <div className="flex items-center gap-3">
-                          {/* Checkbox / Radio indicator */}
                           <div
                             className="w-5 h-5 flex items-center justify-center flex-shrink-0 transition-all"
                             style={{
@@ -278,7 +352,7 @@ export default function CustomizationModal({
           })}
         </div>
 
-        {/* Footer: quantity + add button */}
+        {/* Footer */}
         <div
           className="sticky bottom-0 px-5 py-4 border-t"
           style={{
@@ -286,7 +360,6 @@ export default function CustomizationModal({
             borderColor: textColor + '15',
           }}
         >
-          {/* Price */}
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm font-medium" style={{ color: textColor + '70' }}>
               Total
@@ -297,7 +370,6 @@ export default function CustomizationModal({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Quantity stepper */}
             <div
               className="flex items-center gap-2 rounded-2xl px-2 py-2"
               style={{ backgroundColor: textColor + '10' }}
@@ -326,7 +398,6 @@ export default function CustomizationModal({
               </button>
             </div>
 
-            {/* Add button */}
             <button
               type="button"
               onClick={handleConfirm}
@@ -334,7 +405,11 @@ export default function CustomizationModal({
               className="flex-1 py-3 rounded-2xl font-bold text-sm transition-opacity disabled:opacity-40"
               style={{ backgroundColor: primaryColor, color: bgColor }}
             >
-              {isValid ? 'Agregar al pedido' : 'Seleccioná las opciones obligatorias'}
+              {!isValid && hasVariants && !selectedVariant
+                ? 'Seleccioná una variante'
+                : isValid
+                  ? 'Agregar al pedido'
+                  : 'Seleccioná las opciones obligatorias'}
             </button>
           </div>
         </div>
