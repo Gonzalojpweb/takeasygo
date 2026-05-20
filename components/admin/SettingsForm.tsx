@@ -993,12 +993,12 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                           <div
                             onClick={() => !heroSaving && document.getElementById(`hero-upload-${loc._id}`)?.click()}
                             className={cn(
-                              'w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all relative overflow-hidden group',
+                              'w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all relative overflow-hidden group bg-muted/10',
                               heroSaving === loc._id
                                 ? 'cursor-wait opacity-70'
                                 : 'cursor-pointer',
                               heroMap[loc._id]?.url
-                                ? 'border-primary/40 bg-primary/5 aspect-video'
+                                ? 'border-primary/40 bg-primary/5 min-h-[160px] max-h-[320px] w-full'
                                 : 'border-border hover:border-primary/40 hover:bg-muted/50 h-28'
                             )}
                           >
@@ -1014,7 +1014,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                                 {heroMap[loc._id].mediaType === 'video' ? (
                                   <video
                                     src={heroMap[loc._id].url}
-                                    className="w-full h-full object-cover rounded-xl"
+                                    className="max-h-[320px] w-auto object-contain rounded-xl mx-auto p-2"
                                     autoPlay
                                     muted
                                     loop
@@ -1024,7 +1024,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                                   <img
                                     src={heroMap[loc._id].url}
                                     alt=""
-                                    className="w-full h-full object-cover rounded-xl"
+                                    className="max-h-[320px] w-auto object-contain rounded-xl mx-auto p-2"
                                   />
                                 )}
                                 {/* Hover overlay */}

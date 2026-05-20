@@ -6,6 +6,7 @@ import Link from 'next/link'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import QrPromoBanner from '@/components/menu/QrPromoBanner'
 import MenuWithExploreNav from '@/components/menu/MenuWithExploreNav'
+import WelcomeBackground from '@/components/menu/WelcomeBackground'
 
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
@@ -317,66 +318,44 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
       <div className="mh-root">
 
         {/* ── Background ── */}
-        {!hasHero && (
-          <div className="mh-bg-color" style={{ backgroundColor: branding.backgroundColor }} />
-        )}
-        {hasHero && (
-          <div className="mh-bg-container">
-            {hero.mediaType === 'image' && (
-              <img
-                src={hero.url}
-                alt=""
-                className="mh-bg-media"
-                aria-hidden
-                loading="eager"
-              />
-            )}
-            {hero.mediaType === 'video' && (
-              // eslint-disable-next-line jsx-a11y/media-has-caption
-              <video
-                aria-hidden
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="auto"
-                src={hero.url}
-                className="mh-bg-media"
-              />
-            )}
-          </div>
-        )}
+        <WelcomeBackground
+          hero={hero}
+          hasHero={hasHero}
+          backgroundColor={branding.backgroundColor}
+        />
         <div aria-hidden className="mh-scrim" style={!hasHero ? { background: 'rgba(0,0,0,0.15)' } : undefined} />
 
         {/* ── Main content ── */}
         <div className="mh-content">
 
           {/* Header */}
-          <div className="mh-header">
-            {branding.logoUrl ? (
-              <img src={branding.logoUrl} alt={tenant.name} className="mh-logo" />
-            ) : (
-              <h1 className="mh-name" style={!hasHero ? { color: branding.textColor } : undefined}>
-                {tenant.name}
-              </h1>
-            )}
+          {hero.showLogo !== false && (
+            <div className="mh-header">
+              {branding.logoUrl ? (
+                <img src={branding.logoUrl} alt={tenant.name} className="mh-logo" />
+              ) : (
+                <h1 className="mh-name" style={!hasHero ? { color: branding.textColor } : undefined}>
+                  {tenant.name}
+                </h1>
+              )}
 
-            {profile.menuDescription ? (
-              <p className="mh-tagline" style={!hasHero ? { color: branding.textColor, opacity: 0.6 } : undefined}>
-                {profile.menuDescription}
-              </p>
-            ) : null}
+              {profile.menuDescription ? (
+                <p className="mh-tagline" style={!hasHero ? { color: branding.textColor, opacity: 0.6 } : undefined}>
+                  {profile.menuDescription}
+                </p>
+              ) : null}
 
-            <div className={`mh-badge ${tenant.isOperational === false ? 'mh-badge-catalog' : (isOpen ? 'mh-badge-open' : 'mh-badge-closed')}`}>
-              <span className={`mh-dot ${tenant.isOperational === false ? 'mh-dot-catalog' : (isOpen ? 'mh-dot-open' : 'mh-dot-closed')}`} />
-              {tenant.isOperational === false ? 'Catálogo Disponible' : (isOpen ? 'Abierto ahora' : 'Cerrado')}
+              <div className={`mh-badge ${tenant.isOperational === false ? 'mh-badge-catalog' : (isOpen ? 'mh-badge-open' : 'mh-badge-closed')}`}>
+                <span className={`mh-dot ${tenant.isOperational === false ? 'mh-dot-catalog' : (isOpen ? 'mh-dot-open' : 'mh-dot-closed')}`} />
+                {tenant.isOperational === false ? 'Catálogo Disponible' : (isOpen ? 'Abierto ahora' : 'Cerrado')}
+              </div>
+              {tenant.isOperational === false && (
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mt-1">
+                  Próximamente takeaway
+                </p>
+              )}
             </div>
-            {tenant.isOperational === false && (
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mt-1">
-                Próximamente takeaway
-              </p>
-            )}
-          </div>
+          )}
 
           {/* Mode buttons */}
           <div className="mh-buttons">
