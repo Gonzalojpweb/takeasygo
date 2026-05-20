@@ -156,7 +156,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           margin-bottom: 36px;
         }
         .mh-logo {
-          height: 40dvh;
+          height: 60dvh;
           max-width: 190px;
           object-fit: contain;
           filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
