@@ -82,7 +82,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
         }
         
         .has-nav .mh-footer {
-          padding-top: 16px;
+          padding-top: 20px;
         }
 
         /* Viewport height tweaks */
@@ -128,7 +128,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
         /* Mobile-specific adjustments */
         @media (max-width: 480px) {
           .mh-bg-media {
-            filter: blur(2px) saturate(1.02);
+            filter: blur(2px) saturate(1);
             transform: scale(1.03);
           }
         }
@@ -157,10 +157,12 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
           margin-bottom: 36px;
         }
         .mh-logo {
-          height: 30dvh;
+          height: 22dvh;
+          max-height: 140px;
           max-width: 190px;
           object-fit: contain;
           filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+          margin-top: 16px;
         }
         .mh-name {
           color: #fff;
