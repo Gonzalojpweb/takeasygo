@@ -385,7 +385,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
 
                     <div className="flex-1 min-w-0 py-3 pr-3">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="font-bold text-sm tracking-wide" style={{ color: text }}>
+                        <p className="font-bold text-md tracking-wide" style={{ color: text }}>
                           {tn(item, 'name', locale)}
                         </p>
                         <p className="font-bold text-sm flex-shrink-0" style={{ color: branding.primaryColor }}>
@@ -393,7 +393,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                         </p>
                       </div>
                       {item.description && (
-                        <p className="text-xs mt-1 leading-relaxed" style={{ color: mutedText }}>
+                        <p className="text-md mt-1 leading-relaxed" style={{ color: mutedText }}>
                           {tn(item, 'description', locale)}
                         </p>
                       )}
