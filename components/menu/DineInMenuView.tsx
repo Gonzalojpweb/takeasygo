@@ -49,7 +49,6 @@ const UI = {
     rights: 'Todos los derechos reservados.',
     terms: 'Términos y Condiciones',
     privacy: 'Política de Privacidad',
-    storyTitle: 'Nuestra Historia',
     translating: 'Traduciendo...',
   },
   en: {
@@ -64,7 +63,6 @@ const UI = {
     rights: 'All rights reserved.',
     terms: 'Terms & Conditions',
     privacy: 'Privacy Policy',
-    storyTitle: 'Our Story',
     translating: 'Translating...',
   },
 }
@@ -283,7 +281,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                   className="whitespace-nowrap flex-shrink-0 transition-all"
                   style={{
                     padding: '5px 14px',
-                    fontSize: '11px',
+                    fontSize: '12px',
                     fontWeight: 700,
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
@@ -356,7 +354,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             className="mb-12 scroll-mt-20">
             <div className="text-center mb-8">
               <h3 className="text-4xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
-                {t.storyTitle}
+                {tn(cat, 'name', locale)}
               </h3>
               <div className="flex items-center justify-center gap-3">
                 <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />

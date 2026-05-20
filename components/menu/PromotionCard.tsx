@@ -42,8 +42,8 @@ export function PromotionCard({ promotion, onAdd, primary, mode }: PromotionCard
         'transition-all duration-300 hover:shadow-lg'
       )}
       style={{
-        backgroundColor: '#fff',
-        borderColor: '#e5e5e5',
+        backgroundColor: '#f0f0ea',
+        borderColor: '#f0f0ea',
       }}
       onClick={() => onAdd?.(promotion)}
     >
