@@ -82,7 +82,7 @@ export default async function MenuSelectorPage({ params, searchParams }: Props) 
         }
         
         .has-nav .mh-footer {
-          padding-top: 20px;
+          padding-top: 30px;
         }
 
         /* Viewport height tweaks */
