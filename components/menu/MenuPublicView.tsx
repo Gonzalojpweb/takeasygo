@@ -464,17 +464,46 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
         {/* Promotions Section */}
         {promotions.length > 0 && (
-          <section className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
+          <section className="mb-8 px-1">
+            <div className="flex items-center gap-2 mb-4" style={{ color: text }}>
               <span className="text-xl">🏷️</span>
-              <p className="text-lg font-bold">Promociones</p>
+              <h2 className="text-lg font-bold tracking-tight">Promociones</h2>
             </div>
-            <PromotionCarousel 
-              promotions={promotions} 
-              onAdd={addPromotionToCart}
-              primary={primary}
-              mode="takeaway"
-            />
+            
+            {featuredPromotions.length > 0 && (
+              <div className="mb-6">
+                <PromotionCarousel 
+                  promotions={featuredPromotions} 
+                  onAdd={addPromotionToCart}
+                  primary={primary}
+                  bg={bg}
+                  textColor={text}
+                  mode="takeaway"
+                  variant="featured"
+                />
+              </div>
+            )}
+
+            {regularPromotions.length > 0 && (
+              <div>
+                {featuredPromotions.length > 0 && (
+                  <div className="flex items-center justify-between mb-3 mt-4">
+                    <span className="text-[10px] font-bold tracking-wider uppercase opacity-60" style={{ color: text }}>
+                      Destacadas / Ofertas del día
+                    </span>
+                  </div>
+                )}
+                <PromotionCarousel 
+                  promotions={regularPromotions} 
+                  onAdd={addPromotionToCart}
+                  primary={primary}
+                  bg={bg}
+                  textColor={text}
+                  mode="takeaway"
+                  variant="standard"
+                />
+              </div>
+            )}
           </section>
         )}
 

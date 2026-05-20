@@ -108,6 +108,9 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
     .flatMap((c: any) => c.items ?? [])
     .filter((i: any) => i.isFeatured)
 
+  const featuredPromotions = promotions.filter(p => p.isFeatured)
+  const regularPromotions = promotions.filter(p => !p.isFeatured)
+
   async function switchToEnglish() {
     if (categories.length > 0 && hasMissingTranslations(categories)) {
       setTranslating(true)
@@ -331,16 +334,44 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
 
         {/* Promotions Section */}
         {promotions.length > 0 && (
-          <section className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <span style={{ color: text, fontWeight: 700, fontSize: '17px' }}>🏷️</span>
-              <p style={{ color: text, fontWeight: 700, fontSize: '17px' }}>Promociones</p>
+          <section className="mb-8 px-1">
+            <div className="flex items-center gap-2 mb-4" style={{ color: text }}>
+              <span className="text-xl">🏷️</span>
+              <h2 className="text-lg font-bold tracking-tight">Promociones</h2>
             </div>
-            <PromotionCarousel 
-              promotions={promotions}
-              primary={branding.primaryColor}
-              mode="dine-in"
-            />
+            
+            {featuredPromotions.length > 0 && (
+              <div className="mb-6">
+                <PromotionCarousel 
+                  promotions={featuredPromotions}
+                  primary={branding.primaryColor}
+                  bg={bg}
+                  textColor={text}
+                  mode="dine-in"
+                  variant="featured"
+                />
+              </div>
+            )}
+
+            {regularPromotions.length > 0 && (
+              <div>
+                {featuredPromotions.length > 0 && (
+                  <div className="flex items-center justify-between mb-3 mt-4">
+                    <span className="text-[10px] font-bold tracking-wider uppercase opacity-60" style={{ color: text }}>
+                      Destacadas / Ofertas del día
+                    </span>
+                  </div>
+                )}
+                <PromotionCarousel 
+                  promotions={regularPromotions}
+                  primary={branding.primaryColor}
+                  bg={bg}
+                  textColor={text}
+                  mode="dine-in"
+                  variant="standard"
+                />
+              </div>
+            )}
           </section>
         )}
 
