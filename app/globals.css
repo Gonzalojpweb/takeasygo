@@ -116,7 +116,7 @@
   /* Subtle off-white for depth */
   --foreground: oklch(0.13 0.01 285);
   /* #060102 */
-  --card: oklch(1 0 0);
+  --card: oklch(96.332% 0.00387 106.908);
   --card-foreground: oklch(0.13 0.01 285);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.13 0.01 285);
