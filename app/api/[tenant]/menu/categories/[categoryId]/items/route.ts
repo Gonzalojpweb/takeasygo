@@ -20,7 +20,7 @@ export async function POST(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { locationId, name, description, price, takeawayPrice, imageUrl, tags, isFeatured, suggestWith, customizationGroups } = await request.json()
+    const { locationId, name, description, price, takeawayPrice, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -44,6 +44,7 @@ export async function POST(
       isFeatured: isFeatured || false,
       suggestWith: suggestWith || [],
       customizationGroups: customizationGroups || [],
+      variants: variants || [],
       nameTranslations: { en: nameEn },
       descriptionTranslations: { en: descEn },
       // Guardar precio original de lista al crear el item
@@ -75,7 +76,7 @@ export async function PUT(
     if (authError) return authError
 
     const body = await request.json()
-    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, availabilityMode, availabilitySchedule, takeawayPrice, originalPrice, takeawayOriginalPrice } = body
+    const { locationId, itemId, name, description, price, isAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, originalPrice, takeawayOriginalPrice } = body
 
     console.log('[PUT items] BODY:', { tenantSlug, categoryId, locationId: locationId?.toString(), itemId: itemId?.toString() })
 
@@ -126,6 +127,7 @@ export async function PUT(
     if (isFeatured !== undefined) item.isFeatured = isFeatured
     if (suggestWith !== undefined) item.suggestWith = suggestWith
     if (customizationGroups !== undefined) item.customizationGroups = customizationGroups
+    if (variants !== undefined) item.variants = variants
     if (availabilityMode !== undefined) item.availabilityMode = availabilityMode
     if (availabilitySchedule !== undefined) item.availabilitySchedule = availabilitySchedule
     // Permitir guardar explícitamente (para bulk update)
