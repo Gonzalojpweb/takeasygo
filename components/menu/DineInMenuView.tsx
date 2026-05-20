@@ -49,6 +49,7 @@ const UI = {
     rights: 'Todos los derechos reservados.',
     terms: 'Términos y Condiciones',
     privacy: 'Política de Privacidad',
+    storyTitle: 'Nuestra Historia',
     translating: 'Traduciendo...',
   },
   en: {
@@ -63,6 +64,7 @@ const UI = {
     rights: 'All rights reserved.',
     terms: 'Terms & Conditions',
     privacy: 'Privacy Policy',
+    storyTitle: 'Our Story',
     translating: 'Translating...',
   },
 }
