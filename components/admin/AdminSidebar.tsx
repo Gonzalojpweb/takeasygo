@@ -202,7 +202,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 overflow-y-auto min-h-0 space-y-1 h-full max-h-[calc(100vh-200px)]">
+      <nav className="flex-1 px-3 overflow-y-auto min-h-0 space-y-1 h-full max-h-[calc(100dvh-200px)]">
         {groups.map((group) => {
           const visibleItems = group.items.filter(item => item.roles.includes(effectiveRole))
           if (visibleItems.length === 0) return null

@@ -28,7 +28,7 @@ export async function PUT(
     }
 
     // Only allow updating known branding fields
-    const allowed = ['primaryColor', 'secondaryColor', 'backgroundColor', 'textColor', 'logoUrl', 'fontFamily', 'borderRadius', 'menuLayout', 'darkMode']
+    const allowed = ['primaryColor', 'secondaryColor', 'backgroundColor', 'textColor', 'logoUrl', 'fontFamily', 'borderRadius', 'menuLayout', 'darkMode', 'fonts']
     const update: Record<string, unknown> = {}
     for (const key of allowed) {
       if (key in branding) {

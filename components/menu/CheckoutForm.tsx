@@ -733,7 +733,7 @@ async function handleSubmit(e: React.FormEvent) {
       {/* Modal legal */}
       {activeLegalModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl max-h-[80vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="w-full max-w-md bg-white rounded-3xl max-h-[80dvh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="sticky top-0 bg-white border-b border-zinc-100 p-4 flex items-center justify-between rounded-t-3xl z-10">
               <h2 className="font-bold text-base text-zinc-900">
                 {activeLegalModal === 'terminos' ? 'Términos y Condiciones' : 'Política de Privacidad'}

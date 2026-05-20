@@ -165,7 +165,7 @@ export default function CustomizationModal({
         className="relative rounded-t-3xl overflow-y-auto"
         style={{
           backgroundColor: bgColor,
-          maxHeight: '90vh',
+          maxHeight: '90dvh',
         }}
       >
         {/* Header */}

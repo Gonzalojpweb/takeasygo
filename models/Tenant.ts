@@ -26,6 +26,12 @@ export interface ITenant extends Document {
     borderRadius: 'sharp' | 'rounded' | 'pill'
     menuLayout: 'grid' | 'list'
     darkMode: boolean
+    fonts: {
+      heading: { source: string; family: string; weight?: string; files?: { woff2?: string; woff?: string; ttf?: string }; adobeFamily?: string }
+      body: { source: string; family: string; weight?: string; files?: { woff2?: string; woff?: string; ttf?: string }; adobeFamily?: string }
+      display: { source: string; family: string; weight?: string; files?: { woff2?: string; woff?: string; ttf?: string }; adobeFamily?: string }
+      tag: { source: string; family: string; weight?: string; files?: { woff2?: string; woff?: string; ttf?: string }; adobeFamily?: string }
+    }
   }
   profile: {
     menuDescription: string
@@ -220,6 +226,60 @@ const TenantSchema = new Schema<ITenant>(
         default: 'grid',
       },
       darkMode: { type: Boolean, default: false },
+      fonts: {
+        type: {
+          heading: {
+            source: { type: String, enum: ['google', 'adobe', 'custom'], default: 'google' },
+            family: { type: String, default: 'Inter' },
+            weight: { type: String, default: '' },
+            files: {
+              woff2: { type: String, default: '' },
+              woff: { type: String, default: '' },
+              ttf: { type: String, default: '' },
+            },
+            adobeFamily: { type: String, default: '' },
+          },
+          body: {
+            source: { type: String, enum: ['google', 'adobe', 'custom'], default: 'google' },
+            family: { type: String, default: 'Inter' },
+            weight: { type: String, default: '' },
+            files: {
+              woff2: { type: String, default: '' },
+              woff: { type: String, default: '' },
+              ttf: { type: String, default: '' },
+            },
+            adobeFamily: { type: String, default: '' },
+          },
+          display: {
+            source: { type: String, enum: ['google', 'adobe', 'custom'], default: 'google' },
+            family: { type: String, default: 'Playfair Display' },
+            weight: { type: String, default: '' },
+            files: {
+              woff2: { type: String, default: '' },
+              woff: { type: String, default: '' },
+              ttf: { type: String, default: '' },
+            },
+            adobeFamily: { type: String, default: '' },
+          },
+          tag: {
+            source: { type: String, enum: ['google', 'adobe', 'custom'], default: 'google' },
+            family: { type: String, default: 'Inter' },
+            weight: { type: String, default: '' },
+            files: {
+              woff2: { type: String, default: '' },
+              woff: { type: String, default: '' },
+              ttf: { type: String, default: '' },
+            },
+            adobeFamily: { type: String, default: '' },
+          },
+        },
+        default: () => ({
+          heading: { source: 'google', family: 'Inter', weight: '' },
+          body: { source: 'google', family: 'Inter', weight: '' },
+          display: { source: 'google', family: 'Playfair Display', weight: '' },
+          tag: { source: 'google', family: 'Inter', weight: '' },
+        }),
+      },
     },
     profile: {
       menuDescription: { type: String, default: '' },

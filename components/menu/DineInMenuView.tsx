@@ -183,7 +183,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const showLogoOnHero = location.hero?.showLogo !== false
 
   return (
-    <div style={{ backgroundColor: bg, color: text, minHeight: '100vh', fontFamily: 'Georgia, serif' }}>
+    <div style={{ backgroundColor: bg, color: text, minHeight: '100dvh', fontFamily: 'var(--font-body)' }}>
 
       {/* ── Translating overlay ── */}
       {translating && (
@@ -203,7 +203,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
       <section
         className="relative text-center overflow-hidden flex items-center justify-center"
         style={{
-          minHeight: hasHeroMedia ? '40vh' : undefined,
+          minHeight: hasHeroMedia ? '40dvh' : undefined,
           paddingTop: hasHeroMedia ? 0 : '4rem',
           paddingBottom: hasHeroMedia ? 0 : '4rem',
           backgroundColor: bg,
@@ -231,19 +231,19 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
               style={{ filter: hasHeroMedia ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' : undefined }}
             />
           ) : !branding.logoUrl && !hasHeroMedia ? (
-            <h1 className="text-4xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
+            <h1 className="text-4xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
               {tenant.name}
             </h1>
           ) : null}
 
           <h2 className="text-2xl font-bold mb-3"
-            style={{ color: hasHeroMedia ? '#ffffff' : branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
+            style={{ color: hasHeroMedia ? '#ffffff' : branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
             Menu
           </h2>
 
           {profile.menuDescription && (
             <p className="max-w-2xl mx-auto text-base leading-relaxed mb-4"
-              style={{ color: hasHeroMedia ? 'rgba(255,255,255,0.78)' : mutedText, fontFamily: 'Georgia, Cambria, serif', fontStyle: 'italic' }}>
+              style={{ color: hasHeroMedia ? 'rgba(255,255,255,0.78)' : mutedText, fontFamily: 'var(--font-body)', fontStyle: 'italic' }}>
               {profile.menuDescription}
             </p>
           )}
@@ -353,8 +353,8 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             ref={el => { sectionRefs.current[cat._id] = el }}
             className="mb-12 scroll-mt-20">
             <div className="text-center mb-8">
-              <h3 className="text-3xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
-                {tn(cat, 'name', locale)}
+              <h3 className="text-3xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
+                {t.storyTitle}
               </h3>
               <div className="flex items-center justify-center gap-3">
                 <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
@@ -418,7 +418,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         <section className="py-16 px-4" style={{ backgroundColor: dark ? '#020617' : '#1e293b' }}>
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-10">
-              <h3 className="text-3xl font-bold mb-3" style={{ color: branding.primaryColor, fontFamily: 'Georgia, Cambria, serif' }}>
+              <h3 className="text-3xl font-bold mb-3" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
                 {t.featuredTitle}
               </h3>
               <div className="flex items-center justify-center gap-3 mb-4">
