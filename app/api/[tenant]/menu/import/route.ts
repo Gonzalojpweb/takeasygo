@@ -4,19 +4,79 @@ import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 
+// ─── Interfaces ───────────────────────────────────────────────────────────────
+
+interface ImportOption {
+  name: string
+  extraPrice?: number
+  subGroups?: ImportGroup[]
+}
+
+interface ImportGroup {
+  name: string
+  type?: 'single' | 'multiple'
+  required?: boolean
+  options: ImportOption[]
+}
+
+interface ImportVariant {
+  name: string
+  price: number
+  takeawayPrice?: number
+  originalPrice?: number
+  takeawayOriginalPrice?: number
+  nameTranslations?: { en: string }
+}
+
+interface ImportAvailabilitySlot {
+  days: number[]
+  timeStart: string
+  timeEnd: string
+}
+
 interface ImportItem {
   name: string
   description?: string
   price: number
   takeawayPrice?: number
+  originalPrice?: number
+  takeawayOriginalPrice?: number
   tags?: string[]
   isFeatured?: boolean
+  isAvailable?: boolean
   imageUrl?: string
+  suggestWith?: string[]
+  variants?: ImportVariant[]
+  customizationGroups?: ImportGroup[]
+  availabilityMode?: 'always' | 'scheduled'
+  availabilitySchedule?: ImportAvailabilitySlot[]
 }
 
 interface ImportCategory {
   name: string
+  description?: string
+  imageUrl?: string
+  isAvailable?: boolean
+  customizationGroups?: ImportGroup[]
+  availabilityMode?: 'always' | 'scheduled'
+  availabilitySchedule?: ImportAvailabilitySlot[]
   items: ImportItem[]
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Construye customizationGroups de forma recursiva (resuelve subGroups) */
+function buildGroups(groups: ImportGroup[] = []): any[] {
+  return groups.map(g => ({
+    name: g.name,
+    type: g.type ?? 'single',
+    required: g.required ?? false,
+    options: (g.options ?? []).map(o => ({
+      name: o.name,
+      extraPrice: o.extraPrice ?? 0,
+      subGroups: buildGroups(o.subGroups),
+    })),
+  }))
 }
 
 function validatePayload(categories: unknown): categories is ImportCategory[] {
@@ -27,11 +87,12 @@ function validatePayload(categories: unknown): categories is ImportCategory[] {
     for (const item of cat.items) {
       if (typeof item.name !== 'string' || !item.name.trim()) return false
       if (typeof item.price !== 'number' || item.price < 0) return false
-      if (item.dineInPrice !== undefined && (typeof item.dineInPrice !== 'number' || item.dineInPrice < 0)) return false
     }
   }
   return true
 }
+
+// ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(
   request: NextRequest,
@@ -56,7 +117,7 @@ export async function POST(
 
     if (!validatePayload(categories)) {
       return NextResponse.json(
-        { error: 'JSON inválido. Cada categoría debe tener "name" y "items", y cada item debe tener "name" y "price" (número).' },
+        { error: 'JSON inválido. Cada categoría debe tener "name" y "items", y cada ítem debe tener "name" y "price" (número).' },
         { status: 400 }
       )
     }
@@ -68,25 +129,43 @@ export async function POST(
 
     const builtCategories = categories.map((cat: ImportCategory, catIndex: number) => ({
       name: cat.name.trim(),
-      description: '',
-      isAvailable: true,
+      description: cat.description?.trim() ?? '',
+      imageUrl: cat.imageUrl ?? '',
+      isAvailable: cat.isAvailable ?? true,
       sortOrder: catIndex,
+      customizationGroups: buildGroups(cat.customizationGroups),
+      availabilityMode: cat.availabilityMode ?? 'always',
+      availabilitySchedule: cat.availabilityMode === 'scheduled' ? (cat.availabilitySchedule ?? []) : [],
       items: cat.items.map((item: ImportItem) => ({
         name: item.name.trim(),
         description: item.description?.trim() ?? '',
         price: item.price,
         takeawayPrice: item.takeawayPrice,
+        originalPrice: item.originalPrice,
+        takeawayOriginalPrice: item.takeawayOriginalPrice,
         tags: Array.isArray(item.tags) ? item.tags.map((t: string) => t.trim()).filter(Boolean) : [],
         isFeatured: item.isFeatured ?? false,
+        isAvailable: item.isAvailable ?? true,
         imageUrl: item.imageUrl ?? '',
-        isAvailable: true,
+        suggestWith: Array.isArray(item.suggestWith) ? item.suggestWith : [],
+        variants: (item.variants ?? []).map((v: ImportVariant) => ({
+          name: v.name,
+          price: v.price,
+          takeawayPrice: v.takeawayPrice,
+          originalPrice: v.originalPrice,
+          takeawayOriginalPrice: v.takeawayOriginalPrice,
+          nameTranslations: v.nameTranslations,
+        })),
+        customizationGroups: buildGroups(item.customizationGroups),
+        availabilityMode: item.availabilityMode ?? 'always',
+        availabilitySchedule: item.availabilityMode === 'scheduled' ? (item.availabilitySchedule ?? []) : [],
       })),
     }))
 
     if (mode === 'replace') {
       menu.categories = builtCategories
     } else {
-      // append: push new categories
+      // append: agrega al final sin borrar lo existente
       const startOrder = menu.categories.length
       builtCategories.forEach((cat, i) => {
         cat.sortOrder = startOrder + i
