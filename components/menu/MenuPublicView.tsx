@@ -486,6 +486,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
               <div className="mb-6">
                 <PromotionCarousel 
                   promotions={featuredPromotions} 
+                  tenantSlug={tenant.slug}
                   onAdd={addPromotionToCart}
                   primary={primary}
                   bg={bg}
@@ -507,6 +508,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                 )}
                 <PromotionCarousel 
                   promotions={regularPromotions} 
+                  tenantSlug={tenant.slug}
                   onAdd={addPromotionToCart}
                   primary={primary}
                   bg={bg}
