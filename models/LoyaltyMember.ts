@@ -25,17 +25,21 @@ export interface ILoyaltyMember extends Document {
   // Caché de actividad (actualizada post-pedido para no calcular en cada consulta)
   cache: {
     totalOrders: number
-    totalSpent:  number
+    totalSpent: number
     lastOrderAt: Date | null
-    updatedAt:   Date | null
+    updatedAt: Date | null
   }
 
+  // Preparado para Fase 2 — puntos y niveles (vacío en Fase 1)
+  loyalty: {
+    points: number
+    tier:   LoyaltyTier
+  },
   // Configuración y control de SOS
   sosConfig: {
     maxSosAllowed: number
     hasPendingSos: boolean
   }
-
 
   // Estadísticas de Store (canjes de puntos por artículos)
   store: {
