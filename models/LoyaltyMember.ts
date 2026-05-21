@@ -30,11 +30,12 @@ export interface ILoyaltyMember extends Document {
     updatedAt:   Date | null
   }
 
-  // Preparado para Fase 2 — puntos y niveles (vacío en Fase 1)
-  loyalty: {
-    points: number
-    tier:   LoyaltyTier
+  // Configuración y control de SOS
+  sosConfig: {
+    maxSosAllowed: number
+    hasPendingSos: boolean
   }
+
 
   // Estadísticas de Store (canjes de puntos por artículos)
   store: {
@@ -136,6 +137,12 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
         enum:    ['none', 'bronze', 'silver', 'gold'],
         default: 'none',
       },
+    },
+
+    // Configuración y control de SOS
+    sosConfig: {
+      maxSosAllowed: { type: Number, default: 100 },
+      hasPendingSos: { type: Boolean, default: false },
     },
 
     // Estadísticas de Store
