@@ -22,33 +22,102 @@ const EXAMPLE_JSON = `{
   "categories": [
     {
       "name": "Entradas",
+      "description": "Pequeños bocados para arrancar",
+      "imageUrl": "",
+      "isAvailable": true,
+      "customizationGroups": [
+        {
+          "name": "Salsa de acompañamiento",
+          "type": "single",
+          "required": true,
+          "options": [
+            { "name": "Pico de gallo", "extraPrice": 0 },
+            { "name": "Ají criollo", "extraPrice": 100 }
+          ]
+        }
+      ],
       "items": [
         {
           "name": "Empanadas de carne",
           "description": "Masa casera, jugosas",
           "price": 1500,
           "takeawayPrice": 1700,
+          "imageUrl": "",
           "tags": ["Popular"],
-          "isFeatured": true
+          "isFeatured": true,
+          "isAvailable": true,
+          "variants": [
+            { "name": "3 unidades", "price": 1500, "takeawayPrice": 1700 },
+            { "name": "6 unidades", "price": 2800, "takeawayPrice": 3100 }
+          ],
+          "customizationGroups": [
+            {
+              "name": "Extras",
+              "type": "multiple",
+              "required": false,
+              "options": [
+                { "name": "Queso extra", "extraPrice": 300 },
+                {
+                  "name": "Combo con bebida",
+                  "extraPrice": 0,
+                  "subGroups": [
+                    {
+                      "name": "Elegí tu bebida",
+                      "type": "single",
+                      "required": true,
+                      "options": [
+                        { "name": "Coca-Cola", "extraPrice": 0 },
+                        { "name": "Jugo de naranja", "extraPrice": 200 }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "availabilityMode": "always"
         },
         {
           "name": "Tabla de fiambres",
           "description": "",
           "price": 3200,
+          "imageUrl": "",
           "tags": [],
-          "isFeatured": false
+          "isFeatured": false,
+          "isAvailable": true,
+          "availabilityMode": "scheduled",
+          "availabilitySchedule": [
+            { "days": [5, 6, 0], "timeStart": "18:00", "timeEnd": "23:00" }
+          ]
         }
       ]
     },
     {
       "name": "Principales",
+      "description": "",
+      "imageUrl": "",
+      "isAvailable": true,
       "items": [
         {
           "name": "Asado mixto",
           "description": "Para 2 personas",
           "price": 8500,
+          "imageUrl": "",
           "tags": ["Para compartir"],
-          "isFeatured": true
+          "isFeatured": true,
+          "isAvailable": true,
+          "customizationGroups": [
+            {
+              "name": "Guarnición",
+              "type": "single",
+              "required": true,
+              "options": [
+                { "name": "Papas fritas", "extraPrice": 0 },
+                { "name": "Ensalada mixta", "extraPrice": 200 }
+              ]
+            }
+          ],
+          "availabilityMode": "always"
         }
       ]
     }
@@ -98,7 +167,14 @@ export default function ImportMenuModal({ tenantSlug, locationId, locationName, 
             return
           }
         }
-        result.push({ name: cat.name, items: cat.items.map((i: any) => ({ name: i.name, price: i.price, takeawayPrice: i.takeawayPrice })) })
+        result.push({
+          name: cat.name,
+          items: cat.items.map((i: any) => ({
+            name: i.name,
+            price: i.price,
+            takeawayPrice: i.takeawayPrice,
+          }))
+        })
       }
 
       setPreview(result)
