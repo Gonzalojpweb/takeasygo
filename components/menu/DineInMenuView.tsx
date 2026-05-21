@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { isAvailableNow } from '@/lib/availability'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 
@@ -70,6 +71,8 @@ const UI = {
 export default function DineInMenuView({ tenant, location, menu }: Props) {
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
+  const applyGridToDineIn = branding.menuLayoutApplyTo === 'both' || branding.menuLayoutApplyTo === 'dine-in'
+  const isGrid = applyGridToDineIn && branding.menuLayout === 'grid'
 
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const [dark, setDark] = useState(false)
@@ -396,25 +399,34 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className={isGrid ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
               {(cat.items ?? [])
                 .filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
                 .map((item: any) => (
                   <div
                     key={item._id}
-                    className="flex items-start gap-3 rounded-xl border transition-all overflow-hidden"
+                    className={cn(
+                      'rounded-xl border transition-all overflow-hidden',
+                      isGrid ? 'flex flex-col' : 'flex items-start gap-3',
+                    )}
                     style={{ backgroundColor: cardBg, borderColor: cardBorder }}
                     onClick={() => item.imageUrl && setModalItem(item)}
                   >
                     {item.imageUrl ? (
-                      <div className="flex-shrink-0 w-[88px] h-[88px] relative" style={{ cursor: 'pointer' }}>
+                      <div
+                        className={cn('relative', isGrid ? 'w-full h-28' : 'flex-shrink-0 w-[88px] h-[88px]')}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <div className="flex-shrink-0 w-3 self-stretch" style={{ backgroundColor: branding.primaryColor + '18' }} />
+                      <div
+                        className={cn(isGrid ? 'h-2 w-full' : 'flex-shrink-0 w-3 self-stretch')}
+                        style={{ backgroundColor: branding.primaryColor + '18' }}
+                      />
                     )}
 
-                    <div className="flex-1 min-w-0 py-3 pr-3">
+                    <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-bold text-md tracking-wide" style={{ color: text }}>
                           {tn(item, 'name', locale)}
@@ -431,7 +443,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                         </p>
                       </div>
                       {item.description && (
-                        <p className="text-md mt-1 leading-relaxed" style={{ color: mutedText }}>
+                        <p className={cn('leading-relaxed', isGrid ? 'text-xs mt-1 line-clamp-2' : 'text-md mt-1')} style={{ color: mutedText }}>
                           {tn(item, 'description', locale)}
                         </p>
                       )}
