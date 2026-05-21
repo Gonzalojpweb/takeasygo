@@ -605,6 +605,26 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               </button>
                             ))}
                           </div>
+                          <div className="mt-4">
+                            <label className={labelCls}>Aplicar a</label>
+                            <div className="flex gap-2 p-1 bg-muted rounded-xl border border-border/40 w-fit mt-1.5">
+                              {[
+                                { v: 'takeaway' as const, l: '🚀 Takeaway' },
+                                { v: 'dine-in' as const, l: '🍽️ Dine-in' },
+                                { v: 'both' as const, l: 'Ambos' },
+                              ].map(opt => (
+                                <button key={opt.v} onClick={() => setBranding((p: any) => ({ ...p, menuLayoutApplyTo: opt.v }))}
+                                  className={cn(
+                                    "px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                                    (branding.menuLayoutApplyTo || 'takeaway') === opt.v
+                                      ? "bg-white text-foreground shadow-md"
+                                      : "text-muted-foreground hover:text-foreground"
+                                  )}>
+                                  {opt.l}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
 
                         <div>
@@ -785,7 +805,13 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                       </div>
 
                       <div className="space-y-3 mt-4">
-                        <div className="w-24 h-4 rounded-full opacity-10" style={{ backgroundColor: branding.primaryColor }} />
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-4 rounded-full opacity-10" style={{ backgroundColor: branding.primaryColor }} />
+                          <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ backgroundColor: branding.primaryColor + '20', color: branding.primaryColor }}>
+                            {(branding.menuLayoutApplyTo || 'takeaway') === 'both' ? 'Takeaway + Dine-in' :
+                             (branding.menuLayoutApplyTo || 'takeaway') === 'takeaway' ? 'Solo Takeaway' : 'Solo Dine-in'}
+                          </span>
+                        </div>
                         <div className={`grid gap-3 ${branding.menuLayout === 'grid' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                           {[1, 2, 3, 4].map(i => (
                             <div key={i} className="bg-white/80 backdrop-blur-sm p-4 shadow-sm border" style={{

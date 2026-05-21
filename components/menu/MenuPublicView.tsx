@@ -109,6 +109,8 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const navRef = useRef<HTMLDivElement>(null)
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
+  const applyGridToTakeaway = !branding.menuLayoutApplyTo || branding.menuLayoutApplyTo === 'both' || branding.menuLayoutApplyTo === 'takeaway'
+  const isGridForTakeaway = applyGridToTakeaway && branding.menuLayout === 'grid'
   const router = useRouter()
   const t = UI[locale]
   const isOperational = tenant.isOperational !== false
@@ -591,7 +593,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
               )}
             </div>
 
-            <div className={branding.menuLayout === 'grid' ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-0'}>
+            <div className={isGridForTakeaway ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-0'}>
               {category.items
                 .filter((item: any) => item.isAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule)))
                 .map((item: any) => {
@@ -599,7 +601,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                   const qty = itemTotalQty(item._id)
                   const catGroups = category.customizationGroups ?? []
 
-                  if (branding.menuLayout === 'grid') {
+                  if (isGridForTakeaway) {
                     return (
                       <div key={item._id} className="border overflow-hidden"
                         style={{ borderColor: primary + '20', borderRadius: borderStyle }}>

@@ -25,6 +25,7 @@ export interface ITenant extends Document {
     fontFamily: string
     borderRadius: 'sharp' | 'rounded' | 'pill'
     menuLayout: 'grid' | 'list'
+    menuLayoutApplyTo: 'both' | 'takeaway' | 'dine-in'
     darkMode: boolean
     fonts: {
       heading: { source: string; family: string; weight?: string; files?: { woff2?: string; woff?: string; ttf?: string }; adobeFamily?: string }
@@ -224,6 +225,11 @@ const TenantSchema = new Schema<ITenant>(
         type: String,
         enum: ['grid', 'list'],
         default: 'grid',
+      },
+      menuLayoutApplyTo: {
+        type: String,
+        enum: ['both', 'takeaway', 'dine-in'],
+        default: 'takeaway',
       },
       darkMode: { type: Boolean, default: false },
       fonts: {
