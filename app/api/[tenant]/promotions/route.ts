@@ -69,6 +69,13 @@ export async function POST(
 
     const body = await request.json()
 
+    // Validar precio requerido solo para tipo sale
+    if (body.type === 'sale') {
+      if (body.price === undefined || body.price === null || body.price < 0) {
+        return NextResponse.json({ error: 'El precio es obligatorio para promociones de venta' }, { status: 400 })
+      }
+    }
+
     const promotion = await Promotion.create({
       ...body,
       tenantId: tenant._id,

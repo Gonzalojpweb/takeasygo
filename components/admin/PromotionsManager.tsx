@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { 
   Plus, Edit2, Trash2, Eye, EyeOff, Star, 
-  Tag, Upload, Palette, X,
+  Tag, Upload, Palette, X, DollarSign, 
+  Info, Megaphone, Heart,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,8 +15,11 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
+type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
+
 interface Promotion {
   _id: string
+  type: PromotionType
   title: string
   description: string
   shortDescription?: string
@@ -25,6 +29,8 @@ interface Promotion {
   currency: string
   conditions?: string
   details?: string
+  ctaText?: string
+  ctaLink?: string
   visibility: 'both' | 'takeaway' | 'dine-in'
   isActive: boolean
   isFeatured: boolean
@@ -59,6 +65,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
   const [uploading, setUploading] = useState(false)
 
   const [form, setForm] = useState({
+    type: 'sale' as PromotionType,
     title: '',
     description: '',
     shortDescription: '',
@@ -68,6 +75,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
     currency: 'USD',
     conditions: '',
     details: '',
+    ctaText: '',
+    ctaLink: '',
     visibility: 'both' as 'both' | 'takeaway' | 'dine-in',
     isActive: true,
     isFeatured: false,
@@ -118,6 +127,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
   function openCreateModal() {
     setEditingPromotion(null)
     setForm({
+      type: 'sale',
       title: '',
       description: '',
       shortDescription: '',
@@ -127,6 +137,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
       currency: 'USD',
       conditions: '',
       details: '',
+      ctaText: '',
+      ctaLink: '',
       visibility: 'both',
       isActive: true,
       isFeatured: false,
@@ -148,6 +160,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
   function openEditModal(promotion: Promotion) {
     setEditingPromotion(promotion)
     setForm({
+      type: promotion.type || 'sale',
       title: promotion.title,
       description: promotion.description,
       shortDescription: promotion.shortDescription || '',
@@ -157,6 +170,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
       currency: promotion.currency,
       conditions: promotion.conditions || '',
       details: promotion.details || '',
+      ctaText: promotion.ctaText || '',
+      ctaLink: promotion.ctaLink || '',
       visibility: promotion.visibility,
       isActive: promotion.isActive,
       isFeatured: promotion.isFeatured,
@@ -304,7 +319,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPromotions.map(promotion => (
             <Card key={promotion._id} className="bg-card border-border/60 overflow-hidden group hover:border-primary/30 transition-all">
-              {promotion.imageUrl && (
+                  {promotion.imageUrl && (
                 <div className="aspect-video bg-muted relative overflow-hidden">
                   <img src={promotion.imageUrl} alt={promotion.title} className="w-full h-full object-cover" />
                   {promotion.isFeatured && (
@@ -314,9 +329,33 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   )}
                 </div>
               )}
+              {!promotion.imageUrl && promotion.type !== 'sale' && (
+                <div className="aspect-video bg-muted relative overflow-hidden flex items-center justify-center">
+                  {promotion.type === 'info' && <Info size={32} className="text-purple-400/50" />}
+                  {promotion.type === 'announcement' && <Megaphone size={32} className="text-amber-400/50" />}
+                  {promotion.type === 'loyalty' && <Heart size={32} className="text-emerald-400/50" />}
+                </div>
+              )}
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={cn(
+                        'text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded',
+                        promotion.type === 'sale' && 'bg-blue-500/10 text-blue-500',
+                        promotion.type === 'info' && 'bg-purple-500/10 text-purple-500',
+                        promotion.type === 'announcement' && 'bg-amber-500/10 text-amber-500',
+                        promotion.type === 'loyalty' && 'bg-emerald-500/10 text-emerald-500',
+                      )}>
+                        {promotion.type === 'sale' ? '💰 Venta' :
+                         promotion.type === 'info' ? 'ℹ️ Info' :
+                         promotion.type === 'announcement' ? '📢 Anuncio' :
+                         '⭐ Club'}
+                      </span>
+                      {promotion.isFeatured && (
+                        <span className="text-yellow-500 text-[10px] font-black">★ Destacada</span>
+                      )}
+                    </div>
                     <h3 className="font-bold text-foreground truncate">{promotion.title}</h3>
                     {promotion.shortDescription && (
                       <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{promotion.shortDescription}</p>
@@ -328,27 +367,47 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   )} />
                 </div>
 
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-xl font-black text-primary">${promotion.price}</span>
-                  {promotion.originalPrice && (
-                    <>
-                      <span className="text-sm text-muted-foreground line-through">${promotion.originalPrice}</span>
-                      <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
-                        -{getDiscountPercent(promotion)}%
-                      </span>
-                    </>
-                  )}
-                </div>
+                {promotion.type === 'sale' && (
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xl font-black text-primary">${promotion.price}</span>
+                    {promotion.originalPrice && (
+                      <>
+                        <span className="text-sm text-muted-foreground line-through">${promotion.originalPrice}</span>
+                        <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
+                          -{getDiscountPercent(promotion)}%
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
-                  {promotion.visibility === 'both' ? (
-                    <span className="bg-muted px-2 py-1 rounded-full">🍽️ Dine-in + 🚀 Takeaway</span>
-                  ) : promotion.visibility === 'dine-in' ? (
-                    <span className="bg-muted px-2 py-1 rounded-full">🍽️ Dine-in</span>
-                  ) : (
-                    <span className="bg-muted px-2 py-1 rounded-full">🚀 Takeaway</span>
-                  )}
-                </div>
+                {promotion.type === 'loyalty' && promotion.ctaText && (
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                      🔗 {promotion.ctaText}
+                    </span>
+                  </div>
+                )}
+
+                {promotion.type === 'announcement' && promotion.ctaText && (
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
+                      🔗 {promotion.ctaText}
+                    </span>
+                  </div>
+                )}
+
+                {(promotion.type === 'sale' || promotion.type === 'info') && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                    {promotion.visibility === 'both' ? (
+                      <span className="bg-muted px-2 py-1 rounded-full">🍽️ Dine-in + 🚀 Takeaway</span>
+                    ) : promotion.visibility === 'dine-in' ? (
+                      <span className="bg-muted px-2 py-1 rounded-full">🍽️ Dine-in</span>
+                    ) : (
+                      <span className="bg-muted px-2 py-1 rounded-full">🚀 Takeaway</span>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 pt-3 border-t border-border/40">
                   <Button size="sm" variant="ghost" className="flex-1" onClick={() => openEditModal(promotion)}>
@@ -400,13 +459,47 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
               </div>
 
               <div className="p-6 space-y-6">
+
+                {/* Tipo de promoción */}
+                <div>
+                  <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Tipo de Promoción</Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {([
+                      { value: 'sale' as PromotionType, label: 'Venta', icon: DollarSign, color: 'text-blue-500', bg: 'bg-blue-500/10 border-blue-500' },
+                      { value: 'info' as PromotionType, label: 'Info', icon: Info, color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500' },
+                      { value: 'announcement' as PromotionType, label: 'Anuncio', icon: Megaphone, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500' },
+                      { value: 'loyalty' as PromotionType, label: 'Club', icon: Heart, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500' },
+                    ]).map(({ value, label, icon: Icon, color, bg }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setForm({ ...form, type: value })}
+                        className={cn(
+                          'flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 font-bold text-xs transition-all',
+                          form.type === value
+                            ? `${bg} ${color}`
+                            : 'border-border text-muted-foreground hover:border-primary/50'
+                        )}
+                      >
+                        <Icon size={18} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Título *</Label>
                     <Input 
                       value={form.title}
                       onChange={e => setForm({ ...form, title: e.target.value })}
-                      placeholder="ej: 2x1 en Hamburgesas"
+                      placeholder={
+                        form.type === 'sale' ? 'ej: 2x1 en Hamburgesas' :
+                        form.type === 'info' ? 'ej: Hoy cerramos a las 18hs' :
+                        form.type === 'announcement' ? 'ej: Nuevo menú de verano' :
+                        'ej: Unite al Club de Fidelización'
+                      }
                       className="mt-1.5"
                     />
                   </div>
@@ -415,7 +508,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     <Textarea 
                       value={form.description}
                       onChange={e => setForm({ ...form, description: e.target.value })}
-                      placeholder="Descripción detallada de la promoción..."
+                      placeholder={form.type === 'sale' ? 'Descripción detallada de la promoción...' : 'Descripción del aviso...'}
                       className="mt-1.5"
                       rows={3}
                     />
@@ -465,48 +558,91 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Precio *</Label>
-                    <Input 
-                      type="number"
-                      value={form.price}
-                      onChange={e => setForm({ ...form, price: parseFloat(e.target.value) || 0 })}
-                      className="mt-1.5"
-                    />
+                {/* CTA fields for announcement and loyalty */}
+                {(form.type === 'announcement' || form.type === 'loyalty') && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Texto del Botón</Label>
+                      <Input 
+                        value={form.ctaText}
+                        onChange={e => setForm({ ...form, ctaText: e.target.value })}
+                        placeholder={form.type === 'loyalty' ? 'ej: Unirme al Club' : 'ej: Ver más'}
+                        className="mt-1.5"
+                      />
+                    </div>
+                    {form.type === 'announcement' && (
+                      <div>
+                        <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Link</Label>
+                        <Input 
+                          value={form.ctaLink}
+                          onChange={e => setForm({ ...form, ctaLink: e.target.value })}
+                          placeholder="ej: https://..."
+                          className="mt-1.5"
+                        />
+                      </div>
+                    )}
+                    {form.type === 'loyalty' && (
+                      <div>
+                        <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Link (opcional)</Label>
+                        <Input 
+                          value={form.ctaLink}
+                          onChange={e => setForm({ ...form, ctaLink: e.target.value })}
+                          placeholder="ej: /explore/profile/club/{slug}"
+                          className="mt-1.5"
+                        />
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Precio Original</Label>
-                    <Input 
-                      type="number"
-                      value={form.originalPrice}
-                      onChange={e => setForm({ ...form, originalPrice: e.target.value })}
-                      placeholder="Para mostrar descuento"
-                      className="mt-1.5"
-                    />
-                  </div>
-                </div>
+                )}
 
-                <div>
-                  <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Publicar en</Label>
-                  <div className="flex gap-3">
-                    {(['both', 'dine-in', 'takeaway'] as const).map(v => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => setForm({ ...form, visibility: v })}
-                        className={cn(
-                          'flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all',
-                          form.visibility === v 
-                            ? 'border-primary bg-primary/10 text-primary' 
-                            : 'border-border text-muted-foreground hover:border-primary/50'
-                        )}
-                      >
-                        {v === 'both' ? '🍽️ + 🚀 Ambos' : v === 'dine-in' ? '🍽️ Dine-in' : '🚀 Takeaway'}
-                      </button>
-                    ))}
+                {/* Price fields only for sale */}
+                {form.type === 'sale' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Precio *</Label>
+                      <Input 
+                        type="number"
+                        value={form.price}
+                        onChange={e => setForm({ ...form, price: parseFloat(e.target.value) || 0 })}
+                        className="mt-1.5"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Precio Original</Label>
+                      <Input 
+                        type="number"
+                        value={form.originalPrice}
+                        onChange={e => setForm({ ...form, originalPrice: e.target.value })}
+                        placeholder="Para mostrar descuento"
+                        className="mt-1.5"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Visibility only for sale and info */}
+                {(form.type === 'sale' || form.type === 'info') && (
+                  <div>
+                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Publicar en</Label>
+                    <div className="flex gap-3">
+                      {(['both', 'dine-in', 'takeaway'] as const).map(v => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setForm({ ...form, visibility: v })}
+                          className={cn(
+                            'flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all',
+                            form.visibility === v 
+                              ? 'border-primary bg-primary/10 text-primary' 
+                              : 'border-border text-muted-foreground hover:border-primary/50'
+                          )}
+                        >
+                          {v === 'both' ? '🍽️ + 🚀 Ambos' : v === 'dine-in' ? '🍽️ Dine-in' : '🚀 Takeaway'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -529,16 +665,19 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   </div>
                 </div>
 
-                <div>
-                  <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Términos y Condiciones</Label>
-                  <Textarea 
-                    value={form.conditions}
-                    onChange={e => setForm({ ...form, conditions: e.target.value })}
-                    placeholder="ej: No acumulable con otras ofertas..."
-                    className="mt-1.5"
-                    rows={2}
-                  />
-                </div>
+                {/* Terms only for sale */}
+                {form.type === 'sale' && (
+                  <div>
+                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Términos y Condiciones</Label>
+                    <Textarea 
+                      value={form.conditions}
+                      onChange={e => setForm({ ...form, conditions: e.target.value })}
+                      placeholder="ej: No acumulable con otras ofertas..."
+                      className="mt-1.5"
+                      rows={2}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-4 bg-muted/30 p-5 rounded-2xl">
                   <div className="flex items-center gap-2 mb-2">
@@ -637,7 +776,10 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                           color: form.customStyles.textColor 
                         }}
                       >
-                        {form.customStyles.cardStyle?.toUpperCase()}
+                        {form.type === 'sale' ? '💰 VENTA' :
+                         form.type === 'info' ? 'ℹ️ INFO' :
+                         form.type === 'announcement' ? '📢 ANUNCIO' :
+                         '⭐ CLUB'}
                       </span>
                     </div>
                     <h4 
@@ -652,22 +794,44 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     >
                       {form.shortDescription || 'Descripción corta...'}
                     </p>
-                    <div className="flex items-center gap-2">
-                      <span 
-                        className="text-2xl font-black"
-                        style={{ color: form.customStyles.accentColor }}
-                      >
-                        ${form.price || '0'}
-                      </span>
-                      {form.originalPrice && (
+                    {form.type === 'sale' && (
+                      <div className="flex items-center gap-2">
                         <span 
-                          className="text-sm line-through"
-                          style={{ color: form.customStyles.textColor, opacity: 0.5 }}
+                          className="text-2xl font-black"
+                          style={{ color: form.customStyles.accentColor }}
                         >
-                          ${form.originalPrice}
+                          ${form.price || '0'}
                         </span>
-                      )}
-                    </div>
+                        {form.originalPrice && (
+                          <span 
+                            className="text-sm line-through"
+                            style={{ color: form.customStyles.textColor, opacity: 0.5 }}
+                          >
+                            ${form.originalPrice}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {form.type === 'loyalty' && (
+                      <div className="mt-2">
+                        <span 
+                          className="inline-block text-xs font-bold px-3 py-1.5 rounded-full"
+                          style={{ backgroundColor: form.customStyles.accentColor, color: '#fff' }}
+                        >
+                          {form.ctaText || 'Unirme al Club'}
+                        </span>
+                      </div>
+                    )}
+                    {form.type === 'announcement' && form.ctaText && (
+                      <div className="mt-2">
+                        <span 
+                          className="inline-block text-xs font-bold px-3 py-1.5 rounded-full"
+                          style={{ backgroundColor: form.customStyles.accentColor, color: '#fff' }}
+                        >
+                          {form.ctaText}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -678,7 +842,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                 </Button>
                 <Button 
                   onClick={handleSave} 
-                  disabled={loading || !form.title || form.price <= 0}
+                  disabled={loading || !form.title || (form.type === 'sale' && form.price <= 0)}
                   className="bg-primary hover:bg-primary/90 text-white font-bold"
                 >
                   {loading ? 'Guardando...' : editingPromotion ? 'Actualizar' : 'Crear'}

@@ -344,6 +344,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
               <div className="mb-6">
                 <PromotionCarousel 
                   promotions={featuredPromotions}
+                  tenantSlug={tenant.slug}
                   primary={branding.primaryColor}
                   bg={bg}
                   textColor={text}
@@ -364,6 +365,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                 )}
                 <PromotionCarousel 
                   promotions={regularPromotions}
+                  tenantSlug={tenant.slug}
                   primary={branding.primaryColor}
                   bg={bg}
                   textColor={text}

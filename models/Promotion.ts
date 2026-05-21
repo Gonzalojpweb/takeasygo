@@ -1,8 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+export type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
+
 export interface IPromotion {
   tenantId: mongoose.Types.ObjectId
   locationId?: mongoose.Types.ObjectId
+  type: PromotionType
   title: string
   description: string
   shortDescription?: string
@@ -12,6 +15,8 @@ export interface IPromotion {
   currency: string
   conditions?: string
   details?: string
+  ctaText?: string
+  ctaLink?: string
   visibility: 'both' | 'takeaway' | 'dine-in'
   isActive: boolean
   isFeatured: boolean
@@ -45,6 +50,11 @@ const PromotionSchema = new Schema<IPromotion>(
       ref: 'Location',
       default: null,
     },
+    type: {
+      type: String,
+      enum: ['sale', 'info', 'announcement', 'loyalty'],
+      default: 'sale',
+    },
     title: {
       type: String,
       required: true,
@@ -66,7 +76,7 @@ const PromotionSchema = new Schema<IPromotion>(
     },
     price: {
       type: Number,
-      required: true,
+      default: 0,
       min: 0,
     },
     originalPrice: {
@@ -83,6 +93,14 @@ const PromotionSchema = new Schema<IPromotion>(
       default: '',
     },
     details: {
+      type: String,
+      default: '',
+    },
+    ctaText: {
+      type: String,
+      default: '',
+    },
+    ctaLink: {
       type: String,
       default: '',
     },

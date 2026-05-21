@@ -7,6 +7,7 @@ export interface IUser extends Document {
   email: string
   password?: string
   image?: string
+  phone?: string
   role: UserRole
   tenantId: mongoose.Types.ObjectId | null
   assignedLocations: mongoose.Types.ObjectId[]
@@ -51,6 +52,13 @@ const UserSchema = new Schema<IUser>(
     image: {
       type: String,
       default: null,
+    },
+    phone: {
+      type: String,
+      default: null,
+      unique: true,
+      sparse: true,
+      trim: true,
     },
     role: {
       type: String,
@@ -107,6 +115,7 @@ const UserSchema = new Schema<IUser>(
 
 // Índices para queries frecuentes
 UserSchema.index({ email: 1 })
+UserSchema.index({ phone: 1 }, { sparse: true })
 UserSchema.index({ tenantId: 1, role: 1 })
 
 const User = mongoose.models.User || mongoose.model<IUser>('User', UserSchema)

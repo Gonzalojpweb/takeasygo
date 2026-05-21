@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Sparkles, Plus, Percent, Calendar } from 'lucide-react'
+import { Sparkles, Plus, Percent, Calendar, Info, Megaphone, Heart, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import PromotionLoyaltyModal from './PromotionLoyaltyModal'
 
 // Helper function to check if a hex color is light
 function isLightColor(color?: string) {
@@ -25,6 +26,7 @@ function isLightColor(color?: string) {
 interface PromotionCardProps {
   promotion: {
     _id: string
+    type?: 'sale' | 'info' | 'announcement' | 'loyalty'
     title: string
     shortDescription?: string
     imageUrl?: string
@@ -32,6 +34,8 @@ interface PromotionCardProps {
     originalPrice?: number
     conditions?: string
     isFeatured?: boolean
+    ctaText?: string
+    ctaLink?: string
     customStyles?: {
       backgroundColor?: string
       textColor?: string
@@ -41,6 +45,7 @@ interface PromotionCardProps {
       cardStyle?: 'modern' | 'classic' | 'minimal'
     }
   }
+  tenantSlug?: string
   onAdd?: (promotion: any) => void
   primary?: string
   bg?: string
@@ -51,6 +56,7 @@ interface PromotionCardProps {
 
 export function PromotionCard({
   promotion,
+  tenantSlug,
   onAdd,
   primary,
   bg,
@@ -58,6 +64,7 @@ export function PromotionCard({
   mode,
   variant,
 }: PromotionCardProps) {
+  const [showLoyaltyModal, setShowLoyaltyModal] = useState(false)
   const isFeatured = variant === 'featured' || (variant === undefined && promotion.isFeatured)
   
   const styles = promotion.customStyles || {}
@@ -67,10 +74,14 @@ export function PromotionCard({
     ? Math.round(((promotion.originalPrice - promotion.price) / promotion.originalPrice) * 100)
     : 0
 
+  const promoType = promotion.type || 'sale'
   const buttonText = mode === 'dine-in' ? 'Ver' : 'Agregar'
 
   // Decide if page background is light/dark for standard card styling
   const isPageBgLight = isLightColor(bg)
+
+  // Types that don't show price or add-to-cart
+  const isNonSale = promoType !== 'sale'
 
   if (isFeatured) {
     const cardBgColor = styles.backgroundColor || primary || '#f14722'
@@ -79,7 +90,7 @@ export function PromotionCard({
     const buttonBg = isBgLight ? '#1f2937' : '#ffffff'
     const buttonTextColor = isBgLight ? '#ffffff' : cardBgColor
 
-    return (
+    const featuredContent = (
       <div
         onClick={() => onAdd?.(promotion)}
         className={cn(
@@ -109,7 +120,10 @@ export function PromotionCard({
           </div>
         ) : (
           <div className="relative w-[30%] h-full flex-shrink-0 overflow-hidden flex items-center justify-center bg-white/10">
-            <Sparkles className="w-8 h-8 opacity-80" style={{ color: cardTextColor }} />
+            {promoType === 'info' && <Info className="w-8 h-8 opacity-80" style={{ color: cardTextColor }} />}
+            {promoType === 'announcement' && <Megaphone className="w-8 h-8 opacity-80" style={{ color: cardTextColor }} />}
+            {promoType === 'loyalty' && <Heart className="w-8 h-8 opacity-80" style={{ color: cardTextColor }} />}
+            {promoType === 'sale' && <Sparkles className="w-8 h-8 opacity-80" style={{ color: cardTextColor }} />}
             {/* Convex Overlap Curve */}
             <div 
               className="absolute -right-4 top-0 bottom-0 w-8 rounded-l-[100%] z-10" 
@@ -121,7 +135,16 @@ export function PromotionCard({
         {/* Right Side: Text & Actions */}
         <div className="flex-1 h-full p-4 pl-3 flex flex-col justify-between z-20 min-w-0">
           <div className="min-w-0">
-            {discount > 0 && (
+            {promoType !== 'sale' && (
+              <span 
+                className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-white/20 text-white"
+              >
+                {promoType === 'info' ? '📢 INFO' :
+                 promoType === 'announcement' ? '📢 AVISO' :
+                 '⭐ CLUB'}
+              </span>
+            )}
+            {promoType === 'sale' && discount > 0 && (
               <span 
                 className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-white/20 text-white"
               >
@@ -139,34 +162,86 @@ export function PromotionCard({
           </div>
           
           <div className="flex items-center justify-between mt-1 gap-2">
-            <div className="flex items-baseline gap-1">
-              <span className="text-base sm:text-lg font-black tracking-tight">
-                ${promotion.price.toLocaleString('es-AR')}
-              </span>
-              {promotion.originalPrice && (
-                <span className="text-[10px] opacity-60 line-through font-medium">
-                  ${promotion.originalPrice.toLocaleString('es-AR')}
+            {promoType === 'sale' ? (
+              <div className="flex items-baseline gap-1">
+                <span className="text-base sm:text-lg font-black tracking-tight">
+                  ${promotion.price.toLocaleString('es-AR')}
                 </span>
-              )}
-            </div>
+                {promotion.originalPrice && (
+                  <span className="text-[10px] opacity-60 line-through font-medium">
+                    ${promotion.originalPrice.toLocaleString('es-AR')}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div />
+            )}
             
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onAdd?.(promotion)
-              }}
-              className="px-4 py-1.5 rounded-full text-xs font-black shadow-md hover:shadow-lg transition-all transform active:scale-95 flex items-center gap-1"
-              style={{
-                backgroundColor: buttonBg,
-                color: buttonTextColor,
-              }}
-            >
-              <span>{buttonText}</span>
-              <Plus size={12} strokeWidth={3} />
-            </button>
+            {promoType === 'sale' ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAdd?.(promotion)
+                }}
+                className="px-4 py-1.5 rounded-full text-xs font-black shadow-md hover:shadow-lg transition-all transform active:scale-95 flex items-center gap-1"
+                style={{
+                  backgroundColor: buttonBg,
+                  color: buttonTextColor,
+                }}
+              >
+                <span>{buttonText}</span>
+                <Plus size={12} strokeWidth={3} />
+              </button>
+            ) : promoType === 'loyalty' ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowLoyaltyModal(true)
+                }}
+                className="px-4 py-1.5 rounded-full text-xs font-black shadow-md hover:shadow-lg transition-all transform active:scale-95 flex items-center gap-1"
+                style={{
+                  backgroundColor: buttonBg,
+                  color: buttonTextColor,
+                }}
+              >
+                <span>{promotion.ctaText || 'Unirme'}</span>
+                <Heart size={12} strokeWidth={3} />
+              </button>
+            ) : promoType === 'announcement' && promotion.ctaLink ? (
+              <a
+                href={promotion.ctaLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="px-4 py-1.5 rounded-full text-xs font-black shadow-md hover:shadow-lg transition-all transform active:scale-95 flex items-center gap-1 no-underline"
+                style={{
+                  backgroundColor: buttonBg,
+                  color: buttonTextColor,
+                }}
+              >
+                <span>{promotion.ctaText || 'Ver más'}</span>
+                <ExternalLink size={12} strokeWidth={3} />
+              </a>
+            ) : null}
           </div>
         </div>
       </div>
+    )
+    return (
+      <>
+        {featuredContent}
+        {tenantSlug && (
+          <PromotionLoyaltyModal
+            tenantSlug={tenantSlug}
+            promotionId={promotion._id}
+            title={promotion.title}
+            ctaText={promotion.ctaText}
+            accentColor={accent}
+            isOpen={showLoyaltyModal}
+            onClose={() => setShowLoyaltyModal(false)}
+          />
+        )}
+      </>
     )
   }
 
@@ -197,6 +272,7 @@ export function PromotionCard({
     : `1px solid ${cardBorder}`
 
   return (
+    <>
     <div
       onClick={() => onAdd?.(promotion)}
       className={cn(
@@ -219,10 +295,13 @@ export function PromotionCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Percent className="w-8 h-8 opacity-30" style={{ color: accent }} />
+            {promoType === 'info' && <Info className="w-8 h-8 opacity-30" style={{ color: accent }} />}
+            {promoType === 'announcement' && <Megaphone className="w-8 h-8 opacity-30" style={{ color: accent }} />}
+            {promoType === 'loyalty' && <Heart className="w-8 h-8 opacity-30" style={{ color: accent }} />}
+            {promoType === 'sale' && <Percent className="w-8 h-8 opacity-30" style={{ color: accent }} />}
           </div>
         )}
-        {discount > 0 && (
+        {promoType === 'sale' && discount > 0 && (
           <div className="absolute top-1 left-1 bg-red-500 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded-md shadow-sm">
             {discount}% OFF
           </div>
@@ -236,7 +315,10 @@ export function PromotionCard({
             className="text-[9px] uppercase font-black tracking-wider block mb-0.5 line-clamp-1 truncate"
             style={{ color: labelColor }}
           >
-            {promotion.conditions?.split('·')[0] || 'Promoción'}
+            {promoType === 'sale' ? (promotion.conditions?.split('·')[0] || 'Promoción') :
+             promoType === 'info' ? '📢 Info' :
+             promoType === 'announcement' ? '📢 Aviso' :
+             '⭐ Club'}
           </span>
           <h3 
             className="font-extrabold text-xs sm:text-sm line-clamp-1 leading-tight"
@@ -255,42 +337,93 @@ export function PromotionCard({
         </div>
 
         <div className="flex items-center justify-between gap-2 mt-2">
-          <div className="flex items-baseline gap-1">
-            <span 
-              className="text-sm sm:text-base font-black tracking-tight"
-              style={{ color: priceColor }}
-            >
-              ${promotion.price.toLocaleString('es-AR')}
-            </span>
-            {promotion.originalPrice && (
-              <span className="text-[10px] text-slate-400 line-through">
-                ${promotion.originalPrice.toLocaleString('es-AR')}
-              </span>
-            )}
-          </div>
+          {promoType === 'sale' ? (
+            <>
+              <div className="flex items-baseline gap-1">
+                <span 
+                  className="text-sm sm:text-base font-black tracking-tight"
+                  style={{ color: priceColor }}
+                >
+                  ${promotion.price.toLocaleString('es-AR')}
+                </span>
+                {promotion.originalPrice && (
+                  <span className="text-[10px] text-slate-400 line-through">
+                    ${promotion.originalPrice.toLocaleString('es-AR')}
+                  </span>
+                )}
+              </div>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onAdd?.(promotion)
-            }}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
-            style={{ 
-              backgroundColor: accent,
-              color: buttonIconColor,
-              border: buttonBorder
-            }}
-          >
-            <Plus size={16} strokeWidth={2.5} className="text-inherit" />
-          </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAdd?.(promotion)
+                }}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-90 flex-shrink-0"
+                style={{ 
+                  backgroundColor: accent,
+                  color: buttonIconColor,
+                  border: buttonBorder
+                }}
+              >
+                <Plus size={16} strokeWidth={2.5} className="text-inherit" />
+              </button>
+            </>
+          ) : promoType === 'loyalty' ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowLoyaltyModal(true)
+              }}
+              className="w-full py-2 rounded-full text-xs font-bold shadow-sm transition-all active:scale-90 flex items-center justify-center gap-1"
+              style={{ 
+                backgroundColor: accent,
+                color: buttonIconColor,
+                border: buttonBorder
+              }}
+            >
+              <Heart size={14} />
+              <span>{promotion.ctaText || 'Unirme'}</span>
+            </button>
+          ) : promoType === 'announcement' && promotion.ctaLink ? (
+            <a
+              href={promotion.ctaLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full py-2 rounded-full text-xs font-bold shadow-sm transition-all active:scale-90 flex items-center justify-center gap-1 no-underline"
+              style={{ 
+                backgroundColor: accent,
+                color: buttonIconColor,
+                border: buttonBorder
+              }}
+            >
+              <ExternalLink size={14} />
+              <span>{promotion.ctaText || 'Ver más'}</span>
+            </a>
+          ) : null}
         </div>
       </div>
     </div>
+
+      {/* Loyalty registration modal */}
+      {tenantSlug && (
+        <PromotionLoyaltyModal
+          tenantSlug={tenantSlug}
+          promotionId={promotion._id}
+          title={promotion.title}
+          ctaText={promotion.ctaText}
+          accentColor={accent}
+          isOpen={showLoyaltyModal}
+          onClose={() => setShowLoyaltyModal(false)}
+        />
+      )}
+    </>
   )
 }
 
 interface PromotionCarouselProps { 
   promotions: any[] 
+  tenantSlug?: string
   onAdd?: (promotion: any) => void
   primary?: string
   bg?: string
@@ -301,6 +434,7 @@ interface PromotionCarouselProps {
 
 export function PromotionCarousel({ 
   promotions, 
+  tenantSlug,
   onAdd, 
   primary, 
   bg,
@@ -345,6 +479,7 @@ export function PromotionCarousel({
           >
             <PromotionCard
               promotion={promo}
+              tenantSlug={tenantSlug}
               onAdd={onAdd}
               primary={primary}
               bg={bg}
