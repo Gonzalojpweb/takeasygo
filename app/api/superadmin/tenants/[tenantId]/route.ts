@@ -29,7 +29,7 @@ export async function PUT(
     // 3. Construir update con dot-notation
     const updateSet: Record<string, any> = { ...flatBody }
     if (sosMaxLimit !== undefined) {
-      updateSet['loyalty.sosMaxLimit'] = Math.max(0, Math.min(1000, parseInt(sosMaxLimit) || 0))
+      updateSet['loyalty.sosMaxLimit'] = Math.max(0, Math.min(5000, parseInt(sosMaxLimit) || 0))
     }
 
     const tenant = await Tenant.findByIdAndUpdate(
