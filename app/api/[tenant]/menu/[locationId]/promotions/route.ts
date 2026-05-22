@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Promotion from '@/models/Promotion'
+import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
@@ -10,9 +11,8 @@ export async function GET(
     const { tenant: tenantSlug, locationId } = await params
     await connectDB()
 
-    const tenant = await import('@/models/Tenant').then(m => 
-      m.default.findOne({ slug: tenantSlug, isActive: true })
-    )
+    const TenantModel = (await import('@/models/Tenant')).default
+    const tenant = await TenantModel.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
@@ -45,9 +45,32 @@ export async function GET(
       ]
     }
 
-    const promotions = await Promotion.find(query).sort({ sortOrder: 1, createdAt: -1 })
+    const promotions = await Promotion.find(query).sort({ sortOrder: 1, createdAt: -1 }).lean()
 
-    const filteredPromotions = promotions.filter(p => {
+    // Populate linked item data for each promotion
+    const menu = await Menu.findOne({ tenantId: tenant._id, locationId }).lean()
+    const promotionsWithLinked = promotions.map(p => {
+      const promo: any = { ...p }
+      if (promo.linkedMenuItemId && menu) {
+        for (const cat of (menu as any).categories ?? []) {
+          const item = (cat.items ?? []).find(
+            (i: any) => i._id.toString() === promo.linkedMenuItemId.toString()
+          )
+          if (item) {
+            promo.linkedItem = {
+              _id: item._id,
+              name: item.name,
+              variants: item.variants ?? [],
+              customizationGroups: item.customizationGroups ?? [],
+            }
+            break
+          }
+        }
+      }
+      return promo
+    })
+
+    const filteredPromotions = promotionsWithLinked.filter((p: any) => {
       if (p.visibility === 'both') return true
       if (p.visibility === mode) return true
       return false

@@ -184,7 +184,64 @@ export async function POST(
 
         const quantity = clientItem.quantity
         const price = promotion.price
-        const subtotal = price * quantity
+
+        // ── Validate customizations if promotion has a linked item ──────────
+        let extraPrice = 0
+        const resolvedCustomizations: any[] = []
+        let resolvedSelectedVariant: any = null
+
+        const linkedSnapshot = promotion.linkedItemSnapshot
+
+        if (linkedSnapshot && Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
+          for (const clientGroup of clientItem.customizations) {
+            const dbGroup = linkedSnapshot.customizationGroups.find(
+              (g: any) => g.name === clientGroup.groupName
+            )
+            if (!dbGroup) {
+              return NextResponse.json(
+                { error: `Grupo de personalización inválido en promoción: ${clientGroup.groupName}` },
+                { status: 400 }
+              )
+            }
+            const resolvedOptions: any[] = []
+            for (const clientOption of clientGroup.selectedOptions ?? []) {
+              const dbOption: any = dbGroup.options.find((o: any) => o.name === clientOption.name)
+              if (!dbOption) {
+                return NextResponse.json(
+                  { error: `Opción inválida "${clientOption.name}" en grupo "${dbGroup.name}" de la promoción` },
+                  { status: 400 }
+                )
+              }
+              extraPrice += dbOption.extraPrice || 0
+              resolvedOptions.push({ name: dbOption.name, extraPrice: dbOption.extraPrice || 0 })
+            }
+            resolvedCustomizations.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions })
+          }
+        }
+
+        // ── Validate variant if linked item has variants ───────────────────
+        if (linkedSnapshot && (linkedSnapshot.variants?.length ?? 0) > 0) {
+          const selectedVariant = clientItem.selectedVariant
+          if (!selectedVariant) {
+            return NextResponse.json(
+              { error: `La promoción "${promotion.title}" requiere seleccionar una variante` },
+              { status: 400 }
+            )
+          }
+          const dbVariant = linkedSnapshot.variants.find(
+            (v: any) => v.name === selectedVariant.name
+          )
+          if (!dbVariant) {
+            return NextResponse.json(
+              { error: `Variante inválida "${selectedVariant.name}" para la promoción "${promotion.title}"` },
+              { status: 400 }
+            )
+          }
+          resolvedSelectedVariant = { name: dbVariant.name, price: dbVariant.price }
+        }
+
+        const finalPrice = price + extraPrice
+        const subtotal = finalPrice * quantity
 
         resolvedItems.push({
           menuItemId: null,
@@ -193,11 +250,12 @@ export async function POST(
           categoryName: '',
           name: promotion.title,
           basePrice: price,
-          extraPrice: 0,
-          price,
+          extraPrice,
+          price: finalPrice,
           quantity,
           subtotal,
-          customizations: [],
+          customizations: resolvedCustomizations,
+          selectedVariant: resolvedSelectedVariant,
           addedFrom: clientItem.addedFrom ?? null,
           hasCategoryDiscount: false,
         })
