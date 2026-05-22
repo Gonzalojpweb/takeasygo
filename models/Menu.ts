@@ -43,6 +43,7 @@ export interface IMenuItem {
   takeawayOriginalPrice?: number
   imageUrl: string
   isAvailable: boolean
+  isTakeawayAvailable: boolean
   tags: string[]
   isFeatured: boolean
   suggestWith?: string[]  // IDs de ítems a sugerir cuando este se agrega al carrito
@@ -141,6 +142,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
     default: '',
   },
   isAvailable: {
+    type: Boolean,
+    default: true,
+  },
+  isTakeawayAvailable: {
     type: Boolean,
     default: true,
   },
