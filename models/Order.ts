@@ -23,7 +23,8 @@ export interface ISelectedVariant {
 export interface IOrderItem {
   menuItemId?: mongoose.Types.ObjectId
   promotionId?: string
-  itemType: 'menuItem' | 'promotion'
+  storeItemId?: mongoose.Types.ObjectId
+  itemType: 'menuItem' | 'promotion' | 'reward'
   categoryName: string
   name: string
   basePrice: number
@@ -55,6 +56,14 @@ export interface IStatusTimestamps {
   estimatedReadyAt: Date | null  // confirmedAt + location.estimatedPickupTime
 }
 
+export interface IRewardRedemption {
+  storeItemId: mongoose.Types.ObjectId
+  storeItemName: string
+  pointsCost: number
+  cashValue?: number
+  sosApplied: boolean
+}
+
 export interface IOrder extends Document {
   tenantId: mongoose.Types.ObjectId
   locationId: mongoose.Types.ObjectId
@@ -62,6 +71,10 @@ export interface IOrder extends Document {
   status: OrderStatus
   orderMode: OrderMode
   items: IOrderItem[]
+  rewardItems: IRewardRedemption[]
+  subtotal: number
+  discountAmount: number
+  qrPromoApplied: boolean
   total: number
   customer: {
     name: string
@@ -100,6 +113,14 @@ export interface IOrder extends Document {
   updatedAt: Date
 }
 
+const RewardRedemptionSchema = new Schema<IRewardRedemption>({
+  storeItemId: { type: Schema.Types.ObjectId, required: true },
+  storeItemName: { type: String, required: true },
+  pointsCost: { type: Number, required: true, min: 0 },
+  cashValue: { type: Number, default: null },
+  sosApplied: { type: Boolean, default: false },
+}, { _id: false })
+
 const SelectedVariantSchema = new Schema<ISelectedVariant>({
   name: { type: String, required: true },
   price: { type: Number, required: true },
@@ -125,9 +146,13 @@ const OrderItemSchema = new Schema<IOrderItem>({
     type: String,
     default: null,
   },
+  storeItemId: {
+    type: Schema.Types.ObjectId,
+    default: null,
+  },
   itemType: {
     type: String,
-    enum: ['menuItem', 'promotion'],
+    enum: ['menuItem', 'promotion', 'reward'],
     default: 'menuItem',
   },
   categoryName: { type: String, default: '' },
@@ -175,6 +200,10 @@ const OrderSchema = new Schema(
       required: true,
     },
     items: [OrderItemSchema],
+    rewardItems: {
+      type: [RewardRedemptionSchema],
+      default: [],
+    },
     subtotal: {
       type: Number,
       required: true,

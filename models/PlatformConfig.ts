@@ -23,6 +23,10 @@ export interface IPlatformConfig {
     borderRadius: string
     buttonColor: string
   }
+  /** Configuración global de SOS (hard-cap que el superadmin fija para toda la plataforma) */
+  sosConfig: {
+    globalSosLimit: number
+  }
   updatedAt: Date
 }
 
@@ -48,6 +52,10 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
       badgeColor: { type: String, default: '#F74211' },
       borderRadius: { type: String, default: '1.5rem' },
       buttonColor: { type: String, default: '#F74211' },
+    },
+    /** Configuración global de SOS (hard-cap que el superadmin fija para toda la plataforma) */
+    sosConfig: {
+      globalSosLimit: { type: Number, default: 250, min: 0 },
     },
   },
   { timestamps: true }

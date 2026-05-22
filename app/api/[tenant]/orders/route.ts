@@ -17,6 +17,8 @@ import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { auth } from '@/lib/auth'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
+import { validateCheckoutRewards } from '@/lib/loyalty'
+import StoreItem from '@/models/StoreItem'
 
 export async function GET(
   request: NextRequest,
@@ -338,22 +340,83 @@ export async function POST(
       qrPromoApplied = true
     }
 
-    // --- LÓGICA DE CANJE DE PUNTOS ---
-    let loyaltyDiscountAmount = 0
-    let loyaltyPointsUsed = 0
+    // --- VALIDACIÓN DE ÍTEMS DE PREMIO (CANJE CON PUNTOS) ---
+    const resolvedRewards: any[] = []
+    if (body.rewardItems && body.rewardItems.length > 0) {
+      if (!body.customer.phone) {
+        return NextResponse.json(
+          { error: 'Se requiere número de teléfono para canjear puntos' },
+          { status: 400 }
+        )
+      }
 
-     if (body.loyaltyPointsUsed > 0 && tenant.loyalty?.enabled && tenant.pointsConfig?.redemptionEnabled && body.customer.phone) {
-       const pHash = hashPhone(body.customer.phone)
-       const member = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash, status: 'active' }).select('loyalty').lean()
-       
-       if (member && member.loyalty.points >= body.loyaltyPointsUsed) {
-         const redemptionValue = tenant.pointsConfig?.pointsRedemptionValue ?? 10
-         loyaltyPointsUsed = body.loyaltyPointsUsed
-         loyaltyDiscountAmount = loyaltyPointsUsed * redemptionValue
-       }
-     }
+      if (!tenant.store?.enabled || !tenant.store?.enableCheckoutRedemption) {
+        return NextResponse.json(
+          { error: 'El canje en checkout no está habilitado' },
+          { status: 400 }
+        )
+      }
 
-    const total = Math.max(0, subtotal - discountAmount - loyaltyDiscountAmount)
+      const pHash = hashPhone(body.customer.phone)
+      const member = await LoyaltyMember.findOne({
+        tenantId: tenant._id,
+        phoneHash: pHash,
+        status: 'active',
+      }).select('loyalty sosConfig').lean()
+
+      if (!member) {
+        return NextResponse.json(
+          { error: 'No sos miembro del club. Unite primero para canjear puntos.' },
+          { status: 400 }
+        )
+      }
+
+      const validation = await validateCheckoutRewards(
+        member,
+        body.rewardItems.map((r: any) => r.storeItemId),
+        tenant
+      )
+
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error }, { status: 400 })
+      }
+
+      // Resolver datos completos de los ítems de premio
+      for (const reward of validation.resolved) {
+        const storeItem = await StoreItem.findById(reward.storeItemId).lean() as any
+        if (!storeItem) continue
+
+        // Descontar stock si es limitado
+        if (typeof storeItem.stock === 'number' && storeItem.stock > 0) {
+          await StoreItem.updateOne(
+            { _id: storeItem._id, stock: { $gt: 0 } },
+            { $inc: { stock: -1, totalRedemptions: 1 } }
+          )
+        }
+
+        resolvedRewards.push(reward)
+
+        // Agregar como item del pedido a $0
+        resolvedItems.push({
+          menuItemId: null,
+          promotionId: null,
+          storeItemId: storeItem._id,
+          itemType: 'reward',
+          categoryName: '',
+          name: storeItem.name,
+          basePrice: 0,
+          extraPrice: 0,
+          price: 0,
+          quantity: 1,
+          subtotal: 0,
+          customizations: [],
+          addedFrom: null,
+          hasCategoryDiscount: false,
+        })
+      }
+    }
+
+    const total = Math.max(0, subtotal - discountAmount)
 
     const encryptedCustomer = {
       name:  encrypt(body.customer.name),
@@ -369,11 +432,10 @@ export async function POST(
       status: 'awaiting_payment',
       orderMode: body.mode,
       items: resolvedItems,
+      rewardItems: resolvedRewards,
       subtotal,
       discountAmount,
       qrPromoApplied,
-      loyaltyPointsUsed,
-      loyaltyDiscountAmount,
       total,
       customer: encryptedCustomer,
       notes: body.notes || '',

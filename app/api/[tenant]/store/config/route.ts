@@ -33,6 +33,7 @@ export async function GET(
           description: 'Canjea tus puntos por recompensas exclusivas',
           heroImageUrl: '',
           allowOnlineRedemption: false,
+          enableCheckoutRedemption: false,
           redemptionExpiryHours: 24,
         }
       })
@@ -47,6 +48,7 @@ export async function GET(
         description: 'Canjea tus puntos por recompensas exclusivas',
         heroImageUrl: '',
         allowOnlineRedemption: false,
+        enableCheckoutRedemption: false,
         redemptionExpiryHours: 24,
       }
     })
@@ -79,6 +81,7 @@ export async function PUT(
       description,
       heroImageUrl,
       allowOnlineRedemption,
+      enableCheckoutRedemption,
       redemptionExpiryHours,
     } = body
 
@@ -88,6 +91,7 @@ export async function PUT(
     if (description !== undefined) updateData['store.description'] = description
     if (heroImageUrl !== undefined) updateData['store.heroImageUrl'] = heroImageUrl
     if (allowOnlineRedemption !== undefined) updateData['store.allowOnlineRedemption'] = allowOnlineRedemption
+    if (enableCheckoutRedemption !== undefined) updateData['store.enableCheckoutRedemption'] = enableCheckoutRedemption
     if (redemptionExpiryHours !== undefined) updateData['store.redemptionExpiryHours'] = redemptionExpiryHours
 
     const updatedTenant = await Tenant.findOneAndUpdate(

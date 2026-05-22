@@ -10,7 +10,7 @@ import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
-import { addPointsFromOrder, deductPointsFromOrder } from '@/lib/loyalty'
+import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 
 
@@ -167,13 +167,15 @@ export async function POST(
               }
 
               if (order.customer?.phoneHash) {
-                // Usar el helper centralizado para sumar puntos y sincronizar wallet
-                await addPointsFromOrder(order, tenant, session)
-                
-                // Si la orden usó puntos para un descuento, deducirlos ahora
-                if (order.loyaltyPointsUsed && order.loyaltyPointsUsed > 0) {
-                  await deductPointsFromOrder(order, tenant, session)
+                // Procesar deducción de puntos por ítems de premio (canje con puntos)
+                // Si aplica SOS, el saldo quedará en negativo y se marca hasPendingSos
+                if (order.rewardItems && order.rewardItems.length > 0) {
+                  await processRewardDeduction(order, tenant, session)
                 }
+
+                // Usar el helper centralizado para sumar puntos y sincronizar wallet
+                // Si el miembro tiene deuda SOS, se descuenta antes de acreditar
+                await addPointsFromOrder(order, tenant, session)
               }
 
               // ── Inyección POS (fire-and-forget) ──────────────────────────

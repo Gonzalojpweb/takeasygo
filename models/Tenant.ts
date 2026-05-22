@@ -54,6 +54,8 @@ export interface ITenant extends Document {
     clubName:       string   // nombre del club (por defecto 'Club [nombre restaurante]')
     welcomeMessage: string   // mensaje de bienvenida editable
     createdAt:      Date | null
+    /** Límite SOS configurable por el admin (perilla deslizadora). 0 = desactivado. Tope máximo: PlatformConfig.sosConfig.globalSosLimit */
+    sosLimit:       number
   }
   /** Configuración de Wallet Digital (Google & Apple) */
   wallet: {
@@ -148,6 +150,8 @@ export interface ITenant extends Document {
     heroImageUrl?: string
     allowOnlineRedemption: boolean  // Si requiere presencial o puede ser online
     redemptionExpiryHours?: number  // Horas para expirar código de canje
+    /** Permitir canje de ítems de la tienda durante el checkout */
+    enableCheckoutRedemption: boolean
   }
   createdAt: Date
   updatedAt: Date
@@ -307,6 +311,7 @@ const TenantSchema = new Schema<ITenant>(
       clubName:       { type: String,  default: '' },
       welcomeMessage: { type: String,  default: '' },
       createdAt:      { type: Date,    default: null },
+      sosLimit:       { type: Number,  default: 0, min: 0 },
     },
     // Configuración de Wallet Digital
     wallet: {
@@ -406,6 +411,7 @@ const TenantSchema = new Schema<ITenant>(
       heroImageUrl: { type: String, default: '' },
       allowOnlineRedemption: { type: Boolean, default: false },
       redemptionExpiryHours: { type: Number, default: 24, min: 1, max: 168 }, // 1 hora a 7 días
+      enableCheckoutRedemption: { type: Boolean, default: false },
     },
   },
   {

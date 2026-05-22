@@ -16,6 +16,7 @@ interface StoreConfig {
   description: string
   heroImageUrl: string
   allowOnlineRedemption: boolean
+  enableCheckoutRedemption: boolean
   redemptionExpiryHours: number
 }
 
@@ -30,6 +31,7 @@ export default function StoreSettings({ tenantSlug }: Props) {
     description: 'Canjea tus puntos por recompensas exclusivas',
     heroImageUrl: '',
     allowOnlineRedemption: false,
+    enableCheckoutRedemption: false,
     redemptionExpiryHours: 24,
   })
   const [loading, setLoading] = useState(true)
@@ -54,6 +56,7 @@ export default function StoreSettings({ tenantSlug }: Props) {
           description: typeof fetchedConfig.description === 'string' ? fetchedConfig.description : 'Canjea tus puntos por recompensas exclusivas',
           heroImageUrl: typeof fetchedConfig.heroImageUrl === 'string' ? fetchedConfig.heroImageUrl : '',
           allowOnlineRedemption: typeof fetchedConfig.allowOnlineRedemption === 'boolean' ? fetchedConfig.allowOnlineRedemption : false,
+          enableCheckoutRedemption: typeof fetchedConfig.enableCheckoutRedemption === 'boolean' ? fetchedConfig.enableCheckoutRedemption : false,
           redemptionExpiryHours: typeof fetchedConfig.redemptionExpiryHours === 'number' ? fetchedConfig.redemptionExpiryHours : 24,
         })
       }
@@ -216,6 +219,30 @@ export default function StoreSettings({ tenantSlug }: Props) {
               checked={config.allowOnlineRedemption ?? false}
               onCheckedChange={(checked) => setConfig({ ...config, allowOnlineRedemption: checked })}
               className="data-[state=checked]:bg-blue-500"
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                <span className="text-xl font-black">$0</span>
+              </div>
+              <div>
+                <Label className="text-base font-bold cursor-pointer" htmlFor="checkout-redemption">
+                  {config.enableCheckoutRedemption ? 'Canje en Checkout' : 'Canje en Checkout desactivado'}
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {config.enableCheckoutRedemption
+                    ? 'Los miembros pueden canjear ítems de la tienda durante el checkout a $0.'
+                    : 'Los ítems solo se pueden canjear presencialmente desde el panel.'}
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="checkout-redemption"
+              checked={config.enableCheckoutRedemption ?? false}
+              onCheckedChange={(checked) => setConfig({ ...config, enableCheckoutRedemption: checked })}
+              className="data-[state=checked]:bg-emerald-500"
             />
           </div>
         </div>
