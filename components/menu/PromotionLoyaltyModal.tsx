@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Star, CheckCircle2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Props {
   tenantSlug: string
@@ -27,6 +28,7 @@ export default function PromotionLoyaltyModal({
   const [registering, setRegistering] = useState(false)
   const [registered, setRegistered] = useState(false)
   const [error, setError] = useState('')
+  const [understood, setUnderstood] = useState<'loading' | 'yes' | 'no' | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -54,6 +56,15 @@ export default function PromotionLoyaltyModal({
     } finally {
       setRegistering(false)
     }
+  }
+
+  async function sendClubFeedback(val: boolean) {
+    setUnderstood(val ? 'yes' : 'no')
+    await fetch(`/api/${tenantSlug}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'club_registered', understoodPoints: val }),
+    }).catch(() => {})
   }
 
   return (
@@ -156,7 +167,37 @@ export default function PromotionLoyaltyModal({
                 >
                   <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
                   <p className="text-2xl font-bold text-emerald-900">¡Registro exitoso!</p>
-                  <p className="text-emerald-700 mt-1">Bienvenido a TakeasyGo y al club</p>
+                  <p className="text-emerald-700 mt-1">Bienvenido a TakeasyGO</p>
+                  {understood === null && (
+                    <div className="mt-6 space-y-3">
+                      <p className="text-sm font-semibold text-slate-600">¿Entendés cómo acumulás puntos?</p>
+                      <div className="flex gap-3 justify-center">
+                        <button
+                          onClick={() => sendClubFeedback(true)}
+                          className={cn(
+                            'px-6 py-2.5 rounded-xl font-bold text-sm border-2 transition-all',
+                            'border-emerald-200 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50'
+                          )}
+                        >
+                          👍 Sí
+                        </button>
+                        <button
+                          onClick={() => sendClubFeedback(false)}
+                          className={cn(
+                            'px-6 py-2.5 rounded-xl font-bold text-sm border-2 transition-all',
+                            'border-red-200 text-red-600 hover:border-red-400 hover:bg-red-50'
+                          )}
+                        >
+                          👎 No
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {understood !== null && (
+                    <p className="mt-6 text-sm font-medium text-emerald-600">
+                      {understood === 'yes' ? '¡Genial! Sumá puntos en cada pedido.' : 'Consultá con el local cómo funcionan los puntos.'}
+                    </p>
+                  )}
                 </motion.div>
               )}
 
