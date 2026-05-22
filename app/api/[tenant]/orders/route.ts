@@ -342,6 +342,8 @@ export async function POST(
 
     // --- VALIDACIÓN DE ÍTEMS DE PREMIO (CANJE CON PUNTOS) ---
     const resolvedRewards: any[] = []
+    let rewardAdvanceApplied = false
+    let rewardAdvanceAmount = 0
     if (body.rewardItems && body.rewardItems.length > 0) {
       if (!body.customer.phone) {
         return NextResponse.json(
@@ -374,12 +376,17 @@ export async function POST(
       const validation = await validateCheckoutRewards(
         member,
         body.rewardItems.map((r: any) => r.storeItemId),
+        body.loyaltyPointsRequired ?? 0,
         tenant
       )
 
       if (!validation.valid) {
         return NextResponse.json({ error: validation.error }, { status: 400 })
       }
+
+      const projectedBalance = (member.loyalty?.points ?? 0) - body.loyaltyPointsRequired
+      rewardAdvanceApplied = projectedBalance < 0
+      rewardAdvanceAmount = rewardAdvanceApplied ? Math.abs(projectedBalance) : 0
 
       // Resolver datos completos de los ítems de premio
       for (const reward of validation.resolved) {
@@ -433,6 +440,8 @@ export async function POST(
       orderMode: body.mode,
       items: resolvedItems,
       rewardItems: resolvedRewards,
+      rewardAdvanceApplied,
+      rewardAdvanceAmount,
       subtotal,
       discountAmount,
       qrPromoApplied,
