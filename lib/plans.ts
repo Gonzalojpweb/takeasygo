@@ -65,7 +65,7 @@ export const PLAN_ACCESS = {
   analyticsAdv:  ['full'] as const,  // performance + menú + horarios inteligentes
   icoAdvanced:   ['full'] as const,  // diagnóstico completo con factores
   store:         ['full'] as const,  // Tienda de canje de puntos
-  sos:           ['full'] as const,  // Reward Advance (préstamo de puntos en checkout)
+  sos:           ['buy', 'full'] as const,  // Reward Advance (préstamo de puntos en checkout)
   dineIn:        ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
 
   // Plan Crecimiento y superior
