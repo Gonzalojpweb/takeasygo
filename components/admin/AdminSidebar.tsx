@@ -26,6 +26,8 @@ import {
   TrendingUp,
   Bell,
   ChevronRight,
+  Zap,
+  Smartphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -151,10 +153,12 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
     {
       section: 'Marketing',
       items: [
-        { href: `${base}/promotions`, label: 'Promociones', icon: Tag, roles: ['admin', 'manager'] },
-        { href: `${base}/marketing-qr`, label: 'Marketing QR', icon: Gift, roles: ['admin', 'manager'] },
-        { href: `${base}/club`, label: 'Club', icon: QrCode, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
-        { href: `${base}/store`, label: 'Tienda', icon: Gift, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/promotions`,  label: 'Promociones',  icon: Tag,       roles: ['admin', 'manager'] },
+        { href: `${base}/marketing-qr`, label: 'Marketing QR', icon: Gift,      roles: ['admin', 'manager'] },
+        { href: `${base}/club`,        label: 'Club',          icon: QrCode,    roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/go-plus`,     label: 'GO+',           icon: Zap,       roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/wallet`,      label: 'Wallet',        icon: Smartphone,roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/store`,       label: 'Tienda',        icon: Gift,      roles: ['admin', 'manager'], feature: 'loyaltyClub' },
       ],
     },
     {

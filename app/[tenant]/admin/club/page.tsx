@@ -3,8 +3,8 @@ import Tenant from '@/models/Tenant'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { canAccess } from '@/lib/plans'
+import ClubInfoSettings from '@/components/admin/ClubInfoSettings'
 import LoyaltyManager from '@/components/admin/LoyaltyManager'
-import LoyaltyClubSettings from '@/components/admin/LoyaltyClubSettings'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
 
@@ -15,20 +15,15 @@ interface PageProps {
 export default async function ClubPage({ params }: PageProps) {
   const { tenant: tenantSlug } = await params
   const session = await auth()
-
-  if (!session?.user) {
-    redirect('/login')
-  }
+  if (!session?.user) redirect('/login')
 
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .select('plan loyalty name wallet pointsConfig')
-    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; wallet: any; pointsConfig: any }>()
+    .select('plan loyalty name')
+    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string }>()
 
-  if (!tenant) {
-    redirect('/')
-  }
+  if (!tenant) redirect('/')
 
   if (!canAccess(tenant.plan, 'loyaltyClub')) {
     return (
@@ -47,37 +42,23 @@ export default async function ClubPage({ params }: PageProps) {
     )
   }
 
-  // Límite SOS máximo definido por el superadmin para este tenant
-  const sosMaxLimit = tenant.loyalty?.sosMaxLimit ?? 0
-
   const canExport = canAccess(tenant.plan, 'loyaltyExport')
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-black tracking-tight">Club de Fidelización</h1>
-        <p className="text-muted-foreground mt-1">
-          Gestiona los miembros de tu club, statistics y configuración.
-        </p>
+        <p className="text-muted-foreground mt-1">Información del club y gestión de miembros</p>
       </div>
 
-      <LoyaltyClubSettings
+      <ClubInfoSettings
         tenantSlug={tenantSlug}
         plan={tenant.plan}
         initial={{
-          enabled:        tenant.loyalty?.enabled ?? false,
-          clubName:       tenant.loyalty?.clubName ?? `Club ${tenant.name}`,
+          enabled: tenant.loyalty?.enabled ?? false,
+          clubName: tenant.loyalty?.clubName ?? `Club ${tenant.name}`,
           welcomeMessage: tenant.loyalty?.welcomeMessage ?? '',
-          sosLimit:       tenant.loyalty?.sosLimit ?? 0,
-          wallet: {
-            enabled: tenant.wallet?.enabled ?? false,
-            cardColor: tenant.wallet?.cardColor ?? '#000000',
-            labelColor: tenant.wallet?.labelColor ?? '#FFFFFF',
-            logoUrl: tenant.wallet?.logoUrl ?? ''
-          },
-          pointsConfig: tenant.pointsConfig
         }}
-        sosMaxLimit={sosMaxLimit}
       />
 
       <LoyaltyManager
