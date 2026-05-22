@@ -168,6 +168,14 @@ export async function POST(
           )
         }
 
+        // Security guard: only 'sale' promotions can be purchased
+        if (promotion.type !== 'sale') {
+          return NextResponse.json(
+            { error: `La promoción "${promotion.title}" es de tipo "${promotion.type}" y no puede agregarse al carrito.` },
+            { status: 400 }
+          )
+        }
+
         const quantity = clientItem.quantity
         const price = promotion.price
         const subtotal = price * quantity
