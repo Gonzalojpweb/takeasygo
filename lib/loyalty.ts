@@ -2,7 +2,6 @@ import mongoose from 'mongoose'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Order from '@/models/Order'
 import StoreItem from '@/models/StoreItem'
-import PlatformConfig from '@/models/PlatformConfig'
 import { syncWalletPoints } from '@/lib/walletService'
 
 export function calculatePointsBreakdown(orderTotal: number, pointsConfig: any): { basePoints: number; microBonus: number; total: number } {
@@ -74,9 +73,6 @@ export async function validateCheckoutRewards(
     return { valid: false, error: 'Puntos requeridos inválidos', resolved: [] }
   }
 
-  const platformConfig = await PlatformConfig.findById('platform').lean() as any
-  const globalAdvanceLimit = platformConfig?.sosConfig?.globalSosLimit ?? 250
-
   const items = await StoreItem.find({
     _id: { $in: rewardItemIds },
     tenantId: tenant._id,
@@ -118,8 +114,8 @@ export async function validateCheckoutRewards(
 
   // No alcanzan: evaluar Reward Advance (antes llamado SOS)
   const missingPoints = Math.abs(projectedBalance)
-  const tenantAdvanceLimit = tenant.loyalty?.sosLimit ?? 0
-  const effectiveAdvanceLimit = Math.min(tenantAdvanceLimit, globalAdvanceLimit)
+  const sosMaxLimit = tenant.loyalty?.sosMaxLimit ?? 0
+  const effectiveAdvanceLimit = Math.min(tenant.loyalty?.sosLimit ?? 0, sosMaxLimit)
 
   if (effectiveAdvanceLimit <= 0 || missingPoints > effectiveAdvanceLimit) {
     return {

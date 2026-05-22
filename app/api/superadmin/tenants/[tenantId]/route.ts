@@ -23,10 +23,18 @@ export async function PUT(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    // 2. Actualizar el tenant
+    // 2. Extraer campos anidados que no están en el body plano
+    const { sosMaxLimit, ...flatBody } = body
+
+    // 3. Construir update con dot-notation
+    const updateSet: Record<string, any> = { ...flatBody }
+    if (sosMaxLimit !== undefined) {
+      updateSet['loyalty.sosMaxLimit'] = Math.max(0, Math.min(1000, parseInt(sosMaxLimit) || 0))
+    }
+
     const tenant = await Tenant.findByIdAndUpdate(
       tenantId,
-      { $set: body },
+      { $set: updateSet },
       { new: true, runValidators: true }
     )
 

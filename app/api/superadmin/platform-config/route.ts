@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
       platformFeePercent: mpOAuth.platformFeePercent || 5,
       isConfigured: !!(mpOAuth.appId && mpOAuth.appSecret && mpOAuth.redirectUri),
     },
-    sosConfig: config?.sosConfig ?? { globalSosLimit: 250 },
   })
 }
 
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
   if (authError) return authError
 
   const body = await request.json()
-  const { accessToken, webhookSecret, mpOAuth, sosConfig } = body as {
+  const { accessToken, webhookSecret, mpOAuth } = body as {
     accessToken?: string
     webhookSecret?: string
     mpOAuth?: {
@@ -53,9 +52,6 @@ export async function POST(request: NextRequest) {
       appSecret?: string
       redirectUri?: string
       platformFeePercent?: number
-    }
-    sosConfig?: {
-      globalSosLimit?: number
     }
   }
 
@@ -87,11 +83,6 @@ export async function POST(request: NextRequest) {
     if (mpOAuth.platformFeePercent !== undefined) {
       update['mpOAuth.platformFeePercent'] = mpOAuth.platformFeePercent
     }
-  }
-
-  // SOS config (global hard-cap)
-  if (sosConfig?.globalSosLimit !== undefined) {
-    update['sosConfig.globalSosLimit'] = Math.max(0, parseInt(String(sosConfig.globalSosLimit)) || 0)
   }
 
   // Marcar mercadopago como configurado si ambas claves existen

@@ -1,6 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import PlatformConfig from '@/models/PlatformConfig'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { canAccess } from '@/lib/plans'
@@ -48,9 +47,8 @@ export default async function ClubPage({ params }: PageProps) {
     )
   }
 
-  // Obtener el límite SOS global para pasárselo al slider del admin
-  const platformConfig = await PlatformConfig.findById('platform').lean() as any
-  const globalSosLimit = platformConfig?.sosConfig?.globalSosLimit ?? 250
+  // Límite SOS máximo definido por el superadmin para este tenant
+  const sosMaxLimit = tenant.loyalty?.sosMaxLimit ?? 0
 
   const canExport = canAccess(tenant.plan, 'loyaltyExport')
 
@@ -65,6 +63,7 @@ export default async function ClubPage({ params }: PageProps) {
 
       <LoyaltyClubSettings
         tenantSlug={tenantSlug}
+        plan={tenant.plan}
         initial={{
           enabled:        tenant.loyalty?.enabled ?? false,
           clubName:       tenant.loyalty?.clubName ?? `Club ${tenant.name}`,
@@ -78,7 +77,7 @@ export default async function ClubPage({ params }: PageProps) {
           },
           pointsConfig: tenant.pointsConfig
         }}
-        globalSosLimit={globalSosLimit}
+        sosMaxLimit={sosMaxLimit}
       />
 
       <LoyaltyManager
