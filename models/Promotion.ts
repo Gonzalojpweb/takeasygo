@@ -33,6 +33,14 @@ export interface IPromotion {
   maxRedemptions?: number
   redemptionsCount: number
   sortOrder: number
+  /** Menú item vinculado del cual heredar variants y customizationGroups */
+  linkedMenuItemId?: mongoose.Types.ObjectId
+  /** Snapshot del linked item al momento de crear la promo (protege contra cambios futuros en el menú) */
+  linkedItemSnapshot?: {
+    name: string
+    variants: any[]
+    customizationGroups: any[]
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -144,6 +152,14 @@ const PromotionSchema = new Schema<IPromotion>(
     sortOrder: {
       type: Number,
       default: 0,
+    },
+    linkedMenuItemId: {
+      type: Schema.Types.ObjectId,
+      default: null,
+    },
+    linkedItemSnapshot: {
+      type: Schema.Types.Mixed,
+      default: null,
     },
   },
   {

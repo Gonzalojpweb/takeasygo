@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { 
   Plus, Edit2, Trash2, Eye, EyeOff, Star, 
   Tag, Upload, Palette, X, DollarSign, 
-  Info, Megaphone, Heart,
+  Info, Megaphone, Heart, Search, ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,6 +47,12 @@ interface Promotion {
   maxRedemptions?: number
   redemptionsCount: number
   sortOrder: number
+  linkedMenuItemId?: string
+  linkedItemSnapshot?: {
+    name: string
+    variants: any[]
+    customizationGroups: any[]
+  }
 }
 
 interface Props {
@@ -63,6 +69,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [uploading, setUploading] = useState(false)
+  const [menuItems, setMenuItems] = useState<{ id: string; name: string; category: string }[]>([])
+  const [itemSearch, setItemSearch] = useState('')
 
   const [form, setForm] = useState({
     type: 'sale' as PromotionType,
@@ -83,6 +91,12 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
     scheduledStart: '',
     scheduledEnd: '',
     maxRedemptions: '',
+    linkedMenuItemId: '',
+    linkedItemSnapshot: null as {
+      name: string
+      variants: any[]
+      customizationGroups: any[]
+    } | null,
     customStyles: {
       backgroundColor: '#1a1a1a',
       textColor: '#ffffff',
@@ -92,6 +106,27 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
       cardStyle: 'modern' as CardStyle,
     },
   })
+
+  // Fetch menu items when modal opens for sale promotions
+  useEffect(() => {
+    if (isModalOpen && form.type === 'sale') {
+      fetch(`/api/${tenantSlug}/menu`)
+        .then(r => r.json())
+        .then(data => {
+          const items: { id: string; name: string; category: string }[] = []
+          for (const cat of data.categories ?? []) {
+            for (const item of cat.items ?? []) {
+              items.push({ id: item._id, name: item.name, category: cat.name })
+            }
+          }
+          setMenuItems(items)
+        })
+        .catch(() => {})
+    } else {
+      setMenuItems([])
+      setItemSearch('')
+    }
+  }, [isModalOpen, form.type, tenantSlug])
 
   const filteredPromotions = promotions.filter(p => {
     if (filter === 'active') return p.isActive
@@ -145,6 +180,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
       scheduledStart: '',
       scheduledEnd: '',
       maxRedemptions: '',
+      linkedMenuItemId: '',
+      linkedItemSnapshot: null,
       customStyles: {
         backgroundColor: '#1a1a1a',
         textColor: '#ffffff',
@@ -178,6 +215,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
       scheduledStart: promotion.scheduledStart ? promotion.scheduledStart.split('T')[0] : '',
       scheduledEnd: promotion.scheduledEnd ? promotion.scheduledEnd.split('T')[0] : '',
       maxRedemptions: promotion.maxRedemptions?.toString() || '',
+      linkedMenuItemId: promotion.linkedMenuItemId || '',
+      linkedItemSnapshot: promotion.linkedItemSnapshot || null,
       customStyles: {
         backgroundColor: promotion.customStyles?.backgroundColor || '#1a1a1a',
         textColor: promotion.customStyles?.textColor || '#ffffff',
@@ -193,13 +232,29 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
   async function handleSave() {
     setLoading(true)
     try {
-      const payload = {
-        ...form,
-        originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : null,
-        maxRedemptions: form.maxRedemptions ? parseInt(form.maxRedemptions) : null,
-        scheduledStart: form.scheduledStart ? new Date(form.scheduledStart) : null,
-        scheduledEnd: form.scheduledEnd ? new Date(form.scheduledEnd) : null,
+      // If linkedMenuItemId is set but no snapshot, fetch the item to create the snapshot
+      let linkedItemSnapshot = form.linkedItemSnapshot
+      if (form.linkedMenuItemId && !linkedItemSnapshot) {
+        try {
+          const res = await fetch(`/api/${tenantSlug}/menu/items/${form.linkedMenuItemId}`)
+          if (res.ok) {
+            const data = await res.json()
+            linkedItemSnapshot = {
+              name: data.item.name,
+              variants: data.item.variants ?? [],
+              customizationGroups: data.item.customizationGroups ?? [],
+            }
+          }
+        } catch {}
       }
+
+      const payload: any = { ...form }
+      payload.originalPrice = payload.originalPrice ? parseFloat(payload.originalPrice) : null
+      payload.maxRedemptions = payload.maxRedemptions ? parseInt(payload.maxRedemptions) : null
+      payload.scheduledStart = payload.scheduledStart ? new Date(payload.scheduledStart) : null
+      payload.scheduledEnd = payload.scheduledEnd ? new Date(payload.scheduledEnd) : null
+      payload.linkedMenuItemId = payload.linkedMenuItemId || null
+      payload.linkedItemSnapshot = linkedItemSnapshot
 
       const url = editingPromotion 
         ? `/api/${tenantSlug}/promotions/${editingPromotion._id}`
@@ -617,6 +672,85 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                         className="mt-1.5"
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* Linked menu item (for sale promotions with customizations) */}
+                {form.type === 'sale' && (
+                  <div>
+                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">
+                      Producto vinculado <span className="font-normal normal-case tracking-normal text-muted-foreground/60">(opcional — hereda variantes y personalización)</span>
+                    </Label>
+                    {form.linkedMenuItemId ? (
+                      <div className="flex items-center gap-2 p-3 rounded-xl border-2 border-emerald-200 bg-emerald-50">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-emerald-800 truncate">
+                            {form.linkedItemSnapshot?.name || 'Producto seleccionado'}
+                          </p>
+                          <p className="text-xs text-emerald-600">
+                            {form.linkedItemSnapshot ? `${form.linkedItemSnapshot.variants?.length ?? 0} variante(s) · ${form.linkedItemSnapshot.customizationGroups?.length ?? 0} grupo(s) de personalización` : ''}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, linkedMenuItemId: '', linkedItemSnapshot: null })}
+                          className="w-7 h-7 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 hover:bg-emerald-300 transition-colors"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            value={itemSearch}
+                            onChange={e => setItemSearch(e.target.value)}
+                            placeholder="Buscar producto del menú..."
+                            className="pl-9"
+                          />
+                        </div>
+                        {itemSearch.length > 0 && (
+                          <div className="max-h-48 overflow-y-auto rounded-xl border border-border divide-y divide-border">
+                            {menuItems
+                              .filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase()))
+                              .slice(0, 20)
+                              .map(item => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={async () => {
+                                    // Fetch full item data for snapshot
+                                    try {
+                                      const res = await fetch(`/api/${tenantSlug}/menu/items/${item.id}`)
+                                      if (res.ok) {
+                                        const data = await res.json()
+                                        setForm({
+                                          ...form,
+                                          linkedMenuItemId: item.id,
+                                          linkedItemSnapshot: {
+                                            name: data.item.name,
+                                            variants: data.item.variants ?? [],
+                                            customizationGroups: data.item.customizationGroups ?? [],
+                                          },
+                                        })
+                                        setItemSearch('')
+                                      }
+                                    } catch {}
+                                  }}
+                                  className="w-full text-left px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
+                                >
+                                  <span className="text-muted-foreground text-xs">{item.category}</span>
+                                  <span className="ml-2">{item.name}</span>
+                                </button>
+                              ))}
+                            {menuItems.filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase())).length === 0 && (
+                              <p className="px-3 py-4 text-sm text-muted-foreground text-center">Sin resultados</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -260,6 +260,24 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   }
 
   function addPromotionToCart(promotion: any) {
+    // If promotion has linked item with customizations/variants, open customization modal
+    if (promotion.linkedItem && (promotion.linkedItem.customizationGroups?.length > 0 || promotion.linkedItem.variants?.length > 0)) {
+      openCustomizationModal({
+        ...promotion.linkedItem,
+        _promotionId: promotion._id,
+        _promotionTitle: promotion.title,
+        price: promotion.price,
+        basePrice: promotion.price,
+        isPromotion: true,
+        // All variants use the promotion's fixed price (not the menu item's price)
+        variants: (promotion.linkedItem.variants ?? []).map((v: any) => ({
+          ...v,
+          price: promotion.price,
+          takeawayPrice: promotion.price,
+        })),
+      })
+      return
+    }
     const promoId = `promo:${promotion._id}`
     setCart(prev => {
       const existing = prev.find(i => i.cartItemId === promoId)
@@ -282,6 +300,21 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   }
 
   function handleConfirmCustomization(cartItem: CartItem) {
+    // If it's a promotion item going through customization, add with promotion context
+    if ((cartItem as any).isPromotion) {
+      const taggedItem: CartItem = {
+        ...cartItem,
+        cartItemId: `promo:${(cartItem as any)._promotionId}`,
+        promotionId: (cartItem as any)._promotionId,
+        name: (cartItem as any)._promotionTitle,
+        type: 'promotion',
+        addedFrom: 'menu',
+      }
+      setCart(prev => [...prev, taggedItem])
+      setCustomizingItem(null)
+      toast.success(`${taggedItem.name} agregado al pedido`)
+      return
+    }
     const taggedItem: CartItem = upsellModalRef.current
       ? { ...cartItem, addedFrom: 'upsell_sheet' }
       : cartItem
