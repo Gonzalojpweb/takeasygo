@@ -6,8 +6,6 @@ import { canAccess } from '@/lib/plans'
 import { logAudit } from '@/lib/audit'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
-import PlatformConfig from '@/models/PlatformConfig'
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -32,9 +30,7 @@ export async function GET(
       })
     }
 
-    // Obtener el globalSosLimit para que el slider sepa su tope
-    const platformConfig = await PlatformConfig.findById('platform').lean() as any
-    const globalSosLimit = platformConfig?.sosConfig?.globalSosLimit ?? 250
+    const sosMaxLimit = tenant.loyalty?.sosMaxLimit ?? 0
 
     return NextResponse.json({
       loyalty: tenant.loyalty ?? {
@@ -43,8 +39,9 @@ export async function GET(
         welcomeMessage: '',
         createdAt:      null,
         sosLimit:       0,
+        sosMaxLimit,
       },
-      globalSosLimit,
+      sosMaxLimit,
       wallet: tenant.wallet ?? {
         enabled: false,
         cardColor: tenant.branding?.primaryColor || '#000000',
@@ -92,10 +89,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Tu plan no incluye el Club de Fidelización' }, { status: 403 })
     }
 
-    // Obtener globalSosLimit para validar el cap
-    const platformConfig = await PlatformConfig.findById('platform').lean() as any
-    const globalSosLimit = platformConfig?.sosConfig?.globalSosLimit ?? 250
-
     const body = await request.json()
     const { enabled, clubName, welcomeMessage, wallet, pointsConfig, sosLimit } = body
 
@@ -128,13 +121,18 @@ export async function PUT(
       }
     }
 
-    // SOS limit (capped by globalSosLimit)
+    // SOS limit (solo Premium, capped by sosMaxLimit)
     if (sosLimit !== undefined) {
-      const parsedLimit = Math.max(0, Math.min(parseInt(sosLimit) || 0, globalSosLimit))
-      const currentLimit = tenant.loyalty?.sosLimit ?? 0
-      if (parsedLimit !== currentLimit) {
-        update['loyalty.sosLimit'] = parsedLimit
-        changes.sosLimit = { from: currentLimit, to: parsedLimit }
+      if (!canAccess(tenant.plan, 'sos')) {
+        update['loyalty.sosLimit'] = 0
+      } else {
+        const sosMaxLimit = tenant.loyalty?.sosMaxLimit ?? 0
+        const parsedLimit = Math.max(0, Math.min(parseInt(sosLimit) || 0, sosMaxLimit))
+        const currentLimit = tenant.loyalty?.sosLimit ?? 0
+        if (parsedLimit !== currentLimit) {
+          update['loyalty.sosLimit'] = parsedLimit
+          changes.sosLimit = { from: currentLimit, to: parsedLimit }
+        }
       }
     }
 

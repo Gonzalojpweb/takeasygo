@@ -10,9 +10,11 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, QrCode, Save, Eye, EyeOff, Smartphone, Palette, CreditCard, Percent, Calculator, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { canAccess } from '@/lib/plans'
 
 interface Props {
   tenantSlug: string
+  plan?: string
   initial?: {
     enabled: boolean
     clubName: string
@@ -37,7 +39,7 @@ interface Props {
       redemptionEnabled: boolean
     }
   }
-  globalSosLimit?: number
+  sosMaxLimit?: number
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -47,7 +49,7 @@ const SOURCE_LABELS: Record<string, string> = {
   manual_import: 'Importación',
 }
 
-export default function LoyaltyClubSettings({ tenantSlug, initial, globalSosLimit = 250 }: Props) {
+export default function LoyaltyClubSettings({ tenantSlug, initial, plan, sosMaxLimit = 0 }: Props) {
   const [enabled, setEnabled]       = useState(initial?.enabled ?? false)
   const [clubName, setClubName]     = useState(initial?.clubName ?? '')
   const [welcomeMsg, setWelcomeMsg] = useState(initial?.welcomeMessage ?? '')
@@ -660,49 +662,64 @@ export default function LoyaltyClubSettings({ tenantSlug, initial, globalSosLimi
             </div>
           </div>
 
-          <div className="p-6 rounded-2xl bg-muted/30 border border-border/40 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
-                  Límite SOS
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {sosLimit === 0
-                    ? 'Desactivado — el cliente debe tener los puntos exactos'
-                    : `Préstamo de hasta ${sosLimit.toLocaleString()} puntos`}
-                </p>
+          {plan && canAccess(plan as any, 'sos') ? (
+            <div className="p-6 rounded-2xl bg-muted/30 border border-border/40 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                    Reward Advance (SOS)
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {sosLimit === 0
+                      ? 'Desactivado — el cliente debe tener los puntos exactos'
+                      : `Préstamo de hasta ${sosLimit.toLocaleString()} puntos`}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-black tabular-nums">{sosLimit.toLocaleString()}</span>
+                  <p className="text-[10px] text-muted-foreground">pts máx</p>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-2xl font-black tabular-nums">{sosLimit.toLocaleString()}</span>
-                <p className="text-[10px] text-muted-foreground">pts máx</p>
+
+              <input
+                type="range"
+                min={0}
+                max={sosMaxLimit}
+                step={10}
+                value={sosLimit}
+                onChange={e => setSosLimit(parseInt(e.target.value) || 0)}
+                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-red-500"
+              />
+
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>0 (desactivado)</span>
+                <span>Tope definido: {sosMaxLimit.toLocaleString()}</span>
+              </div>
+
+              {sosLimit > 0 && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-xs text-amber-700 font-medium">
+                    Si al cliente le faltan hasta {sosLimit.toLocaleString()} puntos para un premio, 
+                    el sistema le presta los puntos y su saldo queda en negativo. 
+                    Deberá volver a comprar para liberar la deuda.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-6 rounded-2xl bg-muted/30 border border-border/40 opacity-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                    Reward Advance (SOS)
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Disponible exclusivamente en plan Premium.
+                  </p>
+                </div>
               </div>
             </div>
-
-            <input
-              type="range"
-              min={0}
-              max={globalSosLimit}
-              step={10}
-              value={sosLimit}
-              onChange={e => setSosLimit(parseInt(e.target.value) || 0)}
-              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-red-500"
-            />
-
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>0 (desactivado)</span>
-              <span>Tope plataforma: {globalSosLimit.toLocaleString()}</span>
-            </div>
-
-            {sosLimit > 0 && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <p className="text-xs text-amber-700 font-medium">
-                  Si al cliente le faltan hasta {sosLimit.toLocaleString()} puntos para un premio, 
-                  el sistema le presta los puntos y su saldo queda en negativo. 
-                  Deberá volver a comprar para liberar la deuda.
-                </p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* ─────────────────────────────────────────────────────────────────────

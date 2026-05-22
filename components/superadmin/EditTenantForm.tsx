@@ -64,6 +64,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     isActive: tenant.isActive,
     isOperational: tenant.isOperational ?? true,
     featuresReservations: tenant.features?.reservations ?? false,
+    sosMaxLimit: tenant.loyalty?.sosMaxLimit ?? 0,
   })
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -80,6 +81,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           isActive: form.isActive,
           isOperational: form.isOperational,
           features: { reservations: form.featuresReservations },
+          sosMaxLimit: form.sosMaxLimit,
         }),
       })
       if (!res.ok) {
@@ -291,6 +293,47 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                     form.featuresReservations ? 'left-[26px]' : 'left-1'
                   )} />
                 </button>
+              </div>
+            </div>
+
+            {/* SOS Max Limit (solo aplica si el plan es Premium) */}
+            <div className={cn("space-y-3", form.plan === 'full' ? '' : 'opacity-30 pointer-events-none')}>
+              <div className="p-5 rounded-2xl border-2 border-border/60 bg-muted/20">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Límite SOS Máximo (por tenant)</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">Tope máximo de Reward Advance que el admin de este tenant puede configurar</p>
+                  </div>
+                  <span className="text-2xl font-black tabular-nums">{form.sosMaxLimit.toLocaleString()}</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={1000}
+                  step={10}
+                  value={form.sosMaxLimit}
+                  onChange={e => setForm(p => ({ ...p, sosMaxLimit: parseInt(e.target.value) || 0 }))}
+                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-red-500"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                  <span>0 (desactivado)</span>
+                  <span>1.000 (máx)</span>
+                </div>
+                {form.sosMaxLimit > 0 && (
+                  <p className="text-xs text-amber-600 font-medium mt-2">
+                    El admin Premium podrá configurar el SOS hasta {form.sosMaxLimit.toLocaleString()} puntos.
+                  </p>
+                )}
+                {form.sosMaxLimit === 0 && (
+                  <p className="text-xs text-muted-foreground font-medium mt-2">
+                    SOS desactivado para este tenant.
+                  </p>
+                )}
+                {form.plan !== 'full' && (
+                  <p className="text-xs text-muted-foreground font-medium mt-2">
+                    Solo disponible para plan Premium.
+                  </p>
+                )}
               </div>
             </div>
 

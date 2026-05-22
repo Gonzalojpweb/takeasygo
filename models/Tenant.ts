@@ -54,8 +54,10 @@ export interface ITenant extends Document {
     clubName:       string   // nombre del club (por defecto 'Club [nombre restaurante]')
     welcomeMessage: string   // mensaje de bienvenida editable
     createdAt:      Date | null
-    /** Límite SOS configurable por el admin (perilla deslizadora). 0 = desactivado. Tope máximo: PlatformConfig.sosConfig.globalSosLimit */
+    /** Límite SOS configurable por el admin (perilla deslizadora). 0 = desactivado */
     sosLimit:       number
+    /** Límite máximo SOS fijado por el superadmin por-tenant. El admin no puede superarlo. */
+    sosMaxLimit:    number
   }
   /** Configuración de Wallet Digital (Google & Apple) */
   wallet: {
@@ -312,6 +314,7 @@ const TenantSchema = new Schema<ITenant>(
       welcomeMessage: { type: String,  default: '' },
       createdAt:      { type: Date,    default: null },
       sosLimit:       { type: Number,  default: 0, min: 0 },
+      sosMaxLimit:    { type: Number,  default: 0, min: 0 },
     },
     // Configuración de Wallet Digital
     wallet: {

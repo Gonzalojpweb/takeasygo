@@ -2,7 +2,6 @@ import { connectDB } from '@/lib/mongoose'
 import PlatformConfig from '@/models/PlatformConfig'
 import { decrypt } from '@/lib/crypto'
 import PlatformMPSettings from '@/components/superadmin/PlatformMPSettings'
-import GlobalSosSettings from '@/components/superadmin/GlobalSosSettings'
 import { Settings } from 'lucide-react'
 
 export default async function SuperAdminConfigPage() {
@@ -10,7 +9,6 @@ export default async function SuperAdminConfigPage() {
   const config = await PlatformConfig.findById('platform').lean() as any
   const mp = config?.mercadopago ?? {}
   const mpOAuth = config?.mpOAuth ?? {}
-  const sosConfig = config?.sosConfig ?? { globalSosLimit: 250 }
 
   function hint(encrypted: string | null | undefined) {
     if (!encrypted) return null
@@ -44,7 +42,6 @@ export default async function SuperAdminConfigPage() {
         }}
       />
 
-      <GlobalSosSettings initialGlobalSosLimit={sosConfig.globalSosLimit ?? 250} />
     </div>
   )
 }
