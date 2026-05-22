@@ -39,6 +39,7 @@ export interface ILoyaltyMember extends Document {
   sosConfig: {
     maxSosAllowed: number
     hasPendingSos: boolean
+    sosUsed: number // Deuda acumulada actual (cuántos puntos debe en total)
   }
 
   // Estadísticas de Store (canjes de puntos por artículos)
@@ -147,6 +148,7 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
     sosConfig: {
       maxSosAllowed: { type: Number, default: 100 },
       hasPendingSos: { type: Boolean, default: false },
+      sosUsed:       { type: Number, default: 0, min: 0 },
     },
 
     // Estadísticas de Store

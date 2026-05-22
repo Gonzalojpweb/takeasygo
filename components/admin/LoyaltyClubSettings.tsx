@@ -17,6 +17,7 @@ interface Props {
     enabled: boolean
     clubName: string
     welcomeMessage: string
+    sosLimit?: number
     wallet?: {
       enabled: boolean
       cardColor: string
@@ -36,6 +37,7 @@ interface Props {
       redemptionEnabled: boolean
     }
   }
+  globalSosLimit?: number
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -45,12 +47,13 @@ const SOURCE_LABELS: Record<string, string> = {
   manual_import: 'Importación',
 }
 
-export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
+export default function LoyaltyClubSettings({ tenantSlug, initial, globalSosLimit = 250 }: Props) {
   const [enabled, setEnabled]       = useState(initial?.enabled ?? false)
   const [clubName, setClubName]     = useState(initial?.clubName ?? '')
   const [welcomeMsg, setWelcomeMsg] = useState(initial?.welcomeMessage ?? '')
   const [loading, setLoading]       = useState(false)
   const [saving, setSaving]         = useState(false)
+  const [sosLimit, setSosLimit]     = useState(initial?.sosLimit ?? 0)
   
   // Wallet states
   const [walletEnabled, setWalletEnabled] = useState(initial?.wallet?.enabled ?? false)
@@ -82,6 +85,7 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
       setEnabled(initial.enabled)
       setClubName(initial.clubName)
       setWelcomeMsg(initial.welcomeMessage)
+      setSosLimit(initial.sosLimit ?? 0)
       setWalletEnabled(initial.wallet?.enabled ?? false)
       setCardColor(initial.wallet?.cardColor ?? '#000000')
       setLabelColor(initial.wallet?.labelColor ?? '#FFFFFF')
@@ -109,6 +113,7 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
           enabled,
           clubName,
           welcomeMessage: welcomeMsg,
+          sosLimit,
           wallet: {
             enabled: walletEnabled,
             cardColor,
@@ -636,6 +641,67 @@ export default function LoyaltyClubSettings({ tenantSlug, initial }: Props) {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ─────────────────────────────────────────────────────────────────────
+            MECANISMO SOS
+        ───────────────────────────────────────────────────────────────────── */}
+        <div className="pt-6 border-t border-border/40">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500">
+              <span className="text-2xl font-black">SOS</span>
+            </div>
+            <div>
+              <h3 className="text-base font-bold">Mecanismo SOS</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Permití que los clientes canjeen premios aunque les falten algunos puntos
+              </p>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-muted/30 border border-border/40 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Límite SOS
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {sosLimit === 0
+                    ? 'Desactivado — el cliente debe tener los puntos exactos'
+                    : `Préstamo de hasta ${sosLimit.toLocaleString()} puntos`}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black tabular-nums">{sosLimit.toLocaleString()}</span>
+                <p className="text-[10px] text-muted-foreground">pts máx</p>
+              </div>
+            </div>
+
+            <input
+              type="range"
+              min={0}
+              max={globalSosLimit}
+              step={10}
+              value={sosLimit}
+              onChange={e => setSosLimit(parseInt(e.target.value) || 0)}
+              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-red-500"
+            />
+
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>0 (desactivado)</span>
+              <span>Tope plataforma: {globalSosLimit.toLocaleString()}</span>
+            </div>
+
+            {sosLimit > 0 && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <p className="text-xs text-amber-700 font-medium">
+                  Si al cliente le faltan hasta {sosLimit.toLocaleString()} puntos para un premio, 
+                  el sistema le presta los puntos y su saldo queda en negativo. 
+                  Deberá volver a comprar para liberar la deuda.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

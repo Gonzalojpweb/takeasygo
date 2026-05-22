@@ -6,6 +6,7 @@ import { canAccess } from '@/lib/plans'
 import { logAudit } from '@/lib/audit'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
+import PlatformConfig from '@/models/PlatformConfig'
 
 export async function GET(
   request: NextRequest,
@@ -31,13 +32,19 @@ export async function GET(
       })
     }
 
+    // Obtener el globalSosLimit para que el slider sepa su tope
+    const platformConfig = await PlatformConfig.findById('platform').lean() as any
+    const globalSosLimit = platformConfig?.sosConfig?.globalSosLimit ?? 250
+
     return NextResponse.json({
       loyalty: tenant.loyalty ?? {
         enabled:        false,
         clubName:       `Club ${tenant.name}`,
         welcomeMessage: '',
         createdAt:      null,
+        sosLimit:       0,
       },
+      globalSosLimit,
       wallet: tenant.wallet ?? {
         enabled: false,
         cardColor: tenant.branding?.primaryColor || '#000000',
@@ -85,8 +92,12 @@ export async function PUT(
       return NextResponse.json({ error: 'Tu plan no incluye el Club de Fidelización' }, { status: 403 })
     }
 
+    // Obtener globalSosLimit para validar el cap
+    const platformConfig = await PlatformConfig.findById('platform').lean() as any
+    const globalSosLimit = platformConfig?.sosConfig?.globalSosLimit ?? 250
+
     const body = await request.json()
-    const { enabled, clubName, welcomeMessage, wallet, pointsConfig } = body
+    const { enabled, clubName, welcomeMessage, wallet, pointsConfig, sosLimit } = body
 
     const update: Record<string, any> = {}
     const changes: Record<string, { from: any; to: any }> = {}
@@ -114,6 +125,16 @@ export async function PUT(
       if (cleanMsg !== (tenant.loyalty?.welcomeMessage ?? '')) {
         update['loyalty.welcomeMessage'] = cleanMsg
         changes.welcomeMessage = { from: tenant.loyalty?.welcomeMessage, to: cleanMsg }
+      }
+    }
+
+    // SOS limit (capped by globalSosLimit)
+    if (sosLimit !== undefined) {
+      const parsedLimit = Math.max(0, Math.min(parseInt(sosLimit) || 0, globalSosLimit))
+      const currentLimit = tenant.loyalty?.sosLimit ?? 0
+      if (parsedLimit !== currentLimit) {
+        update['loyalty.sosLimit'] = parsedLimit
+        changes.sosLimit = { from: currentLimit, to: parsedLimit }
       }
     }
 

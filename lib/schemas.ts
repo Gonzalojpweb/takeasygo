@@ -21,6 +21,10 @@ const selectedVariantSchema = z.object({
   takeawayPrice: z.number().min(0).optional(),
 })
 
+const rewardItemSchema = z.object({
+  storeItemId: z.string().regex(/^[a-f\d]{24}$/i, 'ID de item inválido'),
+})
+
 const orderItemSchema = z.object({
   type: z.enum(['menuItem', 'promotion']).optional().default('menuItem'),
   menuItemId: z.string().optional(),
@@ -52,7 +56,7 @@ export const createOrderSchema = z.object({
   orderTiming: z.enum(['immediate', 'scheduled']).optional().default('immediate'),
   scheduledPickupAt: z.string().datetime().optional(),
   qrPromoApplied: z.boolean().optional().default(false),
-  loyaltyPointsUsed: z.number().int().min(0).optional().default(0),
+  rewardItems: z.array(rewardItemSchema).max(5).optional().default([]),
   source: z.string().optional().nullable(),
 })
 
