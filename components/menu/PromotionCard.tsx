@@ -82,6 +82,8 @@ export function PromotionCard({
 
   // Types that don't show price or add-to-cart
   const isNonSale = promoType !== 'sale'
+  // Only 'sale' promotions can be added to the cart
+  const canAddToCart = promoType === 'sale'
 
   if (isFeatured) {
     const cardBgColor = styles.backgroundColor || primary || '#f14722'
@@ -92,11 +94,11 @@ export function PromotionCard({
 
     const featuredContent = (
       <div
-        onClick={() => onAdd?.(promotion)}
+        onClick={() => { if (canAddToCart) onAdd?.(promotion) }}
         className={cn(
           "relative flex items-center h-32 overflow-hidden select-none",
-          "active:scale-[0.98] transition-all duration-200 cursor-pointer",
-          "shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-black/5"
+          "transition-all duration-200 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-black/5",
+          canAddToCart ? "active:scale-[0.98] cursor-pointer" : "cursor-default"
         )}
         style={{
           borderRadius: styles.borderRadius || '24px',
@@ -274,10 +276,11 @@ export function PromotionCard({
   return (
     <>
     <div
-      onClick={() => onAdd?.(promotion)}
+      onClick={() => { if (canAddToCart) onAdd?.(promotion) }}
       className={cn(
         "flex items-stretch gap-3 p-3 rounded-2xl select-none backdrop-blur-sm",
-        "active:scale-[0.98] transition-all duration-200 cursor-pointer w-full min-h-[100px] h-auto"
+        "transition-all duration-200 w-full min-h-[100px] h-auto",
+        canAddToCart ? "active:scale-[0.98] cursor-pointer" : "cursor-default"
       )}
       style={{
         backgroundColor: cardBg,
