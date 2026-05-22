@@ -595,7 +595,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
             <div className={isGridForTakeaway ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-0'}>
               {category.items
-                .filter((item: any) => item.isAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule)))
+                .filter((item: any) => item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule)))
                 .map((item: any) => {
                   const veg = isVegetarian(item.tags || [])
                   const qty = itemTotalQty(item._id)

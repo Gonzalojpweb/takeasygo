@@ -118,11 +118,15 @@ export async function POST(
     }
 
     // Construir un mapa de lookup: menuItemId (string) → { item, categoryName }
+    const isTakeawayOrder = body.mode === 'takeaway'
     const menuItemMap = new Map<string, any>()
     for (const category of menu.categories) {
       if (!category.isAvailable) continue
       for (const item of category.items) {
-        if (item.isAvailable && item._id) {
+        const available = isTakeawayOrder
+          ? (item.isAvailable && item.isTakeawayAvailable !== false)
+          : item.isAvailable
+        if (available && item._id) {
           menuItemMap.set(item._id.toString(), { ...item.toObject(), categoryName: category.name })
         }
       }

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, Truck } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -391,6 +391,25 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       router.refresh()
     } catch {
       toast.error('Error al actualizar disponibilidad')
+    }
+  }
+
+  async function handleToggleTakeawayAvailable(categoryId: string, itemId: string, current: boolean) {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: selectedLocation,
+          itemId,
+          isTakeawayAvailable: !current,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(!current ? 'Takeaway habilitado' : 'Takeaway deshabilitado')
+      router.refresh()
+    } catch {
+      toast.error('Error al actualizar takeaway')
     }
   }
 
@@ -1062,6 +1081,20 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               onClick={() => handleToggleItemAvailability(category._id, item._id, item.isAvailable ?? true)}
                                             >
                                               {item.isAvailable ? <Eye size={18} /> : <EyeOff size={18} />}
+                                            </Button>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              title={item.isTakeawayAvailable !== false ? 'Deshabilitar takeaway' : 'Habilitar takeaway'}
+                                              className={cn(
+                                                "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                                item.isTakeawayAvailable !== false
+                                                  ? "text-sky-500 hover:bg-sky-500/10"
+                                                  : "text-muted-foreground/40 hover:text-sky-500/50"
+                                              )}
+                                              onClick={() => handleToggleTakeawayAvailable(category._id, item._id, item.isTakeawayAvailable !== false)}
+                                            >
+                                              <Truck size={16} />
                                             </Button>
                                             <Button
                                               size="icon"

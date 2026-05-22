@@ -26,7 +26,7 @@ export function getSuggestions(
   maxSuggestions = 2,
 ): any[] {
   const allItems: any[] = categories.flatMap((cat) =>
-    cat.isAvailable ? cat.items.filter((i: any) => i.isAvailable) : [],
+    cat.isAvailable ? cat.items.filter((i: any) => i.isAvailable && i.isTakeawayAvailable !== false) : [],
   )
 
   if (allItems.length < 2) return []
