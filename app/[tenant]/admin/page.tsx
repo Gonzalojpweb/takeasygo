@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
+import Feedback from '@/models/Feedback'
 import ICOSnapshot from '@/models/ICOSnapshot'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
@@ -96,7 +97,7 @@ export default async function AdminDashboard() {
   const tenantId = tenant._id
   const start30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-  const [total, pending, confirmed, cancelled, cancData, recentOrders, trialOrderCount, icoHistory] =
+  const [total, pending, confirmed, cancelled, cancData, recentOrders, trialOrderCount, icoHistory, feedbackErrors] =
     await Promise.all([
       Order.countDocuments({ tenantId }),
       Order.countDocuments({ tenantId, status: 'pending' }),
@@ -115,6 +116,11 @@ export default async function AdminDashboard() {
       ICOSnapshot.find({ tenantId }).sort({ date: -1 }).limit(8).lean<
         Array<{ date: Date; icoScore: number }>
       >(),
+      // Feedback errors últimas 24h
+      Feedback.aggregate([
+        { $match: { tenantId, event: 'checkout_error', createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } },
+        { $group: { _id: '$errorType', count: { $sum: 1 } } },
+      ]),
     ])
 
   const icoHistorySorted = [...icoHistory].reverse() // cronológico asc
@@ -150,6 +156,25 @@ export default async function AdminDashboard() {
 
   if (hasEnoughData && realIco === null)
     alerts.push({ level: 'warn', text: 'El ICO no se calculó aún. Visitá la página ICO para generar tu índice.', href: icoHref })
+
+  // ── Alertas de feedback (errores en checkout últimas 24h) ────────────────
+  const errorLabels: Record<string, string> = {
+    pago_rechazado: 'pago rechazado',
+    pantalla_trabada: 'pantalla trabada en checkout',
+    precio_incorrecto: 'precio incorrecto en checkout',
+    metodo_pago_no_encontrado: 'método de pago no encontrado',
+    otro: 'otro tipo de error',
+  }
+  for (const err of (feedbackErrors as Array<{ _id: string; count: number }>) ?? []) {
+    if (err.count >= 2) {
+      const label = errorLabels[err._id] || err._id
+      alerts.push({
+        level: 'error',
+        text: `⚠️ ${err.count} clientes reportaron "${label}" en las últimas 24h. Revisá el flujo de pago.`,
+        href: `/${tenantSlug}/admin/settings`,
+      })
+    }
+  }
 
   const stats = [
     { label: 'Total pedidos',  value: total,     icon: ShoppingBag, color: 'text-primary'     },

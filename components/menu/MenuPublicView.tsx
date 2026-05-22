@@ -15,6 +15,7 @@ import CustomizationModal from '@/components/menu/CustomizationModal'
 import UpsellSheet from '@/components/menu/UpsellSheet'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import StoreCarousel from '@/components/menu/StoreCarousel'
+import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import { getSuggestions } from '@/lib/upsell-menu'
 
@@ -919,6 +920,8 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
           </div>
         </div>
       )}
+      {/* ── Geofence feedback ── */}
+      <GeofenceFeedback tenantSlug={tenant.slug} />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import PushSubscription from '@/models/PushSubscription'
+import Feedback from '@/models/Feedback'
 import webpush from 'web-push'
 import { requireAuth } from '@/lib/apiAuth'
 import { haversineDistance } from '@/lib/geofencing'
@@ -110,6 +111,14 @@ export async function POST(
         }
         throw err
       })
+
+      // Log geofence_notified event
+      await Feedback.create({
+        tenantId: tenant._id,
+        event: 'geofence_notified',
+        clientHash: subscription.clientToken || undefined,
+        metadata: { location: nearestLocation, title: memberNotificationTitle },
+      }).catch(() => {})
 
       return NextResponse.json({ success: true, sent: 1, location: nearestLocation })
     }

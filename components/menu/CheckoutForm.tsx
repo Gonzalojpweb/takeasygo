@@ -9,6 +9,8 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { CartItem } from '@/types/cart'
 import SchedulePicker from './SchedulePicker'
+import { FeedbackProvider, useFeedback } from '@/components/feedback/FeedbackContext'
+import FeedbackModal from '@/components/feedback/FeedbackModal'
 
 interface Props {
   tenantSlug: string
@@ -33,8 +35,18 @@ interface ScheduledOrdersConfig {
 }
 
 export default function CheckoutForm({ tenantSlug, locationId, mode }: Props) {
+  return (
+    <FeedbackProvider tenantSlug={tenantSlug}>
+      <CheckoutFormInner tenantSlug={tenantSlug} locationId={locationId} mode={mode} />
+      <FeedbackModal tenantSlug={tenantSlug} />
+    </FeedbackProvider>
+  )
+}
+
+function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
+  const feedback = useFeedback()
   const [cart, setCart] = useState<CartItem[]>([])
   const [upsellHints, setUpsellHints] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -312,6 +324,7 @@ async function handleSubmit(e: React.FormEvent) {
 
   } catch (err: any) {
     toast.error(err.message || 'Error al procesar el pedido')
+    feedback.show({ variant: 'checkout_error', metadata: { error: err.message } })
     setLoading(false)
   }
 }

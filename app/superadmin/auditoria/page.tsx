@@ -24,7 +24,7 @@ export default async function SuperAdminAuditoriaPage() {
   const tenantMap = new Map((tenants as any[]).map((t: any) => [t._id.toString(), { name: t.name, slug: t.slug, plan: t.plan }]))
 
   const rows = (logs as any[]).map((log: any) => ({
-    ...log,
+    ...JSON.parse(JSON.stringify(log)),
     _id:        log._id.toString(),
     tenantId:   log.tenantId?.toString() ?? null,
     tenantName: tenantMap.get(log.tenantId?.toString() ?? '')?.name ?? '—',

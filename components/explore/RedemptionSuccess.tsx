@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, QrCode, Share2, ArrowLeft, Clock, Copy } from 'lucide-react'
+import { CheckCircle, QrCode, Share2, ArrowLeft, Clock, Copy, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface Props {
   tenantSlug: string
@@ -47,6 +48,16 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
 
   const expiresAt = new Date(redemption.expiresAt)
   const hoursRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60)))
+  const [feedbackSent, setFeedbackSent] = useState<'yes' | 'no' | null>(null)
+
+  async function sendRedeemFeedback(val: boolean) {
+    setFeedbackSent(val ? 'yes' : 'no')
+    await fetch(`/api/${tenantSlug}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'redeem_completed', wasEasy: val }),
+    }).catch(() => {})
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-background p-4">
@@ -129,6 +140,40 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
             <p className="text-xs text-muted-foreground mb-4">
               Compartí tu canje y ganá puntos extra invitando amigos a la red <b>TakeasyGO</b>
             </p>
+
+            {/* Feedback: ¿El canje fue fácil? */}
+            {feedbackSent === null && (
+              <div className="border-t border-border/50 pt-5 mt-2 space-y-3">
+                <p className="text-sm font-semibold text-zinc-700">¿El canje fue fácil?</p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => sendRedeemFeedback(true)}
+                    className={cn(
+                      'flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm border-2 transition-all',
+                      'border-emerald-200 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50'
+                    )}
+                  >
+                    <ThumbsUp size={16} /> Sí
+                  </button>
+                  <button
+                    onClick={() => sendRedeemFeedback(false)}
+                    className={cn(
+                      'flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm border-2 transition-all',
+                      'border-red-200 text-red-600 hover:border-red-400 hover:bg-red-50'
+                    )}
+                  >
+                    <ThumbsDown size={16} /> No
+                  </button>
+                </div>
+              </div>
+            )}
+            {feedbackSent !== null && (
+              <div className="border-t border-border/50 pt-5 mt-2 text-center">
+                <p className="text-sm font-medium text-emerald-600">
+                  {feedbackSent === 'yes' ? '¡Genial! Disfrutá tu premio.' : 'Gracias, trabajamos para mejorar.'}
+                </p>
+              </div>
+            )}
 
             <div className="pt-6 border-t border-border/50 flex flex-col items-center gap-2">
                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Powered by</span>

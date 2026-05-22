@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { Loader2, Smartphone, CreditCard, QrCode, Bell, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn, fmt } from '@/lib/utils'
+import { markGeofenceNotified } from '@/components/feedback/GeofenceFeedback'
 
 interface Props {
   tenantSlug: string
@@ -79,6 +80,7 @@ export default function WalletDesignSettings({ tenantSlug, initial }: Props) {
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Error al enviar')
       toast.success('Notificación de proximidad enviada')
+      markGeofenceNotified()
     } catch (err: any) {
       toast.error(err.message)
     } finally {
