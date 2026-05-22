@@ -107,6 +107,8 @@ export interface IOrder extends Document {
   scheduledStatus: 'pending_schedule' | 'active' | 'expired' | null
   loyaltyPointsUsed?: number
   loyaltyDiscountAmount?: number
+  rewardAdvanceApplied?: boolean
+  rewardAdvanceAmount?: number
   loyaltyPointsCredited: boolean
   source?: string
   createdAt: Date
@@ -290,6 +292,14 @@ const OrderSchema = new Schema(
       default: 0,
     },
     loyaltyDiscountAmount: {
+      type: Number,
+      default: 0,
+    },
+    rewardAdvanceApplied: {
+      type: Boolean,
+      default: false,
+    },
+    rewardAdvanceAmount: {
       type: Number,
       default: 0,
     },

@@ -86,6 +86,12 @@ export async function GET(
       })
     }
 
+    // UI abstraction: la UI nunca ve puntos negativos
+    const rawPoints = member.loyalty?.points ?? 0
+    const hasAdvanceActive = member.sosConfig?.hasPendingSos === true
+    const pointsPendingToConsolidate = hasAdvanceActive ? (member.sosConfig?.sosUsed ?? 0) : 0
+    const uiPointsDisplay = Math.max(0, rawPoints)
+
     // Devolver datos completos del miembro activo
     return NextResponse.json({
       member: {
@@ -95,7 +101,9 @@ export async function GET(
         email: member.email,
         status: member.status,
         joinedAt: member.joinedAt,
-        points: member.loyalty.points,
+        points: uiPointsDisplay,
+        pointsPendingToConsolidate,
+        hasAdvanceActive,
         tier: member.loyalty.tier,
         publicId: member.wallet.publicId,
         totalOrders: member.cache.totalOrders,

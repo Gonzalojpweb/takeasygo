@@ -5,10 +5,7 @@ import StoreItem from '@/models/StoreItem'
 import PlatformConfig from '@/models/PlatformConfig'
 import { syncWalletPoints } from '@/lib/walletService'
 
-/**
- * Calcula puntos según la configuración del tenant
- */
-export function calculatePoints(orderTotal: number, pointsConfig: any): number {
+export function calculatePointsBreakdown(orderTotal: number, pointsConfig: any): { basePoints: number; microBonus: number; total: number } {
   if (!pointsConfig) {
     pointsConfig = {
       enabled: true,
@@ -21,52 +18,64 @@ export function calculatePoints(orderTotal: number, pointsConfig: any): number {
   }
 
   const isEnabled = pointsConfig?.enabled === true || pointsConfig?.enabled === 'true'
-  if (!isEnabled) return 0
+  if (!isEnabled) return { basePoints: 0, microBonus: 0, total: 0 }
 
   if (orderTotal < (pointsConfig.minOrderForPoints || 0)) {
-    return 0
+    return { basePoints: 0, microBonus: 0, total: 0 }
   }
 
-  let points = 0
   const mode = pointsConfig.mode || 'fixed_per_currency'
-
   const pointsPerCurrency = pointsConfig.pointsPerCurrency ?? 0.1
   const pointsPercentage = pointsConfig.pointsPercentage ?? 10
 
+  let rawBase = 0
   if (mode === 'fixed_per_currency') {
-    points = Math.floor(orderTotal * pointsPerCurrency)
+    rawBase = orderTotal * pointsPerCurrency
   } else if (mode === 'percentage') {
-    points = Math.floor(orderTotal * pointsPercentage / 100)
+    rawBase = orderTotal * pointsPercentage / 100
   } else if (mode === 'hybrid') {
-    const fromCurrency = Math.floor(orderTotal * pointsPerCurrency)
-    const fromPercentage = Math.floor(orderTotal * pointsPercentage / 100)
-    points = fromCurrency + fromPercentage
+    rawBase = (orderTotal * pointsPerCurrency) + (orderTotal * pointsPercentage / 100)
   }
 
-  points += (pointsConfig.pointsPerOrder || 0)
+  const basePoints = Math.floor(rawBase)
+  const fractionalRemainder = rawBase - basePoints
 
-  return Math.max(0, points)
+  // El micro-bonus es el residuo flotante redondeado, aplicando el factor asimétrico 0.0575
+  // para que el saldo nunca quede en cero redondo y se sienta como un "premio sorpresa"
+  const microBonusRaw = fractionalRemainder * 0.0575
+  const microBonus = Math.max(1, Math.round(microBonusRaw * 100)) > 50 ? Math.ceil(fractionalRemainder) : Math.floor(fractionalRemainder)
+  // Si el residuo es significativo (≥0.5), se premia con 1 punto extra; si no, 0
+  const microBonusFinal = microBonus > 0 ? microBonus : (fractionalRemainder >= 0.5 ? 1 : 0)
+
+  const fixedPoints = pointsConfig.pointsPerOrder || 0
+  const total = basePoints + microBonusFinal + fixedPoints
+
+  return {
+    basePoints,
+    microBonus: microBonusFinal,
+    total: Math.max(0, total),
+  }
 }
 
-/**
- * Valida y procesa los ítems de premio durante el checkout (antes del pago).
- * Verifica:
- *  - El item existe y está activo en la Store del tenant
- *  - El miembro tiene puntos suficientes (o entra en SOS)
- *  - No excede el límite SOS configurado
- * Retorna los reward items resueltos con metadata de SOS si aplica.
- */
+export function calculatePoints(orderTotal: number, pointsConfig: any): number {
+  return calculatePointsBreakdown(orderTotal, pointsConfig).total
+}
+
 export async function validateCheckoutRewards(
   member: any,
   rewardItemIds: string[],
+  loyaltyPointsRequired: number,
   tenant: any
 ): Promise<{ valid: boolean; error?: string; resolved: any[] }> {
   if (!rewardItemIds || rewardItemIds.length === 0) {
     return { valid: true, resolved: [] }
   }
+  if (loyaltyPointsRequired <= 0) {
+    return { valid: false, error: 'Puntos requeridos inválidos', resolved: [] }
+  }
 
   const platformConfig = await PlatformConfig.findById('platform').lean() as any
-  const globalSosLimit = platformConfig?.sosConfig?.globalSosLimit ?? 250
+  const globalAdvanceLimit = platformConfig?.sosConfig?.globalSosLimit ?? 250
 
   const items = await StoreItem.find({
     _id: { $in: rewardItemIds },
@@ -79,34 +88,43 @@ export async function validateCheckoutRewards(
   }
 
   const resolved: any[] = []
-  let totalPointsNeeded = 0
+  let dbTotalPointsCost = 0
 
   for (const item of items) {
-    totalPointsNeeded += item.pointsCost
+    dbTotalPointsCost += item.pointsCost
     resolved.push({
       storeItemId: item._id,
       storeItemName: item.name,
       pointsCost: item.pointsCost,
       cashValue: item.cashValue ?? null,
-      sosApplied: false,
     })
   }
 
-  const availablePoints = member.loyalty?.points ?? 0
+  // Cross-check: lo que el cliente dice que gasta debe coincidir con la DB
+  if (dbTotalPointsCost !== loyaltyPointsRequired) {
+    return {
+      valid: false,
+      error: `El costo en puntos no coincide: la DB indica ${dbTotalPointsCost}, el cliente indicó ${loyaltyPointsRequired}.`,
+      resolved: [],
+    }
+  }
 
-  if (availablePoints >= totalPointsNeeded) {
+  const projectedBalance = (member.loyalty?.points ?? 0) - loyaltyPointsRequired
+
+  // Tiene puntos suficientes — todo bien, sin advance
+  if (projectedBalance >= 0) {
     return { valid: true, resolved }
   }
 
-  // No alcanzan los puntos → evaluar SOS
-  const missingPoints = totalPointsNeeded - availablePoints
-  const tenantSosLimit = tenant.loyalty?.sosLimit ?? 0
-  const effectiveSosLimit = Math.min(tenantSosLimit, globalSosLimit)
+  // No alcanzan: evaluar Reward Advance (antes llamado SOS)
+  const missingPoints = Math.abs(projectedBalance)
+  const tenantAdvanceLimit = tenant.loyalty?.sosLimit ?? 0
+  const effectiveAdvanceLimit = Math.min(tenantAdvanceLimit, globalAdvanceLimit)
 
-  if (effectiveSosLimit <= 0 || missingPoints > effectiveSosLimit) {
+  if (effectiveAdvanceLimit <= 0 || missingPoints > effectiveAdvanceLimit) {
     return {
       valid: false,
-      error: `Te faltan ${missingPoints} puntos para canjear este premio. Límite SOS: ${effectiveSosLimit > 0 ? effectiveSosLimit : 'no disponible'}.`,
+      error: `Te faltan ${missingPoints} puntos para canjear este premio. Límite de adelanto: ${effectiveAdvanceLimit > 0 ? effectiveAdvanceLimit : 'no disponible'}.`,
       resolved: [],
     }
   }
@@ -114,24 +132,14 @@ export async function validateCheckoutRewards(
   if (member.sosConfig?.hasPendingSos) {
     return {
       valid: false,
-      error: 'Tenés una deuda de puntos pendiente. Completá una compra para liberar tu saldo antes de canjear.',
+      error: 'Tenés un adelanto de puntos pendiente. Completá una compra para consolidar tu saldo antes de canjear.',
       resolved: [],
     }
-  }
-
-  // Marcar todos como SOS
-  for (const r of resolved) {
-    r.sosApplied = true
   }
 
   return { valid: true, resolved }
 }
 
-/**
- * Procesa la deducción de puntos por ítems de premio después de confirmado el pago.
- * Si aplica SOS, el saldo queda en negativo y se marca hasPendingSos.
- * Si el miembro tenía deuda SOS previa, se descuenta sobre la deuda existente.
- */
 export async function processRewardDeduction(
   order: any,
   tenant: any,
@@ -152,33 +160,18 @@ export async function processRewardDeduction(
   if (!member) return null
 
   const currentPoints = member.loyalty?.points ?? 0
-  const hasSos = order.rewardItems.some((r: any) => r.sosApplied)
+  const newBalance = currentPoints - totalPointsCost
+  const isAdvance = order.rewardAdvanceApplied === true
 
-  if (hasSos) {
-    // SOS: puntos quedan en negativo
-    const newBalance = currentPoints - totalPointsCost
-
-    member.loyalty.points = newBalance
-    member.sosConfig.hasPendingSos = true
-    member.sosConfig.sosUsed = (member.sosConfig.sosUsed || 0) + Math.abs(Math.min(0, newBalance))
-    member.store.totalRedemptions = (member.store.totalRedemptions || 0) + order.rewardItems.length
-    member.store.totalPointsSpent = (member.store.totalPointsSpent || 0) + totalPointsCost
-    member.store.lastRedemptionAt = new Date()
-
-    await member.save({ session })
-
-    if (member.wallet?.googleObjectId) {
-      syncWalletPoints(member._id).catch(() => {})
-    }
-
-    return member
-  }
-
-  // Sin SOS: deducción normal
-  member.loyalty.points = currentPoints - totalPointsCost
+  member.loyalty.points = newBalance
   member.store.totalRedemptions = (member.store.totalRedemptions || 0) + order.rewardItems.length
   member.store.totalPointsSpent = (member.store.totalPointsSpent || 0) + totalPointsCost
   member.store.lastRedemptionAt = new Date()
+
+  if (isAdvance) {
+    member.sosConfig.hasPendingSos = true
+    member.sosConfig.sosUsed = (member.sosConfig.sosUsed || 0) + Math.abs(Math.min(0, newBalance))
+  }
 
   await member.save({ session })
 
@@ -189,11 +182,6 @@ export async function processRewardDeduction(
   return member
 }
 
-/**
- * Agrega puntos a un miembro basado en una orden.
- * Si el miembro tiene deuda SOS pendiente, la deuda se descuenta primero
- * y solo el remanente se acredita como saldo positivo.
- */
 export async function addPointsFromOrder(order: any, tenant: any, session?: mongoose.ClientSession, forceMemberId?: any) {
   if (order.loyaltyPointsCredited) {
     console.log(`[Loyalty] Puntos ya acreditados para la orden ${order.orderNumber}`)
@@ -202,15 +190,15 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
 
   if (!order.customer?.phoneHash && !forceMemberId) return null
 
-  // Calcular puntos sobre el subtotal de items NO reward (items de venta real)
   const saleItemsTotal = order.items
     ?.filter((i: any) => i.itemType !== 'reward')
     ?.reduce((sum: number, i: any) => sum + (i.subtotal || 0), 0) ?? order.total ?? 0
 
-  const pointsToAdd = calculatePoints(saleItemsTotal, tenant.pointsConfig)
+  const breakdown = calculatePointsBreakdown(saleItemsTotal, tenant.pointsConfig)
+  const pointsToAdd = breakdown.total
   if (pointsToAdd <= 0) return null
 
-  console.log(`[Loyalty] Agregando ${pointsToAdd} puntos a orden ${order.orderNumber}`)
+  console.log(`[Loyalty] Agregando ${pointsToAdd} puntos (base:${breakdown.basePoints}, bonus:${breakdown.microBonus}) a orden ${order.orderNumber}`)
 
   const query: any = {
     tenantId: tenant._id,
@@ -267,23 +255,19 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
 
   if (!member) return null
 
-  // Liberación de deuda SOS: si el miembro debe, los puntos nuevos primero pagan la deuda
   const hasDebt = member.sosConfig?.hasPendingSos && (member.sosConfig?.sosUsed || 0) > 0
 
   if (hasDebt) {
     const currentDebt = member.sosConfig.sosUsed
     let remainingPoints = pointsToAdd
 
-    // Si la deuda es <= 0, no hay deuda real
     if (currentDebt > 0) {
       if (remainingPoints >= currentDebt) {
-        // Paga toda la deuda y sobran puntos
         member.sosConfig.sosUsed = 0
         member.sosConfig.hasPendingSos = false
         member.loyalty.points = remainingPoints - currentDebt
         remainingPoints = 0
       } else {
-        // Paga parcialmente la deuda
         member.sosConfig.sosUsed = currentDebt - remainingPoints
         member.sosConfig.hasPendingSos = true
         member.loyalty.points = 0
@@ -298,7 +282,6 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
 
     await member.save({ session })
   } else {
-    // Sin deuda: acumulación normal
     try {
       const updated = await LoyaltyMember.findOneAndUpdate(
         { _id: member._id },
@@ -322,6 +305,14 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
     }
   }
 
+  // Auto-liberar hasPendingSos si el saldo cruzó a >= 0 (en caso de que estuviera en deuda
+  // y la inyección de puntos lo haya dejado en positivo o cero)
+  if (member.sosConfig?.hasPendingSos && member.loyalty?.points >= 0) {
+    member.sosConfig.hasPendingSos = false
+    member.sosConfig.sosUsed = 0
+    await member.save({ session })
+  }
+
   await Order.updateOne(
     { _id: order._id },
     { $set: { loyaltyPointsCredited: true } },
@@ -340,12 +331,9 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
     })
   }
 
-  return member
+  return { member, breakdown }
 }
 
-/**
- * Busca órdenes pagadas que no hayan sumado puntos para un miembro y las procesa.
- */
 export async function reconcileMissingPoints(member: any, tenant: any, explicitlyApprovedOrderId?: any) {
   if (!tenant.loyalty?.enabled) return 0
 
@@ -391,8 +379,8 @@ export async function reconcileMissingPoints(member: any, tenant: any, explicitl
 
   let totalReconciled = 0
   for (const order of orders) {
-    const memberUpdated = await addPointsFromOrder(order, tenant, undefined, member._id)
-    if (memberUpdated) totalReconciled++
+    const result = await addPointsFromOrder(order, tenant, undefined, member._id)
+    if (result) totalReconciled++
   }
 
   return totalReconciled

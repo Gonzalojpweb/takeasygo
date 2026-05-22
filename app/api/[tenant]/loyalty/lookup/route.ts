@@ -60,11 +60,18 @@ export async function GET(
       return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
     }
 
+    const rawPoints = member.loyalty?.points ?? 0
+    const hasAdvanceActive = member.sosConfig?.hasPendingSos === true
+    const pointsPendingToConsolidate = hasAdvanceActive ? (member.sosConfig?.sosUsed ?? 0) : 0
+    const uiPointsDisplay = Math.max(0, rawPoints)
+
     return NextResponse.json({
       member: {
         name: member.name,
         publicId: member.wallet.publicId,
-        points: member.loyalty.points,
+        points: uiPointsDisplay,
+        pointsPendingToConsolidate,
+        hasAdvanceActive,
         tier: member.loyalty.tier,
         totalOrders: member.cache?.totalOrders || 0,
         totalSpent: member.cache?.totalSpent || 0,
