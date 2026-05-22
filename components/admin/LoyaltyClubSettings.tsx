@@ -663,58 +663,128 @@ export default function LoyaltyClubSettings({ tenantSlug, initial, plan, sosMaxL
           </div>
 
           {plan && canAccess(plan as any, 'sos') ? (
-            <div className="p-6 rounded-2xl bg-muted/30 border border-border/40 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
-                    Reward Advance (SOS)
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {sosLimit === 0
-                      ? 'Desactivado — el cliente debe tener los puntos exactos'
-                      : `Préstamo de hasta ${sosLimit.toLocaleString()} puntos`}
-                  </p>
+            <div className="space-y-4">
+              {/* ── Slider principal ── */}
+              <div className="p-6 rounded-2xl bg-muted/30 border border-border/40 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                      Reward Advance (SOS)
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {sosLimit === 0
+                        ? 'Desactivado — el cliente debe tener los puntos exactos'
+                        : `Préstamo de hasta ${sosLimit.toLocaleString()} puntos`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-black tabular-nums">{sosLimit.toLocaleString()}</span>
+                    <p className="text-[10px] text-muted-foreground">pts máx</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black tabular-nums">{sosLimit.toLocaleString()}</span>
-                  <p className="text-[10px] text-muted-foreground">pts máx</p>
+
+                <div className="relative">
+                  {/* Marcadores de zonas de referencia */}
+                  <div className="absolute -top-4 left-0 right-0 flex justify-between px-0 pointer-events-none z-10">
+                    {[0, 25, 50, 75, 100].map(pct => {
+                      const val = Math.round((sosMaxLimit * pct) / 100)
+                      return (
+                        <div key={pct} className="flex flex-col items-center">
+                          <div className="w-px h-3 bg-border/40" />
+                          <span className="text-[9px] text-muted-foreground/50 mt-1">{val.toLocaleString()}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={sosMaxLimit}
+                    step={10}
+                    value={sosLimit}
+                    onChange={e => setSosLimit(parseInt(e.target.value) || 0)}
+                    className="w-full h-2 bg-gradient-to-r from-emerald-400 via-amber-400 to-red-400 rounded-lg appearance-none cursor-pointer accent-red-500 mt-4"
+                    style={{ backgroundSize: `${(sosLimit / Math.max(sosMaxLimit, 1)) * 100}% 100%` }}
+                  />
                 </div>
+
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>0 (desactivado)</span>
+                  <span>Límite superadmin: {sosMaxLimit.toLocaleString()}</span>
+                </div>
+
+                {sosLimit > 0 && (
+                  <>
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-xs text-amber-700 font-medium">
+                        Si al cliente le faltan hasta {sosLimit.toLocaleString()} puntos para un premio, 
+                        el sistema le presta los puntos y su saldo queda en negativo. 
+                        Deberá volver a comprar para liberar la deuda.
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
-              <input
-                type="range"
-                min={0}
-                max={sosMaxLimit}
-                step={10}
-                value={sosLimit}
-                onChange={e => setSosLimit(parseInt(e.target.value) || 0)}
-                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-red-500"
-              />
-
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>0 (desactivado)</span>
-                <span>Tope definido: {sosMaxLimit.toLocaleString()}</span>
-              </div>
-
-              {sosLimit > 0 && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                  <p className="text-xs text-amber-700 font-medium">
-                    Si al cliente le faltan hasta {sosLimit.toLocaleString()} puntos para un premio, 
-                    el sistema le presta los puntos y su saldo queda en negativo. 
-                    Deberá volver a comprar para liberar la deuda.
-                  </p>
+              {/* ── Asesoría: Matriz de referencia ── */}
+              <div className="p-5 rounded-2xl bg-blue-500/[0.04] border border-blue-500/20 space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0 mt-0.5 text-xs font-bold">i</div>
+                  <div>
+                    <p className="text-xs font-bold text-blue-700">Asesoría de configuración</p>
+                    <p className="text-[11px] text-blue-600/70 mt-0.5">
+                      El Reward Advance (SOS) deja que el cliente canjee aunque le falten puntos. 
+                      El sistema le presta la diferencia y su saldo queda negativo hasta que complete una compra.
+                      Acá hay referencias según el ticket promedio de tu negocio:
+                    </p>
+                  </div>
                 </div>
-              )}
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { ticket: '$5.000', label: 'Cafetería básica', sos: 280, max: 350 },
+                    { ticket: '$8.000', label: 'Café especialidad', sos: 440, max: 550 },
+                    { ticket: '$18.000', label: 'Hamburguesería', sos: 1000, max: 1200 },
+                    { ticket: '$28.000', label: 'Pizzería gourmet', sos: 1500, max: 1800 },
+                  ].map((esc, i) => {
+                    const isSelected = sosLimit >= esc.sos && sosLimit <= esc.max
+                    const isNear = !isSelected && Math.abs(sosLimit - esc.sos) <= 100
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setSosLimit(Math.min(esc.sos, sosMaxLimit))}
+                        className={cn(
+                          'text-left p-3 rounded-xl border-2 transition-all',
+                          isSelected
+                            ? 'border-blue-500 bg-blue-500/10'
+                            : isNear
+                              ? 'border-blue-300/50 bg-blue-500/5'
+                              : 'border-border/40 bg-white/40 hover:border-blue-300/50'
+                        )}
+                      >
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">{esc.label}</p>
+                        <p className="text-lg font-black tabular-nums mt-0.5">{esc.sos.toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground">Ticket {esc.ticket} · Máx {esc.max}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2 text-[11px] text-blue-600/60">
+                  <span>Hacé clic en el escenario que más se parezca a tu negocio para aplicar su SOS recomendado.</span>
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="p-6 rounded-2xl bg-muted/30 border border-border/40 opacity-50">
+            <div className="p-6 rounded-2xl bg-muted/30 border border-border/40 opacity-60">
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
                     Reward Advance (SOS)
                   </Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Disponible exclusivamente en plan Premium.
+                    Disponible en plan Crecimiento y Premium. Actualizá tu plan para acceder.
                   </p>
                 </div>
               </div>
