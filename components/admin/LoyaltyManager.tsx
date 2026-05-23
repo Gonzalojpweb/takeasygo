@@ -69,6 +69,10 @@ interface Member {
     totalSpent: number
     lastOrderAt: string | null
   }
+  loyalty?: {
+    points: number
+    tier: string
+  }
   notes: string
 }
 
@@ -538,6 +542,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="pl-6">Cliente</TableHead>
                     <TableHead>Contacto</TableHead>
+                    <TableHead>Puntos</TableHead>
                     <TableHead>Cumpleaños</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Fuente</TableHead>
@@ -561,6 +566,9 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                          <p className="text-xs text-muted-foreground">{m.email || '—'}</p>
                        </TableCell>
                        <TableCell>
+                        <span className="font-bold text-sm text-amber-600">{m.loyalty?.points ?? 0}</span>
+                      </TableCell>
+                      <TableCell>
                          <span className="text-sm text-muted-foreground">
                            {m.birthDate ? formatDate(m.birthDate) : '—'}
                          </span>

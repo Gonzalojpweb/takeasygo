@@ -3,12 +3,13 @@ import { auth } from '@/lib/auth'
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import LoyaltyMember from '@/models/LoyaltyMember'
+import User from '@/models/User'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 
 /**
  * GET /api/explore/orders
- * Returns the order history for the authenticated user, identified by email.
- * Also accepts ?email=... as fallback for guest tracking (no auth).
+ * Returns the order history for the authenticated user, identified by email or linked loyalty phoneHash.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -26,15 +27,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Autenticación requerida' }, { status: 401 })
     }
 
-    // Find orders by customer email, sorted newest first
+    // F4: Buscar también por phoneHash si el usuario tiene un LoyaltyMember vinculado
+    const user = await User.findOne({ email }).select('_id').lean()
+    let phoneHashes: string[] = []
+    if (user) {
+      const members = await LoyaltyMember.find({
+        userId: user._id,
+        phoneHash: { $ne: '' },
+      }).select('phoneHash').lean()
+      phoneHashes = members.map((m: any) => m.phoneHash).filter(Boolean)
+    }
+    // También buscar miembros por email (para casos donde userId no está vinculado)
+    const emailMembers = await LoyaltyMember.find({
+      email: email.toLowerCase().trim(),
+      phoneHash: { $ne: '' },
+    }).select('phoneHash').lean()
+    for (const m of emailMembers) {
+      if (m.phoneHash && !phoneHashes.includes(m.phoneHash)) {
+        phoneHashes.push(m.phoneHash)
+      }
+    }
+
+    // Build filter: buscar por email O por cualquiera de los phoneHashes
+    const orderFilter: any[] = [{ 'customer.email': email }]
+    if (phoneHashes.length > 0) {
+      orderFilter.push({ 'customer.phoneHash': { $in: phoneHashes } })
+    }
+
     const [orders, total] = await Promise.all([
-      Order.find({ 'customer.email': email })
+      Order.find({ $or: orderFilter })
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .select('orderNumber status total items customer.name payment.status orderMode createdAt tenantId statusTimestamps')
         .lean(),
-      Order.countDocuments({ 'customer.email': email }),
+      Order.countDocuments({ $or: orderFilter }),
     ])
 
     // Enrich with tenant branding
