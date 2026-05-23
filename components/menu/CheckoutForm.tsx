@@ -129,7 +129,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       setForm(p => ({ 
         ...p, 
         email: session.user.email || p.email, 
-        name: p.name || session.user.name || '' 
+        name: p.name || session.user.name || session.user.email.split('@')[0] || '' 
       }))
       
       // Intentar buscar miembro por email si el club está habilitado
@@ -612,7 +612,7 @@ async function handleSubmit(e: React.FormEvent) {
                     <div className="flex items-end justify-between gap-4">
                       <div>
                         <p className="text-2xl font-black tabular-nums">{loyaltyMember.points}</p>
-                        <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-500">Puntos disponibles</p>
+                        <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-500">Tus puntos acumulados</p>
                       </div>
                       
                       {loyaltyConfig?.pointsConfig?.redemptionEnabled && (
