@@ -92,7 +92,7 @@ export default function ReservasPanel({ reservations: initialReservations, locat
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0])
   const [selectedLocation, setSelectedLocation] = useState<string>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const playSound = useNotificationSound('/camera.mp3')
+  const { play: playSound } = useNotificationSound('/camera.mp3')
   const knownIdsRef = useRef<Set<string>>(new Set(initialReservations.map(r => r._id)))
 
   // Date navigation — show 14 days from today

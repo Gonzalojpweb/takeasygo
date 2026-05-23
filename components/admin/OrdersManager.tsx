@@ -58,10 +58,11 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
   useEffect(() => {
     setLastUpdated(new Date())
   }, [])
-  const playSound = useNotificationSound()
+  const { play: playSound, stop: stopSound } = useNotificationSound()
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
   const [upcomingScheduledIds, setUpcomingScheduledIds] = useState<Set<string>>(new Set())
   const knownIdsRef = useRef<Set<string>>(new Set(orders.map(o => o._id)))
+  const ringingIdsRef = useRef<Set<string>>(new Set())
 
   const doRefresh = useCallback(() => {
     startTransition(() => {
@@ -86,13 +87,14 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [doRefresh])
 
-  // Detectar nuevos pedidos pendientes → sonido + toast
+  // Detectar nuevos pedidos pendientes → sonido (loop) + toast
+  // El loop se detiene cuando el admin confirma TODAS las pendientes nuevas
   useEffect(() => {
     const incoming = orders.filter(o => !knownIdsRef.current.has(o._id))
     const newPending = incoming.filter(o => o.status === 'pending')
     if (newPending.length > 0) {
-      playSound()
-      setTimeout(() => playSound(), 500)
+      playSound(true)  // loop ON
+      newPending.forEach(o => ringingIdsRef.current.add(o._id))
       setNewOrderIds(prev => new Set([...prev, ...newPending.map(o => o._id)]))
       toast(`🛍️ ${newPending.length === 1 ? 'Nuevo pedido' : `${newPending.length} nuevos pedidos`}`, {
         description: newPending.map(o => `#${o.orderNumber} · ${o.customer.name}`).join(' — '),
@@ -109,7 +111,17 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
       }, 8000)
     }
     knownIdsRef.current = new Set(orders.map(o => o._id))
-  }, [orders, playSound])
+
+    // Detener loop si todas las órdenes sonando fueron confirmadas
+    if (ringingIdsRef.current.size > 0) {
+      const stillPending = new Set(orders.filter(o => o.status === 'pending').map(o => o._id))
+      const stillRinging = new Set([...ringingIdsRef.current].filter(id => stillPending.has(id)))
+      if (stillRinging.size === 0) {
+        stopSound()
+      }
+      ringingIdsRef.current = stillRinging
+    }
+  }, [orders, playSound, stopSound])
 
   // Alertas para pedidos programados próximos (5 min antes)
   useEffect(() => {
@@ -153,6 +165,11 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
     checkUpcoming()
     return () => clearInterval(interval)
   }, [orders, playSound])
+
+  // Detener loop al desmontar (navegar a otra sección)
+  useEffect(() => {
+    return () => stopSound()
+  }, [stopSound])
 
   function handleRefresh() { doRefresh() }
 
