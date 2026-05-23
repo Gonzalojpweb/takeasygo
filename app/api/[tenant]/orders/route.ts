@@ -133,6 +133,14 @@ export async function POST(
 
     const joinClub = body.joinClub === true
 
+    // F5: Email obligatorio si se une al club (unifica identidad phone+email)
+    if (joinClub && !body.customer.email?.trim()) {
+      return NextResponse.json(
+        { error: 'El email es obligatorio para unirse al club de fidelización' },
+        { status: 400 }
+      )
+    }
+
     const location = await Location.findOne({
       _id: body.locationId,
       tenantId: tenant._id,
@@ -515,36 +523,15 @@ export async function POST(
       phoneHash: body.customer.phone ? hashPhone(body.customer.phone) : null,
     }
 
-    const order = await Order.create({
-      tenantId: tenant._id,
-      locationId: body.locationId,
-      orderNumber: generateOrderNumber(tenantSlug),
-      status: 'awaiting_payment',
-      orderMode: body.mode,
-      items: resolvedItems,
-      rewardItems: resolvedRewards,
-      rewardAdvanceApplied,
-      rewardAdvanceAmount,
-      subtotal,
-      discountAmount,
-      qrPromoApplied,
-      total,
-      customer: encryptedCustomer,
-      notes: body.notes || '',
-      clientToken: body.clientToken ?? null,
-      orderTiming: body.orderTiming,
-      scheduledPickupAt,
-      scheduledStatus,
-      source: body.source ?? null,
-    })
-
+    // ── Crear LoyaltyMember ANTES de la orden (B8: evitar race condition con webhook) ──
+    // Si joinClub está activo, creamos el miembro primero para que el webhook de MP
+    // encuentre el member cuando intente acreditar puntos.
     if (joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled) {
       const pHash = hashPhone(body.customer.phone)
       const existing = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash }).lean()
       if (!existing) {
         const limit = LOYALTY_MEMBER_LIMIT[tenant.plan as Plan]
         if (limit === null || await LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }) < limit) {
-          // Obtener usuario autenticado si existe
           let userId: mongoose.Types.ObjectId | null = null
           const session = await auth()
           if (session?.user?.email) {
@@ -568,11 +555,11 @@ export async function POST(
               lastOrderAt: null,
               updatedAt:   new Date(),
             },
-          }).catch(err => console.error('[orders] Error al crear loyalty member:', err))
+          })
         }
       }
     } else {
-      // SI NO ESTÁ UNIÉNDOSE (porque ya es miembro o no quiere), 
+      // SI NO ESTÁ UNIÉNDOSE (porque ya es miembro o no quiere),
       // pero está autenticado, intentamos vincular su userId al miembro existente por email o phone.
       const session = await auth()
       if (session?.user?.email) {
@@ -583,7 +570,6 @@ export async function POST(
             userId: null,
             $or: [{ email: session.user.email.toLowerCase().trim() }],
           }
-          // Si hay phone, también buscar por phoneHash
           if (body.customer.phone) {
             linkQuery.$or.push({ phoneHash: hashPhone(body.customer.phone) })
           }
@@ -591,6 +577,29 @@ export async function POST(
         }
       }
     }
+
+    const order = await Order.create({
+      tenantId: tenant._id,
+      locationId: body.locationId,
+      orderNumber: generateOrderNumber(tenantSlug),
+      status: 'awaiting_payment',
+      orderMode: body.mode,
+      items: resolvedItems,
+      rewardItems: resolvedRewards,
+      rewardAdvanceApplied,
+      rewardAdvanceAmount,
+      subtotal,
+      discountAmount,
+      qrPromoApplied,
+      total,
+      customer: encryptedCustomer,
+      notes: body.notes || '',
+      clientToken: body.clientToken ?? null,
+      orderTiming: body.orderTiming,
+      scheduledPickupAt,
+      scheduledStatus,
+      source: body.source ?? null,
+    })
 
     return NextResponse.json({ order }, { status: 201 })
   } catch (error) {

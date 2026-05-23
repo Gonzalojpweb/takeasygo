@@ -184,6 +184,50 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
     return null
   }
 
+  // B11: Si no hay phoneHash (usuario solo email), no rendirse — buscar por email
+  if (!order.customer?.phoneHash && !forceMemberId) {
+    if (!order.customer?.email) return null
+    try {
+      const { safeDecrypt } = require('@/lib/crypto')
+      const emailRaw = safeDecrypt(order.customer.email).toLowerCase().trim()
+      if (!emailRaw) return null
+
+      const member = await LoyaltyMember.findOne({
+        tenantId: tenant._id,
+        email: emailRaw,
+        status: 'active',
+      }).session(session || null)
+
+      if (!member) return null
+
+      const pointsToAdd = calculatePoints(
+        order.items?.filter((i: any) => i.itemType !== 'reward')?.reduce((sum: number, i: any) => sum + (i.subtotal || 0), 0) ?? order.total ?? 0,
+        tenant.pointsConfig,
+      )
+      if (pointsToAdd <= 0) return null
+
+      await LoyaltyMember.updateOne(
+        { _id: member._id },
+        {
+          $inc: { 'loyalty.points': pointsToAdd, 'cache.totalOrders': 1, 'cache.totalSpent': order.total ?? 0 },
+          $set: { 'cache.lastOrderAt': new Date(), 'cache.updatedAt': new Date() },
+        },
+        { session }
+      )
+
+      await Order.updateOne({ _id: order._id }, { $set: { loyaltyPointsCredited: true } }, { session })
+      order.loyaltyPointsCredited = true
+
+      if (member.wallet?.googleObjectId) {
+        setImmediate(() => { syncWalletPoints(member._id).catch(() => {}) })
+      }
+
+      return { member, breakdown: { basePoints: pointsToAdd, microBonus: 0, total: pointsToAdd } }
+    } catch {
+      return null
+    }
+  }
+
   if (!order.customer?.phoneHash && !forceMemberId) return null
 
   const saleItemsTotal = order.items

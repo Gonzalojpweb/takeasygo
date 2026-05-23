@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
 import { Calendar, Star, Sparkles, Lock } from 'lucide-react'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
+import { toast } from 'sonner'
 
 const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered']
 
@@ -180,6 +181,41 @@ export default function OrderTracker({
     const interval = setInterval(check, 5_000)
     return () => clearInterval(interval)
   }, [confirmedAt, status])
+
+  // F2: Sonido + notificación cuando el pedido está listo
+  const prevStatusRef = useRef(status)
+  useEffect(() => {
+    if (status === 'ready' && prevStatusRef.current !== 'ready') {
+      toast.success('🎉 ¡Tu pedido está listo!', {
+        description: 'Pasá a retirar tu pedido',
+        duration: 10000,
+        position: 'top-center',
+      })
+      const audio = new Audio('/sounds/notification.mp3')
+      audio.loop = false
+      audio.play().catch(() => {})
+      setTimeout(() => {
+        audio.play().catch(() => {})
+      }, 1000)
+    }
+    prevStatusRef.current = status
+  }, [status])
+
+  // B9: Countdown 2:30 tras bambalina — cuando llega a cero, toast informativo
+  // Solo se ejecuta cuando el pedido está confirmado, sin modificar estados reales
+  const [cancellationToastShown, setCancellationToastShown] = useState(false)
+  useEffect(() => {
+    if (status !== 'confirmed' || cancellationToastShown) return
+    const timer = setTimeout(() => {
+      toast.info('🔒 Tu pedido ya entró en preparación', {
+        description: 'A partir de este momento ya no puede cancelarse',
+        duration: 5000,
+        position: 'top-center',
+      })
+      setCancellationToastShown(true)
+    }, 2 * 60 * 1000 + 30 * 1000) // 2:30 min
+    return () => clearTimeout(timer)
+  }, [status, cancellationToastShown])
 
   const info = STATUS_INFO[status] ?? STATUS_INFO['pending']
   const currentStep = STATUS_STEPS.indexOf(status)

@@ -266,6 +266,7 @@ async function handleSubmit(e: React.FormEvent) {
   e.preventDefault()
   if (!form.name.trim()) return toast.error('El nombre es obligatorio')
   if (joinClub && !form.phone.trim()) return toast.error('El teléfono es obligatorio para unirse al club')
+  if (joinClub && !form.email.trim()) return toast.error('El email es obligatorio para unirse al club')
   if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
   setLoading(true)
 
@@ -521,11 +522,17 @@ async function handleSubmit(e: React.FormEvent) {
             </p>
           )}
           <input
-            placeholder="Email (opcional)"
+            required={joinClub}
+            placeholder={joinClub ? "Email (obligatorio para el club) *" : "Email (opcional)"}
             type="email"
             value={form.email}
             onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
+            className={cn(
+              "w-full border rounded-xl px-4 py-3 text-base focus:outline-none transition-all",
+              joinClub && !form.email.trim()
+                ? "border-amber-300 bg-amber-50/30 focus:border-amber-500"
+                : "border-zinc-200 focus:border-zinc-400"
+            )}
           />
           <textarea
             placeholder="Notas o aclaraciones (opcional)"
