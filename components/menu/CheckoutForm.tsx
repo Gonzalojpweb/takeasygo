@@ -135,7 +135,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       }))
       
       // Intentar buscar miembro por email si el club está habilitado
-      fetch(`/api/${tenantSlug}/loyalty/lookup?email=${encodeURIComponent(session.user.email)}`)
+      fetch(`/api/${tenantSlug}/loyalty/lookup?email=${encodeURIComponent(email)}`)
         .then(r => r.json())
         .then(data => {
           if (data.member) {
