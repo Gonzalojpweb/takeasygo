@@ -310,6 +310,17 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
     })
   }
 
+  function zeroExtraPrices(opts: any[]): any[] {
+    return opts.map((o: any) => ({
+      ...o,
+      extraPrice: 0,
+      subGroups: o.subGroups ? o.subGroups.map((sg: any) => ({
+        ...sg,
+        options: zeroExtraPrices(sg.options ?? []),
+      })) : undefined,
+    }))
+  }
+
   function buildPromoCustomizationItem(item: any, promotion: any) {
     return {
       ...item,
@@ -326,6 +337,11 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
         ...v,
         price: promotion.price,
         takeawayPrice: promotion.price,
+      })),
+      // El precio de la promo ya está fijo — las opciones no deben sumar extra
+      customizationGroups: (item.customizationGroups ?? []).map((g: any) => ({
+        ...g,
+        options: zeroExtraPrices(g.options ?? []),
       })),
     }
   }
@@ -1033,6 +1049,13 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
           if (!grouped[cat]) grouped[cat] = []
           grouped[cat].push(it)
         }
+        // Categorías que ya tienen un item seleccionado (máximo 1 por categoría)
+        const completedCats = new Set<string>()
+        for (const it of items) {
+          if (completedItemIds.includes(it._id || it.name)) {
+            completedCats.add(it.categoryName || 'Productos')
+          }
+        }
         const totalCompleted = completedItemIds.length
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1054,54 +1077,62 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
               </div>
               {totalCompleted > 0 && (
                 <div className="mb-3 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">
-                  {totalCompleted} producto{totalCompleted !== 1 ? 's' : ''} agregado{totalCompleted !== 1 ? 's' : ''} — podés seguir eligiendo
+                  {totalCompleted} producto{totalCompleted !== 1 ? 's' : ''} agregado{totalCompleted !== 1 ? 's' : ''}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground mb-3 font-medium">Elegí los productos que querés incluir:</p>
+              <p className="text-xs text-muted-foreground mb-3 font-medium">Elegí un producto de cada categoría:</p>
               <div className="space-y-3">
-                {Object.entries(grouped).map(([catName, catItems]) => (
-                  <div key={catName}>
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1.5">{catName}</p>
-                    <div className="space-y-1.5">
-                      {catItems.map((it: any) => {
-                        const itemId = it._id || it.name
-                        const isCompleted = completedItemIds.includes(itemId)
-                        return (
-                          <button
-                            key={itemId}
-                            type="button"
-                            disabled={isCompleted}
-                            onClick={() => {
-                              openCustomizationModal(buildPromoCustomizationItem(it, promo))
-                            }}
-                            className={
-                              'w-full text-left p-3 rounded-xl border transition-all ' +
-                              (isCompleted
-                                ? 'border-emerald-200 bg-emerald-50 opacity-60'
-                                : 'border-border hover:border-primary/50 hover:bg-muted/30')
-                            }
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold flex-1">{it.name}</span>
-                              {isCompleted && (
-                                <span className="text-emerald-600 text-[10px] font-bold">✓ Agregado</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs font-bold text-primary">${promo.price}</span>
-                              {it.variants?.length > 0 && (
-                                <span className="text-[10px] text-muted-foreground">{it.variants.length} var</span>
-                              )}
-                              {it.customizationGroups?.length > 0 && (
-                                <span className="text-[10px] text-muted-foreground">{it.customizationGroups.length} pers</span>
-                              )}
-                            </div>
-                          </button>
-                        )
-                      })}
+                {Object.entries(grouped).map(([catName, catItems]) => {
+                  const catDone = completedCats.has(catName)
+                  return (
+                    <div key={catName}>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1.5">
+                        {catName} {catDone && <span className="text-emerald-600 normal-case">✓</span>}
+                      </p>
+                      <div className="space-y-1.5">
+                        {catItems.map((it: any) => {
+                          const itemId = it._id || it.name
+                          const isCompleted = completedItemIds.includes(itemId)
+                          const isDisabled = catDone && !isCompleted
+                          return (
+                            <button
+                              key={itemId}
+                              type="button"
+                              disabled={isDisabled}
+                              onClick={() => {
+                                openCustomizationModal(buildPromoCustomizationItem(it, promo))
+                              }}
+                              className={
+                                'w-full text-left p-3 rounded-xl border transition-all ' +
+                                (isCompleted
+                                  ? 'border-emerald-200 bg-emerald-50 opacity-60'
+                                  : isDisabled
+                                    ? 'border-border opacity-30 cursor-not-allowed'
+                                    : 'border-border hover:border-primary/50 hover:bg-muted/30')
+                              }
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold flex-1">{it.name}</span>
+                                {isCompleted && (
+                                  <span className="text-emerald-600 text-[10px] font-bold">✓ Agregado</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs font-bold text-primary">${promo.price}</span>
+                                {it.variants?.length > 0 && (
+                                  <span className="text-[10px] text-muted-foreground">{it.variants.length} var</span>
+                                )}
+                                {it.customizationGroups?.length > 0 && (
+                                  <span className="text-[10px] text-muted-foreground">{it.customizationGroups.length} pers</span>
+                                )}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
               <button
                 type="button"
