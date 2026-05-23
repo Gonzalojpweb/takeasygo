@@ -416,12 +416,26 @@ async function handleSubmit(e: React.FormEvent) {
 
                     {/* Nombre e info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-700 truncate">{item.name}</p>
-                      {item.customizationSummary && (
+                      <div className="flex items-center gap-1.5">
+                        {item.type === 'promotion' && (
+                          <span className="text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded bg-blue-100 text-blue-700 leading-none">Promo</span>
+                        )}
+                        <p className="text-sm font-medium text-zinc-700 truncate">{item.name}</p>
+                      </div>
+                      {(item as any)._promotionShortDescription && (
+                        <p className="text-[10px] text-zinc-400 truncate italic">{(item as any)._promotionShortDescription}</p>
+                      )}
+                      {(item as any)._itemName && item.customizationSummary && (
+                        <p className="text-xs text-zinc-400 truncate">{(item as any)._itemName} · {item.customizationSummary}</p>
+                      )}
+                      {!(item as any)._itemName && item.customizationSummary && (
                         <p className="text-xs text-zinc-400 truncate">{item.customizationSummary}</p>
                       )}
-                      {item.selectedVariant && !item.customizationSummary && (
+                      {!item.customizationSummary && item.selectedVariant && (
                         <p className="text-xs text-zinc-400 truncate">{item.selectedVariant.name}</p>
+                      )}
+                      {(item as any)._itemName && !item.customizationSummary && !item.selectedVariant && (
+                        <p className="text-xs text-zinc-400 truncate">{(item as any)._itemName}</p>
                       )}
                     </div>
 

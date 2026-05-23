@@ -342,10 +342,12 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
               const time = new Date(order.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
               const date = new Date(order.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
 
-              // Agrupar items por categoría
+              // Agrupar items por categoría (promociones van a su propia sección)
               const byCategory: Record<string, any[]> = {}
               for (const item of order.items) {
-                const cat = item.categoryName || 'Otros'
+                const cat = item.itemType === 'promotion'
+                  ? '🎟️ Promociones'
+                  : item.categoryName || 'Otros'
                 if (!byCategory[cat]) byCategory[cat] = []
                 byCategory[cat].push(item)
               }
@@ -437,12 +439,15 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                         </p>
                         <div className="space-y-2">
                           {items.map((item: any) => (
-                            <div key={item._id} className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-foreground leading-tight">
-                                  {item.quantity}x {item.name}
-                                </p>
-                                {item.customizations?.map((c: any, ci: number) => (
+                              <div key={item._id} className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-foreground leading-tight">
+                                    {item.itemType === 'promotion' && (
+                                      <span className="text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded bg-amber-100 text-amber-700 mr-1.5 align-middle">Promo</span>
+                                    )}
+                                    {item.quantity}x {item.name}
+                                  </p>
+                                  {item.customizations?.map((c: any, ci: number) => (
                                   c.selectedOptions?.length > 0 && (
                                     <p key={ci} className="text-xs text-muted-foreground mt-0.5">
                                       <span className="font-semibold uppercase text-[10px] tracking-wide">{c.groupName}:</span>{' '}

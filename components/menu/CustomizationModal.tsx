@@ -187,7 +187,10 @@ export default function CustomizationModal({
       customizationSummary = selectedVariant.name
     }
 
-    const cartItem: CartItem = {
+    const cartItem: any = {
+      // Primero todas las props extra del item (isPromotion, _promotionId, etc.)
+      ...(item as any),
+      // Después los campos calculados del modal (sobrescriben)
       cartItemId: `${item._id}:${Date.now()}`,
       menuItemId: item._id,
       name: itemName,

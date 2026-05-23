@@ -247,16 +247,67 @@ export async function POST(
         const quantity = clientItem.quantity
         const price = promotion.price
 
-        // ── Validate customizations if promotion has a linked item ──────────
+        // ── Validate customizations if promotion has linked items ──────────
         let extraPrice = 0
         const resolvedCustomizations: any[] = []
         let resolvedSelectedVariant: any = null
 
+        // Obtener los grupos de customización del snapshot o de linkedCategoryIds/overrideCustomizationGroups
         const linkedSnapshot = promotion.linkedItemSnapshot
+        const overrideGroups = promotion.overrideCustomizationGroups ?? []
 
-        if (linkedSnapshot && Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
+        // Construir los customizationGroups de validación: mezcla de snapshot + overrideGroups
+        let validationGroups: any[] = []
+        let validationVariants: any[] = []
+
+        if (linkedSnapshot) {
+          // Backward compat: usar snapshot legacy
+          validationGroups = [...(linkedSnapshot.customizationGroups ?? []), ...overrideGroups]
+          validationVariants = linkedSnapshot.variants ?? []
+        } else if (promotion.linkedCategoryIds?.length > 0 || promotion.linkedItemIds?.length > 0) {
+          // Nuevo sistema: usar grupos de override + heredados del menú
+          validationGroups = [...overrideGroups]
+          const menuCats: any[] = menu.categories ?? []
+          const seenItemIds = new Set<string>()
+
+          if (Array.isArray(promotion.linkedCategoryIds)) {
+            for (const cat of menuCats) {
+              const catId = cat._id?.toString?.() || cat._id
+              if (promotion.linkedCategoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
+                validationGroups.unshift(...(cat.customizationGroups ?? []))
+                for (const item of cat.items ?? []) {
+                  const itemId = item._id?.toString?.() || item._id
+                  if (!seenItemIds.has(itemId)) {
+                    seenItemIds.add(itemId)
+                    validationGroups.unshift(...(item.customizationGroups ?? []))
+                    if ((item.variants ?? []).length > 0) {
+                      validationVariants.push(...item.variants)
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (Array.isArray(promotion.linkedItemIds)) {
+            for (const cat of menuCats) {
+              for (const item of cat.items ?? []) {
+                const itemId = item._id?.toString?.() || item._id
+                if (!seenItemIds.has(itemId) && promotion.linkedItemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
+                  seenItemIds.add(itemId)
+                  validationGroups.unshift(...(item.customizationGroups ?? []))
+                  if ((item.variants ?? []).length > 0) {
+                    validationVariants.push(...item.variants)
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (validationGroups.length > 0 && Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
           try {
-            const result = resolveCustomizations(clientItem.customizations, linkedSnapshot.customizationGroups)
+            const result = resolveCustomizations(clientItem.customizations, validationGroups)
             resolvedCustomizations.push(...result.resolved)
             extraPrice += result.extraPrice
           } catch (err: any) {
@@ -268,7 +319,7 @@ export async function POST(
         }
 
         // ── Validate variant if linked item has variants ───────────────────
-        if (linkedSnapshot && (linkedSnapshot.variants?.length ?? 0) > 0) {
+        if (validationVariants.length > 0) {
           const selectedVariant = clientItem.selectedVariant
           if (!selectedVariant) {
             return NextResponse.json(
@@ -276,7 +327,7 @@ export async function POST(
               { status: 400 }
             )
           }
-          const dbVariant = linkedSnapshot.variants.find(
+          const dbVariant = validationVariants.find(
             (v: any) => v.name === selectedVariant.name
           )
           if (!dbVariant) {
@@ -291,12 +342,17 @@ export async function POST(
         const finalPrice = price + extraPrice
         const subtotal = finalPrice * quantity
 
+        const clientAny = clientItem as any
+        const promoItemName = clientAny._itemName
+          ? `${promotion.title} - ${clientAny._itemName}`
+          : promotion.title
+
         resolvedItems.push({
           menuItemId: null,
           promotionId: promotion._id.toString(),
           itemType: 'promotion',
-          categoryName: '',
-          name: promotion.title,
+          categoryName: clientAny._itemCategoryName || '',
+          name: promoItemName,
           basePrice: price,
           extraPrice,
           price: finalPrice,
