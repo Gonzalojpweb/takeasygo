@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2, Radio, Calendar, AlertCircle } from 'lucide-react'
+import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2, Radio, Calendar, AlertCircle, Printer } from 'lucide-react'
 import OrderStatusButton from './OrderStatusButton'
 import { cn } from '@/lib/utils'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
@@ -481,12 +481,32 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                     <span className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-widest">
                       ID: {order._id.toString().slice(-6)}
                     </span>
-                    <OrderStatusButton
-                      orderId={order._id.toString()}
-                      currentStatus={order.status}
-                      tenantSlug={tenantSlug}
-                      compact
-                    />
+                    <div className="flex items-center gap-2">
+                      {['confirmed', 'preparing'].includes(order.status) && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/${tenantSlug}/orders/${order._id}/reprint`, { method: 'POST' })
+                              if (!res.ok) throw new Error()
+                              toast.success('Reimprimiendo...')
+                            } catch {
+                              toast.error('Error al reimprimir')
+                            }
+                          }}
+                          className="h-8 px-2.5 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center gap-1.5 text-xs font-semibold"
+                        >
+                          <Printer size={13} />
+                          Reimprimir
+                        </button>
+                      )}
+                      <OrderStatusButton
+                        orderId={order._id.toString()}
+                        currentStatus={order.status}
+                        tenantSlug={tenantSlug}
+                        compact
+                      />
+                    </div>
                   </div>
 
                 </motion.div>

@@ -97,6 +97,28 @@ class JobManager {
 
 const jobManager = new JobManager();
 
+// --- IMPRIME CUSTOMIZACIONES (incluso subGroups anidados) ---
+function printCustomizations(customizations, chunks, indent) {
+    if (!customizations || customizations.length === 0) return;
+    customizations.forEach(c => {
+        const group = c.groupName || '';
+        const sels = Array.isArray(c.selectedOptions) && c.selectedOptions.length > 0
+            ? c.selectedOptions.map(o => o.name).filter(Boolean)
+            : [];
+        if (sels.length > 0) {
+            const prefix = group ? group + ': ' : '';
+            chunks.push(Buffer.from(`${indent}> ${prefix}${sels.join(', ')}\n`));
+        }
+        if (Array.isArray(c.selectedOptions)) {
+            c.selectedOptions.forEach(opt => {
+                if (Array.isArray(opt.subGroups) && opt.subGroups.length > 0) {
+                    printCustomizations(opt.subGroups, chunks, indent + '    ');
+                }
+            });
+        }
+    });
+}
+
 // --- GENERADOR DE TICKETS (Lógica compartida) ---
 function generateTicket(order, role, columns = 32) {
     let chunks = [];
@@ -142,8 +164,9 @@ function generateTicket(order, role, columns = 32) {
     chunks.push(Buffer.from(`Fecha: ${new Date(order.createdAt).toLocaleString()}\n`));
 
     // Tipo de entrega
-    if (order.deliveryMethod) {
-        chunks.push(Buffer.from(`Tipo: ${order.deliveryMethod}\n`));
+    if (order.orderMode) {
+        const modeLabel = order.orderMode === 'takeaway' ? 'PARA LLEVAR' : 'EN LOCAL';
+        chunks.push(Buffer.from(`Tipo: ${modeLabel}\n`));
     }
 
     // Hora programada (destacado en negrita)
@@ -158,7 +181,7 @@ function generateTicket(order, role, columns = 32) {
 
     // Info del cliente
     chunks.push(ESC_POS.BOLD_ON);
-    chunks.push(Buffer.from(`Cliente: ${customer.name || ''} ${customer.lastname || ''}\n`));
+    chunks.push(Buffer.from(`Cliente: ${customer.name || ''}\n`));
     if (customer.phone) {
         chunks.push(Buffer.from(`Tel: ${customer.phone}\n`));
     }
@@ -175,10 +198,17 @@ function generateTicket(order, role, columns = 32) {
     chunks.push(Buffer.from(`${lineStr}\n`));
 
     itemsToPrint.forEach(item => {
+        // Badge de tipo de item
+        if (item.itemType === 'promotion') {
+            chunks.push(Buffer.from(`[PROMOCIÓN]\n`));
+        } else if (item.itemType === 'reward') {
+            chunks.push(Buffer.from(`[RECOMPENSA]\n`));
+        }
+
         const line = `${item.quantity}x ${item.name}`;
 
-        // Nombre de categoría (si existe)
-        if (item.categoryName) {
+        // Nombre de categoría (solo para items de menú)
+        if (item.categoryName && item.itemType !== 'promotion' && item.itemType !== 'reward') {
             chunks.push(Buffer.from(`[${item.categoryName}]\n`));
         }
 
@@ -195,19 +225,8 @@ function generateTicket(order, role, columns = 32) {
             chunks.push(Buffer.from(`  > Variante: ${item.selectedVariant.name}\n`));
         }
 
-        // Mostrar customizaciones en todos los tickets (cocina, barra y caja)
-        if (item.customizations && item.customizations.length > 0) {
-            item.customizations.forEach(c => {
-                const group = c.groupName || '';
-                const sels = Array.isArray(c.selectedOptions) && c.selectedOptions.length > 0
-                    ? c.selectedOptions.map(o => o.name).filter(Boolean)
-                    : [];
-                if (sels.length > 0) {
-                    const prefix = group ? group + ': ' : '';
-                    chunks.push(Buffer.from(`  > ${prefix}${sels.join(', ')}\n`));
-                }
-            });
-        }
+        // Mostrar customizaciones (incluye subGroups recursivamente)
+        printCustomizations(item.customizations, chunks, '  ');
     });
 
     chunks.push(Buffer.from(`${lineStr}\n`));

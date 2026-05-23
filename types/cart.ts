@@ -1,6 +1,7 @@
 export interface SelectedCustomizationOption {
   name: string
   extraPrice: number
+  subGroups?: SelectedCustomization[]
 }
 
 export interface SelectedCustomization {

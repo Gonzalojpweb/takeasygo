@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { X, Minus, Plus, Check } from 'lucide-react'
-import type { CartItem, SelectedCustomization, SelectedVariant } from '@/types/cart'
+import type { CartItem, SelectedCustomization, SelectedCustomizationOption, SelectedVariant } from '@/types/cart'
 
 interface VariantInfo {
   _id?: string
@@ -127,14 +127,42 @@ export default function CustomizationModal({
     })
   }
 
+  function buildSelectedOptions(
+    group: CustomizationGroup,
+    selectedNames: string[]
+  ): SelectedCustomizationOption[] {
+    return group.options
+      .filter(opt => selectedNames.includes(opt.name))
+      .map(opt => {
+        const option: SelectedCustomizationOption = {
+          name: opt.name,
+          extraPrice: opt.extraPrice,
+        }
+        if (opt.subGroups?.length) {
+          const subGroups: SelectedCustomization[] = []
+          for (const subGroup of opt.subGroups) {
+            const subSelectedNames = selections[subGroup._id] ?? []
+            if (subSelectedNames.length > 0) {
+              subGroups.push({
+                groupName: subGroup.name,
+                selectedOptions: buildSelectedOptions(subGroup, subSelectedNames),
+              })
+            }
+          }
+          if (subGroups.length > 0) {
+            option.subGroups = subGroups
+          }
+        }
+        return option
+      })
+  }
+
   function handleConfirm() {
     const customizations: SelectedCustomization[] = activeGroups
       .filter(g => (selections[g._id] ?? []).length > 0)
       .map(g => ({
         groupName: g.name,
-        selectedOptions: g.options
-          .filter(opt => (selections[g._id] ?? []).includes(opt.name))
-          .map(opt => ({ name: opt.name, extraPrice: opt.extraPrice })),
+        selectedOptions: buildSelectedOptions(g, selections[g._id] ?? []),
       }))
 
     let customizationSummary = customizations
