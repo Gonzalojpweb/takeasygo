@@ -143,6 +143,8 @@ export interface ITenant extends Document {
     minOrderForPoints: number // monto mínimo para acumular puntos
     pointsRedemptionValue: number // valor en pesos de cada 1 punto
     redemptionEnabled: boolean
+    /** Puntos de bienvenida al registrarse en el club (standalone) */
+    welcomePoints: number
   }
   /** Configuración de Store (tienda de canje de puntos) */
   store: {
@@ -405,6 +407,7 @@ const TenantSchema = new Schema<ITenant>(
       minOrderForPoints: { type: Number, default: 0, min: 0 }, // monto mínimo
       pointsRedemptionValue: { type: Number, default: 10, min: 0 }, // valor en pesos de cada 1 punto (ej: 10 = $10)
       redemptionEnabled: { type: Boolean, default: true },
+      welcomePoints: { type: Number, default: 0, min: 0 },
     },
     /** Configuración de Store (tienda de canje de puntos) */
     store: {

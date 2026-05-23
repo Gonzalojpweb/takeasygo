@@ -13,15 +13,15 @@ export async function POST(
   try {
     const { tenant: tenantSlug } = await params
     const body = await request.json()
-    const { name, phone, promotionId } = body
+    const { name, email, phone, promotionId } = body
 
-    if (!name || !phone) {
-      return NextResponse.json({ error: 'Nombre y teléfono son obligatorios' }, { status: 400 })
+    if (!name || !email || !phone) {
+      return NextResponse.json({ error: 'Nombre, correo y teléfono son obligatorios' }, { status: 400 })
     }
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id pointsConfig.welcomePoints')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
@@ -32,8 +32,6 @@ export async function POST(
     let user = await User.findOne({ phone })
 
     if (!user) {
-      // Crear nuevo usuario de TakeasyGo
-      const email = `u_${phoneHash.slice(0, 12)}@takeasygo.app`
       user = await User.create({
         name,
         phone,
@@ -56,6 +54,8 @@ export async function POST(
       }, { status: 409 })
     }
 
+    const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
+
     // Crear nuevo miembro vinculado al User de TakeasyGo
     const member = await LoyaltyMember.create({
       tenantId: tenant._id,
@@ -63,11 +63,12 @@ export async function POST(
       name,
       phone,
       phoneHash,
-      email: user.email,
+      email,
       source: 'promotion',
       status: 'active',
       joinedAt: new Date(),
       promotionId: promotionId || null,
+      'loyalty.points': welcomePoints,
     })
 
     return NextResponse.json({
@@ -82,6 +83,7 @@ export async function POST(
         name: user.name,
         email: user.email,
       },
+      welcomePoints,
     })
 
   } catch (error) {
