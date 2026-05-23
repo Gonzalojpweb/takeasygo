@@ -20,6 +20,60 @@ import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 import { validateCheckoutRewards } from '@/lib/loyalty'
 import StoreItem from '@/models/StoreItem'
 
+/**
+ * Resuelve customizaciones recursivamente, incluyendo subGroups.
+ */
+function resolveCustomizations(
+  clientCustomizations: any[],
+  dbGroups: any[],
+): { resolved: any[]; extraPrice: number } {
+  let extraPrice = 0
+  const resolved: any[] = []
+
+  for (const clientGroup of clientCustomizations) {
+    const dbGroup = dbGroups.find((g: any) => g.name === clientGroup.groupName)
+    if (!dbGroup) {
+      throw new ValidationError(`Grupo de personalización inválido: ${clientGroup.groupName}`)
+    }
+
+    const resolvedOptions: any[] = []
+    for (const clientOption of clientGroup.selectedOptions ?? []) {
+      const dbOption = dbGroup.options.find((o: any) => o.name === clientOption.name)
+      if (!dbOption) {
+        throw new ValidationError(`Opción inválida "${clientOption.name}" en grupo "${dbGroup.name}"`)
+      }
+      extraPrice += dbOption.extraPrice || 0
+
+      const resolvedOption: any = {
+        name: dbOption.name,
+        extraPrice: dbOption.extraPrice || 0,
+      }
+
+      // Resolver subGroups recursivamente
+      if (dbOption.subGroups?.length > 0 && Array.isArray(clientOption.subGroups)) {
+        const subResult = resolveCustomizations(clientOption.subGroups, dbOption.subGroups)
+        if (subResult.resolved.length > 0) {
+          resolvedOption.subGroups = subResult.resolved
+        }
+        extraPrice += subResult.extraPrice
+      }
+
+      resolvedOptions.push(resolvedOption)
+    }
+
+    resolved.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions })
+  }
+
+  return { resolved, extraPrice }
+}
+
+class ValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ValidationError'
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -193,29 +247,15 @@ export async function POST(
         const linkedSnapshot = promotion.linkedItemSnapshot
 
         if (linkedSnapshot && Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
-          for (const clientGroup of clientItem.customizations) {
-            const dbGroup = linkedSnapshot.customizationGroups.find(
-              (g: any) => g.name === clientGroup.groupName
-            )
-            if (!dbGroup) {
-              return NextResponse.json(
-                { error: `Grupo de personalización inválido en promoción: ${clientGroup.groupName}` },
-                { status: 400 }
-              )
+          try {
+            const result = resolveCustomizations(clientItem.customizations, linkedSnapshot.customizationGroups)
+            resolvedCustomizations.push(...result.resolved)
+            extraPrice += result.extraPrice
+          } catch (err: any) {
+            if (err.name === 'ValidationError') {
+              return NextResponse.json({ error: err.message }, { status: 400 })
             }
-            const resolvedOptions: any[] = []
-            for (const clientOption of clientGroup.selectedOptions ?? []) {
-              const dbOption: any = dbGroup.options.find((o: any) => o.name === clientOption.name)
-              if (!dbOption) {
-                return NextResponse.json(
-                  { error: `Opción inválida "${clientOption.name}" en grupo "${dbGroup.name}" de la promoción` },
-                  { status: 400 }
-                )
-              }
-              extraPrice += dbOption.extraPrice || 0
-              resolvedOptions.push({ name: dbOption.name, extraPrice: dbOption.extraPrice || 0 })
-            }
-            resolvedCustomizations.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions })
+            throw err
           }
         }
 
@@ -319,30 +359,15 @@ export async function POST(
         const resolvedCustomizations: any[] = []
 
         if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
-          for (const clientGroup of clientItem.customizations) {
-            const dbGroup = menuItem.customizationGroups.find(
-              (g: any) => g.name === clientGroup.groupName
-            )
-            if (!dbGroup) {
-              return NextResponse.json(
-                { error: `Grupo de personalización inválido: ${clientGroup.groupName}` },
-                { status: 400 }
-              )
+          try {
+            const result = resolveCustomizations(clientItem.customizations, menuItem.customizationGroups)
+            resolvedCustomizations.push(...result.resolved)
+            extraPrice += result.extraPrice
+          } catch (err: any) {
+            if (err.name === 'ValidationError') {
+              return NextResponse.json({ error: err.message }, { status: 400 })
             }
-
-            const resolvedOptions: any[] = []
-            for (const clientOption of clientGroup.selectedOptions ?? []) {
-              const dbOption: any = dbGroup.options.find((o: any) => o.name === clientOption.name)
-              if (!dbOption) {
-                return NextResponse.json(
-                  { error: `Opción inválida "${clientOption.name}" en grupo "${dbGroup.name}"` },
-                  { status: 400 }
-                )
-              }
-              extraPrice += dbOption.extraPrice
-              resolvedOptions.push({ name: dbOption.name, extraPrice: dbOption.extraPrice } as any)
-            }
-            resolvedCustomizations.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions } as any)
+            throw err
           }
         }
 

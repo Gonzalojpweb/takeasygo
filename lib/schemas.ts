@@ -6,11 +6,12 @@ const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'ID inválido')
 
 // ── Orden (checkout público) ────────────────────────────────────────────────
 
-const customizationOptionSchema = z.object({
+const customizationOptionSchema: z.ZodType<any> = z.object({
   name: z.string().min(1).max(100),
+  subGroups: z.array(z.lazy(() => customizationGroupSchema)).max(5).optional(),
 })
 
-const customizationGroupSchema = z.object({
+const customizationGroupSchema: z.ZodType<any> = z.object({
   groupName: z.string().min(1).max(100),
   selectedOptions: z.array(customizationOptionSchema).max(20).default([]),
 })

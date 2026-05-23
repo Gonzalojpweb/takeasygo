@@ -7,6 +7,7 @@ export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 export interface ISelectedCustomizationOption {
   name: string
   extraPrice: number
+  subGroups?: ISelectedCustomizationGroup[]
 }
 
 export interface ISelectedCustomizationGroup {
@@ -129,15 +130,20 @@ const SelectedVariantSchema = new Schema<ISelectedVariant>({
   takeawayPrice: { type: Number },
 }, { _id: false })
 
-const SelectedCustomizationOptionSchema = new Schema<ISelectedCustomizationOption>({
-  name: { type: String, required: true },
-  extraPrice: { type: Number, default: 0 },
-}, { _id: false })
+// Schemas circulares para subGroups (misma técnica que Menu.ts)
+const SelectedCustomizationOptionSchema: Schema = new Schema({}, { _id: false })
+const SelectedCustomizationGroupSchema: Schema = new Schema({}, { _id: false })
 
-const SelectedCustomizationGroupSchema = new Schema<ISelectedCustomizationGroup>({
-  groupName: { type: String, required: true },
-  selectedOptions: [SelectedCustomizationOptionSchema],
-}, { _id: false })
+SelectedCustomizationOptionSchema.add({
+  name:       { type: String, required: true },
+  extraPrice: { type: Number, default: 0 },
+  subGroups:  { type: [SelectedCustomizationGroupSchema], default: [] },
+})
+
+SelectedCustomizationGroupSchema.add({
+  groupName:       { type: String, required: true },
+  selectedOptions: { type: [SelectedCustomizationOptionSchema], default: [] },
+})
 
 const OrderItemSchema = new Schema<IOrderItem>({
   menuItemId: {
