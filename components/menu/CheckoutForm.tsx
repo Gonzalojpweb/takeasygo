@@ -125,11 +125,13 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   
   // Auto-fill from session and lookup loyalty by email
   useEffect(() => {
-    if (session?.user?.email) {
+    const name = session?.user?.name
+    const email = session?.user?.email
+    if (email) {
       setForm(p => ({ 
         ...p, 
-        email: session.user.email || p.email, 
-        name: p.name || session.user.name || session.user.email.split('@')[0] || '' 
+        email: email || p.email, 
+        name: p.name || name || email.split('@')[0] || '' 
       }))
       
       // Intentar buscar miembro por email si el club está habilitado
