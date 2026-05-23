@@ -572,8 +572,9 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
               {featuredItems.map((item: any) => {
                 const veg = isVegetarian(item.tags || [])
                 return (
-                  <div key={item._id} className="flex items-center gap-3 px-4 py-3 border-b last:border-0"
-                    style={{ borderColor: primary + '12' }}>
+                  <div key={item._id} className="flex items-center gap-3 px-4 py-3 border-b last:border-0 cursor-pointer active:scale-[0.99] transition-transform"
+                    style={{ borderColor: primary + '12' }}
+                    onClick={() => openCustomizationModal(item)}>
                     {item.imageUrl
                       ? <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-14 h-14 object-cover rounded-xl flex-shrink-0" />
                       : <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
@@ -637,8 +638,9 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
                   if (isGridForTakeaway) {
                     return (
-                      <div key={item._id} className="border overflow-hidden"
-                        style={{ borderColor: primary + '20', borderRadius: borderStyle }}>
+                      <div key={item._id} className="border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+                        style={{ borderColor: primary + '20', borderRadius: borderStyle }}
+                        onClick={() => openCustomizationModal(item, catGroups)}>
                         {item.imageUrl && (
                           <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-28 object-cover" />
                         )}
@@ -669,8 +671,9 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
                   return (
                     <div key={item._id}
-                      className="flex items-center gap-3 py-3 border-b"
-                      style={{ borderColor: primary + '12' }}>
+                      className="flex items-center gap-3 py-3 border-b cursor-pointer active:scale-[0.99] transition-transform"
+                      style={{ borderColor: primary + '12' }}
+                      onClick={() => openCustomizationModal(item, catGroups)}>
                       {item.imageUrl
                         ? <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-16 h-16 object-cover rounded-xl flex-shrink-0" />
                         : <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -991,7 +994,7 @@ function CartControl({
           </span>
         )}
         <button
-          onClick={() => onOpenModal(item)}
+          onClick={(e) => { e.stopPropagation(); onOpenModal(item); }}
           className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0`}
           style={{ backgroundColor: primary, color: bg }}>
           <Plus size={sz} />
@@ -1006,13 +1009,13 @@ function CartControl({
   if (plainEntry) {
     return (
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button onClick={() => onRemove(plainId)}
+        <button onClick={(e) => { e.stopPropagation(); onRemove(plainId); }}
           className={`${btnSz} rounded-full flex items-center justify-center`}
           style={{ backgroundColor: primary + '20', color: primary }}>
           <Minus size={sz} />
         </button>
         <span className="text-sm font-bold w-4 text-center">{plainEntry.quantity}</span>
-        <button onClick={() => onAdd(item)}
+        <button onClick={(e) => { e.stopPropagation(); onAdd(item); }}
           className={`${btnSz} rounded-full flex items-center justify-center`}
           style={{ backgroundColor: primary, color: bg }}>
           <Plus size={sz} />
@@ -1022,7 +1025,7 @@ function CartControl({
   }
 
   return (
-    <button onClick={() => onAdd(item)}
+    <button onClick={(e) => { e.stopPropagation(); onAdd(item); }}
       className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0`}
       style={{ backgroundColor: primary, color: bg }}>
       <Plus size={sz} />
