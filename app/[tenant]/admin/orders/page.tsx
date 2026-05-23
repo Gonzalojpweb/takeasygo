@@ -47,10 +47,10 @@ export default async function OrdersPage() {
 
   const now = new Date()
   const [orders, locations, load30m, load60m] = await Promise.all([
-    Order.find({ tenantId }).sort({ createdAt: -1 }).limit(50).lean(),
+    Order.find({ tenantId, status: { $ne: 'awaiting_payment' } }).sort({ createdAt: -1 }).limit(50).lean(),
     Location.find({ tenantId }).lean(),
-    Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] }, createdAt: { $gte: new Date(now.getTime() - 30 * 60 * 1000) } }),
-    Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] }, createdAt: { $gte: new Date(now.getTime() - 60 * 60 * 1000) } }),
+    Order.countDocuments({ tenantId, status: { $nin: ['awaiting_payment', 'cancelled'] }, createdAt: { $gte: new Date(now.getTime() - 30 * 60 * 1000) } }),
+    Order.countDocuments({ tenantId, status: { $nin: ['awaiting_payment', 'cancelled'] }, createdAt: { $gte: new Date(now.getTime() - 60 * 60 * 1000) } }),
   ])
 
   const locationMap = Object.fromEntries(

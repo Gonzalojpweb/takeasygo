@@ -28,6 +28,11 @@ export const authConfig = {
             existingUser.image = user.image
             await existingUser.save()
           }
+          // Update name from Google if user had no name
+          if (user.name && !existingUser.name) {
+            existingUser.name = user.name
+            await existingUser.save()
+          }
         }
       }
       return true
@@ -42,6 +47,7 @@ export const authConfig = {
         token.assignedLocations = (user as any).assignedLocations || []
         token.assignedTenants = (user as any).assignedTenants || []
         token.image = user.image
+        token.name = user.name || token.name
       } 
       else if (token.email) {
         const { connectDB } = await import('@/lib/mongoose')
@@ -57,6 +63,7 @@ export const authConfig = {
           token.assignedLocation = dbUser.assignedLocation?.toString() || null
           token.assignedLocations = dbUser.assignedLocations?.map((id: any) => id.toString()) || []
           token.assignedTenants = dbUser.assignedTenants?.map((id: any) => id.toString()) || []
+          token.name = dbUser.name || token.name
           
           if (dbUser.tenantId) {
             const tenant = await Tenant.findById(dbUser.tenantId).select('slug').lean<{ slug: string }>()
@@ -76,6 +83,7 @@ export const authConfig = {
         session.user.assignedLocations = token.assignedLocations as string[]
         session.user.assignedTenants = token.assignedTenants as string[]
         session.user.image = token.image as string | null
+        session.user.name = token.name as string | null
       }
       return session
     },

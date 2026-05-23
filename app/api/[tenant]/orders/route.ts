@@ -573,19 +573,21 @@ export async function POST(
       }
     } else {
       // SI NO ESTÁ UNIÉNDOSE (porque ya es miembro o no quiere), 
-      // pero está autenticado, intentamos vincular su userId al miembro existente por email.
+      // pero está autenticado, intentamos vincular su userId al miembro existente por email o phone.
       const session = await auth()
       if (session?.user?.email) {
         const user = await User.findOne({ email: session.user.email }).select('_id').lean()
         if (user) {
-          await LoyaltyMember.updateOne(
-            { 
-              tenantId: tenant._id, 
-              email: session.user.email.toLowerCase().trim(), 
-              userId: null 
-            },
-            { $set: { userId: user._id } }
-          ).catch(() => {})
+          const linkQuery: any = {
+            tenantId: tenant._id,
+            userId: null,
+            $or: [{ email: session.user.email.toLowerCase().trim() }],
+          }
+          // Si hay phone, también buscar por phoneHash
+          if (body.customer.phone) {
+            linkQuery.$or.push({ phoneHash: hashPhone(body.customer.phone) })
+          }
+          await LoyaltyMember.updateOne(linkQuery, { $set: { userId: user._id } }).catch(() => {})
         }
       }
     }

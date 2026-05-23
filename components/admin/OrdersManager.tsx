@@ -87,17 +87,19 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [doRefresh])
 
-  // Detectar nuevos pedidos pendientes → sonido (loop) + toast
-  // El loop se detiene cuando el admin confirma TODAS las pendientes nuevas
+  // Detectar nuevos pedidos (pending o confirmed) → sonido (loop) + toast
+  // El loop se detiene cuando el admin procesa TODAS las órdenes nuevas
   useEffect(() => {
     const incoming = orders.filter(o => !knownIdsRef.current.has(o._id))
     const newPending = incoming.filter(o => o.status === 'pending')
-    if (newPending.length > 0) {
+    const newConfirmed = incoming.filter(o => o.status === 'confirmed')
+    const newOrders = [...newPending, ...newConfirmed]
+    if (newOrders.length > 0) {
       playSound(true)  // loop ON
-      newPending.forEach(o => ringingIdsRef.current.add(o._id))
-      setNewOrderIds(prev => new Set([...prev, ...newPending.map(o => o._id)]))
-      toast(`🛍️ ${newPending.length === 1 ? 'Nuevo pedido' : `${newPending.length} nuevos pedidos`}`, {
-        description: newPending.map(o => `#${o.orderNumber} · ${o.customer.name}`).join(' — '),
+      newOrders.forEach(o => ringingIdsRef.current.add(o._id))
+      setNewOrderIds(prev => new Set([...prev, ...newOrders.map(o => o._id)]))
+      toast(`🛍️ ${newOrders.length === 1 ? 'Nuevo pedido' : `${newOrders.length} nuevos pedidos`}`, {
+        description: newOrders.map(o => `#${o.orderNumber} · ${o.customer.name}`).join(' — '),
         duration: 8000,
         position: 'top-center',
       })
@@ -105,17 +107,19 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
       setTimeout(() => {
         setNewOrderIds(prev => {
           const next = new Set(prev)
-          newPending.forEach(o => next.delete(o._id))
+          newOrders.forEach(o => next.delete(o._id))
           return next
         })
       }, 8000)
     }
     knownIdsRef.current = new Set(orders.map(o => o._id))
 
-    // Detener loop si todas las órdenes sonando fueron confirmadas
+    // Detener loop si todas las órdenes sonando fueron procesadas
     if (ringingIdsRef.current.size > 0) {
-      const stillPending = new Set(orders.filter(o => o.status === 'pending').map(o => o._id))
-      const stillRinging = new Set([...ringingIdsRef.current].filter(id => stillPending.has(id)))
+      const stillUnprocessed = new Set(
+        orders.filter(o => o.status === 'pending' || o.status === 'confirmed').map(o => o._id)
+      )
+      const stillRinging = new Set([...ringingIdsRef.current].filter(id => stillUnprocessed.has(id)))
       if (stillRinging.size === 0) {
         stopSound()
       }

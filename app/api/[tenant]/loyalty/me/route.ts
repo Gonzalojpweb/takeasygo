@@ -55,10 +55,29 @@ export async function GET(
     }
 
     // Buscar membresía del usuario en este tenant
-    const member = await LoyaltyMember.findOne({
+    let member = await LoyaltyMember.findOne({
       userId: user._id,
       tenantId: tenant._id
     }).lean()
+
+    // Fallback: si no se encontró por userId (ej: se registró en checkout sin auth),
+    // buscar por email y linkear automáticamente
+    if (!member) {
+      const emailLower = session.user.email.toLowerCase().trim()
+      member = await LoyaltyMember.findOne({
+        email: emailLower,
+        tenantId: tenant._id
+      }).lean()
+
+      if (member) {
+        // Linkear userId al member existente para que próximas búsquedas por userId funcionen
+        await LoyaltyMember.updateOne(
+          { _id: member._id },
+          { $set: { userId: user._id } }
+        )
+        member.userId = user._id
+      }
+    }
 
     if (!member) {
       return NextResponse.json({
