@@ -127,6 +127,11 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [memberPoints, setMemberPoints] = useState(0)
+  const [promoItemSelection, setPromoItemSelection] = useState<{
+    promo: any
+    items: any[]
+    completedItemIds: string[]
+  } | null>(null)
 
   useEffect(() => {
     fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=${mode}`)
@@ -260,59 +265,104 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   }
 
   function addPromotionToCart(promotion: any) {
-    // If promotion has linked item with customizations/variants, open customization modal
-    if (promotion.linkedItem && (promotion.linkedItem.customizationGroups?.length > 0 || promotion.linkedItem.variants?.length > 0)) {
-      openCustomizationModal({
-        ...promotion.linkedItem,
-        _promotionId: promotion._id,
-        _promotionTitle: promotion.title,
-        price: promotion.price,
-        basePrice: promotion.price,
-        isPromotion: true,
-        // All variants use the promotion's fixed price (not the menu item's price)
-        variants: (promotion.linkedItem.variants ?? []).map((v: any) => ({
-          ...v,
+    // Determine linked items: nuevo array linkedItems o legacy linkedItem
+    const linkedItems = promotion.linkedItems || (promotion.linkedItem ? [promotion.linkedItem] : [])
+    const itemsWithCustomizations = linkedItems.filter(
+      (li: any) => (li.customizationGroups?.length ?? 0) > 0 || (li.variants?.length ?? 0) > 0
+    )
+
+    if (itemsWithCustomizations.length === 0) {
+      // Sin customizaciones — agregar directo
+      const promoId = `promo:${promotion._id}`
+      setCart(prev => {
+        const existing = prev.find(i => i.cartItemId === promoId)
+        if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
+        return [...prev, {
+          cartItemId: promoId,
+          promotionId: promotion._id,
+          name: promotion.title,
+          basePrice: promotion.price,
+          extraPrice: 0,
           price: promotion.price,
-          takeawayPrice: promotion.price,
-        })),
+          quantity: 1,
+          customizations: [],
+          customizationSummary: '',
+          addedFrom: 'menu',
+          type: 'promotion',
+        }]
       })
+      toast.success(`${promotion.title} agregado al pedido`)
       return
     }
-    const promoId = `promo:${promotion._id}`
-    setCart(prev => {
-      const existing = prev.find(i => i.cartItemId === promoId)
-      if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
-      return [...prev, {
-        cartItemId: promoId,
-        promotionId: promotion._id,
-        name: promotion.title,
-        basePrice: promotion.price,
-        extraPrice: 0,
-        price: promotion.price,
-        quantity: 1,
-        customizations: [],
-        customizationSummary: '',
-        addedFrom: 'menu',
-        type: 'promotion',
-      }]
+
+    // Un solo item — abrir modal de customización directamente
+    if (itemsWithCustomizations.length === 1) {
+      const item = itemsWithCustomizations[0]
+      openCustomizationModal(buildPromoCustomizationItem(item, promotion))
+      return
+    }
+
+    // Múltiples items — mostrar selector con info de la promo
+    setPromoItemSelection({
+      promo: promotion,
+      items: itemsWithCustomizations,
+      completedItemIds: [],
     })
-    toast.success(`${promotion.title} agregado al pedido`)
+  }
+
+  function buildPromoCustomizationItem(item: any, promotion: any) {
+    return {
+      ...item,
+      _promotionId: promotion._id,
+      _promotionTitle: promotion.title,
+      _promotionDescription: promotion.description || '',
+      _promotionShortDescription: promotion.shortDescription || '',
+      _itemName: item.name,
+      _itemCategoryName: item.categoryName || '',
+      price: promotion.price,
+      basePrice: promotion.price,
+      isPromotion: true,
+      variants: (item.variants ?? []).map((v: any) => ({
+        ...v,
+        price: promotion.price,
+        takeawayPrice: promotion.price,
+      })),
+    }
   }
 
   function handleConfirmCustomization(cartItem: CartItem) {
-    // If it's a promotion item going through customization, add with promotion context
     if ((cartItem as any).isPromotion) {
+      const promoId = (cartItem as any)._promotionId
+      const itemName = (cartItem as any)._itemName || ''
+      const uniqueId = `promo:${promoId}:${itemName.replace(/\s+/g, '_') || Date.now()}`
+      // Incluir nombre del item en el summary para que viaje hasta la DB y el print agent
+      const enrichedSummary = itemName && cartItem.customizationSummary
+        ? `${itemName} · ${cartItem.customizationSummary}`
+        : itemName || cartItem.customizationSummary || ''
       const taggedItem: CartItem = {
         ...cartItem,
-        cartItemId: `promo:${(cartItem as any)._promotionId}`,
-        promotionId: (cartItem as any)._promotionId,
+        cartItemId: uniqueId,
+        promotionId: promoId,
         name: (cartItem as any)._promotionTitle,
+        customizationSummary: enrichedSummary,
         type: 'promotion',
         addedFrom: 'menu',
       }
-      setCart(prev => [...prev, taggedItem])
+      setCart(prev => {
+        const existing = prev.find(i => i.cartItemId === uniqueId)
+        if (existing) return prev.map(i => i.cartItemId === uniqueId ? { ...i, quantity: i.quantity + 1 } : i)
+        return [...prev, taggedItem]
+      })
       setCustomizingItem(null)
-      toast.success(`${taggedItem.name} agregado al pedido`)
+      // Keep picker open for multi-item selection — mark item as completed
+      if (promoItemSelection) {
+        const itemId = (cartItem as any)._id || itemName
+        setPromoItemSelection(prev => prev ? {
+          ...prev,
+          completedItemIds: [...prev.completedItemIds, itemId],
+        } : null)
+      }
+      toast.success(`${itemName} agregado a ${(cartItem as any)._promotionTitle}`)
       return
     }
     const taggedItem: CartItem = upsellModalRef.current
@@ -928,12 +978,29 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm truncate block">{item.name}</span>
-                      {item.customizationSummary && (
+                      <div className="flex items-center gap-1.5">
+                        {item.type === 'promotion' && (
+                          <span className="text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded leading-none"
+                            style={{ backgroundColor: primary + '20', color: primary }}>
+                            Promo
+                          </span>
+                        )}
+                        <span className="text-sm truncate block">{item.name}</span>
+                      </div>
+                      {(item as any)._promotionShortDescription && (
+                        <span className="text-[10px] opacity-40 truncate block italic">{(item as any)._promotionShortDescription}</span>
+                      )}
+                      {(item as any)._itemName && item.customizationSummary && (
+                        <span className="text-xs opacity-50 truncate block">{(item as any)._itemName} · {item.customizationSummary}</span>
+                      )}
+                      {!(item as any)._itemName && item.customizationSummary && (
                         <span className="text-xs opacity-50 truncate block">{item.customizationSummary}</span>
                       )}
-                      {item.selectedVariant && !item.customizationSummary && (
+                      {!item.customizationSummary && item.selectedVariant && (
                         <span className="text-xs opacity-50 truncate block">{item.selectedVariant.name}</span>
+                      )}
+                      {(item as any)._itemName && !item.customizationSummary && !item.selectedVariant && (
+                        <span className="text-xs opacity-50 truncate block">{(item as any)._itemName}</span>
                       )}
                     </div>
                   </div>
@@ -956,6 +1023,99 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
           </div>
         </div>
       )}
+      {/* ── Promo item picker ── */}
+      {promoItemSelection && (() => {
+        const { promo, items, completedItemIds } = promoItemSelection
+        // Agrupar items por categoría
+        const grouped: Record<string, any[]> = {}
+        for (const it of items) {
+          const cat = it.categoryName || 'Productos'
+          if (!grouped[cat]) grouped[cat] = []
+          grouped[cat].push(it)
+        }
+        const totalCompleted = completedItemIds.length
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setPromoItemSelection(null)} />
+            <div className="relative bg-background rounded-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-6 border border-border">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg">{promo.title}</h3>
+                  {promo.shortDescription && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{promo.shortDescription}</p>
+                  )}
+                  {promo.description && (
+                    <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-2">{promo.description}</p>
+                  )}
+                </div>
+                <button onClick={() => setPromoItemSelection(null)} className="opacity-40 hover:opacity-70 ml-2 shrink-0">
+                  <X size={20} />
+                </button>
+              </div>
+              {totalCompleted > 0 && (
+                <div className="mb-3 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">
+                  {totalCompleted} producto{totalCompleted !== 1 ? 's' : ''} agregado{totalCompleted !== 1 ? 's' : ''} — podés seguir eligiendo
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mb-3 font-medium">Elegí los productos que querés incluir:</p>
+              <div className="space-y-3">
+                {Object.entries(grouped).map(([catName, catItems]) => (
+                  <div key={catName}>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1.5">{catName}</p>
+                    <div className="space-y-1.5">
+                      {catItems.map((it: any) => {
+                        const itemId = it._id || it.name
+                        const isCompleted = completedItemIds.includes(itemId)
+                        return (
+                          <button
+                            key={itemId}
+                            type="button"
+                            disabled={isCompleted}
+                            onClick={() => {
+                              openCustomizationModal(buildPromoCustomizationItem(it, promo))
+                            }}
+                            className={
+                              'w-full text-left p-3 rounded-xl border transition-all ' +
+                              (isCompleted
+                                ? 'border-emerald-200 bg-emerald-50 opacity-60'
+                                : 'border-border hover:border-primary/50 hover:bg-muted/30')
+                            }
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold flex-1">{it.name}</span>
+                              {isCompleted && (
+                                <span className="text-emerald-600 text-[10px] font-bold">✓ Agregado</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs font-bold text-primary">${promo.price}</span>
+                              {it.variants?.length > 0 && (
+                                <span className="text-[10px] text-muted-foreground">{it.variants.length} var</span>
+                              )}
+                              {it.customizationGroups?.length > 0 && (
+                                <span className="text-[10px] text-muted-foreground">{it.customizationGroups.length} pers</span>
+                              )}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPromoItemSelection(null)}
+                className="w-full mt-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm"
+                style={primary ? { backgroundColor: primary } : {}}
+              >
+                {totalCompleted > 0 ? 'Listo, ir al pedido' : 'Cancelar'}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── Geofence feedback ── */}
       <GeofenceFeedback tenantSlug={tenant.slug} />
     </div>

@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import type { ICustomizationGroup } from './Menu'
 
 export type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
 
@@ -33,9 +34,15 @@ export interface IPromotion {
   maxRedemptions?: number
   redemptionsCount: number
   sortOrder: number
-  /** Menú item vinculado del cual heredar variants y customizationGroups */
+  /** Categorías del menú vinculadas — hereda todos sus items + customizaciones de categoría */
+  linkedCategoryIds?: mongoose.Types.ObjectId[]
+  /** Items específicos vinculados (para control fino fuera de categorías) */
+  linkedItemIds?: mongoose.Types.ObjectId[]
+  /** Customizaciones extra que el admin define, se mergean con las heredadas */
+  overrideCustomizationGroups?: ICustomizationGroup[]
+  /** @deprecated Usar linkedCategoryIds/linkedItemIds + overrideCustomizationGroups */
   linkedMenuItemId?: mongoose.Types.ObjectId
-  /** Snapshot del linked item al momento de crear la promo (protege contra cambios futuros en el menú) */
+  /** @deprecated Usar overrideCustomizationGroups */
   linkedItemSnapshot?: {
     name: string
     variants: any[]
@@ -153,6 +160,19 @@ const PromotionSchema = new Schema<IPromotion>(
       type: Number,
       default: 0,
     },
+    linkedCategoryIds: {
+      type: [Schema.Types.ObjectId],
+      default: [],
+    },
+    linkedItemIds: {
+      type: [Schema.Types.ObjectId],
+      default: [],
+    },
+    overrideCustomizationGroups: {
+      type: [Schema.Types.Mixed],
+      default: [],
+    },
+    // deprecated — mantenido para backward compat
     linkedMenuItemId: {
       type: Schema.Types.ObjectId,
       default: null,

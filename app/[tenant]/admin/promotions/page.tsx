@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import Promotion from '@/models/Promotion'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
@@ -21,6 +22,10 @@ export default async function PromotionsPage() {
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
   if (!tenant) notFound()
 
+  const locations = await Location.find({ tenantId: (tenant as any)._id, isActive: true })
+    .select('name address')
+    .lean()
+
   const promotions = await Promotion.find({ tenantId: (tenant as any)._id })
     .sort({ sortOrder: 1, createdAt: -1 })
     .lean()
@@ -30,6 +35,7 @@ export default async function PromotionsPage() {
       <h1 className="text-white text-2xl font-bold mb-6">Promociones</h1>
       <PromotionsManager
         tenantSlug={tenantSlug || ''}
+        locations={JSON.parse(JSON.stringify(locations))}
         promotions={JSON.parse(JSON.stringify(promotions))}
       />
     </div>

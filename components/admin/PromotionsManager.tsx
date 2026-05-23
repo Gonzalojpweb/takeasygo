@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { 
-  Plus, Edit2, Trash2, Eye, EyeOff, Star, 
-  Tag, Upload, Palette, X, DollarSign, 
-  Info, Megaphone, Heart, Search, ChevronDown,
+import {
+  Plus, Edit2, Trash2, Eye, EyeOff, Star,
+  Tag, Upload, Palette, X, DollarSign,
+  Info, Megaphone, Heart, Search, ChevronDown, ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,19 @@ import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
+
+interface Location {
+  _id: string
+  name: string
+  address?: string
+}
+
+interface OverrideGroup {
+  name: string
+  type: 'single' | 'multiple'
+  required: boolean
+  options: { name: string; extraPrice: number; subGroups?: any[] }[]
+}
 
 interface Promotion {
   _id: string
@@ -47,7 +60,13 @@ interface Promotion {
   maxRedemptions?: number
   redemptionsCount: number
   sortOrder: number
+  locationId?: string
+  linkedCategoryIds?: string[]
+  linkedItemIds?: string[]
+  overrideCustomizationGroups?: OverrideGroup[]
+  /** @deprecated */
   linkedMenuItemId?: string
+  /** @deprecated */
   linkedItemSnapshot?: {
     name: string
     variants: any[]
@@ -55,22 +74,35 @@ interface Promotion {
   }
 }
 
+interface MenuCategory {
+  _id: string
+  name: string
+  items: { _id: string; name: string; variants: any[]; customizationGroups: any[] }[]
+  customizationGroups: any[]
+}
+
 interface Props {
   tenantSlug: string
+  locations: Location[]
   promotions: Promotion[]
 }
 
 type CardStyle = 'modern' | 'classic' | 'minimal'
 
-export default function PromotionsManager({ tenantSlug, promotions: initialPromotions }: Props) {
+export default function PromotionsManager({ tenantSlug, locations, promotions: initialPromotions }: Props) {
   const [promotions, setPromotions] = useState<Promotion[]>(initialPromotions)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [uploading, setUploading] = useState(false)
-  const [menuItems, setMenuItems] = useState<{ id: string; name: string; category: string }[]>([])
-  const [itemSearch, setItemSearch] = useState('')
+
+  // Locations & menu
+  const [selectedLocation, setSelectedLocation] = useState(locations[0]?._id || '')
+  const [categories, setCategories] = useState<MenuCategory[]>([])
+  const [menuLoading, setMenuLoading] = useState(false)
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [categorySearch, setCategorySearch] = useState('')
 
   const [form, setForm] = useState({
     type: 'sale' as PromotionType,
@@ -91,12 +123,10 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
     scheduledStart: '',
     scheduledEnd: '',
     maxRedemptions: '',
-    linkedMenuItemId: '',
-    linkedItemSnapshot: null as {
-      name: string
-      variants: any[]
-      customizationGroups: any[]
-    } | null,
+    locationId: locations[0]?._id || '',
+    linkedCategoryIds: [] as string[],
+    linkedItemIds: [] as string[],
+    overrideCustomizationGroups: [] as OverrideGroup[],
     customStyles: {
       backgroundColor: '#1a1a1a',
       textColor: '#ffffff',
@@ -107,26 +137,34 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
     },
   })
 
-  // Fetch menu items when modal opens for sale promotions
+  // Fetch menu categories when modal opens for sale promotions
   useEffect(() => {
-    if (isModalOpen && form.type === 'sale') {
-      fetch(`/api/${tenantSlug}/menu`)
-        .then(r => r.json())
+    if (isModalOpen && form.type === 'sale' && form.locationId) {
+      setMenuLoading(true)
+      fetch(`/api/${tenantSlug}/menu?locationId=${form.locationId}`)
+        .then(r => r.ok ? r.json() : { menu: { categories: [] } })
         .then(data => {
-          const items: { id: string; name: string; category: string }[] = []
-          for (const cat of data.categories ?? []) {
-            for (const item of cat.items ?? []) {
-              items.push({ id: item._id, name: item.name, category: cat.name })
-            }
-          }
-          setMenuItems(items)
+          const cats = (data.menu?.categories ?? []).map((cat: any) => ({
+            _id: cat._id,
+            name: cat.name,
+            items: (cat.items ?? []).map((item: any) => ({
+              _id: item._id,
+              name: item.name,
+              variants: item.variants ?? [],
+              customizationGroups: item.customizationGroups ?? [],
+            })),
+            customizationGroups: cat.customizationGroups ?? [],
+          }))
+          setCategories(cats)
         })
         .catch(() => {})
+        .finally(() => setMenuLoading(false))
     } else {
-      setMenuItems([])
-      setItemSearch('')
+      setCategories([])
+      setCategorySearch('')
+      setExpandedCategories(new Set())
     }
-  }, [isModalOpen, form.type, tenantSlug])
+  }, [isModalOpen, form.type, form.locationId, tenantSlug])
 
   const filteredPromotions = promotions.filter(p => {
     if (filter === 'active') return p.isActive
@@ -134,20 +172,133 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
     return true
   })
 
+  const filteredCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(categorySearch.toLowerCase()) ||
+    cat.items.some(item => item.name.toLowerCase().includes(categorySearch.toLowerCase()))
+  )
+
+  function toggleCategory(catId: string) {
+    setExpandedCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(catId)) next.delete(catId)
+      else next.add(catId)
+      return next
+    })
+  }
+
+  function isCategorySelected(catId: string) {
+    return form.linkedCategoryIds.includes(catId)
+  }
+
+  function isItemSelected(itemId: string) {
+    return form.linkedItemIds.includes(itemId)
+  }
+
+  function toggleCategorySelection(catId: string) {
+    setForm(prev => {
+      const ids = prev.linkedCategoryIds.includes(catId)
+        ? prev.linkedCategoryIds.filter(id => id !== catId)
+        : [...prev.linkedCategoryIds, catId]
+      return { ...prev, linkedCategoryIds: ids }
+    })
+  }
+
+  function toggleItemSelection(itemId: string) {
+    setForm(prev => {
+      const ids = prev.linkedItemIds.includes(itemId)
+        ? prev.linkedItemIds.filter(id => id !== itemId)
+        : [...prev.linkedItemIds, itemId]
+      return { ...prev, linkedItemIds: ids }
+    })
+  }
+
+  function getTotalLinkedItems(): number {
+    let count = 0
+    for (const cat of categories) {
+      if (form.linkedCategoryIds.includes(cat._id)) {
+        count += cat.items.length
+      }
+    }
+    count += form.linkedItemIds.filter(itemId =>
+      !categories.some(cat =>
+        form.linkedCategoryIds.includes(cat._id) && cat.items.some(i => i._id === itemId)
+      )
+    ).length
+    return count
+  }
+
+  // Override customization groups management
+  function addOverrideGroup() {
+    setForm(prev => ({
+      ...prev,
+      overrideCustomizationGroups: [
+        ...prev.overrideCustomizationGroups,
+        { name: '', type: 'single', required: false, options: [] },
+      ],
+    }))
+  }
+
+  function removeOverrideGroup(index: number) {
+    setForm(prev => ({
+      ...prev,
+      overrideCustomizationGroups: prev.overrideCustomizationGroups.filter((_, i) => i !== index),
+    }))
+  }
+
+  function updateOverrideGroup(index: number, field: keyof OverrideGroup, value: any) {
+    setForm(prev => {
+      const groups = [...prev.overrideCustomizationGroups]
+      groups[index] = { ...groups[index], [field]: value }
+      return { ...prev, overrideCustomizationGroups: groups }
+    })
+  }
+
+  function addOverrideOption(groupIndex: number) {
+    setForm(prev => {
+      const groups = [...prev.overrideCustomizationGroups]
+      groups[groupIndex] = {
+        ...groups[groupIndex],
+        options: [...groups[groupIndex].options, { name: '', extraPrice: 0 }],
+      }
+      return { ...prev, overrideCustomizationGroups: groups }
+    })
+  }
+
+  function removeOverrideOption(groupIndex: number, optionIndex: number) {
+    setForm(prev => {
+      const groups = [...prev.overrideCustomizationGroups]
+      groups[groupIndex] = {
+        ...groups[groupIndex],
+        options: groups[groupIndex].options.filter((_, i) => i !== optionIndex),
+      }
+      return { ...prev, overrideCustomizationGroups: groups }
+    })
+  }
+
+  function updateOverrideOption(groupIndex: number, optionIndex: number, field: string, value: any) {
+    setForm(prev => {
+      const groups = [...prev.overrideCustomizationGroups]
+      const options = [...groups[groupIndex].options]
+      options[optionIndex] = { ...options[optionIndex], [field]: value }
+      groups[groupIndex] = { ...groups[groupIndex], options }
+      return { ...prev, overrideCustomizationGroups: groups }
+    })
+  }
+
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     setUploading(true)
     try {
       const formData = new FormData()
       formData.append('file', file)
-      
+
       const res = await fetch(`/api/${tenantSlug}/upload`, {
         method: 'POST',
         body: formData,
       })
-      
+
       if (!res.ok) throw new Error()
       const data = await res.json()
       setForm(prev => ({ ...prev, imageUrl: data.url }))
@@ -180,8 +331,10 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
       scheduledStart: '',
       scheduledEnd: '',
       maxRedemptions: '',
-      linkedMenuItemId: '',
-      linkedItemSnapshot: null,
+      locationId: selectedLocation,
+      linkedCategoryIds: [],
+      linkedItemIds: [],
+      overrideCustomizationGroups: [],
       customStyles: {
         backgroundColor: '#1a1a1a',
         textColor: '#ffffff',
@@ -196,6 +349,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
 
   function openEditModal(promotion: Promotion) {
     setEditingPromotion(promotion)
+    setSelectedLocation(promotion.locationId || locations[0]?._id || '')
     setForm({
       type: promotion.type || 'sale',
       title: promotion.title,
@@ -215,8 +369,10 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
       scheduledStart: promotion.scheduledStart ? promotion.scheduledStart.split('T')[0] : '',
       scheduledEnd: promotion.scheduledEnd ? promotion.scheduledEnd.split('T')[0] : '',
       maxRedemptions: promotion.maxRedemptions?.toString() || '',
-      linkedMenuItemId: promotion.linkedMenuItemId || '',
-      linkedItemSnapshot: promotion.linkedItemSnapshot || null,
+      locationId: promotion.locationId || locations[0]?._id || '',
+      linkedCategoryIds: promotion.linkedCategoryIds || [],
+      linkedItemIds: promotion.linkedItemIds || [],
+      overrideCustomizationGroups: promotion.overrideCustomizationGroups || [],
       customStyles: {
         backgroundColor: promotion.customStyles?.backgroundColor || '#1a1a1a',
         textColor: promotion.customStyles?.textColor || '#ffffff',
@@ -232,34 +388,19 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
   async function handleSave() {
     setLoading(true)
     try {
-      // If linkedMenuItemId is set but no snapshot, fetch the item to create the snapshot
-      let linkedItemSnapshot = form.linkedItemSnapshot
-      if (form.linkedMenuItemId && !linkedItemSnapshot) {
-        try {
-          const res = await fetch(`/api/${tenantSlug}/menu/items/${form.linkedMenuItemId}`)
-          if (res.ok) {
-            const data = await res.json()
-            linkedItemSnapshot = {
-              name: data.item.name,
-              variants: data.item.variants ?? [],
-              customizationGroups: data.item.customizationGroups ?? [],
-            }
-          }
-        } catch {}
-      }
-
-      const payload: any = { ...form }
+      // Clean up deprecated fields — never send them on save
+      const formAny = form as any
+      const { linkedMenuItemId: _a, linkedItemSnapshot: _b, ...cleanForm } = formAny
+      const payload: any = { ...cleanForm }
       payload.originalPrice = payload.originalPrice ? parseFloat(payload.originalPrice) : null
       payload.maxRedemptions = payload.maxRedemptions ? parseInt(payload.maxRedemptions) : null
       payload.scheduledStart = payload.scheduledStart ? new Date(payload.scheduledStart) : null
       payload.scheduledEnd = payload.scheduledEnd ? new Date(payload.scheduledEnd) : null
-      payload.linkedMenuItemId = payload.linkedMenuItemId || null
-      payload.linkedItemSnapshot = linkedItemSnapshot
 
-      const url = editingPromotion 
+      const url = editingPromotion
         ? `/api/${tenantSlug}/promotions/${editingPromotion._id}`
         : `/api/${tenantSlug}/promotions`
-      
+
       const method = editingPromotion ? 'PUT' : 'POST'
 
       const res = await fetch(url, {
@@ -345,8 +486,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                 onClick={() => setFilter(f)}
                 className={cn(
                   'px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all',
-                  filter === f 
-                    ? 'bg-white text-foreground shadow-sm' 
+                  filter === f
+                    ? 'bg-white text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
@@ -374,7 +515,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPromotions.map(promotion => (
             <Card key={promotion._id} className="bg-card border-border/60 overflow-hidden group hover:border-primary/30 transition-all">
-                  {promotion.imageUrl && (
+              {promotion.imageUrl && (
                 <div className="aspect-video bg-muted relative overflow-hidden">
                   <img src={promotion.imageUrl} alt={promotion.title} className="w-full h-full object-cover" />
                   {promotion.isFeatured && (
@@ -403,9 +544,9 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                         promotion.type === 'loyalty' && 'bg-emerald-500/10 text-emerald-500',
                       )}>
                         {promotion.type === 'sale' ? '💰 Venta' :
-                         promotion.type === 'info' ? 'ℹ️ Info' :
-                         promotion.type === 'announcement' ? '📢 Anuncio' :
-                         '⭐ Club'}
+                          promotion.type === 'info' ? 'ℹ️ Info' :
+                            promotion.type === 'announcement' ? '📢 Anuncio' :
+                              '⭐ Club'}
                       </span>
                       {promotion.isFeatured && (
                         <span className="text-yellow-500 text-[10px] font-black">★ Destacada</span>
@@ -468,17 +609,17 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   <Button size="sm" variant="ghost" className="flex-1" onClick={() => openEditModal(promotion)}>
                     <Edit2 size={14} className="mr-1" /> Editar
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     className={promotion.isActive ? 'text-amber-500' : 'text-emerald-500'}
                     onClick={() => handleToggleActive(promotion)}
                   >
                     {promotion.isActive ? <EyeOff size={14} /> : <Eye size={14} />}
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     className={promotion.isFeatured ? 'text-yellow-500' : 'text-muted-foreground'}
                     onClick={() => handleToggleFeatured(promotion)}
                   >
@@ -496,12 +637,12 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
 
       <AnimatePresence>
         {isModalOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             onClick={() => setIsModalOpen(false)}
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               className="bg-background border border-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
@@ -546,21 +687,21 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                 <div className="space-y-4">
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Título *</Label>
-                    <Input 
+                    <Input
                       value={form.title}
                       onChange={e => setForm({ ...form, title: e.target.value })}
                       placeholder={
                         form.type === 'sale' ? 'ej: 2x1 en Hamburgesas' :
-                        form.type === 'info' ? 'ej: Hoy cerramos a las 18hs' :
-                        form.type === 'announcement' ? 'ej: Nuevo menú de verano' :
-                        'ej: Unite al Club de Fidelización'
+                          form.type === 'info' ? 'ej: Hoy cerramos a las 18hs' :
+                            form.type === 'announcement' ? 'ej: Nuevo menú de verano' :
+                              'ej: Unite al Club de Fidelización'
                       }
                       className="mt-1.5"
                     />
                   </div>
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Descripción</Label>
-                    <Textarea 
+                    <Textarea
                       value={form.description}
                       onChange={e => setForm({ ...form, description: e.target.value })}
                       placeholder={form.type === 'sale' ? 'Descripción detallada de la promoción...' : 'Descripción del aviso...'}
@@ -570,7 +711,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   </div>
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Descripción Corta</Label>
-                    <Input 
+                    <Input
                       value={form.shortDescription}
                       onChange={e => setForm({ ...form, shortDescription: e.target.value })}
                       placeholder="ej: Válido solo días lunes"
@@ -589,8 +730,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                             <span className="text-sm font-medium">Seleccionar</span>
                           </>
                         )}
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*"
                           onChange={handleImageUpload}
                           disabled={uploading}
@@ -618,7 +759,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Texto del Botón</Label>
-                      <Input 
+                      <Input
                         value={form.ctaText}
                         onChange={e => setForm({ ...form, ctaText: e.target.value })}
                         placeholder={form.type === 'loyalty' ? 'ej: Unirme al Club' : 'ej: Ver más'}
@@ -628,7 +769,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     {form.type === 'announcement' && (
                       <div>
                         <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Link</Label>
-                        <Input 
+                        <Input
                           value={form.ctaLink}
                           onChange={e => setForm({ ...form, ctaLink: e.target.value })}
                           placeholder="ej: https://..."
@@ -639,7 +780,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     {form.type === 'loyalty' && (
                       <div>
                         <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Link (opcional)</Label>
-                        <Input 
+                        <Input
                           value={form.ctaLink}
                           onChange={e => setForm({ ...form, ctaLink: e.target.value })}
                           placeholder="ej: /explore/profile/club/{slug}"
@@ -655,7 +796,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Precio *</Label>
-                      <Input 
+                      <Input
                         type="number"
                         value={form.price}
                         onChange={e => setForm({ ...form, price: parseFloat(e.target.value) || 0 })}
@@ -664,7 +805,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     </div>
                     <div>
                       <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Precio Original</Label>
-                      <Input 
+                      <Input
                         type="number"
                         value={form.originalPrice}
                         onChange={e => setForm({ ...form, originalPrice: e.target.value })}
@@ -675,82 +816,262 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   </div>
                 )}
 
-                {/* Linked menu item (for sale promotions with customizations) */}
+                {/* ── Linked categories & items ── */}
                 {form.type === 'sale' && (
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">
-                      Producto vinculado <span className="font-normal normal-case tracking-normal text-muted-foreground/60">(opcional — hereda variantes y personalización)</span>
+                      Productos vinculados
+                      <span className="font-normal normal-case tracking-normal text-muted-foreground/60">
+                        {' '}(seleccioná categorías o items para heredar variantes y personalización)
+                      </span>
                     </Label>
-                    {form.linkedMenuItemId ? (
-                      <div className="flex items-center gap-2 p-3 rounded-xl border-2 border-emerald-200 bg-emerald-50">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-emerald-800 truncate">
-                            {form.linkedItemSnapshot?.name || 'Producto seleccionado'}
-                          </p>
-                          <p className="text-xs text-emerald-600">
-                            {form.linkedItemSnapshot ? `${form.linkedItemSnapshot.variants?.length ?? 0} variante(s) · ${form.linkedItemSnapshot.customizationGroups?.length ?? 0} grupo(s) de personalización` : ''}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setForm({ ...form, linkedMenuItemId: '', linkedItemSnapshot: null })}
-                          className="w-7 h-7 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 hover:bg-emerald-300 transition-colors"
+
+                    {/* Location selector */}
+                    {locations.length > 1 && (
+                      <div className="mb-3">
+                        <select
+                          value={form.locationId}
+                          onChange={e => setForm({ ...form, locationId: e.target.value, linkedCategoryIds: [], linkedItemIds: [] })}
+                          className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
                         >
-                          <X size={13} />
-                        </button>
+                          {locations.map(loc => (
+                            <option key={loc._id} value={loc._id}>{loc.name}</option>
+                          ))}
+                        </select>
                       </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="relative">
-                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            value={itemSearch}
-                            onChange={e => setItemSearch(e.target.value)}
-                            placeholder="Buscar producto del menú..."
-                            className="pl-9"
-                          />
-                        </div>
-                        {itemSearch.length > 0 && (
-                          <div className="max-h-48 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-                            {menuItems
-                              .filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase()))
-                              .slice(0, 20)
-                              .map(item => (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  onClick={async () => {
-                                    // Fetch full item data for snapshot
-                                    try {
-                                      const res = await fetch(`/api/${tenantSlug}/menu/items/${item.id}`)
-                                      if (res.ok) {
-                                        const data = await res.json()
-                                        setForm({
-                                          ...form,
-                                          linkedMenuItemId: item.id,
-                                          linkedItemSnapshot: {
-                                            name: data.item.name,
-                                            variants: data.item.variants ?? [],
-                                            customizationGroups: data.item.customizationGroups ?? [],
-                                          },
-                                        })
-                                        setItemSearch('')
-                                      }
-                                    } catch {}
-                                  }}
-                                  className="w-full text-left px-3 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
-                                >
-                                  <span className="text-muted-foreground text-xs">{item.category}</span>
-                                  <span className="ml-2">{item.name}</span>
-                                </button>
-                              ))}
-                            {menuItems.filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase())).length === 0 && (
-                              <p className="px-3 py-4 text-sm text-muted-foreground text-center">Sin resultados</p>
-                            )}
-                          </div>
+                    )}
+
+                    {/* Search */}
+                    <div className="relative mb-3">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={categorySearch}
+                        onChange={e => setCategorySearch(e.target.value)}
+                        placeholder="Buscar categoría o producto..."
+                        className="pl-9"
+                      />
+                    </div>
+
+                    {/* Summary of selected */}
+                    {getTotalLinkedItems() > 0 && (
+                      <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        <span className="text-sm font-bold text-emerald-600">
+                          {getTotalLinkedItems()} producto{getTotalLinkedItems() !== 1 ? 's' : ''} vinculado{getTotalLinkedItems() !== 1 ? 's' : ''}
+                        </span>
+                        {(form.linkedCategoryIds.length > 0 || form.linkedItemIds.length > 0) && (
+                          <button
+                            type="button"
+                            onClick={() => setForm({ ...form, linkedCategoryIds: [], linkedItemIds: [] })}
+                            className="text-xs text-emerald-600 underline ml-auto"
+                          >
+                            Limpiar
+                          </button>
                         )}
                       </div>
                     )}
+
+                    {/* Categories tree */}
+                    {menuLoading ? (
+                      <div className="text-center py-8 text-sm text-muted-foreground">Cargando menú...</div>
+                    ) : filteredCategories.length === 0 ? (
+                      <div className="text-center py-8 text-sm text-muted-foreground">
+                        {categorySearch ? 'Sin resultados' : 'No hay categorías disponibles'}
+                      </div>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto rounded-xl border border-border divide-y divide-border">
+                        {filteredCategories.map(cat => (
+                          <div key={cat._id}>
+                            {/* Category row */}
+                            <div className="flex items-center gap-2 px-3 py-2.5 hover:bg-muted/50 transition-colors">
+                              <button
+                                type="button"
+                                onClick={() => toggleCategorySelection(cat._id)}
+                                className={cn(
+                                  'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                                  isCategorySelected(cat._id)
+                                    ? 'bg-primary border-primary text-white'
+                                    : 'border-muted-foreground/30'
+                                )}
+                              >
+                                {isCategorySelected(cat._id) && <span className="text-[10px]">✓</span>}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleCategory(cat._id)}
+                                className="flex items-center gap-1 flex-1 text-left"
+                              >
+                                {expandedCategories.has(cat._id) ? (
+                                  <ChevronDown size={14} className="text-muted-foreground flex-shrink-0" />
+                                ) : (
+                                  <ChevronRight size={14} className="text-muted-foreground flex-shrink-0" />
+                                )}
+                                <span className="text-sm font-medium">{cat.name}</span>
+                                <span className="text-xs text-muted-foreground ml-1">({cat.items.length})</span>
+                              </button>
+                            </div>
+
+                            {/* Items within category */}
+                            {expandedCategories.has(cat._id) && (
+                              <div className="ml-8 border-l border-border/50 pl-2 pb-1">
+                                {cat.items.length === 0 ? (
+                                  <p className="px-3 py-2 text-xs text-muted-foreground">Sin productos</p>
+                                ) : (
+                                  cat.items.map(item => (
+                                    <div
+                                      key={item._id}
+                                      className="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors rounded-lg"
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleItemSelection(item._id)}
+                                        className={cn(
+                                          'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                                          isItemSelected(item._id)
+                                            ? 'bg-primary border-primary text-white'
+                                            : 'border-muted-foreground/30'
+                                        )}
+                                      >
+                                        {isItemSelected(item._id) && <span className="text-[8px]">✓</span>}
+                                      </button>
+                                      <span className="text-xs">{item.name}</span>
+                                      {(item.variants.length > 0 || item.customizationGroups.length > 0) && (
+                                        <span className="text-[10px] text-muted-foreground ml-auto">
+                                          {item.variants.length > 0 && `${item.variants.length} var`}
+                                          {item.variants.length > 0 && item.customizationGroups.length > 0 && ' · '}
+                                          {item.customizationGroups.length > 0 && `${item.customizationGroups.length} cust`}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Override customization groups ── */}
+                {form.type === 'sale' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">
+                        Customizaciones extra
+                        <span className="font-normal normal-case tracking-normal text-muted-foreground/60">
+                          {' '}(opcional — se agregan a las heredadas)
+                        </span>
+                      </Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={addOverrideGroup}
+                        className="text-xs"
+                      >
+                        <Plus size={12} className="mr-1" /> Agregar grupo
+                      </Button>
+                    </div>
+
+                    {form.overrideCustomizationGroups.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-3">
+                        Sin customizaciones extra. La promo usará las que hereda de los productos vinculados.
+                      </p>
+                    )}
+
+                    <div className="space-y-3">
+                      {form.overrideCustomizationGroups.map((group, gIdx) => (
+                        <div key={gIdx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-muted-foreground">Grupo #{gIdx + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeOverrideGroup(gIdx)}
+                              className="text-destructive text-xs hover:underline"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="col-span-2">
+                              <Label className="text-[10px] text-muted-foreground">Nombre</Label>
+                              <Input
+                                value={group.name}
+                                onChange={e => updateOverrideGroup(gIdx, 'name', e.target.value)}
+                                placeholder="ej: Tamaño"
+                                className="mt-0.5 h-8 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[10px] text-muted-foreground">Tipo</Label>
+                              <select
+                                value={group.type}
+                                onChange={e => updateOverrideGroup(gIdx, 'type', e.target.value)}
+                                className="w-full h-8 px-2 rounded-lg border border-border bg-background text-xs mt-0.5"
+                              >
+                                <option value="single">Single</option>
+                                <option value="multiple">Multiple</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={group.required}
+                                onChange={e => updateOverrideGroup(gIdx, 'required', e.target.checked)}
+                                className="rounded"
+                              />
+                              <span className="text-[10px] text-muted-foreground">Requerido</span>
+                            </label>
+                          </div>
+
+                          {/* Options */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-muted-foreground font-medium">Opciones</span>
+                              <button
+                                type="button"
+                                onClick={() => addOverrideOption(gIdx)}
+                                className="text-[10px] text-primary hover:underline"
+                              >
+                                + Agregar opción
+                              </button>
+                            </div>
+                            {group.options.map((opt, oIdx) => (
+                              <div key={oIdx} className="flex items-center gap-2">
+                                <Input
+                                  value={opt.name}
+                                  onChange={e => updateOverrideOption(gIdx, oIdx, 'name', e.target.value)}
+                                  placeholder="Nombre"
+                                  className="flex-1 h-7 text-xs"
+                                />
+                                <div className="relative w-20">
+                                  <Input
+                                    type="number"
+                                    value={opt.extraPrice}
+                                    onChange={e => updateOverrideOption(gIdx, oIdx, 'extraPrice', parseFloat(e.target.value) || 0)}
+                                    placeholder="+$"
+                                    className="h-7 text-xs pl-4"
+                                  />
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">$</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeOverrideOption(gIdx, oIdx)}
+                                  className="text-destructive hover:text-destructive/80"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -766,8 +1087,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                           onClick={() => setForm({ ...form, visibility: v })}
                           className={cn(
                             'flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all',
-                            form.visibility === v 
-                              ? 'border-primary bg-primary/10 text-primary' 
+                            form.visibility === v
+                              ? 'border-primary bg-primary/10 text-primary'
                               : 'border-border text-muted-foreground hover:border-primary/50'
                           )}
                         >
@@ -781,7 +1102,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Inicio</Label>
-                    <Input 
+                    <Input
                       type="date"
                       value={form.scheduledStart}
                       onChange={e => setForm({ ...form, scheduledStart: e.target.value })}
@@ -790,7 +1111,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                   </div>
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Fin</Label>
-                    <Input 
+                    <Input
                       type="date"
                       value={form.scheduledEnd}
                       onChange={e => setForm({ ...form, scheduledEnd: e.target.value })}
@@ -803,7 +1124,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                 {form.type === 'sale' && (
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Términos y Condiciones</Label>
-                    <Textarea 
+                    <Textarea
                       value={form.conditions}
                       onChange={e => setForm({ ...form, conditions: e.target.value })}
                       placeholder="ej: No acumulable con otras ofertas..."
@@ -818,18 +1139,18 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     <Palette size={16} className="text-primary" />
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Estilos Custom</Label>
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <Label className="text-[10px] text-muted-foreground">Fondo</Label>
                       <div className="flex items-center gap-2 mt-1">
-                        <input 
-                          type="color" 
+                        <input
+                          type="color"
                           value={form.customStyles.backgroundColor}
                           onChange={e => setForm({ ...form, customStyles: { ...form.customStyles, backgroundColor: e.target.value } })}
                           className="w-8 h-8 rounded cursor-pointer"
                         />
-                        <Input 
+                        <Input
                           value={form.customStyles.backgroundColor}
                           onChange={e => setForm({ ...form, customStyles: { ...form.customStyles, backgroundColor: e.target.value } })}
                           className="text-xs h-8"
@@ -839,13 +1160,13 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     <div>
                       <Label className="text-[10px] text-muted-foreground">Texto</Label>
                       <div className="flex items-center gap-2 mt-1">
-                        <input 
-                          type="color" 
+                        <input
+                          type="color"
                           value={form.customStyles.textColor}
                           onChange={e => setForm({ ...form, customStyles: { ...form.customStyles, textColor: e.target.value } })}
                           className="w-8 h-8 rounded cursor-pointer"
                         />
-                        <Input 
+                        <Input
                           value={form.customStyles.textColor}
                           onChange={e => setForm({ ...form, customStyles: { ...form.customStyles, textColor: e.target.value } })}
                           className="text-xs h-8"
@@ -855,13 +1176,13 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     <div>
                       <Label className="text-[10px] text-muted-foreground">Acento</Label>
                       <div className="flex items-center gap-2 mt-1">
-                        <input 
-                          type="color" 
+                        <input
+                          type="color"
                           value={form.customStyles.accentColor}
                           onChange={e => setForm({ ...form, customStyles: { ...form.customStyles, accentColor: e.target.value } })}
                           className="w-8 h-8 rounded cursor-pointer"
                         />
-                        <Input 
+                        <Input
                           value={form.customStyles.accentColor}
                           onChange={e => setForm({ ...form, customStyles: { ...form.customStyles, accentColor: e.target.value } })}
                           className="text-xs h-8"
@@ -894,35 +1215,35 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
 
                 <div>
                   <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Vista Previa</Label>
-                  <div 
+                  <div
                     className="rounded-xl p-4 border-2"
-                    style={{ 
+                    style={{
                       backgroundColor: form.customStyles.backgroundColor,
                       borderColor: form.customStyles.accentColor,
-                      borderRadius: form.customStyles.borderRadius 
+                      borderRadius: form.customStyles.borderRadius
                     }}
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <span 
+                      <span
                         className="text-xs font-bold px-2 py-1 rounded-full"
-                        style={{ 
+                        style={{
                           backgroundColor: form.customStyles.badgeColor,
-                          color: form.customStyles.textColor 
+                          color: form.customStyles.textColor
                         }}
                       >
                         {form.type === 'sale' ? '💰 VENTA' :
-                         form.type === 'info' ? 'ℹ️ INFO' :
-                         form.type === 'announcement' ? '📢 ANUNCIO' :
-                         '⭐ CLUB'}
+                          form.type === 'info' ? 'ℹ️ INFO' :
+                            form.type === 'announcement' ? '📢 ANUNCIO' :
+                              '⭐ CLUB'}
                       </span>
                     </div>
-                    <h4 
+                    <h4
                       className="font-bold text-lg mb-1"
                       style={{ color: form.customStyles.textColor }}
                     >
                       {form.title || 'Título de la promo'}
                     </h4>
-                    <p 
+                    <p
                       className="text-sm mb-2"
                       style={{ color: form.customStyles.textColor, opacity: 0.7 }}
                     >
@@ -930,14 +1251,14 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     </p>
                     {form.type === 'sale' && (
                       <div className="flex items-center gap-2">
-                        <span 
+                        <span
                           className="text-2xl font-black"
                           style={{ color: form.customStyles.accentColor }}
                         >
                           ${form.price || '0'}
                         </span>
                         {form.originalPrice && (
-                          <span 
+                          <span
                             className="text-sm line-through"
                             style={{ color: form.customStyles.textColor, opacity: 0.5 }}
                           >
@@ -948,7 +1269,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     )}
                     {form.type === 'loyalty' && (
                       <div className="mt-2">
-                        <span 
+                        <span
                           className="inline-block text-xs font-bold px-3 py-1.5 rounded-full"
                           style={{ backgroundColor: form.customStyles.accentColor, color: '#fff' }}
                         >
@@ -958,7 +1279,7 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                     )}
                     {form.type === 'announcement' && form.ctaText && (
                       <div className="mt-2">
-                        <span 
+                        <span
                           className="inline-block text-xs font-bold px-3 py-1.5 rounded-full"
                           style={{ backgroundColor: form.customStyles.accentColor, color: '#fff' }}
                         >
@@ -974,8 +1295,8 @@ export default function PromotionsManager({ tenantSlug, promotions: initialPromo
                 <Button variant="outline" onClick={() => setIsModalOpen(false)}>
                   Cancelar
                 </Button>
-                <Button 
-                  onClick={handleSave} 
+                <Button
+                  onClick={handleSave}
                   disabled={loading || !form.title || (form.type === 'sale' && form.price <= 0)}
                   className="bg-primary hover:bg-primary/90 text-white font-bold"
                 >
