@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import User from '@/models/User'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { hashPhone } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
@@ -11,20 +12,19 @@ export async function POST(
   try {
     const { tenant: tenantSlug } = await params
     const body = await request.json()
-    const { name, phone, source = 'qr_scan' } = body
+    const { name, email, phone, source = 'qr_scan' } = body
 
-    if (!name || !phone) {
-      return NextResponse.json({ error: 'Nombre y teléfono son obligatorios' }, { status: 400 })
+    if (!name || !email || !phone) {
+      return NextResponse.json({ error: 'Nombre, correo y teléfono son obligatorios' }, { status: 400 })
     }
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id pointsConfig.welcomePoints')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    // Calcular hash del teléfono para la búsqueda
     const phoneHash = hashPhone(phone)
 
     // Verificar si ya existe
@@ -40,15 +40,32 @@ export async function POST(
       }, { status: 409 })
     }
 
+    // Crear o encontrar User vinculado
+    let user = await User.findOne({ phone })
+    if (!user) {
+      user = await User.create({
+        name,
+        phone,
+        email,
+        role: 'consumer',
+        isActive: true,
+      })
+    }
+
+    const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
+
     // Crear nuevo miembro
     const member = await LoyaltyMember.create({
       tenantId: tenant._id,
+      userId: user._id,
       name,
       phone,
       phoneHash,
+      email,
       source,
       status: 'active',
-      joinedAt: new Date()
+      joinedAt: new Date(),
+      'loyalty.points': welcomePoints,
     })
 
     return NextResponse.json({ 
@@ -57,7 +74,8 @@ export async function POST(
         _id: member._id,
         name: member.name,
         publicId: member.wallet?.publicId
-      }
+      },
+      welcomePoints
     })
 
   } catch (error) {

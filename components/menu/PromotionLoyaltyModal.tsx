@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Star, CheckCircle2 } from 'lucide-react'
+import { X, Star, CheckCircle2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 interface Props {
   tenantSlug: string
@@ -24,11 +25,12 @@ export default function PromotionLoyaltyModal({
   isOpen,
   onClose,
 }: Props) {
-  const [form, setForm] = useState({ name: '', phone: '', countryCode: '+54' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', countryCode: '+54' })
   const [registering, setRegistering] = useState(false)
   const [registered, setRegistered] = useState(false)
   const [error, setError] = useState('')
   const [understood, setUnderstood] = useState<'loading' | 'yes' | 'no' | null>(null)
+  const [welcomePointsAwarded, setWelcomePointsAwarded] = useState(0)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -40,6 +42,7 @@ export default function PromotionLoyaltyModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name,
+          email: form.email,
           phone: `${form.countryCode} ${form.phone}`,
           promotionId,
         }),
@@ -50,7 +53,15 @@ export default function PromotionLoyaltyModal({
         return
       }
       setRegistered(true)
-      setTimeout(() => onClose(), 3000)
+      const wp = data.welcomePoints || 0
+      setWelcomePointsAwarded(wp)
+      if (wp > 0) {
+        toast(`🎉 Recibiste ${wp} puntos de bienvenida`, {
+          description: 'Sumalos en cada pedido',
+          duration: 4000,
+        })
+      }
+      setTimeout(() => onClose(), 4000)
     } catch {
       setError('Error de conexión')
     } finally {
@@ -125,6 +136,15 @@ export default function PromotionLoyaltyModal({
                       className="w-full h-14 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-base focus:border-emerald-400 focus:bg-white transition-all outline-none"
                     />
 
+                    <input
+                      required
+                      type="email"
+                      placeholder="Correo electrónico"
+                      value={form.email}
+                      onChange={e => setForm(s => ({ ...s, email: e.target.value }))}
+                      className="w-full h-14 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-base focus:border-emerald-400 outline-none"
+                    />
+
                     <div className="flex gap-3">
                       <select
                         value={form.countryCode}
@@ -167,7 +187,13 @@ export default function PromotionLoyaltyModal({
                 >
                   <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
                   <p className="text-2xl font-bold text-emerald-900">¡Registro exitoso!</p>
-                  <p className="text-emerald-700 mt-1">Bienvenido a TakeasyGO</p>
+                  <p className="text-emerald-700 mt-1">Bienvenido al club de fidelización</p>
+                  {welcomePointsAwarded > 0 && (
+                    <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-semibold">
+                      <Sparkles size={16} />
+                      +{welcomePointsAwarded} puntos de bienvenida
+                    </div>
+                  )}
                   {understood === null && (
                     <div className="mt-6 space-y-3">
                       <p className="text-sm font-semibold text-slate-600">¿Entendés cómo acumulás puntos?</p>
