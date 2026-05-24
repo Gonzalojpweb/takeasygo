@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift, AlertTriangle } from 'lucide-react'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -22,10 +22,22 @@ interface LoyaltyConfig {
   enabled: boolean
   clubName: string
   welcomeMessage: string
+  sosLimit?: number
+  sosMaxLimit?: number
   pointsConfig?: {
     pointsRedemptionValue: number
     redemptionEnabled: boolean
   }
+}
+
+interface StoreItem {
+  _id: string
+  name: string
+  description: string
+  imageUrl: string
+  pointsCost: number
+  stock?: number | null
+  isActive: boolean
 }
 
 interface ScheduledOrdersConfig {
@@ -54,9 +66,10 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
   const [activeQrPromo, setActiveQrPromo] = useState<{ discountPercentage: number } | null>(null)
   const [loyaltyMember, setLoyaltyMember] = useState<any | null>(null)
-  const [usePoints, setUsePoints] = useState(false)
   const [pointsLookupLoading, setPointsLookupLoading] = useState(false)
-  const [loyaltyPointsToRedeem, setLoyaltyPointsToRedeem] = useState(0)
+  const [storeItems, setStoreItems] = useState<StoreItem[]>([])
+  const [selectedRewardItemId, setSelectedRewardItemId] = useState<string | null>(null)
+  const [rewardItemLoading, setRewardItemLoading] = useState(false)
 
   useEffect(() => {
     const stored = sessionStorage.getItem('tgo-active-qr-promo')
@@ -155,7 +168,6 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   useEffect(() => {
     if (form.phone.length < 8) {
       setLoyaltyMember(null)
-      setUsePoints(false)
       return
     }
 
@@ -169,7 +181,6 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
           setLoyaltyMember(data.member)
         } else {
           setLoyaltyMember(null)
-          setUsePoints(false)
         }
       } catch (err) {
         console.error('Loyalty lookup error', err)
@@ -180,6 +191,23 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
 
     return () => clearTimeout(timer)
   }, [form.phone, form.countryCode, tenantSlug])
+
+  // Cargar items del store disponibles para canje cuando hay miembro del club
+  useEffect(() => {
+    if (!loyaltyMember || !loyaltyConfig?.enabled) {
+      setStoreItems([])
+      setSelectedRewardItemId(null)
+      return
+    }
+    setRewardItemLoading(true)
+    fetch(`/api/${tenantSlug}/store/items?isActive=true`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.items) setStoreItems(data.items)
+      })
+      .catch(() => {})
+      .finally(() => setRewardItemLoading(false))
+  }, [loyaltyMember, tenantSlug, loyaltyConfig?.enabled])
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
   // El descuento QR solo aplica sobre items que NO tienen descuento de categoría.
@@ -204,19 +232,28 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     .reduce((sum, i) => sum + i.price * i.quantity, 0)
   const discountAmount = activeQrPromo ? Math.round(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100)) : 0
 
-  // Calculate how many points can be redeemed
-  // For now, we redeem ALL points or NONE, up to the total price
-  const pointsValue = loyaltyConfig?.pointsConfig?.pointsRedemptionValue ?? 10 
-  
-  useEffect(() => {
-    if (usePoints && loyaltyMember) {
-      const maxRedeemableValue = subtotal - discountAmount
-      const neededPoints = Math.ceil(maxRedeemableValue / pointsValue)
-      setLoyaltyPointsToRedeem(Math.min(loyaltyMember.points, neededPoints))
-    } else {
-      setLoyaltyPointsToRedeem(0)
-    }
-  }, [usePoints, loyaltyMember, subtotal, discountAmount, pointsValue])
+  // Calcular si el reward seleccionado necesita SOS
+  const selectedRewardItem = selectedRewardItemId
+    ? storeItems.find(i => i._id === selectedRewardItemId) ?? null
+    : null
+
+  const rewardNeedsAdvance = selectedRewardItem && loyaltyMember
+    ? loyaltyMember.points < selectedRewardItem.pointsCost
+    : false
+
+  const missingPoints = rewardNeedsAdvance
+    ? (selectedRewardItem?.pointsCost ?? 0) - (loyaltyMember?.points ?? 0)
+    : 0
+
+  const effectiveAdvanceLimit = Math.min(
+    loyaltyConfig?.sosLimit ?? 0,
+    loyaltyConfig?.sosMaxLimit ?? 0
+  )
+
+  const canUseSos = rewardNeedsAdvance
+    && effectiveAdvanceLimit > 0
+    && missingPoints <= effectiveAdvanceLimit
+    && !loyaltyMember?.hasAdvanceActive
 
   function increaseQty(cartItemId: string) {
     setCart(prev => prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + 1 } : i))
@@ -257,10 +294,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     setUpsellHints(prev => prev.filter(h => h._id !== item._id))
   }
 
-  const loyaltyDiscountAmount = loyaltyPointsToRedeem * pointsValue
-  const total = Math.max(0, subtotal - discountAmount - loyaltyDiscountAmount)
-  // total se recalcula automáticamente al agregar hints (cart es estado)
-  // total se recalcula automáticamente al agregar hints (cart es estado)
+  const total = Math.max(0, subtotal - discountAmount)
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault()
@@ -285,7 +319,9 @@ async function handleSubmit(e: React.FormEvent) {
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,
         joinClub: joinClub && loyaltyConfig?.enabled,
         qrPromoApplied: !!activeQrPromo,
-        loyaltyPointsUsed: loyaltyPointsToRedeem,
+        ...(selectedRewardItemId && selectedRewardItem
+          ? { rewardItems: [{ storeItemId: selectedRewardItemId }], loyaltyPointsRequired: selectedRewardItem.pointsCost }
+          : {}),
         source: sessionStorage.getItem('tgo_attribution_source') || undefined,
       }
 
@@ -446,6 +482,21 @@ async function handleSubmit(e: React.FormEvent) {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {selectedRewardItem && (
+            <div className="mt-2 flex items-center justify-between py-2 px-3 bg-emerald-50 rounded-xl border border-emerald-200">
+              <div className="flex items-center gap-2 min-w-0">
+                {selectedRewardItem.imageUrl && (
+                  <img src={selectedRewardItem.imageUrl} alt={selectedRewardItem.name} className="w-8 h-8 object-cover rounded-lg flex-shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-emerald-800 truncate">{selectedRewardItem.name}</p>
+                  <p className="text-[10px] text-emerald-600 font-medium">Canjeado con {selectedRewardItem.pointsCost} pts</p>
+                </div>
+              </div>
+              <span className="text-sm font-bold text-emerald-700 flex-shrink-0">$0</span>
             </div>
           )}
 
@@ -638,30 +689,127 @@ async function handleSubmit(e: React.FormEvent) {
                         <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-500">Tus puntos acumulados</p>
                       </div>
                       
-                      {loyaltyConfig?.pointsConfig?.redemptionEnabled && (
+                      {loyaltyMember.hasAdvanceActive && (
                         <div className="flex flex-col items-end">
-                          <button
-                            type="button"
-                            onClick={() => setUsePoints(!usePoints)}
-                            className={cn(
-                              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95",
-                              usePoints 
-                                ? "bg-amber-400 text-zinc-900" 
-                                : "bg-white/10 text-white hover:bg-white/20"
-                            )}
-                          >
-                            {usePoints ? '✅ Aplicado' : '✨ Usar puntos'}
-                          </button>
+                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wide">
+                            Adelanto activo
+                          </span>
+                          <span className="text-[11px] text-zinc-400">
+                            -{loyaltyMember.pointsPendingToConsolidate} pts por consolidar
+                          </span>
                         </div>
                       )}
                     </div>
-                    
-                    {usePoints && (
-                      <div className="mt-3 pt-3 border-t border-white/10 text-[11px] text-amber-200 font-medium animate-in fade-in slide-in-from-top-1">
-                        Usarás {loyaltyPointsToRedeem} puntos para obtener un descuento de ${loyaltyDiscountAmount.toLocaleString('es-AR')}
-                      </div>
-                    )}
                   </div>
+                </div>
+              )}
+
+              {/* Canjeá tus puntos */}
+              {loyaltyMember && storeItems.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Gift size={16} className="text-zinc-700" />
+                    <h3 className="text-sm font-bold text-zinc-700">Canjeá tus puntos</h3>
+                  </div>
+
+                  {rewardItemLoading ? (
+                    <div className="flex justify-center py-4">
+                      <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin">
+                      {storeItems.map(item => {
+                        const isSelected = selectedRewardItemId === item._id
+                        const enoughPoints = loyaltyMember.points >= item.pointsCost
+                        const needsAdvance = !enoughPoints
+                        const itemMissingPoints = item.pointsCost - (loyaltyMember?.points ?? 0)
+                        const canAdvance = needsAdvance && effectiveAdvanceLimit > 0
+                          && itemMissingPoints <= effectiveAdvanceLimit
+                          && !loyaltyMember?.hasAdvanceActive
+
+                        return (
+                          <button
+                            key={item._id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedRewardItemId(null)
+                              } else if (enoughPoints || canAdvance) {
+                                setSelectedRewardItemId(item._id)
+                              }
+                            }}
+                            disabled={!enoughPoints && !canAdvance}
+                            className={cn(
+                              "flex-shrink-0 w-36 snap-start rounded-2xl border-2 p-3 text-left transition-all duration-150",
+                              isSelected
+                                ? "border-zinc-900 bg-zinc-50"
+                                : !enoughPoints && !canAdvance
+                                  ? "border-zinc-100 bg-zinc-50 opacity-50 cursor-not-allowed"
+                                  : "border-zinc-200 bg-white hover:border-zinc-300"
+                            )}
+                          >
+                            {item.imageUrl && (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                className="w-full h-20 object-cover rounded-xl mb-2"
+                              />
+                            )}
+                            <p className="text-xs font-bold text-zinc-800 truncate">{item.name}</p>
+                            <div className="flex items-center gap-1 mt-1">
+                              <Star size={11} className="fill-amber-400 text-amber-400" />
+                              <span className="text-xs font-semibold text-zinc-600">{item.pointsCost} pts</span>
+                            </div>
+                            {isSelected && enoughPoints && (
+                              <span className="mt-1 block text-[10px] font-bold text-green-600">✓ Canjeado</span>
+                            )}
+                            {isSelected && !enoughPoints && (
+                              <span className="mt-1 block text-[10px] font-bold text-amber-600">Con Reward Advance</span>
+                            )}
+                            {!isSelected && !enoughPoints && canAdvance && (
+                              <span className="mt-1 block text-[10px] font-medium text-amber-500">Faltan {item.pointsCost - loyaltyMember.points} pts</span>
+                            )}
+                            {!isSelected && !enoughPoints && !canAdvance && (
+                              <span className="mt-1 block text-[10px] font-medium text-zinc-400">Te faltan {item.pointsCost - loyaltyMember.points} pts</span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Info de Reward Advance (SOS) */}
+                  {selectedRewardItem && rewardNeedsAdvance && (
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          {canUseSos ? (
+                            <>
+                              <p className="text-xs font-bold text-amber-800">
+                                Te prestamos {missingPoints} pts con Reward Advance
+                              </p>
+                              <p className="text-[11px] text-amber-600 mt-0.5">
+                                Se descontarán automáticamente de tus próximas compras. Aplican términos y condiciones.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs font-bold text-amber-800">
+                                No podés usar Reward Advance
+                              </p>
+                              <p className="text-[11px] text-amber-600 mt-0.5">
+                                {loyaltyMember.hasAdvanceActive
+                                  ? 'Ya tenés un adelanto activo. Primero consolidalo.'
+                                  : `El límite de adelanto es de ${effectiveAdvanceLimit} pts y necesitás ${missingPoints}.`
+                                }
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -725,13 +873,13 @@ async function handleSubmit(e: React.FormEvent) {
                 <span>-${discountAmount.toLocaleString('es-AR')}</span>
               </div>
             )}
-            {loyaltyPointsToRedeem > 0 && (
-              <div className="flex justify-between text-sm text-amber-600 font-semibold">
+            {selectedRewardItem && (
+              <div className="flex justify-between text-sm text-emerald-600 font-semibold">
                 <span className="flex items-center gap-1">
-                  <Star size={12} className="fill-amber-600" />
-                  Descuento Club ({loyaltyPointsToRedeem} puntos)
+                  <Gift size={12} />
+                  {selectedRewardItem.name} (Canje)
                 </span>
-                <span>-${loyaltyDiscountAmount.toLocaleString('es-AR')}</span>
+                <span>$0</span>
               </div>
             )}
             <div className="flex justify-between text-lg font-black text-zinc-900">
