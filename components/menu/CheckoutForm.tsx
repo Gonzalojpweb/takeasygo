@@ -793,7 +793,7 @@ async function handleSubmit(e: React.FormEvent) {
                                 Te adelantamos {missingPoints} pts para que disfrutes tu recompensa hoy.
                               </p>
                               <p className="text-[11px] text-amber-600 mt-0.5">
-                                Disfrutá tu café a 0$. Te adelantamos los puntos pendientes. Consolidá tu progreso en tu próxima compra.
+                                Disfrutá tu canje a 0$. Te adelantamos los puntos pendientes. Consolidá tu progreso en tu próxima compra.
                               </p>
                             </>
                           ) : (

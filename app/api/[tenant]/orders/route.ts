@@ -19,6 +19,7 @@ import { auth } from '@/lib/auth'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 import { validateCheckoutRewards } from '@/lib/loyalty'
 import StoreItem from '@/models/StoreItem'
+import StoreRedemption from '@/models/StoreRedemption'
 
 /**
  * Resuelve customizaciones recursivamente, incluyendo subGroups.
@@ -549,6 +550,16 @@ export async function POST(
         }
 
         resolvedRewards.push(reward)
+
+        // Crear StoreRedemption para que aparezca en "Mis Canjes" y en el admin
+        await StoreRedemption.create({
+          tenantId: tenant._id,
+          memberId: member._id,
+          storeItemId: storeItem._id,
+          pointsUsed: storeItem.pointsCost,
+          cashValue: storeItem.cashValue ?? null,
+          status: 'pending',
+        })
 
         // Agregar como item del pedido a $0
         resolvedItems.push({
