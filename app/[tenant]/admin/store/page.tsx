@@ -6,10 +6,11 @@ import { canAccess } from '@/lib/plans'
 import StoreManager from '@/components/admin/StoreManager'
 import StoreSettings from '@/components/admin/StoreSettings'
 import RedemptionValidator from '@/components/admin/RedemptionValidator'
+import RedemptionHistory from '@/components/admin/RedemptionHistory'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
-import { Package, QrCode, Settings } from 'lucide-react'
+import { Package, QrCode, Settings, History } from 'lucide-react'
 
 interface PageProps {
   params: Promise<{ tenant: string }>
@@ -78,7 +79,7 @@ export default async function StorePage({ params }: PageProps) {
       </div>
 
       <Tabs defaultValue="validator" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-14 p-1 bg-muted/50 rounded-2xl border border-border/40 mb-8">
+        <TabsList className="grid w-full grid-cols-4 h-14 p-1 bg-muted/50 rounded-2xl border border-border/40 mb-8">
           <TabsTrigger value="validator" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <QrCode className="mr-2 h-4 w-4" />
             Validar Canje
@@ -86,6 +87,10 @@ export default async function StorePage({ params }: PageProps) {
           <TabsTrigger value="inventory" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Package className="mr-2 h-4 w-4" />
             Inventario
+          </TabsTrigger>
+          <TabsTrigger value="history" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <History className="mr-2 h-4 w-4" />
+            Historial
           </TabsTrigger>
           <TabsTrigger value="settings" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Settings className="mr-2 h-4 w-4" />
@@ -99,6 +104,10 @@ export default async function StorePage({ params }: PageProps) {
 
         <TabsContent value="inventory" className="mt-0">
           <StoreManager tenantSlug={tenantSlug} />
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-0">
+          <RedemptionHistory tenantSlug={tenantSlug} />
         </TabsContent>
 
         <TabsContent value="settings" className="mt-0">

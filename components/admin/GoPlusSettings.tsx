@@ -179,6 +179,9 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
                     />
                     <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">% del monto</div>
                   </div>
+                  <p className="text-[11px] text-muted-foreground/70 leading-tight">
+                    Ej: <span className="font-mono font-bold text-amber-600">5.75</span> = 5,75% del monto. No usar decimal (0.0575).
+                  </p>
                 </div>
               )}
               <div className="space-y-2">

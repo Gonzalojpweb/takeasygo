@@ -787,13 +787,13 @@ async function handleSubmit(e: React.FormEvent) {
                           {canUseSos ? (
                             <>
                               <p className="text-[11px] text-bold text-amber-600 mt-0.5">
-                                ✨ Reward Advance activado
+                                ✨ Premio Liberado, obtén ya tu Reward Advance!
                               </p>
                               <p className="text-xs font-bold text-amber-800">
                                 Te adelantamos {missingPoints} pts para que disfrutes tu recompensa hoy.
                               </p>
                               <p className="text-[11px] text-amber-600 mt-0.5">
-                                Seguí acumulando normalmente y el progreso se consolidará automáticamente.
+                                Disfrutá tu café a 0$. Te adelantamos los puntos pendientes. Consolidá tu progreso en tu próxima compra.
                               </p>
                             </>
                           ) : (

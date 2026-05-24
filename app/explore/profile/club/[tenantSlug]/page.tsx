@@ -22,6 +22,7 @@ import BottomNav from '@/components/explore/BottomNav'
 import { useTenant } from '@/contexts/TenantContext'
 import { use } from 'react'
 import StoreView from '@/components/explore/StoreView'
+import MyRedemptions from '@/components/explore/MyRedemptions'
 
 interface MemberData {
   id: string
@@ -177,6 +178,12 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
           memberTier={clubData.member.tier}
           onBack={() => router.replace(`${pathname}?tab=club`)}
         />
+      ) : currentTab === 'canjes' && clubData?.member ? (
+        <MyRedemptions
+          tenantSlug={tenantSlug}
+          memberId={clubData.member.id}
+          onBack={() => router.replace(`${pathname}?tab=club`)}
+        />
       ) : (
         <>
           <div className="p-6">
@@ -221,6 +228,17 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
                 >
                   <Gift size={16} />
                   Tienda
+                </button>
+                <button
+                  onClick={() => router.replace(`${pathname}?tab=canjes`)}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                    currentTab === 'canjes'
+                      ? 'bg-[#f14722] text-white shadow-lg'
+                      : 'text-[#5a524d] hover:text-[#f7f4f2]'
+                  }`}
+                >
+                  <ShoppingBag size={16} />
+                  Canjes
                 </button>
               </div>
             </div>
