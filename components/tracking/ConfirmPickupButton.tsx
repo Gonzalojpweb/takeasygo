@@ -9,6 +9,7 @@ interface Props {
   primaryColor: string
   backgroundColor: string
   textColor: string
+  onConfirmed?: () => void
 }
 
 export default function ConfirmPickupButton({
@@ -18,6 +19,7 @@ export default function ConfirmPickupButton({
   primaryColor,
   backgroundColor,
   textColor,
+  onConfirmed,
 }: Props) {
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
@@ -35,6 +37,7 @@ export default function ConfirmPickupButton({
         throw new Error(data.error || 'Error al confirmar')
       }
       setConfirmed(true)
+      onConfirmed?.()
     } catch (err: any) {
       setError(err.message)
       setLoading(false)

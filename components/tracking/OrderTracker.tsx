@@ -352,6 +352,7 @@ export default function OrderTracker({
             primaryColor={primaryColor}
             backgroundColor={backgroundColor}
             textColor={textColor}
+            onConfirmed={() => setStatus('delivered')}
           />
         </div>
       )}

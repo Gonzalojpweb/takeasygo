@@ -49,9 +49,18 @@ export default async function TrackingPage({ params, searchParams }: Props) {
       // RECONCILIACIÓN: Si hay puntos de esta orden que no se sumaron, lo hacemos ahora.
       // Le pasamos explicitly si MP lo aprobó por URL params para saltarnos la demora del Webhook
       const isMpApproved = resolvedSearchParams.status === 'approved' || resolvedSearchParams.collection_status === 'approved'
-      const { reconcileMissingPoints } = await import('@/lib/loyalty')
+      const { reconcileMissingPoints, processRewardDeduction } = await import('@/lib/loyalty')
       await reconcileMissingPoints(member, tenant, isMpApproved ? order._id : undefined)
-      
+
+      // También reconciliar deducción de reward si el pedido tiene items de canje
+      if (order.rewardItems?.length > 0 && !order.rewardDeductionProcessed) {
+        await processRewardDeduction(order, tenant, undefined)
+        await Order.updateOne(
+          { _id: order._id },
+          { $set: { rewardDeductionProcessed: true } }
+        )
+      }
+
       // Volvemos a buscar para tener los puntos actualizados
       const updatedMember = await LoyaltyMember.findById(member._id).select('loyalty.points wallet.publicId').lean() as any
 
