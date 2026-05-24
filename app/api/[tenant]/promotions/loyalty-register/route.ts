@@ -28,8 +28,8 @@ export async function POST(
 
     const phoneHash = hashPhone(phone)
 
-    // Buscar si ya existe un User con este teléfono
-    let user = await User.findOne({ phone })
+    // Buscar si ya existe un User con este teléfono o email
+    let user = await User.findOne({ $or: [{ phone }, { email }] })
 
     if (!user) {
       user = await User.create({
@@ -39,6 +39,15 @@ export async function POST(
         role: 'consumer',
         isActive: true,
       })
+    } else {
+      if (user.phone !== phone) {
+        await User.updateOne({ _id: user._id }, { $set: { phone } })
+        user.phone = phone
+      }
+      if (user.email !== email) {
+        await User.updateOne({ _id: user._id }, { $set: { email } })
+        user.email = email
+      }
     }
 
     // Verificar si ya es miembro del club

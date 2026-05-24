@@ -40,8 +40,8 @@ export async function POST(
       }, { status: 409 })
     }
 
-    // Crear o encontrar User vinculado
-    let user = await User.findOne({ phone })
+    // Crear o encontrar User vinculado (por phone o email)
+    let user = await User.findOne({ $or: [{ phone }, { email }] })
     if (!user) {
       user = await User.create({
         name,
@@ -50,6 +50,15 @@ export async function POST(
         role: 'consumer',
         isActive: true,
       })
+    } else {
+      if (user.phone !== phone) {
+        await User.updateOne({ _id: user._id }, { $set: { phone } })
+        user.phone = phone
+      }
+      if (user.email !== email) {
+        await User.updateOne({ _id: user._id }, { $set: { email } })
+        user.email = email
+      }
     }
 
     const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
