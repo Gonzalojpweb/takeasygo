@@ -51,14 +51,17 @@ import {
   FileSpreadsheet,
   Camera,
   CameraOff,
+  History,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import MemberTransactions from './MemberTransactions'
 
 interface Member {
   _id: string
   name: string
   phone: string
+  phoneHash: string
   email: string
   birthDate?: string | null
   status: 'active' | 'inactive' | 'blocked'
@@ -154,6 +157,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [earnOrderTotal, setEarnOrderTotal] = useState(0)
   const [earnLoading, setEarnLoading] = useState(false)
   const [pointsConfig, setPointsConfig] = useState<any>(null)
+  const [historyMember, setHistoryMember] = useState<{ memberId: string; memberName: string } | null>(null)
 
   const fetchMembers = useCallback(async () => {
     setLoading(true)
@@ -658,6 +662,10 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                             <DropdownMenuItem onClick={() => openEdit(m)}>
                               <Eye size={14} className="mr-2" /> Ver / Editar
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setHistoryMember({ memberId: m._id, memberName: m.name })}>
+                              <History size={14} className="mr-2" /> Historial de Puntos
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             {m.status === 'active' && (
                               <DropdownMenuItem onClick={() => handleUpdateStatus(m._id, 'inactive')}>
                                 <UserX size={14} className="mr-2" /> Desactivar
@@ -738,6 +746,16 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
           loading={editLoading}
           onSubmit={handleSaveEdit}
           onClose={() => setEditingMember(null)}
+        />
+      )}
+
+      {historyMember && (
+        <MemberTransactions
+          memberId={historyMember.memberId}
+          memberName={historyMember.memberName}
+          tenantSlug={tenantSlug}
+          open={!!historyMember}
+          onClose={() => setHistoryMember(null)}
         />
       )}
 

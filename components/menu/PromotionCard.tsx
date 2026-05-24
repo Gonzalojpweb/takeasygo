@@ -108,7 +108,7 @@ export function PromotionCard({
       >
         {/* Left Side: Product Image or Icon */}
         {promotion.imageUrl ? (
-          <div className="relative w-[40%] h-full flex-shrink-0 overflow-hidden bg-slate-100/10">
+          <div className="relative w-[50%] h-full flex-shrink-0 overflow-hidden bg-slate-100/10">
             <img
               src={promotion.imageUrl}
               alt={promotion.title}
@@ -121,7 +121,7 @@ export function PromotionCard({
             />
           </div>
         ) : (
-          <div className="relative w-[30%] h-full flex-shrink-0 overflow-hidden flex items-center justify-center bg-white/10">
+          <div className="relative w-[40%] h-full flex-shrink-0 overflow-hidden flex items-center justify-center bg-white/10">
             {promoType === 'info' && <Info className="w-8 h-8 opacity-80" style={{ color: cardTextColor }} />}
             {promoType === 'announcement' && <Megaphone className="w-8 h-8 opacity-80" style={{ color: cardTextColor }} />}
             {promoType === 'loyalty' && <Heart className="w-8 h-8 opacity-80" style={{ color: cardTextColor }} />}
@@ -139,7 +139,7 @@ export function PromotionCard({
           <div className="min-w-0">
             {promoType !== 'sale' && (
               <span 
-                className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-white/20 text-white"
+                className="inline-block text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-white/20 text-white"
               >
                 {promoType === 'info' ? '📢 INFO' :
                  promoType === 'announcement' ? '📢 AVISO' :
@@ -148,7 +148,7 @@ export function PromotionCard({
             )}
             {promoType === 'sale' && discount > 0 && (
               <span 
-                className="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-white/20 text-white"
+                className="inline-block text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 bg-white/20 text-white"
               >
                 {discount}% OFF
               </span>
@@ -170,7 +170,7 @@ export function PromotionCard({
                   ${promotion.price.toLocaleString('es-AR')}
                 </span>
                 {promotion.originalPrice && (
-                  <span className="text-[10px] opacity-60 line-through font-medium">
+                  <span className="text-[9px] opacity-60 line-through font-medium">
                     ${promotion.originalPrice.toLocaleString('es-AR')}
                   </span>
                 )}
@@ -200,14 +200,14 @@ export function PromotionCard({
                   e.stopPropagation()
                   setShowLoyaltyModal(true)
                 }}
-                className="px-4 py-1.5 rounded-full text-xs font-black shadow-md hover:shadow-lg transition-all transform active:scale-95 flex items-center gap-1"
+                className="px-2 py-1.5 rounded-full text-xs font-black shadow-md hover:shadow-lg transition-all transform active:scale-95 flex items-center gap-1"
                 style={{
                   backgroundColor: buttonBg,
                   color: buttonTextColor,
                 }}
               >
                 <span>{promotion.ctaText || 'Unirme'}</span>
-                <Heart size={12} strokeWidth={3} />
+                <Heart size={10} strokeWidth={3} />
               </button>
             ) : promoType === 'announcement' && promotion.ctaLink ? (
               <a
@@ -222,7 +222,7 @@ export function PromotionCard({
                 }}
               >
                 <span>{promotion.ctaText || 'Ver más'}</span>
-                <ExternalLink size={12} strokeWidth={3} />
+                <ExternalLink size={10} strokeWidth={3} />
               </a>
             ) : null}
           </div>
@@ -520,4 +520,4 @@ export function PromotionCarousel({
       )}
     </div>
   )
-}
+}
