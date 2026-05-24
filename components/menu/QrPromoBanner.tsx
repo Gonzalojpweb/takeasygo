@@ -37,7 +37,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   const [promo, setPromo] = useState<QrPromoData | null>(null)
   const [styles, setStyles] = useState<QrPromoStyles | null>(null)
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ name: '', phone: '', countryCode: '+54' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', countryCode: '+54' })
   const [registering, setRegistering] = useState(false)
   const [registered, setRegistered] = useState(false)
   const [error, setError] = useState('')
@@ -115,7 +115,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       const res = await fetch(`/api/${tenantSlug}/loyalty/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, phone: `${form.countryCode} ${form.phone}`, source: 'qr_scan' }),
+        body: JSON.stringify({ name: form.name, email: form.email, phone: `${form.countryCode} ${form.phone}`, source: 'qr_scan' }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -237,6 +237,15 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
                     value={form.name}
                     onChange={e => setForm(s => ({ ...s, name: e.target.value }))}
                     className="w-full h-14 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-base focus:border-emerald-400 focus:bg-white transition-all outline-none"
+                  />
+
+                  <input
+                    required
+                    type="email"
+                    placeholder="Correo electrónico"
+                    value={form.email}
+                    onChange={e => setForm(s => ({ ...s, email: e.target.value }))}
+                    className="w-full h-14 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-base focus:border-emerald-400 outline-none"
                   />
                   
                   <div className="flex gap-3">

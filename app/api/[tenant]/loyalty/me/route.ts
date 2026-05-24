@@ -24,24 +24,29 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
+    // Buscar el tenant (necesario incluso sin sesión para saber si el club está habilitado)
+    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+      .select('_id plan loyalty wallet')
+      .lean()
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    }
+
     // Obtener sesión del usuario
     const session = await auth()
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+      return NextResponse.json({
+        member: null,
+        clubEnabled: tenant.loyalty?.enabled ?? false,
+        walletEnabled: tenant.wallet?.enabled ?? false,
+        appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier)
+      })
     }
 
     // Buscar el usuario
     const user = await User.findOne({ email: session.user.email }).lean()
     if (!user) {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
-    }
-
-    // Buscar el tenant
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan loyalty wallet')
-      .lean()
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
     // Verificar que el club esté habilitado
