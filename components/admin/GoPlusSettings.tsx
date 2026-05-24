@@ -26,6 +26,7 @@ interface Props {
       minOrderForPoints: number
       pointsRedemptionValue: number
       redemptionEnabled: boolean
+      welcomePoints?: number
     }
     sosLimit?: number
     sosMaxLimit?: number
@@ -41,6 +42,7 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
   const [minOrderForPoints, setMinOrderForPoints] = useState(initial?.pointsConfig?.minOrderForPoints ?? 0)
   const [pointsRedemptionValue, setPointsRedemptionValue] = useState(initial?.pointsConfig?.pointsRedemptionValue ?? 10)
   const [redemptionEnabled, setRedemptionEnabled] = useState(initial?.pointsConfig?.redemptionEnabled ?? true)
+  const [welcomePoints, setWelcomePoints] = useState(initial?.pointsConfig?.welcomePoints ?? 0)
 
   const [sosLimit, setSosLimit] = useState(initial?.sosLimit ?? 0)
   const [saving, setSaving] = useState(false)
@@ -65,7 +67,8 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
             pointsPerOrder,
             minOrderForPoints,
             pointsRedemptionValue,
-            redemptionEnabled
+            redemptionEnabled,
+            welcomePoints
           }
         }),
       })
@@ -232,6 +235,23 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
                 onCheckedChange={setRedemptionEnabled}
                 className="data-[state=checked]:bg-emerald-500"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className={labelCls}>Puntos de bienvenida</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={welcomePoints}
+                  onChange={e => setWelcomePoints(parseInt(e.target.value) || 0)}
+                  className="bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-12 rounded-xl text-sm font-medium"
+                />
+                <div className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                  Al registrarse
+                </div>
+              </div>
             </div>
           </div>
 

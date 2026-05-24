@@ -150,6 +150,10 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [redeemDialog, setRedeemDialog] = useState(false)
   const [redeemPoints, setRedeemPoints] = useState(0)
   const [redeemLoading, setRedeemLoading] = useState(false)
+  const [earnDialog, setEarnDialog] = useState(false)
+  const [earnOrderTotal, setEarnOrderTotal] = useState(0)
+  const [earnLoading, setEarnLoading] = useState(false)
+  const [pointsConfig, setPointsConfig] = useState<any>(null)
 
   const fetchMembers = useCallback(async () => {
     setLoading(true)
@@ -186,6 +190,12 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
 
   useEffect(() => { fetchMembers() }, [fetchMembers])
   useEffect(() => { fetchStats() }, [fetchStats])
+  useEffect(() => {
+    fetch(`/api/${tenantSlug}/loyalty/settings`)
+      .then(r => r.json())
+      .then(d => setPointsConfig(d.pointsConfig))
+      .catch(() => {})
+  }, [tenantSlug])
 
   async function handleAddMember(e: React.FormEvent) {
     e.preventDefault()
@@ -400,6 +410,50 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
       toast.error(err.message)
     } finally {
       setRedeemLoading(false)
+    }
+  }
+
+  function calcEarnPreview(amount: number): number {
+    if (!pointsConfig?.enabled || amount < (pointsConfig.minOrderForPoints || 0)) return 0
+    const mode = pointsConfig.mode || 'fixed_per_currency'
+    let p = 0
+    if (mode === 'fixed_per_currency') p = Math.floor(amount * (pointsConfig.pointsPerCurrency || 0.1))
+    else if (mode === 'percentage') p = Math.floor(amount * (pointsConfig.pointsPercentage || 10) / 100)
+    else if (mode === 'hybrid') {
+      p = Math.floor(amount * (pointsConfig.pointsPerCurrency || 0.1))
+      p += Math.floor(amount * (pointsConfig.pointsPercentage || 10) / 100)
+    }
+    p += pointsConfig.pointsPerOrder || 0
+    return Math.max(0, p)
+  }
+
+  async function handleEarn() {
+    if (!scannedMember || earnOrderTotal <= 0) return
+    setEarnLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/loyalty/wallet/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          publicId: scannedMember.publicId,
+          action: 'earn',
+          orderTotal: earnOrderTotal,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      toast.success(`Se sumaron ${data.earnedPoints} puntos por compra de $${earnOrderTotal.toLocaleString()}`)
+      setScannedMember((prev: any) => ({
+        ...prev,
+        points: data.newTotal,
+      }))
+      setEarnDialog(false)
+      setEarnOrderTotal(0)
+      fetchMembers()
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setEarnLoading(false)
     }
   }
 
@@ -839,6 +893,15 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                   <div className="mt-6 space-y-3">
                     <Button
                       onClick={() => {
+                        setEarnOrderTotal(0)
+                        setEarnDialog(true)
+                      }}
+                      className="w-full h-14 bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-95"
+                    >
+                      + Acumular puntos por compra
+                    </Button>
+                    <Button
+                      onClick={() => {
                         setRedeemPoints(0)
                         setRedeemDialog(true)
                       }}
@@ -917,6 +980,83 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
               className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest rounded-xl h-11"
             >
               {redeemLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Canjear'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de acumular puntos por compra presencial */}
+      <Dialog open={earnDialog} onOpenChange={(open) => {
+        setEarnDialog(open)
+        if (!open) setEarnOrderTotal(0)
+      }}>
+        <DialogContent className="max-w-sm rounded-[2rem]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                <TrendingUp size={20} />
+              </div>
+              <DialogTitle>Acumular puntos</DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="space-y-5 py-4">
+            {scannedMember && (
+              <div className="p-4 rounded-2xl bg-muted/30 border border-border/60">
+                <p className="text-sm font-bold">{scannedMember.name}</p>
+                <p className="text-2xl font-black text-emerald-500 tabular-nums mt-1">
+                  {scannedMember.points} puntos actuales
+                </p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">
+                Monto de la compra ($)
+              </label>
+              <Input
+                type="number"
+                min={1}
+                step="0.01"
+                value={earnOrderTotal || ''}
+                onChange={e => setEarnOrderTotal(Math.max(0, parseFloat(e.target.value) || 0))}
+                placeholder="Ej: 1500"
+                className="h-12 rounded-xl text-lg font-bold text-center"
+              />
+            </div>
+            {earnOrderTotal > 0 && pointsConfig?.enabled && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold text-emerald-800">Puntos a sumar:</span>
+                  <span className="text-2xl font-black text-emerald-600">
+                    +{calcEarnPreview(earnOrderTotal)}
+                  </span>
+                </div>
+                {earnOrderTotal < (pointsConfig.minOrderForPoints || 0) && (
+                  <p className="text-xs text-emerald-600/70 mt-2 font-medium">
+                    Monto mínimo para puntos: ${pointsConfig.minOrderForPoints}
+                  </p>
+                )}
+              </div>
+            )}
+            {!pointsConfig?.enabled && (
+              <p className="text-sm text-muted-foreground text-center">
+                El sistema de puntos no está activado
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => { setEarnDialog(false); setEarnOrderTotal(0) }}
+              className="flex-1 rounded-xl h-11 font-bold"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleEarn}
+              disabled={earnLoading || earnOrderTotal <= 0 || !pointsConfig?.enabled}
+              className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest rounded-xl h-11"
+            >
+              {earnLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Acumular'}
             </Button>
           </DialogFooter>
         </DialogContent>
