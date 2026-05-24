@@ -1,6 +1,8 @@
 {
     "name": "restaurant-print-agent",
     "version": "1.0.0",
+    "private": true,
+    "packageManager": "pnpm@10.33.4",
     "description": "Bridge between cloud restaurant app and local thermal printers",
     "main": "agent.js",
     "scripts": {

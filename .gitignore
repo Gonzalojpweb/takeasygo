@@ -5,6 +5,7 @@
 /printer-agent/node_modules
 /.pnp
 .pnp.*
+package-lock.json
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
@@ -103,3 +104,4 @@ RED
 /TESTER 
 
 /SOS
+/TIA.MD
