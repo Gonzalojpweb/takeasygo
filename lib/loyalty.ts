@@ -153,7 +153,7 @@ export async function processRewardDeduction(
 
   const query: any = {
     tenantId: tenant._id,
-    'customer.phoneHash': order.customer.phoneHash,
+    phoneHash: order.customer.phoneHash,
     status: 'active',
   }
 

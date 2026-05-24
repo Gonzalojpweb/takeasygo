@@ -29,7 +29,11 @@ export default async function TrackingPage({ params, searchParams }: Props) {
     ? generateRatingToken(order._id.toString())
     : null
 
-  // FASE WALLET: Buscar si el cliente es miembro del club para mostrar el botón de Wallet
+  // ─────────────────────────────────────────────────────────────────────────────
+  // FASE RECONCILIACIÓN: Acreditar puntos de compra y descontar puntos de canje
+  // Corre SIEMPRE que loyalty esté activo (independientemente de wallet)
+  // ─────────────────────────────────────────────────────────────────────────────
+  let member: any = null
   let loyaltyData: {
     memberId: string
     publicId: string
@@ -37,22 +41,23 @@ export default async function TrackingPage({ params, searchParams }: Props) {
     name: string
     tier: string
   } | null = null
-  if (tenant.loyalty?.enabled && tenant.wallet?.enabled) {
+
+  if (tenant.loyalty?.enabled && order.customer?.phoneHash) {
     const LoyaltyMember = (await import('@/models/LoyaltyMember')).default
-    const member = await LoyaltyMember.findOne({
+    member = await LoyaltyMember.findOne({
       tenantId: tenant._id,
       phoneHash: order.customer.phoneHash,
       status: 'active'
     }).select('wallet.publicId name phone loyalty.points').lean() as any
 
     if (member) {
-      // RECONCILIACIÓN: Si hay puntos de esta orden que no se sumaron, lo hacemos ahora.
-      // Le pasamos explicitly si MP lo aprobó por URL params para saltarnos la demora del Webhook
       const isMpApproved = resolvedSearchParams.status === 'approved' || resolvedSearchParams.collection_status === 'approved'
       const { reconcileMissingPoints, processRewardDeduction } = await import('@/lib/loyalty')
+
+      // 1. Acreditar puntos de compras pendientes
       await reconcileMissingPoints(member, tenant, isMpApproved ? order._id : undefined)
 
-      // También reconciliar deducción de reward si el pedido tiene items de canje
+      // 2. Descontar puntos de ítems de canje
       if (order.rewardItems?.length > 0 && !order.rewardDeductionProcessed) {
         await processRewardDeduction(order, tenant, undefined)
         await Order.updateOne(
@@ -60,17 +65,22 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           { $set: { rewardDeductionProcessed: true } }
         )
       }
+    }
+  }
 
-      // Volvemos a buscar para tener los puntos actualizados
-      const updatedMember = await LoyaltyMember.findById(member._id).select('loyalty.points wallet.publicId').lean() as any
+  // ─────────────────────────────────────────────────────────────────────────────
+  // FASE WALLET: Datos para botón "Agregar a Wallet" (solo si wallet activo)
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (member && tenant.wallet?.enabled) {
+    const LoyaltyMember = (await import('@/models/LoyaltyMember')).default
+    const updatedMember = await LoyaltyMember.findById(member._id).select('loyalty.points wallet.publicId').lean() as any
 
-      loyaltyData = {
-        memberId: member._id.toString(),
-        publicId: updatedMember.wallet?.publicId || member.wallet?.publicId,
-        points: updatedMember.loyalty?.points ?? member.loyalty?.points ?? 0,
-        name: member.name,
-        tier: member.loyalty?.tier ?? 'none'
-      }
+    loyaltyData = {
+      memberId: member._id.toString(),
+      publicId: updatedMember.wallet?.publicId || member.wallet?.publicId,
+      points: updatedMember.loyalty?.points ?? member.loyalty?.points ?? 0,
+      name: member.name,
+      tier: member.loyalty?.tier ?? 'none'
     }
   }
 
