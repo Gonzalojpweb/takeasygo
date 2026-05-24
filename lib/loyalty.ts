@@ -143,6 +143,11 @@ export async function processRewardDeduction(
 ) {
   if (!order.rewardItems || order.rewardItems.length === 0) return null
 
+  if (order.rewardDeductionProcessed) {
+    console.log(`[Loyalty] Reward deduction ya procesado para la orden ${order.orderNumber}`)
+    return null
+  }
+
   const totalPointsCost = order.rewardItems.reduce((sum: number, r: any) => sum + (r.pointsCost || 0), 0)
   if (totalPointsCost <= 0) return null
 
@@ -170,6 +175,8 @@ export async function processRewardDeduction(
   }
 
   await member.save({ session })
+
+  order.rewardDeductionProcessed = true
 
   if (member.wallet?.googleObjectId) {
     syncWalletPoints(member._id).catch(() => {})

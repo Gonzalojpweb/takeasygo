@@ -42,6 +42,7 @@ interface Props {
   } | null
   loyaltyPointsUsed?: number
   loyaltyDiscountAmount?: number
+  hasRewardItems?: boolean
   tenantName: string
   clubName: string
 }
@@ -82,6 +83,7 @@ export default function OrderTracker({
   loyaltyData = null,
   loyaltyPointsUsed = 0,
   loyaltyDiscountAmount = 0,
+  hasRewardItems = false,
   tenantName,
   clubName,
 }: Props) {
@@ -372,6 +374,15 @@ export default function OrderTracker({
             style={{ backgroundColor: primaryColor, color: backgroundColor }}>
             Volver al menú
           </a>
+          {hasRewardItems && loyaltyData && (
+            <a
+              href={`/explore/profile/club/${tenantSlug}`}
+              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-base border-2 transition-opacity hover:opacity-80"
+              style={{ borderColor: primaryColor, color: primaryColor }}>
+              <Star size={16} className="fill-current" />
+              Ver mis canjes
+            </a>
+          )}
         </div>
       )}
       

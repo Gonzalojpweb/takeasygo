@@ -99,6 +99,7 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           loyaltyData={loyaltyData}
           loyaltyPointsUsed={order.loyaltyPointsUsed}
           loyaltyDiscountAmount={order.loyaltyDiscountAmount}
+          hasRewardItems={order.rewardItems?.length > 0}
           tenantName={tenant.name}
           clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
         />

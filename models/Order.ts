@@ -111,6 +111,7 @@ export interface IOrder extends Document {
   rewardAdvanceApplied?: boolean
   rewardAdvanceAmount?: number
   loyaltyPointsCredited: boolean
+  rewardDeductionProcessed?: boolean
   source?: string
   createdAt: Date
   updatedAt: Date
@@ -310,6 +311,10 @@ const OrderSchema = new Schema(
       default: 0,
     },
     loyaltyPointsCredited: {
+      type: Boolean,
+      default: false,
+    },
+    rewardDeductionProcessed: {
       type: Boolean,
       default: false,
     },
