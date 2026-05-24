@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift } from 'lucide-react'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -740,7 +740,7 @@ async function handleSubmit(e: React.FormEvent) {
                             }}
                             disabled={!enoughPoints && !canAdvance}
                             className={cn(
-                              "flex-shrink-0 w-36 snap-start rounded-2xl border-2 p-3 text-left transition-all duration-150",
+                              "flex-shrink-0 w-50 snap-start rounded-2xl border-2 p-3 text-left transition-all duration-150",
                               isSelected
                                 ? "border-zinc-900 bg-zinc-50"
                                 : !enoughPoints && !canAdvance
@@ -782,15 +782,18 @@ async function handleSubmit(e: React.FormEvent) {
                   {selectedRewardItem && rewardNeedsAdvance && (
                     <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
                       <div className="flex items-start gap-2">
-                        <AlertTriangle size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                        {/* <AlertTriangle size={14} className="text-amber-600 mt-0.5 flex-shrink-0" /> */}
                         <div>
                           {canUseSos ? (
                             <>
+                              <p className="text-[11px] text-bold text-amber-600 mt-0.5">
+                                ✨ Reward Advance activado
+                              </p>
                               <p className="text-xs font-bold text-amber-800">
-                                Te prestamos {missingPoints} pts con Reward Advance
+                                Te adelantamos {missingPoints} pts para que disfrutes tu recompensa hoy.
                               </p>
                               <p className="text-[11px] text-amber-600 mt-0.5">
-                                Se descontarán automáticamente de tus próximas compras. Aplican términos y condiciones.
+                                Seguí acumulando normalmente y el progreso se consolidará automáticamente.
                               </p>
                             </>
                           ) : (
