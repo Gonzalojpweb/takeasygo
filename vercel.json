@@ -3,6 +3,10 @@
          {
            "path": "/api/cron/activate-scheduled-orders",
            "schedule": "0 0 * * *"
+         },
+         {
+           "path": "/api/cron/cancel-awaiting-payment",
+           "schedule": "0 */6 * * *"
          }
        ]
      }
