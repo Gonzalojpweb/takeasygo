@@ -10,6 +10,7 @@ interface VariantInfo {
   nameTranslations?: { en: string }
   price: number
   takeawayPrice?: number
+  businessPrice?: number
 }
 
 interface CustomizationOption {
@@ -34,7 +35,7 @@ interface Props {
   primaryColor: string
   bgColor: string
   textColor: string
-  mode: 'takeaway' | 'dine-in'
+  mode: 'takeaway' | 'dine-in' | 'business'
 }
 
 function computeActiveGroups(
@@ -94,8 +95,12 @@ export default function CustomizationModal({
     .reduce((sum, opt) => sum + opt.extraPrice, 0)
 
   const basePrice = hasVariants && selectedVariant
-    ? (mode === 'takeaway' ? (selectedVariant.takeawayPrice ?? selectedVariant.price) : selectedVariant.price)
-    : (mode === 'takeaway' ? (item.takeawayPrice ?? item.price) : item.price)
+    ? (mode === 'takeaway' ? (selectedVariant.takeawayPrice ?? selectedVariant.price) :
+       mode === 'business' ? (selectedVariant.businessPrice ?? selectedVariant.price) :
+       selectedVariant.price)
+    : (mode === 'takeaway' ? (item.takeawayPrice ?? item.price) :
+       mode === 'business' ? (item.businessPrice ?? item.price) :
+       item.price)
 
   const unitPrice = basePrice + extraPrice
   const totalPrice = unitPrice * quantity
@@ -174,6 +179,7 @@ export default function CustomizationModal({
           name: selectedVariant.name,
           price: selectedVariant.price,
           takeawayPrice: selectedVariant.takeawayPrice,
+          businessPrice: selectedVariant.businessPrice,
         }
       : undefined
 
@@ -272,7 +278,7 @@ export default function CustomizationModal({
               </div>
               <div className="space-y-2">
                 {variants.map(v => {
-                  const variantPrice = mode === 'takeaway' ? (v.takeawayPrice ?? v.price) : v.price
+                  const variantPrice = mode === 'takeaway' ? (v.takeawayPrice ?? v.price) : mode === 'business' ? (v.businessPrice ?? v.price) : v.price
                   const selected = selectedVariant?.name === v.name
                   return (
                     <button

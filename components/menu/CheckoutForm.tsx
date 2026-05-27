@@ -15,7 +15,7 @@ import FeedbackModal from '@/components/feedback/FeedbackModal'
 interface Props {
   tenantSlug: string
   locationId: string
-  mode: 'takeaway' | 'dine-in'
+  mode: 'takeaway' | 'dine-in' | 'business'
 }
 
 interface LoyaltyConfig {
@@ -68,6 +68,12 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [loyaltyMember, setLoyaltyMember] = useState<any | null>(null)
   const [pointsLookupLoading, setPointsLookupLoading] = useState(false)
   const [storeItems, setStoreItems] = useState<StoreItem[]>([])
+
+  const [businessInfo, setBusinessInfo] = useState<{
+    corporateAccountId: string
+    role: string
+    paymentMode: string
+  } | null>(null)
   const [selectedRewardItemId, setSelectedRewardItemId] = useState<string | null>(null)
   const [rewardItemLoading, setRewardItemLoading] = useState(false)
 
@@ -108,6 +114,15 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     if (hints) {
       setUpsellHints(JSON.parse(hints))
       sessionStorage.removeItem('upsellHints')
+    }
+
+    if (mode === 'business') {
+      const corporateAccountId = sessionStorage.getItem('businessCorporateAccountId')
+      const role = sessionStorage.getItem('businessRole')
+      const paymentMode = sessionStorage.getItem('businessPaymentMode')
+      if (corporateAccountId) {
+        setBusinessInfo({ corporateAccountId, role: role ?? 'employee', paymentMode: paymentMode ?? 'cash_mp' })
+      }
     }
 
     fetch(`/api/${tenantSlug}/loyalty/settings`)
@@ -323,6 +338,10 @@ async function handleSubmit(e: React.FormEvent) {
           ? { rewardItems: [{ storeItemId: selectedRewardItemId }], loyaltyPointsRequired: selectedRewardItem.pointsCost }
           : {}),
         source: sessionStorage.getItem('tgo_attribution_source') || undefined,
+        ...(mode === 'business' && businessInfo ? {
+          corporateAccountId: businessInfo.corporateAccountId,
+          paymentModeSnapshot: businessInfo.paymentMode,
+        } : {}),
       }
 
       if (scheduleOrder && scheduledPickupAt) {
@@ -346,6 +365,16 @@ async function handleSubmit(e: React.FormEvent) {
     if (!orderRes.ok) throw new Error('Error al crear el pedido')
     const { order } = await orderRes.json()
 
+    sessionStorage.removeItem('cart')
+
+    // Business deferred: skip MP, show success directly
+    const skipPayment = mode === 'business' && businessInfo?.paymentMode === 'deferred'
+
+    if (skipPayment) {
+      router.push(`/${tenantSlug}/order/${order.orderNumber}`)
+      return
+    }
+
     // 2. Crear preferencia de MP
     const prefRes = await fetch(`/api/${tenantSlug}/payments/create-preference`, {
       method: 'POST',
@@ -354,8 +383,6 @@ async function handleSubmit(e: React.FormEvent) {
     })
     if (!prefRes.ok) throw new Error('Error al crear el pago')
     const { sandboxInitPoint, initPoint } = await prefRes.json()
-
-    sessionStorage.removeItem('cart')
 
     // En desarrollo usamos sandbox, en producción initPoint
     const redirectUrl = process.env.NODE_ENV === 'development' ? sandboxInitPoint : initPoint
@@ -896,7 +923,7 @@ async function handleSubmit(e: React.FormEvent) {
             disabled={loading || cart.length === 0}
             className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50"
           >
-            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : '💳 Pagar con MercadoPago'}
+            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : mode === 'business' && businessInfo?.paymentMode !== 'cash_mp' ? '✅ Confirmar pedido' : '💳 Pagar con MercadoPago'}
           </button>
 
           {/* Términos y Privacidad */}

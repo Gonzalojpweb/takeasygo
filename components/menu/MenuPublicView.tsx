@@ -23,7 +23,7 @@ interface Props {
   tenant: any
   location: any
   menu: any
-  mode: 'takeaway' | 'dine-in'
+  mode: 'takeaway' | 'dine-in' | 'business'
 }
 
 const VEGETARIAN_TAGS = ['vegetariano', 'vegano', 'vegan', 'vegetarian']
@@ -118,10 +118,16 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const getItemPrice = (item: any) => {
     const hasVariants = (item.variants ?? []).length > 0
     if (hasVariants) {
-      const prices = item.variants.map((v: any) => mode === 'takeaway' ? (v.takeawayPrice ?? v.price) : v.price)
+      const prices = item.variants.map((v: any) =>
+        mode === 'takeaway' ? (v.takeawayPrice ?? v.price) :
+        mode === 'business' ? (v.businessPrice ?? v.price) :
+        v.price
+      )
       return Math.min(...prices)
     }
-    return mode === 'takeaway' ? (item.takeawayPrice ?? item.price) : item.price
+    if (mode === 'takeaway') return item.takeawayPrice ?? item.price
+    if (mode === 'business') return item.businessPrice ?? item.price
+    return item.price
   }
 
   const [promotions, setPromotions] = useState<any[]>([])
@@ -157,7 +163,10 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const regularPromotions = promotions.filter(p => !p.isFeatured)
 
   const categories = menuData.categories
-    .filter((cat: any) => cat.isAvailable && (!mounted || isAvailableNow(cat.availabilityMode, cat.availabilitySchedule)))
+    .filter((cat: any) => {
+      if (mode === 'business' && !cat.isBusinessAvailable) return false
+      return cat.isAvailable && (!mounted || isAvailableNow(cat.availabilityMode, cat.availabilitySchedule))
+    })
     .sort((a: any, b: any) => {
       const diff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
       return diff !== 0 ? diff : String(a._id).localeCompare(String(b._id))
@@ -426,6 +435,15 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
     sessionStorage.setItem('cart', JSON.stringify(cart))
     sessionStorage.setItem('mode', mode)
 
+    if (mode === 'business') {
+      const corporateAccountId = sessionStorage.getItem('businessCorporateAccountId')
+      const businessRole = sessionStorage.getItem('businessRole')
+      const businessPaymentMode = sessionStorage.getItem('businessPaymentMode')
+      sessionStorage.setItem('businessCorporateAccountId', corporateAccountId ?? '')
+      sessionStorage.setItem('businessRole', businessRole ?? '')
+      sessionStorage.setItem('businessPaymentMode', businessPaymentMode ?? '')
+    }
+
     // Pre-checkout upsell: ítems destacados fuera del carrito sin grupos requeridos
     const cartIds = new Set(cart.map(i => i.menuItemId))
     const hints = categories
@@ -511,7 +529,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
                 EN
               </button>
             </div>
-            <span className="text-xs opacity-40">{mode === 'takeaway' ? t.takeaway : t.dineIn}</span>
+            <span className="text-xs opacity-40">{mode === 'takeaway' ? t.takeaway : mode === 'business' ? 'Business' : t.dineIn}</span>
             {totalItems > 0 && (
               <button
                 onClick={() => setShowCart(true)}
@@ -696,7 +714,10 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
             <div className={isGridForTakeaway ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-0'}>
               {category.items
-                .filter((item: any) => item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule)))
+                .filter((item: any) => {
+                  if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && item.businessPrice != null && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+                  return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+                })
                 .map((item: any) => {
                   const veg = isVegetarian(item.tags || [])
                   const qty = itemTotalQty(item._id)

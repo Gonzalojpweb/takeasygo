@@ -18,7 +18,7 @@ export interface ILocation extends Document {
   // ──────────────────────────────────────────────────────────────────────────
   settings: {
     acceptsOrders: boolean
-    orderModes: ('takeaway' | 'dine-in')[]
+    orderModes: ('takeaway' | 'dine-in' | 'business')[]
     estimatedPickupTime: number
     /** Historial de ajustes automáticos del tiempo estimado (anti-gaming audit) */
     adjustmentHistory?: Array<{
@@ -130,7 +130,7 @@ settings: {
         acceptsOrders: { type: Boolean, default: true },
         orderModes: {
           type: [String],
-          enum: ['takeaway', 'dine-in'] as const,
+          enum: ['takeaway', 'dine-in', 'business'] as const,
           default: ['takeaway'],
         },
         estimatedPickupTime: { type: Number, default: 20 },

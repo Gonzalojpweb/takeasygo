@@ -28,7 +28,7 @@ interface Company {
   paymentMode: string
   paymentTerms: string
   companyAdminEmail: string
-  employeeEmails: string[]
+  employeeEmails?: string[]
   notes: string
   createdAt: string
 }
@@ -300,8 +300,8 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
                         {STATUS_LABELS[company.status]?.label}
                       </Badge>
                     </div>
-                    {company.companyTaxId && (
-                      <p className="text-xs text-muted-foreground font-mono mt-0.5">CUIT: {company.companyTaxId}</p>
+                    {company?.companyTaxId && (
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5">CUIT: {company?.companyTaxId}</p>
                     )}
                   </div>
                 </div>
@@ -338,7 +338,7 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
                 </div>
                 <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
                   <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Empleados</p>
-                  <p className="text-sm font-bold">{company.employeeEmails.length} emails registrados</p>
+                  <p className="text-sm font-bold">{(company.employeeEmails ?? []).length} emails registrados</p>
                 </div>
               </div>
 
@@ -353,11 +353,11 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
                     <Plus size={12} /> Agregar
                   </button>
                 </div>
-                {company.employeeEmails.length === 0 ? (
+                {(company.employeeEmails ?? []).length === 0 ? (
                   <p className="text-xs text-muted-foreground/50 italic">Sin empleados registrados</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {company.employeeEmails.map(email => (
+                    {(company.employeeEmails ?? []).map(email => (
                       <div key={email} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/40 border border-border/40 group">
                         <span className="text-xs font-mono">{email}</span>
                         <button

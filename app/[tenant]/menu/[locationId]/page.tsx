@@ -37,6 +37,8 @@ export default async function MenuSelectorPage({ params }: Props) {
   const mapsUrl = location.mapsUrl || ''
   const behance = profile.branding?.behance || ''
 
+  const businessEnabled = tenant.business?.enabled === true
+
   // Show reservations button if tenant module is enabled and location hasn't explicitly disabled it
   const reservationsEnabled =
     tenant.features?.reservations === true &&
@@ -394,6 +396,20 @@ export default async function MenuSelectorPage({ params }: Props) {
                   <path d="M16 10a4 4 0 0 1-8 0" />
                 </svg>
                 Takeaway
+              </Link>
+            )}
+            {businessEnabled && (
+              <Link
+                href={`/${tenantSlug}/menu/${locationId}/business`}
+                className="mh-btn mh-btn-glass"
+                style={{ borderRadius: br }}
+              >
+                <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, flexShrink: 0, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <path d="M12 8v8" />
+                  <path d="M8 12h8" />
+                </svg>
+                Business
               </Link>
             )}
             {reservationsEnabled && (

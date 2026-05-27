@@ -15,6 +15,7 @@ export interface SelectedVariant {
   name: string
   price: number
   takeawayPrice?: number
+  businessPrice?: number
 }
 
 export interface CartItem {

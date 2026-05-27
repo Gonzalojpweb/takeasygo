@@ -46,6 +46,11 @@ export default async function BusinessCompaniesPage() {
   const companies = await CorporateAccount.find({ tenantId: tenant._id })
     .sort({ createdAt: -1 })
     .lean()
+    .catch(() => [])
+
+  const serialized = companies && companies.length > 0
+    ? JSON.parse(JSON.stringify(companies))
+    : []
 
   return (
     <div>
@@ -59,7 +64,7 @@ export default async function BusinessCompaniesPage() {
         </div>
       </div>
       <BusinessCompaniesClient
-        companies={JSON.parse(JSON.stringify(companies))}
+        companies={serialized}
         tenantSlug={tenantSlug || ''}
       />
     </div>

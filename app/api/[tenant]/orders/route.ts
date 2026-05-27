@@ -5,6 +5,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import Promotion from '@/models/Promotion'
+import CorporateAccount from '@/models/CorporateAccount'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import User from '@/models/User'
 import { generateOrderNumber } from '@/lib/orderNumber'
@@ -173,6 +174,23 @@ export async function POST(
       }
     }
 
+    const isBusinessOrder = body.mode === 'business'
+
+    // Validar CorporateAccount para pedidos business
+    if (isBusinessOrder) {
+      if (!body.corporateAccountId) {
+        return NextResponse.json({ error: 'Falta cuenta corporativa' }, { status: 400 })
+      }
+      const corpAccount = await CorporateAccount.findOne({
+        _id: body.corporateAccountId,
+        tenantId: tenant._id,
+        status: 'active',
+      })
+      if (!corpAccount) {
+        return NextResponse.json({ error: 'Cuenta corporativa inválida o suspendida' }, { status: 403 })
+      }
+    }
+
     // Buscar el menú real en la DB — los precios se toman de aquí, nunca del cliente
     const menu = await Menu.findOne({
       tenantId: tenant._id,
@@ -188,10 +206,15 @@ export async function POST(
     const menuItemMap = new Map<string, any>()
     for (const category of menu.categories) {
       if (!category.isAvailable) continue
+      if (isBusinessOrder && !category.isBusinessAvailable) continue
       for (const item of category.items) {
-        const available = isTakeawayOrder
-          ? (item.isAvailable && item.isTakeawayAvailable !== false)
-          : item.isAvailable
+        let available = item.isAvailable
+        if (isTakeawayOrder) {
+          available = available && item.isTakeawayAvailable !== false
+        }
+        if (isBusinessOrder) {
+          available = available && item.isBusinessAvailable && item.businessPrice != null
+        }
         if (available && item._id) {
           menuItemMap.set(item._id.toString(), { ...item.toObject(), categoryName: category.name })
         }
@@ -407,18 +430,23 @@ export async function POST(
           }
           basePrice = body.mode === 'takeaway'
             ? (dbVariant.takeawayPrice ?? dbVariant.price)
-            : dbVariant.price
+            : body.mode === 'business'
+              ? (dbVariant.businessPrice ?? dbVariant.price)
+              : dbVariant.price
 
           resolvedSelectedVariant = {
             name: dbVariant.name,
             price: dbVariant.price,
             ...(dbVariant.takeawayPrice != null ? { takeawayPrice: dbVariant.takeawayPrice } : {}),
+            ...(dbVariant.businessPrice != null ? { businessPrice: dbVariant.businessPrice } : {}),
           }
         } else {
-          // Precio base depende del modo (takeaway vs dine-in)
+          // Precio base depende del modo (takeaway vs dine-in / business)
           basePrice = body.mode === 'takeaway' 
             ? (menuItem.takeawayPrice ?? menuItem.price) 
-            : menuItem.price
+            : body.mode === 'business'
+              ? (menuItem.businessPrice ?? menuItem.price)
+              : menuItem.price
         }
           
         let extraPrice = 0
@@ -440,18 +468,19 @@ export async function POST(
         const price = basePrice + extraPrice
         const subtotal = price * quantity
 
-        // Detectar si el item tiene descuento de categoría
-        // Para items con variantes, comparar contra el precio original de la variante
+        // Business mode: no descuentos de categoría, precio fijo corp
         let hasCategoryDiscount = false
-        if (hasVariants && resolvedSelectedVariant) {
-          const variantOriginal = body.mode === 'takeaway'
-            ? resolvedSelectedVariant.takeawayPrice ?? resolvedSelectedVariant.price
-            : resolvedSelectedVariant.price
-          hasCategoryDiscount = false  // Los descuentos de categoría no aplican sobre variantes por ahora
-        } else {
-          hasCategoryDiscount = body.mode === 'takeaway'
-            ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
-            : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
+        if (!isBusinessOrder) {
+          if (hasVariants && resolvedSelectedVariant) {
+            const variantOriginal = body.mode === 'takeaway'
+              ? resolvedSelectedVariant.takeawayPrice ?? resolvedSelectedVariant.price
+              : resolvedSelectedVariant.price
+            hasCategoryDiscount = false
+          } else {
+            hasCategoryDiscount = body.mode === 'takeaway'
+              ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
+              : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
+          }
         }
 
         resolvedItems.push({
@@ -646,11 +675,13 @@ export async function POST(
       }
     }
 
+    const isDeferredBusiness = isBusinessOrder && body.paymentModeSnapshot === 'deferred'
+
     const order = await Order.create({
       tenantId: tenant._id,
       locationId: body.locationId,
       orderNumber: generateOrderNumber(tenantSlug),
-      status: 'awaiting_payment',
+      status: isDeferredBusiness ? 'confirmed' : 'awaiting_payment',
       orderMode: body.mode,
       items: resolvedItems,
       rewardItems: resolvedRewards,
@@ -667,6 +698,10 @@ export async function POST(
       scheduledPickupAt,
       scheduledStatus,
       source: body.source ?? null,
+      ...(isBusinessOrder && body.corporateAccountId ? {
+        corporateAccountId: body.corporateAccountId,
+        paymentModeSnapshot: body.paymentModeSnapshot ?? null,
+      } : {}),
     })
 
     if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
