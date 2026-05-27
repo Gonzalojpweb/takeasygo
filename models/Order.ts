@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
-export type OrderStatus = 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
+export type OrderStatus = 'open' | 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
 export type OrderMode = 'takeaway' | 'dine-in' | 'business'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 export type PaymentModeSnapshot = 'cash_mp' | 'deferred' | 'mixed'
@@ -37,6 +37,7 @@ export interface IOrderItem {
   customizations: ISelectedCustomizationGroup[]
   selectedVariant?: ISelectedVariant
   addedFrom?: string
+  addedByEmail?: string
   /** Si true, el item tenía descuento de categoría (originalPrice definido en el menú). El QR no aplicó sobre él. */
   hasCategoryDiscount?: boolean
 }
@@ -182,6 +183,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
   },
   selectedVariant: { type: SelectedVariantSchema, default: null },
   addedFrom: { type: String, default: null },
+  addedByEmail: { type: String, default: null },
 })
 
 const OrderSchema = new Schema(
@@ -205,7 +207,7 @@ const OrderSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] as const,
+      enum: ['open', 'awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] as const,
       default: 'awaiting_payment',
     },
     orderMode: {
@@ -357,6 +359,7 @@ OrderSchema.index({ tenantId: 1, locationId: 1, createdAt: -1 })
 OrderSchema.index({ orderNumber: 1 })
 OrderSchema.index({ tenantId: 1, 'customer.phoneHash': 1 })  // tasa de recompra
 OrderSchema.index({ tenantId: 1, scheduledPickupAt: 1, scheduledStatus: 1 })
+OrderSchema.index({ groupSessionToken: 1 }, { sparse: true })
 
 const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema)
 export default Order

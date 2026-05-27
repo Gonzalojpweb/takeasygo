@@ -24,6 +24,8 @@ interface Props {
   location: any
   menu: any
   mode: 'takeaway' | 'dine-in' | 'business'
+  groupSessionToken?: string
+  groupEmail?: string
 }
 
 const VEGETARIAN_TAGS = ['vegetariano', 'vegano', 'vegan', 'vegetarian']
@@ -91,7 +93,7 @@ const UI = {
   },
 }
 
-export default function MenuPublicView({ tenant, location, menu, mode }: Props) {
+export default function MenuPublicView({ tenant, location, menu, mode, groupSessionToken, groupEmail }: Props) {
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [translating, setTranslating] = useState(false)
@@ -245,11 +247,22 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
 
   function addPlainToCart(item: any, triggerUpsell = true, addedFrom: CartItem['addedFrom'] = 'menu') {
     const hasVariants = (item.variants ?? []).length > 0
-    // Items with variants must go through the customization modal
     if (hasVariants) {
       openCustomizationModal(item)
       return
     }
+
+    // Group session: post directly to session API
+    if (groupSessionToken && groupEmail) {
+      addToGroupSession([{
+        menuItemId: item._id,
+        quantity: 1,
+        customizations: [],
+        selectedVariant: undefined,
+      }], item.name)
+      return
+    }
+
     const plainId = `${item._id}:plain`
     const isNew = !cart.some(i => i.cartItemId === plainId)
     setCart(prev => {
@@ -274,6 +287,24 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
     if (triggerUpsell && isNew) {
       const suggestions = getSuggestions(categories, cart, String(item._id), insights)
       if (suggestions.length > 0) setUpsellSuggestions(suggestions)
+    }
+  }
+
+  async function addToGroupSession(items: any[], itemName: string) {
+    try {
+      const res = await fetch(`/api/${tenant.slug}/business/group-session/${groupSessionToken}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: groupEmail, items }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        toast.error(data.error || 'Error al agregar item al pedido grupal')
+        return
+      }
+      toast.success(`${itemName} agregado al pedido grupal`)
+    } catch {
+      toast.error('Error al agregar item al pedido grupal')
     }
   }
 
@@ -363,6 +394,19 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
     if ((cartItem as any).isPromotion) {
       const promoId = (cartItem as any)._promotionId
       const itemName = (cartItem as any)._itemName || ''
+
+      // Group session: post directly
+      if (groupSessionToken && groupEmail) {
+        addToGroupSession([{
+          menuItemId: cartItem.menuItemId,
+          quantity: cartItem.quantity,
+          customizations: cartItem.customizations,
+          selectedVariant: cartItem.selectedVariant ? { name: cartItem.selectedVariant.name } : undefined,
+        }], (cartItem as any)._promotionTitle || cartItem.name)
+        setCustomizingItem(null)
+        return
+      }
+
       const uniqueId = `promo:${promoId}:${itemName.replace(/\s+/g, '_') || Date.now()}`
       // Incluir nombre del item en el summary para que viaje hasta la DB y el print agent
       const enrichedSummary = itemName && cartItem.customizationSummary
@@ -394,6 +438,19 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
       toast.success(`${itemName} agregado a ${(cartItem as any)._promotionTitle}`)
       return
     }
+
+    // Group session: post directly
+    if (groupSessionToken && groupEmail) {
+      addToGroupSession([{
+        menuItemId: cartItem.menuItemId,
+        quantity: cartItem.quantity,
+        customizations: cartItem.customizations,
+        selectedVariant: cartItem.selectedVariant ? { name: cartItem.selectedVariant.name } : undefined,
+      }], cartItem.name)
+      setCustomizingItem(null)
+      return
+    }
+
     const taggedItem: CartItem = upsellModalRef.current
       ? { ...cartItem, addedFrom: 'upsell_sheet' }
       : cartItem
@@ -436,6 +493,12 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
       toast.info('Este local está en modo catálogo. Próximamente habilitaremos pedidos.')
       return
     }
+
+    // Group session: don't go to checkout, items are added directly to session
+    if (groupSessionToken) {
+      return
+    }
+
     sessionStorage.setItem('cart', JSON.stringify(cart))
     sessionStorage.setItem('mode', mode)
 

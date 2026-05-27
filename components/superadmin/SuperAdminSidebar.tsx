@@ -19,6 +19,7 @@ import {
   Megaphone,
   ChevronRight,
   MessageSquare,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -79,6 +80,7 @@ export default function SuperAdminSidebar() {
       items: [
         { href: '/superadmin/tenants', label: 'Tenants', icon: Store },
         { href: '/superadmin/usuarios', label: 'Usuarios', icon: Users },
+        { href: '/superadmin/business/companies', label: 'Empresas Business', icon: Building2 },
         { href: '/superadmin/sellers', label: 'Vendedores', icon: UserCheck },
         { href: '/superadmin/leads', label: 'Leads', icon: Eye },
       ],
