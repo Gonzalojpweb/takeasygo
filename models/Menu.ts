@@ -21,6 +21,7 @@ export interface IMenuItemVariant {
   nameTranslations?: { en: string }
   price: number
   takeawayPrice?: number
+  businessPrice?: number
   originalPrice?: number
   takeawayOriginalPrice?: number
 }
@@ -37,6 +38,7 @@ export interface IMenuItem {
   description: string
   price: number
   takeawayPrice?: number
+  businessPrice?: number | null
   /** Precio original de lista (antes de descuentos de categoría). Se guarda una sola vez. */
   originalPrice?: number
   /** Precio takeaway original de lista (antes de descuentos de categoría). Se guarda una sola vez. */
@@ -44,6 +46,7 @@ export interface IMenuItem {
   imageUrl: string
   isAvailable: boolean
   isTakeawayAvailable: boolean
+  isBusinessAvailable: boolean
   tags: string[]
   isFeatured: boolean
   suggestWith?: string[]  // IDs de ítems a sugerir cuando este se agrega al carrito
@@ -62,6 +65,7 @@ export interface IMenuCategory {
   description: string
   imageUrl: string
   isAvailable: boolean
+  isBusinessAvailable: boolean
   sortOrder: number
   items: IMenuItem[]
   customizationGroups?: ICustomizationGroup[]   // grupos heredados por todos los items de la categoría
@@ -87,6 +91,7 @@ const MenuItemVariantSchema = new Schema<IMenuItemVariant>({
   },
   price: { type: Number, required: true, min: 0 },
   takeawayPrice: { type: Number, min: 0 },
+  businessPrice: { type: Number, min: 0 },
   originalPrice: { type: Number, min: 0 },
   takeawayOriginalPrice: { type: Number, min: 0 },
 }, { _id: true })
@@ -129,6 +134,11 @@ const MenuItemSchema = new Schema<IMenuItem>({
     type: Number,
     min: [0, 'El precio para llevar no puede ser negativo'],
   },
+  businessPrice: {
+    type: Number,
+    min: [0, 'El precio business no puede ser negativo'],
+    default: null,
+  },
   originalPrice: {
     type: Number,
     min: [0, 'El precio original no puede ser negativo'],
@@ -148,6 +158,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
   isTakeawayAvailable: {
     type: Boolean,
     default: true,
+  },
+  isBusinessAvailable: {
+    type: Boolean,
+    default: false,
   },
   tags: {
     type: [String],
@@ -204,6 +218,10 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
   isAvailable: {
     type: Boolean,
     default: true,
+  },
+  isBusinessAvailable: {
+    type: Boolean,
+    default: false,
   },
   sortOrder: {
     type: Number,

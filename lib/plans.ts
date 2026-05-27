@@ -71,6 +71,9 @@ export const PLAN_ACCESS = {
   // Plan Crecimiento y superior
   reservations:  ['buy', 'full'] as const,
 
+  // Módulo Business (precios corporativos) — Crecimiento y Premium
+  business:      ['buy', 'full'] as const,
+
   // Club de Fidelización — disponible en todos los planes con límites distintos
   // Límites de miembros: trial=30, try=150, buy/full=ilimitado
   // Exportación de lista: solo desde buy/full

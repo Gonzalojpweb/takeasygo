@@ -1,8 +1,9 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export type OrderStatus = 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
-export type OrderMode = 'takeaway' | 'dine-in'
+export type OrderMode = 'takeaway' | 'dine-in' | 'business'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+export type PaymentModeSnapshot = 'cash_mp' | 'deferred' | 'mixed'
 
 export interface ISelectedCustomizationOption {
   name: string
@@ -71,6 +72,10 @@ export interface IOrder extends Document {
   orderNumber: string
   status: OrderStatus
   orderMode: OrderMode
+  corporateAccountId: mongoose.Types.ObjectId | null
+  paymentModeSnapshot: PaymentModeSnapshot | null
+  groupSessionToken: string | null
+  sessionExpiresAt: Date | null
   items: IOrderItem[]
   rewardItems: IRewardRedemption[]
   subtotal: number
@@ -204,9 +209,27 @@ const OrderSchema = new Schema(
       default: 'awaiting_payment',
     },
     orderMode: {
-      type: 'String' as const,
-      enum: ['takeaway', 'dine-in'] as const,
+      type: String,
+      enum: ['takeaway', 'dine-in', 'business'] as const,
       required: true,
+    },
+    corporateAccountId: {
+      type: Schema.Types.ObjectId,
+      ref: 'CorporateAccount',
+      default: null,
+    },
+    paymentModeSnapshot: {
+      type: String,
+      enum: ['cash_mp', 'deferred', 'mixed', null],
+      default: null,
+    },
+    groupSessionToken: {
+      type: String,
+      default: null,
+    },
+    sessionExpiresAt: {
+      type: Date,
+      default: null,
     },
     items: [OrderItemSchema],
     rewardItems: {
