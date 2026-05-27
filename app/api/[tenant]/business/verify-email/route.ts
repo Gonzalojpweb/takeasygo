@@ -44,6 +44,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       verified: true,
       role: isCompanyAdmin ? 'company_admin' : 'employee',
       corporateAccountId: account._id.toString(),
+      corporateAccountEmail: account.companyAdminEmail,
       companyName: account.companyName,
       paymentMode: account.paymentMode,
       isCompanyAdmin,
