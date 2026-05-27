@@ -9,6 +9,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
 import { encrypt, safeDecrypt } from '@/lib/crypto'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
+import { sendWhatsApp } from '@/lib/whatsapp'
 
 function decryptReservation(r: any) {
   return {
@@ -152,6 +153,13 @@ export async function POST(
         location.name,
         tenant._id.toString()
       ).catch(e => console.error('[reservas] notification error:', e))
+    }
+
+    if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnReservation) {
+      sendWhatsApp(
+        tenant.notifications.whatsappPhone,
+        `📅 Nueva reserva en ${tenant.name}\n👤 ${name.trim()} - ${date} ${time}\n👥 ${partySize} pers.`
+      ).catch(e => console.error('[whapi] reservation notification error:', e))
     }
 
     return NextResponse.json({ reservation }, { status: 201 })

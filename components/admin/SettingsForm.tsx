@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Database,
   ImageIcon,
+  Bell,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -168,6 +169,33 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     ]))
   )
   const [scheduledOrdersSaving, setScheduledOrdersSaving] = useState<string | null>(null)
+
+  // Notifications state
+  const [notifPhone, setNotifPhone] = useState(tenant.notifications?.whatsappPhone ?? '')
+  const [notifyOrder, setNotifyOrder] = useState(tenant.notifications?.notifyOnOrder ?? true)
+  const [notifyReservation, setNotifyReservation] = useState(tenant.notifications?.notifyOnReservation ?? true)
+  const [notifSaving, setNotifSaving] = useState(false)
+
+  async function handleSaveNotifications() {
+    setNotifSaving(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/settings/notifications`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          whatsappPhone: notifPhone || null,
+          notifyOnOrder: notifyOrder,
+          notifyOnReservation: notifyReservation,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Configuración de notificaciones guardada')
+    } catch {
+      toast.error('Error al guardar configuración')
+    } finally {
+      setNotifSaving(false)
+    }
+  }
 
   async function handleSaveReservationConfig(locationId: string) {
     setReservationSaving(locationId)
@@ -524,6 +552,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             <TabTrigger value="locations" icon={<MapPin size={16} />} label="Sedes" />
             <TabTrigger value="general" icon={<SettingsIcon size={16} />} label="General" />
             <TabTrigger value="mercadopago" icon={<CreditCard size={16} />} label="Pagos" />
+            <TabTrigger value="notifications" icon={<Bell size={16} />} label="Notificaciones" />
             {tenant.features?.reservations && (
               <TabTrigger value="reservas" icon={<CalendarDays size={16} />} label="Reservas" />
             )}
@@ -1479,6 +1508,88 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                   mpOAuth={tenant.mpOAuth}
                 />
               </div>
+            </TabsContent>
+
+            {/* ── Notificaciones WhatsApp ── */}
+            <TabsContent value="notifications" className="m-0 mt-2">
+              <Card className="bg-muted/20 border-border/40 border-[3px] rounded-[3rem] p-10 max-w-2xl">
+                <div className="space-y-8">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-14 h-14 rounded-3xl bg-primary flex items-center justify-center text-white shadow-xl shadow-primary/30">
+                      <Bell size={28} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black tracking-tighter">Notificaciones WhatsApp</h3>
+                      <p className="text-sm text-muted-foreground font-medium">Recibí alertas en tu WhatsApp cuando lleguen nuevos pedidos o reservas.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <label className={labelCls}>Número de WhatsApp</label>
+                      <input
+                        type="text"
+                        placeholder="+5491123456789"
+                        value={notifPhone}
+                        onChange={e => setNotifPhone(e.target.value)}
+                        className="w-full bg-white border-2 border-border/60 focus:border-primary/40 text-foreground text-sm font-medium rounded-2xl px-4 py-3 outline-none transition-all shadow-sm"
+                      />
+                      <p className="text-[10px] text-muted-foreground/50 font-medium mt-1.5">Formato internacional: +54 seguido del número sin 15 (ej: +5491123456789)</p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <label className={labelCls}>Notificaciones</label>
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-border/60">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">Nuevo pedido</p>
+                          <p className="text-[11px] text-muted-foreground">Cuando se cree un pedido takeaway o business</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setNotifyOrder(!notifyOrder)}
+                          className={cn(
+                            'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                            notifyOrder ? 'bg-primary' : 'bg-muted-foreground/30'
+                          )}
+                        >
+                          <span className={cn(
+                            'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200',
+                            notifyOrder ? 'translate-x-5' : 'translate-x-0'
+                          )} />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-border/60">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">Nueva reserva</p>
+                          <p className="text-[11px] text-muted-foreground">Cuando se cree una reserva (gratuita o paga)</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setNotifyReservation(!notifyReservation)}
+                          className={cn(
+                            'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                            notifyReservation ? 'bg-primary' : 'bg-muted-foreground/30'
+                          )}
+                        >
+                          <span className={cn(
+                            'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200',
+                            notifyReservation ? 'translate-x-5' : 'translate-x-0'
+                          )} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <Button
+                      className="w-full bg-zinc-900 text-white font-bold h-12 rounded-xl active:scale-95 transition-all shadow-lg text-sm"
+                      onClick={handleSaveNotifications}
+                      disabled={notifSaving}
+                    >
+                      {notifSaving ? 'Guardando...' : 'Guardar configuración'}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
             </TabsContent>
 
             {/* ── Reservas ── */}
