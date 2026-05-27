@@ -693,7 +693,7 @@ async function handleSubmit(e: React.FormEvent) {
             </div>
           )}
 
-           {loyaltyConfig?.enabled && (
+            {loyaltyConfig?.enabled && !(mode === 'business' && businessInfo?.role === 'company_admin') && (
              <div className="space-y-3">
                {/* Card VIP si ya es miembro */}
                {loyaltyMember && (

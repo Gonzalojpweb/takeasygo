@@ -429,10 +429,10 @@ export async function POST(
             )
           }
           basePrice = body.mode === 'takeaway'
-            ? (dbVariant.takeawayPrice ?? dbVariant.price)
+            ? (Number(dbVariant.takeawayPrice ?? dbVariant.price) || 0)
             : body.mode === 'business'
-              ? (dbVariant.businessPrice ?? dbVariant.price)
-              : dbVariant.price
+              ? (Number(dbVariant.businessPrice ?? dbVariant.price) || 0)
+              : Number(dbVariant.price) || 0
 
           resolvedSelectedVariant = {
             name: dbVariant.name,
@@ -443,10 +443,10 @@ export async function POST(
         } else {
           // Precio base depende del modo (takeaway vs dine-in / business)
           basePrice = body.mode === 'takeaway' 
-            ? (menuItem.takeawayPrice ?? menuItem.price) 
+            ? (Number(menuItem.takeawayPrice ?? menuItem.price) || 0)
             : body.mode === 'business'
-              ? (menuItem.businessPrice ?? menuItem.price)
-              : menuItem.price
+              ? (Number(menuItem.businessPrice ?? menuItem.price) || 0)
+              : Number(menuItem.price) || 0
         }
           
         let extraPrice = 0
@@ -623,7 +623,17 @@ export async function POST(
     // ── Crear LoyaltyMember ANTES de la orden (B8: evitar race condition con webhook) ──
     // Si joinClub está activo, creamos el miembro primero para que el webhook de MP
     // encuentre el member cuando intente acreditar puntos.
-    if (joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled) {
+
+    // Bloquear joinClub si el email es companyAdminEmail (Business handoff v2 §4)
+    const isCompanyAdminEmail = body.customer.email ? await CorporateAccount.findOne({
+      tenantId: tenant._id,
+      status: 'active',
+      companyAdminEmail: body.customer.email.toLowerCase().trim(),
+    }).lean() : null
+
+    const canJoinClub = joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled && !isCompanyAdminEmail
+
+    if (canJoinClub) {
       const pHash = hashPhone(body.customer.phone)
       const existing = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash }).lean()
       if (!existing) {
