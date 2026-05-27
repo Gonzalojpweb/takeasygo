@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
+import { auth } from '@/lib/auth'
 
 export async function PUT(
   request: NextRequest,
@@ -24,12 +25,22 @@ export async function PUT(
     }
 
     // 2. Extraer campos anidados que no están en el body plano
-    const { sosMaxLimit, ...flatBody } = body
+    const { sosMaxLimit, business, ...flatBody } = body
 
     // 3. Construir update con dot-notation
     const updateSet: Record<string, any> = { ...flatBody }
     if (sosMaxLimit !== undefined) {
       updateSet['loyalty.sosMaxLimit'] = Math.max(0, Math.min(5000, parseInt(sosMaxLimit) || 0))
+    }
+    if (business !== undefined) {
+      if (business.enabled === true && !oldTenant.business?.enabled) {
+        const session = await auth()
+        updateSet['business.enabled'] = true
+        updateSet['business.activatedAt'] = new Date()
+        updateSet['business.activatedBy'] = session?.user?.id ?? null
+      } else {
+        updateSet['business.enabled'] = business.enabled === true
+      }
     }
 
     const tenant = await Tenant.findByIdAndUpdate(
@@ -57,6 +68,9 @@ export async function PUT(
       // Reservas: habilitar automáticamente para Crecimiento (buy) y Premium (full)
       if (['buy', 'full'].includes(body.plan)) {
         updates['features.reservations'] = true
+      } else {
+        // Si baja de plan, deshabilitar features que no aplican
+        updates['business.enabled'] = false
       }
       
       // Fidelización: habilitar para todos los planes comerciales

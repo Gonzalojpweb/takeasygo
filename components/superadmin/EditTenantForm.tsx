@@ -64,6 +64,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     isActive: tenant.isActive,
     isOperational: tenant.isOperational ?? true,
     featuresReservations: tenant.features?.reservations ?? false,
+    businessEnabled: tenant.business?.enabled ?? false,
     sosMaxLimit: tenant.loyalty?.sosMaxLimit ?? 0,
   })
 
@@ -81,6 +82,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           isActive: form.isActive,
           isOperational: form.isOperational,
           features: { reservations: form.featuresReservations },
+          business: { enabled: form.businessEnabled },
           sosMaxLimit: form.sosMaxLimit,
         }),
       })
@@ -180,6 +182,10 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                           newForm.featuresReservations = true
                         } else if (p === 'try' || p === 'trial' || p === 'anfitrion') {
                           newForm.featuresReservations = false
+                        }
+                        // Si baja de plan, deshabilitar Business
+                        if (p !== 'buy' && p !== 'full') {
+                          newForm.businessEnabled = false
                         }
                         return newForm
                       })
@@ -294,6 +300,35 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                   )} />
                 </button>
               </div>
+
+              {form.plan === 'buy' || form.plan === 'full' ? (
+                <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-2 h-2 rounded-full", form.businessEnabled ? "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/30")} />
+                    <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Módulo Business (Corp)</span>
+                  </div>
+                  <button type="button"
+                    onClick={() => setForm(p => ({ ...p, businessEnabled: !p.businessEnabled }))}
+                    className={cn(
+                      "w-12 h-6 rounded-full transition-all relative flex items-center",
+                      form.businessEnabled ? 'bg-primary' : 'bg-muted-foreground/20'
+                    )}>
+                    <div className={cn(
+                      "w-4 h-4 rounded-full bg-white shadow-sm transition-all absolute",
+                      form.businessEnabled ? 'left-[26px]' : 'left-1'
+                    )} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm opacity-40 cursor-not-allowed">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+                    <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Módulo Business (Corp)</span>
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">Plan Crecimiento+</span>
+                  </div>
+                  <div className="w-12 h-6 rounded-full bg-muted-foreground/10" />
+                </div>
+              )}
             </div>
 
             {/* SOS Max Limit (solo aplica si el plan es Premium) */}

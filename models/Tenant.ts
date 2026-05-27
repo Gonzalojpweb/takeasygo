@@ -1,4 +1,10 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema, Document, Types } from 'mongoose'
+
+export interface IBusinessConfig {
+  enabled: boolean
+  activatedAt: Date | null
+  activatedBy: Types.ObjectId | null
+}
 
 export interface ITenant extends Document {
   name: string
@@ -48,6 +54,11 @@ export interface ITenant extends Document {
   }
   features: {
     reservations: boolean
+  }
+  business: {
+    enabled: boolean
+    activatedAt: Date | null
+    activatedBy: Types.ObjectId | null
   }
   loyalty: {
     enabled:        boolean
@@ -314,6 +325,11 @@ const TenantSchema = new Schema<ITenant>(
     },
     features: {
       reservations: { type: Boolean, default: false },
+    },
+    business: {
+      enabled: { type: Boolean, default: false },
+      activatedAt: { type: Date, default: null },
+      activatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     },
     loyalty: {
       enabled:        { type: Boolean, default: false },
