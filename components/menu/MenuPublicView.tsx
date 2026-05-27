@@ -118,16 +118,17 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
   const getItemPrice = (item: any) => {
     const hasVariants = (item.variants ?? []).length > 0
     if (hasVariants) {
-      const prices = item.variants.map((v: any) =>
-        mode === 'takeaway' ? (v.takeawayPrice ?? v.price) :
-        mode === 'business' ? (v.businessPrice ?? v.price) :
-        v.price
-      )
+      const prices = item.variants.map((v: any) => {
+        const p = mode === 'takeaway' ? (v.takeawayPrice ?? v.price) :
+          mode === 'business' ? (v.businessPrice ?? v.price) :
+          v.price
+        return Number(p) || 0
+      })
       return Math.min(...prices)
     }
-    if (mode === 'takeaway') return item.takeawayPrice ?? item.price
-    if (mode === 'business') return item.businessPrice ?? item.price
-    return item.price
+    if (mode === 'takeaway') return Number(item.takeawayPrice ?? item.price) || 0
+    if (mode === 'business') return Number(item.businessPrice ?? item.price) || 0
+    return Number(item.price) || 0
   }
 
   const [promotions, setPromotions] = useState<any[]>([])
@@ -173,7 +174,10 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
     })
 
   const featuredItems = categories.flatMap((cat: any) =>
-    cat.items.filter((i: any) => i.isFeatured)
+    cat.items.filter((i: any) => {
+      if (mode === 'business') return i.isFeatured && i.isBusinessAvailable && i.businessPrice != null
+      return i.isFeatured
+    })
   )
 
   async function switchToEnglish() {
@@ -715,7 +719,7 @@ export default function MenuPublicView({ tenant, location, menu, mode }: Props) 
             <div className={isGridForTakeaway ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-0'}>
               {category.items
                 .filter((item: any) => {
-                  if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && item.businessPrice != null && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+                  if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && item.businessPrice != null && item.businessPrice !== '' && Number(item.businessPrice) > 0 && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                   return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                 })
                 .map((item: any) => {

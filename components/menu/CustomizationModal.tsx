@@ -95,12 +95,12 @@ export default function CustomizationModal({
     .reduce((sum, opt) => sum + opt.extraPrice, 0)
 
   const basePrice = hasVariants && selectedVariant
-    ? (mode === 'takeaway' ? (selectedVariant.takeawayPrice ?? selectedVariant.price) :
-       mode === 'business' ? (selectedVariant.businessPrice ?? selectedVariant.price) :
-       selectedVariant.price)
-    : (mode === 'takeaway' ? (item.takeawayPrice ?? item.price) :
-       mode === 'business' ? (item.businessPrice ?? item.price) :
-       item.price)
+    ? (mode === 'takeaway' ? (Number(selectedVariant.takeawayPrice ?? selectedVariant.price) || 0) :
+       mode === 'business' ? (Number(selectedVariant.businessPrice ?? selectedVariant.price) || 0) :
+       Number(selectedVariant.price) || 0)
+    : (mode === 'takeaway' ? (Number(item.takeawayPrice ?? item.price) || 0) :
+       mode === 'business' ? (Number(item.businessPrice ?? item.price) || 0) :
+       Number(item.price) || 0)
 
   const unitPrice = basePrice + extraPrice
   const totalPrice = unitPrice * quantity
@@ -278,7 +278,7 @@ export default function CustomizationModal({
               </div>
               <div className="space-y-2">
                 {variants.map(v => {
-                  const variantPrice = mode === 'takeaway' ? (v.takeawayPrice ?? v.price) : mode === 'business' ? (v.businessPrice ?? v.price) : v.price
+                  const variantPrice = mode === 'takeaway' ? (Number(v.takeawayPrice ?? v.price) || 0) : mode === 'business' ? (Number(v.businessPrice ?? v.price) || 0) : Number(v.price) || 0
                   const selected = selectedVariant?.name === v.name
                   return (
                     <button

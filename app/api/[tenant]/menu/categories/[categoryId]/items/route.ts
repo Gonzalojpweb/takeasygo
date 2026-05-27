@@ -126,7 +126,7 @@ export async function PUT(
     if (isAvailable !== undefined) item.isAvailable = isAvailable
     if (isTakeawayAvailable !== undefined) item.isTakeawayAvailable = isTakeawayAvailable
     if (isBusinessAvailable !== undefined) item.isBusinessAvailable = isBusinessAvailable
-    if (businessPrice !== undefined) item.businessPrice = businessPrice
+    if (businessPrice !== undefined) item.businessPrice = businessPrice === '' ? null : businessPrice
     if (imageUrl !== undefined) item.imageUrl = imageUrl
     if (tags !== undefined) item.tags = tags
     if (isFeatured !== undefined) item.isFeatured = isFeatured
