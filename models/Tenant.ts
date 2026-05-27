@@ -157,6 +157,11 @@ export interface ITenant extends Document {
     /** Permitir canje de ítems de la tienda durante el checkout */
     enableCheckoutRedemption: boolean
   }
+  notifications: {
+    whatsappPhone: string | null
+    notifyOnOrder: boolean
+    notifyOnReservation: boolean
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -418,6 +423,12 @@ const TenantSchema = new Schema<ITenant>(
       allowOnlineRedemption: { type: Boolean, default: false },
       redemptionExpiryHours: { type: Number, default: 24, min: 1, max: 168 }, // 1 hora a 7 días
       enableCheckoutRedemption: { type: Boolean, default: false },
+    },
+    /** Configuración de notificaciones WhatsApp para admins */
+    notifications: {
+      whatsappPhone: { type: String, default: null },
+      notifyOnOrder: { type: Boolean, default: true },
+      notifyOnReservation: { type: Boolean, default: true },
     },
   },
   {

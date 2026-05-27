@@ -20,6 +20,7 @@ import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 import { validateCheckoutRewards } from '@/lib/loyalty'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
+import { sendWhatsApp } from '@/lib/whatsapp'
 
 /**
  * Resuelve customizaciones recursivamente, incluyendo subGroups.
@@ -667,6 +668,14 @@ export async function POST(
       scheduledStatus,
       source: body.source ?? null,
     })
+
+    if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
+      const customerName = body.customer?.name?.trim() || 'Cliente'
+      sendWhatsApp(
+        tenant.notifications.whatsappPhone,
+        `🔔 Nuevo pedido en ${tenant.name}\n💰 Total: $${total.toLocaleString('es-AR')}\n👤 ${customerName}`
+      ).catch(e => console.error('[whapi] order notification error:', e))
+    }
 
     return NextResponse.json({ order }, { status: 201 })
   } catch (error) {
