@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import {
   ChevronDown, Plus, Pencil, Trash2, Check, X,
   Star, Upload, Camera, Settings2, Image as ImageIcon,
-  MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff, Clock, Sparkles
+  MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff, Clock, Sparkles, Building2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -42,6 +42,7 @@ type VariantForm = {
   name: string
   price: string
   takeawayPrice: string
+  businessPrice: string
   nameTranslations: string
 }
 
@@ -50,11 +51,12 @@ const EMPTY_CUSTOMIZATION_GROUP: CustomizationGroupForm = {
 }
 
 const EMPTY_VARIANT: VariantForm = {
-  name: '', price: '', takeawayPrice: '', nameTranslations: '',
+  name: '', price: '', takeawayPrice: '', businessPrice: '', nameTranslations: '',
 }
 
 const EMPTY_ITEM = {
-  name: '', description: '', price: '', takeawayPrice: '', tags: '', isFeatured: false, imageUrl: '',
+  name: '', description: '', price: '', takeawayPrice: '', businessPrice: '', tags: '', isFeatured: false, imageUrl: '',
+  isBusinessAvailable: false,
   suggestWith: [] as string[],
   customizationGroups: [] as CustomizationGroupForm[],
   variants: [] as VariantForm[],
@@ -82,6 +84,7 @@ function serializeVariants(variants: VariantForm[]): any[] {
     name: v.name,
     price: parseFloat(v.price) || 0,
     takeawayPrice: v.takeawayPrice ? parseFloat(v.takeawayPrice) : undefined,
+    businessPrice: v.businessPrice ? parseFloat(v.businessPrice) : undefined,
     nameTranslations: v.nameTranslations ? { en: v.nameTranslations } : undefined,
   }))
 }
@@ -91,6 +94,7 @@ function deserializeVariants(variants: any[]): VariantForm[] {
     name: v.name || '',
     price: v.price?.toString() ?? '',
     takeawayPrice: v.takeawayPrice?.toString() ?? '',
+    businessPrice: v.businessPrice?.toString() ?? '',
     nameTranslations: v.nameTranslations?.en ?? '',
   }))
 }
@@ -122,6 +126,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [editingCategoryGroups, setEditingCategoryGroups] = useState<CustomizationGroupForm[]>([])
   const [editingCategoryAvailMode, setEditingCategoryAvailMode] = useState<'always' | 'scheduled'>('always')
   const [editingCategoryAvailSchedule, setEditingCategoryAvailSchedule] = useState<ScheduleSlot[]>([])
+  const [editingCategoryBusinessAvail, setEditingCategoryBusinessAvail] = useState(false)
   const [editingItem, setEditingItem] = useState<string | null>(null)
   const [editingItemData, setEditingItemData] = useState<ItemFormData>(EMPTY_ITEM)
   const [loading, setLoading] = useState(false)
@@ -235,6 +240,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           locationId: selectedLocation,
           name: editingCategoryName,
           description: editingCategoryDescription,
+          isBusinessAvailable: editingCategoryBusinessAvail,
           customizationGroups: serializeGroups(editingCategoryGroups),
           availabilityMode: editingCategoryAvailMode,
           availabilitySchedule: editingCategoryAvailMode === 'scheduled' ? editingCategoryAvailSchedule : [],
@@ -279,6 +285,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           description: newItem.description,
           price: parseFloat(newItem.price),
           takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
+          businessPrice: newItem.businessPrice ? parseFloat(newItem.businessPrice) : undefined,
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
           imageUrl: newItem.imageUrl,
@@ -313,6 +320,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           description: editingItemData.description,
           price: parseFloat(editingItemData.price),
           takeawayPrice: editingItemData.takeawayPrice ? parseFloat(editingItemData.takeawayPrice) : undefined,
+          businessPrice: editingItemData.businessPrice ? parseFloat(editingItemData.businessPrice) : undefined,
+          isBusinessAvailable: editingItemData.isBusinessAvailable,
           tags: parseTags(editingItemData.tags),
           isFeatured: editingItemData.isFeatured,
           imageUrl: editingItemData.imageUrl,
@@ -410,6 +419,25 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       router.refresh()
     } catch {
       toast.error('Error al actualizar takeaway')
+    }
+  }
+
+  async function handleToggleBusinessAvailable(categoryId: string, itemId: string, current: boolean) {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: selectedLocation,
+          itemId,
+          isBusinessAvailable: !current,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(!current ? 'Business habilitado' : 'Business deshabilitado')
+      router.refresh()
+    } catch {
+      toast.error('Error al actualizar disponibilidad Business')
     }
   }
 
@@ -749,6 +777,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                   setEditingCategoryGroups(deserializeGroups(category.customizationGroups ?? []))
                                   setEditingCategoryAvailMode(category.availabilityMode ?? 'always')
                                   setEditingCategoryAvailSchedule(category.availabilitySchedule ?? [])
+                                  setEditingCategoryBusinessAvail(category.isBusinessAvailable ?? false)
                                   // Expand to show availability editor
                                   if (!expandedCategories.includes(category._id)) {
                                     setExpandedCategories(prev => [...prev, category._id])
@@ -844,6 +873,29 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                   onChange={setEditingCategoryAvailSchedule}
                                 />
                               )}
+
+                              {/* Business availability toggle */}
+                              <div className="flex items-center justify-between p-3 bg-primary/5 rounded-xl border border-primary/10">
+                                <div className="flex items-center gap-2">
+                                  <Building2 size={14} className="text-primary" />
+                                  <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/70">
+                                    Disponible en menú Business
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCategoryBusinessAvail(!editingCategoryBusinessAvail)}
+                                  className={cn(
+                                    "w-10 h-5 rounded-full transition-all relative flex items-center",
+                                    editingCategoryBusinessAvail ? 'bg-primary' : 'bg-muted-foreground/20'
+                                  )}
+                                >
+                                  <div className={cn(
+                                    "w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all absolute",
+                                    editingCategoryBusinessAvail ? 'left-[22px]' : 'left-1'
+                                  )} />
+                                </button>
+                              </div>
 
                               {/* Editor de grupos de personalización a nivel categoría */}
                               <div className="pt-3 border-t border-border/60">
@@ -1056,6 +1108,12 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                     <span className="text-orange-600 font-bold tabular-nums text-sm leading-none">${item.takeawayPrice.toLocaleString('es-AR')}</span>
                                                   </div>
                                                 )}
+                                                {item.businessPrice && (
+                                                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20">
+                                                    <span className="text-[9px] font-black text-primary uppercase tracking-widest leading-none">Corp:</span>
+                                                    <span className="text-primary font-bold tabular-nums text-sm leading-none">${item.businessPrice.toLocaleString('es-AR')}</span>
+                                                  </div>
+                                                )}
                                                 <div className="flex gap-1 flex-wrap">
                                                   {item.tags?.map((tag: string) => (
                                                     <span key={tag} className="text-[10px] font-bold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-lg border border-border/40">
@@ -1107,7 +1165,24 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                             >
                                               <Star size={18} fill={item.isFeatured ? "currentColor" : "none"} />
                                             </Button>
-      
+
+                                            {item.businessPrice && (
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                title={item.isBusinessAvailable ? 'Deshabilitar Business' : 'Habilitar Business'}
+                                                className={cn(
+                                                  "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                                  item.isBusinessAvailable
+                                                    ? "text-primary hover:bg-primary/10"
+                                                    : "text-muted-foreground/40 hover:text-primary/50"
+                                                )}
+                                                onClick={() => handleToggleBusinessAvailable(category._id, item._id, item.isBusinessAvailable ?? false)}
+                                              >
+                                                <Building2 size={16} />
+                                              </Button>
+                                            )}
+
                                             <Button
                                               size="icon"
                                               variant="ghost"
@@ -1119,9 +1194,11 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                   description: item.description || '',
                                                   price: item.price.toString(),
                                                   takeawayPrice: item.takeawayPrice?.toString() ?? '',
+                                                  businessPrice: item.businessPrice?.toString() ?? '',
                                                   tags: (item.tags || []).join(', '),
                                                   isFeatured: item.isFeatured ?? false,
                                                   imageUrl: item.imageUrl || '',
+                                                  isBusinessAvailable: item.isBusinessAvailable ?? false,
                                                   suggestWith: item.suggestWith ?? [],
                                                   customizationGroups: deserializeGroups(item.customizationGroups || []),
                                                   variants: deserializeVariants(item.variants || []),
@@ -1405,6 +1482,20 @@ function ItemForm({
                 />
               </div>
             </div>
+            <div>
+              <label className={labelCls}>Precio Business (Corp)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">$</span>
+                <input
+                  className={cn(inputCls, "pl-8 tabular-nums font-bold text-primary")}
+                  placeholder="Sin precio corporativo"
+                  type="number"
+                  value={data.businessPrice}
+                  onChange={e => onChange({ ...data, businessPrice: e.target.value })}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">Si no tiene precio corporativo, no aparece en el menú Business</p>
+            </div>
           </div>
 
           <div>
@@ -1487,6 +1578,37 @@ function ItemForm({
               <span className="text-[10px] text-muted-foreground">Aparece primero</span>
             </div>
           </label>
+
+          {/* Toggle for isBusinessAvailable */}
+          {data.businessPrice ? (
+            <label className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-2xl cursor-pointer hover:bg-primary/10 transition-colors group">
+              <button
+                type="button"
+                onClick={() => onChange({ ...data, isBusinessAvailable: !data.isBusinessAvailable })}
+                className={cn(
+                  "w-10 h-6 rounded-full transition-all duration-300 relative p-1",
+                  data.isBusinessAvailable ? "bg-primary shadow-lg shadow-primary/30" : "bg-muted-foreground/30"
+                )}
+              >
+                <div className={cn(
+                  "w-4 h-4 rounded-full bg-white transition-transform duration-300",
+                  data.isBusinessAvailable ? "translate-x-4" : "translate-x-0"
+                )} />
+              </button>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-foreground">Disponible en Business</span>
+                <span className="text-[10px] text-muted-foreground">Visible en el menú corporativo</span>
+              </div>
+            </label>
+          ) : (
+            <div className="flex items-center gap-3 p-4 bg-muted/20 border border-border/40 rounded-2xl opacity-50">
+              <div className="w-10 h-6 rounded-full bg-muted-foreground/20" />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-muted-foreground">Disponible en Business</span>
+                <span className="text-[10px] text-muted-foreground/50">Definí un precio Business para activar</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1888,7 +2010,7 @@ function ItemForm({
                 <X size={14} strokeWidth={3} />
               </button>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
                 <div className="sm:col-span-2">
                   <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block">
                     Nombre
@@ -1937,6 +2059,25 @@ function ItemForm({
                       onChange={e => {
                         const updated = [...data.variants]
                         updated[vi] = { ...updated[vi], takeawayPrice: e.target.value }
+                        onChange({ ...data, variants: updated })
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block">
+                    Precio Business
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
+                    <input
+                      type="number" min="0"
+                      className="w-full bg-white border-2 border-primary/20 focus:border-primary/40 text-foreground text-sm font-medium rounded-xl pl-7 pr-4 py-2.5 outline-none transition-all tabular-nums"
+                      placeholder="0"
+                      value={variant.businessPrice}
+                      onChange={e => {
+                        const updated = [...data.variants]
+                        updated[vi] = { ...updated[vi], businessPrice: e.target.value }
                         onChange({ ...data, variants: updated })
                       }}
                     />

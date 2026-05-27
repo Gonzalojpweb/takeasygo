@@ -28,6 +28,7 @@ import {
   ChevronRight,
   Zap,
   Smartphone,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -42,6 +43,7 @@ interface Props {
   plan: Plan
   dineInOnly?: boolean
   unreadAnnouncements?: number
+  businessEnabled?: boolean
 }
 
 interface NavItem {
@@ -124,9 +126,11 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false, unreadAnnouncements = 0 }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false, unreadAnnouncements = 0, businessEnabled = false }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
+
+  const showBusiness = businessEnabled && canAccess(plan, 'business')
 
   const groups: NavGroup[] = [
     {
@@ -150,6 +154,13 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
         { href: `${base}/menu`, label: 'Menú', icon: UtensilsCrossed, roles: ['admin', 'manager'] },
       ],
     },
+    ...(showBusiness ? [{
+      section: 'Business',
+      items: [
+        { href: `${base}/business/companies`, label: 'Empresas', icon: Building2, roles: ['admin'] },
+        { href: `${base}/business/orders`, label: 'Órdenes Corp', icon: ClipboardList, roles: ['admin', 'manager'] },
+      ],
+    } as NavGroup] : []),
     {
       section: 'Marketing',
       items: [

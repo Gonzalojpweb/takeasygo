@@ -34,9 +34,10 @@ export default async function AdminLayout({
 
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
-    .select('plan')
-    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan }>()
+    .select('plan business.enabled')
+    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; business?: { enabled: boolean } }>()
   const plan: Plan = tenantDoc?.plan ?? 'try'
+  const businessEnabled = tenantDoc?.business?.enabled ?? false
 
   // Determine if tenant operates in dine-in only mode (no takeaway at any location)
   let dineInOnly = false
@@ -66,6 +67,7 @@ export default async function AdminLayout({
     plan,
     dineInOnly,
     unreadAnnouncements,
+    businessEnabled,
   }
 
   return (
