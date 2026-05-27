@@ -51,7 +51,7 @@ export const createOrderSchema = z.object({
     birthDate: z.string().optional(), // formato YYYY-MM-DD
   }),
   notes: z.string().max(500).trim().default(''),
-  mode: z.enum(['takeaway', 'dine-in']),
+  mode: z.enum(['takeaway', 'dine-in', 'business']),
   clientToken: z.string().uuid().optional().nullable(),
   joinClub: z.boolean().optional().default(false),
   orderTiming: z.enum(['immediate', 'scheduled']).optional().default('immediate'),
@@ -60,6 +60,8 @@ export const createOrderSchema = z.object({
   rewardItems: z.array(rewardItemSchema).max(5).optional().default([]),
   loyaltyPointsRequired: z.number().int().min(0).optional().default(0),
   source: z.string().optional().nullable(),
+  corporateAccountId: z.string().optional().nullable(),
+  paymentModeSnapshot: z.enum(['cash_mp', 'deferred', 'mixed']).optional().nullable(),
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>
