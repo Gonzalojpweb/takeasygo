@@ -133,6 +133,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     return Number(item.price) || 0
   }
 
+  const [isAdminCorp, setIsAdminCorp] = useState(false)
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [memberPoints, setMemberPoints] = useState(0)
@@ -141,6 +142,14 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     items: any[]
     completedItemIds: string[]
   } | null>(null)
+
+  // Detect company admin in business mode (block promos + store)
+  useEffect(() => {
+    if (mode === 'business' && !groupSessionToken) {
+      const role = sessionStorage.getItem('businessRole')
+      setIsAdminCorp(role === 'company_admin')
+    }
+  }, [mode, groupSessionToken])
 
   useEffect(() => {
     fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=${mode}`)
@@ -661,8 +670,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       {/* ── Main menu content ── */}
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-10">
 
-        {/* Promotions Section */}
-        {promotions.length > 0 && (
+        {/* Promotions Section — hidden for company admin in business mode */}
+        {promotions.length > 0 && !isAdminCorp && (
           <section className="mb-8 px-1">
             <div className="flex items-center gap-2 mb-4" style={{ color: text }}>
               <span className="text-xl">🏷️</span>
@@ -708,8 +717,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           </section>
         )}
 
-        {/* Store Points Carousel */}
-        <StoreCarousel tenantSlug={tenant.slug} memberPoints={memberPoints} />
+        {/* Store Points Carousel — hidden for company admin in business mode */}
+        {!isAdminCorp && <StoreCarousel tenantSlug={tenant.slug} memberPoints={memberPoints} />}
 
         {/* Featured strip at top */}
         {featuredItems.length > 0 && (
@@ -782,7 +791,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             <div className={isGridForTakeaway ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-0'}>
               {category.items
                 .filter((item: any) => {
-                  if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && item.businessPrice != null && item.businessPrice !== '' && Number(item.businessPrice) > 0 && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+                  if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && item.businessPrice != null && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                   return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                 })
                 .map((item: any) => {
