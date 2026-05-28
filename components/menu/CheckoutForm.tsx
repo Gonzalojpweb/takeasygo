@@ -371,7 +371,7 @@ async function handleSubmit(e: React.FormEvent) {
     const skipPayment = mode === 'business' && businessInfo?.paymentMode === 'deferred'
 
     if (skipPayment) {
-      router.push(`/${tenantSlug}/order/${order.orderNumber}`)
+      router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
       return
     }
 

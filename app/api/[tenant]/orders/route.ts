@@ -708,6 +708,7 @@ export async function POST(
       scheduledPickupAt,
       scheduledStatus,
       source: body.source ?? null,
+      ...(isDeferredBusiness ? { statusTimestamps: { confirmedAt: new Date() } } : {}),
       ...(isBusinessOrder && body.corporateAccountId ? {
         corporateAccountId: body.corporateAccountId,
         paymentModeSnapshot: body.paymentModeSnapshot ?? null,
