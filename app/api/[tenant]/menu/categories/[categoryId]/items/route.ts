@@ -38,7 +38,7 @@ export async function POST(
       description: description || '',
       price,
       takeawayPrice: takeawayPrice || undefined,
-      businessPrice: businessPrice || undefined,
+      businessPrice: businessPrice !== undefined ? businessPrice : undefined,
       isAvailable: true,
       isBusinessAvailable: false,
       imageUrl: imageUrl || '',

@@ -285,7 +285,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           description: newItem.description,
           price: parseFloat(newItem.price),
           takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
-          businessPrice: newItem.businessPrice ? parseFloat(newItem.businessPrice) : undefined,
+          businessPrice: newItem.businessPrice !== '' ? parseFloat(newItem.businessPrice) : null,
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
           imageUrl: newItem.imageUrl,
@@ -320,7 +320,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           description: editingItemData.description,
           price: parseFloat(editingItemData.price),
           takeawayPrice: editingItemData.takeawayPrice ? parseFloat(editingItemData.takeawayPrice) : undefined,
-          businessPrice: editingItemData.businessPrice ? parseFloat(editingItemData.businessPrice) : undefined,
+          businessPrice: editingItemData.businessPrice !== '' ? parseFloat(editingItemData.businessPrice) : null,
           isBusinessAvailable: editingItemData.isBusinessAvailable,
           tags: parseTags(editingItemData.tags),
           isFeatured: editingItemData.isFeatured,
@@ -1108,7 +1108,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                     <span className="text-orange-600 font-bold tabular-nums text-sm leading-none">${item.takeawayPrice.toLocaleString('es-AR')}</span>
                                                   </div>
                                                 )}
-                                                {item.businessPrice && (
+                                                {item.businessPrice != null && (
                                                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20">
                                                     <span className="text-[9px] font-black text-primary uppercase tracking-widest leading-none">Corp:</span>
                                                     <span className="text-primary font-bold tabular-nums text-sm leading-none">${item.businessPrice.toLocaleString('es-AR')}</span>
@@ -1166,7 +1166,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               <Star size={18} fill={item.isFeatured ? "currentColor" : "none"} />
                                             </Button>
 
-                                            {item.businessPrice && (
+                                            {item.businessPrice != null && (
                                               <Button
                                                 size="icon"
                                                 variant="ghost"
@@ -1580,7 +1580,7 @@ function ItemForm({
           </label>
 
           {/* Toggle for isBusinessAvailable */}
-          {data.businessPrice ? (
+          {data.businessPrice !== '' ? (
             <label className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-2xl cursor-pointer hover:bg-primary/10 transition-colors group">
               <button
                 type="button"
