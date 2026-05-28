@@ -84,7 +84,7 @@ function serializeVariants(variants: VariantForm[]): any[] {
     name: v.name,
     price: parseFloat(v.price) || 0,
     takeawayPrice: v.takeawayPrice ? parseFloat(v.takeawayPrice) : undefined,
-    businessPrice: v.businessPrice ? parseFloat(v.businessPrice) : undefined,
+    businessPrice: v.businessPrice !== '' ? parseFloat(v.businessPrice) : null,
     nameTranslations: v.nameTranslations ? { en: v.nameTranslations } : undefined,
   }))
 }
@@ -286,6 +286,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           price: parseFloat(newItem.price),
           takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
           businessPrice: newItem.businessPrice !== '' ? parseFloat(newItem.businessPrice) : null,
+          isBusinessAvailable: newItem.isBusinessAvailable,
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
           imageUrl: newItem.imageUrl,
@@ -709,6 +710,11 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                   No disponible
                                 </Badge>
                               )}
+                              {category.isBusinessAvailable && (
+                                <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                  Business
+                                </Badge>
+                              )}
                             </div>
                           )}
                         </div>
@@ -799,6 +805,34 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 onClick={() => handleToggleCategoryAvailability(category._id, category.isAvailable ?? true)}
                               >
                                 {category.isAvailable ? <Eye size={18} /> : <EyeOff size={18} />}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title={category.isBusinessAvailable ? 'Deshabilitar Business' : 'Habilitar Business'}
+                                className={cn(
+                                  "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                  category.isBusinessAvailable
+                                    ? "text-primary hover:bg-primary/10"
+                                    : "text-muted-foreground/40 hover:text-primary/50"
+                                )}
+                                onClick={() => {
+                                  if (!editingCategoryName) {
+                                    setEditingCategory(category._id)
+                                    setEditingCategoryName(category.name)
+                                    setEditingCategoryDescription(category.description ?? '')
+                                    setEditingCategoryGroups(deserializeGroups(category.customizationGroups ?? []))
+                                    setEditingCategoryAvailMode(category.availabilityMode ?? 'always')
+                                    setEditingCategoryAvailSchedule(category.availabilitySchedule ?? [])
+                                    setEditingCategoryBusinessAvail(!(category.isBusinessAvailable ?? false))
+                                    if (!expandedCategories.includes(category._id)) {
+                                      setExpandedCategories(prev => [...prev, category._id])
+                                    }
+                                    setTimeout(() => handleEditCategory(category._id), 100)
+                                  }
+                                }}
+                              >
+                                <Building2 size={16} />
                               </Button>
                               <Button
                                 size="icon"
@@ -1166,22 +1200,55 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               <Star size={18} fill={item.isFeatured ? "currentColor" : "none"} />
                                             </Button>
 
-                                            {item.businessPrice != null && (
-                                              <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                title={item.isBusinessAvailable ? 'Deshabilitar Business' : 'Habilitar Business'}
-                                                className={cn(
-                                                  "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
-                                                  item.isBusinessAvailable
-                                                    ? "text-primary hover:bg-primary/10"
-                                                    : "text-muted-foreground/40 hover:text-primary/50"
-                                                )}
-                                                onClick={() => handleToggleBusinessAvailable(category._id, item._id, item.isBusinessAvailable ?? false)}
-                                              >
-                                                <Building2 size={16} />
-                                              </Button>
-                                            )}
+                                            {(() => {
+                                              const hasBizPrice = item.businessPrice != null
+                                              const isBizAvail = item.isBusinessAvailable ?? false
+                                              const title = !hasBizPrice
+                                                ? 'Sin precio Business'
+                                                : isBizAvail
+                                                  ? 'Deshabilitar Business'
+                                                  : 'Habilitar Business'
+                                              return (
+                                                <Button
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  title={title}
+                                                  className={cn(
+                                                    "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                                    !hasBizPrice
+                                                      ? "text-muted-foreground/20 hover:text-primary/50"
+                                                      : isBizAvail
+                                                        ? "text-primary hover:bg-primary/10"
+                                                        : "text-muted-foreground/40 hover:text-primary/50"
+                                                  )}
+                                                  onClick={() => {
+                                                    if (!hasBizPrice) {
+                                                      setEditingItem(item._id)
+                                                      setEditingItemData({
+                                                        name: item.name,
+                                                        description: item.description || '',
+                                                        price: item.price.toString(),
+                                                        takeawayPrice: item.takeawayPrice?.toString() ?? '',
+                                                        businessPrice: item.businessPrice?.toString() ?? '',
+                                                        tags: (item.tags || []).join(', '),
+                                                        isFeatured: item.isFeatured ?? false,
+                                                        imageUrl: item.imageUrl || '',
+                                                        isBusinessAvailable: item.isBusinessAvailable ?? false,
+                                                        suggestWith: item.suggestWith ?? [],
+                                                        customizationGroups: deserializeGroups(item.customizationGroups || []),
+                                                        variants: deserializeVariants(item.variants || []),
+                                                        availabilityMode: item.availabilityMode ?? 'always',
+                                                        availabilitySchedule: item.availabilitySchedule ?? [],
+                                                      })
+                                                      return
+                                                    }
+                                                    handleToggleBusinessAvailable(category._id, item._id, isBizAvail)
+                                                  }}
+                                                >
+                                                  <Building2 size={16} />
+                                                </Button>
+                                              )
+                                            })()}
 
                                             <Button
                                               size="icon"
@@ -2082,6 +2149,9 @@ function ItemForm({
                       }}
                     />
                   </div>
+                  <p className="text-[9px] text-muted-foreground/50 mt-1 leading-tight">
+                    Si no tiene precio corporativo, usa el precio estándar en menú Business
+                  </p>
                 </div>
               </div>
               <div className="mt-2">
