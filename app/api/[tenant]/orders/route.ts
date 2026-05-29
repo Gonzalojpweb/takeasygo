@@ -216,7 +216,11 @@ export async function POST(
           available = available && item.isBusinessAvailable && item.businessPrice != null
         }
         if (available && item._id) {
-          menuItemMap.set(item._id.toString(), { ...item.toObject(), categoryName: category.name })
+          menuItemMap.set(item._id.toString(), { 
+            ...item.toObject(), 
+            categoryName: category.name,
+            categoryCustomizationGroups: category.customizationGroups || []
+          })
         }
       }
     }
@@ -454,7 +458,12 @@ export async function POST(
 
         if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
           try {
-            const result = resolveCustomizations(clientItem.customizations, menuItem.customizationGroups)
+            // Combinar grupos del item con grupos globales de la categoría
+            const allCustomizationGroups = [
+              ...(menuItem.categoryCustomizationGroups || []),
+              ...(menuItem.customizationGroups || [])
+            ]
+            const result = resolveCustomizations(clientItem.customizations, allCustomizationGroups)
             resolvedCustomizations.push(...result.resolved)
             extraPrice += result.extraPrice
           } catch (err: any) {
