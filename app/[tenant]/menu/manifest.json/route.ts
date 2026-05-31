@@ -28,7 +28,7 @@ export async function GET(
   const name: string = tenant.name || 'Menu'
   // Keep short_name under 12 chars for home screen label
   const shortName = name.length > 12 ? name.split(' ')[0] : name
-  const primaryColor: string = branding.primaryColor || '#f74211'
+  const primaryColor: string = (!branding.primaryColor || branding.primaryColor === '#000000') ? '#f74211' : branding.primaryColor
   const bgColor: string = branding.backgroundColor || '#ffffff'
 
   // Fit logo inside exact square with tenant's brand color as background
