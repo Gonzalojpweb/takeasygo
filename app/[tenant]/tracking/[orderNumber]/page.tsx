@@ -142,7 +142,7 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           </div>
         </div>
 
-        <p className="text-center text-sm opacity-40">Pedido para {order.customer.name}</p>
+        <p className="text-center text-sm opacity-40 break-all">Pedido para {order.customer.name}</p>
 
       </main>
     </div>
