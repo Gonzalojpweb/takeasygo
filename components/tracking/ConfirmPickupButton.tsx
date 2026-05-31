@@ -53,12 +53,14 @@ export default function ConfirmPickupButton({
     playCelebration()
     if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200])
     const end = Date.now() + 1500
+    let raf: number
     const frame = () => {
-      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: [primaryColor, '#fbbf24', '#34d399'] })
-      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: [primaryColor, '#fbbf24', '#34d399'] })
-      if (Date.now() < end) requestAnimationFrame(frame)
+      confetti({ particleCount: 6, angle: 60, spread: 80, origin: { x: 0, y: 0.6 }, colors: [primaryColor, '#fbbf24', '#34d399', '#ff6b6b'] })
+      confetti({ particleCount: 6, angle: 120, spread: 80, origin: { x: 1, y: 0.6 }, colors: [primaryColor, '#fbbf24', '#34d399', '#ff6b6b'] })
+      if (Date.now() < end) { raf = requestAnimationFrame(frame) }
     }
-    frame()
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
   }, [confirmed, primaryColor, playCelebration])
 
   if (confirmed) {
