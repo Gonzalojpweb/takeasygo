@@ -1,4 +1,4 @@
-import { FONT_ROLES, getGoogleFontFamily, FONT_MAP } from '@/lib/fonts'
+import { FONT_ROLES, FONT_INSTANCES } from '@/lib/fonts'
 
 interface FontConfig {
   source: string
@@ -25,6 +25,7 @@ export default function TenantFontLoader({ fonts }: Props) {
   if (!fonts) return null
 
   const lines: string[] = []
+  const googleFontClasses: string[] = []
   let adobeProjectId: string | null = null
 
   for (const role of FONT_ROLES) {
@@ -35,8 +36,13 @@ export default function TenantFontLoader({ fonts }: Props) {
     const { source, family, adobeFamily } = config
 
     if (source === 'google' && family) {
-      const cssFamily = getGoogleFontFamily(family) ?? family
-      lines.push(`  ${varName}: ${cssFamily};`)
+      const instance = FONT_INSTANCES[family]
+      if (instance) {
+        googleFontClasses.push(instance.className)
+        lines.push(`  ${varName}: ${instance.style.fontFamily};`)
+      } else {
+        lines.push(`  ${varName}: ${family}, sans-serif;`)
+      }
     }
 
     if (source === 'adobe') {
@@ -71,6 +77,9 @@ export default function TenantFontLoader({ fonts }: Props) {
           rel="stylesheet"
           href={`https://use.typekit.net/${adobeProjectId}.css`}
         />
+      )}
+      {googleFontClasses.length > 0 && (
+        <div className={googleFontClasses.join(' ')} suppressHydrationWarning aria-hidden="true" />
       )}
       <style>{`:root {\n${lines.join('\n')}\n}`}</style>
     </>
