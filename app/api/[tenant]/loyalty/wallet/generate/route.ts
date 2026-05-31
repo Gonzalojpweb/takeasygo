@@ -48,7 +48,7 @@ export async function POST(
         {
           $set: {
             'wallet.enabled': true,
-            'wallet.cardColor': tenant.branding?.primaryColor || '#000000',
+            'wallet.cardColor': tenant.branding?.primaryColor || '#f74211',
             'wallet.labelColor': tenant.branding?.textColor || '#FFFFFF',
             'wallet.logoUrl': tenant.branding?.logoUrl || ''
           }

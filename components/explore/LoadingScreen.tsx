@@ -25,7 +25,7 @@ export default function LoadingScreen() {
             duration: 1.2,
             ease: [0.16, 1, 0.3, 1], // Custom cubic-bezier for premium feel
           }}
-          className="w-24 h-24 bg-white rounded-[24px] flex items-center justify-center shadow-2xl"
+          className="w-24 h-24 bg-[#f74211] rounded-[24px] flex items-center justify-center shadow-2xl"
         >
           <span className="text-[#f74211] font-serif italic text-5xl font-black select-none">
             T

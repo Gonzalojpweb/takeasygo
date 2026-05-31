@@ -51,7 +51,7 @@ export default async function WalletPage({ params }: PageProps) {
           clubName: tenant.loyalty?.clubName || `Club ${tenant.name}`,
           wallet: {
             enabled: tenant.wallet?.enabled ?? false,
-            cardColor: tenant.wallet?.cardColor ?? '#000000',
+            cardColor: tenant.wallet?.cardColor ?? '#f74211',
             labelColor: tenant.wallet?.labelColor ?? '#FFFFFF',
             logoUrl: tenant.wallet?.logoUrl ?? '',
             geofenceRadius: tenant.wallet?.geofenceRadius ?? 500,

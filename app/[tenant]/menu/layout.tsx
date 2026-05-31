@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const name: string = tenant.name || 'Menu'
   const branding = tenant.branding || {}
-  const primaryColor: string = branding.primaryColor || '#000000'
+  const primaryColor: string = branding.primaryColor || '#f74211'
 
   return {
     title: name,
@@ -52,9 +52,9 @@ export default async function MenuLayout({ children, params }: Props) {
     <>
       <TenantFontLoader fonts={branding.fonts} />
       <MenuPWAProvider
-        primaryColor={branding.primaryColor || '#000000'}
+        primaryColor={branding.primaryColor || '#f74211'}
         bgColor={branding.backgroundColor || '#ffffff'}
-        textColor={branding.textColor || '#000000'}
+        textColor={branding.textColor || '#1a1a1a'}
         manifestUrl={`/${tenantSlug}/menu/manifest.json`}
       />
       {children}
