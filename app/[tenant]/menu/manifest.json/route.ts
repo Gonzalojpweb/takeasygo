@@ -31,17 +31,7 @@ export async function GET(
   const primaryColor: string = (!branding.primaryColor || branding.primaryColor === '#000000') ? '#f74211' : branding.primaryColor
   const bgColor: string = branding.backgroundColor || '#ffffff'
 
-  // Fit logo inside exact square with tenant's brand color as background
-  // c_fit: scales the logo to fit within the box, preserving aspect ratio
-  // b_rgb: fills remaining space with the tenant's primaryColor
-  function cloudinaryIcon(url: string, size: number, bgColorHex: string): string {
-    const hex = bgColorHex.replace('#', '')
-    return url.replace('/upload/', `/upload/w_${size},h_${size},c_fit,b_rgb:${hex},f_png/`)
-  }
-
-  const tenantLogo = branding.logoUrl
-    ? cloudinaryIcon(branding.logoUrl, 512, primaryColor)
-    : null
+  const tenantLogo = branding.logoUrl || null
 
   const manifest = {
     name,
@@ -70,7 +60,7 @@ export async function GET(
         type: 'image/jpeg',
         purpose: 'any',
       },
-      // Tenant logo resized to exact 512×512 via Cloudinary transform (preferred icon)
+      // Tenant logo (preferred icon when available)
       ...(tenantLogo
         ? [
           { src: tenantLogo, sizes: '512x512', type: 'image/png', purpose: 'any' },
