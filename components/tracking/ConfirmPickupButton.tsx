@@ -26,7 +26,7 @@ export default function ConfirmPickupButton({
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState('')
-  const { play: playCelebration } = useNotificationSound('/camera.mp3')
+  const { play: playCelebration } = useNotificationSound('/camera.wav')
 
   async function handleConfirm() {
     setLoading(true)

@@ -98,7 +98,7 @@ export default function OrderTracker({
   const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(initialScheduledPickupAt)
   const [scheduledStatus, setScheduledStatus] = useState<string | null>(initialScheduledStatus)
   const [scheduleCountdown, setScheduleCountdown] = useState('')
-  const { play: playNotification } = useNotificationSound('/camera.mp3')
+  const { play: playNotification } = useNotificationSound('/camera.wav')
 
   const isScheduledPending = orderTiming === 'scheduled' && scheduledStatus === 'pending_schedule'
 
