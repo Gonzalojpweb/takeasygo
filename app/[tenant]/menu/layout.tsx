@@ -49,8 +49,7 @@ export default async function MenuLayout({ children, params }: Props) {
   const branding = tenant.branding || {}
 
   return (
-    <>
-      <TenantFontLoader fonts={branding.fonts} />
+    <TenantFontLoader fonts={branding.fonts}>
       <MenuPWAProvider
         primaryColor={branding.primaryColor || '#f74211'}
         bgColor={branding.backgroundColor || '#ffffff'}
@@ -58,6 +57,6 @@ export default async function MenuLayout({ children, params }: Props) {
         manifestUrl={`/${tenantSlug}/menu/manifest.json`}
       />
       {children}
-    </>
+    </TenantFontLoader>
   )
 }
