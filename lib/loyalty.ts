@@ -229,7 +229,7 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
         setImmediate(() => { syncWalletPoints(member._id).catch(() => {}) })
       }
 
-      return { member, breakdown: { basePoints: pointsToAdd, microBonus: 0, total: pointsToAdd } }
+      return { member, breakdown: { basePoints: pointsToAdd, microBonus: 0, total: pointsToAdd }, consolidated: false }
     } catch {
       return null
     }
@@ -304,6 +304,8 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
 
   const hasDebt = member.sosConfig?.hasPendingSos && (member.sosConfig?.sosUsed || 0) > 0
 
+  let consolidated = false
+
   if (hasDebt) {
     const currentDebt = member.sosConfig.sosUsed
     let remainingPoints = pointsToAdd
@@ -314,11 +316,13 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
         member.sosConfig.hasPendingSos = false
         member.loyalty.points = remainingPoints - currentDebt
         remainingPoints = 0
+        consolidated = true
       } else {
         member.sosConfig.sosUsed = currentDebt - remainingPoints
         member.sosConfig.hasPendingSos = true
         member.loyalty.points = 0
         remainingPoints = 0
+        consolidated = true
       }
     }
 
@@ -357,6 +361,7 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
   if (member.sosConfig?.hasPendingSos && member.loyalty?.points >= 0) {
     member.sosConfig.hasPendingSos = false
     member.sosConfig.sosUsed = 0
+    consolidated = true
     await member.save({ session })
   }
 
@@ -378,11 +383,11 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
     })
   }
 
-  return { member, breakdown }
+  return { member, breakdown, consolidated }
 }
 
 export async function reconcileMissingPoints(member: any, tenant: any, explicitlyApprovedOrderId?: any) {
-  if (!tenant.loyalty?.enabled) return 0
+  if (!tenant.loyalty?.enabled) return { totalReconciled: 0, anyConsolidated: false }
 
   const hashes = [member.phoneHash]
 
@@ -425,10 +430,14 @@ export async function reconcileMissingPoints(member: any, tenant: any, explicitl
   const orders = await Order.find(query)
 
   let totalReconciled = 0
+  let anyConsolidated = false
   for (const order of orders) {
     const result = await addPointsFromOrder(order, tenant, undefined, member._id)
-    if (result) totalReconciled++
+    if (result) {
+      totalReconciled++
+      if (result.consolidated) anyConsolidated = true
+    }
   }
 
-  return totalReconciled
+  return { totalReconciled, anyConsolidated }
 }

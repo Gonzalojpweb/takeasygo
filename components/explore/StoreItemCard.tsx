@@ -1,11 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Star, TrendingUp, Lock, Package } from 'lucide-react'
+import { Star, TrendingUp, Lock, Package, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
+import confetti from 'canvas-confetti'
+import { useNotificationSound } from '@/hooks/useNotificationSound'
+import { cn } from '@/lib/utils'
 
 interface StoreItem {
   _id: string
@@ -35,6 +38,9 @@ const TIER_ORDER: Record<string, number> = {
 
 export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem }: Props) {
   const [loading, setLoading] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
+  const prevCanAfford = useRef(false)
+  const { play: playPop } = useNotificationSound('/pop.mp3')
 
   const canAfford = memberPoints >= item.pointsCost
   const meetsTier = TIER_ORDER[memberTier] >= TIER_ORDER[item.tierRequirement]
@@ -43,6 +49,26 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
 
   const pointsNeeded = item.pointsCost - memberPoints
   const progress = Math.min((memberPoints / item.pointsCost) * 100, 100)
+
+  // Momento 05: detectar desbloqueo (transición de no-poder a poder)
+  useEffect(() => {
+    if (canAfford && !prevCanAfford.current) {
+      setUnlocked(true)
+      playPop()
+      confetti({
+        particleCount: 30,
+        spread: 60,
+        origin: { y: 0.5 },
+        colors: ['#22c55e', '#fbbf24', '#3b82f6'],
+      })
+      toast.success('🎉 Recompensa disponible', {
+        description: 'Ya podés canjear tu recompensa',
+        duration: 4000,
+      })
+      setTimeout(() => setUnlocked(false), 1500)
+    }
+    prevCanAfford.current = canAfford
+  }, [canAfford, playPop])
 
   async function handleRedeem() {
     if (!canRedeem) return
@@ -56,7 +82,11 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
   }
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 border-2 border-border/60">
+    <Card className={cn(
+      'overflow-hidden transition-all duration-500 hover:shadow-xl hover:-translate-y-1 border-2',
+      !canAfford ? 'grayscale opacity-60' : unlocked ? 'ring-2 ring-emerald-400 animate-pulse' : '',
+      canAfford ? 'border-emerald-200' : 'border-border/60'
+    )}>
       <div className="relative h-48 bg-muted">
         {item.imageUrl ? (
           <img

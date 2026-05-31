@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, QrCode, Share2, ArrowLeft, Clock, Copy, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { CheckCircle, QrCode, Share2, ArrowLeft, Clock, Copy, ThumbsUp, ThumbsDown, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import confetti from 'canvas-confetti'
+import { useNotificationSound } from '@/hooks/useNotificationSound'
 
 interface Props {
   tenantSlug: string
@@ -18,6 +20,16 @@ interface Props {
 
 export default function RedemptionSuccess({ tenantSlug, redemption, item, member, onBack }: Props) {
   const [copied, setCopied] = useState(false)
+  const { play: playPop } = useNotificationSound('/pop.mp3')
+
+  // Momento 05: celebrar canje exitoso
+  useEffect(() => {
+    playPop()
+    confetti({ particleCount: 50, spread: 80, origin: { y: 0.4 }, colors: ['#22c55e', '#fbbf24', '#3b82f6', '#a855f7'] })
+    setTimeout(() => {
+      confetti({ particleCount: 25, spread: 100, origin: { y: 0.6 } })
+    }, 300)
+  }, [playPop])
 
   function handleCopyCode() {
     navigator.clipboard.writeText(redemption.redemptionCode)

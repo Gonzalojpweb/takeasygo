@@ -7,6 +7,7 @@ import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
+import PointsEarnedToast from '@/components/rewards/PointsEarnedToast'
 
 const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered']
 
@@ -34,6 +35,7 @@ interface Props {
   initialOrderTiming?: string
   initialScheduledPickupAt?: string | null
   initialScheduledStatus?: string | null
+  pointsEarnedFromOrder?: number
   loyaltyData?: {
     memberId: string
     publicId: string
@@ -44,6 +46,8 @@ interface Props {
   loyaltyPointsUsed?: number
   loyaltyDiscountAmount?: number
   hasRewardItems?: boolean
+  rewardAdvanceApplied?: boolean
+  rewardAdvanceConsolidated?: boolean
   tenantName: string
   clubName: string
 }
@@ -85,6 +89,9 @@ export default function OrderTracker({
   loyaltyPointsUsed = 0,
   loyaltyDiscountAmount = 0,
   hasRewardItems = false,
+  rewardAdvanceApplied = false,
+  rewardAdvanceConsolidated = false,
+  pointsEarnedFromOrder = 0,
   tenantName,
   clubName,
 }: Props) {
@@ -98,7 +105,7 @@ export default function OrderTracker({
   const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(initialScheduledPickupAt)
   const [scheduledStatus, setScheduledStatus] = useState<string | null>(initialScheduledStatus)
   const [scheduleCountdown, setScheduleCountdown] = useState('')
-  const { play: playNotification } = useNotificationSound('/camera.wav')
+  const { play: playNotification } = useNotificationSound('/pop.mp3')
 
   const isScheduledPending = orderTiming === 'scheduled' && scheduledStatus === 'pending_schedule'
 
@@ -209,6 +216,52 @@ export default function OrderTracker({
     }
     prevStatusRef.current = status
   }, [status, playNotification])
+
+  // Momento 04: Notificar Reward Advance (uso o consolidación)
+  const advanceShownRef = useRef(false)
+  useEffect(() => {
+    if (advanceShownRef.current) return
+    if (rewardAdvanceConsolidated) {
+      advanceShownRef.current = true
+      playNotification()
+      if (navigator.vibrate) navigator.vibrate([80, 40, 80])
+      toast.success('✅ Reward Advance consolidado', {
+        description: 'Tus puntos se actualizaron y tu saldo está al día. ¡Seguí acumulando!',
+        duration: 6000,
+      })
+    } else if (rewardAdvanceApplied) {
+      advanceShownRef.current = true
+      playNotification()
+      if (navigator.vibrate) navigator.vibrate([60, 30, 60])
+      toast('✨ Reward Advance activado', {
+        description: 'Te adelantamos los puntos para que disfrutes tu recompensa. Consolidalos en tu próxima compra.',
+        duration: 6000,
+      })
+    }
+  }, [rewardAdvanceApplied, rewardAdvanceConsolidated, playNotification])
+
+  // Momento 03: Notificar puntos ganados al cargar la página de tracking
+  const pointsShownRef = useRef(false)
+  useEffect(() => {
+    if (pointsEarnedFromOrder > 0 && loyaltyData && !pointsShownRef.current) {
+      pointsShownRef.current = true
+      const cheapestItemCost = 0 // se podría calcular desde storeItems, omitido por simplicidad
+      const progress = cheapestItemCost > 0
+        ? (loyaltyData.points / cheapestItemCost) * 100
+        : 50
+      playNotification()
+      if (navigator.vibrate) navigator.vibrate([50, 30, 50])
+      toast(
+        <PointsEarnedToast
+          pointsEarned={pointsEarnedFromOrder}
+          totalPoints={loyaltyData.points}
+          progressToNext={progress}
+          clubName={clubName}
+        />,
+        { duration: 5000 }
+      )
+    }
+  }, [pointsEarnedFromOrder, loyaltyData, clubName, playNotification])
 
   // B9: Countdown 2:30 tras bambalina — cuando llega a cero, toast informativo
   // Solo se ejecuta cuando el pedido está confirmado, sin modificar estados reales
