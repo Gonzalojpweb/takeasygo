@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
+import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import Link from 'next/link'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
@@ -19,6 +19,7 @@ import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import { getSuggestions } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
+import { motion } from 'framer-motion'
 
 interface Props {
   tenant: any
@@ -111,7 +112,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const upsellModalRef = useRef(false)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
-  const { play: playAddSound } = useNotificationSound('/camera.mp3')
+  const { play: playAddSound } = useNotificationSound('/camera.wav')
+  const [flyingItem, setFlyingItem] = useState<{
+    startX: number; startY: number; startW: number; startH: number
+    endX: number; endY: number
+    imageUrl?: string
+  } | null>(null)
+  const cartBtnRef = useRef<HTMLButtonElement>(null)
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
   const applyGridToTakeaway = !branding.menuLayoutApplyTo || branding.menuLayoutApplyTo === 'both' || branding.menuLayoutApplyTo === 'takeaway'
@@ -255,6 +262,21 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       .then((data) => { if (data?.pairs?.length) setInsights(data.pairs) })
       .catch(() => { /* falla silenciosa, el fallback estático sigue funcionando */ })
   }, [tenant.slug, location._id])
+
+  const handleFlyToCart = useCallback((item: any, rect: DOMRect) => {
+    const cartRect = cartBtnRef.current?.getBoundingClientRect()
+    const targetX = cartRect
+      ? cartRect.left + cartRect.width / 2 - 8
+      : rect.left
+    const targetY = cartRect
+      ? cartRect.top + cartRect.height / 2 - 8
+      : rect.top - 60
+    setFlyingItem({
+      startX: rect.left, startY: rect.top, startW: rect.width, startH: rect.height,
+      endX: targetX, endY: targetY,
+      imageUrl: item.imageUrl,
+    })
+  }, [])
 
   function addPlainToCart(item: any, triggerUpsell = true, addedFrom: CartItem['addedFrom'] = 'menu') {
     const hasVariants = (item.variants ?? []).length > 0
@@ -613,11 +635,19 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             <span className="text-xs opacity-40">{mode === 'takeaway' ? t.takeaway : mode === 'business' ? 'Business' : t.dineIn}</span>
             {totalItems > 0 && (
               <button
+                ref={cartBtnRef}
                 onClick={() => setShowCart(true)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-semibold text-sm"
                 style={{ backgroundColor: primary, color: bg }}>
                 <ShoppingCart size={15} />
-                <span>{totalItems}</span>
+                <motion.span
+                  key={totalItems}
+                  initial={{ scale: 1 }}
+                  animate={{ scale: [1, 1.3, 1] }}
+                  transition={{ duration: 0.25 }}
+                >
+                  {totalItems}
+                </motion.span>
                 <span className="hidden sm:inline">${totalPrice.toLocaleString('es-AR')}</span>
               </button>
             )}
@@ -763,7 +793,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                       </div>
                     </div>
                     {isOperational ? (
-                      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={itemTotalQty(item._id)} primary={primary} bg={bg} />
+                      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={itemTotalQty(item._id)} primary={primary} bg={bg} onFlyToCart={handleFlyToCart} />
                     ) : (
                       <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
                         CATÁLOGO
@@ -827,7 +857,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                               ${getItemPrice(item).toLocaleString('es-AR')}
                             </p>
                             {isOperational ? (
-                              <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} />
+                              <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
                             ) : (
                               <span className="text-[9px] font-bold opacity-30">CATÁLOGO</span>
                             )}
@@ -869,7 +899,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         </div>
                       </div>
                       {isOperational ? (
-                        <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} categoryGroups={catGroups} />
+                        <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
                       ) : (
                         <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
                           CATÁLOGO
@@ -1251,6 +1281,36 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
       {/* ── Geofence feedback ── */}
       <GeofenceFeedback tenantSlug={tenant.slug} />
+
+      {/* ── Fly-to-cart animation ── */}
+      {flyingItem && (
+        <motion.div
+          className="fixed z-[200] pointer-events-none"
+          style={{
+            left: flyingItem.startX,
+            top: flyingItem.startY,
+            width: flyingItem.startW,
+            height: flyingItem.startH,
+          }}
+          initial={{ scale: 1, opacity: 1, x: 0, y: 0 }}
+          animate={{
+            scale: 0.35,
+            opacity: 0.8,
+            x: flyingItem.endX - flyingItem.startX,
+            y: flyingItem.endY - flyingItem.startY,
+          }}
+          transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+          onAnimationComplete={() => setFlyingItem(null)}
+        >
+          <div className="w-full h-full rounded-full overflow-hidden" style={{ boxShadow: `0 0 8px ${primary}80` }}>
+            {flyingItem.imageUrl ? (
+              <img src={flyingItem.imageUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full" style={{ backgroundColor: primary }} />
+            )}
+          </div>
+        </motion.div>
+      )}
     </div>
   )
 }
@@ -1258,6 +1318,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 /* ── Cart control sub-component ── */
 function CartControl({
   item, cart, onAdd, onOpenModal, onRemove, totalQty, primary, bg, compact = false, categoryGroups = [],
+  onFlyToCart,
 }: {
   item: any
   cart: CartItem[]
@@ -1269,6 +1330,7 @@ function CartControl({
   bg: string
   compact?: boolean
   categoryGroups?: any[]
+  onFlyToCart?: (item: any, rect: DOMRect) => void
 }) {
   const [bounce, setBounce] = useState(false)
   const sz = compact ? 11 : 13
@@ -1280,6 +1342,8 @@ function CartControl({
     e.stopPropagation()
     setBounce(true)
     setTimeout(() => setBounce(false), 300)
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    onFlyToCart?.(item, rect)
     onAdd(item)
   }
 
