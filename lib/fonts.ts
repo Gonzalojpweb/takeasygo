@@ -7,11 +7,20 @@ import {
 } from 'next/font/google'
 
 // ── Google Fonts (self-hosted via next/font) ────────────────────────────
-export const inter = Inter({ subsets: ['latin'] })
-export const dmSans = DM_Sans({ subsets: ['latin'], weight: ['300', '400', '500', '700'] })
-export const plusJakartaSans = Plus_Jakarta_Sans({ subsets: ['latin'] })
-export const playfairDisplay = Playfair_Display({ subsets: ['latin'] })
-export const lora = Lora({ subsets: ['latin'] })
+export const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+export const dmSans = DM_Sans({ subsets: ['latin'], weight: ['300', '400', '500', '700'], variable: '--font-dm-sans' })
+export const plusJakartaSans = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-plus-jakarta-sans' })
+export const playfairDisplay = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair-display' })
+export const lora = Lora({ subsets: ['latin'], variable: '--font-lora' })
+
+/** Map from curated font ID → next/font instance. Used by TenantFontLoader to force @font-face loading. */
+export const FONT_INSTANCES: Record<string, typeof inter> = {
+  inter,
+  'dm-sans': dmSans,
+  'plus-jakarta-sans': plusJakartaSans,
+  'playfair-display': playfairDisplay,
+  lora,
+}
 
 export type FontSource = 'google' | 'adobe' | 'custom'
 export type FontRole = 'heading' | 'body' | 'display' | 'tag'
@@ -90,13 +99,6 @@ export const FONT_MAP = new Map(CURATED_FONTS.map(f => [f.id, f]))
 
 /** Look up a font by its id and return the CSS font-family string for Google Fonts */
 export function getGoogleFontFamily(id: string): string | null {
-  const map: Record<string, typeof inter> = {
-    inter,
-    'dm-sans': dmSans,
-    'plus-jakarta-sans': plusJakartaSans,
-    'playfair-display': playfairDisplay,
-    lora,
-  }
-  const instance = map[id]
+  const instance = FONT_INSTANCES[id]
   return instance?.style.fontFamily ?? null
 }
