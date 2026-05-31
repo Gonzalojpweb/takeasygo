@@ -31,13 +31,17 @@ export async function GET(
   const primaryColor: string = branding.primaryColor || '#f74211'
   const bgColor: string = branding.backgroundColor || '#ffffff'
 
-  // Force Cloudinary images to exact square dimensions using URL transformations
-  // Inserts w_N,h_N,c_pad,f_png between /upload/ and the rest of the path
-  function cloudinarySquare(url: string, size: number): string {
-    return url.replace('/upload/', `/upload/w_${size},h_${size},c_pad,f_png/`)
+  // Fit logo inside exact square with tenant's brand color as background
+  // c_fit: scales the logo to fit within the box, preserving aspect ratio
+  // b_rgb: fills remaining space with the tenant's primaryColor
+  function cloudinaryIcon(url: string, size: number, bgColorHex: string): string {
+    const hex = bgColorHex.replace('#', '')
+    return url.replace('/upload/', `/upload/w_${size},h_${size},c_fit,b_rgb:${hex},f_png/`)
   }
 
-  const tenantLogo = branding.logoUrl ? cloudinarySquare(branding.logoUrl, 512) : null
+  const tenantLogo = branding.logoUrl
+    ? cloudinaryIcon(branding.logoUrl, 512, primaryColor)
+    : null
 
   const manifest = {
     name,
