@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import { notFound } from 'next/navigation'
 import OrderTracker from '@/components/tracking/OrderTracker'
 import { generateRatingToken } from '@/lib/rating-token'
+import { calculatePointsBreakdown } from '@/lib/loyalty'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
@@ -24,6 +25,12 @@ export default async function TrackingPage({ params, searchParams }: Props) {
 
   const branding = tenant.branding
 
+  // Calcular puntos generados por esta orden (para Momento 03)
+  const pointsBreakdown = tenant.loyalty?.enabled && tenant.pointsConfig?.enabled
+    ? calculatePointsBreakdown(order.total ?? 0, tenant.pointsConfig)
+    : null
+  const pointsEarnedFromOrder = pointsBreakdown?.total ?? 0
+
   // NEXTAUTH_SECRET requerido para el token — si falta en env el token es null en lugar de crashear
   const ratingToken = process.env.NEXTAUTH_SECRET
     ? generateRatingToken(order._id.toString())
@@ -42,6 +49,10 @@ export default async function TrackingPage({ params, searchParams }: Props) {
     tier: string
   } | null = null
 
+  // Momento 04: detectar Reward Advance usado y consolidado
+  const rewardAdvanceApplied = order.rewardAdvanceApplied === true
+  let rewardAdvanceConsolidated = false
+
   if (tenant.loyalty?.enabled && order.customer?.phoneHash) {
     const LoyaltyMember = (await import('@/models/LoyaltyMember')).default
     member = await LoyaltyMember.findOne({
@@ -55,7 +66,8 @@ export default async function TrackingPage({ params, searchParams }: Props) {
       const { reconcileMissingPoints, processRewardDeduction } = await import('@/lib/loyalty')
 
       // 1. Acreditar puntos de compras pendientes
-      await reconcileMissingPoints(member, tenant, isMpApproved ? order._id : undefined)
+      const reconciliation = await reconcileMissingPoints(member, tenant, isMpApproved ? order._id : undefined)
+      rewardAdvanceConsolidated = reconciliation.anyConsolidated
 
       // 2. Descontar puntos de ítems de canje
       if (order.rewardItems?.length > 0 && !order.rewardDeductionProcessed) {
@@ -119,6 +131,8 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           loyaltyPointsUsed={order.loyaltyPointsUsed}
           loyaltyDiscountAmount={order.loyaltyDiscountAmount}
           hasRewardItems={order.rewardItems?.length > 0}
+          rewardAdvanceApplied={rewardAdvanceApplied}
+          rewardAdvanceConsolidated={rewardAdvanceConsolidated}
           tenantName={tenant.name}
           clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
         />

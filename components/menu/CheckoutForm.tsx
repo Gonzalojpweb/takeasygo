@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift } from 'lucide-react'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { toast } from 'sonner'
@@ -695,9 +696,13 @@ async function handleSubmit(e: React.FormEvent) {
 
             {loyaltyConfig?.enabled && !(mode === 'business' && businessInfo?.role === 'company_admin') && (
              <div className="space-y-3">
-               {/* Card VIP si ya es miembro */}
+                {/* Card VIP si ya es miembro */}
                {loyaltyMember && (
-                <div className="p-4 rounded-2xl border-2 border-zinc-900 bg-zinc-900 text-white shadow-xl shadow-zinc-200 relative overflow-hidden group">
+                <motion.div
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                  className="p-4 rounded-2xl border-2 border-zinc-900 bg-zinc-900 text-white shadow-xl shadow-zinc-200 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <Star size={80} className="fill-white" />
                   </div>
@@ -728,7 +733,7 @@ async function handleSubmit(e: React.FormEvent) {
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {/* Canjeá tus puntos */}
@@ -744,7 +749,14 @@ async function handleSubmit(e: React.FormEvent) {
                       <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
                     </div>
                   ) : (
-                    <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin">
+                    <motion.div
+                      initial="hidden"
+                      animate="visible"
+                      variants={{
+                        visible: { transition: { staggerChildren: 0.06 } },
+                      }}
+                      className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin"
+                    >
                       {storeItems.map(item => {
                         const isSelected = selectedRewardItemId === item._id
                         const enoughPoints = loyaltyMember.points >= item.pointsCost
@@ -755,8 +767,11 @@ async function handleSubmit(e: React.FormEvent) {
                           && !loyaltyMember?.hasAdvanceActive
 
                         return (
-                          <button
+                          <motion.div
                             key={item._id}
+                            variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
+                          >
+                          <button
                             type="button"
                             onClick={() => {
                               if (isSelected) {
@@ -767,11 +782,11 @@ async function handleSubmit(e: React.FormEvent) {
                             }}
                             disabled={!enoughPoints && !canAdvance}
                             className={cn(
-                              "flex-shrink-0 w-50 snap-start rounded-2xl border-2 p-3 text-left transition-all duration-150",
+                              "flex-shrink-0 w-50 snap-start rounded-2xl border-2 p-3 text-left transition-all duration-500",
                               isSelected
                                 ? "border-zinc-900 bg-zinc-50"
                                 : !enoughPoints && !canAdvance
-                                  ? "border-zinc-100 bg-zinc-50 opacity-50 cursor-not-allowed"
+                                  ? "border-zinc-100 bg-zinc-50 opacity-50 grayscale cursor-not-allowed"
                                   : "border-zinc-200 bg-white hover:border-zinc-300"
                             )}
                           >
@@ -799,10 +814,11 @@ async function handleSubmit(e: React.FormEvent) {
                             {!isSelected && !enoughPoints && !canAdvance && (
                               <span className="mt-1 block text-[10px] font-medium text-zinc-400">Te faltan {item.pointsCost - loyaltyMember.points} pts</span>
                             )}
-                          </button>
+                            </button>
+                          </motion.div>
                         )
                       })}
-                    </div>
+                    </motion.div>
                   )}
 
                   {/* Info de Reward Advance (SOS) */}
@@ -845,7 +861,11 @@ async function handleSubmit(e: React.FormEvent) {
 
               {/* Registro si no es miembro */}
               {!loyaltyMember && (
-                <label className="flex items-start gap-3 p-4 rounded-2xl border-2 border-amber-200 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
+                <motion.label
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ type: 'spring', damping: 24, stiffness: 300, delay: 0.1 }}
+                  className="flex items-start gap-3 p-4 rounded-2xl border-2 border-amber-200 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
                   <input
                     type="checkbox"
                     checked={joinClub}
@@ -863,7 +883,7 @@ async function handleSubmit(e: React.FormEvent) {
                       {loyaltyConfig.welcomeMessage || 'Completá tu registro para recibir beneficios exclusivos.'}
                     </p>
                   </div>
-                </label>
+                </motion.label>
               )}
             </div>
           )}
@@ -948,31 +968,44 @@ async function handleSubmit(e: React.FormEvent) {
       </div>
 
       {/* Modal legal */}
-      {activeLegalModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl max-h-[80dvh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="sticky top-0 bg-white border-b border-zinc-100 p-4 flex items-center justify-between rounded-t-3xl z-10">
-              <h2 className="font-bold text-base text-zinc-900">
-                {activeLegalModal === 'terminos' ? 'Términos y Condiciones' : 'Política de Privacidad'}
-              </h2>
-              <button
-                onClick={() => setActiveLegalModal(null)}
-                className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              {(activeLegalModal === 'terminos' ? terminos : privacidad).map((section, i) => (
-                <div key={i}>
-                  <h3 className="font-bold text-sm text-zinc-900 mb-1">{section.title}</h3>
-                  <p className="text-sm text-zinc-500 leading-relaxed">{section.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {activeLegalModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 30 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+              className="w-full max-w-md bg-white rounded-3xl max-h-[80dvh] overflow-y-auto"
+            >
+              <div className="sticky top-0 bg-white border-b border-zinc-100 p-4 flex items-center justify-between rounded-t-3xl z-10">
+                <h2 className="font-bold text-base text-zinc-900">
+                  {activeLegalModal === 'terminos' ? 'Términos y Condiciones' : 'Política de Privacidad'}
+                </h2>
+                <button
+                  onClick={() => setActiveLegalModal(null)}
+                  className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                {(activeLegalModal === 'terminos' ? terminos : privacidad).map((section, i) => (
+                  <div key={i}>
+                    <h3 className="font-bold text-sm text-zinc-900 mb-1">{section.title}</h3>
+                    <p className="text-sm text-zinc-500 leading-relaxed">{section.body}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

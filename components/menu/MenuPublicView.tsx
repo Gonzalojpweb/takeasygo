@@ -112,7 +112,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const upsellModalRef = useRef(false)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
-  const { play: playAddSound } = useNotificationSound('/camera.wav')
+  const { play: playAddSound } = useNotificationSound('/pop.mp3')
   const [flyingItem, setFlyingItem] = useState<{
     startX: number; startY: number; startW: number; startH: number
     endX: number; endY: number
