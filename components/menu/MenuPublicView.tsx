@@ -18,6 +18,7 @@ import StoreCarousel from '@/components/menu/StoreCarousel'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import { getSuggestions } from '@/lib/upsell-menu'
+import { useNotificationSound } from '@/hooks/useNotificationSound'
 
 interface Props {
   tenant: any
@@ -110,6 +111,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const upsellModalRef = useRef(false)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
+  const { play: playAddSound } = useNotificationSound('/camera.mp3')
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
   const applyGridToTakeaway = !branding.menuLayoutApplyTo || branding.menuLayoutApplyTo === 'both' || branding.menuLayoutApplyTo === 'takeaway'
@@ -297,6 +299,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       const suggestions = getSuggestions(categories, cart, String(item._id), insights)
       if (suggestions.length > 0) setUpsellSuggestions(suggestions)
     }
+    // Momento 01: feedback de posesión
+    playAddSound()
+    if (navigator.vibrate) navigator.vibrate(50)
   }
 
   async function addToGroupSession(items: any[], itemName: string) {
@@ -1263,13 +1268,20 @@ function CartControl({
   primary: string
   bg: string
   compact?: boolean
-  categoryGroups?: any[]   // grupos heredados de la categoría
+  categoryGroups?: any[]
 }) {
+  const [bounce, setBounce] = useState(false)
   const sz = compact ? 11 : 13
   const btnSz = compact ? 'w-6 h-6' : 'w-7 h-7'
-  // El ítem requiere modal si tiene variantes, sus propios grupos O si la categoría tiene grupos globales
   const hasVariants = (item.variants ?? []).length > 0
   const hasCustomizations = hasVariants || (item.customizationGroups ?? []).length > 0 || (categoryGroups ?? []).length > 0
+
+  function handleAdd(e: React.MouseEvent) {
+    e.stopPropagation()
+    setBounce(true)
+    setTimeout(() => setBounce(false), 300)
+    onAdd(item)
+  }
 
   if (hasCustomizations) {
     return (
@@ -1283,8 +1295,8 @@ function CartControl({
         )}
         <button
           onClick={(e) => { e.stopPropagation(); onOpenModal(item); }}
-          className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0`}
-          style={{ backgroundColor: primary, color: bg }}>
+          className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0 transition-transform`}
+          style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.3)' : 'scale(1)' }}>
           <Plus size={sz} />
         </button>
       </div>
@@ -1303,9 +1315,9 @@ function CartControl({
           <Minus size={sz} />
         </button>
         <span className="text-sm font-bold w-4 text-center">{plainEntry.quantity}</span>
-        <button onClick={(e) => { e.stopPropagation(); onAdd(item); }}
-          className={`${btnSz} rounded-full flex items-center justify-center`}
-          style={{ backgroundColor: primary, color: bg }}>
+        <button onClick={handleAdd}
+          className={`${btnSz} rounded-full flex items-center justify-center transition-transform`}
+          style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.3)' : 'scale(1)' }}>
           <Plus size={sz} />
         </button>
       </div>
@@ -1313,9 +1325,9 @@ function CartControl({
   }
 
   return (
-    <button onClick={(e) => { e.stopPropagation(); onAdd(item); }}
-      className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0`}
-      style={{ backgroundColor: primary, color: bg }}>
+    <button onClick={handleAdd}
+      className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0 transition-transform`}
+      style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.3)' : 'scale(1)' }}>
       <Plus size={sz} />
     </button>
   )

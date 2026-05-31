@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import confetti from 'canvas-confetti'
+import { useNotificationSound } from '@/hooks/useNotificationSound'
 
 interface Props {
   orderId: string
@@ -24,6 +26,7 @@ export default function ConfirmPickupButton({
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState('')
+  const { play: playCelebration } = useNotificationSound('/camera.mp3')
 
   async function handleConfirm() {
     setLoading(true)
@@ -44,10 +47,24 @@ export default function ConfirmPickupButton({
     }
   }
 
+  // Momento 08: confetti + sonido + haptic al confirmar retiro
+  useEffect(() => {
+    if (!confirmed) return
+    playCelebration()
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200])
+    const end = Date.now() + 1500
+    const frame = () => {
+      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: [primaryColor, '#fbbf24', '#34d399'] })
+      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: [primaryColor, '#fbbf24', '#34d399'] })
+      if (Date.now() < end) requestAnimationFrame(frame)
+    }
+    frame()
+  }, [confirmed, primaryColor, playCelebration])
+
   if (confirmed) {
     return (
       <div className="text-center space-y-5 py-4">
-        <div className="text-5xl">✅</div>
+        <div className="text-5xl animate-bounce">✅</div>
         <div>
           <p className="font-black text-xl mb-1">¡Pedido retirado!</p>
           <p className="text-sm opacity-60">Gracias por tu compra. ¡Que lo disfrutes!</p>

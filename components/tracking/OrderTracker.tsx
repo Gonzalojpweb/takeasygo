@@ -5,6 +5,7 @@ import ConfirmPickupButton from './ConfirmPickupButton'
 import { Calendar, Star, Sparkles, Lock } from 'lucide-react'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
+import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
 
 const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered']
@@ -97,6 +98,7 @@ export default function OrderTracker({
   const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(initialScheduledPickupAt)
   const [scheduledStatus, setScheduledStatus] = useState<string | null>(initialScheduledStatus)
   const [scheduleCountdown, setScheduleCountdown] = useState('')
+  const { play: playNotification } = useNotificationSound('/camera.mp3')
 
   const isScheduledPending = orderTiming === 'scheduled' && scheduledStatus === 'pending_schedule'
 
@@ -184,24 +186,29 @@ export default function OrderTracker({
     return () => clearInterval(interval)
   }, [confirmedAt, status])
 
-  // F2: Sonido + notificación cuando el pedido está listo
+  // Momento 06 + 07: Sonido + notificación + haptic en cambios de estado clave
   const prevStatusRef = useRef(status)
   useEffect(() => {
+    if (status === 'confirmed' && prevStatusRef.current !== 'confirmed') {
+      toast.success('✅ Tu pedido fue confirmado', {
+        description: 'El restaurante está procesando tu pedido',
+        duration: 6000,
+        position: 'top-center',
+      })
+      playNotification()
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100])
+    }
     if (status === 'ready' && prevStatusRef.current !== 'ready') {
       toast.success('🎉 ¡Tu pedido está listo!', {
         description: 'Pasá a retirar tu pedido',
         duration: 10000,
         position: 'top-center',
       })
-      const audio = new Audio('/sounds/notification.mp3')
-      audio.loop = false
-      audio.play().catch(() => {})
-      setTimeout(() => {
-        audio.play().catch(() => {})
-      }, 1000)
+      playNotification()
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200])
     }
     prevStatusRef.current = status
-  }, [status])
+  }, [status, playNotification])
 
   // B9: Countdown 2:30 tras bambalina — cuando llega a cero, toast informativo
   // Solo se ejecuta cuando el pedido está confirmado, sin modificar estados reales
