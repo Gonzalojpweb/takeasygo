@@ -234,10 +234,10 @@ const TenantSchema = new Schema<ITenant>(
       lastUpdated: { type: Date, default: null },
     },
     branding: {
-      primaryColor: { type: String, default: '#000000' },
-      secondaryColor: { type: String, default: '#ffffff' },
-      backgroundColor: { type: String, default: '#ffffff' },
-      textColor: { type: String, default: '#000000' },
+      primaryColor: { type: String, default: '' },
+      secondaryColor: { type: String, default: '' },
+      backgroundColor: { type: String, default: '' },
+      textColor: { type: String, default: '' },
       logoUrl: { type: String, default: '' },
       fontFamily: { type: String, default: 'Inter' },
       borderRadius: {
@@ -342,7 +342,7 @@ const TenantSchema = new Schema<ITenant>(
     // Configuración de Wallet Digital
     wallet: {
       enabled:        { type: Boolean, default: false },
-      cardColor:      { type: String,  default: '#000000' },
+      cardColor:      { type: String,  default: '' },
       labelColor:     { type: String,  default: '#FFFFFF' },
       logoUrl:        { type: String,  default: '' },
       heroImageUrl:   { type: String,  default: '' },

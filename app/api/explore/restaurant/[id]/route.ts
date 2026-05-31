@@ -75,7 +75,7 @@ export async function GET(
         tenantSlug: loc.tenant?.slug,
         tenantName: loc.tenant?.name,
         logoUrl: loc.tenant?.branding?.logoUrl ?? '',
-        primaryColor: loc.tenant?.branding?.primaryColor ?? '#000000',
+        primaryColor: loc.tenant?.branding?.primaryColor || '#f74211',
         acceptsOrders: loc.settings?.acceptsOrders ?? true,
         estimatedPickupTime: loc.settings?.estimatedPickupTime ?? 20,
         orderModes: loc.settings?.orderModes ?? ['takeaway'],

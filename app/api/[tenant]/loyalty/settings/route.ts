@@ -44,7 +44,7 @@ export async function GET(
       sosMaxLimit,
       wallet: tenant.wallet ?? {
         enabled: false,
-        cardColor: tenant.branding?.primaryColor || '#000000',
+        cardColor: tenant.branding?.primaryColor || '#f74211',
         labelColor: tenant.branding?.textColor || '#FFFFFF',
         logoUrl: tenant.branding?.logoUrl || '',
       },

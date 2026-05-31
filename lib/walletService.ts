@@ -196,7 +196,7 @@ async function ensureGoogleLoyaltyClass(
       issuerName: tenant.name || 'TakeasyGO',
       programName: tenant.loyalty?.clubName || `Club ${tenant.name}`,
       ...(programLogo && { programLogo }),
-      hexBackgroundColor: tenant.wallet?.cardColor || '#000000',
+      hexBackgroundColor: tenant.wallet?.cardColor || '#f74211',
       hexFontColor: tenant.wallet?.labelColor || '#FFFFFF',
       reviewStatus: 'underReview', // Requerido por Google Wallet para nuevas clases
       locations: googleLocations.length > 0 ? googleLocations : undefined
@@ -305,7 +305,7 @@ export async function generateAppleWalletPass(
       clubName: tenant.loyalty.clubName || `Club ${tenant.name}`,
       tenantName: tenant.name,
       logoUrl: tenant.wallet?.logoUrl || tenant.branding?.logoUrl || '',
-      cardColor: tenant.wallet?.cardColor || '#000000',
+      cardColor: tenant.wallet?.cardColor || '#f74211',
       labelColor: tenant.wallet?.labelColor || '#FFFFFF'
     }
 

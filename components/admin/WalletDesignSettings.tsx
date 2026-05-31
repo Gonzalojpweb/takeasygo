@@ -28,7 +28,7 @@ interface Props {
 
 export default function WalletDesignSettings({ tenantSlug, initial }: Props) {
   const [walletEnabled, setWalletEnabled] = useState(initial?.wallet?.enabled ?? false)
-  const [cardColor, setCardColor] = useState(initial?.wallet?.cardColor ?? '#000000')
+  const [cardColor, setCardColor] = useState(initial?.wallet?.cardColor ?? '#f74211')
   const [labelColor, setLabelColor] = useState(initial?.wallet?.labelColor ?? '#FFFFFF')
   const [walletLogoUrl, setWalletLogoUrl] = useState(initial?.wallet?.logoUrl ?? '')
   const [geofenceRadius, setGeofenceRadius] = useState(initial?.wallet?.geofenceRadius ?? 500)

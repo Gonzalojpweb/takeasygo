@@ -61,7 +61,7 @@ export default function LoyaltyClubSettings({ tenantSlug, initial, plan, sosMaxL
   
   // Wallet states
   const [walletEnabled, setWalletEnabled] = useState(initial?.wallet?.enabled ?? false)
-  const [cardColor, setCardColor]         = useState(initial?.wallet?.cardColor ?? '#000000')
+  const [cardColor, setCardColor]         = useState(initial?.wallet?.cardColor ?? '#f74211')
   const [labelColor, setLabelColor]       = useState(initial?.wallet?.labelColor ?? '#FFFFFF')
   const [walletLogoUrl, setWalletLogoUrl] = useState(initial?.wallet?.logoUrl ?? '')
 
@@ -92,7 +92,7 @@ export default function LoyaltyClubSettings({ tenantSlug, initial, plan, sosMaxL
       setWelcomeMsg(initial.welcomeMessage)
       setSosLimit(initial.sosLimit ?? 0)
       setWalletEnabled(initial.wallet?.enabled ?? false)
-      setCardColor(initial.wallet?.cardColor ?? '#000000')
+      setCardColor(initial.wallet?.cardColor ?? '#f74211')
       setLabelColor(initial.wallet?.labelColor ?? '#FFFFFF')
       setWalletLogoUrl(initial.wallet?.logoUrl ?? '')
       setGeofenceRadius(initial.wallet?.geofenceRadius ?? 500)

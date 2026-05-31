@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
         tenantName: loc.tenant?.name,
         logoUrl: loc.tenant?.branding?.logoUrl ?? '',
         heroImage: loc.tenant?.branding?.logoUrl ?? '',
-        primaryColor: loc.tenant?.branding?.primaryColor ?? '#000000',
+        primaryColor: loc.tenant?.branding?.primaryColor || '#f74211',
         acceptsOrders,
         estimatedPickupTime,
         orderModes: loc.settings?.orderModes ?? ['takeaway'],
