@@ -91,6 +91,11 @@ function ExploreClientInner() {
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [prevView, setPrevView] = useState<View>('home')
 
+  const handleCategorySelect = useCallback((name: string) => {
+    setActiveCuisine(name)
+    setView('list')
+  }, [setActiveCuisine, setView])
+
   // ── GPS con cache en sessionStorage ────────────────────────────────────
   const GPS_CACHE_KEY = 'tgo_gps_cache'
   const readGpsCache = (): { lat: number; lng: number } | null => {
