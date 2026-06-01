@@ -9,7 +9,7 @@ import ExploreHeader from './ExploreHeader'
 import BottomNav from './BottomNav'
 import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
-import { GpsLoading, FeedSkeleton, FetchOverlay } from './ExploreLoadingSkeleton'
+import { GpsLoading, FetchOverlay } from './ExploreLoadingSkeleton'
 import { MapPin } from 'lucide-react'
 import { BlurFade } from '@/components/ui/blur-fade'
 import SelfReportModal from '@/components/consumer/SelfReportModal'
@@ -69,19 +69,60 @@ function ExploreClientInner() {
   const sidRef = useRef<string>('')
 
   const [view, setView] = useState<View>('home')
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
-  const [gpsError, setGpsError] = useState<string | null>(null)
-  const [gpsLoading, setGpsLoading] = useState(true)
-  const [restaurants, setRestaurants] = useState<NearbyRestaurant[]>([])
+  const readExploreCache = () => {
+    try {
+      const raw = sessionStorage.getItem('tgo_explore_cache')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed.restaurants) && parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+          return parsed
+        }
+      }
+    } catch {}
+    return null
+  }
+  const exploreCache = readExploreCache()
+  const [restaurants, setRestaurants] = useState<NearbyRestaurant[]>(exploreCache?.restaurants ?? [])
   const [fetching, setFetching] = useState(false)
-  const [radius, setRadius] = useState(5000)
+  const [radius, setRadius] = useState(exploreCache?.radius ?? 5000)
   const [activeCuisine, setActiveCuisine] = useState<string | null>(null)
   const [openNowOnly, setOpenNowOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showLeadModal, setShowLeadModal] = useState(false)
-  const [showSplash, setShowSplash] = useState(true)
-  const [showOnboarding, setShowOnboarding] = useState(false)
   const [prevView, setPrevView] = useState<View>('home')
+
+  // ── GPS con cache en sessionStorage ────────────────────────────────────
+  const GPS_CACHE_KEY = 'tgo_gps_cache'
+  const readGpsCache = (): { lat: number; lng: number } | null => {
+    try {
+      const raw = sessionStorage.getItem(GPS_CACHE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed.lat != null && parsed.lng != null && parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+          return { lat: parsed.lat, lng: parsed.lng }
+        }
+      }
+    } catch {}
+    return null
+  }
+  const writeGpsCache = (lat: number, lng: number) => {
+    try {
+      sessionStorage.setItem(GPS_CACHE_KEY, JSON.stringify({ lat, lng, timestamp: Date.now() }))
+    } catch {}
+  }
+
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(readGpsCache)
+  const [gpsError, setGpsError] = useState<string | null>(null)
+  const [gpsLoading, setGpsLoading] = useState(false)
+  const [gpsResolved, setGpsResolved] = useState(!!readGpsCache())
+
+  // ── Splash cache: solo mostrar una vez por sesión ───────────────────────
+  const SPLASH_CACHE_KEY = 'tgo_splash_shown'
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return !sessionStorage.getItem(SPLASH_CACHE_KEY)
+  })
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     sidRef.current = getOrCreateSessionId()
@@ -89,9 +130,10 @@ function ExploreClientInner() {
 
   // ── Session/Onboarding Logic ────────────────────────────────────
   useEffect(() => {
-    // Splash screen lasts for 2.5s
+    if (!showSplash) return
     const timer = setTimeout(() => {
       setShowSplash(false)
+      sessionStorage.setItem(SPLASH_CACHE_KEY, 'true')
       
       // After splash, check if we need to show onboarding
       const hasSeenOnboarding = localStorage.getItem('takeasy_onboarding_seen')
@@ -101,7 +143,7 @@ function ExploreClientInner() {
     }, 2500)
     
     return () => clearTimeout(timer)
-  }, [])
+  }, [showSplash])
 
   const handleOnboardingComplete = () => {
     localStorage.setItem('takeasy_onboarding_seen', 'true')
@@ -122,28 +164,46 @@ function ExploreClientInner() {
     }
   }, [view])
 
-  // ── GPS ──────────────────────────────────────────────────────────────
+  // ── Sync cuisine from URL ─────────────────────────────────────────────
   useEffect(() => {
+    const cuisine = searchParams.get('cuisine')
+    if (cuisine) {
+      setActiveCuisine(cuisine)
+    } else if (view !== 'list') {
+      // Clear cuisine when leaving list view
+      setActiveCuisine(null)
+    }
+  }, [searchParams, view])
+
+  // ── GPS (non-blocking, background) ────────────────────────────────────
+  useEffect(() => {
+    if (gpsResolved) return
+    setGpsLoading(true)
     if (!navigator.geolocation) {
       setGpsError('Tu navegador no soporta geolocalización')
       setCoords(BUENOS_AIRES)
       setGpsLoading(false)
+      setGpsResolved(true)
       return
     }
     navigator.geolocation.getCurrentPosition(
       pos => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setCoords(c)
         setGpsLoading(false)
+        setGpsResolved(true)
+        writeGpsCache(c.lat, c.lng)
       },
       () => {
         setGpsError('Ubicación denegada — mostrando Buenos Aires')
         setCoords(BUENOS_AIRES)
         setRadius(10000)
         setGpsLoading(false)
+        setGpsResolved(true)
       },
       { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
     )
-  }, [])
+  }, [gpsResolved])
 
   // ── Fetch restaurants ────────────────────────────────────────────────
   const fetchNearby = useCallback(async (lat: number, lng: number, r: number) => {
@@ -155,6 +215,9 @@ function ExploreClientInner() {
       if (!res.ok) throw new Error('Error al cargar restaurantes')
       const data = await res.json()
       setRestaurants(data.restaurants)
+      try {
+        sessionStorage.setItem('tgo_explore_cache', JSON.stringify({ restaurants: data.restaurants, radius: r, timestamp: Date.now() }))
+      } catch {}
     } catch {
       setRestaurants([])
     } finally {
@@ -165,15 +228,6 @@ function ExploreClientInner() {
   useEffect(() => {
     if (coords) fetchNearby(coords.lat, coords.lng, radius)
   }, [coords, radius, fetchNearby])
-
-  // ── GPS Loading ──────────────────────────────────────────────────────
-  if (gpsLoading) {
-    return (
-      <div className="h-full consumer-dark">
-        <GpsLoading />
-      </div>
-    )
-  }
 
   // ── Filtering ─────────────────────────────────────────────────────────
   const allCuisines = Array.from(
@@ -211,6 +265,12 @@ function ExploreClientInner() {
         {/* ── Banners ────────────────────────────────────────────────── */}
         <InstallBanner />
         <PushSubscriber />
+        {gpsLoading && !gpsResolved && view !== 'orders' && (
+          <div className="flex items-center justify-center gap-2 py-1.5 bg-primary/5 border-b border-primary/10">
+            <div className="w-2 h-2 rounded-full bg-primary animate-ping" />
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Localizando...</span>
+          </div>
+        )}
 
         {/* ── Content ─────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-hidden relative">
@@ -220,10 +280,13 @@ function ExploreClientInner() {
 
           {/* === HOME VIEW === */}
           {view === 'home' && (
-            <HomeView onOpenLeadModal={() => {
-              trackExploreEvent({ eventType: 'click_lead' })
-              setShowLeadModal(true)
-            }} />
+            <HomeView
+              onOpenLeadModal={() => {
+                trackExploreEvent({ eventType: 'click_lead' })
+                setShowLeadModal(true)
+              }}
+              onCategorySelect={handleCategorySelect}
+            />
           )}
 
           {/* === LIST VIEW === */}
@@ -364,17 +427,24 @@ function ExploreClientInner() {
           )}
 
           {/* === MAP VIEW === */}
-          {view === 'map' && coords && (
+          {view === 'map' && (
             <div className="h-full w-full">
-              <ExploreMap
-                userLat={coords.lat}
-                userLng={coords.lng}
-                restaurants={restaurants}
-                onSelect={r => {
-                  setTenantSlug(r.id)
-                  router.push(`/explore/${r.id}?type=${r.type}`)
-                }}
-              />
+              {coords ? (
+                <ExploreMap
+                  userLat={coords.lat}
+                  userLng={coords.lng}
+                  restaurants={restaurants}
+                  onSelect={r => {
+                    setTenantSlug(r.id)
+                    router.push(`/explore/${r.id}?type=${r.type}`)
+                  }}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-3 bg-[#fafafa]">
+                  <div className="w-8 h-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                  <p className="text-slate-400 text-[10px] font-bold">Localizando posición en el mapa...</p>
+                </div>
+              )}
             </div>
           )}
         </div>

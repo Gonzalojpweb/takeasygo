@@ -31,10 +31,10 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
           <Link 
             key={item._id}
             href={`/${item.tenantSlug}/club/lookup`}
-            className="bg-white rounded-3xl p-3 border border-slate-100 shadow-md shadow-slate-100 flex flex-col items-center text-center group"
+            className="bg-white rounded-3xl p-3 border border-slate-100 shadow-md shadow-slate-100 flex flex-col items-center text-center active:scale-[0.97] transition-transform duration-150"
           >
             <div className="w-20 h-20 rounded-2xl overflow-hidden mb-2 relative">
-              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
               <div className="absolute top-1.5 right-1.5 bg-amber-400 text-white p-1 rounded-lg shadow-sm">
                 <Star size={10} className="fill-white" />
               </div>
@@ -47,7 +47,7 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Puntos</span>
                 <span className="text-xs font-black text-amber-600 leading-none">{item.pointsCost}</span>
               </div>
-              <div className="w-5 h-5 rounded-lg bg-white flex items-center justify-center text-slate-400 group-hover:bg-amber-400 group-hover:text-white transition-colors">
+              <div className="w-5 h-5 rounded-lg bg-white flex items-center justify-center text-slate-400">
                 <ChevronRight size={12} />
               </div>
             </div>

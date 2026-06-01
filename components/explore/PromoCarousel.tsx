@@ -26,8 +26,8 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
           <h2 className="text-lg font-black text-slate-900 tracking-tight">Ofertas Destacadas</h2>
           <p className="text-[10px] text-slate-500 font-medium">¡Aprovechá estos beneficios hoy!</p>
         </div>
-        <button className="text-primary font-bold text-[10px] uppercase tracking-widest flex items-center gap-1 group">
-          Ver todas <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+        <button className="text-primary font-bold text-[10px] uppercase tracking-widest flex items-center gap-1">
+          Ver todas <ArrowRight size={12} />
         </button>
       </div>
 
@@ -36,10 +36,10 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
           <Link 
             key={promo._id} 
             href={promo.locationId ? `/${promo.tenantSlug}/menu/${promo.locationId}` : `/${promo.tenantSlug}`}
-            className="shrink-0 w-[240px] h-[140px] bg-white rounded-3xl relative overflow-hidden shadow-lg shadow-slate-200/50 snap-center group border border-slate-100"
+            className="shrink-0 w-[240px] h-[140px] bg-white rounded-3xl relative overflow-hidden shadow-lg shadow-slate-200/50 snap-center active:scale-[0.98] transition-transform duration-150 border border-slate-100"
           >
             {/* Background Decor */}
-            <div className="absolute -right-2 -top-2 w-20 h-20 bg-primary/5 rounded-full blur-xl group-hover:scale-125 transition-transform duration-500" />
+            <div className="absolute -right-2 -top-2 w-20 h-20 bg-primary/5 rounded-full blur-xl" />
             
             <div className="absolute inset-0 p-4 flex flex-col justify-between z-10">
               <div className="flex justify-between items-start">
@@ -66,7 +66,7 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
             </div>
 
             {promo.imageUrl && (
-              <div className="absolute top-2 right-2 w-24 h-24 pointer-events-none group-hover:scale-110 transition-transform duration-500">
+              <div className="absolute top-2 right-2 w-24 h-24 pointer-events-none">
                  <img src={promo.imageUrl} alt={promo.title} className="w-full h-full object-contain" />
               </div>
             )}
