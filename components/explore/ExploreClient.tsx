@@ -98,8 +98,8 @@ function ExploreClientInner() {
 
   const handleMapSelect = useCallback((r: NearbyRestaurant) => {
     setTenantSlug(r.id)
-    router.push(`/explore/${r.id}?type=${r.type}`)
-  }, [setTenantSlug, router])
+      router.push(`/app/${r.id}?type=${r.type}`)
+    }, [setTenantSlug, router])
 
   // ── GPS con cache en sessionStorage ────────────────────────────────────
   const GPS_CACHE_KEY = 'tgo_gps_cache'
@@ -377,32 +377,32 @@ function ExploreClientInner() {
                               restaurant={r}
                               index={i}
                               onNavigate={() => {
-                                setTenantSlug(r.id)
-                                router.push(`/explore/${r.id}?type=${r.type}`)
-                              }}
-                            />
-                          </BlurFade>
-                        ))}
-                      </div>
-                    </section>
-                  )}
+                                 setTenantSlug(r.id)
+                                 router.push(`/app/${r.id}?type=${r.type}`)
+                               }}
+                             />
+                           </BlurFade>
+                         ))}
+                       </div>
+                     </section>
+                   )}
 
-                  {/* ── All restaurants (compact list) ── */}
-                  <section className="px-4">
-                    <div className="mb-3">
-                      <h2 className="text-[#f7f4f2] text-sm font-bold">
-                        {featuredRestaurants.length > 0 ? 'Todas las opciones' : 'Opciones cercanas'}
-                      </h2>
-                    </div>
-                    <div className="space-y-2">
-                      {listRestaurants.map((r, i) => (
-                        <BlurFade key={r.id} delay={Math.min(i * 0.05, 0.4)} inView>
-                          <RestaurantCard
-                            restaurant={r}
-                            onNavigate={() => {
-                              setTenantSlug(r.id)
-                              router.push(`/explore/${r.id}?type=${r.type}`)
-                            }}
+                   {/* ── All restaurants (compact list) ── */}
+                   <section className="px-4">
+                     <div className="mb-3">
+                       <h2 className="text-[#f7f4f2] text-sm font-bold">
+                         {featuredRestaurants.length > 0 ? 'Todas las opciones' : 'Opciones cercanas'}
+                       </h2>
+                     </div>
+                     <div className="space-y-2">
+                       {listRestaurants.map((r, i) => (
+                         <BlurFade key={r.id} delay={Math.min(i * 0.05, 0.4)} inView>
+                           <RestaurantCard
+                             restaurant={r}
+                             onNavigate={() => {
+                               setTenantSlug(r.id)
+                               router.push(`/app/${r.id}?type=${r.type}`)
+                             }}
                           />
                         </BlurFade>
                       ))}

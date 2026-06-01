@@ -165,7 +165,7 @@ export async function POST(
     const payload = JSON.stringify({
       title: notificationTitle,
       body: notificationBody,
-      url: `/explore/profile/club/${tenantSlug}`,
+      url: `/app/profile/club/${tenantSlug}`,
       icon: '/tgo192.png',
       badge: '/tgo192.png',
     })

@@ -89,7 +89,7 @@ self.addEventListener('push', (e) => {
     body = '',
     icon = '/tgo192.png',
     badge = '/tgo192.png',
-    url = '/explore',
+    url = '/app',
   } = data
 
   e.waitUntil(
@@ -106,7 +106,7 @@ self.addEventListener('push', (e) => {
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  const url = e.notification.data?.url ?? '/explore'
+  const url = e.notification.data?.url ?? '/app'
 
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

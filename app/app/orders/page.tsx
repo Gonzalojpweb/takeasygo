@@ -64,7 +64,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/explore/profile')
+      router.push('/app/profile')
       return
     }
 

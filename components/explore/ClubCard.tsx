@@ -35,7 +35,7 @@ export default function ClubCard({
 
   return (
     <button
-      onClick={() => router.push(`/explore/profile/club/${tenantSlug}`)}
+      onClick={() => router.push(`/app/profile/club/${tenantSlug}`)}
       className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all text-left"
     >
       {logoUrl ? (

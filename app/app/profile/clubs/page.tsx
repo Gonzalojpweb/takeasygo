@@ -38,7 +38,7 @@ export default function ClubsDiscoveryPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.replace('/explore/profile')
+      router.replace('/app/profile')
       return
     }
     if (status !== 'authenticated') return

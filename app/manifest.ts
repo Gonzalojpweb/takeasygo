@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'TakeasyGO — Takeaway cerca de vos',
     short_name: 'TakeasyGO',
     description: 'Descubrí restaurantes takeaway cerca de vos en tiempo real.',
-    start_url: '/explore',
+    start_url: '/app',
     display: 'standalone',
     background_color: '#ffffff',
     theme_color: '#10b981',

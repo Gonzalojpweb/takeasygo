@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const payload = JSON.stringify({
       title,
       body,
-      url: url ?? '/explore',
+      url: url ?? '/app',
       icon: '/tgo192.png',
       badge: '/tgo192.png',
     })
