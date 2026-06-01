@@ -96,6 +96,11 @@ function ExploreClientInner() {
     setView('list')
   }, [setActiveCuisine, setView])
 
+  const handleMapSelect = useCallback((r: NearbyRestaurant) => {
+    setTenantSlug(r.id)
+    router.push(`/explore/${r.id}?type=${r.type}`)
+  }, [setTenantSlug, router])
+
   // ── GPS con cache en sessionStorage ────────────────────────────────────
   const GPS_CACHE_KEY = 'tgo_gps_cache'
   const readGpsCache = (): { lat: number; lng: number } | null => {
@@ -439,10 +444,7 @@ function ExploreClientInner() {
                   userLat={coords.lat}
                   userLng={coords.lng}
                   restaurants={restaurants}
-                  onSelect={r => {
-                    setTenantSlug(r.id)
-                    router.push(`/explore/${r.id}?type=${r.type}`)
-                  }}
+                  onSelect={handleMapSelect}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full gap-3 bg-[#fafafa]">

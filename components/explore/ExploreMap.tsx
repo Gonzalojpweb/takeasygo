@@ -93,7 +93,7 @@ function HoverCard({ r, pos, containerW, containerH }: {
       style={{ left, top, width: cardW }}
     >
       <div className="glass-card-elevated rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className={`h-1.5 w-full ${isNetwork ? 'bg-[#10b981]' : 'bg-[#5a524d]'}`} />
+        <div className={`h-1.5 w-full ${isNetwork ? 'bg-[#10b981]' : 'bg-[#a78bfa]'}`} />
         <div className="p-4 space-y-2">
           <div className="flex items-center gap-2">
             <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isNetwork ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-white/10 text-[#8a7f7a]'
@@ -298,7 +298,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
         const isClosed = r.isOpenNow === false
         const fill = isNetwork 
           ? (isOperational ? '#10b981' : '#f59e0b') 
-          : '#5a524d'
+          : '#a78bfa'
         const opacity = isClosed ? 0.55 : 1
         const pinColor = isClosed ? '#5a524d' : fill
 
