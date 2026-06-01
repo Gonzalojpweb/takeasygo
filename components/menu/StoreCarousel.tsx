@@ -48,7 +48,7 @@ export default function StoreCarousel({ tenantSlug, memberPoints }: Props) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-gray-900">Canjeá tus puntos</h2>
         <button 
-          onClick={() => router.push(`/explore/profile/club/${tenantSlug}?tab=store`)}
+          onClick={() => router.push(`/app/profile/club/${tenantSlug}?tab=store`)}
           className="flex items-center gap-1 text-sm font-medium text-orange-500 hover:text-orange-600 transition-colors"
         >
           Ver más
@@ -69,7 +69,7 @@ export default function StoreCarousel({ tenantSlug, memberPoints }: Props) {
         {items.map((item) => (
           <button
             key={item._id}
-            onClick={() => router.push(`/explore/profile/club/${tenantSlug}?tab=store`)}
+          onClick={() => router.push(`/app/profile/club/${tenantSlug}?tab=store`)}
             className="flex-shrink-0 w-28 snap-start text-left group"
           >
             {/* Product Image */}

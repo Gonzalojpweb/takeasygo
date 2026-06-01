@@ -188,7 +188,7 @@ export default function ProfilePage() {
             </h3>
             
             <button
-              onClick={() => router.push('/explore/orders')}
+              onClick={() => router.push('/app/orders')}
               className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all"
             >
               <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-[#f14722]">
@@ -245,7 +245,7 @@ export default function ProfilePage() {
                     <p className="text-xs font-bold text-[#f7f4f2]">Tus Clubs</p>
                   </div>
                   <button
-                    onClick={() => router.push('/explore/profile/clubs')}
+                    onClick={() => router.push('/app/profile/clubs')}
                     className="text-[10px] font-bold text-amber-500 hover:text-amber-400 transition-colors"
                   >
                     Ver todos
@@ -255,7 +255,7 @@ export default function ProfilePage() {
                   {myClubs.slice(0, 5).map(club => (
                     <button
                       key={club.tenantSlug}
-                      onClick={() => router.push(`/explore/profile/club/${club.tenantSlug}`)}
+                      onClick={() => router.push(`/app/profile/club/${club.tenantSlug}`)}
                       className="shrink-0 flex flex-col items-center gap-1.5 p-3 rounded-xl bg-[var(--c-surface)] hover:bg-[var(--c-border)] transition-colors min-w-[80px]"
                     >
                       {club.logoUrl ? (
@@ -275,7 +275,7 @@ export default function ProfilePage() {
               </div>
             ) : tenantSlug && suggestedClubs.some(c => c.tenantSlug === tenantSlug) ? (
               <button
-                onClick={() => router.push(`/explore/profile/club/${tenantSlug}`)}
+                onClick={() => router.push(`/app/profile/club/${tenantSlug}`)}
                 className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all"
               >
                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
@@ -289,7 +289,7 @@ export default function ProfilePage() {
               </button>
             ) : suggestedClubs.length > 0 ? (
               <button
-                onClick={() => router.push('/explore/profile/clubs')}
+                onClick={() => router.push('/app/profile/clubs')}
                 className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all"
               >
                 <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-amber-500">
@@ -362,7 +362,7 @@ export default function ProfilePage() {
             <div className="p-4">
               <AddressSelector onClose={() => {
                 setShowAddressSelector(false)
-                router.push('/explore')
+                router.push('/app')
               }} />
             </div>
           </div>

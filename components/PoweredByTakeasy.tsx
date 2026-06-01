@@ -28,7 +28,7 @@ export default function PoweredByTakeasy({ variant = 'dark', label = 'network', 
 
   return (
     <Link
-      href={tenantSlug ? `/explore?ref=${tenantSlug}` : 'https://takeasygo.com/explore'}
+      href={tenantSlug ? `/app?ref=${tenantSlug}` : 'https://takeasygo.com/app'}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="TakeasyGO — Plataforma de gestión gastronómica"

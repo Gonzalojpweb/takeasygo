@@ -58,7 +58,7 @@ export default function HomeHeader() {
           />
           <div className="flex items-center gap-1">
             <button
-              onClick={() => router.push('/explore/profile')}
+              onClick={() => router.push('/app/profile')}
               className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-zinc-200/50 transition-colors"
             >
               <User size={18} className="text-zinc-600" />

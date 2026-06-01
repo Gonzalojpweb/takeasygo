@@ -6,11 +6,11 @@ import { Home, Map, Compass, ShoppingBag, User } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const TABS = [
-  { id: 'home', href: '/explore', label: 'Inicio', icon: Home, isCenter: false },
-  { id: 'map', href: '/explore?view=map', label: 'Mapa', icon: Map, isCenter: false },
-  { id: 'explore', href: '/explore?view=list', label: 'Explorar', icon: Compass, isCenter: true },
-  { id: 'orders', href: '/explore?view=orders', label: 'Pedidos', icon: ShoppingBag, isCenter: false },
-  { id: 'profile', href: '/explore/profile', label: 'Perfil', icon: User, isCenter: false },
+  { id: 'home', href: '/app', label: 'Inicio', icon: Home, isCenter: false },
+  { id: 'map', href: '/app?view=map', label: 'Mapa', icon: Map, isCenter: false },
+  { id: 'explore', href: '/app?view=list', label: 'Explorar', icon: Compass, isCenter: true },
+  { id: 'orders', href: '/app?view=orders', label: 'Pedidos', icon: ShoppingBag, isCenter: false },
+  { id: 'profile', href: '/app/profile', label: 'Perfil', icon: User, isCenter: false },
 ] as const
 
 export default function BottomNav() {
@@ -21,11 +21,11 @@ export default function BottomNav() {
   const currentView = searchParams.get('view') || 'home'
 
   const getActiveTab = (tab: typeof TABS[number]) => {
-    if (tab.id === 'profile') return pathname === '/explore/profile'
+    if (tab.id === 'profile') return pathname === '/app/profile'
     if (tab.id === 'map') return currentView === 'map'
     if (tab.id === 'explore') return currentView === 'list'
     if (tab.id === 'orders') return currentView === 'orders'
-    if (tab.id === 'home') return pathname === '/explore' && (!searchParams.get('view') || currentView === 'home')
+    if (tab.id === 'home') return pathname === '/app' && (!searchParams.get('view') || currentView === 'home')
     return false
   }
 

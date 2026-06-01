@@ -7,7 +7,7 @@ import { Share2, Download, Check, Smartphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const LOGO_URL = 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1773077771/ChatGPT_Image_9_mar_2026__02_28_19_p.m.-removebg-preview-removebg-preview_1_yrwjdm.png'
-const EXPLORE_URL = 'https://takeasygo.com/explore?source=invitacion'
+const EXPLORE_URL = 'https://takeasygo.com/app?source=invitacion'
 
 export default function InviteCard() {
   const [copied, setCopied] = useState<'share' | 'download' | null>(null)
@@ -105,7 +105,7 @@ export default function InviteCard() {
 
         {/* URL label */}
         <p className="text-xs text-[var(--c-text-muted)] font-mono mb-8">
-          takeasygo.com/explore
+          takeasygo.com/app
         </p>
 
         {/* Actions */}

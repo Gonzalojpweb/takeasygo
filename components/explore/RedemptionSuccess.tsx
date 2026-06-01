@@ -39,7 +39,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
   }
 
   function handleShare() {
-    const platformUrl = 'https://www.takeasygo.com/explore'
+    const platformUrl = 'https://www.takeasygo.com/app'
     const shareText = `¡Acabo de canjear mis puntos por ${item.name} en ${tenantSlug}! 🎁✨\n\nSumate vos también a la red de beneficios de TakeasyGO y empezá a ganar premios en tus locales favoritos. @takeasygo`
     
     if (navigator.share) {

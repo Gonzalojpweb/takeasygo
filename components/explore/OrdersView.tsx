@@ -93,7 +93,7 @@ export default function OrdersView() {
           </p>
         </div>
         <button
-          onClick={() => router.push('/login?callbackUrl=/explore')}
+          onClick={() => router.push('/login?callbackUrl=/app')}
           className="px-8 py-3 bg-[#f74211] text-white font-bold rounded-xl text-sm shadow-lg shadow-[#f74211]/20 active:scale-95 transition-all"
         >
           Iniciar sesión
@@ -136,7 +136,7 @@ export default function OrdersView() {
             </p>
           </div>
           <button
-            onClick={() => router.push('/explore')}
+            onClick={() => router.push('/app')}
             className="flex items-center gap-2 px-6 py-3 bg-[#f74211] text-white font-bold rounded-xl text-sm shadow-lg shadow-[#f74211]/20"
           >
             Explorar ahora <ArrowRight size={16} />

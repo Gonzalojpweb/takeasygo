@@ -69,14 +69,14 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/explore/profile')
+      router.push('/app/profile')
       return
     }
 
     if (status === 'authenticated' && tenantSlug) {
       fetchClubData()
     } else if (status === 'authenticated' && !tenantSlug) {
-      router.push('/explore')
+      router.push('/app')
     }
   }, [status, tenantSlug, router])
 

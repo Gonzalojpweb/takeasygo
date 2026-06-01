@@ -783,7 +783,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                         <Input
                           value={form.ctaLink}
                           onChange={e => setForm({ ...form, ctaLink: e.target.value })}
-                          placeholder="ej: /explore/profile/club/{slug}"
+                          placeholder="ej: /app/profile/club/{slug}"
                           className="mt-1.5"
                         />
                       </div>

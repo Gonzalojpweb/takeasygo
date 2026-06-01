@@ -437,7 +437,7 @@ export default function OrderTracker({
           </a>
           {hasRewardItems && loyaltyData && (
             <a
-              href={`/explore/profile/club/${tenantSlug}`}
+              href={`/app/profile/club/${tenantSlug}`}
               className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-base border-2 transition-opacity hover:opacity-80"
               style={{ borderColor: primaryColor, color: primaryColor }}>
               <Star size={16} className="fill-current" />

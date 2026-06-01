@@ -240,7 +240,7 @@ async function sendPushToClientToken(
     const payload = JSON.stringify({
       title: notification.title,
       body: notification.body,
-      url: '/explore',
+      url: '/app',
       icon: '/tgo192.png',
       badge: '/tgo192.png',
     })
