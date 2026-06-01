@@ -49,11 +49,11 @@ export default function HomeHeader() {
         {/* Top Row: Logo & Profile */}
         <div className="flex items-center justify-between">
           <Image
-            src="https://res.cloudinary.com/dypcq8lsa/image/upload/v1773077771/ChatGPT_Image_9_mar_2026__02_28_19_p.m.-removebg-preview-removebg-preview_1_yrwjdm.png"
-            alt="TakeasyGO"
-            width={100}
-            height={24}
-            className="h-5 w-auto"
+            src="/tgoicon.png"
+            alt="TGO"
+            width={32}
+            height={32}
+            className="h-8 w-auto rounded-lg"
             unoptimized
           />
           <div className="flex items-center gap-1">

@@ -96,12 +96,12 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const { id } = await params
   const { type = 'network' } = await searchParams
   const r = await fetchRestaurant(id, type)
-  if (!r) return { title: 'Restaurante · TakeasyGO' }
+  if (!r) return { title: 'Restaurante · TGO' }
 
   const image = r.logoUrl || '/real512.jpg'
   return {
-    title: `${r.name} · TakeasyGO`,
-    description: `${r.address} — Pedí takeaway en TakeasyGO`,
+    title: `${r.name} · TGO`,
+    description: `${r.address} — Pedí takeaway en TGO`,
     openGraph: {
       title: r.name,
       description: `${r.address} — Pedí takeaway sin filas`,

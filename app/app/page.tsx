@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import ExploreClient from '@/components/explore/ExploreClient'
 
 export const metadata: Metadata = {
-  title: 'Explorar · TakeasyGO',
+  title: 'Explorar · TGO',
   description: 'Descubrí restaurantes takeaway cerca de vos — basado en disponibilidad real.',
 }
 

@@ -49,11 +49,11 @@ export default function ExploreHeader({
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center gap-3 mb-2">
           <Image
-            src="https://res.cloudinary.com/dypcq8lsa/image/upload/v1773077771/ChatGPT_Image_9_mar_2026__02_28_19_p.m.-removebg-preview-removebg-preview_1_yrwjdm.png"
-            alt="TakeasyGO"
-            width={90}
-            height={22}
-            className="h-4.5 w-auto"
+            src="/tgoicon.png"
+            alt="TGO"
+            width={28}
+            height={28}
+            className="h-7 w-auto"
             unoptimized
           />
           {onOpenLeadModal && (

@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'TakeasyGO — Takeaway cerca de vos',
-    short_name: 'TakeasyGO',
+    name: 'TGO — Takeaway cerca de vos',
+    short_name: 'TGO',
     description: 'Descubrí restaurantes takeaway cerca de vos en tiempo real.',
     start_url: '/app',
     display: 'standalone',

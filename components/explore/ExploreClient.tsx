@@ -414,7 +414,7 @@ function ExploreClientInner() {
                     <div className="glass-card rounded-2xl p-6 text-center space-y-3">
                       <p className="text-[#f7f4f2] text-sm font-bold">¿Tu restaurante no está en el mapa?</p>
                       <p className="text-[#5a524d] text-[11px] leading-relaxed">
-                        Sumanos a TakeasyGO y empezá a recibir pedidos sin comisiones ridículas.
+                        Sumanos a TGO y empezá a recibir pedidos sin comisiones ridículas.
                       </p>
                       <button
                         onClick={() => setShowLeadModal(true)}

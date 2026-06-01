@@ -69,7 +69,7 @@ export function FeaturedCard({
             : 'bg-white/10 text-[#8a7f7a] border border-white/10'
         }`}>
           {isNetwork 
-            ? (r.isOperational === false ? '✨ Catálogo' : '● Red TakeasyGO') 
+            ? (r.isOperational === false ? '✨ Catálogo' : '● Red TGO') 
             : (r.status === 'converted' ? '✨ Cliente' : '○ Directorio')}
         </span>
         <span className="text-[10px] font-semibold text-white/70 bg-black/30 backdrop-blur-md px-2 py-0.5 rounded-full">
