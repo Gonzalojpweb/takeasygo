@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
 import Rating from '@/models/Rating'
+import Promotion from '@/models/Promotion'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkIsOpenNow } from '@/lib/service-hours'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
@@ -45,6 +46,13 @@ export interface NearbyRestaurant {
   status?: string
   // Algoritmo de visibilidad (solo network, interno)
   visibilityScore?: number
+  // Layer 4 — Loyalty Discovery
+  loyaltyInfo?: {
+    hasClub: boolean
+    clubName?: string
+    hasActivePromo: boolean
+    promoTypes?: string[]
+  }
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -129,6 +137,8 @@ export async function GET(request: NextRequest) {
             'tenant.slug': 1,
             'tenant.branding.logoUrl': 1,
             'tenant.branding.primaryColor': 1,
+            'tenant.loyalty.enabled': 1,
+            'tenant.loyalty.clubName': 1,
             'tenant.cachedScores.icoScore': 1,
             'tenant.cachedScores.capacityScore': 1,
             'tenant.isOperational': 1,
@@ -153,6 +163,22 @@ export async function GET(request: NextRequest) {
         })
       } catch (e) {
         console.error('[explore/nearby] ratings aggregation failed:', e)
+      }
+    }
+
+    // ── Promotions: active promos per tenant ────────────────────────────────
+    const promosMap: Record<string, { hasPromo: boolean; types: string[] }> = {}
+    if (tenantIdsForRatings.length > 0) {
+      try {
+        const promoAggs = await Promotion.aggregate([
+          { $match: { tenantId: { $in: tenantIdsForRatings }, isActive: true } },
+          { $group: { _id: '$tenantId', types: { $addToSet: '$type' } } },
+        ])
+        promoAggs.forEach((p: any) => {
+          promosMap[p._id.toString()] = { hasPromo: true, types: p.types }
+        })
+      } catch (e) {
+        console.error('[explore/nearby] promos aggregation failed:', e)
       }
     }
 
@@ -210,6 +236,9 @@ export async function GET(request: NextRequest) {
       )
 
       const tenantRatings = ratingsMap[loc.tenant?._id?.toString()] ?? null
+      const tenantIdStr = loc.tenant?._id?.toString()
+      const tenantPromo = tenantIdStr ? promosMap[tenantIdStr] : undefined
+      const hasClub = loc.tenant?.loyalty?.enabled === true
 
       return {
         id: loc._id.toString(),
@@ -236,6 +265,12 @@ export async function GET(request: NextRequest) {
         averageRating: tenantRatings ? tenantRatings.avg : null,
         ratingCount: tenantRatings ? tenantRatings.count : 0,
         visibilityScore,
+        loyaltyInfo: hasClub || tenantPromo?.hasPromo ? {
+          hasClub,
+          clubName: loc.tenant?.loyalty?.clubName,
+          hasActivePromo: tenantPromo?.hasPromo ?? false,
+          promoTypes: tenantPromo?.types,
+        } : undefined,
       }
     })
 
