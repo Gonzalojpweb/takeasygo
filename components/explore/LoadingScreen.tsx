@@ -54,7 +54,7 @@ export default function LoadingScreen() {
           className="flex flex-col items-center"
         >
           <h1 className="text-white font-sans text-xl font-bold tracking-tight">
-            Takeasygo
+            TGO
           </h1>
           <p className="text-white/60 text-[10px] uppercase tracking-[0.2em] font-medium mt-1">
             Red Gastronómica

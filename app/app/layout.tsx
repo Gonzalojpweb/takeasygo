@@ -12,16 +12,16 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'TakeasyGO — Takeaway cerca de vos',
+  title: 'TGO — Takeaway cerca de vos',
   description: 'Descubrí restaurantes takeaway cerca de vos. Pedí en segundos.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'TakeasyGO',
+    title: 'TGO',
   },
   openGraph: {
-    title: 'TakeasyGO — Takeaway cerca de vos',
+    title: 'TGO — Takeaway cerca de vos',
     description: 'Descubrí restaurantes takeaway cerca de vos. Pedí en segundos.',
     type: 'website',
     images: ['/real512.jpg'],

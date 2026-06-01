@@ -1,4 +1,4 @@
-// TakeasyGO Service Worker
+// TGO Service Worker
 // Strategy:
 //   - JS/CSS chunks (/_next/static/): NETWORK ONLY — nunca cachear, cambian con cada deploy
 //   - Imágenes y fuentes estáticas: cache-first
@@ -82,10 +82,10 @@ self.addEventListener('push', (e) => {
   if (!e.data) return
 
   let data = {}
-  try { data = e.data.json() } catch { data = { title: 'TakeasyGO', body: e.data.text() } }
+  try { data = e.data.json() } catch { data = { title: 'TGO', body: e.data.text() } }
 
   const {
-    title = 'TakeasyGO',
+    title = 'TGO',
     body = '',
     icon = '/tgo192.png',
     badge = '/tgo192.png',

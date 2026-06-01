@@ -182,7 +182,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
                 ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/25'
                 : 'bg-white/5 text-[#8a7f7a] border-white/10'
             }`}>
-              {isNetwork ? '● En Red TakeasyGO' : '○ Directorio'}
+              {isNetwork ? '● En Red TGO' : '○ Directorio'}
             </span>
             {r.isOpenNow === true && (
               <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/25">
@@ -284,7 +284,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
             <div className="glass-card rounded-2xl p-5 text-center space-y-3" style={{ borderColor: 'rgba(16,185,129,0.15)' }}>
               <p className="text-[#f7f4f2] text-sm font-bold">¿Sos el dueño de este restaurante?</p>
               <p className="text-[#8a7f7a] text-xs leading-relaxed">
-                Sumate a la red TakeasyGO y recibí pedidos en tiempo real, sin comisiones por pedido.
+                Sumate a la red TGO y recibí pedidos en tiempo real, sin comisiones por pedido.
               </p>
               <Link
                 href="/#pricing"

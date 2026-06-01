@@ -4,7 +4,7 @@ import InviteCard from '@/components/invite/InviteCard'
 import TenantLogos from '@/components/invite/TenantLogos'
 
 export const metadata = {
-  title: 'TakeasyGO — Invitación',
+  title: 'TGO — Invitación',
   description: 'Descubrí restaurantes takeaway cerca de vos.',
   robots: { index: false, follow: false },
 }

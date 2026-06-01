@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Share2, Download, Check, Smartphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const LOGO_URL = 'https://res.cloudinary.com/dypcq8lsa/image/upload/v1773077771/ChatGPT_Image_9_mar_2026__02_28_19_p.m.-removebg-preview-removebg-preview_1_yrwjdm.png'
+const LOGO_URL = '/tgoicon.png'
 const EXPLORE_URL = 'https://takeasygo.com/app?source=invitacion'
 
 export default function InviteCard() {
@@ -17,7 +17,7 @@ export default function InviteCard() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'TakeasyGO',
+          title: 'TGO',
           text: 'Descubrí restaurantes takeaway cerca de vos',
           url: EXPLORE_URL,
         })
@@ -73,10 +73,10 @@ export default function InviteCard() {
         <div className="mb-6">
           <Image
             src={LOGO_URL}
-            alt="TakeasyGO"
-            width={120}
-            height={28}
-            className="h-6 w-auto"
+            alt="TGO"
+            width={48}
+            height={48}
+            className="h-12 w-auto"
             unoptimized
             priority
           />

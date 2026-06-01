@@ -103,7 +103,7 @@ export default function OnboardingCarousel({ onComplete }: Props) {
           <div className="w-8 h-8 bg-[#f74211] rounded-lg flex items-center justify-center">
             <span className="text-white font-serif italic font-bold">T</span>
           </div>
-          <span className="text-white font-bold text-sm tracking-tight">Takeasygo</span>
+          <span className="text-white font-bold text-sm tracking-tight">TGO</span>
         </div>
         <button onClick={onComplete} className="text-white/40 hover:text-white transition-colors">
           <X size={24} />

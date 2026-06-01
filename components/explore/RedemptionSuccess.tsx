@@ -40,11 +40,11 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
 
   function handleShare() {
     const platformUrl = 'https://www.takeasygo.com/app'
-    const shareText = `¡Acabo de canjear mis puntos por ${item.name} en ${tenantSlug}! 🎁✨\n\nSumate vos también a la red de beneficios de TakeasyGO y empezá a ganar premios en tus locales favoritos. @takeasygo`
+    const shareText = `¡Acabo de canjear mis puntos por ${item.name} en ${tenantSlug}! 🎁✨\n\nSumate vos también a la red de beneficios de TGO y empezá a ganar premios en tus locales favoritos. @takeasygo`
     
     if (navigator.share) {
       navigator.share({
-        title: `¡Beneficio exclusivo en TakeasyGO!`,
+        title: `¡Beneficio exclusivo en TGO!`,
         text: shareText,
         url: platformUrl,
       }).catch(err => {
@@ -150,7 +150,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
             </Button>
 
             <p className="text-xs text-muted-foreground mb-4">
-              Compartí tu canje y ganá puntos extra invitando amigos a la red <b>TakeasyGO</b>
+              Compartí tu canje y ganá puntos extra invitando amigos a la red <b>TGO</b>
             </p>
 
             {/* Feedback: ¿El canje fue fácil? */}

@@ -52,7 +52,7 @@ export default function InstallBanner() {
         </div>
         <div className="flex-1 min-w-0">
           <AnimatedShinyText className="text-xs font-black text-slate-900 inline-block uppercase tracking-tight">
-            Instalá TakeasyGO
+            Instalá TGO
           </AnimatedShinyText>
           <p className="text-slate-500 text-[10px] font-medium leading-tight">
             Acceso rápido desde tu pantalla de inicio
