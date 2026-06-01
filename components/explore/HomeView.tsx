@@ -13,7 +13,7 @@ import { BlurFade } from '@/components/ui/blur-fade'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/contexts/TenantContext'
 
-export default function HomeView({ onOpenLeadModal }: { onOpenLeadModal: () => void }) {
+export default function HomeView({ onOpenLeadModal, onCategorySelect }: { onOpenLeadModal: () => void; onCategorySelect?: (name: string) => void }) {
   const { currentAddress, loading: locationLoading } = useLocation()
   const { setTenantSlug } = useTenant()
   const router = useRouter()
@@ -60,7 +60,7 @@ export default function HomeView({ onOpenLeadModal }: { onOpenLeadModal: () => v
       
       <PromoCarousel promos={data?.promotions || []} />
       
-      <CategoryGrid />
+      <CategoryGrid onCategorySelect={onCategorySelect} />
       
       <MarketingCarousel campaigns={data?.marketingCampaigns || []} />
       

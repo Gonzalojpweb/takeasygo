@@ -21,28 +21,28 @@ const DEFAULT_CATEGORIES: Category[] = [
   { name: 'Bebidas', icon: '🍷', color: '#7C3AED', bg: '#F5F3FF' },
 ]
 
-export default function CategoryGrid({ categories }: { categories?: string[] }) {
-  // Combinar categorías estáticas con dinámicas del API si existen
+export default function CategoryGrid({ categories, onCategorySelect }: { categories?: string[]; onCategorySelect?: (name: string) => void }) {
   const displayCategories = DEFAULT_CATEGORIES
 
   return (
     <div className="py-2 px-4">
       <div className="grid grid-cols-4 gap-4">
         {displayCategories.map((cat) => (
-          <button 
+          <button
             key={cat.name}
+            onClick={() => onCategorySelect?.(cat.name)}
             className="flex flex-col items-center gap-1.5 group"
           >
-            <div 
+            <div
               className={cn(
                 "w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm border border-transparent transition-all duration-300",
-                "group-hover:scale-105 group-hover:shadow-md group-active:scale-95"
+                "active:scale-90 active:shadow-md"
               )}
               style={{ backgroundColor: cat.bg }}
             >
               {cat.icon}
             </div>
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 group-hover:text-primary transition-colors">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 transition-colors">
               {cat.name}
             </span>
           </button>
