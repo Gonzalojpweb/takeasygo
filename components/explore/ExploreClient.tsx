@@ -128,14 +128,18 @@ function ExploreClientInner() {
 
   // ── Splash cache: solo mostrar una vez por sesión ───────────────────────
   const SPLASH_CACHE_KEY = 'tgo_splash_shown'
-  const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window === 'undefined') return true
-    return !sessionStorage.getItem(SPLASH_CACHE_KEY)
-  })
+  const [showSplash, setShowSplash] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     sidRef.current = getOrCreateSessionId()
+  }, [])
+
+  // Ocultar splash al hidratar si ya se vio en esta sesión
+  useEffect(() => {
+    if (sessionStorage.getItem(SPLASH_CACHE_KEY)) {
+      setShowSplash(false)
+    }
   }, [])
 
   // ── Session/Onboarding Logic ────────────────────────────────────
