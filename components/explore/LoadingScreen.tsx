@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 
 export default function LoadingScreen() {
   const [isVisible, setIsVisible] = useState(true)
@@ -23,26 +24,32 @@ export default function LoadingScreen() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{
             duration: 1.2,
-            ease: [0.16, 1, 0.3, 1], // Custom cubic-bezier for premium feel
+            ease: [0.16, 1, 0.3, 1],
           }}
-          className="w-24 h-24 bg-[#f74211] rounded-[24px] flex items-center justify-center shadow-2xl"
+          className="relative"
         >
-          <span className="text-[#f74211] font-serif italic text-5xl font-black select-none">
-            T
-          </span>
+          <Image
+            src="/tgoicon.png"
+            alt="TGO"
+            width={96}
+            height={96}
+            className="drop-shadow-2xl"
+            unoptimized
+            priority
+          />
           
           {/* Subtle outer glow pulse */}
           <motion.div
             animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.2, 0.4, 0.2],
+              scale: [1, 1.15, 1],
+              opacity: [0.15, 0.3, 0.15],
             }}
             transition={{
               duration: 2.5,
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="absolute inset-0 bg-white rounded-[24px] -z-10 blur-xl"
+            className="absolute inset-0 bg-orange-500 rounded-[24px] -z-10 blur-2xl"
           />
         </motion.div>
 
