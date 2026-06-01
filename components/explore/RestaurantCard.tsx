@@ -124,6 +124,21 @@ export function FeaturedCard({
             </span>
           )}
         </div>
+        {/* Loyalty Discovery badges */}
+        {r.loyaltyInfo && (r.loyaltyInfo.hasClub || r.loyaltyInfo.hasActivePromo) && (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            {r.loyaltyInfo.hasClub && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-[2px] rounded-full text-[8px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 leading-none">
+                ⭐ Club
+              </span>
+            )}
+            {r.loyaltyInfo.hasActivePromo && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-[2px] rounded-full text-[8px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 leading-none">
+                🔥 Promo
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -185,10 +200,25 @@ export default function RestaurantCard({
              <span className="text-amber-600 text-[8px] font-black uppercase ml-1 tracking-widest">Catálogo</span>
           )}
         </div>
-        {r.cuisineTypes && r.cuisineTypes.length > 0 && (
+          {r.cuisineTypes && r.cuisineTypes.length > 0 && (
           <p className="text-slate-400 text-[9px] font-bold mt-0.5 truncate uppercase tracking-tighter">
             {r.cuisineTypes.join(' · ')}
           </p>
+        )}
+        {/* Loyalty Discovery badges */}
+        {r.loyaltyInfo && (r.loyaltyInfo.hasClub || r.loyaltyInfo.hasActivePromo) && (
+          <div className="flex items-center gap-1 mt-0.5">
+            {r.loyaltyInfo.hasClub && (
+              <span className="inline-flex items-center gap-0.5 px-1 py-[1px] rounded-full text-[7px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 leading-none">
+                ⭐ Club
+              </span>
+            )}
+            {r.loyaltyInfo.hasActivePromo && (
+              <span className="inline-flex items-center gap-0.5 px-1 py-[1px] rounded-full text-[7px] font-bold bg-amber-100 text-amber-700 border border-amber-300 leading-none">
+                🔥 Promo
+              </span>
+            )}
+          </div>
         )}
         {/* Rating */}
         {isNetwork && r.averageRating != null && r.ratingCount != null && r.ratingCount > 0 && (
