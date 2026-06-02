@@ -12,21 +12,21 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: 'portrait',
     icons: [
       {
-        src: '/tgo192.png',
+        src: '/tgoicon.png',
         sizes: '192x192',
         type: 'image/png',
-        purpose: 'maskable',
+        purpose: 'any',
       },
       {
-        src: '/real512.jpg',
+        src: '/tgoicon.png',
         sizes: '512x512',
-        type: 'image/jpeg',
+        type: 'image/png',
         purpose: 'any',
       },
     ],
     screenshots: [
       {
-        src: '/tgo192.png',
+        src: '/tgoicon.png',
         sizes: '192x192',
         type: 'image/png',
       },

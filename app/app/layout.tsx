@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     title: 'TGO — Takeaway cerca de vos',
     description: 'Descubrí restaurantes takeaway cerca de vos. Pedí en segundos.',
     type: 'website',
-    images: ['/real512.jpg'],
+    images: ['/tgoicon.png'],
   },
 }
 
