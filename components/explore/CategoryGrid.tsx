@@ -10,19 +10,21 @@ interface Category {
   bg: string
 }
 
-const DEFAULT_CATEGORIES: Category[] = [
-  { name: 'Restaurantes', icon: '🍔', color: '#F74211', bg: '#FFF5F0' },
+const CATEGORIES: Category[] = [
+  { name: 'Restaurantes', icon: '🍽️', color: '#F74211', bg: '#FFF5F0' },
   { name: 'Pizza', icon: '🍕', color: '#EAB308', bg: '#FEFCE8' },
-  { name: 'Café & Deli', icon: '☕', color: '#713F12', bg: '#FEF3C7' },
-  { name: 'Helados', icon: '🍦', color: '#EC4899', bg: '#FDF2F8' },
-  { name: 'Carne', icon: '🥩', color: '#991B1B', bg: '#FEF2F2' },
+  { name: 'Hamburguesas', icon: '🍔', color: '#DC2626', bg: '#FEF2F2' },
   { name: 'Sushi', icon: '🍣', color: '#0F172A', bg: '#F8FAFC' },
   { name: 'Empanadas', icon: '🥟', color: '#D97706', bg: '#FFFBEB' },
-  { name: 'Bebidas', icon: '🍷', color: '#7C3AED', bg: '#F5F3FF' },
+  { name: 'Pasta', icon: '🍝', color: '#16A34A', bg: '#F0FDF4' },
+  { name: 'Tacos', icon: '🌮', color: '#7C3AED', bg: '#FAF5FF' },
+  { name: 'Parrilla', icon: '🥩', color: '#991B1B', bg: '#FEF2F2' },
 ]
 
 export default function CategoryGrid({ categories, onCategorySelect }: { categories?: string[]; onCategorySelect?: (name: string) => void }) {
-  const displayCategories = DEFAULT_CATEGORIES
+  const displayCategories = categories
+    ? CATEGORIES.filter(c => c.name === 'Restaurantes' || categories.includes(c.name))
+    : CATEGORIES
 
   return (
     <div className="py-2 px-4">

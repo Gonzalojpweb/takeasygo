@@ -2,13 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { CUISINE_OPTIONS } from '@/lib/cuisine-options'
 import { X, ArrowRight, CheckCircle2, MapPin } from 'lucide-react'
-
-const CUISINE_OPTIONS = [
-  'Pizza', 'Sushi', 'Burger', 'Mexicano', 'Saludable',
-  'Pasta', 'Pollo', 'Carnes', 'Árabe', 'Vegano',
-  'Empanadas', 'Sandwiches', 'Helados', 'Café', 'Otro',
-]
 
 type FormState = 'idle' | 'loading' | 'success' | 'error' | 'duplicate'
 

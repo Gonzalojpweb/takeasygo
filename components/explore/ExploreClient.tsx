@@ -92,7 +92,7 @@ function ExploreClientInner() {
   const [prevView, setPrevView] = useState<View>('home')
 
   const handleCategorySelect = useCallback((name: string) => {
-    setActiveCuisine(name)
+    setActiveCuisine(name === 'Restaurantes' ? null : name)
     setView('list')
   }, [setActiveCuisine, setView])
 
