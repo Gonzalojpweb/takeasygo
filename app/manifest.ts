@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Descubrí restaurantes takeaway cerca de vos en tiempo real.',
     start_url: '/app',
     display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#10b981',
+    background_color: '#0d0b0a',
+    theme_color: '#0d0b0a',
     orientation: 'portrait',
     icons: [
       {
