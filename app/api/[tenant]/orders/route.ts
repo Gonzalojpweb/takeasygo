@@ -655,6 +655,7 @@ export async function POST(
             if (user) userId = user._id
           }
 
+          const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
           await LoyaltyMember.create({
             tenantId:  tenant._id,
             userId:     userId,
@@ -665,6 +666,7 @@ export async function POST(
             phoneHash: pHash,
             status:    'active',
             source:    'checkout',
+            'loyalty.points': welcomePoints,
             cache: {
               totalOrders: 0,
               totalSpent:  0,

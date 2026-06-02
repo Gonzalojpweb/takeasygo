@@ -95,16 +95,31 @@ export async function GET(request: NextRequest) {
     // 7. Enriquecer los resultados de Locales (Network)
     const featuredTenants = tenants.map(t => {
       const loc = nearbyLocations.find(l => l.tenantId.toString() === t._id.toString())
+      if (!loc) return null
       return {
-        id: t._id,
+        id: loc._id.toString(),
+        type: 'network',
         name: t.name,
         slug: t.slug,
+        tenantSlug: t.slug,
+        address: loc.address,
+        lat: loc.geo?.coordinates?.[1] ?? null,
+        lng: loc.geo?.coordinates?.[0] ?? null,
+        distanceM: loc.distanceM ? Math.round(loc.distanceM) : null,
+        phone: loc.phone ?? '',
+        cuisineTypes: loc.cuisineTypes || [],
+        openingHours: '',
+        isOpenNow: null,
         logoUrl: t.branding?.logoUrl,
+        heroImage: t.branding?.logoUrl ?? '',
         primaryColor: t.branding?.primaryColor,
-        distanceM: loc?.distanceM ? Math.round(loc.distanceM) : null,
-        cuisineTypes: loc?.cuisineTypes || []
+        acceptsOrders: loc.settings?.acceptsOrders ?? true,
+        estimatedPickupTime: loc.settings?.estimatedPickupTime ?? 20,
+        orderModes: loc.settings?.orderModes ?? ['takeaway'],
+        isOperational: true,
       }
-    }).sort((a, b) => (a.distanceM || 99999) - (b.distanceM || 99999))
+    }).filter(Boolean)
+      .sort((a, b) => ((a as any).distanceM || 99999) - ((b as any).distanceM || 99999)) as any[]
 
     logExploreEvent({
       sessionId: request.headers.get('x-session-id') || generateSessionId(),

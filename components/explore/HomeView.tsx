@@ -76,16 +76,16 @@ export default function HomeView({ onOpenLeadModal, onCategorySelect }: { onOpen
               <div 
                 onClick={() => {
                   setTenantSlug(r.id)
-                  router.push(`/${r.slug}`)
+                  router.push(`/app/${r.id}?type=${r.type}`)
                 }}
                 className="cursor-pointer"
               >
                 <RestaurantCard 
-                  restaurant={{
-                    ...r,
-                    type: 'network'
-                  } as any}
-                  onNavigate={() => {}} 
+                  restaurant={r as any}
+                  onNavigate={() => {
+                    setTenantSlug(r.id)
+                    router.push(`/app/${r.id}?type=${r.type}`)
+                  }} 
                 />
               </div>
             </BlurFade>
