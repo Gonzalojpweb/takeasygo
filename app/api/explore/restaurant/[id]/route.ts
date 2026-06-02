@@ -91,6 +91,17 @@ export async function GET(
     if (!entry) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
     const e = entry as any
+
+    logExploreEvent({
+      sessionId: request.headers.get('x-session-id') || generateSessionId(),
+      eventType: 'restaurant_view',
+      view: 'detail',
+      restaurantId: e._id.toString(),
+      tenantSlug: e.name,
+      request,
+      metadata: { sourceType: 'directory' },
+    })
+
     return NextResponse.json({
       id: e._id.toString(),
       type: 'listed',
