@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { CuisineSelector } from '@/components/ui/cuisine-selector'
 import { MapPin, Plus, ChevronUp, Pencil, Trash2, X, Check, Upload, Globe } from 'lucide-react'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
 
@@ -42,6 +43,7 @@ const EMPTY_FORM = {
   orderModes: ['takeaway'] as OrderMode[],
   lat: '',
   lng: '',
+  cuisineTypes: [] as string[],
 }
 
 export default function LocationManager({ tenantSlug, initialLocations }: Props) {
@@ -59,9 +61,9 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
     lat: string
     lng: string
     networkVisible: boolean
-    cuisineTypes: string
+    cuisineTypes: string[]
   }>({
-    name: '', address: '', phone: '', orderModes: ['takeaway'], lat: '', lng: '', networkVisible: false, cuisineTypes: '',
+    name: '', address: '', phone: '', orderModes: ['takeaway'], lat: '', lng: '', networkVisible: false, cuisineTypes: [],
   })
   const [editLoading, setEditLoading] = useState(false)
   const [importingLocation, setImportingLocation] = useState<LocationItem | null>(null)
@@ -108,6 +110,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           address: form.address,
           phone: form.phone,
           settings: { orderModes: form.orderModes },
+          cuisineTypes: form.cuisineTypes,
           ...(geo && { geo }),
         }),
       })
@@ -167,7 +170,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
       lat: loc.lat != null ? String(loc.lat) : '',
       lng: loc.lng != null ? String(loc.lng) : '',
       networkVisible: loc.networkVisible,
-      cuisineTypes: loc.cuisineTypes.join(', '),
+      cuisineTypes: loc.cuisineTypes,
     })
   }
 
@@ -190,7 +193,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           phone: editForm.phone,
           settings: { orderModes: editForm.orderModes },
           networkVisible: editForm.networkVisible,
-          cuisineTypes: editForm.cuisineTypes.split(',').map(s => s.trim()).filter(Boolean),
+          cuisineTypes: editForm.cuisineTypes,
           ...(geo ? { geo } : { $unset: { geo: '' } }),
         }),
       })
@@ -212,7 +215,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                 lat: isNaN(latN) ? null : latN,
                 lng: isNaN(lngN) ? null : lngN,
                 networkVisible: editForm.networkVisible,
-                cuisineTypes: editForm.cuisineTypes.split(',').map(s => s.trim()).filter(Boolean),
+                cuisineTypes: editForm.cuisineTypes,
               }
             : l
         )
@@ -346,16 +349,8 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
 
                     {/* ── Tipos de cocina ──────────────────────────────────── */}
                     <div>
-                      <label className="text-zinc-500 text-xs block mb-1">
-                        Tipos de cocina{' '}
-                        <span className="text-zinc-600">(separados por coma)</span>
-                      </label>
-                      <input
-                        value={editForm.cuisineTypes}
-                        onChange={e => setEditForm(p => ({ ...p, cuisineTypes: e.target.value }))}
-                        placeholder="ej: pizza, hamburgesas, mexicana"
-                        className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400"
-                      />
+                      <label className="text-zinc-500 text-xs block mb-1">Tipos de cocina</label>
+                      <CuisineSelector current={editForm.cuisineTypes} onChange={v => setEditForm(p => ({ ...p, cuisineTypes: v }))} />
                     </div>
 
                     <div>
@@ -574,6 +569,11 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                   <p className="text-zinc-600 text-xs mt-1">
                     {form.orderModes.map(m => MODE_LABELS[m]).join(' + ')}
                   </p>
+                </div>
+
+                <div>
+                  <label className="text-zinc-400 text-xs block mb-1">Tipos de cocina</label>
+                  <CuisineSelector current={form.cuisineTypes} onChange={v => setForm(p => ({ ...p, cuisineTypes: v }))} />
                 </div>
 
                 <Button type="submit" disabled={loading} size="sm" className="w-full">
