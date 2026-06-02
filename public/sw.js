@@ -8,9 +8,7 @@
 const CACHE = 'tgo-v3'
 
 const PRECACHE = [
-  '/real192.jpg',
-  '/real512.jpg',
-  '/tgo192.png',
+  '/tgoicon.png',
 ]
 
 self.addEventListener('install', (e) => {
@@ -87,8 +85,8 @@ self.addEventListener('push', (e) => {
   const {
     title = 'TGO',
     body = '',
-    icon = '/tgo192.png',
-    badge = '/tgo192.png',
+    icon = '/tgoicon.png',
+    badge = '/tgoicon.png',
     url = '/app',
   } = data
 

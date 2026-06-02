@@ -98,8 +98,8 @@ export async function POST(
         title: memberNotificationTitle,
         body: memberNotificationBody,
         url: `/${tenantSlug}/menu`,
-        icon: '/tgo192.png',
-        badge: '/tgo192.png',
+        icon: '/tgoicon.png',
+        badge: '/tgoicon.png',
       })
 
       await webpush.sendNotification(
@@ -166,8 +166,8 @@ export async function POST(
       title: notificationTitle,
       body: notificationBody,
       url: `/app/profile/club/${tenantSlug}`,
-      icon: '/tgo192.png',
-      badge: '/tgo192.png',
+      icon: '/tgoicon.png',
+      badge: '/tgoicon.png',
     })
 
     for (const sub of subscriptions) {

@@ -98,7 +98,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const r = await fetchRestaurant(id, type)
   if (!r) return { title: 'Restaurante · TGO' }
 
-  const image = r.logoUrl || '/real512.jpg'
+  const image = r.logoUrl || '/tgoicon.png'
   return {
     title: `${r.name} · TGO`,
     description: `${r.address} — Pedí takeaway en TGO`,
