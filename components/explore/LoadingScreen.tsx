@@ -1,93 +1,61 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
 import Image from 'next/image'
 
 export default function LoadingScreen() {
-  const [isVisible, setIsVisible] = useState(true)
-
-  // Use this component as a splash screen that fades out
-  // In a real scenario, you might want to call this based on a state
-  
   return (
     <motion.div
-      initial={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.8, ease: 'easeInOut' }}
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#f74211]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0d0b0a]"
     >
-      <div className="relative flex flex-col items-center gap-6">
-        {/* Animated Logo Container */}
+      <div className="flex flex-col items-center gap-12">
+        {/* Logo Container */}
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
+          initial={{ scale: 0.85, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{
-            duration: 1.2,
-            ease: [0.16, 1, 0.3, 1],
-          }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="relative"
         >
-          <Image
-            src="/tgoicon-512.png"
-            alt="TGO"
-            width={96}
-            height={96}
-            className="drop-shadow-2xl"
-            unoptimized
-            priority
-          />
-          
-          {/* Subtle outer glow pulse */}
+          {/* Breathing logo */}
+          <motion.div
+            animate={{ scale: [1, 1.04, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Image
+              src="/tgoicon-512.png"
+              alt="TGO"
+              width={80}
+              height={80}
+              className="drop-shadow-xl"
+              unoptimized
+              priority
+            />
+          </motion.div>
+
+          {/* Gentle glow pulse */}
           <motion.div
             animate={{
-              scale: [1, 1.15, 1],
-              opacity: [0.15, 0.3, 0.15],
+              scale: [1, 1.25, 1],
+              opacity: [0.1, 0.2, 0.1],
             }}
-            transition={{
-              duration: 2.5,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute inset-0 bg-orange-500 rounded-[24px] -z-10 blur-2xl"
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute inset-0 bg-orange-500 rounded-[24px] -z-10 blur-3xl"
           />
         </motion.div>
 
-        {/* Brand Name */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-          className="flex flex-col items-center"
-        >
-          <h1 className="text-white font-sans text-xl font-bold tracking-tight">
-            TGO
-          </h1>
-          <p className="text-white/60 text-[10px] uppercase tracking-[0.2em] font-medium mt-1">
-            Red Gastronómica
-          </p>
-        </motion.div>
-      </div>
-
-      {/* Bottom loading indicator */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.8 }}
-        className="absolute bottom-16 flex flex-col items-center gap-3"
-      >
-        <div className="w-12 h-[2px] bg-white/20 rounded-full overflow-hidden">
+        {/* Shimmer progress line */}
+        <div className="w-28 h-[2px] bg-zinc-800 rounded-full overflow-hidden relative">
           <motion.div
-            animate={{ x: [-48, 48] }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: "linear"
-            }}
-            className="w-full h-full bg-white"
+            animate={{ x: ['-100%', '400%'] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-orange-500/70 to-transparent"
           />
         </div>
-      </motion.div>
+      </div>
     </motion.div>
   )
 }

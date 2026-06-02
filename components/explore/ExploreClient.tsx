@@ -154,7 +154,7 @@ function ExploreClientInner() {
       if (!hasSeenOnboarding) {
         setShowOnboarding(true)
       }
-    }, 2500)
+    }, 1200)
     
     return () => clearTimeout(timer)
   }, [showSplash])

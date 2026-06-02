@@ -4,7 +4,7 @@ import { LocationProvider } from '@/components/explore/LocationContext'
 import { Suspense } from 'react'
 
 export const viewport: Viewport = {
-  themeColor: '#10b981',
+  themeColor: '#0d0b0a',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -30,6 +30,10 @@ export const metadata: Metadata = {
 
 export default function ExploreLayout({ children }: { children: React.ReactNode }) {
   return (
+    <>
+      <style>{`
+        html, body { background-color: #0d0b0a; }
+      `}</style>
     <TenantProvider>
       <Suspense fallback={null}>
         <TenantRefCapture />
@@ -40,6 +44,7 @@ export default function ExploreLayout({ children }: { children: React.ReactNode 
         </div>
       </LocationProvider>
     </TenantProvider>
+    </>
   )
 }
 
