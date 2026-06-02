@@ -29,7 +29,7 @@ export default function LoadingScreen() {
           className="relative"
         >
           <Image
-            src="/tgoicon.png"
+            src="/tgoicon-512.png"
             alt="TGO"
             width={96}
             height={96}

@@ -97,8 +97,8 @@ export async function PATCH(
             JSON.stringify({
               title: '🛍️ ¡Tu pedido está listo!',
               body: `Pedido #${order.orderNumber} — podés pasar a retirarlo.`,
-              icon: '/tgoicon.png',
-              badge: '/tgoicon.png',
+              icon: '/tgoicon-192.png',
+              badge: '/tgoicon-192.png',
               url: '/app',
             })
           )

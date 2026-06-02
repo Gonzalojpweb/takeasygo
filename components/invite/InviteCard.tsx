@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Share2, Download, Check, Smartphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const LOGO_URL = '/tgoicon.png'
+const LOGO_URL = '/tgoicon-512.png'
 const EXPLORE_URL = 'https://takeasygo.com/app?source=invitacion'
 
 export default function InviteCard() {
