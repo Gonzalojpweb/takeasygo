@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
       title,
       body,
       url: url ?? '/app',
-      icon: '/tgoicon.png',
-      badge: '/tgoicon.png',
+      icon: '/tgoicon-192.png',
+      badge: '/tgoicon-192.png',
     })
 
     await webpush.sendNotification(
