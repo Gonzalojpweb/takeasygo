@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift, Wallet } from 'lucide-react'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -67,6 +67,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
   const [activeQrPromo, setActiveQrPromo] = useState<{ discountPercentage: number } | null>(null)
   const [loyaltyMember, setLoyaltyMember] = useState<any | null>(null)
+  const [walletEnabled, setWalletEnabled] = useState(false)
   const [pointsLookupLoading, setPointsLookupLoading] = useState(false)
   const [storeItems, setStoreItems] = useState<StoreItem[]>([])
 
@@ -169,6 +170,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
         .then(data => {
           if (data.member) {
             setLoyaltyMember(data.member)
+            setWalletEnabled(data.wallet?.enabled ?? false)
             // Si tiene teléfono guardado en el miembro, actualizar el form para que lookup por phone también de match
             if (data.member.phone) {
               const digits = data.member.phone.replace(/\D/g, '')
@@ -195,8 +197,10 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
         const data = await res.json()
         if (res.ok && data.member) {
           setLoyaltyMember(data.member)
+          setWalletEnabled(data.wallet?.enabled ?? false)
         } else {
           setLoyaltyMember(null)
+          setWalletEnabled(false)
         }
       } catch (err) {
         console.error('Loyalty lookup error', err)
@@ -733,6 +737,19 @@ async function handleSubmit(e: React.FormEvent) {
                         </div>
                       )}
                     </div>
+
+                      {walletEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            router.push(`/${tenantSlug}/club/lookup`)
+                          }}
+                          className="mt-3 w-full h-10 rounded-xl text-xs font-bold transition-all active:scale-[0.985] flex items-center justify-center gap-2 border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                        >
+                          <Wallet size={16} />
+                          Guardar en billetera digital
+                        </button>
+                      )}
                   </div>
                 </motion.div>
               )}
