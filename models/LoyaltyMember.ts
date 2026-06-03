@@ -83,7 +83,6 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
     userId: {
       type:     Schema.Types.ObjectId,
       ref:      'User',
-      default:  null,
       index:    true,
     },
 
@@ -204,8 +203,8 @@ LoyaltyMemberSchema.index({ tenantId: 1, phoneHash: 1 }, { unique: true, sparse:
 LoyaltyMemberSchema.index({ tenantId: 1, email: 1 })
 LoyaltyMemberSchema.index({ tenantId: 1, status: 1, joinedAt: -1 })
 LoyaltyMemberSchema.index({ tenantId: 1, source: 1 })
-// Índice para buscar membresía por usuario autenticado
-LoyaltyMemberSchema.index({ userId: 1, tenantId: 1 }, { unique: true, sparse: true })
+// Índice para buscar membresía por usuario autenticado (no unique — la unicidad se garantiza con tenantId_1_phoneHash_1)
+LoyaltyMemberSchema.index({ userId: 1, tenantId: 1 }, { sparse: true })
 
 // ── Helper estático: generar phoneHash ───────────────────────────────────────
 // DEPRECATED: Usar hashPhone de lib/crypto.ts directamente en nuevos desarrollos.
@@ -242,5 +241,33 @@ LoyaltyMemberSchema.pre('save', async function () {
 const LoyaltyMember =
   mongoose.models.LoyaltyMember ||
   mongoose.model<ILoyaltyMember>('LoyaltyMember', LoyaltyMemberSchema)
+
+// ── One‑time schema migration ─────────────────────────────────────────────
+// The existing `userId_1_tenantId_1` index was created without `sparse: true`,
+// causing E11000 when two unauthenticated customers checkout for the same tenant.
+// The schema now defines it as non‑unique + sparse. Drop the old unique index
+// so Mongoose can recreate it correctly on next model init.
+let _idxMigrated = false
+async function _migrateUserIdIndex() {
+  if (_idxMigrated) return
+  _idxMigrated = true
+  try {
+    const db = mongoose.connection.db
+    if (!db) return
+    const indexes = await db.collection('loyaltymembers').indexes()
+    const oldIdx = indexes.find(i => i.name === 'userId_1_tenantId_1')
+    if (oldIdx && oldIdx.unique) {
+      console.log('[LoyaltyMember] Dropping old unique userId_1_tenantId_1 index – will be recreated as non‑unique sparse')
+      await db.collection('loyaltymembers').dropIndex('userId_1_tenantId_1')
+    }
+  } catch (err) {
+    console.warn('[LoyaltyMember] Index migration skipped:', (err as Error).message)
+  }
+}
+if (mongoose.connection.readyState === 1) {
+  void _migrateUserIdIndex()
+} else {
+  mongoose.connection.once('open', () => { void _migrateUserIdIndex() })
+}
 
 export default LoyaltyMember
