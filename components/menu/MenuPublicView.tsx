@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
+  Award, Wallet,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -146,6 +147,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [memberPoints, setMemberPoints] = useState(0)
+  const [clubData, setClubData] = useState<{ isMember: boolean; name: string; walletEnabled: boolean } | null>(null)
   const [promoItemSelection, setPromoItemSelection] = useState<{
     promo: any
     items: any[]
@@ -175,6 +177,15 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       .then(data => {
         if (data?.member?.points) {
           setMemberPoints(data.member.points)
+        }
+        if (data?.member) {
+          setClubData({
+            isMember: true,
+            name: data.member.name,
+            walletEnabled: data.walletEnabled ?? false,
+          })
+        } else {
+          setClubData(null)
         }
       })
       .catch(() => {})
@@ -1035,6 +1046,34 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             )}
           </div>
         </div>
+
+        {/* ── Club membership badge (hidden for company admin in business mode) ── */}
+        {clubData?.isMember && !isAdminCorp && (
+          <div className="border-t px-4 py-3 max-w-2xl mx-auto"
+            style={{ borderColor: primary + '20' }}>
+            <div className="flex items-center justify-center gap-4 flex-wrap">
+              <Link
+                href={`/${tenant.slug}/club/lookup`}
+                className="flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-80"
+                style={{ color: primary }}
+              >
+                <Award size={16} />
+                Socio del Club — {clubData.name}
+              </Link>
+              {clubData.walletEnabled && (
+                <Link
+                  href={`/${tenant.slug}/club/lookup`}
+                  className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
+                  style={{ color: '#94a3b8' }}
+                >
+                  <Wallet size={14} />
+                  Añadir a billetera digital
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="border-t px-4 py-4 max-w-2xl mx-auto flex items-center justify-between gap-4"
           style={{ borderColor: primary + '20' }}>
           <p className="text-xs" style={{ color: '#475569' }}>
