@@ -25,7 +25,7 @@ export async function PUT(
     }
 
     // 2. Extraer campos anidados que no están en el body plano
-    const { sosMaxLimit, business, ...flatBody } = body
+    const { sosMaxLimit, business, promotionLabels, loyaltyMessaging, ...flatBody } = body
 
     // 3. Construir update con dot-notation
     const updateSet: Record<string, any> = { ...flatBody }
@@ -41,6 +41,18 @@ export async function PUT(
       } else {
         updateSet['business.enabled'] = business.enabled === true
       }
+    }
+    if (promotionLabels !== undefined) {
+      if (promotionLabels.sale !== undefined) updateSet['promotionLabels.sale'] = promotionLabels.sale
+      if (promotionLabels.info !== undefined) updateSet['promotionLabels.info'] = promotionLabels.info
+      if (promotionLabels.announcement !== undefined) updateSet['promotionLabels.announcement'] = promotionLabels.announcement
+      if (promotionLabels.loyalty !== undefined) updateSet['promotionLabels.loyalty'] = promotionLabels.loyalty
+    }
+    if (loyaltyMessaging !== undefined) {
+      if (loyaltyMessaging.modalSubtitle !== undefined) updateSet['loyaltyMessaging.modalSubtitle'] = loyaltyMessaging.modalSubtitle
+      if (loyaltyMessaging.successTitle !== undefined) updateSet['loyaltyMessaging.successTitle'] = loyaltyMessaging.successTitle
+      if (loyaltyMessaging.successMessage !== undefined) updateSet['loyaltyMessaging.successMessage'] = loyaltyMessaging.successMessage
+      if (loyaltyMessaging.welcomePointsMsg !== undefined) updateSet['loyaltyMessaging.welcomePointsMsg'] = loyaltyMessaging.welcomePointsMsg
     }
 
     const tenant = await Tenant.findByIdAndUpdate(

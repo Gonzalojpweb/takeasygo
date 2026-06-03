@@ -51,6 +51,18 @@ interface PromotionCardProps {
   textColor?: string
   mode?: 'takeaway' | 'dine-in'
   variant?: 'featured' | 'standard'
+  typeLabels?: {
+    sale: string
+    info: string
+    announcement: string
+    loyalty: string
+  }
+  loyaltyMessaging?: {
+    modalSubtitle?: string
+    successTitle?: string
+    successMessage?: string
+    welcomePointsMsg?: string
+  }
 }
 
 export function PromotionCard({
@@ -62,6 +74,8 @@ export function PromotionCard({
   textColor: pageTextColor,
   mode,
   variant,
+  typeLabels,
+  loyaltyMessaging,
 }: PromotionCardProps) {
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false)
   const isFeatured = variant === 'featured' || (variant === undefined && promotion.isFeatured)
@@ -194,6 +208,10 @@ export function PromotionCard({
             accentColor={accent}
             isOpen={showLoyaltyModal}
             onClose={() => setShowLoyaltyModal(false)}
+            modalSubtitle={loyaltyMessaging?.modalSubtitle}
+            successTitle={loyaltyMessaging?.successTitle}
+            successMessage={loyaltyMessaging?.successMessage}
+            welcomePointsMsg={loyaltyMessaging?.welcomePointsMsg}
           />
         )}
       </>
@@ -254,9 +272,10 @@ export function PromotionCard({
               className="text-[9px] uppercase font-black tracking-widest block"
               style={{ color: labelColor }}
             >
-              {promoType === 'sale' ? (promotion.conditions?.split('·')[0] || 'PROMO') : 
-               promoType === 'info' ? 'INFO' : 
-               promoType === 'announcement' ? 'AVISO' : 'CLUB'}
+              {promoType === 'sale' ? (promotion.conditions?.split('·')[0] || typeLabels?.sale || 'PROMO') : 
+               promoType === 'info' ? (typeLabels?.info || 'INFO') : 
+               promoType === 'announcement' ? (typeLabels?.announcement || 'AVISO') : 
+               (typeLabels?.loyalty || 'CLUB')}
             </span>
 
             <h3 
@@ -325,6 +344,10 @@ export function PromotionCard({
           accentColor={accent}
           isOpen={showLoyaltyModal}
           onClose={() => setShowLoyaltyModal(false)}
+          modalSubtitle={loyaltyMessaging?.modalSubtitle}
+          successTitle={loyaltyMessaging?.successTitle}
+          successMessage={loyaltyMessaging?.successMessage}
+          welcomePointsMsg={loyaltyMessaging?.welcomePointsMsg}
         />
       )}
     </>
@@ -340,6 +363,18 @@ interface PromotionCarouselProps {
   textColor?: string
   mode?: 'takeaway' | 'dine-in'
   variant?: 'featured' | 'standard'
+  typeLabels?: {
+    sale: string
+    info: string
+    announcement: string
+    loyalty: string
+  }
+  loyaltyMessaging?: {
+    modalSubtitle?: string
+    successTitle?: string
+    successMessage?: string
+    welcomePointsMsg?: string
+  }
 }
 
 export function PromotionCarousel({ 
@@ -350,7 +385,9 @@ export function PromotionCarousel({
   bg,
   textColor,
   mode, 
-  variant = 'featured'
+  variant = 'featured',
+  typeLabels,
+  loyaltyMessaging,
 }: PromotionCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const carouselRef = useRef<HTMLDivElement>(null)
@@ -396,6 +433,8 @@ export function PromotionCarousel({
               textColor={textColor}
               mode={mode}
               variant={variant}
+              typeLabels={typeLabels}
+              loyaltyMessaging={loyaltyMessaging}
             />
           </div>
         ))}

@@ -15,6 +15,10 @@ interface Props {
   accentColor?: string
   isOpen: boolean
   onClose: () => void
+  modalSubtitle?: string
+  successTitle?: string
+  successMessage?: string
+  welcomePointsMsg?: string
 }
 
 export default function PromotionLoyaltyModal({
@@ -25,6 +29,10 @@ export default function PromotionLoyaltyModal({
   accentColor = '#10b981',
   isOpen,
   onClose,
+  modalSubtitle = 'Completá tus datos para unirte al club y comenzar a sumar puntos',
+  successTitle = '¡Registro exitoso!',
+  successMessage = 'Bienvenido al club de fidelización',
+  welcomePointsMsg = '{points} puntos de bienvenida',
 }: Props) {
   const [form, setForm] = useState({ name: '', email: '', phone: '', countryCode: '+54' })
   const [registering, setRegistering] = useState(false)
@@ -133,7 +141,7 @@ export default function PromotionLoyaltyModal({
                 <>
                   <h3 className="text-2xl font-bold text-slate-900 mb-2">{title}</h3>
                   <p className="text-slate-500 text-sm mb-6">
-                    Completá tus datos para unirte al club y comenzar a sumar puntos
+                    {modalSubtitle}
                   </p>
 
                   <form onSubmit={handleSubmit} className="space-y-4">
@@ -196,12 +204,12 @@ export default function PromotionLoyaltyModal({
                   className="py-8 px-6"
                 >
                   <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                  <p className="text-2xl font-bold text-emerald-900">¡Registro exitoso!</p>
-                  <p className="text-emerald-700 mt-1">Bienvenido al club de fidelización</p>
+                  <p className="text-2xl font-bold text-emerald-900">{successTitle}</p>
+                  <p className="text-emerald-700 mt-1">{successMessage}</p>
                   {welcomePointsAwarded > 0 && (
                     <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-semibold">
                       <Sparkles size={16} />
-                      +{welcomePointsAwarded} puntos de bienvenida
+                      {welcomePointsMsg.replace('{points}', String(welcomePointsAwarded))}
                     </div>
                   )}
 
