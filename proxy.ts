@@ -3,8 +3,6 @@ import NextAuth from 'next-auth'
 import { authConfig } from '@/lib/auth.config'
 import { Types } from 'mongoose'
 
-export const runtime = 'nodejs'
-
 const { auth } = NextAuth(authConfig)
 
 const EXCLUDED_PATHS = [
