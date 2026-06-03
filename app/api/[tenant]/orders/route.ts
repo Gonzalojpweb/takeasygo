@@ -127,6 +127,7 @@ export async function POST(
     const rawBody = await request.json()
     const parsed = createOrderSchema.safeParse(rawBody)
     if (!parsed.success) {
+      console.error('[orders] Zod validation error:', parsed.error.flatten().fieldErrors)
       return NextResponse.json(
         { error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors },
         { status: 400 }

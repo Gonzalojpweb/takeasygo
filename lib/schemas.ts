@@ -44,7 +44,7 @@ export const createOrderSchema = z.object({
     phone: z.string().max(30).trim().default(''),
     email: z
       .string()
-      .email()
+      .regex(/^[^\s@]+@[^\s@]+$/, 'Email inválido')
       .optional()
       .or(z.literal(''))
       .transform(v => v ?? ''),

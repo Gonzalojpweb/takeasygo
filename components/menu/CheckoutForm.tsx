@@ -317,6 +317,7 @@ async function handleSubmit(e: React.FormEvent) {
   if (!form.name.trim()) return toast.error('El nombre es obligatorio')
   if (joinClub && !form.phone.trim()) return toast.error('El teléfono es obligatorio para unirse al club')
   if (joinClub && !form.email.trim()) return toast.error('El email es obligatorio para unirse al club')
+  if (joinClub && form.email.trim() && !/^[^\s@]+@[^\s@]+$/.test(form.email.trim())) return toast.error('Formato de email inválido')
   if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
   setLoading(true)
 
