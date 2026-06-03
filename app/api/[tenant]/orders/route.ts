@@ -644,42 +644,36 @@ export async function POST(
     const canJoinClub = joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled && !isCompanyAdminEmail
 
     if (canJoinClub) {
-      try {
-        const pHash = hashPhone(body.customer.phone)
-        const existing = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash }).lean()
-        if (!existing) {
-          const limit = LOYALTY_MEMBER_LIMIT[tenant.plan as Plan]
-          if (limit === null || await LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }) < limit) {
-            let userId: mongoose.Types.ObjectId | null = null
-            const session = await auth()
-            if (session?.user?.email) {
-              const user = await User.findOne({ email: session.user.email }).select('_id').lean()
-              if (user) userId = user._id
-            }
-
-            const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
-            await LoyaltyMember.create({
-              tenantId:  tenant._id,
-              userId:     userId,
-              name:      body.customer.name,
-              phone:     body.customer.phone,
-              email:     body.customer.email || '',
-              birthDate: body.customer.birthDate ? new Date(body.customer.birthDate) : null,
-              phoneHash: pHash,
-              status:    'active',
-              source:    'checkout',
-              'loyalty.points': welcomePoints,
-              cache: {
-                totalOrders: 0,
-                totalSpent:  0,
-                lastOrderAt: null,
-                updatedAt:   new Date(),
-              },
-            })
+      const pHash = hashPhone(body.customer.phone)
+      const existing = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash }).lean()
+      if (!existing) {
+        const limit = LOYALTY_MEMBER_LIMIT[tenant.plan as Plan]
+        if (limit === null || await LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }) < limit) {
+          let userId: mongoose.Types.ObjectId | null = null
+          const session = await auth()
+          if (session?.user?.email) {
+            const user = await User.findOne({ email: session.user.email }).select('_id').lean()
+            if (user) userId = user._id
           }
+
+          const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
+          const memberData: Record<string, unknown> = {
+            tenantId:  tenant._id,
+            userId:     userId,
+            name:      body.customer.name,
+            phone:     body.customer.phone,
+            email:     body.customer.email || '',
+            phoneHash: pHash,
+            status:    'active',
+            source:    'checkout',
+            joinedAt:  new Date(),
+            'loyalty.points': welcomePoints,
+          }
+          if (body.customer.birthDate) {
+            memberData.birthDate = new Date(body.customer.birthDate)
+          }
+          await LoyaltyMember.create(memberData)
         }
-      } catch (memberError) {
-        console.error('[orders] Error al crear LoyaltyMember:', memberError)
       }
     } else {
       // SI NO ESTÁ UNIÉNDOSE (porque ya es miembro o no quiere),
