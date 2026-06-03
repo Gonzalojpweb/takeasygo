@@ -19,7 +19,7 @@ export async function GET(
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('qrPromo _id name')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('qrPromo loyaltyMessaging _id name')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
@@ -74,6 +74,7 @@ export async function GET(
         subtitle,
         discountPercentage: qrPromo.discountPercentage,
       },
+      loyaltyMessaging: tenant.loyaltyMessaging,
       tenantName: tenant.name,
     })
   } catch (error) {

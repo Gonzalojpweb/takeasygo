@@ -132,18 +132,25 @@ export interface ITenant extends Document {
     capacityScore: number | null
     updatedAt: Date | null
   }
-  /** Promoción de takeaway para primer scan QR */
-  qrPromo: {
-    isEnabled: boolean
-    type: 'discount' | 'info' | 'loyalty'
-    discountPercentage: number // 0-100
-    frequency: 'once' | 'every_visit' | 'daily'
-    title: string
-    subtitle: string
-    buttonText: string
-    termsText: string
-    imageUrl?: string
-  }
+    /** Promoción de takeaway para primer scan QR */
+    qrPromo: {
+      isEnabled: boolean
+      type: 'discount' | 'info' | 'loyalty'
+      discountPercentage: number // 0-100
+      frequency: 'once' | 'every_visit' | 'daily'
+      title: string
+      subtitle: string
+      buttonText: string
+      termsText: string
+      imageUrl?: string
+      /** Textos personalizables del banner (editables solo por superadmin) */
+      badgeLabel: string       // "SOLO POR HOY"
+      offLabel: string         // "OFF"
+      takeawayWarningTitle: string  // "DESCUENTO EXCLUSIVO PARA TAKEAWAY"
+      takeawayWarningText: string   // "No aplicable para consumir en el local"
+      loadingText: string      // "Procesando..."
+      checkoutDiscountLabel: string // "Descuento QR"
+    }
   /** Configuración de sistema de puntos para club de fidelización */
   pointsConfig: {
     enabled: boolean
@@ -431,6 +438,12 @@ const TenantSchema = new Schema<ITenant>(
       buttonText: { type: String, default: 'Ver menú' },
       termsText: { type: String, default: 'Válido solo para pedidos takeaway. No acumulable con otras promociones.' },
       imageUrl: { type: String, default: '' },
+      badgeLabel: { type: String, default: 'SOLO POR HOY' },
+      offLabel: { type: String, default: 'OFF' },
+      takeawayWarningTitle: { type: String, default: 'DESCUENTO EXCLUSIVO PARA TAKEAWAY' },
+      takeawayWarningText: { type: String, default: 'No aplicable para consumir en el local' },
+      loadingText: { type: String, default: 'Procesando...' },
+      checkoutDiscountLabel: { type: String, default: 'Descuento QR' },
     },
     /** Configuración de sistema de puntos para club de fidelización */
     pointsConfig: {

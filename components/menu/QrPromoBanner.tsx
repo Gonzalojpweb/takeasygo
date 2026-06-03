@@ -15,6 +15,19 @@ interface QrPromoData {
   buttonText: string
   termsText: string
   imageUrl?: string
+  badgeLabel?: string
+  offLabel?: string
+  takeawayWarningTitle?: string
+  takeawayWarningText?: string
+  loadingText?: string
+  checkoutDiscountLabel?: string
+}
+
+interface LoyaltyMessaging {
+  modalSubtitle?: string
+  successTitle?: string
+  successMessage?: string
+  welcomePointsMsg?: string
 }
 
 interface QrPromoStyles {
@@ -41,6 +54,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   const [registering, setRegistering] = useState(false)
   const [registered, setRegistered] = useState(false)
   const [error, setError] = useState('')
+  const [loyaltyMsg, setLoyaltyMsg] = useState<LoyaltyMessaging | null>(null)
 
   useEffect(() => {
     Promise.all([checkPromo(), fetchStyles()])
@@ -68,10 +82,12 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       if (data.show && data.promo) {
         setPromo(data.promo)
         setShow(true)
+        if (data.loyaltyMessaging) setLoyaltyMsg(data.loyaltyMessaging)
         if (data.promo.type === 'discount') {
           sessionStorage.setItem('tgo-active-qr-promo', JSON.stringify({
             discountPercentage: data.promo.discountPercentage,
-            tenantSlug
+            tenantSlug,
+            checkoutDiscountLabel: data.promo.checkoutDiscountLabel || 'Descuento QR',
           }))
         }
       }
@@ -189,13 +205,13 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
                   </div>
                 )}
 
-                <p className="text-white/90 text-xs font-bold tracking-[2px] uppercase mb-1">SOLO POR HOY</p>
+                <p className="text-white/90 text-xs font-bold tracking-[2px] uppercase mb-1">{promo.badgeLabel || 'SOLO POR HOY'}</p>
                 
                 {promo.type === 'discount' ? (
                   <div className="flex items-baseline justify-center gap-1 text-white">
                     <span className="text-6xl font-black tracking-tighter">{promo.discountPercentage}</span>
                     <span className="text-4xl font-bold -mt-2">%</span>
-                    <span className="text-3xl font-semibold opacity-90 ml-2">OFF</span>
+                    <span className="text-3xl font-semibold opacity-90 ml-2">{promo.offLabel || 'OFF'}</span>
                   </div>
                 ) : (
                   <h2 className="text-3xl font-bold text-white leading-tight">{promo.title}</h2>
@@ -213,10 +229,10 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
               {promo.type === 'discount' && (
                 <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl">
                   <p className="text-amber-900 font-bold text-sm leading-tight">
-                    ⚠️ DESCUENTO EXCLUSIVO PARA TAKEAWAY
+                    ⚠️ {promo.takeawayWarningTitle || 'DESCUENTO EXCLUSIVO PARA TAKEAWAY'}
                   </p>
                   <p className="text-amber-800 text-xs mt-1 leading-relaxed">
-                    No aplicable para consumir en el local
+                    {promo.takeawayWarningText || 'No aplicable para consumir en el local'}
                   </p>
                 </div>
               )}
@@ -278,7 +294,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
                     className="w-full h-14 rounded-2xl text-white font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.985] disabled:opacity-70"
                     style={{ backgroundColor: accentColor }}
                   >
-                    {registering ? 'Procesando...' : promo.buttonText}
+                    {registering ? (promo.loadingText || 'Procesando...') : promo.buttonText}
                   </button>
                 </form>
               )}
@@ -291,8 +307,8 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
                   className="py-8 px-6 bg-emerald-50 rounded-3xl border border-emerald-100 mb-8"
                 >
                   <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                  <p className="text-2xl font-bold text-emerald-900">¡Registro exitoso!</p>
-                  <p className="text-emerald-700 mt-1">Bienvenido al club</p>
+                  <p className="text-2xl font-bold text-emerald-900">{loyaltyMsg?.successTitle || '¡Registro exitoso!'}</p>
+                  <p className="text-emerald-700 mt-1">{loyaltyMsg?.successMessage || 'Bienvenido al club'}</p>
                 </motion.div>
               )}
 
