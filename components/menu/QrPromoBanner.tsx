@@ -45,6 +45,7 @@ interface QrPromoBannerProps {
 export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   const searchParams = useSearchParams()
   const source = searchParams ? (searchParams.get('source') || '') : ''
+  const promoSlug = searchParams ? (searchParams.get('promo') || '') : ''
 
   const [show, setShow] = useState(false)
   const [promo, setPromo] = useState<QrPromoData | null>(null)
@@ -58,7 +59,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
 
   useEffect(() => {
     Promise.all([checkPromo(), fetchStyles()])
-  }, [tenantSlug, source])
+  }, [tenantSlug, source, promoSlug])
 
   const checkPromo = async () => {
     let effectiveSource = source
@@ -76,7 +77,8 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
     }
 
     try {
-      const res = await fetch(`/api/${tenantSlug}/qr-promo?source=${source}`)
+      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${source}${promoSlug ? `&promo=${promoSlug}` : ''}`
+      const res = await fetch(apiUrl)
       const data = await res.json()
 
       if (data.show && data.promo) {
@@ -88,6 +90,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
             discountPercentage: data.promo.discountPercentage,
             tenantSlug,
             checkoutDiscountLabel: data.promo.checkoutDiscountLabel || 'Descuento QR',
+            promoSlug: promoSlug || undefined,
           }))
         }
       }
