@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter } from 'lucide-react'
+import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isAvailableNow } from '@/lib/availability'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
+import { useClubMembership } from '@/hooks/useClubMembership'
 
 interface Props {
   tenant: any
@@ -94,6 +95,8 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
       })
       .catch(() => setPromotionsLoading(false))
   }, [tenant.slug, location._id])
+
+  const clubMembership = useClubMembership(tenant.slug)
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
@@ -593,6 +596,33 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             )}
           </div>
         </div>
+
+        {/* ── Club membership badge ── */}
+        {clubMembership.isMember && (
+          <div className="border-t px-4 py-3 max-w-4xl mx-auto"
+            style={{ borderColor: branding.primaryColor + '20' }}>
+            <div className="flex items-center justify-center gap-4 flex-wrap">
+              <Link
+                href={`/${tenant.slug}/club/lookup`}
+                className="flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-80"
+                style={{ color: branding.primaryColor }}
+              >
+                <Award size={16} />
+                Socio del Club — {clubMembership.name}
+              </Link>
+              {clubMembership.walletEnabled && (
+                <Link
+                  href={`/${tenant.slug}/club/lookup`}
+                  className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
+                  style={{ color: '#94a3b8' }}
+                >
+                  <Wallet size={14} />
+                  Añadir a billetera digital
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="border-t px-4 py-4 max-w-4xl mx-auto flex items-center justify-between"
           style={{ borderColor: branding.primaryColor + '20' }}>

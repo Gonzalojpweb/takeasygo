@@ -20,6 +20,7 @@ import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import { getSuggestions } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
+import { useClubMembership } from '@/hooks/useClubMembership'
 import { motion } from 'framer-motion'
 
 interface Props {
@@ -147,7 +148,6 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [memberPoints, setMemberPoints] = useState(0)
-  const [clubData, setClubData] = useState<{ isMember: boolean; name: string; walletEnabled: boolean } | null>(null)
   const [promoItemSelection, setPromoItemSelection] = useState<{
     promo: any
     items: any[]
@@ -170,26 +170,16 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         setPromotionsLoading(false)
       })
       .catch(() => setPromotionsLoading(false))
-
-    // Fetch member points if loyalty club is enabled
-    fetch(`/api/${tenant.slug}/loyalty/me`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.member?.points) {
-          setMemberPoints(data.member.points)
-        }
-        if (data?.member) {
-          setClubData({
-            isMember: true,
-            name: data.member.name,
-            walletEnabled: data.walletEnabled ?? false,
-          })
-        } else {
-          setClubData(null)
-        }
-      })
-      .catch(() => {})
   }, [tenant.slug, location._id, mode])
+
+  const clubMembership = useClubMembership(tenant.slug)
+
+  // Sincronizar memberPoints desde el hook para StoreCarousel
+  useEffect(() => {
+    if (clubMembership.isMember) {
+      setMemberPoints(clubMembership.points)
+    }
+  }, [clubMembership.isMember, clubMembership.points])
 
   const featuredPromotions = promotions.filter(p => p.isFeatured)
   const regularPromotions = promotions.filter(p => !p.isFeatured)
@@ -1048,7 +1038,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         </div>
 
         {/* ── Club membership badge (hidden for company admin in business mode) ── */}
-        {clubData?.isMember && !isAdminCorp && (
+        {clubMembership.isMember && !isAdminCorp && (
           <div className="border-t px-4 py-3 max-w-2xl mx-auto"
             style={{ borderColor: primary + '20' }}>
             <div className="flex items-center justify-center gap-4 flex-wrap">
@@ -1058,9 +1048,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                 style={{ color: primary }}
               >
                 <Award size={16} />
-                Socio del Club — {clubData.name}
+                Socio del Club — {clubMembership.name}
               </Link>
-              {clubData.walletEnabled && (
+              {clubMembership.walletEnabled && (
                 <Link
                   href={`/${tenant.slug}/club/lookup`}
                   className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
