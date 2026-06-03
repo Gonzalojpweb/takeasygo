@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Star, CheckCircle2, Sparkles } from 'lucide-react'
+import { X, Star, CheckCircle2, Sparkles, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface Props {
   tenantSlug: string
@@ -31,6 +32,7 @@ export default function PromotionLoyaltyModal({
   const [error, setError] = useState('')
   const [understood, setUnderstood] = useState<'loading' | 'yes' | 'no' | null>(null)
   const [welcomePointsAwarded, setWelcomePointsAwarded] = useState(0)
+  const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -61,7 +63,15 @@ export default function PromotionLoyaltyModal({
           duration: 4000,
         })
       }
-      setTimeout(() => onClose(), 4000)
+      // Guardar membresía en localStorage para el badge del menú
+      try {
+        localStorage.setItem(`club_${tenantSlug}`, JSON.stringify({
+          name: form.name,
+          phone: `${form.countryCode} ${form.phone}`,
+          points: wp,
+          joinedAt: new Date().toISOString(),
+        }))
+      } catch { /* localStorage no disponible */ }
     } catch {
       setError('Error de conexión')
     } finally {
@@ -194,6 +204,28 @@ export default function PromotionLoyaltyModal({
                       +{welcomePointsAwarded} puntos de bienvenida
                     </div>
                   )}
+
+                  {/* CTA: Ir a billetera digital */}
+                  <div className="mt-6 space-y-3">
+                    <button
+                      onClick={() => {
+                        router.push(`/${tenantSlug}/club/lookup`)
+                        onClose()
+                      }}
+                      className="w-full h-12 rounded-2xl text-white font-bold text-sm shadow-lg transition-all active:scale-[0.985] flex items-center justify-center gap-2"
+                      style={{ backgroundColor: accentColor }}
+                    >
+                      <Wallet size={18} />
+                      Ir a mi billetera
+                    </button>
+                    <button
+                      onClick={onClose}
+                      className="w-full text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors"
+                    >
+                      Ahora no
+                    </button>
+                  </div>
+
                   {understood === null && (
                     <div className="mt-6 space-y-3">
                       <p className="text-sm font-semibold text-slate-600">¿Entendés cómo acumulás puntos?</p>
