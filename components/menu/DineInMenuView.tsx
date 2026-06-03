@@ -356,6 +356,8 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                   textColor={text}
                   mode="dine-in"
                   variant="featured"
+                  typeLabels={tenant.promotionLabels}
+                  loyaltyMessaging={tenant.loyaltyMessaging}
                 />
               </div>
             )}
@@ -377,6 +379,8 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                   textColor={text}
                   mode="dine-in"
                   variant="standard"
+                  typeLabels={tenant.promotionLabels}
+                  loyaltyMessaging={tenant.loyaltyMessaging}
                 />
               </div>
             )}

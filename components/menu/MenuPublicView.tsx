@@ -725,6 +725,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                   textColor={text}
                   mode="takeaway"
                   variant="featured"
+                  typeLabels={tenant.promotionLabels}
+                  loyaltyMessaging={tenant.loyaltyMessaging}
                 />
               </div>
             )}
@@ -747,6 +749,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                   textColor={text}
                   mode="takeaway"
                   variant="standard"
+                  typeLabels={tenant.promotionLabels}
+                  loyaltyMessaging={tenant.loyaltyMessaging}
                 />
               </div>
             )}

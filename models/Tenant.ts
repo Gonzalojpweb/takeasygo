@@ -173,6 +173,20 @@ export interface ITenant extends Document {
     notifyOnOrder: boolean
     notifyOnReservation: boolean
   }
+  /** Labels personalizables por tenant para los badges de tipo de promoción (solo superadmin) */
+  promotionLabels: {
+    sale: string
+    info: string
+    announcement: string
+    loyalty: string
+  }
+  /** Mensajes personalizables del modal de registro al Club (solo superadmin) */
+  loyaltyMessaging: {
+    modalSubtitle: string
+    successTitle: string
+    successMessage: string
+    welcomePointsMsg: string
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -445,6 +459,20 @@ const TenantSchema = new Schema<ITenant>(
       whatsappPhone: { type: String, default: null },
       notifyOnOrder: { type: Boolean, default: true },
       notifyOnReservation: { type: Boolean, default: true },
+    },
+    /** Labels de tipo de promoción — configurables solo por superadmin */
+    promotionLabels: {
+      sale:         { type: String, default: 'PROMO' },
+      info:         { type: String, default: 'INFO' },
+      announcement: { type: String, default: 'AVISO' },
+      loyalty:      { type: String, default: 'CLUB' },
+    },
+    /** Mensajes del modal de Club — configurables solo por superadmin */
+    loyaltyMessaging: {
+      modalSubtitle:    { type: String, default: 'Completá tus datos para unirte al club y comenzar a sumar puntos' },
+      successTitle:     { type: String, default: '¡Registro exitoso!' },
+      successMessage:   { type: String, default: 'Bienvenido al club de fidelización' },
+      welcomePointsMsg: { type: String, default: '{points} puntos de bienvenida' },
     },
   },
   {

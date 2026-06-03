@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Trash2, Store, Globe, CreditCard, ShieldAlert, ArrowLeft, Loader2, Save, AlertTriangle, Mail, Pencil, X, Check } from 'lucide-react'
+import { Trash2, Store, Globe, CreditCard, ShieldAlert, ArrowLeft, Loader2, Save, AlertTriangle, Mail, Pencil, X, Check, Tag } from 'lucide-react'
 import { cn, fmt } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
@@ -66,6 +66,16 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     featuresReservations: tenant.features?.reservations ?? false,
     businessEnabled: tenant.business?.enabled ?? false,
     sosMaxLimit: tenant.loyalty?.sosMaxLimit ?? 0,
+    // Labels de tipo de promoción
+    promotionLabelSale: tenant.promotionLabels?.sale ?? 'PROMO',
+    promotionLabelInfo: tenant.promotionLabels?.info ?? 'INFO',
+    promotionLabelAnnouncement: tenant.promotionLabels?.announcement ?? 'AVISO',
+    promotionLabelLoyalty: tenant.promotionLabels?.loyalty ?? 'CLUB',
+    // Mensajes del modal de Club
+    loyaltyModalSubtitle: tenant.loyaltyMessaging?.modalSubtitle ?? 'Completá tus datos para unirte al club y comenzar a sumar puntos',
+    loyaltySuccessTitle: tenant.loyaltyMessaging?.successTitle ?? '¡Registro exitoso!',
+    loyaltySuccessMessage: tenant.loyaltyMessaging?.successMessage ?? 'Bienvenido al club de fidelización',
+    loyaltyWelcomePointsMsg: tenant.loyaltyMessaging?.welcomePointsMsg ?? '{points} puntos de bienvenida',
   })
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -84,6 +94,18 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           features: { reservations: form.featuresReservations },
           business: { enabled: form.businessEnabled },
           sosMaxLimit: form.sosMaxLimit,
+          promotionLabels: {
+            sale: form.promotionLabelSale,
+            info: form.promotionLabelInfo,
+            announcement: form.promotionLabelAnnouncement,
+            loyalty: form.promotionLabelLoyalty,
+          },
+          loyaltyMessaging: {
+            modalSubtitle: form.loyaltyModalSubtitle,
+            successTitle: form.loyaltySuccessTitle,
+            successMessage: form.loyaltySuccessMessage,
+            welcomePointsMsg: form.loyaltyWelcomePointsMsg,
+          },
         }),
       })
       if (!res.ok) {
@@ -369,6 +391,101 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                     Solo disponible para plan Premium.
                   </p>
                 )}
+              </div>
+            </div>
+
+            {/* ── Labels de tipo de promoción ── */}
+            <div className="pt-6 border-t border-border/40">
+              <div className="flex items-center gap-3 mb-4">
+                <Tag size={16} className="text-primary" />
+                <div>
+                  <span className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Labels de Promociones</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">Etiquetas que se muestran en los badges de cada tipo de promoción</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Venta</label>
+                  <input
+                    value={form.promotionLabelSale}
+                    onChange={e => setForm(p => ({ ...p, promotionLabelSale: e.target.value }))}
+                    className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Info</label>
+                  <input
+                    value={form.promotionLabelInfo}
+                    onChange={e => setForm(p => ({ ...p, promotionLabelInfo: e.target.value }))}
+                    className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Anuncio</label>
+                  <input
+                    value={form.promotionLabelAnnouncement}
+                    onChange={e => setForm(p => ({ ...p, promotionLabelAnnouncement: e.target.value }))}
+                    className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Club</label>
+                  <input
+                    value={form.promotionLabelLoyalty}
+                    onChange={e => setForm(p => ({ ...p, promotionLabelLoyalty: e.target.value }))}
+                    className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Mensajes del modal de Club ── */}
+            <div className="pt-6 border-t border-border/40">
+              <div className="flex items-center gap-3 mb-4">
+                <Mail size={16} className="text-primary" />
+                <div>
+                  <span className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Mensajes del Club</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">Textos del modal de registro al club de fidelización</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Subtítulo del modal</label>
+                  <input
+                    value={form.loyaltyModalSubtitle}
+                    onChange={e => setForm(p => ({ ...p, loyaltyModalSubtitle: e.target.value }))}
+                    className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                    placeholder="Completá tus datos para unirte al club..."
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Texto de puntos de bienvenida</label>
+                  <input
+                    value={form.loyaltyWelcomePointsMsg}
+                    onChange={e => setForm(p => ({ ...p, loyaltyWelcomePointsMsg: e.target.value }))}
+                    className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                    placeholder="{points} puntos de bienvenida"
+                  />
+                  <p className="text-[9px] text-muted-foreground/50 mt-1">Usá {'{points}'} como placeholder del número</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Título de registro exitoso</label>
+                  <input
+                    value={form.loyaltySuccessTitle}
+                    onChange={e => setForm(p => ({ ...p, loyaltySuccessTitle: e.target.value }))}
+                    className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                    placeholder="¡Registro exitoso!"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Mensaje de registro exitoso</label>
+                  <input
+                    value={form.loyaltySuccessMessage}
+                    onChange={e => setForm(p => ({ ...p, loyaltySuccessMessage: e.target.value }))}
+                    className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                    placeholder="Bienvenido al club de fidelización"
+                  />
+                </div>
               </div>
             </div>
 
