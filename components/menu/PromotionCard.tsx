@@ -79,7 +79,7 @@ export function PromotionCard({
   const isPageBgLight = isLightColor(bg)
   const canAddToCart = promoType === 'sale'
 
-  // ==================== FEATURED CARD ====================
+  // ==================== FEATURED CARD (VERSIÓN PREMIUM) ====================
   if (isFeatured) {
     const cardBgColor = styles.backgroundColor || primary || '#f14722'
     const isBgLight = isLightColor(cardBgColor)
@@ -92,8 +92,8 @@ export function PromotionCard({
         <div
           onClick={() => { if (canAddToCart) onAdd?.(promotion) }}
           className={cn(
-            "relative flex items-center h-[142px] sm:h-32 overflow-hidden select-none",
-            "transition-all duration-200 shadow-lg border border-black/5 active:scale-[0.985]",
+            "relative h-[178px] sm:h-[170px] overflow-hidden select-none rounded-3xl shadow-xl",
+            "transition-all duration-200 active:scale-[0.985] border border-black/5",
             canAddToCart ? "cursor-pointer" : "cursor-default"
           )}
           style={{
@@ -102,8 +102,8 @@ export function PromotionCard({
             color: cardTextColor,
           }}
         >
-          {/* Left Side - Image */}
-          <div className="relative w-[46%] sm:w-[50%] h-full flex-shrink-0 overflow-hidden">
+          {/* Background Image + Gradient Overlay */}
+          <div className="absolute inset-0">
             {promotion.imageUrl ? (
               <img
                 src={promotion.imageUrl}
@@ -111,72 +111,74 @@ export function PromotionCard({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-white/10">
-                {promoType === 'sale' && <Sparkles className="w-10 h-10 opacity-75" style={{ color: cardTextColor }} />}
-                {promoType === 'info' && <Info className="w-10 h-10 opacity-75" style={{ color: cardTextColor }} />}
-                {promoType === 'announcement' && <Megaphone className="w-10 h-10 opacity-75" style={{ color: cardTextColor }} />}
-                {promoType === 'loyalty' && <Heart className="w-10 h-10 opacity-75" style={{ color: cardTextColor }} />}
-              </div>
+              <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-black" />
             )}
-            <div 
-              className="absolute -right-6 top-0 bottom-0 w-12 z-10" 
-              style={{ backgroundColor: cardBgColor }}
-            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent" />
           </div>
 
-          {/* Right Side - Content */}
-          <div className="flex-1 h-full p-4 pl-5 flex flex-col justify-between min-w-0">
-            <div className="space-y-1.5">
-              {/* Badge */}
-              {(promoType !== 'sale' || discount > 0) && (
-                <span className="inline-block text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-white/20 text-white">
-                  {promoType === 'sale' && discount > 0 ? `${discount}% OFF` : 
-                   promoType === 'info' ? 'INFO' : 
-                   promoType === 'announcement' ? 'AVISO' : 'CLUB'}
-                </span>
-              )}
+          {/* Content */}
+          <div className="relative h-full p-5 flex flex-col justify-between z-10">
+            {/* Top Badges */}
+            <div className="flex justify-between items-start">
+              <div className="w-9 h-9 rounded-2xl bg-white/95 backdrop-blur-md flex items-center justify-center shadow-md">
+                {promoType === 'sale' && <Percent size={18} className="text-orange-600" />}
+                {promoType === 'info' && <Info size={18} className="text-blue-600" />}
+                {promoType === 'announcement' && <Megaphone size={18} className="text-amber-600" />}
+                {promoType === 'loyalty' && <Heart size={18} className="text-pink-600" />}
+              </div>
 
-              <h3 className="font-extrabold text-[15px] sm:text-base leading-tight line-clamp-2 pr-2">
+              {discount > 0 && (
+                <div className="bg-emerald-500 text-white text-xs font-black px-3 py-1 rounded-2xl shadow-md">
+                  {discount}% OFF
+                </div>
+              )}
+            </div>
+
+            {/* Main Content */}
+            <div>
+              <h3 className="text-white font-bold text-xl leading-tight tracking-tight line-clamp-2 mb-1.5">
                 {promotion.title}
               </h3>
-
+              
               {promotion.shortDescription && (
-                <p className="text-xs sm:text-[13px] opacity-85 line-clamp-2 leading-snug">
+                <p className="text-white/90 text-sm line-clamp-2 leading-snug">
                   {promotion.shortDescription}
                 </p>
               )}
             </div>
 
-            {/* Price + Button */}
-            <div className="flex items-center justify-between mt-auto">
+            {/* Price + Action Button */}
+            <div className="flex items-center justify-between">
               {promoType === 'sale' ? (
-                <div className="flex items-baseline gap-1">
-                  <span className="text-lg sm:text-xl font-black tracking-tighter">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-3xl font-black text-white tracking-tighter">
                     ${promotion.price.toLocaleString('es-AR')}
                   </span>
                   {promotion.originalPrice && (
-                    <span className="text-xs opacity-60 line-through">
+                    <span className="text-white/60 line-through text-base">
                       ${promotion.originalPrice.toLocaleString('es-AR')}
                     </span>
                   )}
                 </div>
-              ) : <div />}
+              ) : (
+                <div />
+              )}
 
               {promoType === 'sale' ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); onAdd?.(promotion) }}
-                  className="px-5 py-2 rounded-full text-sm font-black flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                  className="px-6 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-all"
                   style={{ backgroundColor: buttonBg, color: buttonTextColor }}
                 >
-                  {buttonText} <Plus size={15} strokeWidth={3} />
+                  {buttonText} <Plus size={16} strokeWidth={3} />
                 </button>
               ) : promoType === 'loyalty' ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowLoyaltyModal(true) }}
-                  className="px-5 py-2 rounded-full text-sm font-black flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                  className="px-6 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-all"
                   style={{ backgroundColor: buttonBg, color: buttonTextColor }}
                 >
-                  Unirme <Heart size={15} strokeWidth={3} />
+                  Unirme <Heart size={16} strokeWidth={3} />
                 </button>
               ) : null}
             </div>
@@ -198,7 +200,7 @@ export function PromotionCard({
     )
   }
 
-  // ==================== STANDARD CARD (Mobile Optimized) ====================
+  // ==================== STANDARD CARD ====================
   const isBgLight = isLightColor(styles.backgroundColor || bg)
   const cardBg = styles.backgroundColor || (isPageBgLight ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.08)')
   const cardBorder = styles.accentColor || (isPageBgLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)')
@@ -274,7 +276,6 @@ export function PromotionCard({
             )}
           </div>
 
-          {/* Action Area */}
           <div className="mt-3 flex items-center justify-between">
             {promoType === 'sale' ? (
               <>
