@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, ArrowRight, ImageIcon, MessageSquare, Tag, Loader, ShoppingCart, AlertTriangle, Plus, Trash2, Copy, Edit3, X, Check } from 'lucide-react'
+import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, ArrowRight, ImageIcon, MessageSquare, Tag, Loader, ShoppingCart, AlertTriangle, Plus, Trash2, Copy, Edit3, X, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ImageUpload from './ImageUpload'
 import { cn } from '@/lib/utils'
@@ -30,6 +30,12 @@ interface QrPromoItem {
   checkoutDiscountLabel: string
 }
 
+interface LocationOption {
+  _id: string
+  name: string
+  address?: string
+}
+
 const DEFAULT_PROMO: Omit<QrPromoItem, '_id'> = {
   slug: '',
   isEnabled: false,
@@ -51,6 +57,8 @@ const DEFAULT_PROMO: Omit<QrPromoItem, '_id'> = {
 
 export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
   const [promos, setPromos] = useState<QrPromoItem[]>([])
+  const [locations, setLocations] = useState<LocationOption[]>([])
+  const [selectedLoc, setSelectedLoc] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -61,8 +69,18 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
   const [editing, setEditing] = useState<QrPromoItem | null>(null)
 
   useEffect(() => {
-    fetchPromos()
+    Promise.all([fetchPromos(), fetchLocations()])
   }, [tenantSlug])
+
+  const fetchLocations = async () => {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations?limit=100`)
+      const data = await res.json()
+      if (data.locations) setLocations(data.locations)
+    } catch (e) {
+      console.error('Error fetching locations:', e)
+    }
+  }
 
   const fetchPromos = async () => {
     setLoading(true)
@@ -79,12 +97,9 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
 
   const baseUrl = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : ''
 
-  const getPromoUrl = (slug: string) => {
-    // Try to extract the locationId from current URL, or use a placeholder
-    const pathParts = window.location.pathname.split('/')
-    const menuMatch = pathParts.findIndex(p => p === 'menu')
-    const locationId = menuMatch >= 0 && pathParts[menuMatch + 1] ? pathParts[menuMatch + 1] : '{locationId}'
-    return `${baseUrl}/${tenantSlug}/menu/${locationId}?source=qr&promo=${slug}`
+  const getPromoUrl = (slug: string, locationId?: string) => {
+    const id = locationId || selectedLoc[slug] || locations[0]?._id || '{locationId}'
+    return `${baseUrl}/${tenantSlug}/menu/${id}?source=qr&promo=${slug}`
   }
 
   const handleCreate = async () => {
@@ -260,12 +275,36 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
             </div>
 
             {/* URL del QR */}
-            <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2 text-xs text-gray-500 font-mono">
-              <QrCode size={12} />
-              <span className="truncate flex-1">{getPromoUrl(promo.slug)}</span>
-              <button onClick={() => copyToClipboard(getPromoUrl(promo.slug))} className="text-[#F74211] hover:text-[#F74211]/70 font-medium">
-                Copiar
-              </button>
+            <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 space-y-1.5">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <MapPin size={12} />
+                <span className="font-medium">¿A qué sucursal apunta este QR?</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedLoc[promo.slug] || locations[0]?._id || ''}
+                  onChange={(e) => setSelectedLoc(prev => ({ ...prev, [promo.slug]: e.target.value }))}
+                  className="text-xs font-mono px-2 py-1 rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-[#F74211]/30 max-w-[200px]"
+                >
+                  {locations.length === 0 && <option value="">Sin sucursales</option>}
+                  {locations.map(loc => (
+                    <option key={loc._id} value={loc._id}>{loc.name}{loc.address ? ` — ${loc.address}` : ''}</option>
+                  ))}
+                </select>
+                <span className="text-xs text-gray-400 font-mono truncate flex-1">
+                  {getPromoUrl(promo.slug)}
+                </span>
+                <button onClick={() => {
+                  const locId = selectedLoc[promo.slug] || locations[0]?._id
+                  if (!locId) return
+                  copyToClipboard(getPromoUrl(promo.slug, locId))
+                }} className="text-[#F74211] hover:text-[#F74211]/70 font-medium text-xs whitespace-nowrap">
+                  Copiar URL
+                </button>
+              </div>
+              {locations.length === 0 && (
+                <p className="text-[10px] text-amber-600">Creá al menos una sucursal primero para generar la URL del QR.</p>
+              )}
             </div>
 
             {/* Editor expandido */}
@@ -310,7 +349,23 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
             Elegí un identificador único para esta promo. Este slug va en la URL del QR.
           </p>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-400 font-mono">{baseUrl}/{tenantSlug}/menu/&#123;locationId&#125;?source=qr&amp;promo=</span>
+            {locations.length > 0 ? (
+              <span className="text-sm text-gray-400 font-mono truncate">
+                {baseUrl}/{tenantSlug}/menu/
+                <select
+                  value={selectedLoc['__new'] || locations[0]?._id || ''}
+                  onChange={(e) => setSelectedLoc(prev => ({ ...prev, __new: e.target.value }))}
+                  className="text-xs font-mono px-1 py-0.5 rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-[#F74211]/30"
+                >
+                  {locations.map(loc => (
+                    <option key={loc._id} value={loc._id}>{loc.name}</option>
+                  ))}
+                </select>
+                ?source=qr&amp;promo=
+              </span>
+            ) : (
+              <span className="text-sm text-gray-400 font-mono">Creá una sucursal primero</span>
+            )}
             <input
               type="text"
               value={newSlug}
