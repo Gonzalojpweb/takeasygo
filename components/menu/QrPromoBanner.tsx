@@ -105,7 +105,13 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
     try {
       const res = await fetch('/api/superadmin/qr-promo-defaults')
       const data = await res.json()
-      if (data.qrPromoStyles) setStyles(data.qrPromoStyles)
+      setStyles(data.qrPromoStyles || {
+        primaryColor: '#F74211',
+        backgroundColor: '#FFFFFF',
+        badgeColor: '#F74211',
+        borderRadius: '32px',
+        buttonColor: '#F74211',
+      })
     } catch (e) {
       setStyles({
         primaryColor: '#F74211',
