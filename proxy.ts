@@ -132,7 +132,7 @@ async function logMenuVisit(
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (EXCLUDED_PATHS.some(path => pathname.startsWith(path))) {

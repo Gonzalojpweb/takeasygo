@@ -657,9 +657,9 @@ export async function POST(
           }
 
           const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
-          const memberData: Record<string, unknown> = {
+          const member = new LoyaltyMember({
             tenantId:  tenant._id,
-            userId:     userId,
+            ...(userId ? { userId } : {}),
             name:      body.customer.name,
             phone:     body.customer.phone,
             email:     body.customer.email || '',
@@ -668,11 +668,9 @@ export async function POST(
             source:    'checkout',
             joinedAt:  new Date(),
             'loyalty.points': welcomePoints,
-          }
-          if (body.customer.birthDate) {
-            memberData.birthDate = new Date(body.customer.birthDate)
-          }
-          await LoyaltyMember.create(memberData)
+            ...(body.customer.birthDate ? { birthDate: new Date(body.customer.birthDate) } : {}),
+          })
+          await member.save()
         }
       }
     } else {
