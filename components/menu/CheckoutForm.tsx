@@ -65,7 +65,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', email: '', birthDate: '', notes: '', countryCode: '+54' })
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
-  const [activeQrPromo, setActiveQrPromo] = useState<{ discountPercentage: number } | null>(null)
+  const [activeQrPromo, setActiveQrPromo] = useState<{ discountPercentage: number; checkoutDiscountLabel?: string } | null>(null)
   const [loyaltyMember, setLoyaltyMember] = useState<any | null>(null)
   const [walletEnabled, setWalletEnabled] = useState(false)
   const [pointsLookupLoading, setPointsLookupLoading] = useState(false)
@@ -936,7 +936,7 @@ async function handleSubmit(e: React.FormEvent) {
               <div className="flex justify-between text-sm text-green-600 font-semibold">
                 <span className="flex items-center gap-1">
                   <Percent size={12} />
-                  Descuento QR ({activeQrPromo.discountPercentage}%)
+                  {activeQrPromo.checkoutDiscountLabel || 'Descuento QR'} ({activeQrPromo.discountPercentage}%)
                 </span>
                 <span>-${discountAmount.toLocaleString('es-AR')}</span>
               </div>

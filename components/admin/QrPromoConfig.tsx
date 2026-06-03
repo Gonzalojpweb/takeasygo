@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, Users, Star, ArrowRight, ImageIcon } from 'lucide-react'
+import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, ArrowRight, ImageIcon, Type, MessageSquare, Tag, AlertTriangle, Loader, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ImageUpload from './ImageUpload'
 import { cn } from '@/lib/utils'
@@ -20,6 +20,12 @@ interface QrPromoData {
   buttonText: string
   termsText: string
   imageUrl?: string
+  badgeLabel: string
+  offLabel: string
+  takeawayWarningTitle: string
+  takeawayWarningText: string
+  loadingText: string
+  checkoutDiscountLabel: string
 }
 
 export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
@@ -33,6 +39,12 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
     buttonText: 'Ver menú',
     termsText: 'Válido solo para pedidos takeaway. No acumulable con otras promociones.',
     imageUrl: '',
+    badgeLabel: 'SOLO POR HOY',
+    offLabel: 'OFF',
+    takeawayWarningTitle: 'DESCUENTO EXCLUSIVO PARA TAKEAWAY',
+    takeawayWarningText: 'No aplicable para consumir en el local',
+    loadingText: 'Procesando...',
+    checkoutDiscountLabel: 'Descuento QR',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -48,7 +60,16 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
       const res = await fetch(`/api/${tenantSlug}/admin/qr-promo`)
       const data = await res.json()
       if (data.qrPromo) {
-        setConfig(data.qrPromo)
+        setConfig({
+          ...config,
+          ...data.qrPromo,
+          badgeLabel: data.qrPromo.badgeLabel ?? 'SOLO POR HOY',
+          offLabel: data.qrPromo.offLabel ?? 'OFF',
+          takeawayWarningTitle: data.qrPromo.takeawayWarningTitle ?? 'DESCUENTO EXCLUSIVO PARA TAKEAWAY',
+          takeawayWarningText: data.qrPromo.takeawayWarningText ?? 'No aplicable para consumir en el local',
+          loadingText: data.qrPromo.loadingText ?? 'Procesando...',
+          checkoutDiscountLabel: data.qrPromo.checkoutDiscountLabel ?? 'Descuento QR',
+        })
       }
     } catch (e) {
       console.error('Error fetching config:', e)
@@ -84,38 +105,7 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
   }
 
   const updateConfig = (key: keyof QrPromoData, value: any) => {
-    setConfig(prev => {
-      const next = { ...prev, [key]: value }
-      
-      if (key === 'type' && value !== prev.type) {
-        const currentTitleDefault = prev.type === 'discount' ? '¡Primera vez por QR!' : 
-                                  prev.type === 'loyalty' ? '¡Unite a nuestro Club!' : 
-                                  '¡Información Importante!'
-                                  
-        if (prev.title === currentTitleDefault) {
-          if (value === 'discount') next.title = '¡Primera vez por QR!'
-          if (value === 'loyalty') next.title = '¡Unite a nuestro Club!'
-          if (value === 'info') next.title = '¡Información Importante!'
-        }
-
-        const currentSubtitleDefault = prev.type === 'discount' ? 'Obtené {discount}% OFF en tu primer pedido takeaway' : 
-                                     prev.type === 'loyalty' ? 'Sumá puntos con cada compra y recibí beneficios exclusivos.' : 
-                                     'Ahora podés pedir directo desde nuestra propia plataforma.'
-
-        if (prev.subtitle === currentSubtitleDefault) {
-          if (value === 'discount') next.subtitle = 'Obtené {discount}% OFF en tu primer pedido takeaway'
-          if (value === 'loyalty') next.subtitle = 'Sumá puntos con cada compra y recibí beneficios exclusivos.'
-          if (value === 'info') next.subtitle = 'Ahora podés pedir directo desde nuestra propia plataforma.'
-        }
-
-        if (prev.buttonText === 'Ver menú') {
-          if (value === 'loyalty') next.buttonText = 'Unirme ahora'
-          else next.buttonText = 'Ver menú'
-        }
-      }
-      
-      return next
-    })
+    setConfig(prev => ({ ...prev, [key]: value }))
   }
 
   if (loading) {
@@ -253,6 +243,91 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
             </div>
           </div>
 
+          {/* --- TEXTOS DEL BANNER --- */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <MessageSquare size={16} className="text-[#F74211]" />
+              Textos del Banner
+            </div>
+
+            <div className="bg-white rounded-xl p-4 border border-[#F74211]/10 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Título</label>
+                <input type="text" value={config.title} onChange={(e) => updateConfig('title', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Subtítulo <span className="text-gray-400">(usá {'{discount}'} para insertar el %)</span></label>
+                <input type="text" value={config.subtitle} onChange={(e) => updateConfig('subtitle', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Texto del botón</label>
+                <input type="text" value={config.buttonText} onChange={(e) => updateConfig('buttonText', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Términos y condiciones</label>
+                <textarea value={config.termsText} onChange={(e) => updateConfig('termsText', e.target.value)} rows={2}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30 resize-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* --- TEXTOS DEL BADGE Y ETIQUETAS --- */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Tag size={16} className="text-[#F74211]" />
+              Etiquetas y Mensajes del Banner
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2">
+                  <Tag size={12} /> Badge promo
+                </label>
+                <input type="text" value={config.badgeLabel} onChange={(e) => updateConfig('badgeLabel', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30" />
+              </div>
+              <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2">
+                  <Percent size={12} /> Label OFF
+                </label>
+                <input type="text" value={config.offLabel} onChange={(e) => updateConfig('offLabel', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30" />
+              </div>
+              <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2">
+                  <AlertTriangle size={12} /> Título advertencia takeaway
+                </label>
+                <input type="text" value={config.takeawayWarningTitle} onChange={(e) => updateConfig('takeawayWarningTitle', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30" />
+              </div>
+              <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2">
+                  <AlertTriangle size={12} /> Texto advertencia takeaway
+                </label>
+                <input type="text" value={config.takeawayWarningText} onChange={(e) => updateConfig('takeawayWarningText', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30" />
+              </div>
+              <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2">
+                  <Loader size={12} /> Texto de carga
+                </label>
+                <input type="text" value={config.loadingText} onChange={(e) => updateConfig('loadingText', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30" />
+              </div>
+              <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-2">
+                  <ShoppingCart size={12} /> Label descuento en checkout
+                </label>
+                <input type="text" value={config.checkoutDiscountLabel} onChange={(e) => updateConfig('checkoutDiscountLabel', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30" />
+              </div>
+            </div>
+          </div>
+
+          {/* --- VISTA PREVIA --- */}
           <div className="bg-white rounded-xl p-4 border border-[#F74211]/10">
             <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
               <Info size={16} className="text-[#F74211]" />
@@ -276,13 +351,13 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
                   </div>
                 </div>
                 <div className="w-1/2 flex flex-col justify-center text-left text-white pr-4 pl-1">
-                   <p className="text-[8px] font-black uppercase opacity-70 mb-1">Hoy</p>
+                   <p className="text-[8px] font-black uppercase opacity-70 mb-1">{config.badgeLabel}</p>
                    <div className="flex flex-col leading-none">
                      <span className="text-3xl font-black tracking-tighter">
                        {config.type === 'discount' ? `${config.discountPercentage}%` : 'PROMO'}
                      </span>
                      <span className="text-sm font-black opacity-90 uppercase">
-                       {config.type === 'discount' ? 'OFF' : ''}
+                       {config.type === 'discount' ? config.offLabel : ''}
                      </span>
                    </div>
                 </div>
@@ -321,6 +396,7 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
                   <li>Esta promoción aparece cuando un cliente escanea el QR por primera vez</li>
                   <li>El estilo es premium con soporte de imagen personalizada</li>
                   <li>El cliente ve el beneficio y puede usarlo en su pedido</li>
+                  <li>Todos los textos son 100% personalizables por tenant</li>
                 </ul>
               </div>
             </div>

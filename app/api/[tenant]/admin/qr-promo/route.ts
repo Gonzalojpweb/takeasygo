@@ -69,7 +69,13 @@ export async function PUT(
       subtitle,
       buttonText,
       termsText,
-      imageUrl
+      imageUrl,
+      badgeLabel,
+      offLabel,
+      takeawayWarningTitle,
+      takeawayWarningText,
+      loadingText,
+      checkoutDiscountLabel,
     } = body
 
     if (discountPercentage !== undefined && (discountPercentage < 0 || discountPercentage > 100)) {
@@ -93,6 +99,12 @@ export async function PUT(
     if (typeof buttonText === 'string') updateData['qrPromo.buttonText'] = buttonText
     if (typeof termsText === 'string') updateData['qrPromo.termsText'] = termsText
     if (typeof imageUrl === 'string') updateData['qrPromo.imageUrl'] = imageUrl
+    if (typeof badgeLabel === 'string') updateData['qrPromo.badgeLabel'] = badgeLabel
+    if (typeof offLabel === 'string') updateData['qrPromo.offLabel'] = offLabel
+    if (typeof takeawayWarningTitle === 'string') updateData['qrPromo.takeawayWarningTitle'] = takeawayWarningTitle
+    if (typeof takeawayWarningText === 'string') updateData['qrPromo.takeawayWarningText'] = takeawayWarningText
+    if (typeof loadingText === 'string') updateData['qrPromo.loadingText'] = loadingText
+    if (typeof checkoutDiscountLabel === 'string') updateData['qrPromo.checkoutDiscountLabel'] = checkoutDiscountLabel
 
     const tenant = await Tenant.findOneAndUpdate(
       { slug: tenantSlug },
