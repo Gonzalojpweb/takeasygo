@@ -644,38 +644,42 @@ export async function POST(
     const canJoinClub = joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled && !isCompanyAdminEmail
 
     if (canJoinClub) {
-      const pHash = hashPhone(body.customer.phone)
-      const existing = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash }).lean()
-      if (!existing) {
-        const limit = LOYALTY_MEMBER_LIMIT[tenant.plan as Plan]
-        if (limit === null || await LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }) < limit) {
-          let userId: mongoose.Types.ObjectId | null = null
-          const session = await auth()
-          if (session?.user?.email) {
-            const user = await User.findOne({ email: session.user.email }).select('_id').lean()
-            if (user) userId = user._id
-          }
+      try {
+        const pHash = hashPhone(body.customer.phone)
+        const existing = await LoyaltyMember.findOne({ tenantId: tenant._id, phoneHash: pHash }).lean()
+        if (!existing) {
+          const limit = LOYALTY_MEMBER_LIMIT[tenant.plan as Plan]
+          if (limit === null || await LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }) < limit) {
+            let userId: mongoose.Types.ObjectId | null = null
+            const session = await auth()
+            if (session?.user?.email) {
+              const user = await User.findOne({ email: session.user.email }).select('_id').lean()
+              if (user) userId = user._id
+            }
 
-          const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
-          await LoyaltyMember.create({
-            tenantId:  tenant._id,
-            userId:     userId,
-            name:      body.customer.name,
-            phone:     body.customer.phone,
-            email:     body.customer.email || '',
-            birthDate: body.customer.birthDate ? new Date(body.customer.birthDate) : null,
-            phoneHash: pHash,
-            status:    'active',
-            source:    'checkout',
-            'loyalty.points': welcomePoints,
-            cache: {
-              totalOrders: 0,
-              totalSpent:  0,
-              lastOrderAt: null,
-              updatedAt:   new Date(),
-            },
-          })
+            const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
+            await LoyaltyMember.create({
+              tenantId:  tenant._id,
+              userId:     userId,
+              name:      body.customer.name,
+              phone:     body.customer.phone,
+              email:     body.customer.email || '',
+              birthDate: body.customer.birthDate ? new Date(body.customer.birthDate) : null,
+              phoneHash: pHash,
+              status:    'active',
+              source:    'checkout',
+              'loyalty.points': welcomePoints,
+              cache: {
+                totalOrders: 0,
+                totalSpent:  0,
+                lastOrderAt: null,
+                updatedAt:   new Date(),
+              },
+            })
+          }
         }
+      } catch (memberError) {
+        console.error('[orders] Error al crear LoyaltyMember:', memberError)
       }
     } else {
       // SI NO ESTÁ UNIÉNDOSE (porque ya es miembro o no quiere),
@@ -737,6 +741,7 @@ export async function POST(
 
     return NextResponse.json({ order }, { status: 201 })
   } catch (error) {
+    console.error('[orders] Error inesperado:', error instanceof Error ? { name: error.name, message: error.message, stack: error.stack?.split('\n').slice(0, 4).join('\n') } : error)
     return NextResponse.json({ error: 'Error al crear la orden' }, { status: 500 })
   }
 }
