@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Building2, Loader2, CheckCircle, Users, Plus, LogIn, BarChart3 } from 'lucide-react'
 import { toast } from 'sonner'
 import MenuPublicView from '@/components/menu/MenuPublicView'
+import BusinessGuideSheet from '@/components/business/BusinessGuideSheet'
 
 interface Props {
   tenant: any
@@ -18,6 +19,7 @@ export default function BusinessMenuClient({ tenant, location, menu }: Props) {
   const [role, setRole] = useState<string>('')
   const [groupToken, setGroupToken] = useState('')
   const [creatingSession, setCreatingSession] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault()
@@ -124,43 +126,54 @@ export default function BusinessMenuClient({ tenant, location, menu }: Props) {
 
   if (step === 'verify') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: '#fafafa' }}>
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Building2 size={32} className="text-primary" />
+      <>
+        <div className="min-h-screen flex items-center justify-center p-6 relative" style={{ backgroundColor: '#fafafa' }}>
+          {/* Guide trigger */}
+          <button
+            onClick={() => setGuideOpen(true)}
+            className="absolute top-3 right-3 text-xs text-muted-foreground/50 hover:text-foreground flex items-center gap-1 transition-colors"
+          >
+            <span className="w-5 h-5 rounded-full bg-muted-foreground/10 flex items-center justify-center text-[10px] font-bold leading-none">?</span>
+            ¿Cómo funciona?
+          </button>
+          <div className="w-full max-w-sm">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Building2 size={32} className="text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold">Acceso Business</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Ingresá tu email corporativo para acceder al menú con precios especiales
+              </p>
             </div>
-            <h1 className="text-2xl font-bold">Acceso Business</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Ingresá tu email corporativo para acceder al menú con precios especiales
+
+            <form onSubmit={handleVerify} className="space-y-4">
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="tu@empresa.com"
+                className="w-full border-2 border-border rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-primary transition-all"
+                autoFocus
+                autoComplete="email"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                {loading ? 'Verificando...' : 'Ingresar'}
+              </button>
+            </form>
+
+            <p className="text-xs text-center text-muted-foreground/60 mt-6">
+              Solo emails registrados por la empresa pueden acceder.
             </p>
           </div>
-
-          <form onSubmit={handleVerify} className="space-y-4">
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="tu@empresa.com"
-              className="w-full border-2 border-border rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-primary transition-all"
-              autoFocus
-              autoComplete="email"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-            >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-              {loading ? 'Verificando...' : 'Ingresar'}
-            </button>
-          </form>
-
-          <p className="text-xs text-center text-muted-foreground/60 mt-6">
-            Solo emails registrados por la empresa pueden acceder.
-          </p>
         </div>
-      </div>
+        <BusinessGuideSheet open={guideOpen} onOpenChange={setGuideOpen} tenantName={tenant.name} />
+      </>
     )
   }
 
@@ -168,124 +181,138 @@ export default function BusinessMenuClient({ tenant, location, menu }: Props) {
     const isCompanyAdmin = role === 'company_admin'
 
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: '#fafafa' }}>
-        <div className="w-full max-w-sm space-y-4">
-          <div className="text-center mb-4">
-            <h1 className="text-2xl font-bold">Menú Business</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              ¿Qué querés hacer?
-            </p>
-          </div>
-
-          {/* Individual order */}
+      <>
+        <div className="min-h-screen flex items-center justify-center p-6 relative" style={{ backgroundColor: '#fafafa' }}>
+          {/* Guide trigger */}
           <button
-            onClick={() => setStep('menu')}
-            className="w-full p-5 rounded-2xl bg-card border-2 border-border/60 hover:border-primary/40 text-left transition-all active:scale-[0.98]"
+            onClick={() => setGuideOpen(true)}
+            className="absolute top-3 right-3 text-xs text-muted-foreground/50 hover:text-foreground flex items-center gap-1 transition-colors"
           >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <LogIn size={22} className="text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="font-bold">Pedido individual</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Elegí tus items y pagá al precio corporativo
-                </p>
-              </div>
-            </div>
+            <span className="w-5 h-5 rounded-full bg-muted-foreground/10 flex items-center justify-center text-[10px] font-bold leading-none">?</span>
+            ¿Cómo funciona?
           </button>
+          <div className="w-full max-w-sm space-y-4">
+            <div className="text-center mb-4">
+              <h1 className="text-2xl font-bold">Menú Business</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                ¿Qué querés hacer?
+              </p>
+            </div>
 
-          {/* Group session - only for company admin */}
-          {isCompanyAdmin && (
+            {/* Individual order */}
             <button
-              onClick={handleStartGroup}
-              disabled={creatingSession}
-              className="w-full p-5 rounded-2xl bg-card border-2 border-border/60 hover:border-primary/40 text-left transition-all disabled:opacity-60 active:scale-[0.98]"
+              onClick={() => setStep('menu')}
+              className="w-full p-5 rounded-2xl bg-card border-2 border-border/60 hover:border-primary/40 text-left transition-all active:scale-[0.98]"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Plus size={22} className="text-primary" />
+                  <LogIn size={22} className="text-primary" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold">Iniciar pedido grupal</p>
+                  <p className="font-bold">Pedido individual</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {creatingSession ? 'Creando sesión...' : 'Creá una sesión para que los empleados agreguen items'}
+                    Elegí tus items y pagá al precio corporativo
                   </p>
                 </div>
               </div>
             </button>
-          )}
 
-          {/* Corp portal - only for company admin */}
-          {isCompanyAdmin && (
-            <a
-              href={`/${tenant.slug}/business/corp`}
-              className="block w-full p-5 rounded-2xl bg-card border-2 border-border/60 hover:border-primary/40 text-left transition-all active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <BarChart3 size={22} className="text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold">Portal Corporativo</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Historial de pedidos, conciliaciones y gestión de empleados
-                  </p>
-                </div>
-              </div>
-            </a>
-          )}
-
-          {/* Join group session - for employees */}
-          {!isCompanyAdmin && (
-            <div className="p-5 rounded-2xl bg-card border-2 border-border/60 space-y-3">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Users size={22} className="text-primary" />
-                </div>
-                <div>
-                  <p className="font-bold">Unirse a pedido grupal</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Ingresá el código que te compartió tu empresa
-                  </p>
-                </div>
-              </div>
-              <input
-                type="text"
-                value={groupToken}
-                onChange={e => setGroupToken(e.target.value)}
-                placeholder="Código de sesión"
-                className="w-full border-2 border-border/60 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-primary transition-all"
-              />
+            {/* Group session - only for company admin */}
+            {isCompanyAdmin && (
               <button
-                onClick={handleJoinGroup}
-                disabled={loading || !groupToken.trim()}
-                className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+                onClick={handleStartGroup}
+                disabled={creatingSession}
+                className="w-full p-5 rounded-2xl bg-card border-2 border-border/60 hover:border-primary/40 text-left transition-all disabled:opacity-60 active:scale-[0.98]"
               >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                Unirse
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Plus size={22} className="text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold">Iniciar pedido grupal</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {creatingSession ? 'Creando sesión...' : 'Creá una sesión para que los empleados agreguen items'}
+                    </p>
+                  </div>
+                </div>
               </button>
-            </div>
-          )}
+            )}
 
-          {/* Back */}
-          <button
-            onClick={() => setStep('verify')}
-            className="w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Volver
-          </button>
+            {/* Corp portal - only for company admin */}
+            {isCompanyAdmin && (
+              <a
+                href={`/${tenant.slug}/business/corp`}
+                className="block w-full p-5 rounded-2xl bg-card border-2 border-border/60 hover:border-primary/40 text-left transition-all active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <BarChart3 size={22} className="text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold">Portal Corporativo</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Historial de pedidos, conciliaciones y gestión de empleados
+                    </p>
+                  </div>
+                </div>
+              </a>
+            )}
+
+            {/* Join group session - for employees */}
+            {!isCompanyAdmin && (
+              <div className="p-5 rounded-2xl bg-card border-2 border-border/60 space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Users size={22} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold">Unirse a pedido grupal</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Ingresá el código que te compartió tu empresa
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  value={groupToken}
+                  onChange={e => setGroupToken(e.target.value)}
+                  placeholder="Código de sesión"
+                  className="w-full border-2 border-border/60 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-primary transition-all"
+                />
+                <button
+                  onClick={handleJoinGroup}
+                  disabled={loading || !groupToken.trim()}
+                  className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+                >
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                  Unirse
+                </button>
+              </div>
+            )}
+
+            {/* Back */}
+            <button
+              onClick={() => setStep('verify')}
+              className="w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Volver
+            </button>
+          </div>
         </div>
-      </div>
+        <BusinessGuideSheet open={guideOpen} onOpenChange={setGuideOpen} tenantName={tenant.name} />
+      </>
     )
   }
 
   return (
-    <MenuPublicView
-      tenant={tenant}
-      location={location}
-      menu={menu}
-      mode="business"
-    />
+    <>
+      <MenuPublicView
+        tenant={tenant}
+        location={location}
+        menu={menu}
+        mode="business"
+      />
+      <BusinessGuideSheet open={guideOpen} onOpenChange={setGuideOpen} tenantName={tenant.name} />
+    </>
   )
 }
