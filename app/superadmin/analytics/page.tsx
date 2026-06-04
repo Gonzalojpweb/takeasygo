@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrendingUp, ShoppingBag, DollarSign, Store, Calendar, Activity, Users, Clock, Zap, PieChart, Search, Map, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import InfoTooltip from '@/components/ui/info-tooltip'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 
@@ -281,7 +282,7 @@ export default async function SuperAdminAnalyticsPage() {
               <div className="p-2 rounded-xl bg-indigo-500/10 w-fit mb-3">
                 <Search size={18} className="text-indigo-500" />
               </div>
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Visitas (30d)</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Visitas (30d) <InfoTooltip description="Cantidad total de pageviews registrados en ExploreEvent durante los últimos 30 días. Cada vez que un usuario carga una pantalla del explorador se cuenta como una visita." /></p>
               <p className="text-2xl font-black tabular-nums">{exploreVisits30}</p>
             </CardContent>
           </Card>
@@ -290,7 +291,7 @@ export default async function SuperAdminAnalyticsPage() {
               <div className="p-2 rounded-xl bg-indigo-500/10 w-fit mb-3">
                 <Eye size={18} className="text-indigo-500" />
               </div>
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Vistas a restaurantes</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Vistas a restaurantes <InfoTooltip description="Veces que se abrió la ficha de un restaurante (evento restaurant_view en ExploreEvent). Incluye restaurants de red y de directorio." /></p>
               <p className="text-2xl font-black tabular-nums">{exploreFunnelStats.restaurantViews}</p>
             </CardContent>
           </Card>
@@ -299,7 +300,7 @@ export default async function SuperAdminAnalyticsPage() {
               <div className="p-2 rounded-xl bg-indigo-500/10 w-fit mb-3">
                 <ShoppingBag size={18} className="text-indigo-500" />
               </div>
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Clicks a menú</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Clicks a menú <InfoTooltip description="Cantidad de veces que usuarios hicieron clic en 'Ver menú' desde la ficha de un restaurante (evento click_menu en ExploreEvent)." /></p>
               <p className="text-2xl font-black tabular-nums">{exploreFunnelStats.menuClicks}</p>
             </CardContent>
           </Card>
@@ -308,7 +309,7 @@ export default async function SuperAdminAnalyticsPage() {
               <div className="p-2 rounded-xl bg-indigo-500/10 w-fit mb-3">
                 <TrendingUp size={18} className="text-indigo-500" />
               </div>
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Click rate</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Click rate <InfoTooltip description="Porcentaje de visitas que resultaron en un clic a menú. Fórmula: clicks a menú / pageviews × 100." /></p>
               <p className="text-2xl font-black tabular-nums">{exploreClickRate}%</p>
               <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">{exploreFunnelStats.pageviews} pageviews</p>
             </CardContent>
@@ -318,7 +319,7 @@ export default async function SuperAdminAnalyticsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
             <CardContent className="p-5">
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Vistas por sección</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Vistas por sección <InfoTooltip description="Distribución de pageviews por sección del explorador: home, list (lista/búsqueda), map (mapa), orders (pedidos), detail (ficha de restaurante)." /></p>
               <div className="space-y-2">
                 {exploreByView.map((v: any) => {
                   const pct = exploreVisits30 > 0 ? Math.round((v.count / exploreVisits30) * 100) : 0
@@ -340,7 +341,7 @@ export default async function SuperAdminAnalyticsPage() {
           </Card>
           <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
             <CardContent className="p-5">
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Funnel de exploración</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Funnel de exploración <InfoTooltip description="Progresión de usuarios a través del embudo: pageview → búsqueda → vista detalle → clic a menú. Cada paso muestra cuántos eventos de ese tipo ocurrieron." /></p>
               <div className="space-y-3">
                 {[
                   { label: 'Pageviews', value: exploreFunnelStats.pageviews, icon: '👀' },
@@ -393,7 +394,7 @@ export default async function SuperAdminAnalyticsPage() {
               <div className="p-2 rounded-xl bg-emerald-500/10 w-fit mb-3">
                 <Eye size={18} className="text-emerald-500" />
               </div>
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Sesiones únicas (30d)</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Sesiones únicas (30d) <InfoTooltip description="Cantidad de sessionId distintos registrados en ExploreEvent en los últimos 30 días. Cada sesión representa un usuario real." /></p>
               <p className="text-2xl font-black tabular-nums">{tgoMetrics.summary.uniqueSessions}</p>
             </CardContent>
           </Card>
@@ -402,7 +403,7 @@ export default async function SuperAdminAnalyticsPage() {
               <div className="p-2 rounded-xl bg-emerald-500/10 w-fit mb-3">
                 <Activity size={18} className="text-emerald-500" />
               </div>
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Eventos totales</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Eventos totales <InfoTooltip description="Cantidad total de eventos registrados en ExploreEvent (todos los tipos: pageview, search, restaurant_view, click_menu, etc.) en los últimos 30 días. Un usuario puede generar múltiples eventos en una sesión." /></p>
               <p className="text-2xl font-black tabular-nums">{tgoMetrics.summary.totalEvents}</p>
             </CardContent>
           </Card>
@@ -411,7 +412,7 @@ export default async function SuperAdminAnalyticsPage() {
               <div className="p-2 rounded-xl bg-emerald-500/10 w-fit mb-3">
                 <Search size={18} className="text-emerald-500" />
               </div>
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Vieron restaurantes</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Vieron restaurantes <InfoTooltip description="Sesiones únicas que generaron al menos un evento restaurant_view. Mide cuántos usuarios llegaron a ver una ficha de restaurante." /></p>
               <p className="text-2xl font-black tabular-nums">{tgoMetrics.funnel.sessionsWithRestaurantView}</p>
             </CardContent>
           </Card>
@@ -420,10 +421,10 @@ export default async function SuperAdminAnalyticsPage() {
               <div className="p-2 rounded-xl bg-emerald-500/10 w-fit mb-3">
                 <ShoppingBag size={18} className="text-emerald-500" />
               </div>
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Click a menú</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Click a menú <InfoTooltip description="Sesiones únicas que generaron al menos un evento click_menu. Usuarios que avanzaron hasta el paso final del embudo." /></p>
               <p className="text-2xl font-black tabular-nums">{tgoMetrics.funnel.sessionsWithMenuClick}</p>
               <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">
-                {tgoMetrics.summary.uniqueSessions > 0 ? Math.round((tgoMetrics.funnel.sessionsWithMenuClick / tgoMetrics.summary.uniqueSessions) * 100) : 0}% conv.
+                {tgoMetrics.summary.uniqueSessions > 0 ? Math.round((tgoMetrics.funnel.sessionsWithMenuClick / tgoMetrics.summary.uniqueSessions) * 100) : 0}% conv. <InfoTooltip description="Tasa de conversión: sesiones con clic a menú / sesiones únicas × 100." />
               </p>
             </CardContent>
           </Card>
@@ -434,7 +435,7 @@ export default async function SuperAdminAnalyticsPage() {
           {/* Daily sessions */}
           <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
             <CardContent className="p-5">
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Sesiones únicas por día</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Sesiones únicas por día <InfoTooltip description="Evolución diaria de sesiones únicas. Cada barra representa la cantidad de usuarios distintos que interactuaron en ese día." /></p>
               {tgoMetrics.dailySessions.length > 0 ? (
                 <div className="space-y-1">
                   {tgoMetrics.dailySessions.slice(0, 14).map((d: any) => {
@@ -461,7 +462,7 @@ export default async function SuperAdminAnalyticsPage() {
           <div className="space-y-4">
             <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
               <CardContent className="p-5">
-                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Funnel de conversión</p>
+                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Funnel de conversión <InfoTooltip description="Embudo de sesiones únicas por tipo de evento. Cada paso muestra cuántas sesiones llegaron a ese punto. Los datos están deduplicados por sessionId." /></p>
                 <div className="space-y-2">
                   {[
                     { label: 'Pageviews', value: tgoMetrics.funnel.sessionsWithPageview },
@@ -490,7 +491,7 @@ export default async function SuperAdminAnalyticsPage() {
 
             <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
               <CardContent className="p-5">
-                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Dispositivos</p>
+                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Dispositivos <InfoTooltip description="Distribución de sesiones por tipo de dispositivo (mobile, desktop, tablet). Se extrae del user-agent de cada evento." /></p>
                 <div className="space-y-1.5">
                   {tgoMetrics.deviceBreakdown.map((d: any) => (
                     <div key={d.device} className="flex items-center gap-2">
@@ -514,7 +515,7 @@ export default async function SuperAdminAnalyticsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
           <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
             <CardContent className="p-5">
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Restaurantes más vistos</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Restaurantes más vistos <InfoTooltip description="Top restaurantes por cantidad de sesiones únicas que los visitaron. RED = restaurants de red con tenant activo. DIR = restaurants de directorio." /></p>
               {tgoMetrics.topRestaurants.length > 0 ? (
                 <div className="space-y-1.5">
                   {tgoMetrics.topRestaurants.map((r: any, i: number) => (
@@ -539,7 +540,7 @@ export default async function SuperAdminAnalyticsPage() {
           </Card>
           <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
             <CardContent className="p-5">
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Búsquedas principales</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Búsquedas principales <InfoTooltip description="Términos de búsqueda más usados por los usuarios, ordenados por frecuencia. Solo incluye búsquedas con texto (no filtros sin query)." /></p>
               {tgoMetrics.topSearches.length > 0 ? (
                 <div className="space-y-1.5">
                   {tgoMetrics.topSearches.slice(0, 10).map((s: any, i: number) => (
@@ -555,15 +556,15 @@ export default async function SuperAdminAnalyticsPage() {
               )}
               <div className="mt-3 pt-3 border-t border-border/40 flex gap-4">
                 <div>
-                  <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/60">Con resultados</p>
+                  <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/60">Con resultados <InfoTooltip description="Cantidad de búsquedas que devolvieron al menos un resultado." /></p>
                   <p className="text-sm font-black tabular-nums text-emerald-500">{tgoMetrics.searchWithResults}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/60">Sin resultados</p>
+                  <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/60">Sin resultados <InfoTooltip description="Cantidad de búsquedas que no devolvieron ningún resultado." /></p>
                   <p className="text-sm font-black tabular-nums text-destructive">{tgoMetrics.searchWithoutResults}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/60">Tasa de acierto</p>
+                  <p className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/60">Tasa de acierto <InfoTooltip description="Porcentaje de búsquedas que devolvieron al menos un resultado. Fórmula: con resultados / total búsquedas × 100." /></p>
                   <p className="text-sm font-black tabular-nums">
                     {tgoMetrics.searchWithResults + tgoMetrics.searchWithoutResults > 0
                       ? Math.round((tgoMetrics.searchWithResults / (tgoMetrics.searchWithResults + tgoMetrics.searchWithoutResults)) * 100)
@@ -578,7 +579,7 @@ export default async function SuperAdminAnalyticsPage() {
         {/* Traffic sources */}
         <Card className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden">
           <CardContent className="p-5">
-            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Fuentes de tráfico</p>
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Fuentes de tráfico <InfoTooltip description="Origen de las sesiones según el campo source del evento: qr (código QR), direct (acceso directo), explore (navegación desde el explorador), etc." /></p>
             {tgoMetrics.trafficSources.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {tgoMetrics.trafficSources.map((s: any) => {
@@ -608,7 +609,7 @@ export default async function SuperAdminAnalyticsPage() {
             <div className="p-2 rounded-xl bg-emerald-500/10 w-fit mb-3">
               <Users size={18} className="text-emerald-500" />
             </div>
-            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Tasa de activación</p>
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Tasa de activación <InfoTooltip description="Porcentaje de tenants con al menos 1 pedido en los últimos 30 días. Fórmula: tenants con pedidos / total tenants activos × 100." /></p>
             <p className="text-2xl font-black tabular-nums">{activationRate}%</p>
             <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">{activeTenantCount} de {totalTenants} tenants activos (30d)</p>
           </CardContent>
@@ -618,7 +619,7 @@ export default async function SuperAdminAnalyticsPage() {
             <div className="p-2 rounded-xl bg-blue-500/10 w-fit mb-3">
               <Clock size={18} className="text-blue-500" />
             </div>
-            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">TPP global prom.</p>
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">TPP global prom. <InfoTooltip description="Tiempo promedio de preparación (Time To Prepare) en minutos. Promedio de medias por tenant. Se calcula desde confirmedAt hasta readyAt en los últimos 30 días." /></p>
             <p className="text-2xl font-black tabular-nums">{globalTppMinutes !== null ? `${globalTppMinutes} min` : '—'}</p>
             <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">{globalTppData.length} tenants con datos</p>
           </CardContent>
@@ -628,7 +629,7 @@ export default async function SuperAdminAnalyticsPage() {
             <div className="p-2 rounded-xl bg-purple-500/10 w-fit mb-3">
               <Zap size={18} className="text-purple-500" />
             </div>
-            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Tenants consistentes</p>
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Tenants consistentes <InfoTooltip description="Porcentaje de tenants con desviación estándar de TPP menor al 30% de su media (σ/μ < 0.30). Indica consistencia en tiempos de preparación." /></p>
             <p className="text-2xl font-black tabular-nums">{consistentPct !== null ? `${consistentPct}%` : '—'}</p>
             <p className="text-[10px] font-bold text-muted-foreground/70 mt-1">{consistentTenants} con σ/μ &lt; 30%</p>
           </CardContent>
