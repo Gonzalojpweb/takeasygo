@@ -14,6 +14,9 @@ import {
   Mail,
   Share2,
   CreditCard,
+  Activity,
+  Package,
+  Eye,
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { MagicCard } from '@/components/ui/magic-card'
@@ -184,7 +187,17 @@ export default function BusinessGuideSheet({ open, onOpenChange, tenantName = 'T
                   <InfoRow
                     icon={Users}
                     title="Pedido grupal"
-                    description="El admin crea sesión, comparte link, todos agregan items en una sola orden."
+                    description="Creá una sesión, compartí el link y todos agregan items en una sola orden. El admin también puede agregar su pedido."
+                  />
+                  <InfoRow
+                    icon={Activity}
+                    title="Progreso en vivo"
+                    description="Vé cuántos empleados ya pidieron con el contador X/Y y la barra de progreso antes de confirmar."
+                  />
+                  <InfoRow
+                    icon={Package}
+                    title="Seguimiento post-confirmación"
+                    description="Al confirmar, redirige al tracking: seguí el estado (preparando → listo) en tiempo real."
                   />
                   <InfoRow
                     icon={BarChart3}
@@ -210,6 +223,16 @@ export default function BusinessGuideSheet({ open, onOpenChange, tenantName = 'T
                     title="Unirte a sesión grupal"
                     description="Ingresá el código que te compartió tu admin y agregá tus items al pedido grupal."
                   />
+                  <InfoRow
+                    icon={CheckCircle2}
+                    title="Confirmación al instante"
+                    description="Al agregar items, un modal verde confirma que el pedido fue recibido por el grupo."
+                  />
+                  <InfoRow
+                    icon={Eye}
+                    title="Tu pedido siempre visible"
+                    description="En el header superior: tu email, cantidad de items, total y detalle expandible de cada producto."
+                  />
                 </div>
               </MagicCard>
             </BlurFade>
@@ -219,9 +242,11 @@ export default function BusinessGuideSheet({ open, onOpenChange, tenantName = 'T
               <MagicCard {...GRADIENT} className="rounded-xl p-4">
                 <SectionTitle icon={Lightbulb} label="Tips y recomendaciones" />
                 <div className="space-y-2 mt-3">
+                  <Tip text="Antes de confirmar el pedido grupal, revisá la barra de progreso para no dejar a nadie afuera" />
+                  <Tip text="El admin también puede agregar su propio pedido desde el panel de gestión grupal" />
+                  <Tip text="Después de confirmar, seguí el estado del pedido en la pantalla de tracking hasta que esté listo" />
+                  <Tip text="Si sos empleado, usá el panel «Mi pedido» en el header para verificar lo que agregaste" />
                   <Tip text="Agendá con anticipación en horarios pico para evitar demoras" />
-                  <Tip text="Usá pedidos grupales para reuniones de equipo y eventos" />
-                  <Tip text="Centralizá la facturación mensual para mejor control" />
                   <Tip text="Asigná un admin por sede para gestionar los pedidos" />
                 </div>
               </MagicCard>
@@ -272,12 +297,19 @@ export default function BusinessGuideSheet({ open, onOpenChange, tenantName = 'T
                   <DemoStep
                     number={3}
                     icon={Share2}
-                    title="Compartí el acceso con tu equipo"
-                    description="Si creaste una sesión grupal, compartí el link o código con tus empleados."
+                    title="Compartí y monitoreá el progreso"
+                    description="Compartí el link con tu equipo. Seguí el contador X/Y y la barra de progreso. También podés agregar tu propio pedido."
                     color="slate"
                   />
                   <DemoStep
                     number={4}
+                    icon={Package}
+                    title="Confirmá y seguí el pedido"
+                    description="Cuando esté todo listo, confirmá y seguí el tracking en vivo: preparando, listo para retirar."
+                    color="slate"
+                  />
+                  <DemoStep
+                    number={5}
                     icon={BarChart3}
                     title="Gestioná desde el portal"
                     description="Revisá histórico de pedidos, conciliaciones y administrá empleados."
@@ -310,15 +342,22 @@ export default function BusinessGuideSheet({ open, onOpenChange, tenantName = 'T
                   <DemoStep
                     number={3}
                     icon={ShoppingCart}
-                    title="Agregá tus items al carrito"
-                    description="Navegá el menú digital y agregá todos los productos que quieras."
+                    title="Agregá tus items al grupo"
+                    description="Navegá el menú y agregá productos. Recibís un modal verde confirmando que llegó al grupo."
                     color="emerald"
                   />
                   <DemoStep
                     number={4}
+                    icon={Eye}
+                    title="Revisá tu pedido en el header"
+                    description="Tu email, items y total quedan visibles arriba. Podés expandir «Mi pedido» para ver el detalle."
+                    color="emerald"
+                  />
+                  <DemoStep
+                    number={5}
                     icon={CreditCard}
-                    title="Pagá con precio corporativo"
-                    description="Todo directo con el precio especial de tu empresa, sin esperas."
+                    title="El admin confirma el pedido"
+                    description="Cuando el admin confirma, el grupo se envía al restaurante. No necesitás pagar individualmente."
                     color="emerald"
                     isLast
                   />
