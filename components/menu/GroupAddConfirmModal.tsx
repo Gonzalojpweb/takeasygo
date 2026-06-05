@@ -12,6 +12,7 @@ interface Props {
   myItemsCount: number
   myTotal: number
   sessionExpiresAt?: string
+  onClose?: () => void
 }
 
 function getTimeRemaining(expiresAt: string): string {
@@ -23,7 +24,7 @@ function getTimeRemaining(expiresAt: string): string {
 }
 
 export default function GroupAddConfirmModal({
-  open, onOpenChange, itemName, myItemsCount, myTotal, sessionExpiresAt,
+  open, onOpenChange, itemName, myItemsCount, myTotal, sessionExpiresAt, onClose,
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,12 +59,20 @@ export default function GroupAddConfirmModal({
           )}
         </div>
 
-        <button
-          onClick={() => onOpenChange(false)}
-          className="w-full mt-2 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all active:scale-95"
-        >
-          Seguir agregando
-        </button>
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={() => { onClose?.(); onOpenChange(false) }}
+            className="flex-1 py-3 rounded-xl bg-muted text-muted-foreground font-bold text-sm hover:bg-muted/80 transition-all active:scale-95"
+          >
+            Cerrar
+          </button>
+          <button
+            onClick={() => { onClose?.(); onOpenChange(false) }}
+            className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all active:scale-95"
+          >
+            Seguir agregando
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   )
