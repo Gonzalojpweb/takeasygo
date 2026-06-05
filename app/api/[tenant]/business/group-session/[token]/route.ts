@@ -39,6 +39,9 @@ export async function GET(
       itemsByEmail[email].push(item)
     }
 
+    const totalEmployees = (corpAccount?.employeeEmails?.length ?? 0) + 1 // +1 for admin
+    const employeesWithOrders = Object.keys(itemsByEmail).length
+
     return NextResponse.json({
       session: {
         token,
@@ -52,6 +55,8 @@ export async function GET(
         itemsByEmail,
         total: order.total,
         subtotal: order.subtotal,
+        totalEmployees,
+        employeesWithOrders,
       }
     })
   } catch (error) {
