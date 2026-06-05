@@ -473,6 +473,34 @@ export default function GroupSessionClient({
             </button>
           </div>
         )}
+
+        {/* Admin's own order */}
+        {isActive && (
+          <div className="space-y-4">
+            <div className="border-t border-border/40 pt-6">
+              <h2 className="text-lg font-bold mb-1">Agregá tu pedido</h2>
+              <p className="text-sm text-muted-foreground mb-4">Sumá tus items al pedido grupal</p>
+            </div>
+            <MenuPublicView
+              tenant={tenant}
+              location={location}
+              menu={menu}
+              mode="business"
+              groupSessionToken={token}
+              groupEmail={email}
+              onGroupItemAdded={(name, updatedItems) => setLastAddData({ itemName: name, items: updatedItems })}
+            />
+            <GroupAddConfirmModal
+              open={!!lastAddData}
+              onOpenChange={(open) => { if (!open) setLastAddData(null) }}
+              itemName={lastAddData?.itemName || ''}
+              myItemsCount={lastAddData ? lastAddData.items.filter((i: any) => i.addedByEmail === email).length : 0}
+              myTotal={lastAddData ? lastAddData.items.filter((i: any) => i.addedByEmail === email).reduce((s: number, i: any) => s + i.subtotal, 0) : 0}
+              sessionExpiresAt={session?.sessionExpiresAt}
+              onClose={() => setLastAddData(null)}
+            />
+          </div>
+        )}
       </div>
     )
   }
