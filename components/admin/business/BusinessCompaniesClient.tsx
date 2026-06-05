@@ -47,6 +47,16 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addingEmployee, setAddingEmployee] = useState<string | null>(null)
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editForm, setEditForm] = useState({
+    _id: '',
+    companyName: '',
+    companyTaxId: '',
+    companyAdminEmail: '',
+    paymentMode: 'cash_mp',
+    paymentTerms: '',
+    notes: '',
+  })
 
   // Create form
   const [form, setForm] = useState({
@@ -135,6 +145,40 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
       router.refresh()
     } catch {
       toast.error('Error al eliminar empresa')
+    }
+  }
+
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editForm._id) return
+    if (!editForm.companyName.trim() || !editForm.companyAdminEmail.trim()) {
+      toast.error('Completá el nombre de la empresa y el email corporativo')
+      return
+    }
+    setEditSaving(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/business/companies/${editForm._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: editForm.companyName,
+          companyTaxId: editForm.companyTaxId,
+          paymentMode: editForm.paymentMode,
+          paymentTerms: editForm.paymentTerms,
+          notes: editForm.notes,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al guardar')
+      setCompanies(prev => prev.map(c => c._id === editForm._id ? data.company : c))
+      setEditForm({ _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', paymentMode: 'cash_mp', paymentTerms: '', notes: '' })
+      setEditingId(null)
+      toast.success('Empresa actualizada correctamente')
+      router.refresh()
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -274,6 +318,95 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
         </form>
       )}
 
+      {/* Edit form */}
+      {editingId && (
+        <form onSubmit={handleSaveEdit} className="p-8 bg-card border-2 border-border/60 rounded-[2.5rem] shadow-xl space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold tracking-tight">Editar {editForm.companyName}</h3>
+            <button type="button" onClick={() => { setEditingId(null); setEditForm({ _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', paymentMode: 'cash_mp', paymentTerms: '', notes: '' }) }} className="text-muted-foreground hover:text-foreground transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className={labelCls}>Nombre de la Empresa</label>
+              <input
+                required
+                value={editForm.companyName}
+                onChange={e => setEditForm(p => ({ ...p, companyName: e.target.value }))}
+                className={inputCls}
+                placeholder="Ej: Acme Corp S.A."
+              />
+            </div>
+            <div>
+              <label className={labelCls}>CUIT</label>
+              <input
+                value={editForm.companyTaxId}
+                onChange={e => setEditForm(p => ({ ...p, companyTaxId: e.target.value }))}
+                className={inputCls}
+                placeholder="30-12345678-9"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className={labelCls}>Email Corporativo</label>
+              <input
+                required
+                type="email"
+                value={editForm.companyAdminEmail}
+                className={cn(inputCls, "opacity-60")}
+                disabled
+              />
+              <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">El email corporativo no se puede cambiar. Creá una nueva empresa si es necesario.</p>
+            </div>
+            <div>
+              <label className={labelCls}>Esquema de Pago</label>
+              <select
+                value={editForm.paymentMode}
+                onChange={e => setEditForm(p => ({ ...p, paymentMode: e.target.value }))}
+                className={inputCls}
+              >
+                <option value="cash_mp">Contado MP (todos pagan con MercadoPago)</option>
+                <option value="deferred">Diferido (factura directa empresa-restaurante)</option>
+                <option value="mixed">Mixto</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Términos de Pago</label>
+            <input
+              value={editForm.paymentTerms}
+              onChange={e => setEditForm(p => ({ ...p, paymentTerms: e.target.value }))}
+              className={inputCls}
+              placeholder="Ej: Pago a 30 días desde la fecha de factura"
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>Notas</label>
+            <textarea
+              value={editForm.notes}
+              onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
+              className={cn(inputCls, "min-h-[80px] resize-y")}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-border/40">
+            <Button type="submit" disabled={editSaving} className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl h-12 px-8 gap-2 shadow-lg active:scale-95 transition-all">
+              {editSaving ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
+              {editSaving ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => { setEditingId(null); setEditForm({ _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', paymentMode: 'cash_mp', paymentTerms: '', notes: '' }) }} className="font-bold rounded-xl h-12 px-8">
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      )}
+
       {/* Companies list */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -306,6 +439,24 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setEditForm({
+                        _id: company._id,
+                        companyName: company.companyName,
+                        companyTaxId: company.companyTaxId,
+                        companyAdminEmail: company.companyAdminEmail,
+                        paymentMode: company.paymentMode,
+                        paymentTerms: company.paymentTerms,
+                        notes: company.notes,
+                      })
+                      setEditingId(company._id)
+                    }}
+                    className="p-2 rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-all"
+                    title="Editar"
+                  >
+                    <Pencil size={18} />
+                  </button>
                   <button
                     onClick={() => handleToggleStatus(company)}
                     className={cn(
