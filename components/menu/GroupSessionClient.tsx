@@ -534,18 +534,19 @@ export default function GroupSessionClient({
       {/* Barra superior con info del grupo */}
       <div className="sticky top-0 z-40 bg-white border-b border-border/60">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Users size={16} className="text-primary" />
             </div>
-            <div>
-              <p className="text-xs font-bold">{companyName}</p>
+            <div className="min-w-0">
+              <p className="text-xs font-bold truncate">{companyName}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{email}</p>
               <p className="text-[10px] text-muted-foreground">
                 {itemCount} items · ${myTotal.toLocaleString('es-AR')}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {session?.sessionExpiresAt && (
               <span className="text-xs font-mono tabular-nums text-muted-foreground flex items-center gap-1">
                 <Clock size={12} />
@@ -555,6 +556,31 @@ export default function GroupSessionClient({
           </div>
         </div>
       </div>
+
+      {/* Resumen del pedido del empleado */}
+      {itemCount > 0 && (
+        <div className="max-w-4xl mx-auto px-4 py-3">
+          <details className="group">
+            <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1">
+              <span className="inline-block transition-transform group-open:rotate-90">›</span>
+              Mi pedido ({itemCount} items)
+            </summary>
+            <div className="mt-2 space-y-1.5 pl-3 border-l-2 border-primary/20">
+              {session?.items?.filter((i: any) => i.addedByEmail === email).map((item: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between text-xs">
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium">x{item.quantity} {item.name}</span>
+                    {item.selectedVariant && (
+                      <span className="text-muted-foreground ml-1">· {item.selectedVariant.name}</span>
+                    )}
+                  </div>
+                  <span className="font-medium ml-2 shrink-0">${item.subtotal.toLocaleString('es-AR')}</span>
+                </div>
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
 
       {/* Menu */}
       <MenuPublicView
