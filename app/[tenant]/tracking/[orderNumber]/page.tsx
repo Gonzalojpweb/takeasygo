@@ -135,6 +135,7 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           rewardAdvanceConsolidated={rewardAdvanceConsolidated}
           tenantName={tenant.name}
           clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
+          orderMode={order.orderMode}
         />
 
         {/* Resumen del pedido */}
