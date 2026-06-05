@@ -30,6 +30,7 @@ interface Props {
   mode: 'takeaway' | 'dine-in' | 'business'
   groupSessionToken?: string
   groupEmail?: string
+  onGroupItemAdded?: (itemName: string) => void
 }
 
 const VEGETARIAN_TAGS = ['vegetariano', 'vegano', 'vegan', 'vegetarian']
@@ -97,7 +98,7 @@ const UI = {
   },
 }
 
-export default function MenuPublicView({ tenant, location, menu, mode, groupSessionToken, groupEmail }: Props) {
+export default function MenuPublicView({ tenant, location, menu, mode, groupSessionToken, groupEmail, onGroupItemAdded }: Props) {
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [translating, setTranslating] = useState(false)
@@ -340,6 +341,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         return
       }
       toast.success(`${itemName} agregado al pedido grupal`)
+      onGroupItemAdded?.(itemName)
     } catch {
       toast.error('Error al agregar item al pedido grupal')
     }

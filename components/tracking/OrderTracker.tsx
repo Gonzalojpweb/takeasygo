@@ -100,7 +100,7 @@ export default function OrderTracker({
   const [estimatedReadyAt, setEstimatedReadyAt] = useState(initialEstimatedReadyAt)
   const [cancellationClosed, setCancellationClosed] = useState(false)
   const [countdown, setCountdown]         = useState('')
-  const [lastChecked, setLastChecked]     = useState<Date>(new Date())
+  const [lastChecked, setLastChecked]     = useState<Date | null>(null)
   const [orderTiming, setOrderTiming]     = useState(initialOrderTiming)
   const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(initialScheduledPickupAt)
   const [scheduledStatus, setScheduledStatus] = useState<string | null>(initialScheduledStatus)
@@ -331,7 +331,7 @@ export default function OrderTracker({
         )}
 
         {/* Indicador de actualización en vivo */}
-        {!['delivered', 'cancelled'].includes(status) && (
+        {!['delivered', 'cancelled'].includes(status) && lastChecked && (
           <p className="mt-2 text-xs opacity-30">
             Actualiza automáticamente · última vez {lastChecked.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </p>
