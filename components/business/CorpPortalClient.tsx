@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Building2, Loader2, CheckCircle, Search, Download,
+  Building2, Loader2, CheckCircle, ShieldCheck, Search, Download,
   Trash2, Calendar, Filter, X, ArrowLeft, Users, ClipboardList, BarChart3,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { motion, AnimatePresence } from 'framer-motion'
+import { privacidad, canalCorporativo } from '@/lib/legal-content'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -53,6 +55,15 @@ export default function CorpPortalClient({ tenant }: Props) {
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState<Tab>('dashboard')
   const [authenticated, setAuthenticated] = useState(false)
+  const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [corpOpen, setCorpOpen] = useState(false)
+  const [consentPending, setConsentPending] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('corpConsent') !== 'true'
+    }
+    return true
+  })
+  const [consentChecked, setConsentChecked] = useState(false)
 
   // Data states
   const [orders, setOrders] = useState<CorpOrder[]>([])
@@ -244,39 +255,152 @@ export default function CorpPortalClient({ tenant }: Props) {
   // ── Verify email screen ──────────────────────────────────────────────
   if (step === 'verify') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#fafafa]">
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Building2 size={32} className="text-primary" />
+      <>
+        <div className="min-h-screen flex items-center justify-center p-6 bg-[#fafafa]">
+          <div className="w-full max-w-sm">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Building2 size={32} className="text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold">Portal Corporativo</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Ingresá tu email de administrador de empresa para acceder
+              </p>
             </div>
-            <h1 className="text-2xl font-bold">Portal Corporativo</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Ingresá tu email de administrador de empresa para acceder
-            </p>
-          </div>
 
-          <form onSubmit={handleVerify} className="space-y-4">
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="admin@empresa.com"
-              className="w-full border-2 border-border rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-primary transition-all"
-              autoFocus
-              autoComplete="email"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-            >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-              {loading ? 'Verificando...' : 'Ingresar'}
-            </button>
-          </form>
+            <form onSubmit={handleVerify} className="space-y-4">
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="admin@empresa.com"
+                className="w-full border-2 border-border rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-primary transition-all"
+                autoFocus
+                autoComplete="email"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                {loading ? 'Verificando...' : 'Ingresar'}
+              </button>
+            </form>
+
+            <div className="mt-6 pt-5 border-t border-border/40">
+              <div className="flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0 mt-0.5">
+                  <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-foreground">Portal Corporativo Seguro</p>
+                  <p className="text-[11px] text-muted-foreground/60 leading-relaxed mt-0.5">
+                    Toda la información viaja cifrada de extremo a extremo. TakeasyGO es promotor activo de la seguridad digital.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-3">
+                <button
+                  type="button"
+                  onClick={() => setPrivacyOpen(true)}
+                  className="text-[11px] text-muted-foreground/50 underline underline-offset-2 hover:text-primary transition-colors"
+                >
+                  Política de Privacidad
+                </button>
+                <span className="text-[11px] text-muted-foreground/20">·</span>
+                <button
+                  type="button"
+                  onClick={() => setCorpOpen(true)}
+                  className="text-[11px] text-muted-foreground/50 underline underline-offset-2 hover:text-primary transition-colors"
+                >
+                  Acuerdo Canal Corporativo
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* Privacy modal */}
+        <AnimatePresence>
+          {privacyOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+              onClick={() => setPrivacyOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0, y: 30 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.92, opacity: 0, y: 30 }}
+                transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+                className="w-full max-w-md bg-white rounded-3xl max-h-[80dvh] overflow-y-auto"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="sticky top-0 bg-white border-b border-zinc-100 p-4 flex items-center justify-between rounded-t-3xl z-10">
+                  <h2 className="font-bold text-base text-zinc-900">Política de Privacidad</h2>
+                  <button
+                    onClick={() => setPrivacyOpen(false)}
+                    className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  {privacidad.map((section, i) => (
+                    <div key={i}>
+                      <h3 className="font-bold text-sm text-zinc-900 mb-1">{section.title}</h3>
+                      <p className="text-sm text-zinc-500 leading-relaxed">{section.body}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Corporate channel modal */}
+        <AnimatePresence>
+          {corpOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+              onClick={() => setCorpOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0, y: 30 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.92, opacity: 0, y: 30 }}
+                transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+                className="w-full max-w-md bg-white rounded-3xl max-h-[80dvh] overflow-y-auto"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="sticky top-0 bg-white border-b border-zinc-100 p-4 flex items-center justify-between rounded-t-3xl z-10">
+                  <h2 className="font-bold text-base text-zinc-900">Acuerdo Canal Corporativo</h2>
+                  <button
+                    onClick={() => setCorpOpen(false)}
+                    className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  {canalCorporativo.map((section, i) => (
+                    <div key={i}>
+                      <h3 className="font-bold text-sm text-zinc-900 mb-1">{section.title}</h3>
+                      <p className="text-sm text-zinc-500 leading-relaxed">{section.body}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>
     )
   }
 
@@ -592,6 +716,64 @@ export default function CorpPortalClient({ tenant }: Props) {
             </div>
           </div>
         )}
+
+        {/* Consent overlay for first-time admin */}
+        <AnimatePresence>
+          {consentPending && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-white flex items-center justify-center p-6"
+            >
+              <div className="w-full max-w-lg mx-auto">
+                <div className="text-center mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <Building2 size={28} className="text-primary" />
+                  </div>
+                  <h2 className="text-xl font-bold">Acuerdo Canal Corporativo</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Antes de acceder al portal, leé y aceptá el acuerdo de confidencialidad y protección de datos
+                  </p>
+                </div>
+
+                <div className="bg-muted/30 rounded-2xl p-4 max-h-[45dvh] overflow-y-auto border border-border/60 mb-4 space-y-3">
+                  {canalCorporativo.map((section, i) => (
+                    <div key={i}>
+                      <h3 className="font-bold text-sm text-foreground mb-0.5">{section.title}</h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{section.body}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <label className="flex items-start gap-3 cursor-pointer mb-4">
+                  <input
+                    type="checkbox"
+                    checked={consentChecked}
+                    onChange={e => setConsentChecked(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-2 border-border accent-primary"
+                  />
+                  <span className="text-xs text-muted-foreground leading-relaxed">
+                    Acepto el <span className="font-semibold text-foreground">Acuerdo de Confidencialidad y Protección de Datos — Canal Corporativo</span> y reconozco el carácter de co-responsable del tratamiento de datos de mis empleados.
+                  </span>
+                </label>
+
+                <button
+                  onClick={() => {
+                    sessionStorage.setItem('corpConsent', 'true')
+                    setConsentPending(false)
+                    setConsentChecked(false)
+                  }}
+                  disabled={!consentChecked}
+                  className="w-full bg-primary text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                >
+                  <CheckCircle size={16} />
+                  Aceptar y acceder al portal
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

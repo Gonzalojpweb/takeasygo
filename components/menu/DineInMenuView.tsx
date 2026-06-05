@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet } from 'lucide-react'
+import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isAvailableNow } from '@/lib/availability'
+import { motion, AnimatePresence } from 'framer-motion'
+import { terminos, privacidad } from '@/lib/legal-content'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import { useClubMembership } from '@/hooks/useClubMembership'
 
@@ -78,6 +80,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const [dark, setDark] = useState(false)
   const [locale, setLocale] = useState<'es' | 'en'>('es')
+  const [activeLegal, setActiveLegal] = useState<'terminos' | 'privacidad' | null>(null)
   const [translating, setTranslating] = useState(false)
   const [menuData, setMenuData] = useState(menu)
   const [activeCategory, setActiveCategory] = useState<string>('')
@@ -634,8 +637,22 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             © <span suppressHydrationWarning>{new Date().getFullYear()}</span> {tenant.name}. {t.rights}
           </p>
           <div className="flex items-center gap-4">
-            <span className="text-xs" style={{ color: '#334155' }}>{t.terms}</span>
-            <span className="text-xs" style={{ color: '#334155' }}>{t.privacy}</span>
+            <button
+              type="button"
+              onClick={() => setActiveLegal('terminos')}
+              className="text-xs underline underline-offset-2 hover:opacity-80 transition-opacity"
+              style={{ color: '#334155' }}
+            >
+              {t.terms}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveLegal('privacidad')}
+              className="text-xs underline underline-offset-2 hover:opacity-80 transition-opacity"
+              style={{ color: '#334155' }}
+            >
+              {t.privacy}
+            </button>
             <Link href={`/${tenant.slug}/admin`} className="opacity-20 hover:opacity-60 transition-opacity" title="Acceso administrador">
               <Settings size={14} style={{ color: '#94a3b8' }} />
             </Link>
@@ -700,6 +717,48 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── Legal modal ────────────────────────────────────── */}
+      <AnimatePresence>
+        {activeLegal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+            onClick={() => setActiveLegal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 30 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+              className="w-full max-w-md bg-white rounded-3xl max-h-[80dvh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white border-b border-zinc-100 p-4 flex items-center justify-between rounded-t-3xl z-10">
+                <h2 className="font-bold text-base text-zinc-900">
+                  {activeLegal === 'terminos' ? 'Términos y Condiciones' : 'Política de Privacidad'}
+                </h2>
+                <button
+                  onClick={() => setActiveLegal(null)}
+                  className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                {(activeLegal === 'terminos' ? terminos : privacidad).map((section, i) => (
+                  <div key={i}>
+                    <h3 className="font-bold text-sm text-zinc-900 mb-1">{section.title}</h3>
+                    <p className="text-sm text-zinc-500 leading-relaxed">{section.body}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
