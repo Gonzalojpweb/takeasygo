@@ -46,7 +46,7 @@ export default function GroupSessionClient({
   const [session, setSession] = useState<SessionData | null>(null)
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false)
   const [polling, setPolling] = useState(false)
-  const [lastAddedItem, setLastAddedItem] = useState<string | null>(null)
+  const [lastAddData, setLastAddData] = useState<{ itemName: string; items: any[] } | null>(null)
 
   // Check if already verified (from sessionStorage)
   useEffect(() => {
@@ -536,16 +536,17 @@ export default function GroupSessionClient({
         mode="business"
         groupSessionToken={token}
         groupEmail={email}
-        onGroupItemAdded={(name) => setLastAddedItem(name)}
+        onGroupItemAdded={(name, updatedItems) => setLastAddData({ itemName: name, items: updatedItems })}
       />
 
       <GroupAddConfirmModal
-        open={!!lastAddedItem}
-        onOpenChange={(open) => { if (!open) setLastAddedItem(null) }}
-        itemName={lastAddedItem || ''}
-        myItemsCount={itemCount}
-        myTotal={myTotal}
+        open={!!lastAddData}
+        onOpenChange={(open) => { if (!open) setLastAddData(null) }}
+        itemName={lastAddData?.itemName || ''}
+        myItemsCount={lastAddData ? lastAddData.items.filter((i: any) => i.addedByEmail === email).length : 0}
+        myTotal={lastAddData ? lastAddData.items.filter((i: any) => i.addedByEmail === email).reduce((s: number, i: any) => s + i.subtotal, 0) : 0}
         sessionExpiresAt={session?.sessionExpiresAt}
+        onClose={() => setLastAddData(null)}
       />
     </div>
   )

@@ -30,7 +30,7 @@ interface Props {
   mode: 'takeaway' | 'dine-in' | 'business'
   groupSessionToken?: string
   groupEmail?: string
-  onGroupItemAdded?: (itemName: string) => void
+  onGroupItemAdded?: (itemName: string, updatedItems: any[]) => void
 }
 
 const VEGETARIAN_TAGS = ['vegetariano', 'vegano', 'vegan', 'vegetarian']
@@ -341,7 +341,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         return
       }
       toast.success(`${itemName} agregado al pedido grupal`)
-      onGroupItemAdded?.(itemName)
+      const data = await res.json()
+      onGroupItemAdded?.(itemName, data.session.items)
     } catch {
       toast.error('Error al agregar item al pedido grupal')
     }
