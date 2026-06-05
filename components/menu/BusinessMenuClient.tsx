@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Building2, Loader2, CheckCircle, Users, Plus, LogIn, BarChart3 } from 'lucide-react'
 import { toast } from 'sonner'
 import MenuPublicView from '@/components/menu/MenuPublicView'
@@ -20,6 +20,19 @@ export default function BusinessMenuClient({ tenant, location, menu }: Props) {
   const [groupToken, setGroupToken] = useState('')
   const [creatingSession, setCreatingSession] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
+
+  // Restore session from sessionStorage on mount
+  useEffect(() => {
+    const storedEmail = sessionStorage.getItem('businessEmail')
+    const storedRole = sessionStorage.getItem('businessRole')
+    const storedAccountId = sessionStorage.getItem('businessCorporateAccountId')
+
+    if (storedEmail && storedRole && storedAccountId) {
+      setEmail(storedEmail)
+      setRole(storedRole)
+      setStep('mode_select')
+    }
+  }, [])
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault()
@@ -75,8 +88,9 @@ export default function BusinessMenuClient({ tenant, location, menu }: Props) {
       const data = await res.json()
 
       if (res.status === 409) {
-        // Session already exists
-        toast.error('Ya hay una sesión activa')
+        // Session already exists — re-enter it
+        const sessionUrl = `/${tenant.slug}/menu/${location._id}/business/group/${data.token}`
+        window.location.href = sessionUrl
         return
       }
 
