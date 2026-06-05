@@ -32,6 +32,8 @@ interface SessionData {
   itemsByEmail: Record<string, any[]>
   total: number
   subtotal: number
+  totalEmployees: number
+  employeesWithOrders: number
 }
 
 export default function GroupSessionClient({
@@ -346,14 +348,38 @@ export default function GroupSessionClient({
               <p className="text-[10px] uppercase font-bold text-muted-foreground/50">Items</p>
             </div>
             <div className="p-3 rounded-xl bg-muted/30 border border-border/40 text-center">
-              <p className="text-2xl font-bold">{Object.keys(session?.itemsByEmail ?? {}).length}</p>
-              <p className="text-[10px] uppercase font-bold text-muted-foreground/50">Participantes</p>
+              <p className="text-2xl font-bold">
+                {session?.employeesWithOrders ?? 0}
+                <span className="text-base text-muted-foreground">/{session?.totalEmployees ?? 0}</span>
+              </p>
+              <p className="text-[10px] uppercase font-bold text-muted-foreground/50">Empleados</p>
             </div>
             <div className="p-3 rounded-xl bg-muted/30 border border-border/40 text-center">
               <p className="text-2xl font-bold">${(session?.total ?? 0).toLocaleString('es-AR')}</p>
               <p className="text-[10px] uppercase font-bold text-muted-foreground/50">Total</p>
             </div>
           </div>
+
+          {/* Progreso del grupo */}
+          {session && isActive && (
+            <div className="space-y-2">
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, Math.round((session.employeesWithOrders / session.totalEmployees) * 100))}%`,
+                    backgroundColor: getProgressColor(session.employeesWithOrders, session.totalEmployees),
+                  }}
+                />
+              </div>
+              <p
+                className="text-xs font-medium"
+                style={{ color: getProgressColor(session.employeesWithOrders, session.totalEmployees) }}
+              >
+                {getProgressText(session.employeesWithOrders, session.totalEmployees)}
+              </p>
+            </div>
+          )}
 
           {/* Items by employee */}
           {session?.itemsByEmail && Object.entries(session.itemsByEmail).map(([empEmail, empItems]) => (
@@ -523,6 +549,22 @@ export default function GroupSessionClient({
       />
     </div>
   )
+}
+
+function getProgressColor(completed: number, total: number): string {
+  const pct = total > 0 ? completed / total : 0
+  if (pct >= 1) return '#22c55e'
+  if (pct >= 0.9) return '#22c55e'
+  if (pct >= 0.5) return '#f59e0b'
+  return '#ef4444'
+}
+
+function getProgressText(completed: number, total: number): string {
+  const remaining = total - completed
+  if (completed === 0) return 'Nadie pidió aún'
+  if (remaining === 0) return '¡Todos pidieron! Ya podés confirmar.'
+  if (remaining === 1) return 'Falta 1 empleado'
+  return `Faltan ${remaining} empleados`
 }
 
 function findItemGlobalIndex(items: any[], targetItem: any): number {
