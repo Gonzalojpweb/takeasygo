@@ -8,6 +8,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import MenuPublicView from '@/components/menu/MenuPublicView'
+import GroupAddConfirmModal from '@/components/menu/GroupAddConfirmModal'
 
 interface Props {
   tenant: any
@@ -43,6 +44,7 @@ export default function GroupSessionClient({
   const [session, setSession] = useState<SessionData | null>(null)
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false)
   const [polling, setPolling] = useState(false)
+  const [lastAddedItem, setLastAddedItem] = useState<string | null>(null)
 
   // Check if already verified (from sessionStorage)
   useEffect(() => {
@@ -158,15 +160,8 @@ export default function GroupSessionClient({
         return
       }
 
-      const needsPayment = data.order?.status === 'awaiting_payment'
-
-      if (needsPayment) {
-        window.location.href = `/${tenant.slug}/order/${data.order.orderNumber}`
-      } else {
-        toast.success('Pedido grupal confirmado')
-        loadSession()
-        setPolling(false)
-      }
+      // Redirect to tracking page for full order lifecycle visibility
+      window.location.href = `/${tenant.slug}/tracking/${data.order.orderNumber}`
     } catch {
       toast.error('Error al confirmar')
     } finally {
@@ -515,6 +510,16 @@ export default function GroupSessionClient({
         mode="business"
         groupSessionToken={token}
         groupEmail={email}
+        onGroupItemAdded={(name) => setLastAddedItem(name)}
+      />
+
+      <GroupAddConfirmModal
+        open={!!lastAddedItem}
+        onOpenChange={(open) => { if (!open) setLastAddedItem(null) }}
+        itemName={lastAddedItem || ''}
+        myItemsCount={itemCount}
+        myTotal={myTotal}
+        sessionExpiresAt={session?.sessionExpiresAt}
       />
     </div>
   )
