@@ -50,6 +50,7 @@ interface Props {
   rewardAdvanceConsolidated?: boolean
   tenantName: string
   clubName: string
+  orderMode?: string
 }
 
 function formatCountdown(target: string): string {
@@ -94,6 +95,7 @@ export default function OrderTracker({
   pointsEarnedFromOrder = 0,
   tenantName,
   clubName,
+  orderMode,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [confirmedAt, setConfirmedAt]     = useState<string | null>(null)
@@ -429,12 +431,21 @@ export default function OrderTracker({
               ⭐ Calificá tu experiencia
             </a>
           )}
-          <a
-            href={`/${tenantSlug}/menu/${locationId}/takeaway`}
-            className="block w-full text-center py-4 rounded-2xl font-bold text-base"
-            style={{ backgroundColor: primaryColor, color: backgroundColor }}>
-            Volver al menú
-          </a>
+          {orderMode === 'business' ? (
+            <a
+              href={`/${tenantSlug}/business/corp`}
+              className="block w-full text-center py-4 rounded-2xl font-bold text-base"
+              style={{ backgroundColor: primaryColor, color: backgroundColor }}>
+              Volver al portal corporativo
+            </a>
+          ) : (
+            <a
+              href={`/${tenantSlug}/menu/${locationId}/takeaway`}
+              className="block w-full text-center py-4 rounded-2xl font-bold text-base"
+              style={{ backgroundColor: primaryColor, color: backgroundColor }}>
+              Volver al menú
+            </a>
+          )}
           {hasRewardItems && loyaltyData && (
             <a
               href={`/app/profile/club/${tenantSlug}`}
