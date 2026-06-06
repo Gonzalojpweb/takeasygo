@@ -325,6 +325,8 @@ async function handleSubmit(e: React.FormEvent) {
   if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
   setLoading(true)
 
+    let lastOrder: any = null
+
     try {
       const orderBody: Record<string, any> = {
         locationId,
@@ -370,6 +372,7 @@ async function handleSubmit(e: React.FormEvent) {
 
     if (!orderRes.ok) throw new Error('Error al crear el pedido')
     const { order } = await orderRes.json()
+    lastOrder = order
 
     sessionStorage.removeItem('cart')
 
@@ -396,7 +399,13 @@ async function handleSubmit(e: React.FormEvent) {
 
   } catch (err: any) {
     toast.error(err.message || 'Error al procesar el pedido')
-    feedback.show({ variant: 'checkout_error', metadata: { error: err.message } })
+    feedback.show({
+      variant: 'checkout_error',
+      metadata: { error: err.message },
+      orderId: lastOrder?._id,
+      locationId,
+      clientHash: localStorage.getItem('tgo-client-token') ?? undefined,
+    })
     setLoading(false)
   }
 }
