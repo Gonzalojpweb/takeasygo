@@ -20,6 +20,7 @@ interface PromoShape {
   takeawayWarningText?: string
   loadingText?: string
   checkoutDiscountLabel?: string
+  sourceTriggers?: string[]
 }
 
 export async function GET(
@@ -32,11 +33,6 @@ export async function GET(
     const source = searchParams.get('source') || ''
     const promoSlug = searchParams.get('promo') || ''
 
-    // Solo mostrar promo si viene de QR (source contiene 'qr')
-    if (!source.toLowerCase().includes('qr')) {
-      return NextResponse.json({ show: false, reason: 'not_qr_source' })
-    }
-
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug }).select('qrPromo loyaltyMessaging _id name')
@@ -44,20 +40,48 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
+    // ── Resolución multicapa de la promo activa ─────────────────────
+    // Orden: 1) slug exacto, 2) match por source, 3) fallback última habilitada, 4) legacy
     let qrPromoConfig: PromoShape | null = null
+    let matchedBy: string | null = null
 
     if (promoSlug) {
-      const found = await QrPromo.findOne({ tenantId: tenant._id, slug: promoSlug.toLowerCase().trim() }).lean()
-      if (found) qrPromoConfig = found
-    } else {
+      const found = await QrPromo.findOne({
+        tenantId: tenant._id,
+        slug: promoSlug.toLowerCase().trim(),
+        isEnabled: true,
+      }).lean()
+      if (found) {
+        qrPromoConfig = found
+        matchedBy = 'slug'
+      }
+    }
+
+    if (!qrPromoConfig && source) {
+      const found = await QrPromo.findOne({
+        tenantId: tenant._id,
+        sourceTriggers: source,
+        isEnabled: true,
+      }).lean()
+      if (found) {
+        qrPromoConfig = found
+        matchedBy = 'source'
+      }
+    }
+
+    if (!qrPromoConfig) {
       const firstEnabled = await QrPromo.findOne({ tenantId: tenant._id, isEnabled: true })
         .sort({ createdAt: -1 })
         .lean()
-      if (firstEnabled) qrPromoConfig = firstEnabled
+      if (firstEnabled) {
+        qrPromoConfig = firstEnabled
+        matchedBy = 'default'
+      }
     }
 
     if (!qrPromoConfig) {
       qrPromoConfig = tenant.qrPromo
+      if (qrPromoConfig?.isEnabled) matchedBy = 'legacy'
     }
 
     if (!qrPromoConfig || !qrPromoConfig.isEnabled) {

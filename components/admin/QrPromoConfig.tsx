@@ -28,6 +28,7 @@ interface QrPromoItem {
   takeawayWarningText: string
   loadingText: string
   checkoutDiscountLabel: string
+  sourceTriggers: string[]
 }
 
 interface LocationOption {
@@ -53,6 +54,7 @@ const DEFAULT_PROMO: Omit<QrPromoItem, '_id'> = {
   takeawayWarningText: 'No aplicable para consumir en el local',
   loadingText: 'Procesando...',
   checkoutDiscountLabel: 'Descuento QR',
+  sourceTriggers: ['qr'],
 }
 
 export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
@@ -291,16 +293,34 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
                     <option key={loc._id} value={loc._id}>{loc.name}{loc.address ? ` — ${loc.address}` : ''}</option>
                   ))}
                 </select>
-                <span className="text-xs text-gray-400 font-mono truncate flex-1">
-                  {getPromoUrl(promo.slug)}
-                </span>
-                <button onClick={() => {
-                  const locId = selectedLoc[promo.slug] || locations[0]?._id
-                  if (!locId) return
-                  copyToClipboard(getPromoUrl(promo.slug, locId))
-                }} className="text-[#F74211] hover:text-[#F74211]/70 font-medium text-xs whitespace-nowrap">
-                  Copiar URL
-                </button>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider w-16 shrink-0">QR:</span>
+                  <span className="text-xs text-gray-400 font-mono truncate flex-1" title={getPromoUrl(promo.slug)}>
+                    {getPromoUrl(promo.slug, selectedLoc[promo.slug] || locations[0]?._id)}
+                  </span>
+                  <button onClick={() => {
+                    const locId = selectedLoc[promo.slug] || locations[0]?._id
+                    if (!locId) return
+                    copyToClipboard(getPromoUrl(promo.slug, locId))
+                  }} className="text-[#F74211] hover:text-[#F74211]/70 font-medium text-[10px] whitespace-nowrap">
+                    Copiar
+                  </button>
+                </div>
+                {promo.sourceTriggers && promo.sourceTriggers.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider w-16 shrink-0">Source:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {promo.sourceTriggers.map(st => (
+                        <span key={st} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100">
+                          {st}
+                        </span>
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-gray-400">coinciden con <code className="bg-gray-100 px-1 rounded">?source=...</code></span>
+                  </div>
+                )}
               </div>
               {locations.length === 0 && (
                 <p className="text-[10px] text-amber-600">Creá al menos una sucursal primero para generar la URL del QR.</p>
@@ -346,7 +366,7 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
             </button>
           </div>
           <p className="text-xs text-gray-500">
-            Elegí un identificador único para esta promo. Este slug va en la URL del QR.
+            Elegí un identificador único para esta promo. El slug identifica la promo; los sources definen qué <code className="bg-gray-100 px-1 rounded">?source=...</code> la activan.
           </p>
           <div className="flex items-center gap-2">
             {locations.length > 0 ? (
@@ -375,6 +395,11 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
             />
           </div>
+          {newSlug && (
+            <p className="text-xs text-gray-400">
+              También podés usar solo <code className="bg-gray-100 px-1 rounded">?source=instagram</code> y configurar <strong>"instagram"</strong> en los Sources de esta promo.
+            </p>
+          )}
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => { setCreating(false); setNewSlug(''); setError('') }}>
               Cancelar
@@ -401,10 +426,11 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
           <div className="text-sm text-blue-800 space-y-1">
             <p className="font-medium">¿Cómo funciona?</p>
             <ul className="list-disc list-inside space-y-1 text-blue-700">
-              <li>Cada QR físico apunta a una URL distinta con <code className="bg-blue-100 px-1 rounded">?source=qr&amp;promo=slug</code></li>
-              <li>Creá una promo por cada canal (takeaway, mesa, puerta, flyer, ventana, etc.)</li>
-              <li>Cada promo tiene sus propios textos, descuento y tipo completamente personalizables</li>
-              <li>Copiá la URL de cada promo y genera un QR con cualquier generador (ej: qr-code-generator.com)</li>
+              <li>Cada promo tiene <strong>Sources que la disparan</strong>. Cuando un cliente llega con <code className="bg-blue-100 px-1 rounded">?source=...</code> coincidente, se activa esa promo.</li>
+              <li><strong>QR físico:</strong> Apuntá el QR a <code className="bg-blue-100 px-1 rounded">?source=qr&amp;promo=slug</code> — siempre muestra la promo de ese slug. También podés usar <code className="bg-blue-100 px-1 rounded">?source=qr-calle</code> y configurar ese source en la promo deseada.</li>
+              <li><strong>Instagram / redes:</strong> Usá <code className="bg-blue-100 px-1 rounded">?source=instagram</code> en el link de tu bio. Configurá el source "instagram" en la promo que quieras mostrar.</li>
+              <li><strong>Múltiples promos activas:</strong> Cada QR puede tener su propio contenido (descuento, info, registro al club). Se editan desde este panel sin cambiar la URL ni reimprimir el QR.</li>
+              <li><strong>Sin source específico:</strong> Se muestra la última promo habilitada como predeterminada.</li>
             </ul>
           </div>
         </div>
@@ -524,6 +550,52 @@ function PromoEditor({ data, tenantSlug, onChange, onSave, saving }: PromoEditor
               <p className="text-xs text-muted-foreground">{option.desc}</p>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Fuentes que disparan esta promo */}
+      <div>
+        <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
+          <QrCode size={16} className="text-[#F74211]" />
+          Sources que disparan esta promo
+        </label>
+        <input
+          type="text"
+          value={data.sourceTriggers?.join(', ') || 'qr'}
+          onChange={(e) => {
+            const raw = e.target.value
+            const triggers = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+            onChange({ sourceTriggers: triggers })
+          }}
+          placeholder="qr, instagram, facebook, qr-calle, qr-caja"
+          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30"
+        />
+        <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+          Cuando un cliente llegue con <code className="bg-gray-100 px-1 rounded">?source=...</code> coincidente, se activará esta promo.
+          Si ningún source coincide, se mostrará la última promo habilitada como predeterminada.
+        </p>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {['qr', 'instagram', 'facebook', 'whatsapp', 'google', 'qr-calle', 'qr-mesa', 'qr-caja'].map(sug => {
+            const active = data.sourceTriggers?.includes(sug)
+            return (
+              <button
+                key={sug}
+                type="button"
+                onClick={() => {
+                  const current = data.sourceTriggers || []
+                  const next = active ? current.filter(s => s !== sug) : [...current, sug]
+                  onChange({ sourceTriggers: next })
+                }}
+                className={`text-[10px] font-mono px-2 py-1 rounded-full border transition-all ${
+                  active
+                    ? 'bg-[#F74211]/10 border-[#F74211]/30 text-[#F74211] font-bold'
+                    : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300'
+                }`}
+              >
+                {active ? '✓ ' : ''}{sug}
+              </button>
+            )
+          })}
         </div>
       </div>
 

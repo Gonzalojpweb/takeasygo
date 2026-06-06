@@ -21,6 +21,7 @@ import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 import { validateCheckoutRewards } from '@/lib/loyalty'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
+import QrPromo from '@/models/QrPromo'
 import { sendWhatsApp } from '@/lib/whatsapp'
 
 /**
@@ -124,6 +125,8 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    // Resolver la QrPromo activa para calcular el descuento correcto
+    let activeQrPromo: any = null
     const rawBody = await request.json()
     const parsed = createOrderSchema.safeParse(rawBody)
     if (!parsed.success) {
@@ -134,6 +137,22 @@ export async function POST(
       )
     }
     const body = parsed.data
+
+    // Resolver QrPromo activa: coincide por source o cae en la última habilitada
+    if (body.qrPromoApplied && !activeQrPromo) {
+      if (body.source) {
+        activeQrPromo = await QrPromo.findOne({
+          tenantId: tenant._id,
+          sourceTriggers: body.source,
+          isEnabled: true,
+        }).lean()
+      }
+      if (!activeQrPromo) {
+        activeQrPromo = await QrPromo.findOne({ tenantId: tenant._id, isEnabled: true })
+          .sort({ createdAt: -1 })
+          .lean()
+      }
+    }
 
     const joinClub = body.joinClub === true
 
@@ -335,16 +354,20 @@ export async function POST(
           }
         }
 
-        if (validationGroups.length > 0 && Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
-          try {
-            const result = resolveCustomizations(clientItem.customizations, validationGroups)
-            resolvedCustomizations.push(...result.resolved)
-            extraPrice += result.extraPrice
-          } catch (err: any) {
-            if (err.name === 'ValidationError') {
-              return NextResponse.json({ error: err.message }, { status: 400 })
+        if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
+          if (validationGroups.length > 0) {
+            try {
+              const result = resolveCustomizations(clientItem.customizations, validationGroups)
+              resolvedCustomizations.push(...result.resolved)
+              extraPrice += result.extraPrice
+            } catch (err: any) {
+              if (err.name === 'ValidationError') {
+                return NextResponse.json({ error: err.message }, { status: 400 })
+              }
+              throw err
             }
-            throw err
+          } else {
+            resolvedCustomizations.push(...clientItem.customizations)
           }
         }
 
@@ -383,6 +406,7 @@ export async function POST(
           itemType: 'promotion',
           categoryName: clientAny._itemCategoryName || '',
           name: promoItemName,
+          description: (promotion as any).description || '',
           basePrice: price,
           extraPrice,
           price: finalPrice,
@@ -499,6 +523,7 @@ export async function POST(
           itemType: 'menuItem',
           categoryName: menuItem.categoryName || '',
           name: menuItem.name,
+          description: menuItem.description || '',
           basePrice,
           extraPrice,
           price,
@@ -517,14 +542,14 @@ export async function POST(
     let discountAmount = 0
     let qrPromoApplied = false
 
-    if (body.qrPromoApplied && tenant.qrPromo?.isEnabled && (tenant.qrPromo.discountPercentage || 0) > 0) {
+    if (activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
       // El descuento marketing QR nunca aplica a promociones del menú,
       // ni a items que ya tienen descuento de categoría.
       // Esto previene acumulación de descuentos que generaría pérdidas para el restaurante.
       const qrEligibleSubtotal = resolvedItems
         .filter(item => item.itemType !== 'promotion' && !item.hasCategoryDiscount)
         .reduce((sum, item) => sum + item.subtotal, 0)
-      discountAmount = Math.round(qrEligibleSubtotal * (tenant.qrPromo.discountPercentage / 100))
+      discountAmount = Math.round(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100))
       qrPromoApplied = true
     }
 
@@ -609,6 +634,7 @@ export async function POST(
           itemType: 'reward',
           categoryName: '',
           name: storeItem.name,
+          description: (storeItem as any).description || '',
           basePrice: 0,
           extraPrice: 0,
           price: 0,

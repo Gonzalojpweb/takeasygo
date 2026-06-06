@@ -622,6 +622,46 @@ const SECTIONS: Section[] = [
       'Los datos comienzan a registrarse desde el momento en que activás la funcionalidad — no hay datos históricos previos.',
     ],
   },
+  {
+    id: 'marketing-qr',
+    icon: Gift,
+    label: 'Marketing QR',
+    color: 'text-rose-600',
+    bgColor: 'bg-rose-500/10',
+    plan: 'inicial',
+    roles: ['admin', 'gerente'],
+    objective: 'Crear campañas promocionales activadas por código QR o por fuente de tráfico (Instagram, Facebook, etc.), completamente editables sin reimprimir.',
+    description: 'El Marketing QR te permite ofrecer descuentos, mensajes informativos o captación para el Club de Fidelización a través de códigos QR físicos o enlaces compartidos en redes sociales. Cada QR impreso tiene su propia URL fija. El contenido se edita desde el panel y se actualiza al instante, sin necesidad de cambiar el QR ni reimprimirlo.',
+    features: [
+      { title: 'Múltiples campañas activas simultáneas', desc: 'Cada QR puede mostrar contenido diferente: descuento en takeaway, info sobre la carta del día o registro al Club de Fidelización. Todas las campañas conviven al mismo tiempo.' },
+      { title: 'Sources: Instagram, Facebook, QR físico, etc.', desc: 'Cada promo tiene "Sources que la disparan". Configurás qué valores de ?source= activan cada campaña. Ej: source=instagram para el link de tu bio, source=qr-calle para el QR de la vereda, source=qr-caja para el QR del mostrador.' },
+      { title: 'Tipos de campaña: Descuento, Informativo o Captación', desc: 'Descuento: ofrece un % OFF en takeaway. Informativo: muestra un mensaje sin descuento. Captación: formulario de registro para sumar miembros al Club de Fidelización.' },
+      { title: 'Frecuencia de aparición', desc: 'Elegí cuándo se muestra la promo: Una vez (por dispositivo), Diario (una vez por día) o Siempre (cada visita).' },
+      { title: 'Contenido 100% personalizable', desc: 'Título, subtítulo, texto del botón, términos, badge, colores, imagen de banner — todo se edita desde el panel y se actualiza sin reimprimir.' },
+      { title: 'Edición sin reimprimir', desc: 'El QR físico tiene una URL fija. Cambiá el descuento, los textos o el tipo de campaña desde el admin y los cambios se ven al instante. No hace falta volver a generar ni imprimir el QR.' },
+      { title: 'Analytics de vistas', desc: 'Cada vez que un cliente ve la promo, se registra la visita con la fuente, IP y fecha. Sabrás cuántas personas vieron cada campaña.' },
+      { title: 'Estilos globales configurables por Superadmin', desc: 'El color primario, color del botón, fondo, badge color y radio de bordes se configuran globalmente desde el superadmin para mantener consistencia de marca en todos los tenants.' },
+    ],
+    steps: [
+      { action: 'Entrá a Marketing QR en el panel', detail: 'Está en el menú principal de administración. Vas a ver la lista de promociones existentes (si hay alguna) y el botón "Nueva promo QR".' },
+      { action: 'Creá una nueva promo', detail: 'Elegí un slug identificador (ej: "instagram", "calle", "caja", "takeaway"). El slug identifica la promo internamente.' },
+      { action: 'Configurá los Sources que la disparan', detail: 'En el editor, escribí los sources separados por coma (ej: "instagram" o "qr, instagram"). También podés hacer clic en los botones de sugerencia (qr, instagram, facebook, etc.). El link debe tener ?source= coincidente para que la promo se muestre.' },
+      { action: 'Personalizá el contenido', detail: 'Elegí el tipo (descuento, info o captación), ajustá el %, la frecuencia y editá todos los textos. Se ve una vista previa en vivo para que sepas exactamente cómo queda.' },
+      { action: 'Activá la promo', detail: 'Usá el toggle para habilitarla. Solo las promos activas se muestran a los clientes.' },
+      { action: 'Generá el QR o compartí el link', detail: 'Copiá la URL que genera el panel (ej: /bryant-coffee/menu/{locationId}?source=qr&promo=instagram). Usá un generador de QR online para crear el código físico, o compartí el link directamente en Instagram/Facebook/WhatsApp.' },
+      { action: 'Editá sin reimprimir', detail: '¿Cambió el descuento? ¿Querés modificar el texto? Entrá al panel, editá la promo y guardá. El QR impreso sigue funcionando con el nuevo contenido.' },
+    ],
+    tips: [
+      'Usá source=qr&promo=slug en los QRs físicos. El parámetro promo garantiza que se muestre ESA promo específica aunque haya otras activas.',
+      'Para Instagram, usá ?source=instagram en el link de tu bio. Configurá "instagram" como sourceTrigger en la promo que querés mostrar en redes.',
+      'Si no hay un source específico configurado, se muestra la última promo habilitada como predeterminada. Ideal para tener una campaña general siempre activa.',
+      'La frecuencia "Una vez" previene que el mismo cliente vea la promo repetidamente en el mismo dispositivo — evita la fatiga promocional.',
+      'Los descuentos solo aplican a takeaway (no a dine-in). El sistema lo verifica en la orden y además muestra un aviso en el banner.',
+      'Podés tener una promo informativa en el QR de la entrada y una de descuento en el QR de takeaway, ambas activas al mismo tiempo — cada QR muestra su propio contenido.',
+      'Las vistas se registran solo cuando el cliente cierra el banner. Si nunca interactuó, no cuenta como vista.',
+      'El descuento se recalcula en el servidor al crear la orden para evitar fraudes. El porcentaje que ves en el admin es el que se aplica realmente.',
+    ],
+  },
 ]
 
 // ── Visibility per plan ────────────────────────────────────────────────────────
@@ -652,6 +692,7 @@ const VISIBILITY: Record<string, Record<Plan, SectionVisibility>> = {
   'wallet-digital':{ anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full' },
   tienda:  { anfitrion: 'hidden', trial: 'hidden', try: 'hook',  buy: 'full', full: 'full' },
   trafico: { anfitrion: 'hidden', trial: 'hook',   try: 'hook',  buy: 'full', full: 'full' },
+  'marketing-qr': { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full' },
 }
 
 function getVisibility(plan: Plan, sectionId: string): SectionVisibility {
