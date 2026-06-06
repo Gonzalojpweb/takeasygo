@@ -26,10 +26,15 @@ export async function GET(
     const start30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     const start7  = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000)
 
+    const ICO_FILTER = {
+      orderMode: 'takeaway',
+      orderTiming: { $in: ['immediate', null] },
+    }
+
     const [cancData, tppData, onTimeNew, onTimeFallback, actData7, actData30] = await Promise.all([
       // Tasa de cancelación (30 días)
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: start30 } } },
+        { $match: { tenantId, ...ICO_FILTER, createdAt: { $gte: start30 } } },
         { $group: {
           _id: null,
           total: { $sum: 1 },
@@ -39,7 +44,7 @@ export async function GET(
       // TPP — media y desvío estándar poblacional (30 días)
       Order.aggregate([
         { $match: {
-          tenantId,
+          tenantId, ...ICO_FILTER,
           createdAt: { $gte: start30 },
           'statusTimestamps.confirmedAt': { $ne: null },
           'statusTimestamps.readyAt': { $ne: null },
@@ -55,7 +60,7 @@ export async function GET(
       // % en tiempo — NUEVO: usa estimatedReadyAt cuando está presente (pedidos post-deploy)
       Order.aggregate([
         { $match: {
-          tenantId,
+          tenantId, ...ICO_FILTER,
           createdAt: { $gte: start30 },
           'statusTimestamps.readyAt': { $ne: null },
           'statusTimestamps.estimatedReadyAt': { $ne: null },
@@ -68,7 +73,7 @@ export async function GET(
       // % en tiempo — FALLBACK: pedidos históricos sin estimatedReadyAt (fórmula anterior con $lookup)
       Order.aggregate([
         { $match: {
-          tenantId,
+          tenantId, ...ICO_FILTER,
           createdAt: { $gte: start30 },
           'statusTimestamps.readyAt': { $ne: null },
           'statusTimestamps.estimatedReadyAt': null,
@@ -89,9 +94,9 @@ export async function GET(
         { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } }
       ]),
       // Actividad últimos 7 días
-      Order.countDocuments({ tenantId, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
+      Order.countDocuments({ tenantId, ...ICO_FILTER, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
       // Actividad últimos 30 días
-      Order.countDocuments({ tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
+      Order.countDocuments({ tenantId, ...ICO_FILTER, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
     ])
 
     const cRaw = cancData[0]
@@ -155,7 +160,7 @@ export async function GET(
     // ── Componente 5: Estabilidad horaria (peso 0.10) ──────────────────────
     // Proxy: % de días con actividad en los últimos 30 días (20/30 = score 1)
     const activeDaysData = await Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, ...ICO_FILTER, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
       { $count: 'days' }
     ])

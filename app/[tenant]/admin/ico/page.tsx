@@ -195,9 +195,14 @@ export default async function ICOPage() {
   const start7   = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000)
   const start90  = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
 
+  const ICO_FILTER = {
+    orderMode: 'takeaway',
+    orderTiming: { $in: ['immediate', null] },
+  }
+
   const [cancData, tppData, onTimeData, actData7, actData30, activeDaysData, recompraData, recompraBreakdownData, eventIntegrityData, capacityRawData] = await Promise.all([
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: start30 } } },
+      { $match: { tenantId, ...ICO_FILTER, createdAt: { $gte: start30 } } },
       { $group: {
         _id: null,
         total: { $sum: 1 },
@@ -206,7 +211,7 @@ export default async function ICOPage() {
     ]),
     Order.aggregate([
       { $match: {
-        tenantId,
+        tenantId, ...ICO_FILTER,
         createdAt: { $gte: start30 },
         'statusTimestamps.confirmedAt': { $ne: null },
         'statusTimestamps.readyAt': { $ne: null },
@@ -221,7 +226,7 @@ export default async function ICOPage() {
     ]),
     Order.aggregate([
       { $match: {
-        tenantId,
+        tenantId, ...ICO_FILTER,
         createdAt: { $gte: start30 },
         'statusTimestamps.readyAt': { $ne: null },
       }},
@@ -244,10 +249,10 @@ export default async function ICOPage() {
         onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } }
       }}
     ]),
-    Order.countDocuments({ tenantId, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
-    Order.countDocuments({ tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
+    Order.countDocuments({ tenantId, ...ICO_FILTER, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
+    Order.countDocuments({ tenantId, ...ICO_FILTER, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, ...ICO_FILTER, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
       { $count: 'days' }
     ]),
@@ -275,7 +280,7 @@ export default async function ICOPage() {
     // Event Integrity: false_ready_events (deliveredAt - readyAt > 10 min = pedido no estaba listo)
     Order.aggregate([
       { $match: {
-        tenantId,
+        tenantId, ...ICO_FILTER,
         createdAt: { $gte: start30 },
         'statusTimestamps.readyAt': { $ne: null },
         'statusTimestamps.deliveredAt': { $ne: null },
@@ -292,7 +297,7 @@ export default async function ICOPage() {
     ]),
     // Capacidad operativa: distribución horaria de pedidos (últimos 30 días)
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }},
+      { $match: { tenantId, ...ICO_FILTER, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }},
       { $group: {
         _id: {
           date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
