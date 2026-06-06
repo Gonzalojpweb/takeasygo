@@ -13,6 +13,8 @@ export interface FeedbackPayload {
   variant: FeedbackVariant
   metadata?: Record<string, any>
   clientHash?: string
+  orderId?: string
+  locationId?: string
 }
 
 interface FeedbackState {
@@ -20,6 +22,8 @@ interface FeedbackState {
   variant: FeedbackVariant
   metadata?: Record<string, any>
   clientHash?: string
+  orderId?: string
+  locationId?: string
 }
 
 interface FeedbackContextValue {

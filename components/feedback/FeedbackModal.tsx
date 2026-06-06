@@ -30,7 +30,7 @@ function CheckoutSuccess({ tenantSlug }: { tenantSlug: string }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [comment, setComment] = useState('')
   const [done, setDone] = useState(false)
-  const { close } = useFeedback()
+  const { close, state } = useFeedback()
 
   async function submit() {
     if (!selected) return close()
@@ -42,6 +42,8 @@ function CheckoutSuccess({ tenantSlug }: { tenantSlug: string }) {
           event: 'checkout_success',
           satisfaction: selected,
           comment: comment || undefined,
+          orderId: state.orderId,
+          locationId: state.locationId,
         }),
       })
     } catch { /* ignore */ }
@@ -111,7 +113,7 @@ function CheckoutError({ tenantSlug }: { tenantSlug: string }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [otherText, setOtherText] = useState('')
   const [done, setDone] = useState(false)
-  const { close } = useFeedback()
+  const { close, state } = useFeedback()
 
   const options = [
     { key: 'pago_rechazado', label: 'No me dejó pagar' },
@@ -131,6 +133,8 @@ function CheckoutError({ tenantSlug }: { tenantSlug: string }) {
           event: 'checkout_error',
           errorType: selected,
           errorDetail: selected === 'otro' ? otherText || undefined : undefined,
+          orderId: state.orderId,
+          locationId: state.locationId,
         }),
       })
     } catch { /* ignore */ }
@@ -194,7 +198,7 @@ function CheckoutError({ tenantSlug }: { tenantSlug: string }) {
 function ClubRegistered({ tenantSlug }: { tenantSlug: string }) {
   const [selected, setSelected] = useState<boolean | null>(null)
   const [done, setDone] = useState(false)
-  const { close } = useFeedback()
+  const { close, state } = useFeedback()
 
   async function submit(val: boolean) {
     setSelected(val)
@@ -205,6 +209,8 @@ function ClubRegistered({ tenantSlug }: { tenantSlug: string }) {
         body: JSON.stringify({
           event: 'club_registered',
           understoodPoints: val,
+          orderId: state.orderId,
+          locationId: state.locationId,
         }),
       })
     } catch { /* ignore */ }
