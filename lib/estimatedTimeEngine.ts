@@ -89,12 +89,14 @@ export async function calculateOptimalEstimatedTime(
 
   // ── PASO 1: Obtener datos estadísticos reales (anti-gaming: no se pueden falsificar) ──
   const [tppStats, latestICO] = await Promise.all([
-    // μ_TPP y σ_TPP desde timestamps reales (confirmedAt → readyAt)
+    // μ_TPP y σ_TPP desde timestamps reales (confirmedAt → readyAt) — solo takeaway inmediato
     Order.aggregate([
       { 
         $match: {
           locationId: locationObjectId,
           tenantId: tenantObjectId,
+          orderMode: 'takeaway',
+          orderTiming: { $in: ['immediate', null] },
           createdAt: { $gte: start30 },
           'statusTimestamps.confirmedAt': { $ne: null },
           'statusTimestamps.readyAt': { $ne: null },
