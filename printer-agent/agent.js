@@ -39,6 +39,23 @@ const ESC_POS = {
     TEXT_SIZE_LARGE: Buffer.from([0x1d, 0x21, 0x11]),
 };
 
+const SANITIZE_MAP = {
+    'á':'a','é':'e','í':'i','ó':'o','ú':'u',
+    'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U',
+    'ñ':'n','Ñ':'N','ü':'u','Ü':'U',
+    '¿':'','¡':'','€':'EUR','º':'o','ª':'a'
+};
+
+function sanitizeText(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/[áéíóúÁÉÍÓÚñÑüÜ¿¡€ºª]/g, c => SANITIZE_MAP[c] || c);
+}
+
+function buf(input) {
+    if (typeof input === 'string') return Buffer.from(sanitizeText(input));
+    return Buffer.from(input);
+}
+
 // --- LOGICA DE TRASMISIÓN (TCP RAW) ---
 async function sendToPrinter(ip, port, dataBuffer) {
     return new Promise((resolve, reject) => {
@@ -107,7 +124,7 @@ function printCustomizations(customizations, chunks, indent) {
             : [];
         if (sels.length > 0) {
             const prefix = group ? group + ': ' : '';
-            chunks.push(Buffer.from(`${indent}> ${prefix}${sels.join(', ')}\n`));
+            chunks.push(buf(`${indent}> ${prefix}${sels.join(', ')}\n`));
         }
         if (Array.isArray(c.selectedOptions)) {
             c.selectedOptions.forEach(opt => {
@@ -146,28 +163,28 @@ function generateTicket(order, role, columns = 32) {
 
     if (role === 'cashier') {
         chunks.push(ESC_POS.TEXT_SIZE_LARGE, ESC_POS.BOLD_ON);
-        chunks.push(Buffer.from(`${(order.location?.locationName?.toUpperCase()) || 'MI NEGOCIO'}\n`));
+        chunks.push(buf(`${(order.location?.locationName?.toUpperCase()) || 'MI NEGOCIO'}\n`));
         chunks.push(ESC_POS.TEXT_SIZE_NORMAL, ESC_POS.BOLD_OFF);
-        chunks.push(Buffer.from(`TICKET DE PAGO\n`));
+        chunks.push(buf(`TICKET DE PAGO\n`));
     } else {
         chunks.push(ESC_POS.TEXT_SIZE_LARGE, ESC_POS.BOLD_ON);
-        chunks.push(Buffer.from(`ORDEN: ${order.orderNumber}\n`));
+        chunks.push(buf(`ORDEN: ${order.orderNumber}\n`));
         chunks.push(ESC_POS.TEXT_SIZE_NORMAL, ESC_POS.BOLD_OFF);
 
         let sectorName = "COCINA";
         if (role === 'bar') sectorName = "BARRA / BEBIDAS";
 
-        chunks.push(Buffer.from(`*** ${sectorName} ***\n`));
+        chunks.push(buf(`*** ${sectorName} ***\n`));
     }
 
-    chunks.push(Buffer.from(`${lineStr}\n`));
+    chunks.push(buf(`${lineStr}\n`));
     chunks.push(ESC_POS.ALIGN_LEFT);
-    chunks.push(Buffer.from(`Fecha: ${new Date(order.createdAt).toLocaleString()}\n`));
+    chunks.push(buf(`Fecha: ${new Date(order.createdAt).toLocaleString()}\n`));
 
     // Tipo de entrega
     if (order.orderMode) {
         const modeLabel = order.orderMode === 'takeaway' ? 'PARA LLEVAR' : 'EN LOCAL';
-        chunks.push(Buffer.from(`Tipo: ${modeLabel}\n`));
+        chunks.push(buf(`Tipo: ${modeLabel}\n`));
     }
 
     // Hora programada (destacado en negrita)
@@ -176,49 +193,55 @@ function generateTicket(order, role, columns = 32) {
         const schedTime = schedDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
         const schedDateStr = schedDate.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
         chunks.push(ESC_POS.BOLD_ON);
-        chunks.push(Buffer.from(`PROGRAMADO: ${schedDateStr} ${schedTime} hs\n`));
+        chunks.push(buf(`PROGRAMADO: ${schedDateStr} ${schedTime} hs\n`));
         chunks.push(ESC_POS.BOLD_OFF);
     }
 
     // Info del cliente
     chunks.push(ESC_POS.BOLD_ON);
-    chunks.push(Buffer.from(`Cliente: ${customer.name || ''}\n`));
+    chunks.push(buf(`Cliente: ${customer.name || ''}\n`));
     if (customer.phone) {
-        chunks.push(Buffer.from(`Tel: ${customer.phone}\n`));
+        chunks.push(buf(`Tel: ${customer.phone}\n`));
     }
     chunks.push(ESC_POS.BOLD_OFF);
 
     // Observaciones del cliente (prominente)
     if (order.notes) {
-        chunks.push(Buffer.from(`${lineStr}\n`));
+        chunks.push(buf(`${lineStr}\n`));
         chunks.push(ESC_POS.BOLD_ON);
-        chunks.push(Buffer.from(`OBS: ${order.notes}\n`));
+        chunks.push(buf(`OBS: ${order.notes}\n`));
         chunks.push(ESC_POS.BOLD_OFF);
     }
 
-    chunks.push(Buffer.from(`${lineStr}\n`));
+    chunks.push(buf(`${lineStr}\n`));
 
+    let lastCategory = null;
     itemsToPrint.forEach(item => {
         // Badge de tipo de item
         if (item.itemType === 'promotion') {
-            chunks.push(Buffer.from(`[PROMOCIÓN]\n`));
+            chunks.push(buf(`[PROMOCIÓN]\n`));
         } else if (item.itemType === 'reward') {
-            chunks.push(Buffer.from(`[RECOMPENSA]\n`));
+            chunks.push(buf(`[RECOMPENSA]\n`));
         }
 
         const line = `${item.quantity}x ${item.name}`;
 
-        // Nombre de categoría (solo para items de menú)
-        if (item.categoryName && item.itemType !== 'promotion' && item.itemType !== 'reward') {
-            chunks.push(Buffer.from(`[${item.categoryName}]\n`));
+        // Nombre de categoría (solo cuando cambia)
+        const currentCategory = (item.categoryName && item.itemType !== 'promotion' && item.itemType !== 'reward')
+            ? item.categoryName : null;
+        if (currentCategory && currentCategory !== lastCategory) {
+            chunks.push(buf(`[${currentCategory}]\n`));
         }
+        lastCategory = currentCategory;
 
         if (role === 'cashier') {
             const price = `$${money(item.price * item.quantity)}`;
             const dots = '.'.repeat(Math.max(2, columns - line.length - price.length));
-            chunks.push(Buffer.from(`${line}${dots}${price}\n`));
+            chunks.push(buf(`${line}${dots}${price}\n`));
         } else {
-            chunks.push(Buffer.from(`${line}\n`));
+            chunks.push(ESC_POS.BOLD_ON);
+            chunks.push(buf(`${line}\n`));
+            chunks.push(ESC_POS.BOLD_OFF);
         }
 
         // Mostrar descripción del ítem si existe
@@ -226,26 +249,26 @@ function generateTicket(order, role, columns = 32) {
             const desc = item.description.length > columns
                 ? item.description.substring(0, columns - 3) + '...'
                 : item.description
-            chunks.push(Buffer.from(`  ${desc}\n`));
+            chunks.push(buf(`  ${desc}\n`));
         }
 
         // Mostrar variante seleccionada
         if (item.selectedVariant) {
-            chunks.push(Buffer.from(`  > Variante: ${item.selectedVariant.name}\n`));
+            chunks.push(buf(`  > Variante: ${item.selectedVariant.name}\n`));
         }
 
         // Mostrar customizaciones (incluye subGroups recursivamente)
         printCustomizations(item.customizations, chunks, '  ');
-        chunks.push(Buffer.from('\n'));
+        chunks.push(buf('\n\n'));
     });
 
-    chunks.push(Buffer.from(`${lineStr}\n`));
+    chunks.push(buf(`${lineStr}\n`));
     if (role === 'cashier') {
         chunks.push(ESC_POS.ALIGN_RIGHT, ESC_POS.BOLD_ON);
-        chunks.push(Buffer.from(`TOTAL: $${money(order.total)}\n`));
+        chunks.push(buf(`TOTAL: $${money(order.total)}\n`));
     }
 
-    chunks.push(Buffer.from('\n\n\n\n'), ESC_POS.CUT);
+    chunks.push(buf('\n\n\n\n'), ESC_POS.CUT);
     return Buffer.concat(chunks);
 }
 
