@@ -24,14 +24,29 @@ async function calcLayer(
   start7: Date,
   estabilidad: number,
 ) {
+  // Stage 3: scheduled orders usan preparingAt como origen del TPP (sección 5.3)
+  const isScheduled = filter.orderTiming === 'scheduled'
+
   const [cancData, tppData, onTimeNew, onTimeFallback, actData7, actData30] = await Promise.all([
     Order.aggregate([
       { $match: { tenantId, ...filter, createdAt: { $gte: start30 } } },
       { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
     ]),
     Order.aggregate([
-      { $match: { tenantId, ...filter, createdAt: { $gte: start30 }, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
-      { $project: { tppMs: { $subtract: ['$statusTimestamps.readyAt', '$statusTimestamps.confirmedAt'] } } },
+      { $match: {
+        tenantId, ...filter,
+        createdAt: { $gte: start30 },
+        [isScheduled ? 'statusTimestamps.preparingAt' : 'statusTimestamps.confirmedAt']: { $ne: null },
+        'statusTimestamps.readyAt': { $ne: null },
+      }},
+      { $project: {
+        tppMs: {
+          $subtract: [
+            '$statusTimestamps.readyAt',
+            isScheduled ? '$statusTimestamps.preparingAt' : '$statusTimestamps.confirmedAt',
+          ],
+        },
+      }},
       { $group: { _id: null, avgMs: { $avg: '$tppMs' }, stdMs: { $stdDevPop: '$tppMs' }, count: { $sum: 1 } } },
     ]),
     Order.aggregate([
