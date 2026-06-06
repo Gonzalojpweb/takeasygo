@@ -29,6 +29,7 @@ export interface IOrderItem {
   itemType: 'menuItem' | 'promotion' | 'reward'
   categoryName: string
   name: string
+  description: string
   basePrice: number
   extraPrice: number
   price: number
@@ -172,6 +173,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
   },
   categoryName: { type: String, default: '' },
   name: { type: String, required: true },
+  description: { type: String, default: '' },
   basePrice: { type: Number, required: true },
   extraPrice: { type: Number, default: 0 },
   price: { type: Number, required: true },

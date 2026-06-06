@@ -96,6 +96,7 @@ export async function POST(
       takeawayWarningText: body.takeawayWarningText ?? 'No aplicable para consumir en el local',
       loadingText: body.loadingText ?? 'Procesando...',
       checkoutDiscountLabel: body.checkoutDiscountLabel ?? 'Descuento QR',
+      sourceTriggers: body.sourceTriggers ?? ['qr'],
     })
 
     return NextResponse.json({ promo }, { status: 201 })

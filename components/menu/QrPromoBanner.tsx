@@ -71,7 +71,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       }
     }
 
-    if (!effectiveSource || (!effectiveSource.toLowerCase().includes('qr') && effectiveSource !== 'qr-test')) {
+    if (!effectiveSource) {
       setLoading(false)
       return
     }

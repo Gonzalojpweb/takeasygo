@@ -189,7 +189,7 @@ function generateTicket(order, role, columns = 32) {
     chunks.push(ESC_POS.BOLD_OFF);
 
     // Observaciones del cliente (prominente)
-    if (role !== 'cashier' && order.notes) {
+    if (order.notes) {
         chunks.push(Buffer.from(`${lineStr}\n`));
         chunks.push(ESC_POS.BOLD_ON);
         chunks.push(Buffer.from(`OBS: ${order.notes}\n`));
@@ -219,6 +219,14 @@ function generateTicket(order, role, columns = 32) {
             chunks.push(Buffer.from(`${line}${dots}${price}\n`));
         } else {
             chunks.push(Buffer.from(`${line}\n`));
+        }
+
+        // Mostrar descripción del ítem si existe
+        if (item.description) {
+            const desc = item.description.length > columns
+                ? item.description.substring(0, columns - 3) + '...'
+                : item.description
+            chunks.push(Buffer.from(`  ${desc}\n`));
         }
 
         // Mostrar variante seleccionada

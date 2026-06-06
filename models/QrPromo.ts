@@ -18,6 +18,7 @@ export interface IQrPromo extends Document {
   takeawayWarningText: string
   loadingText: string
   checkoutDiscountLabel: string
+  sourceTriggers: string[]
   createdAt: Date
   updatedAt: Date
 }
@@ -50,6 +51,7 @@ const QrPromoSchema = new Schema<IQrPromo>(
     takeawayWarningText: { type: String, default: 'No aplicable para consumir en el local' },
     loadingText: { type: String, default: 'Procesando...' },
     checkoutDiscountLabel: { type: String, default: 'Descuento QR' },
+    sourceTriggers: { type: [String], default: ['qr'] },
   },
   {
     timestamps: true,
@@ -58,6 +60,7 @@ const QrPromoSchema = new Schema<IQrPromo>(
 
 QrPromoSchema.index({ tenantId: 1, slug: 1 }, { unique: true })
 QrPromoSchema.index({ tenantId: 1, isEnabled: 1 })
+QrPromoSchema.index({ tenantId: 1, sourceTriggers: 1 })
 
 const QrPromo = mongoose.models.QrPromo || mongoose.model<IQrPromo>('QrPromo', QrPromoSchema)
 export default QrPromo

@@ -48,7 +48,7 @@ export async function PUT(
       'slug', 'isEnabled', 'type', 'discountPercentage', 'frequency',
       'title', 'subtitle', 'buttonText', 'termsText', 'imageUrl',
       'badgeLabel', 'offLabel', 'takeawayWarningTitle', 'takeawayWarningText',
-      'loadingText', 'checkoutDiscountLabel',
+      'loadingText', 'checkoutDiscountLabel', 'sourceTriggers',
     ]
 
     const updateData: Record<string, unknown> = {}
