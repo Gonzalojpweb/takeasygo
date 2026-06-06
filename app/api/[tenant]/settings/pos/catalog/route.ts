@@ -2,12 +2,14 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { decrypt } from '@/lib/crypto'
 import { getPOSConnector } from '@/lib/pos'
+import { logAudit } from '@/lib/audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
 
 /**
  * GET /api/[tenant]/settings/pos/catalog
- * Obtiene el catálogo de productos del POS para el mapeo
+ * Obtiene el catálogo de productos del POS para el mapeo.
+ * Detecta y alerta sobre ítems mapeados que ya no existen en el POS.
  */
 export async function GET(
   request: NextRequest,
@@ -41,11 +43,37 @@ export async function GET(
     const connector = getPOSConnector(integration.provider)
     const catalog = await connector.getCatalog(credentials)
 
+    // ── Detectar ítems huérfanos ────────────────────────────────────────────
+    // Ítems en el mapeo que ya no existen en el catálogo del POS
+    const posItemIds = new Set(catalog.map(c => c.posItemId))
+    const orphaned = (integration.productMapping ?? []).filter(
+      m => !posItemIds.has(m.posItemId)
+    )
+
+    if (orphaned.length > 0) {
+      logAudit({
+        tenantId: tenant._id.toString(),
+        action: 'pos.orphaned_mappings',
+        entity: 'settings',
+        entityId: tenant._id.toString(),
+        details: {
+          provider: integration.provider,
+          orphanedCount: orphaned.length,
+          orphanedItems: orphaned.map(m => ({
+            takeasyGoItemId: m.takeasyGoItemId,
+            posItemId: m.posItemId,
+            posItemName: m.posItemName,
+          })),
+        },
+        request,
+      })
+    }
+
     // Actualizar lastSyncAt
     tenant.posIntegration.lastSyncAt = new Date()
     await tenant.save()
 
-    return NextResponse.json({ catalog })
+    return NextResponse.json({ catalog, orphanedCount: orphaned.length })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

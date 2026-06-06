@@ -22,12 +22,14 @@ interface Props {
   currentStatus: string
   tenantSlug: string
   compact?: boolean
+  posSyncStatus?: string  // 'not_applicable' | 'pending' | 'synced' | 'failed'
 }
 
-export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, compact }: Props) {
+export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, compact, posSyncStatus }: Props) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const next = NEXT_STATUS[currentStatus]
+  const posLocked = posSyncStatus === 'synced'
 
   if (!next) return null
 
@@ -40,7 +42,10 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, 
         body: JSON.stringify({ status: next!.value }),
       })
 
-      if (!res.ok) throw new Error('Error al actualizar')
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}))
+        throw new Error(errBody.error || 'Error al actualizar')
+      }
 
       const data = await res.json()
       if (data.milestoneReached) {
@@ -52,32 +57,42 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, 
         toast.success(`Pedido actualizado a "${next!.label}"`)
       }
       router.refresh()
-    } catch {
-      toast.error('No se pudo actualizar el pedido')
+    } catch (err: any) {
+      toast.error(err?.message || 'No se pudo actualizar el pedido')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Button
-      size="sm"
-      className={cn(
-        "text-white font-bold rounded-xl transition-all active:scale-95 shadow-md group",
-        compact ? "px-3 h-8 text-xs" : "mt-3 px-6 h-10",
-        next.color
+    <div className={cn("relative group/pos", posLocked && "cursor-not-allowed")}>
+      <Button
+        size="sm"
+        className={cn(
+          "text-white font-bold rounded-xl transition-all active:scale-95 shadow-md group",
+          compact ? "px-3 h-8 text-xs" : "mt-3 px-6 h-10",
+          next.color,
+          posLocked && "opacity-40"
+        )}
+        onClick={handleClick}
+        disabled={loading || posLocked}
+      >
+        {loading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <>
+            {next.label}
+            <ArrowRight className={cn("ml-1.5 h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform", compact ? "ml-1" : "ml-2 h-4 w-4")} />
+          </>
+        )}
+      </Button>
+      {posLocked && (
+        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover/pos:block z-50">
+          <div className="bg-zinc-900 text-white text-[10px] rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-white/10">
+            Gestionado por {posSyncStatus === 'synced' ? 'el POS' : posSyncStatus} — usar panel del POS
+          </div>
+        </div>
       )}
-      onClick={handleClick}
-      disabled={loading}
-    >
-      {loading ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <>
-          {next.label}
-          <ArrowRight className={cn("ml-1.5 h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform", compact ? "ml-1" : "ml-2 h-4 w-4")} />
-        </>
-      )}
-    </Button>
+    </div>
   )
 }

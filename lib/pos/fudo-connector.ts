@@ -151,7 +151,7 @@ export const FudoConnector: POSConnector = {
     // Construir el payload según el formato de la API de inyección de FUDO
     const payload = {
       external_id:   order.externalId,
-      order_type:    'takeaway',
+      order_type:    order.type === 'dine_in' ? 'dine-in' : order.type,
       customer: {
         name:  order.customer.name,
         phone: order.customer.phone ?? '',

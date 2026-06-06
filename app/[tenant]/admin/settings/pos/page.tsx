@@ -241,6 +241,12 @@ export default function POSSettingsPage() {
                   <option value="fudo">FUDO</option>
                   <option value="bistrosoft">BISTROSOFT (Próximamente)</option>
                 </select>
+                {config.provider === 'fudo' && (
+                  <p className="mt-1.5 text-[10px] text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    Requiere Plan Pro o superior en FUDO. Activá la API desde Administración → Aplicaciones Externas.
+                  </p>
+                )}
               </div>
 
               {config.provider !== 'none' && (

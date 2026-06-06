@@ -57,6 +57,20 @@ export async function PATCH(
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
     }
 
+    // ── POS integration guard ──────────────────────────────────────────────
+    // Si POS está activo y la orden fue sincronizada con éxito, el estado
+    // solo se actualiza via webhooks del POS para evitar conflictos.
+    if (
+      tenant.posIntegration?.enabled &&
+      tenant.posIntegration.provider !== 'none' &&
+      order.posSync?.status === 'synced'
+    ) {
+      return NextResponse.json(
+        { error: 'La integración POS está activa. El estado de la orden se actualiza automáticamente desde el POS.' },
+        { status: 409 }
+      )
+    }
+
     const allowedTransitions = VALID_TRANSITIONS[order.status]
     if (!allowedTransitions.includes(status)) {
       return NextResponse.json(

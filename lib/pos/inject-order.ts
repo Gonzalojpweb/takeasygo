@@ -5,9 +5,9 @@
  * Se invoca desde el webhook de MercadoPago cuando un pago es aprobado.
  *
  * Estrategia de retry con backoff exponencial:
- *   - Intento 1: inmediato
- *   - Intento 2: espera 3 segundos
- *   - Intento 3: espera 10 segundos
+ *   - Intento 1: espera 1 segundo
+ *   - Intento 2: espera 5 segundos
+ *   - Intento 3: espera 30 segundos
  *
  * Si los 3 intentos fallan:
  *   - order.posSync.status = 'failed'
@@ -28,18 +28,49 @@ import type { POSOrderPayload } from '@/lib/pos/types'
 
 // ── Configuración de retry ────────────────────────────────────────────────────
 
-const RETRY_DELAYS_MS = [0, 3_000, 10_000]  // 3 intentos: 0s, 3s, 10s
+const RETRY_DELAYS_MS = [1_000, 5_000, 30_000]  // 3 intentos: 1s, 5s, 30s
 const MAX_ATTEMPTS = 3
 
-// ── Helper: sleep ─────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+/** Traduce el orderMode de TakeasyGO al tipo que entiende el POS. */
+function mapOrderMode(mode: string): POSOrderPayload['type'] {
+  switch (mode) {
+    case 'takeaway':  return 'takeaway'
+    case 'dine-in':   return 'dine_in'
+    case 'business':  return 'business'
+    default:          return 'takeaway'
+  }
+}
+
+/** Aplana recursivamente todas las customizaciones incluyendo sub-groups anidados. */
+function flattenCustomizations(
+  groups: { groupName: string; selectedOptions: { name: string; extraPrice: number; subGroups?: any[] }[] }[]
+): { name: string; extraPrice: number }[] {
+  const result: { name: string; extraPrice: number }[] = []
+  for (const group of groups) {
+    for (const opt of group.selectedOptions) {
+      result.push({ name: opt.name, extraPrice: opt.extraPrice ?? 0 })
+      if (opt.subGroups && opt.subGroups.length > 0) {
+        result.push(...flattenCustomizations(opt.subGroups))
+      }
+    }
+  }
+  return result
+}
+
 // ── Construcción del payload ──────────────────────────────────────────────────
 
-function buildPOSPayload(order: any, tenant: ITenant): POSOrderPayload {
+interface BuildResult {
+  payload: POSOrderPayload
+  unmappedNames: string[]
+}
+
+function buildPOSPayload(order: any, tenant: ITenant): BuildResult {
   // El productMapping convierte los IDs de TakeasyGO a los IDs del POS
   const mapping = new Map<string, { posItemId: string; posItemName: string }>(
     (tenant.posIntegration?.productMapping ?? []).map(m => [
@@ -49,10 +80,16 @@ function buildPOSPayload(order: any, tenant: ITenant): POSOrderPayload {
   )
 
   const items: POSOrderPayload['items'] = []
+  const unmappedNames: string[] = []
 
   for (const item of order.items) {
     const itemId = item.menuItemId?.toString() ?? ''
     const mapped = mapping.get(itemId)
+
+    // Rastrear items sin mapeo para alertar al admin
+    if (!mapped && itemId) {
+      unmappedNames.push(item.name)
+    }
 
     // Si el item no tiene mapeo, lo inyectamos por nombre (fallback)
     // FUDO permite esto pero es menos confiable
@@ -68,28 +105,26 @@ function buildPOSPayload(order: any, tenant: ITenant): POSOrderPayload {
       notes:      '',
       modifiers: [
         ...variantModifier,
-        ...(item.customizations?.flatMap((group: any) =>
-          group.selectedOptions.map((opt: any) => ({
-            name:       opt.name,
-            extraPrice: opt.extraPrice ?? 0,
-          }))
-        ) ?? []),
+        ...flattenCustomizations(item.customizations ?? []),
       ],
     })
   }
 
   return {
-    externalId:    order.orderNumber,
-    customer: {
-      name:  safeDecrypt(order.customer?.name ?? ''),
-      phone: safeDecrypt(order.customer?.phone ?? '') || undefined,
+    payload: {
+      externalId:    order.orderNumber,
+      customer: {
+        name:  safeDecrypt(order.customer?.name ?? ''),
+        phone: safeDecrypt(order.customer?.phone ?? '') || undefined,
+      },
+      type:          mapOrderMode(order.orderMode),
+      items,
+      notes:         order.notes ?? '',
+      total:         order.total,
+      paymentMethod: 'mercadopago',
+      paymentStatus: 'approved',
     },
-    type:          'takeaway',
-    items,
-    notes:         order.notes ?? '',
-    total:         order.total,
-    paymentMethod: 'mercadopago',
-    paymentStatus: 'approved',
+    unmappedNames,
   }
 }
 
@@ -129,7 +164,26 @@ export async function injectOrderToPOS(
   }
 
   const connector = getPOSConnector(tenant.posIntegration.provider as 'fudo' | 'bistrosoft')
-  const payload = buildPOSPayload(order, tenant)
+  const { payload, unmappedNames } = buildPOSPayload(order, tenant)
+
+  // ── Alertar si hay items sin mapeo ───────────────────────────────────────
+  if (unmappedNames.length > 0) {
+    const msg = `Ítems sin mapeo POS: ${unmappedNames.join(', ')}. Se inyectarán por nombre.`
+    logAudit({
+      tenantId: tenant._id.toString(),
+      action:   'pos.unmapped_items',
+      entity:   'order',
+      entityId: orderId,
+      details: {
+        orderNumber: order.orderNumber,
+        unmappedItems: unmappedNames,
+      },
+    })
+    // Guardar la advertencia en la orden para que el panel la muestre
+    await Order.findByIdAndUpdate(orderId, {
+      $set: { 'posSync.error': msg },
+    })
+  }
 
   // Marcar como pendiente antes de empezar
   await Order.findByIdAndUpdate(orderId, {
