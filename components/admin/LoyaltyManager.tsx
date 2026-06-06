@@ -338,20 +338,27 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
           qrbox: { width: 250, height: 250 },
         },
         async (decodedText) => {
-          // QR escaneado exitosamente
           setScanId(decodedText)
           await handleScanById(decodedText)
         },
-        (errorMessage) => {
-          // Ignorar errores de escaneo intermitente
-        }
+        () => {}
       )
 
       setCameraActive(true)
     } catch (err: any) {
-      console.error('Error starting camera:', err)
-      setCameraError('No se pudo acceder a la cámara. Verifica los permisos.')
-      toast.error('Error al iniciar la cámara')
+      console.error('[QR Scanner] Error starting camera:', err)
+      const msg = err?.message ?? ''
+      const userMsg = msg.includes('NotAllowedError') || msg.includes('Permission denied')
+        ? 'Permiso de cámara denegado. Permití el acceso desde la configuración del navegador.'
+        : msg.includes('NotFoundError')
+        ? 'No se detectó una cámara en este dispositivo.'
+        : msg.includes('NotReadableError')
+        ? 'La cámara está siendo usada por otra aplicación.'
+        : msg.includes('SecurityError')
+        ? 'La cámara requiere una conexión segura (HTTPS).'
+        : 'No se pudo acceder a la cámara. Verificá los permisos del navegador.'
+      setCameraError(userMsg)
+      toast.error(userMsg)
     }
   }
 
@@ -811,8 +818,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
           setScannedMember(null)
           stopCamera()
         } else {
-          // Iniciar cámara automáticamente al abrir el diálogo
-          setTimeout(() => startCamera(), 100)
+          requestAnimationFrame(() => startCamera())
         }
       }}>
         <DialogContent className="max-w-md rounded-[2.5rem] overflow-hidden p-0 border-none">
@@ -932,7 +938,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                       onClick={() => {
                         setScannedMember(null)
                         setScanId('')
-                        setTimeout(() => startCamera(), 100)
+                        requestAnimationFrame(() => startCamera())
                       }}
                       className="w-full text-zinc-500 hover:text-white hover:bg-white/5 font-bold"
                     >

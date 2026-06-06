@@ -5,7 +5,7 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   // geolocation=(self) permite que nuestras propias páginas (/app) pidan GPS al usuario
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=()' },
+  { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self), payment=()' },
   { key: 'X-XSS-Protection', value: '1; mode=block' },
   {
     key: 'Content-Security-Policy',
@@ -14,7 +14,7 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com",
       "style-src 'self' 'unsafe-inline' https://use.typekit.net",
       "img-src 'self' data: blob: https://res.cloudinary.com https://api.dicebear.com https://images.unsplash.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://www.google.com",
-      "media-src 'self' https://res.cloudinary.com",
+      "media-src 'self' blob: https://res.cloudinary.com",
       "font-src 'self' https://fonts.gstatic.com https://use.typekit.net data:",
       "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com https://api.mymemory.translated.net https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://use.typekit.net https://*.typekit.net",
       "worker-src 'self'",
