@@ -531,6 +531,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                         currentStatus={order.status}
                         tenantSlug={tenantSlug}
                         compact
+                        posSyncStatus={order.posSync?.status}
                       />
                     </div>
                   </div>

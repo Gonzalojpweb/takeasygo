@@ -142,6 +142,7 @@ function generateTicket(order, role, columns = 32) {
     const money = (v) => Number(v || 0).toLocaleString('es-AR');
 
     chunks.push(ESC_POS.INIT, ESC_POS.ALIGN_CENTER);
+    chunks.push(Buffer.from([0x1b, 0x33, 36]));
 
     if (role === 'cashier') {
         chunks.push(ESC_POS.TEXT_SIZE_LARGE, ESC_POS.BOLD_ON);
@@ -227,6 +228,7 @@ function generateTicket(order, role, columns = 32) {
 
         // Mostrar customizaciones (incluye subGroups recursivamente)
         printCustomizations(item.customizations, chunks, '  ');
+        chunks.push(Buffer.from('\n'));
     });
 
     chunks.push(Buffer.from(`${lineStr}\n`));
@@ -235,7 +237,7 @@ function generateTicket(order, role, columns = 32) {
         chunks.push(Buffer.from(`TOTAL: $${money(order.total)}\n`));
     }
 
-    chunks.push(Buffer.from('\n\n\n'), ESC_POS.CUT);
+    chunks.push(Buffer.from('\n\n\n\n'), ESC_POS.CUT);
     return Buffer.concat(chunks);
 }
 

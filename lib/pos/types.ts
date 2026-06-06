@@ -44,7 +44,7 @@ export interface POSOrderPayload {
     name: string
     phone?: string
   }
-  type: 'takeaway' | 'delivery' | 'dine_in'
+  type: 'takeaway' | 'delivery' | 'dine_in' | 'business'
   items: POSOrderItem[]
   notes?: string
   total: number
