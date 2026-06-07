@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import StoreRedemption from '@/models/StoreRedemption'
 import StoreItem from '@/models/StoreItem'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { syncWalletPoints } from '@/lib/walletService'
 import { rateLimit } from '@/lib/rateLimit'
@@ -119,6 +120,43 @@ export async function POST(
           return NextResponse.json({ 
             error: 'Has alcanzado el límite de canjes para este item',
             limit: item.maxPerMember
+          }, { status: 400 })
+        }
+      }
+
+      // Validar recurrencia (opcional — items que requieren compras históricas)
+      if (item.minItemPurchases > 0 && item.linkedMenuItemIds?.length > 0) {
+        const memberOrders = await Order.aggregate([
+          {
+            $match: {
+              tenantId: tenant._id,
+              'customer.phoneHash': member.phoneHash,
+              status: { $nin: ['cancelled'] },
+            },
+          },
+          { $unwind: '$items' },
+          {
+            $match: {
+              'items.menuItemId': { $in: item.linkedMenuItemIds },
+              'items.itemType': 'menuItem',
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalPurchased: { $sum: '$items.quantity' },
+            },
+          },
+        ])
+
+        const totalPurchased = memberOrders[0]?.totalPurchased || 0
+
+        if (totalPurchased < item.minItemPurchases) {
+          await session.abortTransaction()
+          return NextResponse.json({
+            error: 'No cumplís con las compras mínimas requeridas para canjear este premio',
+            currentPurchases: totalPurchased,
+            requiredPurchases: item.minItemPurchases,
           }, { status: 400 })
         }
       }

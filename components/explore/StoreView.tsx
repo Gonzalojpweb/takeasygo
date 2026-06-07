@@ -19,6 +19,8 @@ interface StoreItem {
   cashValue?: number
   stock?: number | null
   tierRequirement: string
+  linkedMenuItemIds: string[]
+  minItemPurchases: number
   category: string
   isFeatured: boolean
 }
@@ -109,7 +111,13 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
         body: JSON.stringify({ memberId, storeItemId: itemId }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error al canjear')
+      if (!res.ok) {
+        if (data.currentPurchases !== undefined && data.requiredPurchases !== undefined) {
+          toast.error(`Necesitás ${data.requiredPurchases} compras para canjear. Llevás ${data.currentPurchases}.`)
+          return
+        }
+        throw new Error(data.error || 'Error al canjear')
+      }
       
       const redemption = data.redemption || data
       
@@ -122,7 +130,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
       // Update points
       setPoints(data.member?.points ?? points - items.find(i => i._id === itemId)!.pointsCost)
     } catch (err: any) {
-      toast.error(err.message)
+      toast.error(err.message || 'Error al canjear')
     }
   }
 
