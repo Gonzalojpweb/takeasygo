@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X } from 'lucide-react'
+import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isAvailableNow } from '@/lib/availability'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -344,9 +344,9 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         {/* Promotions Section */}
         {promotions.length > 0 && (
           <section className="mb-8 px-1">
-            <div className="flex items-center gap-2 mb-4" style={{ color: text }}>
-              <span className="text-xl">🏷️</span>
-              <h2 className="text-lg font-bold tracking-tight">Promociones</h2>
+            <div className="flex items-center gap-2 mb-4">
+              <Tag size={18} style={{ color: branding.primaryColor }} strokeWidth={2.5} />
+              <h2 className="text-base font-bold tracking-tight" style={{ color: text }}>Promociones</h2>
             </div>
             
             {featuredPromotions.length > 0 && (
