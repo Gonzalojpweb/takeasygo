@@ -33,6 +33,7 @@ export default function PushSubscriber({ tenantId, memberId }: PushSubscriberPro
   useEffect(() => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
     if (sessionStorage.getItem('push-prompt-dismissed')) return
+    if (localStorage.getItem('tgo-notifications-enabled') === 'false') return
 
     // Registrar SW
     navigator.serviceWorker.register('/sw.js', { scope: '/' })

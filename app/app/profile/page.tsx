@@ -11,7 +11,8 @@ import { AnimatedShinyText } from '@/components/ui/animated-shiny-text'
 import BottomNav from '@/components/explore/BottomNav'
 import { useTenant } from '@/contexts/TenantContext'
 import AddressSelector from '@/components/explore/AddressSelector'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import RestaurantLeadModal from '@/components/explore/RestaurantLeadModal'
 
 interface ClubSummary {
   tenantSlug: string
@@ -41,6 +42,7 @@ export default function ProfilePage() {
   const { tenantSlug } = useTenant()
   const loading = status === 'loading'
   const [showAddressSelector, setShowAddressSelector] = useState(false)
+  const [showRestaurantLead, setShowRestaurantLead] = useState(false)
 
   const [myClubs, setMyClubs] = useState<ClubSummary[]>([])
   const [suggestedClubs, setSuggestedClubs] = useState<SuggestedClub[]>([])
@@ -140,8 +142,14 @@ export default function ProfilePage() {
               ¿Tenés un restaurante?
             </p>
             <button
+              onClick={() => setShowRestaurantLead(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 glass-card-elevated rounded-2xl text-sm font-bold text-[#f14722] hover:text-[#f14722] hover:bg-[var(--c-surface-elevated)] transition-all active:scale-[0.98]"
+            >
+              Registrá tu restaurante
+            </button>
+            <button
               onClick={() => router.push('/login')}
-              className="w-full flex items-center justify-center gap-2 py-3 glass-card-elevated rounded-2xl text-sm font-bold text-[var(--c-text-secondary)] hover:text-[var(--c-text)] hover:bg-[var(--c-surface-elevated)] transition-all active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-2 py-3 mt-2 glass-card rounded-2xl text-sm font-bold text-[var(--c-text-secondary)] hover:text-[var(--c-text)] hover:bg-[var(--c-surface-elevated)] transition-all active:scale-[0.98]"
             >
               Accedé a tu panel de gestión
             </button>
@@ -318,7 +326,10 @@ export default function ProfilePage() {
               Configuración
             </h3>
 
-            <button className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all">
+            <button
+              onClick={() => router.push('/app/profile/settings')}
+              className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all"
+            >
               <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-[#8a7f7a]">
                 <Settings size={20} />
               </div>
@@ -342,6 +353,11 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Restaurant Lead Modal */}
+      {showRestaurantLead && (
+        <RestaurantLeadModal onClose={() => setShowRestaurantLead(false)} />
       )}
 
       {/* Address Selector Modal */}
