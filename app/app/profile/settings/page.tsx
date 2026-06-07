@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Bell, BellOff, ChevronRight, ExternalLink } from 'lucide-react'
 import BottomNav from '@/components/explore/BottomNav'
+export const dynamic = 'force-dynamic'
 
 const STORAGE_KEY = 'tgo-notifications-enabled'
 
