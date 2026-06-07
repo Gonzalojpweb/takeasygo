@@ -11,7 +11,7 @@ import { AnimatedShinyText } from '@/components/ui/animated-shiny-text'
 import BottomNav from '@/components/explore/BottomNav'
 import { useTenant } from '@/contexts/TenantContext'
 import AddressSelector from '@/components/explore/AddressSelector'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import RestaurantLeadModal from '@/components/explore/RestaurantLeadModal'
 
 interface ClubSummary {

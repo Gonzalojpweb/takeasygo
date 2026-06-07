@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useLocation } from '@/components/explore/LocationContext'
 import { cn } from '@/lib/utils'
 import BottomNav from '@/components/explore/BottomNav'
+export const dynamic = 'force-dynamic'
 
 interface Promo {
   _id: string
