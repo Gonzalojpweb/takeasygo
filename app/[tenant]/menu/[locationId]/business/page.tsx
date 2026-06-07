@@ -6,6 +6,8 @@ import { notFound } from 'next/navigation'
 import BusinessMenuClient from '@/components/menu/BusinessMenuClient'
 import type { Types } from 'mongoose'
 
+export const revalidate = 300
+
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
 }
