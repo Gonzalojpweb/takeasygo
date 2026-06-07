@@ -71,7 +71,7 @@ export default function CorpPortalClient({ tenant }: Props) {
   const [employees, setEmployees] = useState<string[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [summaryLoading, setSummaryLoading] = useState(false)
-  const [newEmployeeEmail, setNewEmployeeEmail] = useState('')
+  const [newEmployeeEmailsCsv, setNewEmployeeEmailsCsv] = useState('')
   const [addingEmployee, setAddingEmployee] = useState(false)
 
   // Filter states
@@ -233,9 +233,12 @@ export default function CorpPortalClient({ tenant }: Props) {
     }
   }
 
-  async function handleAddEmployee() {
-    const emailToAdd = newEmployeeEmail.trim().toLowerCase()
-    if (!emailToAdd) return toast.error('Ingresá un email de empleado')
+  async function handleAddEmployees() {
+    const emails = newEmployeeEmailsCsv
+      .split('\n')
+      .map(l => l.trim().toLowerCase())
+      .filter(l => l)
+    if (emails.length === 0) return toast.error('Ingresá al menos un email de empleado')
     if (!corporateAccountId) return
 
     setAddingEmployee(true)
@@ -243,18 +246,18 @@ export default function CorpPortalClient({ tenant }: Props) {
       const res = await fetch(`/api/${tenant.slug}/business/corp/employees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ corporateAccountId, email, newEmployeeEmail: emailToAdd }),
+        body: JSON.stringify({ corporateAccountId, email, newEmployeeEmails: emails }),
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.error(data.error || 'Error al agregar empleado')
+        toast.error(data.error || 'Error al agregar empleados')
         return
       }
       setEmployees(data.employees || [])
-      setNewEmployeeEmail('')
-      toast.success('Empleado agregado')
+      setNewEmployeeEmailsCsv('')
+      toast.success(data.message || 'Empleados agregados')
     } catch {
-      toast.error('Error al agregar empleado')
+      toast.error('Error al agregar empleados')
     } finally {
       setAddingEmployee(false)
     }
@@ -712,23 +715,22 @@ export default function CorpPortalClient({ tenant }: Props) {
                 <h3 className="font-bold">Empleados habilitados ({employees.length})</h3>
               </div>
 
-              {/* Add employee */}
-              <div className="flex items-center gap-2 mb-5">
-                <input
-                  type="email"
-                  value={newEmployeeEmail}
-                  onChange={e => setNewEmployeeEmail(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddEmployee() }}
-                  placeholder="email@empresa.com"
-                  className="flex-1 bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-xl px-4 py-3 outline-none transition-all shadow-sm"
+              {/* Add employees */}
+              <div className="mb-5 space-y-2">
+                <textarea
+                  value={newEmployeeEmailsCsv}
+                  onChange={e => setNewEmployeeEmailsCsv(e.target.value)}
+                  placeholder="email1@empresa.com&#10;email2@empresa.com&#10;email3@empresa.com"
+                  rows={3}
+                  className="w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-xl px-4 py-3 outline-none transition-all shadow-sm resize-none"
                 />
                 <button
-                  onClick={handleAddEmployee}
-                  disabled={addingEmployee || !newEmployeeEmail.trim()}
-                  className="px-5 py-3 bg-primary text-white font-bold rounded-xl text-sm flex items-center gap-2 disabled:opacity-50 transition-all shadow-sm"
+                  onClick={handleAddEmployees}
+                  disabled={addingEmployee || !newEmployeeEmailsCsv.trim()}
+                  className="w-full px-5 py-3 bg-primary text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-sm"
                 >
                   {addingEmployee ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
-                  Agregar
+                  {addingEmployee ? 'Agregando...' : 'Agregar empleados'}
                 </button>
               </div>
 
