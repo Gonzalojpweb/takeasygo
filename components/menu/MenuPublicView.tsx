@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
-  Award, Wallet,
+  Award, Wallet, Tag,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -712,9 +712,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         {/* Promotions Section — hidden for company admin in business mode */}
         {promotions.length > 0 && !isAdminCorp && (
           <section className="mb-8 px-1">
-            <div className="flex items-center gap-2 mb-4" style={{ color: text }}>
-              <span className="text-xl">🏷️</span>
-              <h2 className="text-lg font-bold tracking-tight">Promociones</h2>
+            <div className="flex items-center gap-2 mb-4">
+              <Tag size={18} style={{ color: primary }} strokeWidth={2.5} />
+              <h2 className="text-base font-bold tracking-tight" style={{ color: text }}>Promociones</h2>
             </div>
             
             {featuredPromotions.length > 0 && (
