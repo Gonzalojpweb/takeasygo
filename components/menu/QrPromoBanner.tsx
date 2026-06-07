@@ -158,132 +158,154 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
 
   if (loading || !show || !promo || !styles) return null
 
-  const accentColor = styles.primaryColor || '#10b981'
+  const accentColor = styles.primaryColor || '#f14722'
+  const isDiscount = promo.type === 'discount'
 
   return (
     <AnimatePresence>
       {show && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 overflow-y-auto">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+          {/* Backdrop with a premium dark blur */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-xl"
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
           />
 
           {/* Modal Card */}
           <motion.div
-            initial={{ scale: 0.92, opacity: 0, y: 30 }}
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.92, opacity: 0, y: 30 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 380 }}
-            className="relative w-full max-w-[380px] bg-white shadow-2xl overflow-hidden"
-            style={{ borderRadius: styles.borderRadius || '28px' }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            className="relative w-full max-w-[400px] bg-[var(--c-bg,rgba(255,255,255,0.98))] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.4)] overflow-hidden border border-white/10"
+            style={{ borderRadius: styles.borderRadius || '32px' }}
           >
-            {/* Close Button */}
+            {/* Close Button - Premium Glassmorphism style */}
             <button
               onClick={handleClose}
-              className="absolute top-4 right-4 z-50 w-9 h-9 flex items-center justify-center rounded-full bg-white/90 hover:bg-white shadow-md text-slate-500 hover:text-slate-900 transition-all active:scale-90"
+              className="absolute top-4 right-4 z-50 w-8 h-8 flex items-center justify-center rounded-full bg-black/20 hover:bg-black/40 backdrop-blur-md text-white/85 hover:text-white transition-all active:scale-90"
             >
-              <X size={20} strokeWidth={3} />
+              <X size={16} strokeWidth={2.5} />
             </button>
 
-            {/* Header con gradiente mejorado */}
+            {/* Header: Visual Branding & Accent */}
             <div
-              className="h-52 relative flex items-center justify-center overflow-hidden"
+              className="h-48 relative flex items-center justify-center overflow-hidden"
               style={{
-                background: `linear-gradient(135deg, ${accentColor} 0%, #065f46 100%)`
+                background: `linear-gradient(135deg, ${accentColor} 0%, #121214 100%)`
               }}
             >
-              <div className="absolute inset-0 bg-[radial-gradient(at_30%_20%,rgba(255,255,255,0.25)_0%,transparent_50%)]" />
+              {/* Decorative background grid/mesh */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
+              <div className="absolute inset-0 bg-black/10" />
 
-              <div className="relative flex flex-col items-center text-center px-8">
+              <div className="relative flex flex-col items-center text-center px-6 pt-4">
                 {promo.imageUrl ? (
-                  <img
-                    src={promo.imageUrl}
-                    alt={promo.title}
-                    className="w-24 h-24 object-cover rounded-2xl shadow-xl border-4 border-white/30 mb-5"
-                  />
+                  <div className="relative group mb-3.5">
+                    <div className="absolute -inset-0.5 bg-white/20 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000" />
+                    <img
+                      src={promo.imageUrl}
+                      alt={promo.title}
+                      className="relative w-20 h-20 object-cover rounded-2xl shadow-lg border border-white/20"
+                    />
+                  </div>
                 ) : (
-                  <div className="w-24 h-24 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/30 mb-5">
-                    {promo.type === 'discount' && <Gift size={52} className="text-white" />}
-                    {promo.type === 'loyalty' && <Star size={52} className="text-white fill-white" />}
-                    {promo.type === 'info' && <Info size={52} className="text-white" />}
+                  <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 mb-3.5 shadow-lg">
+                    {promo.type === 'discount' && <Gift size={40} className="text-white" />}
+                    {promo.type === 'loyalty' && <Star size={40} className="text-white fill-white" />}
+                    {promo.type === 'info' && <Info size={40} className="text-white" />}
                   </div>
                 )}
 
-                <p className="text-white/90 text-xs font-bold tracking-[2px] uppercase mb-1">{promo.badgeLabel || 'SOLO POR HOY'}</p>
-                
-                {promo.type === 'discount' ? (
-                  <div className="flex items-baseline justify-center gap-1 text-white">
-                    <span className="text-6xl font-black tracking-tighter">{promo.discountPercentage}</span>
-                    <span className="text-4xl font-bold -mt-2">%</span>
-                    <span className="text-3xl font-semibold opacity-90 ml-2">{promo.offLabel || 'OFF'}</span>
+                <span className="text-[10px] text-white/85 font-black tracking-[0.2em] uppercase bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm border border-white/10 mb-2">
+                  {promo.badgeLabel || 'EXCLUSIVO'}
+                </span>
+
+                {isDiscount && (
+                  <div className="flex items-baseline justify-center gap-0.5 text-white">
+                    <span className="text-5xl font-black tracking-tighter">{promo.discountPercentage}</span>
+                    <span className="text-3xl font-extrabold -mt-1">%</span>
+                    <span className="text-2xl font-bold opacity-90 ml-1.5">{promo.offLabel || 'OFF'}</span>
                   </div>
-                ) : (
-                  <h2 className="text-3xl font-bold text-white leading-tight">{promo.title}</h2>
                 )}
               </div>
             </div>
 
             {/* Body */}
-            <div className="p-8 text-center">
-              <h3 className="text-2xl font-bold text-slate-900 mb-3">
-                {promo.title}
-              </h3>
+            <div className="p-6 md:p-8">
+              {/* Title & Subtitle */}
+              <div className="text-center mb-6">
+                <h3 className="text-xl md:text-2xl font-black tracking-tight text-neutral-900 leading-tight mb-2">
+                  {promo.title}
+                </h3>
+                <p className="text-sm text-neutral-500 font-medium leading-relaxed px-2">
+                  {isDiscount
+                    ? promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)
+                    : promo.subtitle}
+                </p>
+              </div>
 
-              {/* Aviso importante sobre descuentos exclusivos para takeaway */}
-              {promo.type === 'discount' && (
-                <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl">
-                  <p className="text-amber-900 font-bold text-sm leading-tight">
-                    ⚠️ {promo.takeawayWarningTitle || 'DESCUENTO EXCLUSIVO PARA TAKEAWAY'}
-                  </p>
-                  <p className="text-amber-800 text-xs mt-1 leading-relaxed">
-                    {promo.takeawayWarningText || 'No aplicable para consumir en el local'}
-                  </p>
+              {/* Warning/Info Box for takeaway discount */}
+              {isDiscount && (
+                <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3 text-left">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 flex-shrink-0 animate-pulse" />
+                  <div>
+                    <h4 className="text-amber-800 font-bold text-xs uppercase tracking-wider">
+                      {promo.takeawayWarningTitle || 'Descuento para retirar'}
+                    </h4>
+                    <p className="text-amber-700 text-xs mt-0.5 leading-normal">
+                      {promo.takeawayWarningText || 'Válido exclusivamente para pedidos con retiro en local.'}
+                    </p>
+                  </div>
                 </div>
               )}
 
-              <p className="text-slate-600 leading-relaxed mb-8">
-                {promo.type === 'discount'
-                  ? promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)
-                  : promo.subtitle}
-              </p>
-
-              {/* Formulario Loyalty */}
+              {/* Loyalty Program Registration Form */}
               {promo.type === 'loyalty' && !registered && (
-                <form onSubmit={handleRegister} className="space-y-4 mb-8">
-                  <input
-                    required
-                    type="text"
-                    placeholder="Nombre completo"
-                    value={form.name}
-                    onChange={e => setForm(s => ({ ...s, name: e.target.value }))}
-                    className="w-full h-14 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-base focus:border-emerald-400 focus:bg-white transition-all outline-none"
-                  />
+                <form onSubmit={handleRegister} className="space-y-3.5 mb-6">
+                  <div className="relative">
+                    <input
+                      required
+                      type="text"
+                      placeholder="Nombre completo"
+                      value={form.name}
+                      onChange={e => setForm(s => ({ ...s, name: e.target.value }))}
+                      className="w-full h-12 px-4 bg-neutral-50 border border-neutral-200 focus:border-neutral-900 rounded-xl text-sm transition-all outline-none focus:bg-white focus:ring-4 focus:ring-neutral-900/5 font-medium"
+                    />
+                  </div>
 
-                  <input
-                    required
-                    type="email"
-                    placeholder="Correo electrónico"
-                    value={form.email}
-                    onChange={e => setForm(s => ({ ...s, email: e.target.value }))}
-                    className="w-full h-14 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-base focus:border-emerald-400 outline-none"
-                  />
+                  <div className="relative">
+                    <input
+                      required
+                      type="email"
+                      placeholder="Correo electrónico"
+                      value={form.email}
+                      onChange={e => setForm(s => ({ ...s, email: e.target.value }))}
+                      className="w-full h-12 px-4 bg-neutral-50 border border-neutral-200 focus:border-neutral-900 rounded-xl text-sm transition-all outline-none focus:bg-white focus:ring-4 focus:ring-neutral-900/5 font-medium"
+                    />
+                  </div>
                   
-                  <div className="flex gap-3">
-                    <select
-                      value={form.countryCode}
-                      onChange={e => setForm(s => ({ ...s, countryCode: e.target.value }))}
-                      className="h-14 w-24 px-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:border-emerald-400 outline-none"
-                    >
-                      <option value="+54">🇦🇷 +54</option>
-                      <option value="+598">🇺🇾 +598</option>
-                      <option value="+56">🇨🇱 +56</option>
-                      <option value="+55">🇧🇷 +55</option>
-                    </select>
+                  <div className="flex gap-2.5">
+                    <div className="relative">
+                      <select
+                        value={form.countryCode}
+                        onChange={e => setForm(s => ({ ...s, countryCode: e.target.value }))}
+                        className="h-12 px-3 bg-neutral-50 border border-neutral-200 focus:border-neutral-900 rounded-xl text-sm font-semibold transition-all outline-none focus:bg-white focus:ring-4 focus:ring-neutral-900/5 appearance-none pr-8 cursor-pointer"
+                      >
+                        <option value="+54">🇦🇷 +54</option>
+                        <option value="+598">🇺🇾 +598</option>
+                        <option value="+56">🇨🇱 +56</option>
+                        <option value="+55">🇧🇷 +55</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400">
+                        <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                     
                     <input
                       required
@@ -291,16 +313,16 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
                       placeholder="Número de WhatsApp"
                       value={form.phone}
                       onChange={e => setForm(s => ({ ...s, phone: e.target.value.replace(/\D/g, '') }))}
-                      className="flex-1 h-14 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-base focus:border-emerald-400 focus:bg-white outline-none"
+                      className="flex-1 h-12 px-4 bg-neutral-50 border border-neutral-200 focus:border-neutral-900 rounded-xl text-sm transition-all outline-none focus:bg-white focus:ring-4 focus:ring-neutral-900/5 font-medium"
                     />
                   </div>
 
-                  {error && <p className="text-red-600 text-sm font-medium">{error}</p>}
+                  {error && <p className="text-red-600 text-xs font-semibold text-center">{error}</p>}
 
                   <button
                     type="submit"
                     disabled={registering}
-                    className="w-full h-14 rounded-2xl text-white font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.985] disabled:opacity-70"
+                    className="w-full h-12 rounded-xl text-white font-bold text-xs uppercase tracking-widest transition-all duration-100 ease-out active:scale-[0.97] active:shadow-inner disabled:opacity-70 disabled:pointer-events-none shadow-lg shadow-neutral-950/10 hover:brightness-105"
                     style={{ backgroundColor: accentColor }}
                   >
                     {registering ? (promo.loadingText || 'Procesando...') : promo.buttonText}
@@ -311,37 +333,43 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
               {/* Success State */}
               {registered && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="py-8 px-6 bg-emerald-50 rounded-3xl border border-emerald-100 mb-8"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="py-6 px-4 bg-emerald-50 border border-emerald-100 rounded-2xl mb-6 text-center"
                 >
-                  <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                  <p className="text-2xl font-bold text-emerald-900">{loyaltyMsg?.successTitle || '¡Registro exitoso!'}</p>
-                  <p className="text-emerald-700 mt-1">{loyaltyMsg?.successMessage || 'Bienvenido al club'}</p>
+                  <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-md shadow-emerald-500/20">
+                    <CheckCircle2 className="w-6 h-6 text-white" />
+                  </div>
+                  <h4 className="text-lg font-black text-emerald-950">{loyaltyMsg?.successTitle || '¡Registro exitoso!'}</h4>
+                  <p className="text-emerald-700 text-xs mt-1 font-medium">{loyaltyMsg?.successMessage || 'Bienvenido al club'}</p>
                 </motion.div>
               )}
 
-              {/* Botón principal para otros tipos */}
+              {/* Main Action Button for non-loyalty promos or registered loyalty */}
               {(promo.type !== 'loyalty' || registered) && (
                 <button
                   onClick={handleClose}
-                  className="w-full h-14 rounded-2xl text-white font-bold text-lg shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-3 transition-all active:scale-[0.985]"
+                  className="w-full h-12 rounded-xl text-white font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-100 ease-out active:scale-[0.97] active:shadow-inner shadow-lg shadow-neutral-950/10 hover:brightness-105"
                   style={{ backgroundColor: accentColor }}
                 >
                   {promo.buttonText}
-                  <ArrowRight size={22} />
+                  <ArrowRight size={16} />
                 </button>
               )}
 
-              <button
-                onClick={handleClose}
-                className="mt-6 text-sm text-slate-400 hover:text-slate-500 font-medium transition-colors"
-              >
-                Cerrar
-              </button>
+              {/* Inline close option */}
+              <div className="text-center mt-4">
+                <button
+                  onClick={handleClose}
+                  className="text-xs text-neutral-400 hover:text-neutral-600 font-bold uppercase tracking-wider transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
 
+              {/* Terms & Conditions */}
               {promo.termsText && (
-                <p className="text-[10px] text-slate-400 mt-8 leading-relaxed px-4">
+                <p className="text-[10px] text-neutral-400 text-center mt-6 leading-relaxed px-2 border-t border-neutral-100 pt-4">
                   {promo.termsText}
                 </p>
               )}

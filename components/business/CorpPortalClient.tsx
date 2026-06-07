@@ -71,6 +71,8 @@ export default function CorpPortalClient({ tenant }: Props) {
   const [employees, setEmployees] = useState<string[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [summaryLoading, setSummaryLoading] = useState(false)
+  const [newEmployeeEmail, setNewEmployeeEmail] = useState('')
+  const [addingEmployee, setAddingEmployee] = useState(false)
 
   // Filter states
   const [filterPeriodStart, setFilterPeriodStart] = useState('')
@@ -228,6 +230,33 @@ export default function CorpPortalClient({ tenant }: Props) {
       toast.success('CSV descargado')
     } catch {
       toast.error('Error al exportar CSV')
+    }
+  }
+
+  async function handleAddEmployee() {
+    const emailToAdd = newEmployeeEmail.trim().toLowerCase()
+    if (!emailToAdd) return toast.error('Ingresá un email de empleado')
+    if (!corporateAccountId) return
+
+    setAddingEmployee(true)
+    try {
+      const res = await fetch(`/api/${tenant.slug}/business/corp/employees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ corporateAccountId, email, newEmployeeEmail: emailToAdd }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Error al agregar empleado')
+        return
+      }
+      setEmployees(data.employees || [])
+      setNewEmployeeEmail('')
+      toast.success('Empleado agregado')
+    } catch {
+      toast.error('Error al agregar empleado')
+    } finally {
+      setAddingEmployee(false)
     }
   }
 
@@ -683,6 +712,26 @@ export default function CorpPortalClient({ tenant }: Props) {
                 <h3 className="font-bold">Empleados habilitados ({employees.length})</h3>
               </div>
 
+              {/* Add employee */}
+              <div className="flex items-center gap-2 mb-5">
+                <input
+                  type="email"
+                  value={newEmployeeEmail}
+                  onChange={e => setNewEmployeeEmail(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddEmployee() }}
+                  placeholder="email@empresa.com"
+                  className="flex-1 bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-xl px-4 py-3 outline-none transition-all shadow-sm"
+                />
+                <button
+                  onClick={handleAddEmployee}
+                  disabled={addingEmployee || !newEmployeeEmail.trim()}
+                  className="px-5 py-3 bg-primary text-white font-bold rounded-xl text-sm flex items-center gap-2 disabled:opacity-50 transition-all shadow-sm"
+                >
+                  {addingEmployee ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
+                  Agregar
+                </button>
+              </div>
+
               {employees.length === 0 ? (
                 <div className="text-center py-8">
                   <Users size={32} className="text-muted-foreground/30 mx-auto mb-2" />
@@ -709,10 +758,6 @@ export default function CorpPortalClient({ tenant }: Props) {
                   ))}
                 </div>
               )}
-
-              <p className="text-[10px] text-muted-foreground/50 mt-4">
-                Para agregar nuevos empleados, contactá al administrador del tenant o al superadmin.
-              </p>
             </div>
           </div>
         )}
