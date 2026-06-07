@@ -82,6 +82,7 @@ export default function SuperAdminSidebar() {
         { href: '/superadmin/usuarios', label: 'Usuarios', icon: Users },
         { href: '/superadmin/business/companies', label: 'Empresas Business', icon: Building2 },
         { href: '/superadmin/sellers', label: 'Vendedores', icon: UserCheck },
+        { href: '/superadmin/consumers', label: 'Consumidores', icon: Users },
         { href: '/superadmin/leads', label: 'Leads', icon: Eye },
       ],
     },

@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { createOrderSchema } from '@/lib/schemas'
 import { encrypt, safeDecrypt, hashPhone } from '@/lib/crypto'
+import { upsertConsumerFromOrder } from '@/lib/consumer'
 import crypto from 'crypto'
 import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
@@ -748,6 +749,19 @@ export async function POST(
         paymentModeSnapshot: body.paymentModeSnapshot ?? null,
       } : {}),
     })
+
+    // Sync consumer registry (fire-and-forget — never fails the order)
+    if (body.customer?.phone || body.customer?.email) {
+      upsertConsumerFromOrder({
+        name: body.customer.name,
+        email: body.customer.email || '',
+        phone: body.customer.phone || '',
+        phoneHash: hashPhone(body.customer.phone || ''),
+        tenantId: tenant._id,
+        total,
+        createdAt: order.createdAt,
+      }).catch(e => console.error('[consumer] upsert error:', e))
+    }
 
     if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
       const customerName = body.customer?.name?.trim() || 'Cliente'

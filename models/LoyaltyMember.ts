@@ -206,6 +206,22 @@ LoyaltyMemberSchema.index({ tenantId: 1, source: 1 })
 // Índice para buscar membresía por usuario autenticado (no unique — la unicidad se garantiza con tenantId_1_phoneHash_1)
 LoyaltyMemberSchema.index({ userId: 1, tenantId: 1 }, { sparse: true })
 
+// ── Post-save hook: sync consumer registry ────────────────────────────────
+LoyaltyMemberSchema.post('save', async function () {
+  try {
+    const { upsertConsumerFromLoyaltyMember } = await import('@/lib/consumer')
+    await upsertConsumerFromLoyaltyMember({
+      name: this.name,
+      email: this.email,
+      phone: this.phone,
+      phoneHash: this.phoneHash,
+      tenantId: this.tenantId,
+    })
+  } catch (e) {
+    console.error('[consumer] LoyaltyMember sync error:', e)
+  }
+})
+
 // ── Helper estático: generar phoneHash ───────────────────────────────────────
 // DEPRECATED: Usar hashPhone de lib/crypto.ts directamente en nuevos desarrollos.
 // Se elimina el método estático para evitar implementaciones inconsistentes.
