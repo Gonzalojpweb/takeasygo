@@ -19,6 +19,8 @@ interface StoreItem {
   cashValue?: number
   stock?: number | null
   tierRequirement: string
+  linkedMenuItemIds: string[]
+  minItemPurchases: number
   category: string
 }
 
@@ -45,7 +47,8 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
   const canAfford = memberPoints >= item.pointsCost
   const meetsTier = TIER_ORDER[memberTier] >= TIER_ORDER[item.tierRequirement]
   const inStock = item.stock === null || item.stock === undefined || item.stock > 0
-  const canRedeem = canAfford && meetsTier && inStock
+  const hasRecurrenceRequirement = item.minItemPurchases > 0 && item.linkedMenuItemIds?.length > 0
+  const canRedeem = canAfford && meetsTier && inStock && !hasRecurrenceRequirement
 
   const pointsNeeded = item.pointsCost - memberPoints
   const progress = Math.min((memberPoints / item.pointsCost) * 100, 100)
@@ -156,6 +159,16 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
           </div>
         )}
 
+        {/* Recurrence Requirement */}
+        {hasRecurrenceRequirement && (
+          <div className="mb-4 p-2 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="flex items-center gap-2 text-purple-700 text-xs font-medium">
+              <Package size={12} />
+              Requiere compras recurrentes de este producto
+            </div>
+          </div>
+        )}
+
         {/* Cash Value */}
         {item.cashValue && (
           <div className="mb-4 text-xs text-muted-foreground">
@@ -177,6 +190,8 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
             'Nivel insuficiente'
           ) : !inStock ? (
             'Sin stock'
+          ) : hasRecurrenceRequirement ? (
+            'Requiere compras recurrentes'
           ) : (
             <>
               <TrendingUp size={16} className="mr-2" />

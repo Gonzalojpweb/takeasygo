@@ -45,9 +45,10 @@ export async function GET(request: NextRequest) {
 
     const activeTenantIds = tenants.map(t => t._id)
 
-    // Construir mapa slug para enriquecer datos
+    // Construir mapas para enriquecer datos
     const tenantSlugMap = new Map(tenants.map(t => [t._id.toString(), t.slug]))
     const tenantNameMap = new Map(tenants.map(t => [t._id.toString(), t.name]))
+    const tenantLogoMap = new Map(tenants.map(t => [t._id.toString(), t.branding?.logoUrl || '']))
 
     // 3. Obtener Promociones Activas de estos Tenants
     const promotionsRaw = await Promotion.find({
@@ -58,6 +59,8 @@ export async function GET(request: NextRequest) {
     const promotions = promotionsRaw.map(p => ({
       ...p,
       tenantSlug: tenantSlugMap.get(p.tenantId.toString()) || '',
+      tenantLogo: tenantLogoMap.get(p.tenantId.toString()) || '',
+      tenantName: tenantNameMap.get(p.tenantId.toString()) || '',
     }))
 
     // 4. Obtener Canjes de Fidelización (Store Items)

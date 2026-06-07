@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { ArrowRight, Percent } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +15,9 @@ interface Promo {
   tenantId: string
   locationId?: string
   tenantSlug?: string
+  type?: string
+  tenantLogo?: string
+  tenantName?: string
 }
 
 export default function PromoCarousel({ promos }: { promos: Promo[] }) {
@@ -33,7 +36,7 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
           </p>
         </div>
         <Link
-          href="/promociones"
+          href="/app/promociones"
           className="text-primary font-semibold text-sm flex items-center gap-1.5 hover:underline"
         >
           Ver todas <ArrowRight size={16} />
@@ -45,7 +48,8 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
         {promos
           .filter(promo => promo.tenantSlug)
           .map(promo => {
-            const discount = promo.originalPrice
+            const isSale = promo.type === 'sale'
+            const discount = isSale && promo.originalPrice
               ? Math.round(((promo.originalPrice - promo.price) / promo.originalPrice) * 100)
               : 0
 
@@ -77,9 +81,17 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
 
                   {/* Top Badges */}
                   <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-10">
-                    <div className="w-9 h-9 rounded-2xl bg-white/95 backdrop-blur-md flex items-center justify-center shadow-md">
-                      <Percent size={18} className="text-orange-600 stroke-[3]" />
-                    </div>
+                    {promo.tenantLogo ? (
+                      <div className="w-9 h-9 rounded-2xl overflow-hidden bg-white/95 backdrop-blur-md shadow-md ring-2 ring-white/50 flex-shrink-0">
+                        <img
+                          src={promo.tenantLogo}
+                          alt={promo.tenantName || ''}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-9 h-9 rounded-2xl bg-white/95 backdrop-blur-md flex items-center justify-center shadow-md" />
+                    )}
 
                     {discount > 0 && (
                       <div className="bg-emerald-500 text-white text-xs font-black px-3 py-1 rounded-2xl shadow-md">
@@ -98,16 +110,18 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
                       {promo.description}
                     </p>
 
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-black text-white tracking-tighter">
-                        ${promo.price.toLocaleString('es-AR')}
-                      </span>
-                      {promo.originalPrice && (
-                        <span className="text-white/60 line-through text-base">
-                          ${promo.originalPrice.toLocaleString('es-AR')}
+                    {isSale && (
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-black text-white tracking-tighter">
+                          ${promo.price.toLocaleString('es-AR')}
                         </span>
-                      )}
-                    </div>
+                        {promo.originalPrice && (
+                          <span className="text-white/60 line-through text-base">
+                            ${promo.originalPrice.toLocaleString('es-AR')}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>

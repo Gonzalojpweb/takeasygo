@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Package, ToggleLeft, ToggleRight, Edit, Trash2, Image as ImageIcon } from 'lucide-react'
+import { Plus, Package, ToggleLeft, ToggleRight, Edit, Trash2, Image as ImageIcon, Search, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import ImageUpload from './ImageUpload'
 
@@ -19,6 +19,8 @@ interface StoreItem {
   stock?: number | null
   maxPerMember?: number | null
   tierRequirement: string
+  linkedMenuItemIds: string[]
+  minItemPurchases: number
   category: string
   tags: string[]
   sortOrder: number
@@ -299,6 +301,12 @@ export default function StoreManager({ tenantSlug }: Props) {
   )
 }
 
+interface MenuCategory {
+  _id: string
+  name: string
+  items: { _id: string; name: string }[]
+}
+
 function StoreItemForm({
   tenantSlug,
   item,
@@ -311,6 +319,10 @@ function StoreItemForm({
   onSave: () => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [categories, setCategories] = useState<MenuCategory[]>([])
+  const [menuLoading, setMenuLoading] = useState(false)
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [categorySearch, setCategorySearch] = useState('')
   const [formData, setFormData] = useState({
     name: item?.name || '',
     description: item?.description || '',
@@ -321,11 +333,56 @@ function StoreItemForm({
     stock: item?.stock !== undefined ? item.stock : '',
     maxPerMember: item?.maxPerMember || '',
     tierRequirement: item?.tierRequirement || 'none',
+    linkedMenuItemIds: item?.linkedMenuItemIds || [],
+    minItemPurchases: item?.minItemPurchases || 0,
     category: item?.category || 'food',
     tags: item?.tags?.join(', ') || '',
     sortOrder: item?.sortOrder || 0,
     isFeatured: item?.isFeatured || false,
   })
+
+  // Fetch menu categories for the item selector
+  useEffect(() => {
+    setMenuLoading(true)
+    fetch(`/api/${tenantSlug}/menu`)
+      .then(r => r.ok ? r.json() : { menu: { categories: [] } })
+      .then(data => {
+        const cats = (data.menu?.categories ?? []).map((cat: any) => ({
+          _id: cat._id,
+          name: cat.name,
+          items: (cat.items ?? []).map((item: any) => ({
+            _id: item._id,
+            name: item.name,
+          })),
+        }))
+        setCategories(cats)
+      })
+      .catch(() => {})
+      .finally(() => setMenuLoading(false))
+  }, [tenantSlug])
+
+  function toggleCategory(catId: string) {
+    setExpandedCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(catId)) next.delete(catId)
+      else next.add(catId)
+      return next
+    })
+  }
+
+  function toggleItemSelection(itemId: string) {
+    setFormData(prev => {
+      const ids = prev.linkedMenuItemIds.includes(itemId)
+        ? prev.linkedMenuItemIds.filter(id => id !== itemId)
+        : [...prev.linkedMenuItemIds, itemId]
+      return { ...prev, linkedMenuItemIds: ids }
+    })
+  }
+
+  const filteredCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(categorySearch.toLowerCase()) ||
+    cat.items.some(item => item.name.toLowerCase().includes(categorySearch.toLowerCase()))
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -341,6 +398,7 @@ function StoreItemForm({
         cashValue: formData.cashValue ? parseInt(formData.cashValue.toString()) : null,
         stock: formData.stock !== '' && formData.stock !== null ? parseInt(formData.stock.toString()) : null,
         maxPerMember: formData.maxPerMember ? parseInt(formData.maxPerMember.toString()) : null,
+        minItemPurchases: parseInt(formData.minItemPurchases.toString()),
         sortOrder: parseInt(formData.sortOrder.toString()),
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
       }
@@ -484,6 +542,124 @@ function StoreItemForm({
                 onChange={e => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
                 className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
               />
+            </div>
+          </div>
+
+          {/* ── Configuración de recurrencia (opcional) ── */}
+          <div className="bg-muted/20 p-5 rounded-2xl border border-border/40 space-y-4">
+            <div className="flex items-center gap-2">
+              <Package size={16} className="text-primary" />
+              <label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                Recurrencia (opcional)
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Si configurás esta sección, el miembro deberá haber comprado los productos seleccionados al menos N veces
+              antes de poder canjear. Dejá los valores por defecto para que el canje solo requiera puntos.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Compras mínimas requeridas</label>
+                <input
+                  type="number"
+                  value={formData.minItemPurchases}
+                  onChange={e => setFormData({ ...formData, minItemPurchases: parseInt(e.target.value) || 0 })}
+                  min="0"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
+                />
+                <p className="text-xs text-muted-foreground">0 = sin requisito de recurrencia</p>
+              </div>
+            </div>
+
+            {/* Menu item selector */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Productos del menú vinculados</label>
+              <p className="text-xs text-muted-foreground mb-3">
+                Seleccioná los items del menú que contarán para las compras mínimas. Si no seleccionás ninguno, no
+                se aplicará validación de recurrencia.
+              </p>
+
+              <div className="relative mb-3">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={categorySearch}
+                  onChange={e => setCategorySearch(e.target.value)}
+                  placeholder="Buscar producto..."
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all text-sm"
+                />
+              </div>
+
+              {formData.linkedMenuItemIds.length > 0 && (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="text-sm font-bold text-emerald-600">
+                    {formData.linkedMenuItemIds.length} producto{formData.linkedMenuItemIds.length !== 1 ? 's' : ''} seleccionado{formData.linkedMenuItemIds.length !== 1 ? 's' : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, linkedMenuItemIds: [] }))}
+                    className="text-xs text-emerald-600 underline ml-auto"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              )}
+
+              {menuLoading ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">Cargando menú...</div>
+              ) : filteredCategories.length === 0 ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">
+                  {categorySearch ? 'Sin resultados' : 'No hay categorías disponibles'}
+                </div>
+              ) : (
+                <div className="max-h-64 overflow-y-auto rounded-xl border-2 border-border/60 divide-y divide-border/40">
+                  {filteredCategories.map(cat => (
+                    <div key={cat._id}>
+                      <div className="flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => toggleCategory(cat._id)}
+                          className="flex items-center gap-1 flex-1 text-left"
+                        >
+                          {expandedCategories.has(cat._id) ? (
+                            <ChevronDown size={14} className="text-muted-foreground flex-shrink-0" />
+                          ) : (
+                            <ChevronRight size={14} className="text-muted-foreground flex-shrink-0" />
+                          )}
+                          <span className="text-sm font-medium">{cat.name}</span>
+                          <span className="text-xs text-muted-foreground ml-1">({cat.items.length})</span>
+                        </button>
+                      </div>
+
+                      {expandedCategories.has(cat._id) && (
+                        <div className="ml-8 border-l border-border/40 pl-2 pb-1">
+                          {cat.items.length === 0 ? (
+                            <p className="px-3 py-2 text-xs text-muted-foreground">Sin productos</p>
+                          ) : (
+                            cat.items.map(menuItem => (
+                              <div
+                                key={menuItem._id}
+                                className="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors rounded-lg cursor-pointer"
+                                onClick={() => toggleItemSelection(menuItem._id)}
+                              >
+                                <div className={`
+                                  w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors
+                                  ${formData.linkedMenuItemIds.includes(menuItem._id)
+                                    ? 'bg-primary border-primary text-white'
+                                    : 'border-muted-foreground/30'}
+                                `}>
+                                  {formData.linkedMenuItemIds.includes(menuItem._id) && <span className="text-[8px]">✓</span>}
+                                </div>
+                                <span className="text-xs">{menuItem.name}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

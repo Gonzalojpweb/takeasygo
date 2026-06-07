@@ -21,6 +21,12 @@ export interface IStoreItem extends Document {
   maxPerMember?: number  // Límite de canjes por miembro
   tierRequirement?: StoreItemTier  // Nivel mínimo requerido
   
+  // Validación de recurrencia (opcional)
+  // Si se configura, el miembro debe haber comprado estos items
+  // al menos minItemPurchases veces antes de poder canjear
+  linkedMenuItemIds: mongoose.Types.ObjectId[]
+  minItemPurchases: number  // 0 = sin requisito de recurrencia
+  
   // Categorización
   category: StoreItemCategory
   tags: string[]
@@ -99,6 +105,19 @@ const StoreItemSchema = new Schema<IStoreItem>(
       type: String,
       enum: ['none', 'bronze', 'silver', 'gold'],
       default: 'none',
+    },
+
+    linkedMenuItemIds: {
+      type: [Schema.Types.ObjectId],
+      default: [],
+      description: 'IDs de items del menú que habilitan este premio (opcional)',
+    },
+
+    minItemPurchases: {
+      type: Number,
+      default: 0,
+      min: [0, 'El mínimo de compras no puede ser negativo'],
+      description: 'Cantidad mínima de compras de linkedMenuItemIds requerida (0 = sin requisito)',
     },
 
     category: {
