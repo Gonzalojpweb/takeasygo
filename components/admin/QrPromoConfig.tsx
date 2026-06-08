@@ -689,46 +689,73 @@ function PromoEditor({ data, tenantSlug, onChange, onSave, saving }: PromoEditor
           <Info size={16} className="text-[#F74211]" />
           Vista previa
         </label>
-        <div className="rounded-[32px] text-center relative overflow-hidden shadow-2xl border border-gray-100 flex flex-col bg-white mx-auto max-w-[280px]">
-          <div className="h-36 flex relative overflow-hidden" style={{ backgroundColor: '#F74211' }}>
-            <div className="w-1/2 p-3 flex items-center justify-center">
-              <div className="w-full h-full rounded-2xl bg-white/10 border-2 border-white/20 overflow-hidden flex items-center justify-center">
+        <div className="rounded-[32px] overflow-hidden shadow-2xl border border-neutral-200/50 flex flex-col bg-white mx-auto max-w-sm">
+          {/* Header oscuro */}
+          <div className="bg-[#121212] px-5 pt-5 pb-5 relative flex flex-col min-h-[150px]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-[#F74211] flex items-center justify-center flex-shrink-0">
+                  <span className="w-3 h-3 rounded-full bg-white flex items-center justify-center relative">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#F74211]" />
+                  </span>
+                </div>
+                <span className="text-[9px] font-extrabold tracking-[0.12em] text-white uppercase">TakeAsyGo</span>
+              </div>
+              <div className="w-6 h-6 rounded-full bg-neutral-900 flex items-center justify-center border border-neutral-800">
+                <X size={11} className="text-neutral-400" />
+              </div>
+            </div>
+            <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-[#F74211] mt-4 mb-1.5">
+              {data.badgeLabel || 'Pedí desde la app'}
+            </p>
+            <h3 className="text-lg font-black text-white leading-tight tracking-tight max-w-[65%]">
+              {data.title || 'Título de la promo'}
+            </h3>
+            <div className="absolute bottom-5 right-5 z-10">
+              <div className="w-12 h-12 rounded-[14px] bg-neutral-900 border-2 border-white flex items-center justify-center shadow-md">
                 {data.imageUrl ? (
-                  <img src={data.imageUrl} className="w-full h-full object-cover" alt="Preview" />
+                  <img src={data.imageUrl} className="w-full h-full object-cover rounded-[14px]" alt="" />
+                ) : data.type === 'discount' ? (
+                  <Gift size={18} className="text-[#F74211]" />
+                ) : data.type === 'loyalty' ? (
+                  <Star size={18} className="text-[#F74211] fill-[#F74211]" />
                 ) : (
-                  <Gift size={24} className="text-white opacity-80" />
+                  <Info size={18} className="text-[#F74211]" />
                 )}
               </div>
             </div>
-            <div className="w-1/2 flex flex-col justify-center text-left text-white pr-4 pl-1">
-              <p className="text-[8px] font-black uppercase opacity-70 mb-1">{data.badgeLabel}</p>
-              <div className="flex flex-col leading-none">
-                <span className="text-3xl font-black tracking-tighter">
-                  {data.type === 'discount' ? `${data.discountPercentage}%` : 'PROMO'}
-                </span>
-                <span className="text-sm font-black opacity-90 uppercase">
-                  {data.type === 'discount' ? data.offLabel : ''}
-                </span>
-              </div>
-            </div>
           </div>
-          <div className="p-8">
-            <p className="font-black text-slate-900 text-sm leading-tight mb-2">{data.title}</p>
-            <p className="text-[9px] text-slate-500 font-medium leading-tight mb-6 line-clamp-2">
+          {/* Body */}
+          <div className="px-5 py-5 bg-white flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[8px] font-extrabold uppercase tracking-[0.08em] text-[#F74211] bg-[#F74211]/10 px-2 py-0.5 rounded-full">
+                Oferta especial
+              </span>
+              {data.type === 'discount' && (
+                <span className="text-[8px] font-extrabold text-white bg-emerald-500 px-2 py-0.5 rounded-full">
+                  {data.discountPercentage}% OFF
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-neutral-600 leading-relaxed font-medium line-clamp-2">
               {data.type === 'discount'
                 ? data.subtitle.replace('{discount}', `${data.discountPercentage}%`)
                 : data.subtitle}
             </p>
-            <div className="flex flex-col gap-2">
-              <div className="w-full py-3 rounded-xl text-white text-[10px] font-black flex items-center justify-center gap-2 uppercase tracking-tight shadow-lg"
-                style={{ backgroundColor: '#F74211' }}>
-                {data.buttonText}
-                <ArrowRight size={12} className="stroke-[3]" />
-              </div>
-              <button className="text-blue-600 font-bold text-[10px]">Entendido</button>
+            <div className="w-full h-10 bg-[#F74211] text-white rounded-2xl text-[11px] font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#F74211]/25">
+              {data.buttonText || 'Ver menú'}
+              <ArrowRight size={13} />
             </div>
+            {data.termsText && (
+              <p className="text-[8px] text-neutral-400 text-center leading-relaxed line-clamp-1">
+                {data.termsText}
+              </p>
+            )}
           </div>
         </div>
+        <p className="text-[10px] text-muted-foreground mt-2 text-center">
+          Vista previa del banner que verá el cliente al escanear el QR
+        </p>
       </div>
 
       {/* Botón guardar */}

@@ -50,6 +50,8 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
 
   useEffect(() => {
     checkPromo()
+    const interval = setInterval(checkPromo, 30000)
+    return () => clearInterval(interval)
   }, [tenantSlug, source, promoSlug])
 
   const checkPromo = async () => {
@@ -66,7 +68,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       return
     }
     try {
-      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${source}${promoSlug ? `&promo=${promoSlug}` : ''}`
+      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${source}${promoSlug ? `&promo=${promoSlug}` : ''}&_=${Date.now()}`
       const res = await fetch(apiUrl)
       const data = await res.json()
       if (data.show && data.promo) {
@@ -181,10 +183,10 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.94, opacity: 0, y: 16 }}
             transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-            className="relative w-full max-w-[360px] bg-white dark:bg-neutral-900 rounded-[32px] overflow-hidden shadow-2xl border border-neutral-200/50 dark:border-neutral-800"
+            className="relative w-full max-w-sm sm:max-w-md bg-white dark:bg-neutral-900 rounded-[32px] shadow-2xl border border-neutral-200/50 dark:border-neutral-800 max-h-[85vh] overflow-y-auto"
           >
             {/* ── HEADER OSCURO ── */}
-            <div className="bg-[#121212] px-6 pt-6 pb-9 relative flex flex-col">
+            <div className="bg-[#121212] px-6 pt-6 pb-6 relative flex flex-col min-h-[190px]">
               {/* Fila superior: logo TGO + botón cerrar */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -214,12 +216,12 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
               </p>
 
               {/* Title */}
-              <h3 className="text-[26px] font-black text-white leading-tight tracking-tight max-w-[75%]">
+              <h3 className="text-[26px] font-black text-white leading-tight tracking-tight max-w-[65%]">
                 {renderTitle(promo.title)}
               </h3>
 
               {/* Imagen del admin — flotando en el borde inferior derecho del header */}
-              <div className="absolute -bottom-8 right-6 z-10">
+              <div className="absolute bottom-6 right-6 z-10">
                 {promo.imageUrl ? (
                   <div className="w-16 h-16 rounded-[20px] overflow-hidden bg-neutral-900 flex items-center justify-center border-2 border-white dark:border-neutral-900 shadow-md">
                     <img
@@ -239,9 +241,9 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
             </div>
 
             {/* ── BODY ── */}
-            <div className="p-6 pt-9 pb-7 bg-white dark:bg-neutral-900 flex flex-col gap-4">
+            <div className="px-6 py-6 bg-white dark:bg-neutral-900 flex flex-col gap-5">
               {/* Badges */}
-              <div className="flex flex-wrap items-center gap-2 pr-16">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-[#F74211] bg-[#F74211]/10 px-3 py-1 rounded-full">
                   Oferta especial
                 </span>
@@ -318,7 +320,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
                   <button
                     type="submit"
                     disabled={registering}
-                    className="w-full h-12 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-750 rounded-2xl text-neutral-900 dark:text-white text-sm font-bold flex items-center justify-center gap-2 transition-all hover:bg-neutral-50 dark:hover:bg-neutral-850 active:scale-[0.985] shadow-sm disabled:opacity-60"
+                    className="w-full h-12 bg-[#F74211] text-white rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all hover:bg-[#E03A0E] active:scale-[0.985] shadow-lg shadow-[#F74211]/25 disabled:opacity-60"
                   >
                     {registering ? (promo.loadingText || 'Registrando...') : 'Unirme al club'}
                     {!registering && <ArrowRight size={16} />}
@@ -345,7 +347,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
               {!isLoyalty && (
                 <button
                   onClick={handleClose}
-                  className="w-full h-12 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-2xl text-neutral-900 dark:text-white text-sm font-bold flex items-center justify-center gap-2 transition-all hover:bg-neutral-50 dark:hover:bg-neutral-850 active:scale-[0.985] shadow-sm"
+                  className="w-full h-12 bg-[#F74211] text-white rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all hover:bg-[#E03A0E] active:scale-[0.985] shadow-lg shadow-[#F74211]/25"
                 >
                   {promo.buttonText}
                   <ArrowRight size={16} />
@@ -353,14 +355,12 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
               )}
 
               {/* Seguir navegando */}
-              <div className="flex justify-center w-full">
-                <button
-                  onClick={handleClose}
-                  className="px-6 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-850 transition-all active:scale-[0.98] shadow-sm"
-                >
-                  Seguir navegando
-                </button>
-              </div>
+              <button
+                onClick={handleClose}
+                className="text-xs font-semibold text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors text-center w-full"
+              >
+                Seguir navegando
+              </button>
 
               {/* Terms */}
               {promo.termsText && (
