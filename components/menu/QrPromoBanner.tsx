@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Gift, Star, Info, CheckCircle2, ArrowRight } from 'lucide-react'
+import { X, Gift, Star, Info, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 
@@ -30,14 +30,6 @@ interface LoyaltyMessaging {
   welcomePointsMsg?: string
 }
 
-interface QrPromoStyles {
-  primaryColor: string
-  backgroundColor: string
-  badgeColor: string
-  borderRadius: string
-  buttonColor: string
-}
-
 interface QrPromoBannerProps {
   tenantSlug: string
 }
@@ -49,7 +41,6 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
 
   const [show, setShow] = useState(false)
   const [promo, setPromo] = useState<QrPromoData | null>(null)
-  const [styles, setStyles] = useState<QrPromoStyles | null>(null)
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ name: '', email: '', phone: '', countryCode: '+54' })
   const [registering, setRegistering] = useState(false)
@@ -58,11 +49,10 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   const [loyaltyMsg, setLoyaltyMsg] = useState<LoyaltyMessaging | null>(null)
 
   useEffect(() => {
-    Promise.all([checkPromo(), fetchStyles()])
+    checkPromo()
   }, [tenantSlug, source, promoSlug])
 
   const checkPromo = async () => {
-    // ... (lógica sin cambios)
     let effectiveSource = source
     if (!effectiveSource && typeof window !== 'undefined') {
       const pathParts = window.location.pathname.split('/')
@@ -99,29 +89,6 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
     }
   }
 
-  const fetchStyles = async () => {
-    // ... (lógica sin cambios)
-    try {
-      const res = await fetch('/api/superadmin/qr-promo-defaults')
-      const data = await res.json()
-      setStyles(data.qrPromoStyles || {
-        primaryColor: '#F74211',
-        backgroundColor: '#FFFFFF',
-        badgeColor: '#F74211',
-        borderRadius: '32px',
-        buttonColor: '#F74211',
-      })
-    } catch (e) {
-      setStyles({
-        primaryColor: '#F74211',
-        backgroundColor: '#FFFFFF',
-        badgeColor: '#F74211',
-        borderRadius: '32px',
-        buttonColor: '#F74211',
-      })
-    }
-  }
-
   const handleClose = () => {
     setShow(false)
     fetch(`/api/${tenantSlug}/qr-promo`, {
@@ -139,7 +106,12 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       const res = await fetch(`/api/${tenantSlug}/loyalty/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, email: form.email, phone: `${form.countryCode} ${form.phone}`, source: 'qr_scan' }),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: `${form.countryCode} ${form.phone}`,
+          source: 'qr_scan',
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -155,139 +127,152 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
     }
   }
 
-  if (loading || !show || !promo || !styles) return null
+  if (loading || !show || !promo) return null
 
-  const accentColor = styles.primaryColor || '#f14722'
   const isDiscount = promo.type === 'discount'
+  const isLoyalty = promo.type === 'loyalty'
 
   return (
     <AnimatePresence>
       {show && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="absolute inset-0 bg-neutral-950/70 backdrop-blur-xl"
+            className="absolute inset-0 bg-neutral-950/75 backdrop-blur-sm"
           />
 
           {/* Modal */}
           <motion.div
-            initial={{ scale: 0.92, opacity: 0, y: 20 }}
+            initial={{ scale: 0.94, opacity: 0, y: 16 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.92, opacity: 0, y: 20 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="relative w-full max-w-[390px] bg-white shadow-2xl overflow-hidden border border-neutral-100"
-            style={{ borderRadius: styles.borderRadius || '32px' }}
+            exit={{ scale: 0.94, opacity: 0, y: 16 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 340 }}
+            className="relative w-full max-w-[360px] bg-white dark:bg-neutral-900 rounded-[28px] overflow-hidden shadow-2xl"
+            style={{ border: '0.5px solid rgba(0,0,0,0.08)' }}
           >
-            {/* Premium Header Gradient */}
-            <div
-              className="h-32 relative overflow-hidden"
-              style={{
-                background: `linear-gradient(135deg, ${accentColor} 0%, #6b21a8 50%, #1e3a8a 100%)`,
-              }}
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.18)_0%,transparent_50%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(255,255,255,0.12)_0%,transparent_60%)]" />
 
-              {/* TGO Branding */}
-              <div className="absolute top-4 left-5 flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-2xl border border-white/20">
-                <img src="/tgoicon-192.png" alt="TGO" className="w-5 h-5" />
-                <span className="text-xs font-black text-white tracking-[0.08em]">TAKEASYGO</span>
+            {/* ── HEADER OSCURO ── */}
+            <div className="bg-neutral-950 px-5 pt-5 pb-8 relative">
+
+              {/* Fila superior: logo TGO + botón cerrar */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  {/* Logo TakeAsyGo */}
+                  <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 bg-[#F74211] flex items-center justify-center">
+                    <img
+                      src="/tgoicon-192.png"
+                      alt="TakeAsyGo"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // fallback si no carga la imagen
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-black tracking-[0.1em] text-white uppercase">
+                    TakeAsyGo
+                  </span>
+                </div>
+
+                <button
+                  onClick={handleClose}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-white/50 hover:text-white/80 transition-colors"
+                  style={{ border: '0.5px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)' }}
+                  aria-label="Cerrar"
+                >
+                  <X size={14} strokeWidth={2.5} />
+                </button>
               </div>
 
-              {/* Close Button */}
-              <button
-                onClick={handleClose}
-                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all active:scale-90"
-              >
-                <X size={18} strokeWidth={2.5} />
-              </button>
-            </div>
+              {/* Eyebrow + Headline */}
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#F74211] mb-2">
+                {promo.badgeLabel || 'Pedí desde la app'}
+              </p>
+              <h3 className="text-[22px] font-black text-white leading-[1.15] tracking-tight">
+                {promo.title}
+              </h3>
 
-            {/* Floating Image */}
-            <div className="absolute -top-9 left-6 z-20">
-              {promo.imageUrl ? (
-                <div className="p-1 bg-white rounded-3xl shadow-xl border border-neutral-100">
-                  <img
-                    src={promo.imageUrl}
-                    alt={promo.title}
-                    className="w-20 h-20 object-cover rounded-2xl"
-                  />
-                </div>
-              ) : (
-                <div className="w-20 h-20 rounded-3xl bg-white p-1 shadow-xl border border-neutral-100 flex items-center justify-center">
+              {/* Imagen del admin — flotando en el borde inferior derecho del header */}
+              <div className="absolute -bottom-6 right-5 z-10">
+                {promo.imageUrl ? (
                   <div
-                    className="w-full h-full rounded-2xl flex items-center justify-center"
-                    style={{ backgroundColor: accentColor }}
+                    className="w-14 h-14 rounded-2xl overflow-hidden"
+                    style={{ border: '3px solid white', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}
                   >
-                    {promo.type === 'discount' && <Gift size={32} className="text-white" />}
-                    {promo.type === 'loyalty' && <Star size={32} className="text-white fill-white" />}
-                    {promo.type === 'info' && <Info size={32} className="text-white" />}
+                    <img
+                      src={promo.imageUrl}
+                      alt={promo.title}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div
+                    className="w-14 h-14 rounded-2xl bg-neutral-800 flex items-center justify-center"
+                    style={{ border: '3px solid white', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}
+                  >
+                    {isDiscount && <Gift size={24} className="text-[#F74211]" />}
+                    {isLoyalty && <Star size={24} className="text-[#F74211] fill-[#F74211]" />}
+                    {promo.type === 'info' && <Info size={24} className="text-[#F74211]" />}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Body */}
-            <div className="pt-14 px-6 pb-8">
-              {/* Badge */}
-              <span
-                className="inline-block text-[10px] font-black tracking-[0.5px] uppercase px-3 py-1 rounded-full mb-3"
-                style={{
-                  color: accentColor,
-                  backgroundColor: `${accentColor}15`,
-                }}
-              >
-                {promo.badgeLabel || 'OFERTA ESPECIAL'}
-              </span>
+            {/* ── BODY ── */}
+            <div className="px-5 pt-10 pb-6 bg-white dark:bg-neutral-900">
 
-              {/* Title */}
-              <div className="mb-5">
-                <h3 className="text-2xl font-black text-neutral-900 leading-tight tracking-tighter">
-                  {promo.title}
-                </h3>
+              {/* Badges */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[#F74211] bg-[#F74211]/10 px-3 py-1 rounded-full">
+                  Oferta especial
+                </span>
                 {isDiscount && (
-                  <span className="inline-flex items-center mt-2 text-sm font-bold bg-emerald-600 text-white px-3 py-1 rounded-2xl">
+                  <span className="text-[10px] font-black text-white bg-emerald-500 px-3 py-1 rounded-full">
                     {promo.discountPercentage}% OFF
                   </span>
                 )}
               </div>
 
-              <p className="text-neutral-600 text-[15.2px] leading-relaxed mb-6">
+              {/* Subtítulo */}
+              <p className="text-[14px] text-neutral-500 dark:text-neutral-400 leading-relaxed mb-5">
                 {isDiscount
                   ? promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)
                   : promo.subtitle}
               </p>
 
-              {/* Warning */}
+              {/* Warning takeaway */}
               {isDiscount && (
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
-                  <Info size={20} className="text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">
-                    <p className="font-semibold text-amber-900">
+                <div
+                  className="flex gap-3 rounded-2xl p-3 mb-5"
+                  style={{ background: 'rgba(247,66,17,0.06)', border: '0.5px solid rgba(247,66,17,0.15)' }}
+                >
+                  <Info size={16} className="text-[#F74211] mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-[12px] font-bold text-neutral-800 dark:text-neutral-200">
                       {promo.takeawayWarningTitle || 'Exclusivo para takeaway'}
                     </p>
-                    <p className="text-amber-700 text-[13px] mt-0.5">
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5">
                       {promo.takeawayWarningText || 'Válido solo para pedidos para llevar.'}
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Form / Buttons */}
-              {promo.type === 'loyalty' && !registered ? (
-                <form onSubmit={handleRegister} className="space-y-3 mb-6">
-                  {/* ... (formulario sin cambios) */}
+              {/* Formulario loyalty */}
+              {isLoyalty && !registered && (
+                <form onSubmit={handleRegister} className="space-y-2 mb-5">
                   <input
                     required
                     type="text"
                     placeholder="Nombre completo"
                     value={form.name}
                     onChange={e => setForm(s => ({ ...s, name: e.target.value }))}
-                    className="w-full h-12 px-4 bg-neutral-50 border border-neutral-200 focus:border-neutral-900 rounded-2xl text-sm transition-all outline-none"
+                    className="w-full h-11 px-4 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 focus:border-neutral-900 dark:focus:border-white rounded-xl text-sm transition-all outline-none"
                   />
                   <input
                     required
@@ -295,45 +280,87 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
                     placeholder="Correo electrónico"
                     value={form.email}
                     onChange={e => setForm(s => ({ ...s, email: e.target.value }))}
-                    className="w-full h-12 px-4 bg-neutral-50 border border-neutral-200 focus:border-neutral-900 rounded-2xl text-sm transition-all outline-none"
+                    className="w-full h-11 px-4 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 focus:border-neutral-900 dark:focus:border-white rounded-xl text-sm transition-all outline-none"
                   />
-                  {/* resto del formulario igual */}
-                  {/* ... */}
+                  <div className="flex gap-2">
+                    <select
+                      value={form.countryCode}
+                      onChange={e => setForm(s => ({ ...s, countryCode: e.target.value }))}
+                      className="h-11 px-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm outline-none"
+                    >
+                      <option value="+54">🇦🇷 +54</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+34">🇪🇸 +34</option>
+                      <option value="+52">🇲🇽 +52</option>
+                    </select>
+                    <input
+                      type="tel"
+                      placeholder="Teléfono"
+                      value={form.phone}
+                      onChange={e => setForm(s => ({ ...s, phone: e.target.value }))}
+                      className="flex-1 h-11 px-4 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 focus:border-neutral-900 dark:focus:border-white rounded-xl text-sm transition-all outline-none"
+                    />
+                  </div>
+                  {error && (
+                    <p className="text-[12px] text-red-500 pt-1">{error}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={registering}
+                    className="w-full h-12 rounded-2xl text-white text-[14px] font-bold flex items-center justify-center gap-2 transition-opacity active:scale-[0.985] disabled:opacity-60"
+                    style={{ background: '#F74211', boxShadow: '0 8px 20px -4px rgba(247,66,17,0.35)' }}
+                  >
+                    {registering ? (promo.loadingText || 'Registrando...') : 'Unirme al club'}
+                    {!registering && <ArrowRight size={16} />}
+                  </button>
                 </form>
-              ) : null}
+              )}
 
-              {/* Success State y CTAs */}
-              {/* ... (mantengo la lógica original) */}
+              {/* Estado de éxito loyalty */}
+              {isLoyalty && registered && (
+                <div className="flex flex-col items-center text-center py-4 mb-5">
+                  <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mb-3">
+                    <CheckCircle2 size={24} className="text-emerald-500" />
+                  </div>
+                  <p className="text-[15px] font-bold text-neutral-900 dark:text-white">
+                    {loyaltyMsg?.successTitle || '¡Listo!'}
+                  </p>
+                  <p className="text-[13px] text-neutral-500 mt-1">
+                    {loyaltyMsg?.successMessage || 'Ya sos parte del club.'}
+                  </p>
+                </div>
+              )}
 
-              {(promo.type !== 'loyalty' || registered) && (
+              {/* CTA principal (para discount e info) */}
+              {!isLoyalty && (
                 <button
                   onClick={handleClose}
-                  className="w-full h-12 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg active:scale-[0.985] transition-all"
-                  style={{
-                    backgroundColor: accentColor,
-                    boxShadow: `0 12px 25px -6px ${accentColor}50`,
-                  }}
+                  className="w-full h-12 rounded-2xl text-white text-[14px] font-bold flex items-center justify-center gap-2 transition-opacity active:scale-[0.985]"
+                  style={{ background: '#F74211', boxShadow: '0 8px 20px -4px rgba(247,66,17,0.35)' }}
                 >
                   {promo.buttonText}
-                  <ArrowRight size={18} />
+                  <ArrowRight size={16} />
                 </button>
               )}
 
-              <div className="text-center mt-6">
+              {/* Seguir navegando */}
+              <div className="text-center mt-4">
                 <button
                   onClick={handleClose}
-                  className="text-sm text-neutral-500 hover:text-neutral-700 font-medium"
+                  className="text-[12px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 font-medium transition-colors"
                 >
                   Seguir navegando
                 </button>
               </div>
 
+              {/* Terms */}
               {promo.termsText && (
-                <p className="text-[10px] text-neutral-400 mt-6 text-center leading-relaxed">
+                <p className="text-[10px] text-neutral-300 dark:text-neutral-600 mt-4 text-center leading-relaxed">
                   {promo.termsText}
                 </p>
               )}
             </div>
+
           </motion.div>
         </div>
       )}
