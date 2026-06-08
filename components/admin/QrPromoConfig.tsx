@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, ArrowRight, ImageIcon, MessageSquare, Tag, Loader, ShoppingCart, AlertTriangle, Plus, Trash2, Copy, Edit3, X, MapPin } from 'lucide-react'
+import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, ArrowRight, ImageIcon, MessageSquare, Tag, Loader, ShoppingCart, AlertTriangle, Plus, Trash2, Copy, Edit3, X, MapPin, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ImageUpload from './ImageUpload'
 import { cn } from '@/lib/utils'
