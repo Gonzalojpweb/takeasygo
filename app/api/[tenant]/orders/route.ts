@@ -240,7 +240,8 @@ export async function POST(
           menuItemMap.set(item._id.toString(), { 
             ...item.toObject(), 
             categoryName: category.name,
-            categoryCustomizationGroups: category.customizationGroups || []
+            categoryCustomizationGroups: category.customizationGroups || [],
+            printRole: item.printRole || 'kitchen',
           })
         }
       }
@@ -415,6 +416,7 @@ export async function POST(
           subtotal,
           customizations: resolvedCustomizations,
           selectedVariant: resolvedSelectedVariant,
+          printRole: 'kitchen',
           addedFrom: clientItem.addedFrom ?? null,
           hasCategoryDiscount: false,
         })
@@ -532,6 +534,7 @@ export async function POST(
           subtotal,
           customizations: resolvedCustomizations,
           selectedVariant: resolvedSelectedVariant,
+          printRole: menuItem.printRole || 'kitchen',
           addedFrom: clientItem.addedFrom ?? null,
           hasCategoryDiscount,
         })
@@ -642,6 +645,7 @@ export async function POST(
           quantity: 1,
           subtotal: 0,
           customizations: [],
+          printRole: 'kitchen',
           addedFrom: null,
           hasCategoryDiscount: false,
         })

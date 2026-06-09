@@ -55,7 +55,7 @@ const EMPTY_VARIANT: VariantForm = {
 }
 
 const EMPTY_ITEM = {
-  name: '', description: '', price: '', takeawayPrice: '', businessPrice: '', tags: '', isFeatured: false, imageUrl: '',
+  name: '', description: '', printRole: 'kitchen', price: '', takeawayPrice: '', businessPrice: '', tags: '', isFeatured: false, imageUrl: '',
   isBusinessAvailable: false,
   suggestWith: [] as string[],
   customizationGroups: [] as CustomizationGroupForm[],
@@ -283,6 +283,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           locationId: selectedLocation,
           name: newItem.name,
           description: newItem.description,
+          printRole: newItem.printRole,
           price: parseFloat(newItem.price),
           takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
           businessPrice: newItem.businessPrice !== '' ? parseFloat(newItem.businessPrice) : null,
@@ -319,6 +320,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           itemId,
           name: editingItemData.name,
           description: editingItemData.description,
+          printRole: editingItemData.printRole,
           price: parseFloat(editingItemData.price),
           takeawayPrice: editingItemData.takeawayPrice ? parseFloat(editingItemData.takeawayPrice) : undefined,
           businessPrice: editingItemData.businessPrice !== '' ? parseFloat(editingItemData.businessPrice) : null,
@@ -1227,6 +1229,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                       setEditingItemData({
                                                         name: item.name,
                                                         description: item.description || '',
+                                                        printRole: item.printRole || 'kitchen',
                                                         price: item.price.toString(),
                                                         takeawayPrice: item.takeawayPrice?.toString() ?? '',
                                                         businessPrice: item.businessPrice?.toString() ?? '',
@@ -1259,6 +1262,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                 setEditingItemData({
                                                   name: item.name,
                                                   description: item.description || '',
+                                                  printRole: item.printRole || 'kitchen',
                                                   price: item.price.toString(),
                                                   takeawayPrice: item.takeawayPrice?.toString() ?? '',
                                                   businessPrice: item.businessPrice?.toString() ?? '',
@@ -1574,6 +1578,31 @@ function ItemForm({
               value={data.description}
               onChange={e => onChange({ ...data, description: e.target.value })}
             />
+          </div>
+
+          <div>
+            <label className={labelCls}>Imprimir en</label>
+            <div className="flex gap-2">
+              {[
+                { value: 'kitchen', label: 'Cocina' },
+                { value: 'bar', label: 'Barra' },
+                { value: 'both', label: 'Ambos' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onChange({ ...data, printRole: opt.value })}
+                  className={cn(
+                    'flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all',
+                    data.printRole === opt.value
+                      ? 'bg-primary/5 border-primary/40 text-primary'
+                      : 'bg-muted border-transparent text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>

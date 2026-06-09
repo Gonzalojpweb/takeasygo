@@ -170,9 +170,23 @@ export default function CustomizationModal({
         selectedOptions: buildSelectedOptions(g, selections[g._id] ?? []),
       }))
 
-    let customizationSummary = customizations
-      .flatMap(c => c.selectedOptions.map(o => o.name))
-      .join(' · ')
+    function buildCustomizationSummary(customizations: SelectedCustomization[]): string {
+      return customizations.flatMap(c => {
+        const groupLabel = c.groupName ? `${c.groupName}: ` : ''
+        const opts = c.selectedOptions.map(o => {
+          let text = o.name
+          if (o.subGroups && o.subGroups.length > 0) {
+            const sub = buildCustomizationSummary(o.subGroups)
+            if (sub) text += ` (${sub})`
+          }
+          return text
+        })
+        if (opts.length === 0) return []
+        return [`${groupLabel}${opts.join(', ')}`]
+      }).join(' · ')
+    }
+
+    let customizationSummary = buildCustomizationSummary(customizations)
 
     const selectedVariantData: SelectedVariant | undefined = selectedVariant
       ? {
