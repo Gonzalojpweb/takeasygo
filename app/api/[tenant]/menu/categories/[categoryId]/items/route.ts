@@ -20,7 +20,7 @@ export async function POST(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { locationId, name, description, price, takeawayPrice, businessPrice, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants } = await request.json()
+    const { locationId, name, description, printRole, price, takeawayPrice, businessPrice, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -36,6 +36,7 @@ export async function POST(
     category.items.push({
       name,
       description: description || '',
+      printRole: printRole || 'kitchen',
       price,
       takeawayPrice: takeawayPrice || undefined,
       businessPrice: businessPrice !== undefined ? businessPrice : undefined,
@@ -78,7 +79,7 @@ export async function PUT(
     if (authError) return authError
 
     const body = await request.json()
-    const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice } = body
+    const { locationId, itemId, name, description, printRole, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice } = body
 
     console.log('[PUT items] BODY:', { tenantSlug, categoryId, locationId: locationId?.toString(), itemId: itemId?.toString() })
 
@@ -131,6 +132,7 @@ export async function PUT(
     if (tags !== undefined) item.tags = tags
     if (isFeatured !== undefined) item.isFeatured = isFeatured
     if (suggestWith !== undefined) item.suggestWith = suggestWith
+    if (printRole !== undefined) item.printRole = printRole
     if (customizationGroups !== undefined) item.customizationGroups = customizationGroups
     if (variants !== undefined) item.variants = variants
     if (availabilityMode !== undefined) item.availabilityMode = availabilityMode

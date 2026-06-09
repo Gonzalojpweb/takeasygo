@@ -37,6 +37,7 @@ export interface IOrderItem {
   subtotal: number
   customizations: ISelectedCustomizationGroup[]
   selectedVariant?: ISelectedVariant
+  printRole?: string
   addedFrom?: string
   addedByEmail?: string
   /** Si true, el item tenía descuento de categoría (originalPrice definido en el menú). El QR no aplicó sobre él. */
@@ -184,6 +185,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
     default: [],
   },
   selectedVariant: { type: SelectedVariantSchema, default: null },
+  printRole: { type: String, default: 'kitchen' },
   addedFrom: { type: String, default: null },
   addedByEmail: { type: String, default: null },
 })

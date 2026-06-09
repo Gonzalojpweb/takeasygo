@@ -36,6 +36,7 @@ export interface IMenuItem {
   _id?: mongoose.Types.ObjectId
   name: string
   description: string
+  printRole?: 'kitchen' | 'bar' | 'both'
   price: number
   takeawayPrice?: number
   businessPrice?: number | null
@@ -178,6 +179,11 @@ const MenuItemSchema = new Schema<IMenuItem>({
   variants: {
     type: [MenuItemVariantSchema],
     default: [],
+  },
+  printRole: {
+    type: String,
+    enum: ['kitchen', 'bar', 'both'],
+    default: 'kitchen',
   },
   customizationGroups: {
     type: [CustomizationGroupSchema],
