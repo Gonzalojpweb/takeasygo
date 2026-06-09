@@ -37,7 +37,7 @@ export async function POST(
         if (authError) return authError
 
         const { tenantId } = await params
-        const { name, email, password, role = 'admin' } = await request.json()
+        const { name, email, password, role = 'admin', assignedLocations = [] } = await request.json()
 
         if (!name || !email || !password) {
             return NextResponse.json(
@@ -63,6 +63,7 @@ export async function POST(
             email: email.toLowerCase(),
             password: hashedPassword,
             role,
+            assignedLocations,
         }
 
         if (role === 'seller') {

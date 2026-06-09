@@ -60,7 +60,7 @@ export const authConfig = {
           token.id = dbUser._id.toString()
           token.role = dbUser.role || 'consumer'
           token.tenantId = dbUser.tenantId?.toString() || null
-          token.assignedLocation = dbUser.assignedLocation?.toString() || null
+          token.assignedLocation = dbUser.assignedLocations?.[0]?.toString() || null
           token.assignedLocations = dbUser.assignedLocations?.map((id: any) => id.toString()) || []
           token.assignedTenants = dbUser.assignedTenants?.map((id: any) => id.toString()) || []
           token.name = dbUser.name || token.name

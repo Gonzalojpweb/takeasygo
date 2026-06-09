@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import User from '@/models/User'
+import Location from '@/models/Location'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
@@ -32,6 +33,7 @@ export default async function TenantUsersPage({ params }: Props) {
             role: string
             isActive: boolean
             createdAt: Date
+            assignedLocations?: Types.ObjectId[]
         }>>()
 
     const serializedUsers = users.map(u => ({
@@ -41,6 +43,13 @@ export default async function TenantUsersPage({ params }: Props) {
         role: u.role as 'admin' | 'manager' | 'staff' | 'cashier',
         isActive: u.isActive,
         createdAt: u.createdAt.toISOString(),
+        assignedLocations: (u.assignedLocations || []).map((id: Types.ObjectId) => id.toString()),
+    }))
+
+    const locations = await Location.find({ tenantId, isActive: true }).select('name').lean()
+    const serializedLocations = locations.map((l: any) => ({
+      _id: l._id.toString(),
+      name: l.name,
     }))
 
     return (
@@ -63,6 +72,7 @@ export default async function TenantUsersPage({ params }: Props) {
             <TenantUsersManager
                 tenantId={tenantId}
                 initialUsers={serializedUsers}
+                locations={serializedLocations}
             />
         </div>
     )

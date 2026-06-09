@@ -43,7 +43,7 @@ export async function POST(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { name, email, password, role, assignedLocation } = await request.json()
+    const { name, email, password, role, assignedLocations = [] } = await request.json()
 
     // ✅ Prevenir privilege escalation: solo se permiten roles menores
     if (!ALLOWED_ROLES.includes(role)) {
@@ -64,7 +64,7 @@ export async function POST(
       password: hashedPassword,
       role,
       tenantId: tenant._id,
-      assignedLocation: assignedLocation || null,
+      assignedLocations: assignedLocations,
     })
 
     const { password: _, ...userWithoutPassword } = user.toObject()

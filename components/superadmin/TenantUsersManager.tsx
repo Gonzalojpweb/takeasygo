@@ -14,11 +14,13 @@ interface TenantUser {
     role: UserRole
     isActive: boolean
     createdAt: string
+    assignedLocations?: string[]
 }
 
 interface TenantUsersManagerProps {
     tenantId: string
     initialUsers: TenantUser[]
+    locations: { _id: string; name: string }[]
 }
 
 const ROLE_CONFIG: Record<UserRole, { label: string; className: string }> = {
@@ -121,10 +123,10 @@ function PasswordResetRow({ userId }: { userId: string }) {
     )
 }
 
-export default function TenantUsersManager({ tenantId, initialUsers }: TenantUsersManagerProps) {
+export default function TenantUsersManager({ tenantId, initialUsers, locations }: TenantUsersManagerProps) {
     const [users, setUsers] = useState<TenantUser[]>(initialUsers)
     const [showAddForm, setShowAddForm] = useState(false)
-    const [form, setForm] = useState({ name: '', email: '', password: '', role: 'admin' as UserRole })
+    const [form, setForm] = useState({ name: '', email: '', password: '', role: 'admin' as UserRole, assignedLocations: [] as string[] })
     const [addState, setAddState] = useState<'idle' | 'loading' | 'error'>('idle')
     const [addError, setAddError] = useState('')
     const [showNewPw, setShowNewPw] = useState(false)
@@ -146,7 +148,7 @@ export default function TenantUsersManager({ tenantId, initialUsers }: TenantUse
                 return
             }
             setUsers(prev => [...prev, data.user])
-            setForm({ name: '', email: '', password: '', role: 'admin' })
+            setForm({ name: '', email: '', password: '', role: 'admin', assignedLocations: [] })
             setShowAddForm(false)
             setAddState('idle')
         } catch {
@@ -185,18 +187,35 @@ export default function TenantUsersManager({ tenantId, initialUsers }: TenantUse
 
                             {/* Right side: role badge + status + reset */}
                             <div className="flex flex-col gap-2 sm:items-end shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <Badge className={cn(
-                                        'text-[10px] font-bold uppercase tracking-widest border px-2.5 py-0.5 rounded-full',
-                                        ROLE_CONFIG[user.role]?.className ?? 'bg-muted text-muted-foreground border-border'
-                                    )}>
-                                        {ROLE_CONFIG[user.role]?.label ?? user.role}
-                                    </Badge>
-                                    <div className={cn(
-                                        'w-2 h-2 rounded-full',
-                                        user.isActive ? 'bg-emerald-500' : 'bg-destructive'
-                                    )} title={user.isActive ? 'Activo' : 'Inactivo'} />
-                                </div>
+                                                                <div className="flex flex-col gap-2 items-end">
+                                                                  <div className="flex items-center gap-2">
+                                                                      <Badge className={cn(
+                                                                          'text-[10px] font-bold uppercase tracking-widest border px-2.5 py-0.5 rounded-full',
+                                                                          ROLE_CONFIG[user.role]?.className ?? 'bg-muted text-muted-foreground border-border'
+                                                                      )}>
+                                                                          {ROLE_CONFIG[user.role]?.label ?? user.role}
+                                                                      </Badge>
+                                                                      <div className={cn(
+                                                                          'w-2 h-2 rounded-full',
+                                                                          user.isActive ? 'bg-emerald-500' : 'bg-destructive'
+                                                                      )} title={user.isActive ? 'Activo' : 'Inactivo'} />
+                                                                  </div>
+                                                                  {user.assignedLocations && user.assignedLocations.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-1 justify-end">
+                                                                      {user.assignedLocations.map((locId: string) => {
+                                                                        const loc = locations.find(l => l._id === locId)
+                                                                        return loc ? (
+                                                                          <span
+                                                                            key={locId}
+                                                                            className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[8px] font-bold uppercase tracking-wider border border-primary/20"
+                                                                          >
+                                                                            {loc.name}
+                                                                          </span>
+                                                                        ) : null
+                                                                      })}
+                                                                    </div>
+                                                                  )}
+                                                                </div>
                                 <PasswordResetRow userId={user._id} />
                             </div>
                         </div>
@@ -282,6 +301,43 @@ export default function TenantUsersManager({ tenantId, initialUsers }: TenantUse
                             </select>
                         </div>
                     </div>
+
+                    {locations.length > 0 && (
+                      <div className="space-y-2 col-span-full">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sedes Asignadas</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {locations.map(loc => {
+                            const checked = form.assignedLocations.includes(loc._id)
+                            return (
+                              <label
+                                key={loc._id}
+                                className={cn(
+                                  "flex items-center gap-2.5 p-2.5 rounded-xl border-2 cursor-pointer transition-all",
+                                  checked
+                                    ? "border-primary/40 bg-primary/5"
+                                    : "border-border/60 bg-muted/20 hover:border-primary/20"
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setForm(f => ({
+                                      ...f,
+                                      assignedLocations: checked
+                                        ? f.assignedLocations.filter(id => id !== loc._id)
+                                        : [...f.assignedLocations, loc._id],
+                                    }))
+                                  }}
+                                  className="w-3.5 h-3.5 rounded accent-primary"
+                                />
+                                <span className="text-xs font-semibold text-foreground">{loc.name}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {addState === 'error' && (
                         <p className="flex items-center gap-1.5 text-xs text-destructive font-medium">
