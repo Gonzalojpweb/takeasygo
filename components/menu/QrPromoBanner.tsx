@@ -182,7 +182,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.94, opacity: 0, y: 16 }}
             transition={{ type: 'spring', damping: 30, stiffness: 340 }}
-            className="relative min-w-[90%] bg-white dark:bg-neutral-900 rounded-[18px] h-[70vh] overflow-y-auto"
+            className="relative min-w-[80%] bg-white dark:bg-neutral-900 rounded-[18px] h-[60vh] overflow-y-auto"
           >
 
             <div className="bg-[#F74211] rounded-t-[20px] p-6 text-center">
@@ -213,9 +213,9 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
               </h3>
             </div>
 
-            <div className="flex flex-col items-center gap-6 h-[80%]">
+            <div className="flex flex-col items-center gap-6 h-[70%]">
               <div className="flex flex-wrap items-center">
-                <span className="text-[20px] relative top-[10px] font-black uppercase tracking-[0.1em] text-[#F74211] bg-[#F74211]/10 rounded-full">
+                <span className="text-[20px] relative top-[20px] font-black uppercase tracking-[0.1em] text-[#F74211] bg-[#F74211]/10 rounded-full">
                   Oferta especial
                 </span>
                 {isDiscount && (
