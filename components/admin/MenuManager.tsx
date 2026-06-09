@@ -1150,6 +1150,16 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                     <span className="text-primary font-bold tabular-nums text-sm leading-none">${item.businessPrice.toLocaleString('es-AR')}</span>
                                                   </div>
                                                 )}
+                                                {(item.printRole && item.printRole !== 'kitchen') && (
+                                                  <div className={cn(
+                                                    "flex items-center gap-1 px-2 py-0.5 rounded-lg border",
+                                                    item.printRole === 'bar' ? "bg-sky-50 border-sky-200 text-sky-600" : "bg-purple-50 border-purple-200 text-purple-600"
+                                                  )}>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest leading-none">
+                                                      {item.printRole === 'bar' ? 'Barra' : 'Cocina+Barra'}
+                                                    </span>
+                                                  </div>
+                                                )}
                                                 <div className="flex gap-1 flex-wrap">
                                                   {item.tags?.map((tag: string) => (
                                                     <span key={tag} className="text-[10px] font-bold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-lg border border-border/40">
