@@ -167,7 +167,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   return (
     <AnimatePresence>
       {show && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-10">
 
           <motion.div
             initial={{ opacity: 0 }}
@@ -182,55 +182,40 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.94, opacity: 0, y: 16 }}
             transition={{ type: 'spring', damping: 30, stiffness: 340 }}
-            className="relative w-full max-w-[420px] bg-white dark:bg-neutral-900 rounded-[28px] shadow-2xl max-h-[85vh] overflow-y-auto"
+            className="relative min-w-[90%] bg-white dark:bg-neutral-900 rounded-[18px] h-[70vh] overflow-y-auto"
           >
 
-            <div className="bg-neutral-950 rounded-t-[28px] px-6 pt-6 pb-14 relative">
+            <div className="bg-[#F74211] rounded-t-[20px] p-6 text-center">
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg overflow-hidden bg-[#F74211] flex items-center justify-center flex-shrink-0">
-                    <img src="/tgoicon-192.png" alt="TakeAsyGo" className="w-full h-full object-cover" />
+                <div className="w-full flex items-center justify-evenly gap-4">
+                  <div className="w-20 h-30 rounded-[10px] overflow-hidden bg-[#F74211] flex items-center justify-center flex-shrink-0">
+                    <img src="/tgoicon-192.png" alt="TakeAsyGo" className="object-cover" />
                   </div>
-                  <span className="text-[11px] font-black tracking-[0.1em] text-white uppercase">
+                  <span className="text-[14px] font-black tracking-[0.1em] text-white uppercase">
                     TakeAsyGo
                   </span>
                 </div>
                 <button
                   onClick={handleClose}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                  className="rounded-full flex items-center justify-center text-white/60 hover:text-white transition-colors"
                   aria-label="Cerrar"
                 >
-                  <X size={16} strokeWidth={2.5} />
+                  <X size={18} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#F74211] mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#F74211]">
                 {promo.badgeLabel || 'Pedí desde la app'}
               </p>
 
-              <h3 className="text-[24px] font-black text-white leading-tight tracking-tight max-w-[75%]">
+              <h3 className="text-[20px] font-black text-white leading-tight tracking-tight w-[75%]">
                 {renderTitle(promo.title)}
               </h3>
-
-              <div className="absolute bottom-4 right-4 z-10">
-                {promo.imageUrl ? (
-                  <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg border-2 border-white dark:border-neutral-800">
-                    <img src={promo.imageUrl} alt="" className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-neutral-800 border-2 border-white dark:border-neutral-800 flex items-center justify-center shadow-lg">
-                    {isDiscount && <Gift size={28} className="text-[#F74211]" />}
-                    {isLoyalty && <Star size={28} className="text-[#F74211] fill-[#F74211]" />}
-                    {promo.type === 'info' && <Info size={28} className="text-[#F74211]" />}
-                  </div>
-                )}
-              </div>
             </div>
 
-            <div className="px-6 pb-6 pt-5 flex flex-col gap-5">
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[#F74211] bg-[#F74211]/10 px-3 py-1 rounded-full">
+            <div className="flex flex-col items-center gap-6 h-[80%]">
+              <div className="flex flex-wrap items-center">
+                <span className="text-[20px] relative top-[10px] font-black uppercase tracking-[0.1em] text-[#F74211] bg-[#F74211]/10 rounded-full">
                   Oferta especial
                 </span>
                 {isDiscount && (
@@ -240,7 +225,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
                 )}
               </div>
 
-              <p className="text-[14px] text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-prose">
+              <p className="text-[18px] text-neutral-600 dark:text-neutral-300 leading-relaxed">
                 {isDiscount
                   ? promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)
                   : promo.subtitle}
@@ -326,7 +311,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
               {!isLoyalty && (
                 <button
                   onClick={handleClose}
-                  className="w-full h-12 bg-[#F74211] text-white rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all hover:bg-[#E03A0E] active:scale-[0.985] shadow-lg shadow-[#F74211]/25"
+                  className="min-w-[60%] h-10 bg-[#F74211] text-white rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all hover:bg-[#E03A0E] active:scale-[0.985] shadow-lg shadow-[#F74211]/25"
                 >
                   {promo.buttonText}
                   <ArrowRight size={16} />
@@ -335,7 +320,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
 
               <button
                 onClick={handleClose}
-                className="text-[12px] font-semibold text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors text-center w-full"
+                className="text-[14px] font-semibold text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors text-center w-full"
               >
                 Seguir navegando
               </button>
