@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import MenuPWAProvider from '@/components/menu/MenuPWAProvider'
 import TenantFontLoader from '@/components/TenantFontLoader'
+import { QrPromoBanner } from '@/components/promo'
 
 interface Props {
   children: React.ReactNode
@@ -56,6 +57,7 @@ export default async function MenuLayout({ children, params }: Props) {
         textColor={branding.textColor || '#1a1a1a'}
         manifestUrl={`/${tenantSlug}/menu/manifest.json`}
       />
+      <QrPromoBanner tenantSlug={tenantSlug} />
       {children}
     </TenantFontLoader>
   )

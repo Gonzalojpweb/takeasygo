@@ -4,7 +4,6 @@ import Location from '@/models/Location'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
-import QrPromoBanner from '@/components/menu/QrPromoBanner'
 import MenuWithExploreNav from '@/components/menu/MenuWithExploreNav'
 import WelcomeBackground from '@/components/menu/WelcomeBackground'
 
@@ -49,9 +48,6 @@ export default async function MenuSelectorPage({ params }: Props) {
 
   return (
     <MenuWithExploreNav tenantSlug={tenantSlug}>
-      {/* QR Promo Banner - aparece al escanear QR por primera vez */}
-      <QrPromoBanner tenantSlug={tenantSlug} />
-
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
