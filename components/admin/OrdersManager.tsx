@@ -16,6 +16,8 @@ interface Props {
   trialOrderCount?: number
   load30m?: number
   load60m?: number
+  locations?: { _id: string; name: string }[]
+  userAssignedLocations?: string[]
 }
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
@@ -48,12 +50,18 @@ const CATEGORY_COLORS = [
   'text-emerald-600', 'text-rose-500', 'text-amber-600',
 ]
 
-export default function OrdersManager({ orders, locationMap, tenantSlug, trialOrderCount, load30m, load60m }: Props) {
+export default function OrdersManager({ orders, locationMap, tenantSlug, trialOrderCount, load30m, load60m, locations = [], userAssignedLocations = [] }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilter, setActiveFilter] = useState('pending')
+  const [activeLocation, setActiveLocation] = useState('all')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
+  const isAdmin = userAssignedLocations.length === 0
+  const availableLocations = isAdmin
+    ? locations
+    : locations.filter(l => userAssignedLocations.includes(l._id))
 
   useEffect(() => {
     setLastUpdated(new Date())
@@ -197,7 +205,10 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
       activeFilter === 'scheduled' ? isScheduled :
       order.status === activeFilter
 
-    return matchSearch && matchFilter
+    const orderLocationId = order.locationId?.toString()
+    const matchLocation = activeLocation === 'all' || orderLocationId === activeLocation
+
+    return matchSearch && matchFilter && matchLocation
   })
 
   return (
@@ -282,6 +293,37 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
           {filtered.length} pedido{filtered.length !== 1 ? 's' : ''}
         </span>
       </div>
+
+      {/* Location filter */}
+      {availableLocations.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            onClick={() => setActiveLocation('all')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 border',
+              activeLocation === 'all'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-background text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground'
+            )}
+          >
+            Todas las sedes
+          </button>
+          {availableLocations.map(loc => (
+            <button
+              key={loc._id}
+              onClick={() => setActiveLocation(loc._id)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 border',
+                activeLocation === loc._id
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : 'bg-background text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground'
+              )}
+            >
+              {loc.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">

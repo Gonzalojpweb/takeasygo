@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
 import { safeDecrypt } from '@/lib/crypto'
 
@@ -39,6 +39,17 @@ export async function GET(
 
     if (locationId) filter.locationId = locationId
     if (status) filter.status = status
+
+    // Restrict by assignedLocations for non-admin users
+    const sessionUser = await getSessionUser(request)
+    if (sessionUser && sessionUser.role !== 'admin' && sessionUser.role !== 'superadmin') {
+      const locs = sessionUser.assignedLocations ?? []
+      if (locs.length > 0) {
+        filter.locationId = { $in: locs }
+      } else {
+        filter._id = { $in: [] }
+      }
+    }
 
     if (from || to) {
       filter.createdAt = {}

@@ -10,7 +10,7 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import User from '@/models/User'
 import { generateOrderNumber } from '@/lib/orderNumber'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { createOrderSchema } from '@/lib/schemas'
 import { encrypt, safeDecrypt, hashPhone } from '@/lib/crypto'
 import { upsertConsumerFromOrder } from '@/lib/consumer'
@@ -96,6 +96,18 @@ export async function GET(
 
     const filter: Record<string, any> = { tenantId: tenant._id, status: { $ne: 'awaiting_payment' } }
     if (locationId) filter.locationId = locationId
+
+    // Restrict by assignedLocations for non-admin users
+    const sessionUser = await getSessionUser(request)
+    if (sessionUser && sessionUser.role !== 'admin' && sessionUser.role !== 'superadmin') {
+      const locs = sessionUser.assignedLocations ?? []
+      if (locs.length > 0) {
+        filter.locationId = { $in: locs }
+      } else {
+        // User has no locations assigned — force empty result
+        filter._id = { $in: [] }
+      }
+    }
 
     const rawOrders = await Order.find(filter).sort({ createdAt: -1 }).limit(50).lean()
     const orders = rawOrders.map((o: any) => ({

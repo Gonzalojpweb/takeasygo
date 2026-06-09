@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import Location from '@/models/Location'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
+import { auth } from '@/lib/auth'
 import OrdersManager from '@/components/admin/OrdersManager'
 import type { Types } from 'mongoose'
 import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
@@ -11,6 +12,7 @@ import { Lock } from 'lucide-react'
 import { safeDecrypt } from '@/lib/crypto'
 
 export default async function OrdersPage() {
+  const session = await auth()
   const headersList = await headers()
   const tenantSlug = headersList.get('x-tenant-slug')
 
@@ -57,6 +59,13 @@ export default async function OrdersPage() {
     locations.map((l: any) => [l._id.toString(), l.name])
   )
 
+  const serializedLocations = JSON.parse(JSON.stringify(locations)).map((l: any) => ({
+    _id: l._id.toString(),
+    name: l.name,
+  }))
+
+  const userAssignedLocations = session?.user?.assignedLocations ?? []
+
   // Para plan trial: contar pedidos activos para mostrar banner de milestone
   const trialOrderCount = tenant.plan === 'trial'
     ? await Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] } })
@@ -86,6 +95,8 @@ export default async function OrdersPage() {
         trialOrderCount={trialOrderCount}
         load30m={load30m}
         load60m={load60m}
+        locations={serializedLocations}
+        userAssignedLocations={userAssignedLocations}
       />
     </div>
   )

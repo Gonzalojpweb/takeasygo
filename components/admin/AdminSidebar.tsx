@@ -44,6 +44,8 @@ interface Props {
   dineInOnly?: boolean
   unreadAnnouncements?: number
   businessEnabled?: boolean
+  assignedLocations?: string[]
+  locations?: { _id: string; name: string }[]
 }
 
 interface NavItem {
@@ -126,7 +128,7 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false, unreadAnnouncements = 0, businessEnabled = false }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false, unreadAnnouncements = 0, businessEnabled = false, assignedLocations = [], locations = [] }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
 
@@ -271,8 +273,30 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
         })}
       </nav>
 
+      {/* Locations */}
+      {locations.length > 0 && (
+        <div className="px-4 py-3 border-t border-sidebar-border/30">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30 mb-2">
+            {userRole === 'admin' || userRole === 'superadmin' ? 'Todas las sedes' : 'Mis sedes'}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {locations
+              .filter(l => userRole === 'admin' || userRole === 'superadmin' || assignedLocations.includes(l._id))
+              .map(l => (
+                <span
+                  key={l._id}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 text-sidebar-foreground/70 text-[10px] font-semibold border border-sidebar-border/20"
+                >
+                  <Building2 size={10} className="opacity-60" />
+                  {l.name}
+                </span>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* User */}
-      <div className="p-3 border-t border-sidebar-border/30 mt-auto">
+      <div className="p-3 border-t border-sidebar-border/30">
         <div className="flex items-center gap-3 p-2 rounded-xl bg-white/[0.03]">
           <Avatar className="h-9 w-9 border border-sidebar-border/50">
             <AvatarFallback className="bg-primary/20 text-primary text-[11px] font-bold">

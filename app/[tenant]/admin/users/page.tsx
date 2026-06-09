@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import User from '@/models/User'
+import Location from '@/models/Location'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import type { Types } from 'mongoose'
@@ -45,6 +46,14 @@ export default async function UsersPage() {
 
   const tenantId = tenant._id
   const users = await User.find({ tenantId }).select('-password').lean()
+  const locations = await Location.find({ tenantId, isActive: true })
+    .select('name')
+    .lean()
+
+  const serializedLocations = JSON.parse(JSON.stringify(locations)).map((l: any) => ({
+    _id: l._id.toString(),
+    name: l.name,
+  }))
 
   return (
     <div>
@@ -53,6 +62,7 @@ export default async function UsersPage() {
         users={JSON.parse(JSON.stringify(users))}
         tenantSlug={tenantSlug || ''}
         tenantId={tenantId.toString()}
+        locations={serializedLocations}
       />
     </div>
   )

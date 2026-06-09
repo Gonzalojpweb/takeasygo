@@ -5,6 +5,7 @@ import OrderHistory from '@/components/admin/OrderHistory'
 import { auth } from '@/lib/auth'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 
 export default async function OrderHistoryPage() {
@@ -49,6 +50,15 @@ export default async function OrderHistoryPage() {
     )
   }
 
+  const userRole = session?.user?.role
+  const userAssignedLocations = session?.user?.assignedLocations ?? []
+
+  const locations = await Location.find({ tenantId: tenant._id, isActive: true }).select('name').lean()
+  const serializedLocations = locations.map((l: any) => ({
+    _id: l._id.toString(),
+    name: l.name,
+  }))
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div>
@@ -61,7 +71,7 @@ export default async function OrderHistoryPage() {
         </p>
       </div>
 
-      <OrderHistory tenantSlug={tenantSlug} />
+      <OrderHistory tenantSlug={tenantSlug} locations={serializedLocations} userAssignedLocations={userAssignedLocations} userRole={userRole} />
     </div>
   )
 }

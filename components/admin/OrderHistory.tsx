@@ -73,9 +73,24 @@ const PAYMENT_STATUS: Record<string, string> = {
   cancelled: 'Cancelado',
 }
 
-export default function OrderHistory({ tenantSlug }: { tenantSlug: string }) {
+export default function OrderHistory({
+  tenantSlug,
+  locations = [],
+  userAssignedLocations = [],
+  userRole = '',
+}: {
+  tenantSlug: string
+  locations?: { _id: string; name: string }[]
+  userAssignedLocations?: string[]
+  userRole?: string
+}) {
   const [data, setData] = useState<HistoryResponse | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const isAdmin = userRole === 'admin' || userRole === 'superadmin'
+  const availableLocations = isAdmin
+    ? locations
+    : locations.filter(l => userAssignedLocations.includes(l._id))
 
   const [page, setPage] = useState(1)
   const [locationId, setLocationId] = useState('')
@@ -141,8 +156,8 @@ export default function OrderHistory({ tenantSlug }: { tenantSlug: string }) {
             onChange={e => setLocationId(e.target.value)}
             className={selectCls}
           >
-            <option value="">Todas las sedes</option>
-            {data?.locations.map(l => (
+            {isAdmin && <option value="">Todas las sedes</option>}
+            {availableLocations.map(l => (
               <option key={l._id} value={l._id}>{l.name}</option>
             ))}
           </select>

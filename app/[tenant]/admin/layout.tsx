@@ -41,12 +41,18 @@ export default async function AdminLayout({
 
   // Determine if tenant operates in dine-in only mode (no takeaway at any location)
   let dineInOnly = false
+  let sidebarLocations: { _id: string; name: string }[] = []
   if (tenantDoc) {
-    const [hasAny, hasTakeaway] = await Promise.all([
+    const [hasAny, hasTakeaway, locs] = await Promise.all([
       Location.exists({ tenantId: tenantDoc._id, isActive: true }),
       Location.exists({ tenantId: tenantDoc._id, isActive: true, 'settings.orderModes': 'takeaway' }),
+      Location.find({ tenantId: tenantDoc._id, isActive: true }).select('name').lean(),
     ])
     dineInOnly = !!hasAny && !hasTakeaway
+    sidebarLocations = (locs as any[]).map(l => ({
+      _id: l._id.toString(),
+      name: l.name,
+    }))
   }
 
   // Count unread announcements for this user
@@ -68,6 +74,8 @@ export default async function AdminLayout({
     dineInOnly,
     unreadAnnouncements,
     businessEnabled,
+    assignedLocations: session.user.assignedLocations ?? [],
+    locations: sidebarLocations,
   }
 
   return (

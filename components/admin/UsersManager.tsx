@@ -21,11 +21,12 @@ interface Props {
   users: any[]
   tenantSlug: string
   tenantId: string
+  locations: { _id: string; name: string }[]
 }
 
-const EMPTY_FORM = { name: '', email: '', password: '', role: 'staff' }
+const EMPTY_FORM = { name: '', email: '', password: '', role: 'staff', assignedLocations: [] as string[] }
 
-export default function UsersManager({ users, tenantSlug, tenantId }: Props) {
+export default function UsersManager({ users, tenantSlug, tenantId, locations }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [loading, setLoading] = useState(false)
@@ -141,17 +142,57 @@ export default function UsersManager({ users, tenantSlug, tenantId }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      <label className={labelCls}>Rol en el equipo</label>
-                      <select value={form.role}
-                        onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-                        className={cn(inputCls, "appearance-none cursor-pointer")}>
-                        <option value="admin">Administrador (Control total)</option>
-                        <option value="manager">Mánager (Gestión de ventas)</option>
-                        <option value="staff">Personal (Visualización)</option>
-                        <option value="cashier">Cajero (Operativa)</option>
-                      </select>
-                    </div>
-                  </div>
+                       <label className={labelCls}>Rol en el equipo</label>
+                       <select value={form.role}
+                         onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
+                         className={cn(inputCls, "appearance-none cursor-pointer")}>
+                         <option value="admin">Administrador (Control total)</option>
+                         <option value="manager">Mánager (Gestión de ventas)</option>
+                         <option value="staff">Personal (Visualización)</option>
+                         <option value="cashier">Cajero (Operativa)</option>
+                       </select>
+                     </div>
+                   </div>
+
+                   {locations.length > 0 && (
+                     <div className="space-y-3">
+                       <label className={labelCls}>Sedees Asignadas</label>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                         {locations.map(loc => {
+                           const checked = form.assignedLocations.includes(loc._id)
+                           return (
+                             <label
+                               key={loc._id}
+                               className={cn(
+                                 "flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all",
+                                 checked
+                                   ? "border-primary/40 bg-primary/5"
+                                   : "border-border/60 bg-muted/20 hover:border-primary/20"
+                               )}
+                             >
+                               <input
+                                 type="checkbox"
+                                 checked={checked}
+                                 onChange={() => {
+                                   setForm(p => ({
+                                     ...p,
+                                     assignedLocations: checked
+                                       ? p.assignedLocations.filter(id => id !== loc._id)
+                                       : [...p.assignedLocations, loc._id],
+                                   }))
+                                 }}
+                                 className="w-4 h-4 rounded accent-primary"
+                               />
+                               <span className="text-sm font-semibold text-foreground">{loc.name}</span>
+                             </label>
+                           )
+                         })}
+                       </div>
+                       <p className="text-[10px] text-muted-foreground font-medium">
+                         Seleccioná las sedes a las que este usuario tendrá acceso. Los administradores ven todas las sedes.
+                       </p>
+                     </div>
+                   )}
 
                   <div className="flex items-center gap-3 pt-4">
                     <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest px-10 h-14 rounded-2xl shadow-xl shadow-primary/20 transition-all active:scale-95 disabled:opacity-50">
@@ -196,11 +237,26 @@ export default function UsersManager({ users, tenantSlug, tenantId }: Props) {
                     </div>
 
                     <div className="space-y-1">
-                      <h4 className="text-lg font-black tracking-tight text-foreground truncate">{user.name}</h4>
-                      <p className="text-xs text-muted-foreground font-medium truncate flex items-center gap-1.5">
-                        <Mail size={12} className="opacity-40" /> {user.email}
-                      </p>
-                    </div>
+                       <h4 className="text-lg font-black tracking-tight text-foreground truncate">{user.name}</h4>
+                       <p className="text-xs text-muted-foreground font-medium truncate flex items-center gap-1.5">
+                         <Mail size={12} className="opacity-40" /> {user.email}
+                       </p>
+                       {user.assignedLocations?.length > 0 && (
+                         <div className="flex flex-wrap gap-1.5 mt-2">
+                           {user.assignedLocations.map((locId: string) => {
+                             const loc = locations.find(l => l._id === locId)
+                             return loc ? (
+                               <span
+                                 key={locId}
+                                 className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold uppercase tracking-wider border border-primary/20"
+                               >
+                                 {loc.name}
+                               </span>
+                             ) : null
+                           })}
+                         </div>
+                       )}
+                     </div>
 
                     <div className="mt-8 pt-6 border-t border-border/40 flex items-center justify-between">
                       <div className="flex items-center gap-2">

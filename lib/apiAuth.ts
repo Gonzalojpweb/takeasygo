@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth'
 import { getToken } from 'next-auth/jwt'
 import { NextRequest, NextResponse } from 'next/server'
 
-async function getSessionUser(request?: NextRequest) {
+export async function getSessionUser(request?: NextRequest) {
   const session = await auth()
   if (session?.user) return session.user
 
