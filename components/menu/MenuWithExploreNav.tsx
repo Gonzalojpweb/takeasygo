@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import BottomNav from '@/components/explore/BottomNav'
 import { TenantProvider, useTenant } from '@/contexts/TenantContext'
@@ -36,7 +36,11 @@ export default function MenuWithExploreNav({ tenantSlug, children }: Props) {
           {children}
         </div>
       </MenuContent>
-      {isAuthenticated && <BottomNav />}
+      {isAuthenticated && (
+        <Suspense fallback={null}>
+          <BottomNav />
+        </Suspense>
+      )}
     </TenantProvider>
   )
 }
