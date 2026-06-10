@@ -72,7 +72,7 @@ async function rateLimitRedis(
 // ── Función pública ─────────────────────────────────────────────────────────
 export async function rateLimit(
   identifier: string,
-  limit: number = 20,
+  limit: number = 5,
   windowMs: number = 60_000
 ): Promise<{ success: boolean; remaining: number }> {
   if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
