@@ -25,6 +25,14 @@ import StoreRedemption from '@/models/StoreRedemption'
 import QrPromo from '@/models/QrPromo'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { calculateDeliveryCost } from '@/lib/geocode'
+import PushSubscription from '@/models/PushSubscription'
+import webpush from 'web-push'
+
+webpush.setVapidDetails(
+  'mailto:clickandthink1@gmail.com',
+  process.env.VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+)
 
 /**
  * Resuelve customizaciones recursivamente, incluyendo subGroups.
@@ -832,12 +840,38 @@ export async function POST(
       }).catch(e => console.error('[consumer] upsert error:', e))
     }
 
+    const customerName = body.customer?.name?.trim() || 'Cliente'
+
     if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
-      const customerName = body.customer?.name?.trim() || 'Cliente'
       sendWhatsApp(
         tenant.notifications.whatsappPhone,
         `🔔 Nuevo pedido en ${tenant.name}\n💰 Total: $${total.toLocaleString('es-AR')}\n👤 ${customerName}`
       ).catch(e => console.error('[whapi] order notification error:', e))
+    }
+
+    // ── Push notification a admins suscriptos ────────────────────────────────
+    const adminSubs = await PushSubscription.find({ tenantId: tenant._id }).lean()
+    if (adminSubs.length > 0) {
+      const payload = JSON.stringify({
+        title: `🔔 Nuevo pedido en ${tenant.name}`,
+        body: `#${order.orderNumber} — $${total.toLocaleString('es-AR')} — ${customerName}`,
+        icon: '/tgoicon-192.png',
+        badge: '/tgoicon-192.png',
+        url: `/${tenantSlug}/admin/orders`,
+      })
+      for (const sub of adminSubs) {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            payload
+          )
+        } catch (pushErr: any) {
+          if (pushErr?.statusCode === 410) {
+            await PushSubscription.deleteOne({ _id: sub._id }).catch(() => {})
+          }
+          console.warn('[push] Error notificando admin:', pushErr?.message)
+        }
+      }
     }
 
     return NextResponse.json({ order }, { status: 201 })

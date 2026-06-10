@@ -3,6 +3,8 @@ import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
+import AdminPWAProvider from '@/components/admin/AdminPWAProvider'
+import AdminPushBanner from '@/components/admin/AdminPushBanner'
 import MobileNav from '@/components/MobileNav'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
@@ -34,10 +36,16 @@ export default async function AdminLayout({
 
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
-    .select('plan business.enabled')
-    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; business?: { enabled: boolean } }>()
+    .select('plan business.enabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl')
+    .lean() as any
   const plan: Plan = tenantDoc?.plan ?? 'try'
   const businessEnabled = tenantDoc?.business?.enabled ?? false
+
+  const branding = tenantDoc?.branding || {}
+  const primaryColor = branding.primaryColor || '#f74211'
+  const bgColor = branding.backgroundColor || '#ffffff'
+  const textColor = branding.textColor || '#1a1a1a'
+  const tenantId = tenantDoc?._id?.toString()
 
   // Determine if tenant operates in dine-in only mode (no takeaway at any location)
   let dineInOnly = false
@@ -92,15 +100,26 @@ export default async function AdminLayout({
         </MobileNav>
 
         {/* Main Content */}
-        <main className="flex-1 min-h-0 overflow-y-auto bg-background p-4 md:p-8 lg:p-10" data-lenis-prevent>
-          <div className="max-w-7xl mx-auto">
-            {children}
-            <div className="mt-10 pt-6 border-t border-border/40 flex justify-center">
-              <PoweredByTakeasy variant="light" label="network" />
+        <main className="flex-1 min-h-0 overflow-y-auto bg-background" data-lenis-prevent>
+          {tenantId && <AdminPushBanner tenantId={tenantId} />}
+          <div className="p-4 md:p-8 lg:p-10">
+            <div className="max-w-7xl mx-auto">
+              {children}
+              <div className="mt-10 pt-6 border-t border-border/40 flex justify-center">
+                <PoweredByTakeasy variant="light" label="network" />
+              </div>
             </div>
           </div>
         </main>
       </div>
+      {tenantDoc && (
+        <AdminPWAProvider
+          primaryColor={primaryColor}
+          bgColor={bgColor}
+          textColor={textColor}
+          manifestUrl={`/${tenant}/admin/manifest.json`}
+        />
+      )}
       <Toaster />
     </div>
   )
