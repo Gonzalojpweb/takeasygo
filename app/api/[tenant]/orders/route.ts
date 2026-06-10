@@ -160,9 +160,16 @@ export async function POST(
     }
     const body = parsed.data
 
-    // Resolver QrPromo activa: coincide por source o cae en la última habilitada
+    // Resolver QrPromo activa: 1) por slug, 2) por source, 3) última habilitada
     if (body.qrPromoApplied && !activeQrPromo) {
-      if (body.source) {
+      if (body.promoSlug) {
+        activeQrPromo = await QrPromo.findOne({
+          tenantId: tenant._id,
+          slug: body.promoSlug,
+          isEnabled: true,
+        }).lean()
+      }
+      if (!activeQrPromo && body.source) {
         activeQrPromo = await QrPromo.findOne({
           tenantId: tenant._id,
           sourceTriggers: body.source,
@@ -814,6 +821,7 @@ export async function POST(
       scheduledPickupAt,
       scheduledStatus,
       source: body.source ?? null,
+      promoSlug: body.promoSlug ?? null,
       ...(isDeferredBusiness ? { statusTimestamps: { confirmedAt: new Date() } } : {}),
       ...(isBusinessOrder && body.corporateAccountId ? {
         corporateAccountId: body.corporateAccountId,

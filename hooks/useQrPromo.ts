@@ -49,6 +49,7 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
             tenantSlug,
             checkoutDiscountLabel: data.promo.checkoutDiscountLabel || 'Descuento QR',
             promoSlug: promoSlug || undefined,
+            source: source || undefined,
           }))
         }
       }
