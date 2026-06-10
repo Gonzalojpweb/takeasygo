@@ -9,6 +9,29 @@ import WelcomeBackground from '@/components/menu/WelcomeBackground'
 
 export const revalidate = 300
 
+export async function generateStaticParams() {
+  await connectDB()
+
+  const tenants = await Tenant.find({ isActive: true }).select('slug').lean()
+  const tenantsArr = tenants as any[]
+
+  const params = await Promise.all(
+    tenantsArr.map(async (tenant) => {
+      const locations = await Location.find({
+        tenantId: tenant._id,
+        isActive: true,
+      }).select('_id').lean()
+
+      return (locations as any[]).map((loc) => ({
+        tenant: tenant.slug,
+        locationId: loc._id.toString(),
+      }))
+    }),
+  )
+
+  return params.flat()
+}
+
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
 }
