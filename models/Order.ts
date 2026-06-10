@@ -84,6 +84,7 @@ export interface IOrder extends Document {
   subtotal: number
   discountAmount: number
   qrPromoApplied: boolean
+  promoSlug: string | null
   total: number
   customer: {
     name: string
@@ -203,6 +204,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
   printRole: { type: String, default: 'kitchen' },
   addedFrom: { type: String, default: null },
   addedByEmail: { type: String, default: null },
+  hasCategoryDiscount: { type: Boolean, default: false },
 })
 
 const OrderSchema = new Schema(
@@ -270,6 +272,10 @@ const OrderSchema = new Schema(
     qrPromoApplied: {
       type: Boolean,
       default: false,
+    },
+    promoSlug: {
+      type: String,
+      default: null,
     },
     total: {
       type: Number,

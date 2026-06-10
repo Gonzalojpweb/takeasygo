@@ -81,6 +81,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
             tenantSlug,
             checkoutDiscountLabel: data.promo.checkoutDiscountLabel || 'Descuento QR',
             promoSlug: promoSlug || undefined,
+            source: source || undefined,
           }))
         }
       }

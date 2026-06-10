@@ -65,7 +65,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', email: '', birthDate: '', notes: '', countryCode: '+54' })
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null)
-  const [activeQrPromo, setActiveQrPromo] = useState<{ discountPercentage: number; checkoutDiscountLabel?: string } | null>(null)
+  const [activeQrPromo, setActiveQrPromo] = useState<{ discountPercentage: number; checkoutDiscountLabel?: string; promoSlug?: string; source?: string } | null>(null)
   const [loyaltyMember, setLoyaltyMember] = useState<any | null>(null)
   const [walletEnabled, setWalletEnabled] = useState(false)
   const [pointsLookupLoading, setPointsLookupLoading] = useState(false)
@@ -85,7 +85,12 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       try {
         const parsed = JSON.parse(stored)
         if (parsed.tenantSlug === tenantSlug && parsed.discountPercentage > 0) {
-          setActiveQrPromo(parsed)
+          setActiveQrPromo({
+            discountPercentage: parsed.discountPercentage,
+            checkoutDiscountLabel: parsed.checkoutDiscountLabel,
+            promoSlug: parsed.promoSlug,
+            source: parsed.source,
+          })
         }
       } catch (e) {
         console.error('Error parsing QR promo:', e)
@@ -329,6 +334,8 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
         customizationSummary: '',
         addedFrom: 'checkout_banner' as const,
         type: 'menuItem',
+        originalPrice: item.originalPrice,
+        takeawayOriginalPrice: item.takeawayOriginalPrice,
       }]
     })
     setUpsellHints(prev => prev.filter(h => h._id !== item._id))
@@ -363,10 +370,11 @@ async function handleSubmit(e: React.FormEvent) {
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,
         joinClub: joinClub && loyaltyConfig?.enabled,
         qrPromoApplied: !!activeQrPromo,
+        promoSlug: activeQrPromo?.promoSlug ?? undefined,
         ...(selectedRewardItemId && selectedRewardItem
           ? { rewardItems: [{ storeItemId: selectedRewardItemId }], loyaltyPointsRequired: selectedRewardItem.pointsCost }
           : {}),
-        source: sessionStorage.getItem('tgo_attribution_source') || undefined,
+        source: sessionStorage.getItem('tgo_attribution_source') || activeQrPromo?.source || undefined,
         ...(mode === 'business' && businessInfo ? {
           corporateAccountId: businessInfo.corporateAccountId,
           paymentModeSnapshot: businessInfo.paymentMode,
