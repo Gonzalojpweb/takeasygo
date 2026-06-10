@@ -24,6 +24,7 @@ import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
 import QrPromo from '@/models/QrPromo'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { calculateDeliveryCost } from '@/lib/geocode'
 
 /**
  * Resuelve customizaciones recursivamente, incluyendo subGroups.
@@ -208,6 +209,21 @@ export async function POST(
     }
 
     const isBusinessOrder = body.mode === 'business'
+    const isDeliveryOrder = body.mode === 'delivery'
+
+    // Validar que delivery esté habilitado para esta sede y plan
+    if (isDeliveryOrder) {
+      if (!canAccess(tenant.plan as Plan, 'delivery')) {
+        return NextResponse.json({ error: 'Delivery no disponible en tu plan actual.' }, { status: 403 })
+      }
+      const loc = await Location.findOne({ _id: body.locationId, tenantId: tenant._id, isActive: true }).lean() as any
+      if (!loc || !loc.deliveryConfig?.enabled) {
+        return NextResponse.json({ error: 'El delivery no está habilitado para esta sede.' }, { status: 400 })
+      }
+      if (!body.deliveryAddress) {
+        return NextResponse.json({ error: 'Se requiere dirección de entrega para pedidos delivery.' }, { status: 400 })
+      }
+    }
 
     // Validar CorporateAccount para pedidos business
     if (isBusinessOrder) {
@@ -235,14 +251,14 @@ export async function POST(
     }
 
     // Construir un mapa de lookup: menuItemId (string) → { item, categoryName }
-    const isTakeawayOrder = body.mode === 'takeaway'
+    const isTakeawayOrDelivery = body.mode === 'takeaway' || body.mode === 'delivery'
     const menuItemMap = new Map<string, any>()
     for (const category of menu.categories) {
       if (!category.isAvailable) continue
       if (isBusinessOrder && !category.isBusinessAvailable) continue
       for (const item of category.items) {
         let available = item.isAvailable
-        if (isTakeawayOrder) {
+        if (isTakeawayOrDelivery) {
           available = available && item.isTakeawayAvailable !== false
         }
         if (isBusinessOrder) {
@@ -449,48 +465,48 @@ export async function POST(
 
         const quantity = clientItem.quantity  // ya validado como number.int().min(1) por Zod
 
-        // ── Precio base: si el item tiene variantes, el precio viene de la variante seleccionada ──
-        let basePrice: number
-        let resolvedSelectedVariant: any = null
+          // ── Precio base: si el item tiene variantes, el precio viene de la variante seleccionada ──
+          let basePrice: number
+          let resolvedSelectedVariant: any = null
 
-        const hasVariants = (menuItem.variants ?? []).length > 0
+          const hasVariants = (menuItem.variants ?? []).length > 0
 
-        if (hasVariants) {
-          const selectedVariant = clientItem.selectedVariant
-          if (!selectedVariant) {
-            return NextResponse.json(
-              { error: `El item "${menuItem.name}" requiere seleccionar una variante` },
-              { status: 400 }
+          if (hasVariants) {
+            const selectedVariant = clientItem.selectedVariant
+            if (!selectedVariant) {
+              return NextResponse.json(
+                { error: `El item "${menuItem.name}" requiere seleccionar una variante` },
+                { status: 400 }
+              )
+            }
+            const dbVariant = menuItem.variants.find(
+              (v: any) => v.name === selectedVariant.name
             )
-          }
-          const dbVariant = menuItem.variants.find(
-            (v: any) => v.name === selectedVariant.name
-          )
-          if (!dbVariant) {
-            return NextResponse.json(
-              { error: `Variante inválida "${selectedVariant.name}" para "${menuItem.name}"` },
-              { status: 400 }
-            )
-          }
-          basePrice = body.mode === 'takeaway'
-            ? (Number(dbVariant.takeawayPrice ?? dbVariant.price) || 0)
-            : body.mode === 'business'
-              ? (Number(dbVariant.businessPrice ?? dbVariant.price) || 0)
-              : Number(dbVariant.price) || 0
+            if (!dbVariant) {
+              return NextResponse.json(
+                { error: `Variante inválida "${selectedVariant.name}" para "${menuItem.name}"` },
+                { status: 400 }
+              )
+            }
+            basePrice = (body.mode === 'takeaway' || body.mode === 'delivery')
+              ? (Number(dbVariant.takeawayPrice ?? dbVariant.price) || 0)
+              : body.mode === 'business'
+                ? (Number(dbVariant.businessPrice ?? dbVariant.price) || 0)
+                : Number(dbVariant.price) || 0
 
-          resolvedSelectedVariant = {
-            name: dbVariant.name,
-            price: dbVariant.price,
-            ...(dbVariant.takeawayPrice != null ? { takeawayPrice: dbVariant.takeawayPrice } : {}),
-            ...(dbVariant.businessPrice != null ? { businessPrice: dbVariant.businessPrice } : {}),
-          }
-        } else {
-          // Precio base depende del modo (takeaway vs dine-in / business)
-          basePrice = body.mode === 'takeaway' 
-            ? (Number(menuItem.takeawayPrice ?? menuItem.price) || 0)
-            : body.mode === 'business'
-              ? (Number(menuItem.businessPrice ?? menuItem.price) || 0)
-              : Number(menuItem.price) || 0
+            resolvedSelectedVariant = {
+              name: dbVariant.name,
+              price: dbVariant.price,
+              ...(dbVariant.takeawayPrice != null ? { takeawayPrice: dbVariant.takeawayPrice } : {}),
+              ...(dbVariant.businessPrice != null ? { businessPrice: dbVariant.businessPrice } : {}),
+            }
+          } else {
+            // Precio base depende del modo (takeaway/delivery vs dine-in vs business)
+            basePrice = (body.mode === 'takeaway' || body.mode === 'delivery')
+              ? (Number(menuItem.takeawayPrice ?? menuItem.price) || 0)
+              : body.mode === 'business'
+                ? (Number(menuItem.businessPrice ?? menuItem.price) || 0)
+                : Number(menuItem.price) || 0
         }
           
         let extraPrice = 0
@@ -518,19 +534,19 @@ export async function POST(
         const subtotal = price * quantity
 
         // Business mode: no descuentos de categoría, precio fijo corp
-        let hasCategoryDiscount = false
-        if (!isBusinessOrder) {
-          if (hasVariants && resolvedSelectedVariant) {
-            const variantOriginal = body.mode === 'takeaway'
-              ? resolvedSelectedVariant.takeawayPrice ?? resolvedSelectedVariant.price
-              : resolvedSelectedVariant.price
-            hasCategoryDiscount = false
-          } else {
-            hasCategoryDiscount = body.mode === 'takeaway'
-              ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
-              : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
+          let hasCategoryDiscount = false
+          if (!isBusinessOrder) {
+            if (hasVariants && resolvedSelectedVariant) {
+              const variantOriginal = (body.mode === 'takeaway' || body.mode === 'delivery')
+                ? resolvedSelectedVariant.takeawayPrice ?? resolvedSelectedVariant.price
+                : resolvedSelectedVariant.price
+              hasCategoryDiscount = false
+            } else {
+              hasCategoryDiscount = (body.mode === 'takeaway' || body.mode === 'delivery')
+                ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
+                : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
+            }
           }
-        }
 
         resolvedItems.push({
           menuItemId: menuItem._id,
@@ -664,7 +680,38 @@ export async function POST(
       }
     }
 
-    const total = Math.max(0, subtotal - discountAmount)
+    // ── Delivery: recalcular costo desde la DB 🔒 ─────────────────────────
+    let deliveryCostCalc = 0
+    let deliveryDistance = 0
+    let deliveryRangeApplied = null as { fromKm: number; toKm: number; price: number } | null
+    let deliveryAddressData = null as {
+      street: string; number: string; apt?: string; city: string; coordinates: { lat: number; lng: number }
+    } | null
+
+    if (isDeliveryOrder && body.deliveryAddress) {
+      const deliveryResult = await calculateDeliveryCost(
+        tenant._id.toString(),
+        body.locationId,
+        body.deliveryAddress,
+      )
+      if (!deliveryResult.withinRange || !deliveryResult.coordinates) {
+        return NextResponse.json({
+          error: deliveryResult.error || 'La dirección está fuera del área de cobertura.',
+        }, { status: 400 })
+      }
+      deliveryCostCalc = deliveryResult.cost
+      deliveryDistance = deliveryResult.distance
+      deliveryRangeApplied = deliveryResult.range
+      deliveryAddressData = {
+        street: body.deliveryAddress.street,
+        number: body.deliveryAddress.number,
+        apt: body.deliveryAddress.apt,
+        city: body.deliveryAddress.city,
+        coordinates: deliveryResult.coordinates,
+      }
+    }
+
+    const total = Math.max(0, subtotal - discountAmount) + deliveryCostCalc
 
     const encryptedCustomer = {
       name:  encrypt(body.customer.name),
@@ -763,6 +810,12 @@ export async function POST(
       ...(isBusinessOrder && body.corporateAccountId ? {
         corporateAccountId: body.corporateAccountId,
         paymentModeSnapshot: body.paymentModeSnapshot ?? null,
+      } : {}),
+      ...(isDeliveryOrder && deliveryAddressData ? {
+        deliveryAddress: deliveryAddressData,
+        deliveryCost: deliveryCostCalc,
+        deliveryDistance,
+        deliveryRangeApplied,
       } : {}),
     })
 

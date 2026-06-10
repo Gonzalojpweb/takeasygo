@@ -18,7 +18,7 @@ export interface ILocation extends Document {
   // ──────────────────────────────────────────────────────────────────────────
   settings: {
     acceptsOrders: boolean
-    orderModes: ('takeaway' | 'dine-in' | 'business')[]
+    orderModes: ('takeaway' | 'dine-in' | 'business' | 'delivery')[]
     estimatedPickupTime: number
     /** Historial de ajustes automáticos del tiempo estimado (anti-gaming audit) */
     adjustmentHistory?: Array<{
@@ -30,6 +30,11 @@ export interface ILocation extends Document {
       triggeredBy: 'cron' | 'order_completed' | 'admin_request' | 'system_init'
       timestamp: Date
     }>
+  }
+  deliveryConfig?: {
+    enabled: boolean
+    ranges: Array<{ fromKm: number; toKm: number; price: number }>
+    maxRangeKm: number
   }
   reservationConfig: {
     enabled: boolean
@@ -53,6 +58,7 @@ export interface ILocation extends Document {
   serviceHours?: {
     takeaway: Array<{ days: number[]; open: string; close: string }>
     dineIn: Array<{ days: number[]; open: string; close: string }>
+    delivery: Array<{ days: number[]; open: string; close: string }>
   }
   scheduledOrdersConfig?: {
     enabled: boolean
@@ -130,7 +136,7 @@ settings: {
         acceptsOrders: { type: Boolean, default: true },
         orderModes: {
           type: [String],
-          enum: ['takeaway', 'dine-in', 'business'] as const,
+          enum: ['takeaway', 'dine-in', 'business', 'delivery'] as const,
           default: ['takeaway'],
         },
         estimatedPickupTime: { type: Number, default: 20 },
@@ -173,6 +179,7 @@ settings: {
     serviceHours: {
       takeaway: { type: [{ days: [Number], open: String, close: String }], default: [] },
       dineIn: { type: [{ days: [Number], open: String, close: String }], default: [] },
+      delivery: { type: [{ days: [Number], open: String, close: String }], default: [] },
     },
     scheduledOrdersConfig: {
       enabled: { type: Boolean, default: false },
@@ -181,6 +188,21 @@ settings: {
       slotDurationMinutes: { type: Number, default: 15 },
       maxOrdersPerSlot: { type: Number, default: 10 },
       gracePeriodMinutes: { type: Number, default: 15 },
+    },
+    deliveryConfig: {
+      type: {
+        enabled: { type: Boolean, default: false },
+        ranges: {
+          type: [{
+            fromKm: { type: Number, required: true, min: 0 },
+            toKm:   { type: Number, required: true, min: 0 },
+            price:  { type: Number, required: true, min: 0 },
+          }],
+          default: [],
+        },
+        maxRangeKm: { type: Number, default: 0 },
+      },
+      default: { enabled: false, ranges: [], maxRangeKm: 0 },
     },
   },
   {

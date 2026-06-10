@@ -36,6 +36,13 @@ const orderItemSchema = z.object({
   addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner', 'promotion', 'group']).optional(),
 })
 
+const deliveryAddressSchema = z.object({
+  street: z.string().min(1).max(100).trim(),
+  number: z.string().min(1).max(20).trim(),
+  apt: z.string().max(20).trim().optional().default(''),
+  city: z.string().min(1).max(100).trim(),
+})
+
 export const createOrderSchema = z.object({
   locationId: z.string().min(1),
   items: z.array(orderItemSchema).min(1).max(50),
@@ -51,7 +58,7 @@ export const createOrderSchema = z.object({
     birthDate: z.string().optional(), // formato YYYY-MM-DD
   }),
   notes: z.string().max(500).trim().default(''),
-  mode: z.enum(['takeaway', 'dine-in', 'business']),
+  mode: z.enum(['takeaway', 'dine-in', 'business', 'delivery']),
   clientToken: z.string().uuid().optional().nullable(),
   joinClub: z.boolean().optional().default(false),
   orderTiming: z.enum(['immediate', 'scheduled']).optional().default('immediate'),
@@ -62,6 +69,14 @@ export const createOrderSchema = z.object({
   source: z.string().optional().nullable(),
   corporateAccountId: z.string().optional().nullable(),
   paymentModeSnapshot: z.enum(['cash_mp', 'deferred', 'mixed']).optional().nullable(),
+  // ── Delivery ──────────────────────────────────────────────────────────────
+  deliveryAddress: deliveryAddressSchema.optional(),
+  deliveryCost: z.number().min(0).optional(),
+})
+
+export const deliveryQuoteSchema = z.object({
+  locationId: z.string().min(1),
+  address: deliveryAddressSchema,
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>

@@ -62,13 +62,22 @@ if (!success) {
 
     const result = await preference.create({
       body: {
-        items: order.items.map((item: any) => ({
-          id: item.menuItemId?.toString() ?? item._id.toString(),
-          title: item.name,
-          quantity: item.quantity,
-          unit_price: item.price,
-          currency_id: 'ARS',
-        })),
+        items: [
+          ...order.items.map((item: any) => ({
+            id: item.menuItemId?.toString() ?? item._id.toString(),
+            title: item.name,
+            quantity: item.quantity,
+            unit_price: item.price,
+            currency_id: 'ARS',
+          })),
+          ...(order.orderMode === 'delivery' && order.deliveryCost > 0 ? [{
+            id: 'delivery_fee',
+            title: 'Costo de envío',
+            quantity: 1,
+            unit_price: order.deliveryCost,
+            currency_id: 'ARS',
+          }] : []),
+        ],
         payer: {
           name:  safeDecrypt(order.customer.name),
           email: safeDecrypt(order.customer.email) || 'cliente@menuplatform.com',

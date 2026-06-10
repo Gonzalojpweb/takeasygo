@@ -16,7 +16,7 @@ import FeedbackModal from '@/components/feedback/FeedbackModal'
 interface Props {
   tenantSlug: string
   locationId: string
-  mode: 'takeaway' | 'dine-in' | 'business'
+  mode: 'takeaway' | 'dine-in' | 'business' | 'delivery'
 }
 
 interface LoyaltyConfig {
@@ -98,6 +98,26 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [scheduleOrder, setScheduleOrder] = useState(false)
   const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(null)
   const [activeLegalModal, setActiveLegalModal] = useState<'terminos' | 'privacidad' | null>(null)
+
+  // ── Delivery state ────────────────────────────────────────────────────
+  const [deliveryMode, setDeliveryMode] = useState(mode === 'delivery')
+  const [deliveryAddress, setDeliveryAddress] = useState({ street: '', number: '', apt: '', city: '' })
+  const [deliveryQuote, setDeliveryQuote] = useState<{
+    loading: boolean
+    cost: number
+    distance: number
+    withinRange: boolean
+    error: string | null
+  }>({ loading: false, cost: 0, distance: 0, withinRange: false, error: null })
+  const [deliveryConfirmed, setDeliveryConfirmed] = useState(false)
+
+  // Reset delivery quote when address changes
+  useEffect(() => {
+    if (deliveryQuote.cost > 0 || deliveryQuote.error) {
+      setDeliveryQuote({ loading: false, cost: 0, distance: 0, withinRange: false, error: null })
+      setDeliveryConfirmed(false)
+    }
+  }, [deliveryAddress])
 
   useEffect(() => {
     const saved = sessionStorage.getItem('cart')
@@ -314,7 +334,8 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     setUpsellHints(prev => prev.filter(h => h._id !== item._id))
   }
 
-  const total = Math.max(0, subtotal - discountAmount)
+  const deliveryCost = deliveryMode && deliveryQuote.withinRange ? deliveryQuote.cost : 0
+  const total = Math.max(0, subtotal - discountAmount) + deliveryCost
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault()
@@ -350,6 +371,35 @@ async function handleSubmit(e: React.FormEvent) {
           corporateAccountId: businessInfo.corporateAccountId,
           paymentModeSnapshot: businessInfo.paymentMode,
         } : {}),
+        ...(deliveryMode ? {
+          deliveryAddress: {
+            street: deliveryAddress.street,
+            number: deliveryAddress.number,
+            apt: deliveryAddress.apt || '',
+            city: deliveryAddress.city,
+          },
+          deliveryCost: deliveryQuote.cost,
+        } : {}),
+      }
+
+      // Delivery mode validation
+      if (deliveryMode) {
+        if (!deliveryAddress.street.trim()) {
+          setLoading(false)
+          return toast.error('Ingresá la calle de entrega')
+        }
+        if (!deliveryAddress.number.trim()) {
+          setLoading(false)
+          return toast.error('Ingresá el número')
+        }
+        if (!deliveryAddress.city.trim()) {
+          setLoading(false)
+          return toast.error('Ingresá la localidad')
+        }
+        if (!deliveryQuote.withinRange) {
+          setLoading(false)
+          return toast.error('Calculá el costo de envío antes de continuar')
+        }
       }
 
       if (scheduleOrder && scheduledPickupAt) {
@@ -576,6 +626,133 @@ async function handleSubmit(e: React.FormEvent) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Selector de modo (solo cuando mode es takeaway o delivery) */}
+        {(mode === 'takeaway' || mode === 'delivery') && (
+          <div className="mb-6">
+            <h2 className="font-semibold text-sm text-zinc-500 uppercase tracking-wide mb-3">Modalidad</h2>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setDeliveryMode(false); setDeliveryQuote({ loading: false, cost: 0, distance: 0, withinRange: false, error: null }); setDeliveryConfirmed(false) }}
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all ${
+                  !deliveryMode
+                    ? 'border-zinc-900 bg-zinc-900 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
+                }`}
+              >
+                🥡 Para llevar
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeliveryMode(true)}
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all ${
+                  deliveryMode
+                    ? 'border-zinc-900 bg-zinc-900 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
+                }`}
+              >
+                🚚 Delivery
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Formulario de dirección para delivery */}
+        {deliveryMode && (
+          <div className="mb-6 space-y-3">
+            <h2 className="font-semibold text-sm text-zinc-500 uppercase tracking-wide">Dirección de entrega</h2>
+            <div className="flex gap-2">
+              <input
+                placeholder="Calle *"
+                value={deliveryAddress.street}
+                onChange={e => setDeliveryAddress(p => ({ ...p, street: e.target.value }))}
+                className="flex-1 border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
+              />
+              <input
+                placeholder="Número *"
+                value={deliveryAddress.number}
+                onChange={e => setDeliveryAddress(p => ({ ...p, number: e.target.value }))}
+                className="w-24 border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
+              />
+            </div>
+            <input
+              placeholder="Piso / Depto (opcional)"
+              value={deliveryAddress.apt}
+              onChange={e => setDeliveryAddress(p => ({ ...p, apt: e.target.value }))}
+              className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
+            />
+            <input
+              placeholder="Localidad *"
+              value={deliveryAddress.city}
+              onChange={e => setDeliveryAddress(p => ({ ...p, city: e.target.value }))}
+              className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                if (!deliveryAddress.street.trim() || !deliveryAddress.number.trim() || !deliveryAddress.city.trim()) {
+                  return toast.error('Completá calle, número y localidad')
+                }
+                setDeliveryQuote(p => ({ ...p, loading: true, error: null }))
+                try {
+                  const res = await fetch(`/api/${tenantSlug}/delivery/quote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      locationId,
+                      address: {
+                        street: deliveryAddress.street,
+                        number: deliveryAddress.number,
+                        apt: deliveryAddress.apt || '',
+                        city: deliveryAddress.city,
+                      },
+                    }),
+                  })
+                  const data = await res.json()
+                  if (!res.ok) {
+                    setDeliveryQuote(p => ({ ...p, loading: false, error: data.error || 'Error al calcular' }))
+                    return
+                  }
+                  if (!data.withinRange) {
+                    setDeliveryQuote(p => ({ ...p, loading: false, error: data.error || 'Tu dirección está fuera del área de cobertura.' }))
+                    return
+                  }
+                  setDeliveryQuote({
+                    loading: false,
+                    cost: data.cost,
+                    distance: data.distance,
+                    withinRange: true,
+                    error: null,
+                  })
+                  setDeliveryConfirmed(true)
+                  toast.success('Costo de envío calculado')
+                } catch {
+                  setDeliveryQuote(p => ({ ...p, loading: false, error: 'Error de conexión. Intentá de nuevo.' }))
+                }
+              }}
+              disabled={deliveryQuote.loading}
+              className="w-full py-3 px-4 rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition-colors disabled:opacity-50"
+            >
+              {deliveryQuote.loading ? 'Calculando...' : deliveryConfirmed ? '✅ Costo calculado' : 'Calcular costo de envío'}
+            </button>
+
+            {deliveryQuote.error && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <span className="text-base">⚠️</span> {deliveryQuote.error}
+              </p>
+            )}
+
+            {deliveryConfirmed && deliveryQuote.withinRange && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                <p className="text-sm text-emerald-800 font-semibold flex items-center gap-2">
+                  <span>🚚</span> Envío: <span className="text-base">${deliveryQuote.cost.toLocaleString('es-AR')}</span>
+                  <span className="text-xs text-emerald-600 font-normal">({deliveryQuote.distance} km)</span>
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -959,6 +1136,12 @@ async function handleSubmit(e: React.FormEvent) {
                 <span>$0</span>
               </div>
             )}
+            {deliveryMode && deliveryQuote.withinRange && (
+              <div className="flex justify-between text-sm text-zinc-500">
+                <span className="flex items-center gap-1">🚚 Envío</span>
+                <span>${deliveryQuote.cost.toLocaleString('es-AR')}</span>
+              </div>
+            )}
             <div className="flex justify-between text-lg font-black text-zinc-900">
               <span>Total</span>
               <span>${total.toLocaleString('es-AR')}</span>
@@ -970,7 +1153,7 @@ async function handleSubmit(e: React.FormEvent) {
             disabled={loading || cart.length === 0}
             className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50"
           >
-            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : mode === 'business' && businessInfo?.paymentMode !== 'cash_mp' ? '✅ Confirmar pedido' : '💳 Pagar con MercadoPago'}
+            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : mode === 'business' && businessInfo?.paymentMode !== 'cash_mp' ? '✅ Confirmar pedido' : deliveryMode ? '🚚 Pagar con MercadoPago' : '💳 Pagar con MercadoPago'}
           </button>
 
           {/* Términos y Privacidad */}

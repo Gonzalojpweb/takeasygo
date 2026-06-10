@@ -21,7 +21,7 @@ import {
   ExternalLink,
   Database,
   ImageIcon,
-  Bell,
+  Bell, PlusCircle, ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -136,13 +136,14 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
 
   // Service hours state
   type ServiceHoursSlot = { days: number[]; open: string; close: string }
-  type ServiceHoursConfig = { takeaway: ServiceHoursSlot[]; dineIn: ServiceHoursSlot[] }
+  type ServiceHoursConfig = { takeaway: ServiceHoursSlot[]; dineIn: ServiceHoursSlot[]; delivery: ServiceHoursSlot[] }
   const [serviceHoursMap, setServiceHoursMap] = useState<Record<string, ServiceHoursConfig>>(
     Object.fromEntries(locations.map((l: any) => [
       l._id,
       {
         takeaway: l.serviceHours?.takeaway ?? [],
         dineIn: l.serviceHours?.dineIn ?? [],
+        delivery: l.serviceHours?.delivery ?? [],
       }
     ]))
   )
@@ -270,7 +271,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     }
   }
 
-  function addServiceSlot(locationId: string, type: 'takeaway' | 'dineIn') {
+  function addServiceSlot(locationId: string, type: 'takeaway' | 'dineIn' | 'delivery') {
     setServiceHoursMap(prev => ({
       ...prev,
       [locationId]: {
@@ -280,7 +281,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     }))
   }
 
-  function removeServiceSlot(locationId: string, type: 'takeaway' | 'dineIn', idx: number) {
+  function removeServiceSlot(locationId: string, type: 'takeaway' | 'dineIn' | 'delivery', idx: number) {
     setServiceHoursMap(prev => ({
       ...prev,
       [locationId]: {
@@ -292,7 +293,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
 
   function updateServiceSlot(
     locationId: string,
-    type: 'takeaway' | 'dineIn',
+    type: 'takeaway' | 'dineIn' | 'delivery',
     idx: number,
     field: 'open' | 'close',
     value: string
@@ -304,7 +305,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     })
   }
 
-  function toggleServiceDay(locationId: string, type: 'takeaway' | 'dineIn', idx: number, day: number) {
+  function toggleServiceDay(locationId: string, type: 'takeaway' | 'dineIn' | 'delivery', idx: number, day: number) {
     setServiceHoursMap(prev => {
       const slots = [...prev[locationId][type]]
       const days = slots[idx].days.includes(day)
@@ -1154,10 +1155,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                           </div>
                           <p className="text-[10px] text-muted-foreground/50">Configurá cuándo acepta pedidos cada canal. Si no hay franjas, se asume siempre abierto.</p>
 
-                          {(['takeaway', 'dineIn'] as const).map(svcType => (
+                          {(['takeaway', 'dineIn', 'delivery'] as const).map(svcType => (
                             <div key={svcType} className="space-y-2">
                               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                                {svcType === 'takeaway' ? '🥡 Takeaway' : '🍽️ Salón'}
+                                {svcType === 'takeaway' ? '🥡 Takeaway' : svcType === 'dineIn' ? '🍽️ Salón' : '🚚 Delivery'}
                               </p>
                               {(serviceHoursMap[loc._id]?.[svcType] ?? []).map((slot, idx) => (
                                 <div key={idx} className="flex flex-col gap-2 p-3 bg-white rounded-xl border border-border/60 shadow-sm">
@@ -1447,6 +1448,15 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               {reservationSaving === loc._id ? 'Guardando...' : 'Guardar configuración de reservas'}
                             </Button>
                           </div>
+                        )}
+
+                        {/* ── Delivery Config ── */}
+                        {canAccess(plan as Plan, 'delivery') && (
+                          <DeliveryConfigSection
+                            locationId={loc._id}
+                            tenantSlug={tenantSlug}
+                            initialConfig={loc.deliveryConfig || { enabled: false, ranges: [], maxRangeKm: 0 }}
+                          />
                         )}
                       </CardContent>
                     </Card>
@@ -1930,4 +1940,153 @@ function TabTrigger({ value, icon, label }: { value: string, icon: any, label: s
   )
 }
 
-import { ShoppingBag } from 'lucide-react'
+// ── Delivery Config Section ───────────────────────────────────────────────
+function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
+  locationId: string
+  tenantSlug: string
+  initialConfig: { enabled: boolean; ranges: Array<{ fromKm: number; toKm: number; price: number }>; maxRangeKm: number }
+}) {
+  const [enabled, setEnabled] = useState(initialConfig.enabled)
+  const [ranges, setRanges] = useState(initialConfig.ranges)
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const sortedRanges = [...ranges].sort((a, b) => a.fromKm - b.fromKm)
+      const maxRangeKm = sortedRanges.length > 0 ? sortedRanges[sortedRanges.length - 1].toKm : 0
+
+      // Validate no overlap
+      for (let i = 0; i < sortedRanges.length; i++) {
+        if (i > 0 && sortedRanges[i].fromKm !== sortedRanges[i - 1].toKm) {
+          toast.error(`Los rangos deben ser contiguos. Hay un espacio entre ${sortedRanges[i - 1].toKm}km y ${sortedRanges[i].fromKm}km.`)
+          setSaving(false)
+          return
+        }
+        if (sortedRanges[i].fromKm >= sortedRanges[i].toKm) {
+          toast.error(`Rango inválido: "Desde" debe ser menor que "Hasta"`)
+          setSaving(false)
+          return
+        }
+      }
+
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryConfig: { enabled, ranges: sortedRanges, maxRangeKm } }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Configuración de delivery guardada')
+    } catch {
+      toast.error('Error al guardar configuración de delivery')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function addRange() {
+    const lastTo = ranges.length > 0 ? ranges[ranges.length - 1].toKm : 0
+    setRanges(prev => [...prev, { fromKm: lastTo, toKm: lastTo + 5, price: 0 }])
+  }
+
+  function updateRange(idx: number, field: 'fromKm' | 'toKm' | 'price', value: number) {
+    setRanges(prev => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r))
+  }
+
+  function removeRange(idx: number) {
+    if (ranges.length <= 1) return toast.error('Debe haber al menos un rango')
+    setRanges(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  return (
+    <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MapPin size={12} className="text-primary" />
+          <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+            🚚 Delivery
+          </label>
+        </div>
+        <button
+          type="button"
+          onClick={() => setEnabled(!enabled)}
+          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+            enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+          }`}
+        >
+          <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200 ${
+            enabled ? 'translate-x-5' : 'translate-x-0'
+          }`} />
+        </button>
+      </div>
+
+      {enabled && (
+        <div className="space-y-3">
+          <p className="text-[10px] text-muted-foreground/50">
+            Definí los rangos de distancia y el costo de envío para cada zona. Los rangos deben ser contiguos.
+          </p>
+
+          <div className="space-y-2">
+            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-1">
+              <span>Desde (km)</span>
+              <span>Hasta (km)</span>
+              <span>Precio ($)</span>
+              <span className="w-8" />
+            </div>
+            {ranges.map((r, idx) => (
+              <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={r.fromKm}
+                  onChange={e => updateRange(idx, 'fromKm', Number(e.target.value))}
+                  className="bg-white border border-border/60 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-primary/40"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={r.toKm}
+                  onChange={e => updateRange(idx, 'toKm', Number(e.target.value))}
+                  className="bg-white border border-border/60 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-primary/40"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={r.price}
+                  onChange={e => updateRange(idx, 'price', Number(e.target.value))}
+                  className="bg-white border border-border/60 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-primary/40"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRange(idx)}
+                  className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addRange}
+              className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors px-1 py-1"
+            >
+              <PlusCircle size={13} strokeWidth={3} />
+              Agregar rango
+            </button>
+          </div>
+
+          <Button
+            className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? 'Guardando...' : 'Guardar configuración de delivery'}
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}

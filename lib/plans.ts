@@ -83,6 +83,9 @@ export const PLAN_ACCESS = {
 
   // Integración POS — disponible en Crecimiento y Premium
   posIntegration:    ['buy', 'full'] as const,
+
+  // Delivery — solo Premium
+  delivery:          ['full'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS
@@ -171,6 +174,7 @@ export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: st
       'Distribución horaria de pedidos y performance',
       'Tasa de recompra y frecuencia de clientes (90 días)',
       'Modo Dine-in (menú para consumo en el local)',
+      'Delivery con costo variable por zona',
       'Conversión de pagos MercadoPago',
       'Loyalty Analytics detallado',
     ],

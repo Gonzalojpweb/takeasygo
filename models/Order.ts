@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export type OrderStatus = 'open' | 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
-export type OrderMode = 'takeaway' | 'dine-in' | 'business'
+export type OrderMode = 'takeaway' | 'dine-in' | 'business' | 'delivery'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 export type PaymentModeSnapshot = 'cash_mp' | 'deferred' | 'mixed'
 
@@ -121,6 +121,21 @@ export interface IOrder extends Document {
   loyaltyPointsCredited: boolean
   rewardDeductionProcessed?: boolean
   source?: string
+  // ── Delivery ───────────────────────────────────────────────────────────────
+  deliveryAddress?: {
+    street: string
+    number: string
+    apt?: string
+    city: string
+    coordinates: { lat: number; lng: number }
+  }
+  deliveryCost: number
+  deliveryDistance: number
+  deliveryRangeApplied?: {
+    fromKm: number
+    toKm: number
+    price: number
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -216,7 +231,7 @@ const OrderSchema = new Schema(
     },
     orderMode: {
       type: String,
-      enum: ['takeaway', 'dine-in', 'business'] as const,
+      enum: ['takeaway', 'dine-in', 'business', 'delivery'] as const,
       required: true,
     },
     corporateAccountId: {
@@ -351,6 +366,38 @@ const OrderSchema = new Schema(
       type: String,
       default: null,
       index: true,
+    },
+    // ── Delivery ─────────────────────────────────────────────────────────────
+    deliveryAddress: {
+      type: {
+        street: { type: String, required: true },
+        number: { type: String, required: true },
+        apt:    { type: String, default: '' },
+        city:   { type: String, required: true },
+        coordinates: {
+          type: { lat: { type: Number, required: true }, lng: { type: Number, required: true } },
+          required: true,
+        },
+      },
+      default: null,
+    },
+    deliveryCost: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    deliveryDistance: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    deliveryRangeApplied: {
+      type: {
+        fromKm: { type: Number, required: true },
+        toKm:   { type: Number, required: true },
+        price:  { type: Number, required: true },
+      },
+      default: null,
     },
   },
   {
