@@ -1045,7 +1045,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         </div>
 
         {/* ── Club membership badge (hidden for company admin in business mode) ── */}
-        {clubMembership.isMember && !isAdminCorp && (
+        {mounted && clubMembership.isMember && !isAdminCorp && (
           <div className="border-t px-4 py-3 max-w-2xl mx-auto"
             style={{ borderColor: primary + '20' }}>
             <div className="flex items-center justify-center gap-4 flex-wrap">
