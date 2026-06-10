@@ -420,6 +420,22 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                       <span className="font-black text-base tracking-tight text-foreground">
                         #{order.orderNumber}
                       </span>
+                      {/* Order mode badge */}
+                      {order.orderMode && (
+                        <span className={cn(
+                          'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase',
+                          order.orderMode === 'delivery' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                          order.orderMode === 'dine-in' ? 'bg-violet-50 text-violet-600 border border-violet-200' :
+                          order.orderMode === 'business' ? 'bg-blue-50 text-blue-600 border border-blue-200' :
+                          'bg-amber-50 text-amber-600 border border-amber-200'
+                        )}>
+                          {order.orderMode === 'delivery' ? '🚚' :
+                           order.orderMode === 'dine-in' ? '🍽️' :
+                           order.orderMode === 'business' ? '💼' :
+                           '🥡'}
+                          {' '}{order.orderMode}
+                        </span>
+                      )}
                       {order.orderTiming === 'scheduled' && order.scheduledPickupAt && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 border border-blue-200">
                           <Calendar size={10} />
