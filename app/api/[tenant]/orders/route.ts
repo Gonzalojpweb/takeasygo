@@ -548,21 +548,6 @@ export async function POST(
         const price = basePrice + extraPrice
         const subtotal = price * quantity
 
-        // Business mode: no descuentos de categoría, precio fijo corp
-          let hasCategoryDiscount = false
-          if (!isBusinessOrder) {
-            if (hasVariants && resolvedSelectedVariant) {
-              const variantOriginal = (body.mode === 'takeaway' || body.mode === 'delivery')
-                ? resolvedSelectedVariant.takeawayPrice ?? resolvedSelectedVariant.price
-                : resolvedSelectedVariant.price
-              hasCategoryDiscount = false
-            } else {
-              hasCategoryDiscount = (body.mode === 'takeaway' || body.mode === 'delivery')
-                ? !!menuItem.takeawayOriginalPrice && (menuItem.takeawayPrice ?? menuItem.price) < menuItem.takeawayOriginalPrice
-                : !!menuItem.originalPrice && menuItem.price < menuItem.originalPrice
-            }
-          }
-
         resolvedItems.push({
           menuItemId: menuItem._id,
           promotionId: null,
@@ -579,7 +564,7 @@ export async function POST(
           selectedVariant: resolvedSelectedVariant,
           printRole: menuItem.printRole || 'kitchen',
           addedFrom: clientItem.addedFrom ?? null,
-          hasCategoryDiscount,
+          hasCategoryDiscount: false,
         })
       }
     }
@@ -590,11 +575,8 @@ export async function POST(
     let qrPromoApplied = false
 
     if (activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
-      // El descuento marketing QR nunca aplica a promociones del menú,
-      // ni a items que ya tienen descuento de categoría.
-      // Esto previene acumulación de descuentos que generaría pérdidas para el restaurante.
       const qrEligibleSubtotal = resolvedItems
-        .filter(item => item.itemType !== 'promotion' && !item.hasCategoryDiscount)
+        .filter(item => item.itemType !== 'promotion')
         .reduce((sum, item) => sum + item.subtotal, 0)
       discountAmount = Math.round(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100))
       qrPromoApplied = true
