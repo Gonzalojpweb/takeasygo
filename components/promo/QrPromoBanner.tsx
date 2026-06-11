@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { useQrPromo } from '@/hooks/useQrPromo'
 import { PromoModal } from './PromoModal'
 import { PromoHeader } from './PromoHeader'
@@ -13,7 +14,14 @@ interface QrPromoBannerProps {
 }
 
 export function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
+  const pathname = usePathname()
   const { promo, loading, show, loyaltyMsg, dismiss } = useQrPromo(tenantSlug)
+
+  const pathParts = pathname?.split('/').filter(Boolean) ?? []
+  const isPublic = pathParts.length === 3
+  const isTakeaway = pathParts.length === 4 && pathParts[3] === 'takeaway'
+
+  if (!isPublic && !isTakeaway) return null
 
   if (loading || !show || !promo) return null
 
