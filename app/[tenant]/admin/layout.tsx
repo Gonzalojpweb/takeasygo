@@ -10,16 +10,46 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import type { Plan } from '@/lib/plans'
+import type { Metadata } from 'next'
 import mongoose from 'mongoose'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
+
+interface AdminLayoutProps {
+  children: React.ReactNode
+  params: Promise<{ tenant: string }>
+}
+
+export async function generateMetadata({ params }: AdminLayoutProps): Promise<Metadata> {
+  const { tenant: tenantSlug } = await params
+  await connectDB()
+
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
+  if (!tenant) return {}
+
+  const name: string = tenant.name || 'Admin'
+  const branding = tenant.branding || {}
+  const primaryColor = branding.primaryColor || '#f74211'
+
+  return {
+    title: name,
+    manifest: `/${tenantSlug}/admin/manifest.json`,
+    appleWebApp: {
+      capable: true,
+      title: name,
+      statusBarStyle: 'black-translucent',
+    },
+    other: {
+      'mobile-web-app-capable': 'yes',
+      'msapplication-TileColor': primaryColor,
+      'theme-color': primaryColor,
+    },
+  }
+}
 
 export default async function AdminLayout({
   children,
   params,
-}: {
-  children: React.ReactNode
-  params: Promise<{ tenant: string }>
-}) {
+}: AdminLayoutProps) {
   const { tenant } = await params
   const session = await auth()
 
