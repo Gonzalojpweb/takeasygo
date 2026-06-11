@@ -840,7 +840,10 @@ export async function POST(
     }
 
     // ── Push notification a admins suscriptos ────────────────────────────────
-    const adminSubs = await PushSubscription.find({ tenantId: tenant._id }).lean()
+    // Solo disponible en Trial, Crecimiento y Premium
+    const adminSubs = canAccess(tenant.plan ?? 'trial', 'adminPushNotifications')
+      ? await PushSubscription.find({ tenantId: tenant._id }).lean()
+      : []
     if (adminSubs.length > 0) {
       const payload = JSON.stringify({
         title: `🔔 Nuevo pedido en ${tenant.name}`,
