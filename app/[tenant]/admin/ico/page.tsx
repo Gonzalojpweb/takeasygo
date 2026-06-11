@@ -125,6 +125,7 @@ export default async function ICOPage({
   if (plan === 'trial') {
     const trialOrderCount = await Order.countDocuments({
       tenantId: tenant._id,
+      ...LAYER_FILTERS.takeaway,
       status: { $nin: ['cancelled'] },
     })
 
@@ -187,38 +188,38 @@ export default async function ICOPage({
     // ≥30 pedidos: calcular y mostrar el informe de contexto
     const [tppD, cancD, confirmD, topItemsD, peakD, activeDaysD, onTimeD] = await Promise.all([
       Order.aggregate([
-        { $match: { tenantId: tenant._id, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
         { $project: { tppMs: { $subtract: ['$statusTimestamps.readyAt', '$statusTimestamps.confirmedAt'] } } },
         { $group: { _id: null, avgMs: { $avg: '$tppMs' }, stdMs: { $stdDevPop: '$tppMs' }, count: { $sum: 1 } } }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway } },
         { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, 'statusTimestamps.confirmedAt': { $ne: null } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, 'statusTimestamps.confirmedAt': { $ne: null } } },
         { $project: { ms: { $subtract: ['$statusTimestamps.confirmedAt', '$createdAt'] } } },
         { $group: { _id: null, avgMs: { $avg: '$ms' } } }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, status: { $nin: ['cancelled'] } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, status: { $nin: ['cancelled'] } } },
         { $unwind: '$items' },
         { $group: { _id: '$items.name', count: { $sum: '$items.quantity' } } },
         { $sort: { count: -1 } }, { $limit: 5 }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, status: { $nin: ['cancelled'] } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, status: { $nin: ['cancelled'] } } },
         { $project: { window: { $concat: [{ $toString: { $hour: '$createdAt' } }, ':', { $cond: [{ $gte: [{ $minute: '$createdAt' }, 30] }, '30', '00'] }] } } },
         { $group: { _id: '$window', count: { $sum: 1 } } },
         { $sort: { count: -1 } }, { $limit: 1 }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, status: { $nin: ['cancelled'] } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, status: { $nin: ['cancelled'] } } },
         { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
         { $count: 'days' }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
         { $project: { isOnTime: { $lte: ['$statusTimestamps.readyAt', '$statusTimestamps.estimatedReadyAt'] } } },
         { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } }
       ]),
