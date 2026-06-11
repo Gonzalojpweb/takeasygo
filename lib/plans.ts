@@ -84,8 +84,12 @@ export const PLAN_ACCESS = {
   // Integración POS — disponible en Crecimiento y Premium
   posIntegration:    ['buy', 'full'] as const,
 
-  // Delivery — solo Premium
-  delivery:          ['full'] as const,
+  // Delivery — Trial + Premium
+  delivery:          ['trial', 'full'] as const,
+
+  // Notificaciones push al admin cuando llega un pedido nuevo
+  // Disponible en Trial, Crecimiento y Premium
+  adminPushNotifications: ['trial', 'buy', 'full'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS

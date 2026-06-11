@@ -9,7 +9,7 @@ import MobileNav from '@/components/MobileNav'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
-import type { Plan } from '@/lib/plans'
+import { canAccess, type Plan } from '@/lib/plans'
 import type { Metadata } from 'next'
 import mongoose from 'mongoose'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
@@ -131,7 +131,7 @@ export default async function AdminLayout({
 
         {/* Main Content */}
         <main className="flex-1 min-h-0 overflow-y-auto bg-background" data-lenis-prevent>
-          {tenantId && <AdminPushBanner tenantId={tenantId} />}
+          {tenantId && canAccess(plan, 'adminPushNotifications') && <AdminPushBanner tenantId={tenantId} />}
           <div className="p-4 md:p-8 lg:p-10">
             <div className="max-w-7xl mx-auto">
               {children}
