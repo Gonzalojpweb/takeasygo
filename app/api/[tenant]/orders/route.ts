@@ -284,7 +284,7 @@ export async function POST(
             ...item.toObject(), 
             categoryName: category.name,
             categoryCustomizationGroups: category.customizationGroups || [],
-            printRole: item.printRole || 'kitchen',
+            printRole: category.printRole || 'kitchen',
           })
         }
       }

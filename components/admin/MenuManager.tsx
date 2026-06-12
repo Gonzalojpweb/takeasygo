@@ -55,7 +55,7 @@ const EMPTY_VARIANT: VariantForm = {
 }
 
 const EMPTY_ITEM = {
-  name: '', description: '', printRole: 'kitchen', price: '', takeawayPrice: '', businessPrice: '', tags: '', isFeatured: false, imageUrl: '',
+  name: '', description: '', price: '', takeawayPrice: '', businessPrice: '', tags: '', isFeatured: false, imageUrl: '',
   isBusinessAvailable: false,
   suggestWith: [] as string[],
   customizationGroups: [] as CustomizationGroupForm[],
@@ -127,6 +127,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [editingCategoryAvailMode, setEditingCategoryAvailMode] = useState<'always' | 'scheduled'>('always')
   const [editingCategoryAvailSchedule, setEditingCategoryAvailSchedule] = useState<ScheduleSlot[]>([])
   const [editingCategoryBusinessAvail, setEditingCategoryBusinessAvail] = useState(false)
+  const [editingCategoryPrintRole, setEditingCategoryPrintRole] = useState<'kitchen' | 'bar' | 'both'>('kitchen')
   const [editingItem, setEditingItem] = useState<string | null>(null)
   const [editingItemData, setEditingItemData] = useState<ItemFormData>(EMPTY_ITEM)
   const [loading, setLoading] = useState(false)
@@ -241,6 +242,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           name: editingCategoryName,
           description: editingCategoryDescription,
           isBusinessAvailable: editingCategoryBusinessAvail,
+          printRole: editingCategoryPrintRole,
           customizationGroups: serializeGroups(editingCategoryGroups),
           availabilityMode: editingCategoryAvailMode,
           availabilitySchedule: editingCategoryAvailMode === 'scheduled' ? editingCategoryAvailSchedule : [],
@@ -283,7 +285,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           locationId: selectedLocation,
           name: newItem.name,
           description: newItem.description,
-          printRole: newItem.printRole,
           price: parseFloat(newItem.price),
           takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
           businessPrice: newItem.businessPrice !== '' ? parseFloat(newItem.businessPrice) : null,
@@ -320,7 +321,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           itemId,
           name: editingItemData.name,
           description: editingItemData.description,
-          printRole: editingItemData.printRole,
           price: parseFloat(editingItemData.price),
           takeawayPrice: editingItemData.takeawayPrice ? parseFloat(editingItemData.takeawayPrice) : undefined,
           businessPrice: editingItemData.businessPrice !== '' ? parseFloat(editingItemData.businessPrice) : null,
@@ -827,6 +827,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                     setEditingCategoryAvailMode(category.availabilityMode ?? 'always')
                                     setEditingCategoryAvailSchedule(category.availabilitySchedule ?? [])
                                     setEditingCategoryBusinessAvail(!(category.isBusinessAvailable ?? false))
+                                    setEditingCategoryPrintRole(category.printRole ?? 'kitchen')
                                     if (!expandedCategories.includes(category._id)) {
                                       setExpandedCategories(prev => [...prev, category._id])
                                     }
@@ -931,6 +932,34 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                     editingCategoryBusinessAvail ? 'left-[22px]' : 'left-1'
                                   )} />
                                 </button>
+                              </div>
+
+                              {/* Print role selector */}
+                              <div>
+                                <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1.5 block">
+                                  Imprimir en
+                                </label>
+                                <div className="flex gap-2">
+                                  {[
+                                    { value: 'kitchen' as const, label: 'Cocina' },
+                                    { value: 'bar' as const, label: 'Barra' },
+                                    { value: 'both' as const, label: 'Ambos' },
+                                  ].map(opt => (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => setEditingCategoryPrintRole(opt.value)}
+                                      className={cn(
+                                        'flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all',
+                                        editingCategoryPrintRole === opt.value
+                                          ? 'bg-primary/5 border-primary/40 text-primary'
+                                          : 'bg-muted border-transparent text-muted-foreground hover:text-foreground'
+                                      )}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
 
                               {/* Editor de grupos de personalización a nivel categoría */}
@@ -1150,16 +1179,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                     <span className="text-primary font-bold tabular-nums text-sm leading-none">${item.businessPrice.toLocaleString('es-AR')}</span>
                                                   </div>
                                                 )}
-                                                {(item.printRole && item.printRole !== 'kitchen') && (
-                                                  <div className={cn(
-                                                    "flex items-center gap-1 px-2 py-0.5 rounded-lg border",
-                                                    item.printRole === 'bar' ? "bg-sky-50 border-sky-200 text-sky-600" : "bg-purple-50 border-purple-200 text-purple-600"
-                                                  )}>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest leading-none">
-                                                      {item.printRole === 'bar' ? 'Barra' : 'Cocina+Barra'}
-                                                    </span>
-                                                  </div>
-                                                )}
                                                 <div className="flex gap-1 flex-wrap">
                                                   {item.tags?.map((tag: string) => (
                                                     <span key={tag} className="text-[10px] font-bold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-lg border border-border/40">
@@ -1239,7 +1258,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                       setEditingItemData({
                                                         name: item.name,
                                                         description: item.description || '',
-                                                        printRole: item.printRole || 'kitchen',
                                                         price: item.price.toString(),
                                                         takeawayPrice: item.takeawayPrice?.toString() ?? '',
                                                         businessPrice: item.businessPrice?.toString() ?? '',
@@ -1272,7 +1290,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                 setEditingItemData({
                                                   name: item.name,
                                                   description: item.description || '',
-                                                  printRole: item.printRole || 'kitchen',
                                                   price: item.price.toString(),
                                                   takeawayPrice: item.takeawayPrice?.toString() ?? '',
                                                   businessPrice: item.businessPrice?.toString() ?? '',
@@ -1588,31 +1605,6 @@ function ItemForm({
               value={data.description}
               onChange={e => onChange({ ...data, description: e.target.value })}
             />
-          </div>
-
-          <div>
-            <label className={labelCls}>Imprimir en</label>
-            <div className="flex gap-2">
-              {[
-                { value: 'kitchen', label: 'Cocina' },
-                { value: 'bar', label: 'Barra' },
-                { value: 'both', label: 'Ambos' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => onChange({ ...data, printRole: opt.value })}
-                  className={cn(
-                    'flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all',
-                    data.printRole === opt.value
-                      ? 'bg-primary/5 border-primary/40 text-primary'
-                      : 'bg-muted border-transparent text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div>

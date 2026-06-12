@@ -52,27 +52,16 @@ function sanitizeText(str) {
 }
 
 function buf(input) {
+    if (Buffer.isBuffer(input)) return input;
     if (typeof input === 'string') return Buffer.from(sanitizeText(input));
-    return Buffer.from(input);
+    return Buffer.from(String(input));
 }
 
 // --- LOGICA DE TRASMISIÓN (TCP RAW) ---
 async function sendToPrinter(ip, port, dataBuffer) {
     return new Promise((resolve, reject) => {
         const client = new net.Socket();
-        client.setTimeout(5000);
-
-        client.connect(port, ip, () => {
-            console.log(`[TCP] Enviando datos a ${ip}:${port}...`);
-            client.write(dataBuffer, (err) => {
-                if (err) return reject(err);
-                client.end();
-                setTimeout(() => {
-                    client.destroy();
-                    resolve();
-                }, 200);
-            });
-        });
+        client.setTimeout(8000);
 
         client.on('error', (err) => {
             client.destroy();
@@ -83,6 +72,18 @@ async function sendToPrinter(ip, port, dataBuffer) {
             client.destroy();
             reject(new Error('TIMEOUT: La impresora no respondió'));
         });
+
+        client.connect(port, ip, () => {
+            console.log(`[TCP] Conectado a ${ip}:${port}, enviando ${dataBuffer.length} bytes...`);
+            client.write(dataBuffer, (err) => {
+                if (err) return reject(err);
+                console.log(`[TCP] Datos escritos, finalizando...`);
+                client.end(() => {
+                    client.destroy();
+                    resolve();
+                });
+            });
+        });
     });
 }
 
@@ -91,24 +92,36 @@ async function sendToPrinter(ip, port, dataBuffer) {
 class JobManager {
     constructor() {
         this.queues = new Map();
+        this.running = new Map();
     }
 
-    async enqueue(printerUid, printerConfig, buffer, onComplete) {
-        if (!this.queues.has(printerUid)) this.queues.set(printerUid, Promise.resolve());
+    enqueue(printerUid, printerConfig, buffer, onComplete) {
+        if (!this.queues.has(printerUid)) {
+            this.queues.set(printerUid, []);
+            this.running.set(printerUid, false);
+        }
+        this.queues.get(printerUid).push({ printerConfig, buffer, onComplete });
+        if (!this.running.get(printerUid)) {
+            this._processQueue(printerUid);
+        }
+    }
 
-        const tail = this.queues.get(printerUid);
-        const next = tail.then(async () => {
+    async _processQueue(printerUid) {
+        this.running.set(printerUid, true);
+        const queue = this.queues.get(printerUid);
+        while (queue.length > 0) {
+            const job = queue.shift();
             try {
-                await sendToPrinter(printerConfig.ip, printerConfig.port, buffer);
-                await onComplete(true);
+                console.log(`[JOB] Imprimiendo en ${job.printerConfig.name}...`);
+                await sendToPrinter(job.printerConfig.ip, job.printerConfig.port, job.buffer);
+                console.log(`[OK] Impreso correctamente en ${job.printerConfig.name}`);
+                await job.onComplete(true);
             } catch (err) {
-                console.error(`[FALLO] ${printerConfig.name}: ${err.message}`);
-                await onComplete(false, err.message);
+                console.error(`[FALLO] ${job.printerConfig.name}: ${err.message}`);
+                await job.onComplete(false, err.message);
             }
-        });
-
-        this.queues.set(printerUid, next.catch(() => undefined));
-        return next;
+        }
+        this.running.set(printerUid, false);
     }
 }
 
@@ -286,10 +299,15 @@ async function poll() {
         for (const order of orders) {
             for (const printer of printers) {
                 for (const role of printer.roles) {
-                    // Solo imprimimos si el rol coincide (Kitchen/Cashier)
-                    console.log(`[QUEUE] Agregando Orden ${order.orderNumber} para ${printer.name} (${role})`);
+                    console.log(`[QUEUE] Orden ${order.orderNumber} → ${printer.name} (${role})`);
 
-                    const ticketBuffer = generateTicket(order, role, printer.paperWidth === 80 ? 48 : 32);
+                    let ticketBuffer;
+                    try {
+                        ticketBuffer = generateTicket(order, role, printer.paperWidth === 80 ? 48 : 32);
+                    } catch (err) {
+                        console.error(`[ERROR] generateTicket falló: ${err.message}`);
+                        continue;
+                    }
 
                     if (!ticketBuffer) {
                         console.log(`[SKIP] Orden ${order.orderNumber} no tiene items para ${printer.name} (${role})`);

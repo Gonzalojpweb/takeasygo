@@ -20,7 +20,7 @@ export async function PUT(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { locationId, name, description, isAvailable, isBusinessAvailable, imageUrl, availabilityMode, availabilitySchedule, customizationGroups } = await request.json()
+    const { locationId, name, description, isAvailable, isBusinessAvailable, imageUrl, availabilityMode, availabilitySchedule, customizationGroups, printRole } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -42,6 +42,7 @@ export async function PUT(
     if (availabilityMode !== undefined) category.availabilityMode = availabilityMode
     if (availabilitySchedule !== undefined) category.availabilitySchedule = availabilitySchedule
     if (customizationGroups !== undefined) category.customizationGroups = customizationGroups
+    if (printRole !== undefined) category.printRole = printRole
 
     menu.markModified('categories')
     await menu.save()
