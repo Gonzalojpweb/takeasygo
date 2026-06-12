@@ -36,7 +36,6 @@ export interface IMenuItem {
   _id?: mongoose.Types.ObjectId
   name: string
   description: string
-  printRole?: 'kitchen' | 'bar' | 'both'
   price: number
   takeawayPrice?: number
   businessPrice?: number | null
@@ -69,6 +68,7 @@ export interface IMenuCategory {
   isBusinessAvailable: boolean
   sortOrder: number
   items: IMenuItem[]
+  printRole?: 'kitchen' | 'bar' | 'both'
   customizationGroups?: ICustomizationGroup[]   // grupos heredados por todos los items de la categoría
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
@@ -180,11 +180,6 @@ const MenuItemSchema = new Schema<IMenuItem>({
     type: [MenuItemVariantSchema],
     default: [],
   },
-  printRole: {
-    type: String,
-    enum: ['kitchen', 'bar', 'both'],
-    default: 'kitchen',
-  },
   customizationGroups: {
     type: [CustomizationGroupSchema],
     default: [],
@@ -234,6 +229,11 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
     default: 0,
   },
   items: [MenuItemSchema],
+  printRole: {
+    type: String,
+    enum: ['kitchen', 'bar', 'both'],
+    default: 'kitchen',
+  },
   customizationGroups: { type: [CustomizationGroupSchema], default: [] },
   nameTranslations: {
     en: { type: String, default: '' },
