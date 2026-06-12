@@ -19,11 +19,11 @@ export async function PATCH(
     if (authError) return authError
 
     const body = await request.json()
-    const { name, ip, port, roles, paperWidth, isActive } = body
+    const { name, connectionType, ip, port, roles, paperWidth, isActive } = body
 
     const printer = await Printer.findOneAndUpdate(
       { _id: printerId, tenantId: tenant._id },
-      { $set: { name, ip, port, roles, paperWidth, isActive } },
+      { $set: { name, connectionType, ip, port, roles, paperWidth, isActive } },
       { new: true, runValidators: true }
     )
 

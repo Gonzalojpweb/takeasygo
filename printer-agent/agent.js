@@ -2,6 +2,12 @@ const axios = require('axios');
 const net = require('node:net');
 const fs = require('fs');
 const path = require('path');
+let nodePrinter = null;
+try {
+    nodePrinter = require('node-printer');
+} catch (e) {
+    console.log('[USB] node-printer no disponible — la impresión USB no estará habilitada');
+}
 
 // --- CONFIGURACIÓN ---
 const CONFIG_PATH = path.join(__dirname, 'config.json');
@@ -87,6 +93,46 @@ async function sendToPrinter(ip, port, dataBuffer) {
     });
 }
 
+// --- SOPORTE USB ---
+function listUSBPrinters() {
+    if (!nodePrinter) return;
+    try {
+        const printers = nodePrinter.list();
+        const names = printers.map(p => p.name);
+        if (names.length > 0) {
+            console.log(`[USB] Impresoras detectadas en Windows: ${names.join(', ')}`);
+        } else {
+            console.log('[USB] No se encontraron impresoras instaladas');
+        }
+    } catch (e) {
+        console.log('[USB] No se pudo listar impresoras');
+    }
+}
+
+async function sendToPrinterUSB(printerName, dataBuffer) {
+    if (!nodePrinter) {
+        throw new Error('node-printer no está disponible');
+    }
+    return new Promise((resolve, reject) => {
+        try {
+            console.log(`[USB] Enviando ${dataBuffer.length} bytes a "${printerName}"...`);
+            const p = nodePrinter(printerName);
+            p.executeDirect(dataBuffer, (err, result) => {
+                if (err) {
+                    console.log(`[USB] Error enviando a "${printerName}": ${err.message}`);
+                    reject(err);
+                } else {
+                    console.log(`[USB] Impreso correctamente en "${printerName}"`);
+                    resolve(result);
+                }
+            });
+        } catch (err) {
+            console.log(`[USB] Error conectando a "${printerName}": ${err.message}`);
+            reject(err);
+        }
+    });
+}
+
 // --- GESTOR DE COLAS SECUENCIAL ---
 // Asegura que si hay 10 tickets, se impriman en orden y no al mismo tiempo
 class JobManager {
@@ -113,7 +159,12 @@ class JobManager {
             const job = queue.shift();
             try {
                 console.log(`[JOB] Imprimiendo en ${job.printerConfig.name}...`);
-                await sendToPrinter(job.printerConfig.ip, job.printerConfig.port, job.buffer);
+                const isUSB = job.printerConfig.connectionType === 'usb';
+                if (isUSB) {
+                    await sendToPrinterUSB(job.printerConfig.ip, job.buffer);
+                } else {
+                    await sendToPrinter(job.printerConfig.ip, job.printerConfig.port, job.buffer);
+                }
                 console.log(`[OK] Impreso correctamente en ${job.printerConfig.name}`);
                 await job.onComplete(true);
             } catch (err) {
@@ -351,6 +402,8 @@ Sede:    ${config.locationId}
 API:     ${config.apiUrl}
 ------------------------------------------
 `);
+
+listUSBPrinters();
 
 setInterval(poll, config.pollInterval);
 poll();

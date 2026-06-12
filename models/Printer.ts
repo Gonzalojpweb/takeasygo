@@ -2,12 +2,14 @@ import mongoose, { Schema, Document } from 'mongoose'
 
 export type PrinterRole = 'kitchen' | 'bar' | 'cashier'
 export type PrinterStatus = 'ok' | 'error' | 'offline' | 'unknown'
+export type PrinterConnectionType = 'tcp' | 'usb'
 
 export interface IPrinter extends Document {
   tenantId: mongoose.Types.ObjectId
   locationId: mongoose.Types.ObjectId
   uid: string
   name: string
+  connectionType: PrinterConnectionType
   ip: string
   port: number
   roles: PrinterRole[]
@@ -42,6 +44,11 @@ const PrinterSchema = new Schema<IPrinter>(
       type: String,
       required: true,
       trim: true,
+    },
+    connectionType: {
+      type: String,
+      enum: ['tcp', 'usb'],
+      default: 'tcp',
     },
     ip: {
       type: String,

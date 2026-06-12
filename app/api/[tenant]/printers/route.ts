@@ -45,7 +45,7 @@ export async function POST(
     if (authError) return authError
 
     const body = await request.json()
-    const { locationId, name, ip, port, roles, paperWidth } = body
+    const { locationId, name, connectionType, ip, port, roles, paperWidth } = body
 
     if (!locationId || !name || !ip) {
       return NextResponse.json({ error: 'locationId, name e ip son obligatorios' }, { status: 400 })
@@ -58,6 +58,7 @@ export async function POST(
       locationId,
       uid,
       name,
+      connectionType: connectionType ?? 'tcp',
       ip,
       port: port ?? 9100,
       roles: roles ?? ['kitchen'],
