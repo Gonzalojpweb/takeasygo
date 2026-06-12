@@ -13,12 +13,14 @@ import { cn } from '@/lib/utils'
 
 type PrinterRole = 'kitchen' | 'bar' | 'cashier'
 type PrinterStatus = 'ok' | 'error' | 'offline' | 'unknown'
+type PrinterConnectionType = 'tcp' | 'usb'
 
 interface PrinterData {
   _id: string
   locationId: string
   uid: string
   name: string
+  connectionType: PrinterConnectionType
   ip: string
   port: number
   roles: PrinterRole[]
@@ -57,6 +59,7 @@ const STATUS_CONFIG: Record<PrinterStatus, { label: string; color: string; icon:
 const EMPTY_FORM = {
   locationId: '',
   name: '',
+  connectionType: 'tcp' as PrinterConnectionType,
   ip: '',
   port: 9100,
   roles: ['kitchen'] as PrinterRole[],
@@ -103,6 +106,7 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
     setForm({
       locationId: p.locationId ?? selectedLocation,
       name: p.name,
+      connectionType: p.connectionType ?? 'tcp',
       ip: p.ip,
       port: p.port,
       roles: p.roles,
@@ -275,28 +279,59 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
                   />
                 </div>
 
-                {/* IP */}
+                {/* Tipo de conexión */}
+                <div className="sm:col-span-2">
+                  <label className={labelCls}>Tipo de conexión</label>
+                  <div className="flex gap-2">
+                    {(['tcp', 'usb'] as PrinterConnectionType[]).map(type => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setForm(p => ({ ...p, connectionType: type }))}
+                        className={cn(
+                          'px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border-2 transition-all flex-1',
+                          form.connectionType === type
+                            ? 'bg-primary text-white border-primary shadow-md shadow-primary/20'
+                            : 'border-border/60 text-muted-foreground hover:border-primary/40'
+                        )}
+                      >
+                        {type === 'tcp' ? 'TCP/IP' : 'USB Directo'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* IP / Nombre Impresora */}
                 <div>
-                  <label className={labelCls}>IP de la impresora</label>
+                  <label className={labelCls}>
+                    {form.connectionType === 'usb' ? 'Nombre de la impresora en Windows' : 'IP de la impresora'}
+                  </label>
                   <input
                     required
                     value={form.ip}
                     onChange={e => setForm(p => ({ ...p, ip: e.target.value }))}
-                    placeholder="192.168.0.100"
+                    placeholder={form.connectionType === 'usb' ? 'EPSON TM-T20' : '192.168.0.100'}
                     className={inputCls}
                   />
+                  {form.connectionType === 'usb' && (
+                    <p className="text-[10px] text-muted-foreground/60 mt-1 ml-1">
+                      Encontrá el nombre en Windows → Configuración → Impresoras
+                    </p>
+                  )}
                 </div>
 
-                {/* Puerto */}
-                <div>
-                  <label className={labelCls}>Puerto TCP</label>
-                  <input
-                    type="number"
-                    value={form.port}
-                    onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))}
-                    className={inputCls}
-                  />
-                </div>
+                {/* Puerto (solo TCP) */}
+                {form.connectionType === 'tcp' && (
+                  <div>
+                    <label className={labelCls}>Puerto TCP</label>
+                    <input
+                      type="number"
+                      value={form.port}
+                      onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))}
+                      className={inputCls}
+                    />
+                  </div>
+                )}
 
                 {/* Ancho de papel */}
                 <div>
@@ -386,7 +421,13 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-bold text-foreground text-base leading-tight">{printer.name}</p>
-                      <p className="text-muted-foreground text-xs font-mono mt-0.5">{printer.ip}:{printer.port}</p>
+                      <p className="text-muted-foreground text-xs font-mono mt-0.5">
+                        {printer.connectionType === 'usb' ? (
+                          <>{printer.ip} <span className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground/50">(USB)</span></>
+                        ) : (
+                          <>{printer.ip}:{printer.port}</>
+                        )}
+                      </p>
                     </div>
                     <Badge
                       variant="outline"
