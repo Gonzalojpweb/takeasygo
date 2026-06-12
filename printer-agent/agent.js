@@ -2,12 +2,7 @@ const axios = require('axios');
 const net = require('node:net');
 const fs = require('fs');
 const path = require('path');
-let nodePrinter = null;
-try {
-    nodePrinter = require('node-printer');
-} catch (e) {
-    console.log('[USB] node-printer no disponible — la impresión USB no estará habilitada');
-}
+const { execFile } = require('child_process');
 
 // --- CONFIGURACIÓN ---
 const CONFIG_PATH = path.join(__dirname, 'config.json');
@@ -93,14 +88,17 @@ async function sendToPrinter(ip, port, dataBuffer) {
     });
 }
 
-// --- SOPORTE USB ---
+// --- SOPORTE USB (vía Win32 Spooler con PowerShell) ---
 function listUSBPrinters() {
-    if (!nodePrinter) return;
+    const { execSync } = require('child_process');
     try {
-        const printers = nodePrinter.list();
-        const names = printers.map(p => p.name);
-        if (names.length > 0) {
-            console.log(`[USB] Impresoras detectadas en Windows: ${names.join(', ')}`);
+        const output = execSync(
+            'powershell -NoProfile -Command "Get-Printer | Select-Object -ExpandProperty Name"',
+            { encoding: 'utf8', timeout: 5000 }
+        );
+        const printers = output.trim().split(/\r?\n/).filter(Boolean);
+        if (printers.length > 0) {
+            console.log(`[USB] Impresoras detectadas en Windows: ${printers.join(', ')}`);
         } else {
             console.log('[USB] No se encontraron impresoras instaladas');
         }
@@ -110,26 +108,31 @@ function listUSBPrinters() {
 }
 
 async function sendToPrinterUSB(printerName, dataBuffer) {
-    if (!nodePrinter) {
-        throw new Error('node-printer no está disponible');
-    }
+    const os = require('os');
+    const tmpFile = path.join(os.tmpdir(), `ticket-${Date.now()}.bin`);
+    fs.writeFileSync(tmpFile, dataBuffer);
+
     return new Promise((resolve, reject) => {
-        try {
-            console.log(`[USB] Enviando ${dataBuffer.length} bytes a "${printerName}"...`);
-            const p = nodePrinter(printerName);
-            p.executeDirect(dataBuffer, (err, result) => {
+        const psScript = path.join(__dirname, 'send-raw.ps1');
+        const child = execFile(
+            'powershell',
+            [
+                '-NoProfile',
+                '-ExecutionPolicy', 'Bypass',
+                '-File', psScript,
+                '-PrinterName', printerName,
+                '-FilePath', tmpFile
+            ],
+            { timeout: 15000 },
+            (err, stdout, stderr) => {
+                try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
                 if (err) {
-                    console.log(`[USB] Error enviando a "${printerName}": ${err.message}`);
-                    reject(err);
+                    reject(new Error(stderr.trim() || err.message));
                 } else {
-                    console.log(`[USB] Impreso correctamente en "${printerName}"`);
-                    resolve(result);
+                    resolve(stdout.trim());
                 }
-            });
-        } catch (err) {
-            console.log(`[USB] Error conectando a "${printerName}": ${err.message}`);
-            reject(err);
-        }
+            }
+        );
     });
 }
 
