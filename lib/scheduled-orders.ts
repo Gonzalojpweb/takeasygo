@@ -6,27 +6,46 @@ import type { ILocation } from '@/models/Location'
 import type { AvailabilitySlot } from '@/lib/availability'
 
 type ServiceSlot = { days: number[]; open: string; close: string }
+type ServiceHoursMode = 'takeaway' | 'dineIn' | 'delivery'
+
+type ServiceHoursMap = {
+  takeaway: ServiceSlot[]
+  dineIn: ServiceSlot[]
+  delivery: ServiceSlot[]
+}
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)
   return h * 60 + m
 }
 
-function isDayOpenForTakeaway(
-  serviceHours: { takeaway: ServiceSlot[] } | undefined,
+function getSlotsForMode(
+  serviceHours: ServiceHoursMap | undefined,
+  mode: ServiceHoursMode
+): ServiceSlot[] {
+  if (!serviceHours?.[mode]?.length) return []
+  return serviceHours[mode]
+}
+
+function isDayOpen(
+  serviceHours: ServiceHoursMap | undefined,
+  mode: ServiceHoursMode,
   dayOfWeek: number
 ): boolean {
-  if (!serviceHours?.takeaway?.length) return true
-  return serviceHours.takeaway.some(slot => slot.days.includes(dayOfWeek))
+  const slots = getSlotsForMode(serviceHours, mode)
+  if (!slots.length) return true
+  return slots.some(slot => slot.days.includes(dayOfWeek))
 }
 
 function isTimeWithinServiceHours(
-  serviceHours: { takeaway: ServiceSlot[] } | undefined,
+  serviceHours: ServiceHoursMap | undefined,
+  mode: ServiceHoursMode,
   dayOfWeek: number,
   minutes: number
 ): boolean {
-  if (!serviceHours?.takeaway?.length) return true
-  return serviceHours.takeaway.some(slot => {
+  const slots = getSlotsForMode(serviceHours, mode)
+  if (!slots.length) return true
+  return slots.some(slot => {
     if (!slot.days.includes(dayOfWeek)) return false
     const openMin = timeToMinutes(slot.open)
     const closeMin = timeToMinutes(slot.close)
@@ -41,10 +60,12 @@ const DEFAULT_SERVICE_HOURS: ServiceSlot[] = [
 ]
 
 function getEffectiveServiceHours(
-  serviceHours: { takeaway: ServiceSlot[] } | undefined
+  serviceHours: ServiceHoursMap | undefined,
+  mode: ServiceHoursMode
 ): ServiceSlot[] {
-  if (!serviceHours?.takeaway?.length) return DEFAULT_SERVICE_HOURS
-  return serviceHours.takeaway
+  const slots = getSlotsForMode(serviceHours, mode)
+  if (!slots.length) return DEFAULT_SERVICE_HOURS
+  return slots
 }
 
 function isItemAvailableAtTime(
@@ -74,7 +95,8 @@ export async function validateScheduledPickupTime(
   menuItems?: Array<{
     availabilityMode: 'always' | 'scheduled' | undefined
     availabilitySchedule: AvailabilitySlot[] | undefined
-  }>
+  }>,
+  orderMode?: ServiceHoursMode
 ): Promise<ScheduledOrderValidation> {
   await connectDB()
 
@@ -114,12 +136,13 @@ export async function validateScheduledPickupTime(
 
   const dayOfWeek = scheduled.getDay()
   const minutes = scheduled.getHours() * 60 + scheduled.getMinutes()
+  const mode = orderMode === 'delivery' ? 'delivery' as ServiceHoursMode : 'takeaway' as ServiceHoursMode
 
-  if (!isDayOpenForTakeaway(location.serviceHours, dayOfWeek)) {
+  if (!isDayOpen(location.serviceHours, mode, dayOfWeek)) {
     return { valid: false, error: 'El local está cerrado en ese día' }
   }
 
-  if (!isTimeWithinServiceHours(location.serviceHours, dayOfWeek, minutes)) {
+  if (!isTimeWithinServiceHours(location.serviceHours, mode, dayOfWeek, minutes)) {
     return { valid: false, error: 'El horario seleccionado está fuera del horario de atención' }
   }
 
@@ -164,7 +187,8 @@ export interface AvailableSlotsResult {
 
 export async function getAvailableSlotsForDate(
   locationId: string,
-  dateStr: string
+  dateStr: string,
+  orderMode?: ServiceHoursMode
 ): Promise<AvailableSlotsResult> {
   await connectDB()
 
@@ -180,8 +204,9 @@ export async function getAvailableSlotsForDate(
 
   const targetDate = new Date(dateStr + 'T00:00:00')
   const dayOfWeek = targetDate.getDay()
+  const mode = orderMode === 'delivery' ? 'delivery' : 'takeaway'
 
-  if (!isDayOpenForTakeaway(location.serviceHours, dayOfWeek)) {
+  if (!isDayOpen(location.serviceHours, mode, dayOfWeek)) {
     return { date: dateStr, dayOpen: false, slots: [] }
   }
 
@@ -189,8 +214,9 @@ export async function getAvailableSlotsForDate(
   const minAdvance = new Date(now.getTime() + config.minAdvanceMinutes * 60 * 1000)
   const maxAdvance = new Date(now.getTime() + config.maxAdvanceHours * 60 * 60 * 1000)
 
+  const seen = new Set<string>()
   const slots: AvailableSlot[] = []
-  const effectiveHours = getEffectiveServiceHours(location.serviceHours)
+  const effectiveHours = getEffectiveServiceHours(location.serviceHours, mode)
 
   for (const slot of effectiveHours) {
     if (!slot.days.includes(dayOfWeek)) continue
@@ -205,6 +231,10 @@ export async function getAvailableSlotsForDate(
       if (slotDate < minAdvance) continue
       if (slotDate > maxAdvance) continue
 
+      const timeKey = `${Math.floor(min / 60).toString().padStart(2, '0')}:${(min % 60).toString().padStart(2, '0')}`
+      if (seen.has(timeKey)) continue
+      seen.add(timeKey)
+
       const slotEnd = new Date(slotDate)
       slotEnd.setMinutes(slotEnd.getMinutes() + config.slotDurationMinutes)
 
@@ -217,10 +247,8 @@ export async function getAvailableSlotsForDate(
 
       const available = config.maxOrdersPerSlot === 0 || ordersCount < config.maxOrdersPerSlot
 
-      const hours = Math.floor(min / 60)
-      const mins = min % 60
       slots.push({
-        time: `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`,
+        time: timeKey,
         available,
         ordersCount,
       })
