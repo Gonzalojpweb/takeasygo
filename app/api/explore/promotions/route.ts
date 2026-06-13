@@ -45,16 +45,39 @@ export async function GET(request: NextRequest) {
     const tenantLogoMap = new Map(tenants.map(t => [t._id.toString(), t.branding?.logoUrl || '']))
 
     const promotionsRaw = await Promotion.find({
-      tenantId: { $in: activeTenantIds },
+      $or: [
+        { scope: 'tenant', tenantId: { $in: activeTenantIds } },
+        {
+          scope: 'global',
+          $or: [
+            { targetTenants: { $in: activeTenantIds } },
+            { targetTenants: { $size: 0 } },
+          ],
+        },
+      ],
       isActive: true
     }).sort({ isFeatured: -1, sortOrder: 1 }).lean()
 
-    const promotions = promotionsRaw.map(p => ({
-      ...p,
-      tenantSlug: tenantSlugMap.get(p.tenantId.toString()) || '',
-      tenantLogo: tenantLogoMap.get(p.tenantId.toString()) || '',
-      tenantName: tenantNameMap.get(p.tenantId.toString()) || '',
-    }))
+    const promotions = promotionsRaw.flatMap(p => {
+      if (p.scope === 'global') {
+        const applicableTenantIds = p.targetTenants && p.targetTenants.length > 0
+          ? p.targetTenants.filter((tid: any) => activeTenantIds.some((atid: any) => atid.equals(tid)))
+          : activeTenantIds
+        return applicableTenantIds.map((tid: any) => ({
+          ...p,
+          tenantId: tid,
+          tenantSlug: tenantSlugMap.get(tid.toString()) || '',
+          tenantLogo: tenantLogoMap.get(tid.toString()) || '',
+          tenantName: tenantNameMap.get(tid.toString()) || '',
+        }))
+      }
+      return [{
+        ...p,
+        tenantSlug: tenantSlugMap.get(p.tenantId?.toString() || '') || '',
+        tenantLogo: tenantLogoMap.get(p.tenantId?.toString() || '') || '',
+        tenantName: tenantNameMap.get(p.tenantId?.toString() || '') || '',
+      }]
+    })
 
     return NextResponse.json({ promotions })
   } catch (error) {

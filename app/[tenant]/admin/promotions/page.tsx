@@ -26,7 +26,19 @@ export default async function PromotionsPage() {
     .select('name address')
     .lean()
 
-  const promotions = await Promotion.find({ tenantId: (tenant as any)._id })
+  const tenantId = (tenant as any)._id
+  const promotions = await Promotion.find({
+    $or: [
+      { scope: 'tenant', tenantId },
+      {
+        scope: 'global',
+        $or: [
+          { targetTenants: tenantId },
+          { targetTenants: { $size: 0 } },
+        ],
+      },
+    ],
+  })
     .sort({ sortOrder: 1, createdAt: -1 })
     .lean()
 
