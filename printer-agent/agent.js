@@ -250,7 +250,7 @@ function generateTicket(order, role, columns = 32) {
 
     // Tipo de entrega
     if (order.orderMode) {
-        const modeLabel = order.orderMode === 'takeaway' ? 'PARA LLEVAR' : 'EN LOCAL';
+        const modeLabel = order.orderMode === 'takeaway' ? 'PARA LLEVAR' : 'DELIVERY';
         chunks.push(buf(`Tipo: ${modeLabel}\n`));
     }
 
