@@ -28,7 +28,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'locationId es obligatorio' }, { status: 400 })
     }
 
-    const location = await Location.findOne({ _id: locationId, tenantId: tenant._id })
+    const location = await Location.findOne({ _id: locationId, tenantId: tenant._id }).lean<{ settings?: { orderModes?: string[]; delayAnnouncement?: any } }>()
     if (!location) {
       return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
     }
@@ -60,15 +60,18 @@ export async function PATCH(
       return NextResponse.json({ error: 'No se enviaron modos para actualizar' }, { status: 400 })
     }
 
-    // Merge con delayAnnouncement existente: solo pisar los modos enviados
+    // Merge con delayAnnouncement existente (desde POJO con lean): solo pisar los modos enviados
     const existing = location.settings?.delayAnnouncement ?? {}
     const merged = { ...existing, ...delayPayload }
 
-    const updated = await Location.findByIdAndUpdate(
-      locationId,
-      { $set: { 'settings.delayAnnouncement': merged } },
-      { returnDocument: 'after' }
+    await Location.updateOne(
+      { _id: locationId },
+      { $set: { 'settings.delayAnnouncement': merged } }
     )
+
+    const updated = await Location.findById(locationId)
+      .select('settings.delayAnnouncement')
+      .lean<{ settings?: { delayAnnouncement?: any } }>()
 
     logAudit({
       tenantId: tenant._id.toString(),
