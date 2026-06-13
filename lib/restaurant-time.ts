@@ -15,7 +15,7 @@ function getOffsetMinutes(timezone: string): number {
   const m = str.match(/GMT([+-]\d{2}):(\d{2})/)
   if (m) {
     const sign = m[1][0] === '+' ? 1 : -1
-    return sign * (parseInt(m[2]) * 60 + parseInt(m[3]))
+    return sign * (parseInt(m[1].slice(1)) * 60 + parseInt(m[2]))
   }
   return 0
 }

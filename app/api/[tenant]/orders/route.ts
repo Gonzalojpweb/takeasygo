@@ -209,19 +209,15 @@ export async function POST(
       const modeKey = body.mode === 'delivery' ? 'delivery' : 'takeaway'
       const slots = sh?.[modeKey]
       if (slots && slots.length > 0) {
-        const tz = location.timezone || 'America/Argentina/Buenos_Aires'
-        const { day, minutes: cur } = getNowInTimezone(tz)
-        console.log('[hours] tz=%s day=%d cur=%d modeKey=%s slots=%j', tz, day, cur, modeKey, slots)
+        const { day, minutes: cur } = getNowInTimezone(location.timezone || 'America/Argentina/Buenos_Aires')
         const isOpen = slots.some(slot => {
           if (!slot.days.includes(day)) return false
           const [oh, om] = slot.open.split(':').map(Number)
           const [ch, cm] = slot.close.split(':').map(Number)
           const openMin = oh * 60 + om
           const closeMin = ch * 60 + cm
-          console.log('[hours]  slot days=%j open=%d close=%d cur=%d → %s', slot.days, openMin, closeMin, cur, cur >= openMin && cur <= closeMin ? 'OK' : 'OUT')
           return cur >= openMin && cur <= closeMin
         })
-        console.log('[hours] isOpen=%s', isOpen)
         if (!isOpen) {
           const modeLabel = body.mode === 'delivery' ? 'delivery' : 'takeaway'
           return NextResponse.json(
