@@ -110,15 +110,15 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     delayAnnouncement: Record<string, { enabled: boolean; extraMinutes: number; message: string } | undefined>
   } | null>(null)
 
+  // ── Delivery state ────────────────────────────────────────────────────
+  const [deliveryMode, setDeliveryMode] = useState(mode === 'delivery')
+
   const currentMode = deliveryMode ? 'delivery' : mode
   const modeDelay = estimatedTimeInfo?.delayAnnouncement?.[currentMode]
   const delayEnabled = modeDelay?.enabled ?? false
   const extraMinutes = modeDelay?.extraMinutes ?? 0
   const delayMessage = modeDelay?.message ?? ''
   const effectiveTime = (estimatedTimeInfo?.baseTime ?? 0) + (delayEnabled ? extraMinutes : 0)
-
-  // ── Delivery state ────────────────────────────────────────────────────
-  const [deliveryMode, setDeliveryMode] = useState(mode === 'delivery')
   const [deliveryAddress, setDeliveryAddress] = useState({ street: '', number: '', apt: '', city: '' })
   const [deliveryQuote, setDeliveryQuote] = useState<{
     loading: boolean

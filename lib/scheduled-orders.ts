@@ -34,7 +34,7 @@ function isDayOpen(
   dayOfWeek: number
 ): boolean {
   const slots = getSlotsForMode(serviceHours, mode)
-  if (!slots.length) return true
+  if (!slots.length) return false
   return slots.some(slot => slot.days.includes(dayOfWeek))
 }
 
@@ -45,7 +45,7 @@ function isTimeWithinServiceHours(
   minutes: number
 ): boolean {
   const slots = getSlotsForMode(serviceHours, mode)
-  if (!slots.length) return true
+  if (!slots.length) return false
   return slots.some(slot => {
     if (!slot.days.includes(dayOfWeek)) return false
     const openMin = timeToMinutes(slot.open)
@@ -54,19 +54,11 @@ function isTimeWithinServiceHours(
   })
 }
 
-const DEFAULT_SERVICE_HOURS: ServiceSlot[] = [
-  { days: [1, 2, 3, 4, 5], open: '08:00', close: '23:00' },
-  { days: [6], open: '09:00', close: '23:00' },
-  { days: [0], open: '10:00', close: '22:00' },
-]
-
 function getEffectiveServiceHours(
   serviceHours: ServiceHoursMap | undefined,
   mode: ServiceHoursMode
 ): ServiceSlot[] {
-  const slots = getSlotsForMode(serviceHours, mode)
-  if (!slots.length) return DEFAULT_SERVICE_HOURS
-  return slots
+  return getSlotsForMode(serviceHours, mode)
 }
 
 function isItemAvailableAtTime(
