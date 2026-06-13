@@ -58,7 +58,8 @@ export interface IStatusTimestamps {
   readyAt:          Date | null
   deliveredAt:      Date | null
   cancelledAt:      Date | null
-  estimatedReadyAt: Date | null  // confirmedAt + location.estimatedPickupTime
+  estimatedReadyAt: Date | null  // confirmedAt + location.estimatedPickupTime (línea base ICO)
+  customerEstimatedReadyAt: Date | null  // confirmedAt + estimatedPickupTime + delayExtraMinutes (solo UX)
 }
 
 export interface IRewardRedemption {
@@ -309,6 +310,7 @@ const OrderSchema = new Schema(
       deliveredAt:      { type: Date, default: null },
       cancelledAt:      { type: Date, default: null },
       estimatedReadyAt: { type: Date, default: null },
+      customerEstimatedReadyAt: { type: Date, default: null },
     },
     printLog: {
       type: [{

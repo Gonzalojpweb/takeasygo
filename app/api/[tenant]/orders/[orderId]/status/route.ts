@@ -83,14 +83,21 @@ export async function PATCH(
     order.status = status
 
     if (status === 'confirmed') {
-      // Calcular estimatedReadyAt = confirmedAt + estimatedPickupTime de la sede
+      // Calcular estimatedReadyAt = confirmedAt + estimatedPickupTime de la sede (línea base ICO)
+      // customerEstimatedReadyAt suma la demora informada (solo UX, no afecta ICO)
       const location = await Location.findById(order.locationId)
-        .select('settings.estimatedPickupTime')
-        .lean<{ settings: { estimatedPickupTime: number } }>()
-      const pickupMs = (location?.settings?.estimatedPickupTime ?? 20) * 60_000
+        .select('settings.estimatedPickupTime settings.delayAnnouncement')
+        .lean<{ settings: { estimatedPickupTime: number; delayAnnouncement?: { enabled: boolean; extraMinutes: number } } }>()
+      const baseTime = location?.settings?.estimatedPickupTime ?? 20
+      const delayExtra = location?.settings?.delayAnnouncement?.enabled
+        ? (location.settings.delayAnnouncement.extraMinutes ?? 0)
+        : 0
+      const pickupMs = baseTime * 60_000
+      const customerPickupMs = (baseTime + delayExtra) * 60_000
       const confirmedAt = new Date()
       order.statusTimestamps.confirmedAt = confirmedAt
       order.statusTimestamps.estimatedReadyAt = new Date(confirmedAt.getTime() + pickupMs)
+      order.statusTimestamps.customerEstimatedReadyAt = new Date(confirmedAt.getTime() + customerPickupMs)
     } else {
       // Registrar timestamp del cambio de estado para cálculo de TPP y Score Operativo
       const tsField = STATUS_TIMESTAMP[status]

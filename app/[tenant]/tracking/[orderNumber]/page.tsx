@@ -119,6 +119,7 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           locationId={order.locationId?.toString() ?? ''}
           initialStatus={order.status}
           initialEstimatedReadyAt={order.statusTimestamps?.estimatedReadyAt?.toISOString() ?? null}
+          initialCustomerEstimatedReadyAt={order.statusTimestamps?.customerEstimatedReadyAt?.toISOString() ?? null}
           primaryColor={branding.primaryColor}
           backgroundColor={branding.backgroundColor}
           textColor={branding.textColor}

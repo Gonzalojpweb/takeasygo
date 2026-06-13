@@ -117,6 +117,7 @@ export async function GET(
       orderNumber:      order.orderNumber,
       confirmedAt:      order.statusTimestamps?.confirmedAt ?? null,
       estimatedReadyAt: order.statusTimestamps?.estimatedReadyAt ?? null,
+      customerEstimatedReadyAt: order.statusTimestamps?.customerEstimatedReadyAt ?? null,
       readyAt:          order.statusTimestamps?.readyAt ?? null,
       orderTiming:      order.orderTiming ?? 'immediate',
       scheduledPickupAt: order.scheduledPickupAt ?? null,
