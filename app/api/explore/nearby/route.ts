@@ -218,7 +218,10 @@ export async function GET(request: NextRequest) {
       const distanceM = Math.round(loc.distanceM)
       const estimatedPickupTime: number = loc.settings?.estimatedPickupTime ?? 20
       const acceptsOrders: boolean = loc.settings?.acceptsOrders ?? true
-      const isOpenNow = checkIsOpenNow(loc.serviceHours)
+      const isOpenNow = checkIsOpenNow(loc.serviceHours, 'takeaway')
+        ?? checkIsOpenNow(loc.serviceHours, 'dineIn')
+        ?? checkIsOpenNow(loc.serviceHours, 'delivery')
+        ?? null
 
       // ── Visibility Algorithm (Etapa 17) ──────────────────────────────────────
       // Score ∈ [0, 1], higher = shown first

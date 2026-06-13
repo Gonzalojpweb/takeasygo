@@ -1,24 +1,43 @@
 export type ServiceSlot = { days: number[]; open: string; close: string }
+export type ServiceHoursMode = 'takeaway' | 'dineIn' | 'delivery'
+
+export type ServiceHoursMap = {
+  takeaway: ServiceSlot[]
+  dineIn: ServiceSlot[]
+  delivery: ServiceSlot[]
+}
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
 /**
- * Evalúa si un restaurante está abierto ahora según sus serviceHours de takeaway.
- * Retorna null si no hay horarios estructurados configurados.
+ * Evalúa si un restaurante está abierto ahora para un modo dado.
+ * Si no se especifica modo, chequea takeaway. Retorna null si no hay horarios.
  */
 export function checkIsOpenNow(
-  serviceHours?: { takeaway: ServiceSlot[] }
+  serviceHours?: Partial<ServiceHoursMap>,
+  mode?: ServiceHoursMode
 ): boolean | null {
-  if (!serviceHours?.takeaway?.length) return null
+  const m = mode || 'takeaway'
+  const slots = serviceHours?.[m]
+  if (!slots?.length) return null
   const now = new Date()
   const day = now.getDay()
   const cur = now.getHours() * 100 + now.getMinutes()
-  return serviceHours.takeaway.some(slot => {
+  return slots.some(slot => {
     if (!slot.days.includes(day)) return false
     const [oh, om] = slot.open.split(':').map(Number)
     const [ch, cm] = slot.close.split(':').map(Number)
     return cur >= oh * 100 + om && cur <= ch * 100 + cm
   })
+}
+
+/**
+ * Versión legacy: chequea takeaway solamente.
+ */
+export function checkIsOpenNowTakeaway(
+  serviceHours?: { takeaway: ServiceSlot[] }
+): boolean | null {
+  return checkIsOpenNow(serviceHours, 'takeaway')
 }
 
 export function getClosingTime(serviceHours?: { takeaway: ServiceSlot[] }): string | null {
