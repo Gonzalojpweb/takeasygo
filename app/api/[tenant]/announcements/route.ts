@@ -21,7 +21,20 @@ export async function GET(
 
     const announcements = await SystemAnnouncement.find({
       status: 'published',
-      $or: [{ targetPlans: { $size: 0 } }, { targetPlans: tenant.plan }]
+      $and: [
+        {
+          $or: [
+            { targetPlans: { $size: 0 } },
+            { targetPlans: tenant.plan },
+          ],
+        },
+        {
+          $or: [
+            { targetTenantIds: { $size: 0 } },
+            { targetTenantIds: tenant._id },
+          ],
+        },
+      ],
     })
     .sort({ publishedAt: -1, createdAt: -1 })
     .lean()

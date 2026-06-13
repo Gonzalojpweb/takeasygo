@@ -4,7 +4,9 @@ export type StoreItemCategory = 'food' | 'drink' | 'merch' | 'experience'
 export type StoreItemTier = 'none' | 'bronze' | 'silver' | 'gold'
 
 export interface IStoreItem extends Document {
-  tenantId: mongoose.Types.ObjectId
+  tenantId?: mongoose.Types.ObjectId
+  scope: 'tenant' | 'global'
+  targetTenants?: mongoose.Types.ObjectId[]
   
   // Información básica
   name: string
@@ -47,8 +49,19 @@ const StoreItemSchema = new Schema<IStoreItem>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: true,
+      required: false,
       index: true,
+    },
+    scope: {
+      type: String,
+      enum: ['tenant', 'global'],
+      default: 'tenant',
+      index: true,
+    },
+    targetTenants: {
+      type: [Schema.Types.ObjectId],
+      ref: 'Tenant',
+      default: [],
     },
 
     name: {

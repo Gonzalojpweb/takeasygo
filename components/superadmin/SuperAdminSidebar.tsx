@@ -20,6 +20,9 @@ import {
   ChevronRight,
   MessageSquare,
   Building2,
+  Tag,
+  Trophy,
+  ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -106,6 +109,9 @@ export default function SuperAdminSidebar() {
     {
       section: 'Marketing',
       items: [
+        { href: '/superadmin/promotions', label: 'Promociones Globales', icon: Tag },
+        { href: '/superadmin/store-items', label: 'Ofertas Globales', icon: ShoppingBag },
+        { href: '/superadmin/club', label: 'Club Global', icon: Trophy },
         { href: '/superadmin/marketing-qr', label: 'Marketing QR', icon: Gift },
         { href: '/superadmin/announcements', label: 'Anuncios', icon: Megaphone },
       ],

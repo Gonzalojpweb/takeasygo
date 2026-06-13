@@ -7,6 +7,7 @@ export interface ISystemAnnouncement extends Document {
   status: 'draft' | 'published'
   publishedAt?: Date
   targetPlans: string[] // ej: ['premium', 'anfitrion']. Vacío significa todos.
+  targetTenantIds: mongoose.Types.ObjectId[] // Vacío = todos los tenants
   readBy: mongoose.Types.ObjectId[] // Referencia a usuarios que ya lo leyeron
   createdAt: Date
   updatedAt: Date
@@ -28,6 +29,7 @@ const SystemAnnouncementSchema = new Schema<ISystemAnnouncement>(
     },
     publishedAt: { type: Date },
     targetPlans: { type: [String], default: [] },
+    targetTenantIds: { type: [Schema.Types.ObjectId], ref: 'Tenant', default: [] },
     readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true }

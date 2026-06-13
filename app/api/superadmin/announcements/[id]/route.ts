@@ -34,6 +34,7 @@ export async function PUT(
     if (body.content !== undefined) currentAnnouncement.content = body.content.trim()
     if (body.type !== undefined) currentAnnouncement.type = body.type
     if (body.targetPlans !== undefined) currentAnnouncement.targetPlans = Array.isArray(body.targetPlans) ? body.targetPlans : []
+    if (body.targetTenantIds !== undefined) currentAnnouncement.targetTenantIds = Array.isArray(body.targetTenantIds) ? body.targetTenantIds : []
     
     if (body.status !== undefined) {
       // Si cambia a publicado por primera vez, establecer publishedAt

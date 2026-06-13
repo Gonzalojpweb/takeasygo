@@ -24,24 +24,40 @@ export async function GET(
     const isActive = searchParams.get('isActive')
     const visibility = searchParams.get('visibility')
 
-    const query: any = { tenantId: tenant._id }
+    const tenantId = tenant._id
+
+    // Tenant-specific promotions
+    const tenantPromos: any = { scope: 'tenant', tenantId }
+
+    // Global promotions targeting this tenant (or all tenants)
+    const globalPromos: any = {
+      scope: 'global',
+      $or: [
+        { targetTenants: tenantId },
+        { targetTenants: { $size: 0 } },
+      ],
+    }
 
     if (locationId) {
-      query.$or = [
+      tenantPromos.$or = [
         { locationId: null },
-        { locationId }
+        { locationId },
       ]
     }
 
     if (isActive !== null) {
-      query.isActive = isActive === 'true'
+      tenantPromos.isActive = isActive === 'true'
+      globalPromos.isActive = isActive === 'true'
     }
 
     if (visibility) {
-      query.visibility = visibility
+      tenantPromos.visibility = visibility
+      globalPromos.visibility = visibility
     }
 
-    const promotions = await Promotion.find(query).sort({ sortOrder: 1, createdAt: -1 })
+    const promotions = await Promotion.find({
+      $or: [tenantPromos, globalPromos],
+    }).sort({ sortOrder: 1, createdAt: -1 })
 
     return NextResponse.json({ promotions })
   } catch (error) {
