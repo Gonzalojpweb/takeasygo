@@ -411,7 +411,14 @@ async function handleSubmit(e: React.FormEvent) {
       return
     }
 
-    if (!orderRes.ok) throw new Error('Error al crear el pedido')
+    if (!orderRes.ok) {
+      let errMsg = 'Error al crear el pedido'
+      try {
+        const errData = await orderRes.json()
+        if (errData.error) errMsg = errData.error
+      } catch {}
+      throw new Error(errMsg)
+    }
     const { order } = await orderRes.json()
     lastOrder = order
 
@@ -869,6 +876,7 @@ async function handleSubmit(e: React.FormEvent) {
                   <SchedulePicker
                     tenantSlug={tenantSlug}
                     locationId={locationId}
+                    maxAdvanceHours={scheduledOrdersConfig?.maxAdvanceHours ?? 24}
                     onSelect={(pickupAt) => setScheduledPickupAt(pickupAt)}
                   />
                 </div>
