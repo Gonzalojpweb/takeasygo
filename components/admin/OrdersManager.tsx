@@ -339,6 +339,16 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
             </p>
           </div>
         </div>
+      ) : supportedModes.length === 0 ? (
+        <div className="rounded-2xl border border-border/60 bg-card p-3 flex items-center gap-3 opacity-60">
+          <Timer size={16} className="text-muted-foreground shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-foreground">Aviso de demora</p>
+            <p className="text-[10px] text-muted-foreground font-medium">
+              Esta sede no tiene takeaway ni delivery habilitados
+            </p>
+          </div>
+        </div>
       ) : (
         <div className={cn(
           'rounded-2xl border transition-all overflow-hidden',

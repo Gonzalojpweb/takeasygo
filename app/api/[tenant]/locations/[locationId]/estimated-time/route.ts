@@ -51,7 +51,10 @@ export async function GET(
     const baseTime = location.settings?.estimatedPickupTime ?? 20
     const delay = location.settings?.delayAnnouncement
 
-    const orderModes = location.settings?.orderModes ?? ['takeaway']
+    let orderModes = location.settings?.orderModes ?? ['takeaway']
+    if (location.deliveryConfig?.enabled && !orderModes.includes('delivery')) {
+      orderModes = [...orderModes, 'delivery']
+    }
 
     return NextResponse.json({
       current: baseTime,
