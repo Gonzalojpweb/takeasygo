@@ -30,24 +30,20 @@ export async function PATCH(
       return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
     }
 
-    const update: Record<string, any> = {
-      'settings.delayAnnouncement.enabled': !!enabled,
-      'settings.delayAnnouncement.updatedAt': new Date(),
-    }
-
-    if (typeof extraMinutes === 'number' && extraMinutes >= 0) {
-      update['settings.delayAnnouncement.extraMinutes'] = extraMinutes
-    }
-    if (typeof message === 'string') {
-      update['settings.delayAnnouncement.message'] = message
+    const delayPayload = {
+      enabled: !!enabled,
+      extraMinutes: typeof extraMinutes === 'number' && extraMinutes >= 0 ? extraMinutes : 0,
+      message: typeof message === 'string' ? message : '',
+      updatedAt: new Date(),
     }
 
     const updated = await Location.findByIdAndUpdate(
       locationId,
-      { $set: update },
-      { returnDocument: 'after', runValidators: true }
+      { $set: { 'settings.delayAnnouncement': delayPayload } },
+      { returnDocument: 'after' }
     )
 
+    // Fire-and-forget: no bloquear respuesta
     logAudit({
       tenantId: tenant._id.toString(),
       action: 'settings.delay_announcement.updated',
@@ -55,7 +51,7 @@ export async function PATCH(
       entityId: locationId,
       details: { enabled, extraMinutes, message },
       request,
-    })
+    }).catch(() => {})
 
     return NextResponse.json({
       delayAnnouncement: updated?.settings?.delayAnnouncement ?? null,
