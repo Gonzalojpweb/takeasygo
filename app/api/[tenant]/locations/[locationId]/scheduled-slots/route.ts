@@ -28,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: 'Fecha inválida. Usar formato YYYY-MM-DD' }, { status: 400 })
     }
 
-    const result = await getAvailableSlotsForDate(locationId, dateStr, (orderMode as any) || undefined)
+    const result = await getAvailableSlotsForDate(locationId, dateStr, (orderMode as any) || undefined, location.timezone)
 
     return NextResponse.json({
       date: result.date,

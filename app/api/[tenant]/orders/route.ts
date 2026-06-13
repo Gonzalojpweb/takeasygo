@@ -19,7 +19,7 @@ import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { auth } from '@/lib/auth'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
-import { checkIsOpenNow } from '@/lib/service-hours'
+import { getNowInTimezone } from '@/lib/restaurant-time'
 import { validateCheckoutRewards } from '@/lib/loyalty'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
@@ -209,9 +209,7 @@ export async function POST(
       const modeKey = body.mode === 'delivery' ? 'delivery' : 'takeaway'
       const slots = sh?.[modeKey]
       if (slots && slots.length > 0) {
-        const now = new Date()
-        const day = now.getDay()
-        const cur = now.getHours() * 60 + now.getMinutes()
+        const { day, minutes: cur } = getNowInTimezone(location.timezone || 'America/Argentina/Buenos_Aires')
         const isOpen = slots.some(slot => {
           if (!slot.days.includes(day)) return false
           const [oh, om] = slot.open.split(':').map(Number)
@@ -332,7 +330,7 @@ export async function POST(
           : { availabilityMode: 'always' as const, availabilitySchedule: undefined }
       })
 
-      const validation = await validateScheduledPickupTime(body.locationId, scheduledPickupAt, menuItemAvailability, body.mode as any)
+      const validation = await validateScheduledPickupTime(body.locationId, scheduledPickupAt, menuItemAvailability, body.mode as any, location.timezone)
       if (!validation.valid) {
         return NextResponse.json({ error: validation.error }, { status: 400 })
       }
