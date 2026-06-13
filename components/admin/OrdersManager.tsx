@@ -94,7 +94,8 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
       if (res.ok) {
         const data = await res.json()
         const d = data.delayAnnouncement ?? {}
-        const modes = data.orderModes ?? ['takeaway']
+        const DELAY_RELEVANT_MODES = ['takeaway', 'delivery']
+        const modes = (data.orderModes ?? ['takeaway']).filter((m: string) => DELAY_RELEVANT_MODES.includes(m))
         setSupportedModes(modes)
         const configs: Record<string, { enabled: boolean; extraMinutes: number; message: string }> = {}
         for (const mode of modes) {
