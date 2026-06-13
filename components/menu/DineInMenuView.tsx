@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import { useClubMembership } from '@/hooks/useClubMembership'
+import LocationBar from '@/components/menu/LocationBar'
 
 interface Props {
   tenant: any
@@ -278,6 +279,9 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
       <div
         className="sticky top-0 z-50 border-b"
         style={{ backgroundColor: navBg + 'f2', borderColor: navBorder, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
+        <div className="px-3 py-1.5 border-b flex items-center" style={{ borderColor: navBorder }}>
+          <LocationBar tenantSlug={tenant.slug} location={location} />
+        </div>
         <div className="max-w-4xl mx-auto flex items-center gap-2 px-3 py-2.5">
           <div
             ref={navRef}
