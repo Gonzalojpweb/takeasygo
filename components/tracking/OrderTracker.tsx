@@ -27,6 +27,7 @@ interface Props {
   locationId: string
   initialStatus: string
   initialEstimatedReadyAt: string | null
+  initialCustomerEstimatedReadyAt?: string | null
   primaryColor: string
   backgroundColor: string
   textColor: string
@@ -78,6 +79,7 @@ export default function OrderTracker({
   locationId,
   initialStatus,
   initialEstimatedReadyAt,
+  initialCustomerEstimatedReadyAt = null,
   primaryColor,
   backgroundColor,
   textColor,
@@ -100,6 +102,7 @@ export default function OrderTracker({
   const [status, setStatus]               = useState(initialStatus)
   const [confirmedAt, setConfirmedAt]     = useState<string | null>(null)
   const [estimatedReadyAt, setEstimatedReadyAt] = useState(initialEstimatedReadyAt)
+  const [customerEstimatedReadyAt, setCustomerEstimatedReadyAt] = useState<string | null>(initialCustomerEstimatedReadyAt)
   const [cancellationClosed, setCancellationClosed] = useState(false)
   const [countdown, setCountdown]         = useState('')
   const [lastChecked, setLastChecked]     = useState<Date | null>(null)
@@ -119,6 +122,7 @@ export default function OrderTracker({
       setStatus(data.status)
       setConfirmedAt(data.confirmedAt ?? null)
       setEstimatedReadyAt(data.estimatedReadyAt ?? null)
+      setCustomerEstimatedReadyAt(data.customerEstimatedReadyAt ?? null)
       setOrderTiming(data.orderTiming ?? 'immediate')
       setScheduledPickupAt(data.scheduledPickupAt ?? null)
       setScheduledStatus(data.scheduledStatus ?? null)
@@ -143,12 +147,14 @@ export default function OrderTracker({
   }, [status, poll])
 
   // Countdown timer (actualiza cada 30s)
+  // Usa customerEstimatedReadyAt si está disponible (incluye demora informada por el restaurante)
+  const effectiveEstimatedReadyAt = customerEstimatedReadyAt ?? estimatedReadyAt
   useEffect(() => {
-    if (!estimatedReadyAt) return
-    setCountdown(formatCountdown(estimatedReadyAt))
-    const interval = setInterval(() => setCountdown(formatCountdown(estimatedReadyAt)), 30_000)
+    if (!effectiveEstimatedReadyAt) return
+    setCountdown(formatCountdown(effectiveEstimatedReadyAt))
+    const interval = setInterval(() => setCountdown(formatCountdown(effectiveEstimatedReadyAt)), 30_000)
     return () => clearInterval(interval)
-  }, [estimatedReadyAt])
+  }, [effectiveEstimatedReadyAt])
 
   // Countdown para pedido programado pendiente
   useEffect(() => {
@@ -326,7 +332,7 @@ export default function OrderTracker({
         )}
 
         {/* Tiempo estimado */}
-        {estimatedReadyAt && ['confirmed', 'preparing'].includes(status) && (
+        {effectiveEstimatedReadyAt && ['confirmed', 'preparing'].includes(status) && (
           <p className="mt-3 text-sm font-semibold" style={{ color: primaryColor }}>
             ⏱ Listo {countdown}
           </p>

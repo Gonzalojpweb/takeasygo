@@ -20,11 +20,15 @@ export async function GET(
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
     const location = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
-      .select('name scheduledOrdersConfig serviceHours')
-      .lean()
+      .select('name scheduledOrdersConfig serviceHours settings.estimatedPickupTime settings.delayAnnouncement')
+      .lean() as any
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
 
-    return NextResponse.json({ location })
+    const delay = location.settings?.delayAnnouncement
+    const baseTime = location.settings?.estimatedPickupTime ?? 20
+    const effectiveTime = delay?.enabled ? baseTime + (delay.extraMinutes ?? 0) : baseTime
+
+    return NextResponse.json({ location, effectiveEstimatedTime: effectiveTime })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

@@ -20,6 +20,13 @@ export interface ILocation extends Document {
     acceptsOrders: boolean
     orderModes: ('takeaway' | 'dine-in' | 'business' | 'delivery')[]
     estimatedPickupTime: number
+    /** Anuncio de demora activado por el restaurante (solo UX, no afecta ICO) */
+    delayAnnouncement?: {
+      enabled: boolean
+      extraMinutes: number
+      message: string
+      updatedAt: Date | null
+    }
     /** Historial de ajustes automáticos del tiempo estimado (anti-gaming audit) */
     adjustmentHistory?: Array<{
       previousValue: number
@@ -141,6 +148,15 @@ settings: {
           default: ['takeaway'],
         },
         estimatedPickupTime: { type: Number, default: 20 },
+        delayAnnouncement: {
+          type: {
+            enabled: { type: Boolean, default: false },
+            extraMinutes: { type: Number, default: 0, min: 0 },
+            message: { type: String, default: '' },
+            updatedAt: { type: Date, default: null },
+          },
+          default: { enabled: false, extraMinutes: 0, message: '', updatedAt: null },
+        },
         adjustmentHistory: {
           type: [{
             previousValue: { type: Number, required: true },
