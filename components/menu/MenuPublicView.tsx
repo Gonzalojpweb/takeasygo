@@ -22,6 +22,7 @@ import { getSuggestions } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
 import { motion } from 'framer-motion'
+import LocationBar from '@/components/menu/LocationBar'
 
 interface Props {
   tenant: any
@@ -617,7 +618,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             {branding.logoUrl
               ? <img src={branding.logoUrl} alt={tenant.name} className="h-8 object-contain" />
               : <span className="font-bold text-lg" style={{ color: primary }}>{tenant.name}</span>}
-            <span className="text-xs opacity-40 hidden sm:block">{location.name}</span>
+            <LocationBar tenantSlug={tenant.slug} location={location} />
           </div>
           <div className="flex items-center gap-3">
             {/* Language toggle */}

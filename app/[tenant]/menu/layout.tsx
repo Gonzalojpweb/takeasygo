@@ -3,9 +3,12 @@ import Tenant from '@/models/Tenant'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import MenuPWAProvider from '@/components/menu/MenuPWAProvider'
 import TenantFontLoader from '@/components/TenantFontLoader'
 import { QrPromoBanner } from '@/components/promo'
+import PWALoader from '@/components/menu/PWALoader'
+
+
+
 
 interface Props {
   children: React.ReactNode
@@ -52,7 +55,7 @@ export default async function MenuLayout({ children, params }: Props) {
 
   return (
     <TenantFontLoader fonts={branding.fonts}>
-      <MenuPWAProvider
+      <PWALoader
         primaryColor={branding.primaryColor || '#f74211'}
         bgColor={branding.backgroundColor || '#ffffff'}
         textColor={branding.textColor || '#1a1a1a'}

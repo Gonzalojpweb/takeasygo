@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift, Wallet, AlertTriangle } from 'lucide-react'
-import { terminos, privacidad } from '@/lib/legal-content'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { useSession } from 'next-auth/react'
+import LocationBar from '@/components/menu/LocationBar'
+import { motion, AnimatePresence } from 'framer-motion'
+import { terminos, privacidad } from '@/lib/legal-content'
 import { cn } from '@/lib/utils'
 import type { CartItem } from '@/types/cart'
 import SchedulePicker from './SchedulePicker'
@@ -510,6 +511,9 @@ async function handleSubmit(e: React.FormEvent) {
           <ArrowLeft size={20} className="text-zinc-600" />
         </button>
         <h1 className="font-bold text-lg">Tu pedido</h1>
+        <div className="ml-auto">
+          <LocationBar tenantSlug={tenantSlug} locationId={locationId} />
+        </div>
       </header>
 
       <div className="max-w-md mx-auto px-4 py-6">

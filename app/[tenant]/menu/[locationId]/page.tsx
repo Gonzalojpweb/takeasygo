@@ -6,6 +6,7 @@ import Link from 'next/link'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import MenuWithExploreNav from '@/components/menu/MenuWithExploreNav'
 import WelcomeBackground from '@/components/menu/WelcomeBackground'
+import WelcomeLocationBar from '@/components/menu/WelcomeLocationBar'
 
 export const revalidate = 300
 
@@ -44,8 +45,9 @@ export default async function MenuSelectorPage({ params }: Props) {
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
   if (!tenant) notFound()
 
-  const location = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true }).lean() as any
-  if (!location) notFound()
+  const locationDoc = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true }).lean() as any
+  if (!locationDoc) notFound()
+  const location = JSON.parse(JSON.stringify(locationDoc))
 
   const modes: string[] = location.settings?.orderModes || ['takeaway']
   const branding = tenant.branding
@@ -347,6 +349,8 @@ export default async function MenuSelectorPage({ params }: Props) {
           backgroundColor={branding.backgroundColor}
         />
         <div aria-hidden className="mh-scrim" style={!hasHero ? { background: 'rgba(0,0,0,0.15)' } : undefined} />
+
+        <WelcomeLocationBar tenantSlug={tenantSlug} location={location} />
 
         {/* ── Main content ── */}
         <div className="mh-content">
