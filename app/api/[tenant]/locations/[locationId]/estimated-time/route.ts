@@ -48,15 +48,17 @@ export async function GET(
     // Calcular tiempo óptimo (solo lectura, no aplica cambios)
     const calculation = await calculateOptimalEstimatedTime(locationId, tenant._id)
 
-    const delay = location.settings?.delayAnnouncement
     const baseTime = location.settings?.estimatedPickupTime ?? 20
-    const effectiveTime = delay?.enabled ? baseTime + (delay.extraMinutes ?? 0) : baseTime
+    const delay = location.settings?.delayAnnouncement
+
+    const orderModes = location.settings?.orderModes ?? ['takeaway']
 
     return NextResponse.json({
       current: baseTime,
       calculated: calculation,
       delayAnnouncement: delay ?? null,
-      effectiveEstimatedTime: effectiveTime,
+      orderModes,
+      effectiveEstimatedTime: baseTime,
       canApply: calculation.method === 'auto_optimized',
       gamingWarning: calculation.method === 'default_fallback' 
         ? 'Datos insuficientes para cálculo anti-gaming' 

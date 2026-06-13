@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 
+const VALID_MODES = ['takeaway', 'delivery', 'dine-in', 'business'] as const
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -19,7 +21,8 @@ export async function PATCH(
     const roleError = await requireAdminRole(request, tenant._id.toString())
     if (roleError) return roleError
 
-    const { locationId, enabled, extraMinutes, message } = await request.json()
+    const body = await request.json()
+    const { locationId } = body
 
     if (!locationId) {
       return NextResponse.json({ error: 'locationId es obligatorio' }, { status: 400 })
@@ -30,26 +33,49 @@ export async function PATCH(
       return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
     }
 
-    const delayPayload = {
-      enabled: !!enabled,
-      extraMinutes: typeof extraMinutes === 'number' && extraMinutes >= 0 ? extraMinutes : 0,
-      message: typeof message === 'string' ? message : '',
-      updatedAt: new Date(),
+    const supportedModes = new Set(location.settings?.orderModes ?? ['takeaway'])
+
+    // Construir payload per-mode solo con los modos enviados y válidos
+    const delayPayload: Record<string, any> = {}
+    for (const mode of VALID_MODES) {
+      const modeData = body[mode]
+      if (modeData === undefined) continue
+
+      if (!supportedModes.has(mode)) {
+        return NextResponse.json(
+          { error: `Modo "${mode}" no está habilitado para esta sede` },
+          { status: 400 }
+        )
+      }
+
+      delayPayload[mode] = {
+        enabled: !!modeData.enabled,
+        extraMinutes: typeof modeData.extraMinutes === 'number' && modeData.extraMinutes >= 0 ? modeData.extraMinutes : 0,
+        message: typeof modeData.message === 'string' ? modeData.message : '',
+        updatedAt: new Date(),
+      }
     }
+
+    if (Object.keys(delayPayload).length === 0) {
+      return NextResponse.json({ error: 'No se enviaron modos para actualizar' }, { status: 400 })
+    }
+
+    // Merge con delayAnnouncement existente: solo pisar los modos enviados
+    const existing = location.settings?.delayAnnouncement ?? {}
+    const merged = { ...existing, ...delayPayload }
 
     const updated = await Location.findByIdAndUpdate(
       locationId,
-      { $set: { 'settings.delayAnnouncement': delayPayload } },
+      { $set: { 'settings.delayAnnouncement': merged } },
       { returnDocument: 'after' }
     )
 
-    // Fire-and-forget: no bloquear respuesta
     logAudit({
       tenantId: tenant._id.toString(),
       action: 'settings.delay_announcement.updated',
       entity: 'location',
       entityId: locationId,
-      details: { enabled, extraMinutes, message },
+      details: { modes: Object.keys(delayPayload) },
       request,
     }).catch(() => {})
 

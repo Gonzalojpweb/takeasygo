@@ -24,11 +24,9 @@ export async function GET(
       .lean() as any
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
 
-    const delay = location.settings?.delayAnnouncement
     const baseTime = location.settings?.estimatedPickupTime ?? 20
-    const effectiveTime = delay?.enabled ? baseTime + (delay.extraMinutes ?? 0) : baseTime
 
-    return NextResponse.json({ location, effectiveEstimatedTime: effectiveTime })
+    return NextResponse.json({ location, effectiveEstimatedTime: baseTime })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
