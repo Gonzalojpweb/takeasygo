@@ -4,6 +4,7 @@ import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import type { ILocation } from '@/models/Location'
 import type { AvailabilitySlot } from '@/lib/availability'
+import { getDayAndMidnightInTimezone, getLocalDayAndMinutes } from '@/lib/restaurant-time'
 
 type ServiceSlot = { days: number[]; open: string; close: string }
 type ServiceHoursMode = 'takeaway' | 'dineIn' | 'delivery'
@@ -96,7 +97,8 @@ export async function validateScheduledPickupTime(
     availabilityMode: 'always' | 'scheduled' | undefined
     availabilitySchedule: AvailabilitySlot[] | undefined
   }>,
-  orderMode?: ServiceHoursMode
+  orderMode?: ServiceHoursMode,
+  timezone?: string
 ): Promise<ScheduledOrderValidation> {
   await connectDB()
 
@@ -104,6 +106,8 @@ export async function validateScheduledPickupTime(
   if (!location) {
     return { valid: false, error: 'Sede no encontrada' }
   }
+
+  const tz = timezone || location.timezone || 'America/Argentina/Buenos_Aires'
 
   const config = location.scheduledOrdersConfig
   if (!config?.enabled) {
@@ -134,8 +138,7 @@ export async function validateScheduledPickupTime(
     }
   }
 
-  const dayOfWeek = scheduled.getDay()
-  const minutes = scheduled.getHours() * 60 + scheduled.getMinutes()
+  const { day: dayOfWeek, minutes } = getLocalDayAndMinutes(scheduled, tz)
   const mode = orderMode === 'delivery' ? 'delivery' as ServiceHoursMode : 'takeaway' as ServiceHoursMode
 
   if (!isDayOpen(location.serviceHours, mode, dayOfWeek)) {
@@ -188,7 +191,8 @@ export interface AvailableSlotsResult {
 export async function getAvailableSlotsForDate(
   locationId: string,
   dateStr: string,
-  orderMode?: ServiceHoursMode
+  orderMode?: ServiceHoursMode,
+  timezone?: string
 ): Promise<AvailableSlotsResult> {
   await connectDB()
 
@@ -197,13 +201,14 @@ export async function getAvailableSlotsForDate(
     return { date: dateStr, dayOpen: false, slots: [] }
   }
 
+  const tz = timezone || location.timezone || 'America/Argentina/Buenos_Aires'
+
   const config = location.scheduledOrdersConfig
   if (!config?.enabled) {
     return { date: dateStr, dayOpen: false, slots: [] }
   }
 
-  const targetDate = new Date(dateStr + 'T00:00:00')
-  const dayOfWeek = targetDate.getDay()
+  const { date: targetDate, day: dayOfWeek } = getDayAndMidnightInTimezone(dateStr, tz)
   const mode = orderMode === 'delivery' ? 'delivery' : 'takeaway'
 
   if (!isDayOpen(location.serviceHours, mode, dayOfWeek)) {

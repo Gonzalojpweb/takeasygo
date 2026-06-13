@@ -55,6 +55,7 @@ export interface ILocation extends Document {
     showLogo: boolean
   }
   cuisineTypes: string[]
+  timezone: string
   serviceHours?: {
     takeaway: Array<{ days: number[]; open: string; close: string }>
     dineIn: Array<{ days: number[]; open: string; close: string }>
@@ -176,6 +177,7 @@ settings: {
       showLogo: { type: Boolean, default: true },
     },
     cuisineTypes: { type: [String], default: [] },
+    timezone: { type: String, default: 'America/Argentina/Buenos_Aires' },
     serviceHours: {
       takeaway: { type: [{ days: [Number], open: String, close: String }], default: [] },
       dineIn: { type: [{ days: [Number], open: String, close: String }], default: [] },

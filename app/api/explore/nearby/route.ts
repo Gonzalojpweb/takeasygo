@@ -128,6 +128,7 @@ export async function GET(request: NextRequest) {
             phone: 1,
             cuisineTypes: 1,
             serviceHours: 1,
+            timezone: 1,
             'geo.coordinates': 1,
             'settings.acceptsOrders': 1,
             'settings.estimatedPickupTime': 1,
@@ -218,9 +219,10 @@ export async function GET(request: NextRequest) {
       const distanceM = Math.round(loc.distanceM)
       const estimatedPickupTime: number = loc.settings?.estimatedPickupTime ?? 20
       const acceptsOrders: boolean = loc.settings?.acceptsOrders ?? true
-      const isOpenNow = checkIsOpenNow(loc.serviceHours, 'takeaway')
-        ?? checkIsOpenNow(loc.serviceHours, 'dineIn')
-        ?? checkIsOpenNow(loc.serviceHours, 'delivery')
+      const tz = loc.timezone || 'America/Argentina/Buenos_Aires'
+      const isOpenNow = checkIsOpenNow(loc.serviceHours, 'takeaway', tz)
+        ?? checkIsOpenNow(loc.serviceHours, 'dineIn', tz)
+        ?? checkIsOpenNow(loc.serviceHours, 'delivery', tz)
         ?? null
 
       // ── Visibility Algorithm (Etapa 17) ──────────────────────────────────────
