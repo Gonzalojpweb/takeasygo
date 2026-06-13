@@ -1,9 +1,13 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IQrPromo extends Document {
-  tenantId: mongoose.Types.ObjectId
+  tenantId?: mongoose.Types.ObjectId
+  scope: 'tenant' | 'global'
+  targetTenants?: mongoose.Types.ObjectId[]
   slug: string
   isEnabled: boolean
+  scheduledStart?: Date | null
+  scheduledEnd?: Date | null
   type: 'discount' | 'info' | 'loyalty'
   discountPercentage: number
   frequency: 'once' | 'every_visit' | 'daily'
@@ -28,7 +32,19 @@ const QrPromoSchema = new Schema<IQrPromo>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: true,
+      required: false,
+      index: true,
+    },
+    scope: {
+      type: String,
+      enum: ['tenant', 'global'],
+      default: 'tenant',
+      index: true,
+    },
+    targetTenants: {
+      type: [Schema.Types.ObjectId],
+      ref: 'Tenant',
+      default: [],
     },
     slug: {
       type: String,
@@ -37,6 +53,8 @@ const QrPromoSchema = new Schema<IQrPromo>(
       trim: true,
     },
     isEnabled: { type: Boolean, default: false },
+    scheduledStart: { type: Date, default: null },
+    scheduledEnd: { type: Date, default: null },
     type: { type: String, enum: ['discount', 'info', 'loyalty'], default: 'discount' },
     discountPercentage: { type: Number, default: 15, min: 0, max: 100 },
     frequency: { type: String, enum: ['once', 'every_visit', 'daily'], default: 'once' },
@@ -58,9 +76,11 @@ const QrPromoSchema = new Schema<IQrPromo>(
   }
 )
 
-QrPromoSchema.index({ tenantId: 1, slug: 1 }, { unique: true })
+QrPromoSchema.index({ tenantId: 1, slug: 1 }, { unique: true, sparse: true })
 QrPromoSchema.index({ tenantId: 1, isEnabled: 1 })
 QrPromoSchema.index({ tenantId: 1, sourceTriggers: 1 })
+QrPromoSchema.index({ scope: 1 })
+QrPromoSchema.index({ scope: 1, targetTenants: 1 })
 
 const QrPromo = mongoose.models.QrPromo || mongoose.model<IQrPromo>('QrPromo', QrPromoSchema)
 export default QrPromo

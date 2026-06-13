@@ -30,9 +30,24 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    const promos = await QrPromo.find({ tenantId: tenant._id }).sort({ createdAt: -1 }).lean()
+    // Tenant's own promos
+    const tenantPromos = await QrPromo.find({ scope: 'tenant', tenantId: tenant._id })
+      .sort({ createdAt: -1 }).lean()
 
-    return NextResponse.json({ promos, legacyQrPromo: tenant.qrPromo })
+    // Global promos targeting this tenant
+    const globalPromos = await QrPromo.find({
+      scope: 'global',
+      $or: [
+        { targetTenants: tenant._id },
+        { targetTenants: { $size: 0 } },
+      ],
+    }).sort({ createdAt: -1 }).lean()
+
+    return NextResponse.json({
+      promos: tenantPromos,
+      globalPromos,
+      legacyQrPromo: tenant.qrPromo,
+    })
   } catch (error) {
     console.error('QR Promos GET error:', error)
     return NextResponse.json({ error: String(error) }, { status: 500 })
@@ -79,9 +94,12 @@ export async function POST(
     }
 
     const promo = await QrPromo.create({
+      scope: 'tenant',
       tenantId: tenant._id,
       slug,
       isEnabled: body.isEnabled ?? false,
+      scheduledStart: body.scheduledStart || null,
+      scheduledEnd: body.scheduledEnd || null,
       type: body.type ?? 'discount',
       discountPercentage: body.discountPercentage ?? 15,
       frequency: body.frequency ?? 'once',
