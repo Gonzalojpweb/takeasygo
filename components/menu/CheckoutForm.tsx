@@ -107,11 +107,15 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   // ── Estimated time + Delay announcement ──────────────────────────
   const [estimatedTimeInfo, setEstimatedTimeInfo] = useState<{
     baseTime: number
-    effectiveTime: number
-    delayEnabled: boolean
-    extraMinutes: number
-    message: string
+    delayAnnouncement: Record<string, { enabled: boolean; extraMinutes: number; message: string } | undefined>
   } | null>(null)
+
+  const currentMode = deliveryMode ? 'delivery' : mode
+  const modeDelay = estimatedTimeInfo?.delayAnnouncement?.[currentMode]
+  const delayEnabled = modeDelay?.enabled ?? false
+  const extraMinutes = modeDelay?.extraMinutes ?? 0
+  const delayMessage = modeDelay?.message ?? ''
+  const effectiveTime = (estimatedTimeInfo?.baseTime ?? 0) + (delayEnabled ? extraMinutes : 0)
 
   // ── Delivery state ────────────────────────────────────────────────────
   const [deliveryMode, setDeliveryMode] = useState(mode === 'delivery')
@@ -179,14 +183,9 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
         if (data.location) {
           setScheduledOrdersConfig(data.location.scheduledOrdersConfig || null)
           const settings = data.location.settings || {}
-          const delay = settings.delayAnnouncement
-          const baseTime = settings.estimatedPickupTime ?? 20
           setEstimatedTimeInfo({
-            baseTime,
-            effectiveTime: data.effectiveEstimatedTime ?? baseTime,
-            delayEnabled: delay?.enabled ?? false,
-            extraMinutes: delay?.extraMinutes ?? 0,
-            message: delay?.message ?? '',
+            baseTime: settings.estimatedPickupTime ?? 20,
+            delayAnnouncement: settings.delayAnnouncement ?? {},
           })
         } else {
           setScheduledOrdersConfig(null)
@@ -621,32 +620,32 @@ async function handleSubmit(e: React.FormEvent) {
         {estimatedTimeInfo && !scheduleOrder && (
           <div className={cn(
             'mb-6 rounded-2xl p-4 border transition-all',
-            estimatedTimeInfo.delayEnabled
+            delayEnabled
               ? 'bg-amber-50 border-amber-200'
               : 'bg-zinc-50 border-zinc-100'
           )}>
             <div className="flex items-center gap-2">
-              <Clock size={16} className={estimatedTimeInfo.delayEnabled ? 'text-amber-600' : 'text-zinc-500'} />
+              <Clock size={16} className={delayEnabled ? 'text-amber-600' : 'text-zinc-500'} />
               <span className={cn(
                 'text-sm font-semibold',
-                estimatedTimeInfo.delayEnabled ? 'text-amber-900' : 'text-zinc-700'
+                delayEnabled ? 'text-amber-900' : 'text-zinc-700'
               )}>
-                ⏱ Listo en ~{estimatedTimeInfo.effectiveTime} min
+                ⏱ Listo en ~{effectiveTime} min
               </span>
             </div>
-            {estimatedTimeInfo.delayEnabled && (
+            {delayEnabled && (
               <div className="mt-2 space-y-1">
                 <div className="flex items-start gap-2 text-xs text-amber-700">
                   <AlertTriangle size={13} className="shrink-0 mt-0.5" />
                   <span>
                     El restaurante está experimentando demoras
-                    {estimatedTimeInfo.message ? `: "${estimatedTimeInfo.message}"` : ''}
+                    {delayMessage ? `: "${delayMessage}"` : ''}
                   </span>
                 </div>
                 <p className="text-[11px] text-amber-600 pl-5">
                   Tiempo estimado base: ~{estimatedTimeInfo.baseTime} min
-                  {estimatedTimeInfo.extraMinutes > 0 && (
-                    <> · Demora informada: +{estimatedTimeInfo.extraMinutes} min</>
+                  {extraMinutes > 0 && (
+                    <> · Demora informada: +{extraMinutes} min</>
                   )}
                 </p>
               </div>

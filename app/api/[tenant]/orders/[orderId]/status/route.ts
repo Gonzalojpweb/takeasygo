@@ -84,14 +84,14 @@ export async function PATCH(
 
     if (status === 'confirmed') {
       // Calcular estimatedReadyAt = confirmedAt + estimatedPickupTime de la sede (línea base ICO)
-      // customerEstimatedReadyAt suma la demora informada (solo UX, no afecta ICO)
+      // customerEstimatedReadyAt suma la demora informada para el modo específico (solo UX, no afecta ICO)
       const location = await Location.findById(order.locationId)
         .select('settings.estimatedPickupTime settings.delayAnnouncement')
-        .lean<{ settings: { estimatedPickupTime: number; delayAnnouncement?: { enabled: boolean; extraMinutes: number } } }>()
+        .lean<{ settings: { estimatedPickupTime: number; delayAnnouncement?: Record<string, { enabled: boolean; extraMinutes: number } | undefined> } }>()
       const baseTime = location?.settings?.estimatedPickupTime ?? 20
-      const delayExtra = location?.settings?.delayAnnouncement?.enabled
-        ? (location.settings.delayAnnouncement.extraMinutes ?? 0)
-        : 0
+      const modeKey = order.orderMode as string
+      const modeDelay = location?.settings?.delayAnnouncement?.[modeKey]
+      const delayExtra = modeDelay?.enabled ? (modeDelay.extraMinutes ?? 0) : 0
       const pickupMs = baseTime * 60_000
       const customerPickupMs = (baseTime + delayExtra) * 60_000
       const confirmedAt = new Date()

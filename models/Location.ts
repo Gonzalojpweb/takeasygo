@@ -20,12 +20,12 @@ export interface ILocation extends Document {
     acceptsOrders: boolean
     orderModes: ('takeaway' | 'dine-in' | 'business' | 'delivery')[]
     estimatedPickupTime: number
-    /** Anuncio de demora activado por el restaurante (solo UX, no afecta ICO) */
+    /** Anuncio de demora por modo de pedido (solo UX, no afecta ICO) */
     delayAnnouncement?: {
-      enabled: boolean
-      extraMinutes: number
-      message: string
-      updatedAt: Date | null
+      takeaway?: { enabled: boolean; extraMinutes: number; message: string; updatedAt: Date | null }
+      delivery?: { enabled: boolean; extraMinutes: number; message: string; updatedAt: Date | null }
+      'dine-in'?: { enabled: boolean; extraMinutes: number; message: string; updatedAt: Date | null }
+      business?: { enabled: boolean; extraMinutes: number; message: string; updatedAt: Date | null }
     }
     /** Historial de ajustes automáticos del tiempo estimado (anti-gaming audit) */
     adjustmentHistory?: Array<{
@@ -150,12 +150,44 @@ settings: {
         estimatedPickupTime: { type: Number, default: 20 },
         delayAnnouncement: {
           type: {
-            enabled: { type: Boolean, default: false },
-            extraMinutes: { type: Number, default: 0, min: 0 },
-            message: { type: String, default: '' },
-            updatedAt: { type: Date, default: null },
+            takeaway: {
+              type: {
+                enabled: { type: Boolean, default: false },
+                extraMinutes: { type: Number, default: 0, min: 0 },
+                message: { type: String, default: '' },
+                updatedAt: { type: Date, default: null },
+              },
+              default: { enabled: false, extraMinutes: 0, message: '', updatedAt: null },
+            },
+            delivery: {
+              type: {
+                enabled: { type: Boolean, default: false },
+                extraMinutes: { type: Number, default: 0, min: 0 },
+                message: { type: String, default: '' },
+                updatedAt: { type: Date, default: null },
+              },
+              default: { enabled: false, extraMinutes: 0, message: '', updatedAt: null },
+            },
+            'dine-in': {
+              type: {
+                enabled: { type: Boolean, default: false },
+                extraMinutes: { type: Number, default: 0, min: 0 },
+                message: { type: String, default: '' },
+                updatedAt: { type: Date, default: null },
+              },
+              default: { enabled: false, extraMinutes: 0, message: '', updatedAt: null },
+            },
+            business: {
+              type: {
+                enabled: { type: Boolean, default: false },
+                extraMinutes: { type: Number, default: 0, min: 0 },
+                message: { type: String, default: '' },
+                updatedAt: { type: Date, default: null },
+              },
+              default: { enabled: false, extraMinutes: 0, message: '', updatedAt: null },
+            },
           },
-          default: { enabled: false, extraMinutes: 0, message: '', updatedAt: null },
+          default: {},
         },
         adjustmentHistory: {
           type: [{

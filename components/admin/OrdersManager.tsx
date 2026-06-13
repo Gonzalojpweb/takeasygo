@@ -60,10 +60,11 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
 
   // ── Delay Announcement ──────────────────────────────────────────
   const [delayExpanded, setDelayExpanded] = useState(false)
-  const [delayEnabled, setDelayEnabled] = useState(false)
-  const [delayExtraMinutes, setDelayExtraMinutes] = useState(10)
-  const [delayMessage, setDelayMessage] = useState('')
   const [delaySaving, setDelaySaving] = useState(false)
+  const [supportedModes, setSupportedModes] = useState<string[]>([])
+  const [delayConfigs, setDelayConfigs] = useState<Record<string, { enabled: boolean; extraMinutes: number; message: string }>>({})
+
+  const hasDelayActive = Object.values(delayConfigs).some(c => c.enabled)
 
   const isAdmin = userAssignedLocations.length === 0
   const availableLocations = isAdmin
@@ -92,50 +93,56 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
       const res = await fetch(`/api/${tenantSlug}/locations/${locationId}/estimated-time`)
       if (res.ok) {
         const data = await res.json()
-        const d = data.delayAnnouncement
-        if (d) {
-          setDelayEnabled(d.enabled ?? false)
-          setDelayExtraMinutes(d.extraMinutes ?? 10)
-          setDelayMessage(d.message ?? '')
+        const d = data.delayAnnouncement ?? {}
+        const modes = data.orderModes ?? ['takeaway']
+        setSupportedModes(modes)
+        const configs: Record<string, { enabled: boolean; extraMinutes: number; message: string }> = {}
+        for (const mode of modes) {
+          const m = d[mode]
+          configs[mode] = {
+            enabled: m?.enabled ?? false,
+            extraMinutes: m?.extraMinutes ?? 10,
+            message: m?.message ?? '',
+          }
         }
+        setDelayConfigs(configs)
       }
     } catch {}
   }, [tenantSlug])
 
   // Fetch delay status when active location changes
   useEffect(() => {
-    const locId = activeLocation !== 'all' ? activeLocation : (orders[0]?.locationId ?? null)
-    if (locId) fetchDelayStatus(locId)
-  }, [activeLocation, orders, fetchDelayStatus])
+    if (activeLocation !== 'all') fetchDelayStatus(activeLocation)
+  }, [activeLocation, fetchDelayStatus])
 
   const handleSaveDelay = useCallback(async () => {
-    const locId = activeLocation !== 'all' ? activeLocation : (orders[0]?.locationId ?? null)
-    if (!locId) return toast.error('Seleccioná una sede primero')
+    if (activeLocation === 'all') return toast.error('Seleccioná una sede específica para configurar demoras')
+
+    const body: Record<string, any> = { locationId: activeLocation }
+    for (const mode of supportedModes) {
+      const c = delayConfigs[mode]
+      if (c) body[mode] = c
+    }
 
     setDelaySaving(true)
     try {
       const res = await fetch(`/api/${tenantSlug}/settings/delay-announcement`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          locationId: locId,
-          enabled: delayEnabled,
-          extraMinutes: delayExtraMinutes,
-          message: delayMessage,
-        }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const err = await res.json()
         throw new Error(err.error || 'Error al guardar')
       }
-      toast.success(delayEnabled ? 'Aviso de demora activado' : 'Aviso de demora desactivado')
+      toast.success('Aviso de demora actualizado')
       setDelayExpanded(false)
     } catch (err: any) {
       toast.error(err.message || 'Error al guardar')
     } finally {
       setDelaySaving(false)
     }
-  }, [tenantSlug, activeLocation, orders, delayEnabled, delayExtraMinutes, delayMessage])
+  }, [tenantSlug, activeLocation, delayConfigs, supportedModes])
 
   // Auto-refresh cada 10s cuando hay órdenes activas, 30s si no
   useEffect(() => {
@@ -321,110 +328,145 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
       )}
 
       {/* Delay Announcement Card */}
-      <div className={cn(
-        'rounded-2xl border transition-all overflow-hidden',
-        delayEnabled
-          ? 'border-red-200 bg-red-50/60'
-          : delayExpanded
-            ? 'border-amber-200 bg-amber-50/60'
-            : 'border-border/60 bg-card'
-      )}>
-        <button
-          type="button"
-          onClick={() => setDelayExpanded(v => !v)}
-          className="w-full flex items-center gap-3 p-3 text-left"
-        >
-          {delayEnabled ? (
-            <AlertTriangle size={16} className="text-red-500 shrink-0" />
-          ) : (
-            <Timer size={16} className="text-muted-foreground shrink-0" />
-          )}
+      {activeLocation === 'all' ? (
+        <div className="rounded-2xl border border-border/60 bg-card p-3 flex items-center gap-3 opacity-60">
+          <Timer size={16} className="text-muted-foreground shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className={cn(
-              'text-xs font-bold',
-              delayEnabled ? 'text-red-700' : 'text-foreground'
-            )}>
-              {delayEnabled ? '⚠ Aviso de demora activo' : 'Aviso de demora'}
-            </p>
+            <p className="text-xs font-bold text-foreground">Aviso de demora</p>
             <p className="text-[10px] text-muted-foreground font-medium">
-              {delayEnabled
-                ? `+${delayExtraMinutes} min · "${delayMessage || 'Sin mensaje'}"`
-                : 'Informar a los clientes sobre demoras antes de la compra'}
+              Seleccioná una sede específica para configurar demoras
             </p>
           </div>
-          <div className={cn(
-            'w-2 h-2 rounded-full shrink-0',
-            delayEnabled ? 'bg-red-500 animate-pulse' : 'bg-zinc-300'
-          )} />
-        </button>
-
-        {delayExpanded && (
-          <div className="px-3 pb-3 space-y-2.5 border-t border-inherit pt-2.5 mt-0">
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-xs font-semibold text-foreground">Activar aviso</span>
-              <button
-                type="button"
-                onClick={() => setDelayEnabled(v => !v)}
-                className={cn(
-                  'relative w-10 h-5 rounded-full transition-all',
-                  delayEnabled ? 'bg-red-500' : 'bg-zinc-300'
-                )}
-              >
-                <div className={cn(
-                  'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all',
-                  delayEnabled ? 'left-5' : 'left-0.5'
-                )} />
-              </button>
-            </label>
-
-            <div>
-              <label className="text-[11px] font-semibold text-foreground block mb-1">
-                Minutos adicionales
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={120}
-                value={delayExtraMinutes}
-                onChange={e => setDelayExtraMinutes(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full border border-border/60 rounded-xl px-3 py-2 text-sm outline-none focus:border-foreground/40 transition-all"
-              />
+        </div>
+      ) : (
+        <div className={cn(
+          'rounded-2xl border transition-all overflow-hidden',
+          hasDelayActive
+            ? 'border-red-200 bg-red-50/60'
+            : delayExpanded
+              ? 'border-amber-200 bg-amber-50/60'
+              : 'border-border/60 bg-card'
+        )}>
+          <button
+            type="button"
+            onClick={() => setDelayExpanded(v => !v)}
+            className="w-full flex items-center gap-3 p-3 text-left"
+          >
+            {hasDelayActive ? (
+              <AlertTriangle size={16} className="text-red-500 shrink-0" />
+            ) : (
+              <Timer size={16} className="text-muted-foreground shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className={cn(
+                'text-xs font-bold',
+                hasDelayActive ? 'text-red-700' : 'text-foreground'
+              )}>
+                {hasDelayActive ? '⚠ Aviso de demora activo' : 'Aviso de demora'}
+              </p>
+              <p className="text-[10px] text-muted-foreground font-medium">
+                {hasDelayActive
+                  ? Object.entries(delayConfigs).filter(([, c]) => c.enabled).map(([m]) => m).join(', ')
+                  : 'Informar a los clientes sobre demoras antes de la compra'}
+              </p>
             </div>
+            <div className={cn(
+              'w-2 h-2 rounded-full shrink-0',
+              hasDelayActive ? 'bg-red-500 animate-pulse' : 'bg-zinc-300'
+            )} />
+          </button>
 
-            <div>
-              <label className="text-[11px] font-semibold text-foreground block mb-1">
-                Mensaje (opcional)
-              </label>
-              <input
-                type="text"
-                placeholder="Ej: Alta demanda en horario pico"
-                value={delayMessage}
-                onChange={e => setDelayMessage(e.target.value)}
-                maxLength={120}
-                className="w-full border border-border/60 rounded-xl px-3 py-2 text-sm outline-none focus:border-foreground/40 transition-all"
-              />
-            </div>
+          {delayExpanded && (
+            <div className="px-3 pb-3 space-y-3 border-t border-inherit pt-2.5 mt-0">
+              {supportedModes.map(mode => {
+                const cfg = delayConfigs[mode]
+                if (!cfg) return null
+                const MODE_LABELS: Record<string, string> = { takeaway: '🥡 Takeaway', delivery: '🚚 Delivery', 'dine-in': '🍽️ Dine-in', business: '💼 Business' }
 
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleSaveDelay}
-                disabled={delaySaving}
-                className="flex-1 py-2 rounded-xl bg-foreground text-background text-xs font-bold hover:opacity-90 transition-all disabled:opacity-50"
-              >
-                {delaySaving ? 'Guardando...' : delayEnabled ? 'Actualizar' : 'Guardar'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setDelayExpanded(false); if (!delayEnabled) { setDelayExtraMinutes(10); setDelayMessage('') } }}
-                className="px-4 py-2 rounded-xl border border-border/60 text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
-              >
-                Cancelar
-              </button>
+                return (
+                  <div key={mode} className="rounded-xl border border-border/40 bg-background p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-bold text-foreground">{MODE_LABELS[mode] || mode}</span>
+                      <button
+                        type="button"
+                        onClick={() => setDelayConfigs(prev => ({
+                          ...prev,
+                          [mode]: { ...prev[mode], enabled: !prev[mode]?.enabled },
+                        }))}
+                        className={cn(
+                          'relative w-10 h-5 rounded-full transition-all',
+                          cfg.enabled ? 'bg-red-500' : 'bg-zinc-300'
+                        )}
+                      >
+                        <div className={cn(
+                          'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all',
+                          cfg.enabled ? 'left-5' : 'left-0.5'
+                        )} />
+                      </button>
+                    </div>
+
+                    {cfg.enabled && (
+                      <>
+                        <div>
+                          <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
+                            Minutos adicionales
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={120}
+                            value={cfg.extraMinutes}
+                            onChange={e => setDelayConfigs(prev => ({
+                              ...prev,
+                              [mode]: { ...prev[mode], extraMinutes: Math.max(0, parseInt(e.target.value) || 0) },
+                            }))}
+                            className="w-full border border-border/60 rounded-xl px-3 py-2 text-sm outline-none focus:border-foreground/40 transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
+                            Mensaje (opcional)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ej: Falta personal de delivery"
+                            value={cfg.message}
+                            onChange={e => setDelayConfigs(prev => ({
+                              ...prev,
+                              [mode]: { ...prev[mode], message: e.target.value },
+                            }))}
+                            maxLength={120}
+                            className="w-full border border-border/60 rounded-xl px-3 py-2 text-sm outline-none focus:border-foreground/40 transition-all"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSaveDelay}
+                  disabled={delaySaving}
+                  className="flex-1 py-2 rounded-xl bg-foreground text-background text-xs font-bold hover:opacity-90 transition-all disabled:opacity-50"
+                >
+                  {delaySaving ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDelayExpanded(false); fetchDelayStatus(activeLocation) }}
+                  className="px-4 py-2 rounded-xl border border-border/60 text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Search + Refresh */}
       <div className="flex items-center gap-3">
