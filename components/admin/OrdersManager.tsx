@@ -404,14 +404,18 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: index * 0.03, duration: 0.18 }}
                   className={cn(
-                    "bg-card border rounded-2xl overflow-hidden flex flex-col hover:shadow-md transition-all",
+                    "bg-card border rounded-2xl overflow-hidden flex flex-col hover:shadow-md transition-all border-l-4",
                     newOrderIds.has(order._id)
                       ? "border-emerald-400 shadow-emerald-100 shadow-lg ring-2 ring-emerald-300/40"
                       : upcomingScheduledIds.has(order._id)
                         ? "border-red-400 ring-2 ring-red-500/40 shadow-red-100 shadow-lg animate-pulse"
                         : order.orderTiming === 'scheduled' && order.scheduledStatus === 'pending_schedule'
                           ? "border-blue-300 ring-1 ring-blue-200/50"
-                          : "border-border/70 hover:border-primary/30"
+                          : "border-border/70 hover:border-primary/30",
+                    order.orderMode === 'delivery' ? 'border-l-emerald-400'
+                      : order.orderMode === 'dine-in' ? 'border-l-violet-400'
+                      : order.orderMode === 'business' ? 'border-l-blue-400'
+                      : 'border-l-amber-400'
                   )}
                 >
                   {/* Card header */}
