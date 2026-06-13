@@ -28,12 +28,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'locationId es obligatorio' }, { status: 400 })
     }
 
-    const location = await Location.findOne({ _id: locationId, tenantId: tenant._id }).lean<{ settings?: { orderModes?: string[]; delayAnnouncement?: any } }>()
+    const location = await Location.findOne({ _id: locationId, tenantId: tenant._id }).lean<{
+      settings?: { orderModes?: string[]; delayAnnouncement?: any }
+      deliveryConfig?: { enabled?: boolean }
+    }>()
     if (!location) {
       return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
     }
 
-    const supportedModes = new Set(location.settings?.orderModes ?? ['takeaway'])
+    let orderModes = location.settings?.orderModes ?? ['takeaway']
+    if (location.deliveryConfig?.enabled && !orderModes.includes('delivery')) {
+      orderModes = [...orderModes, 'delivery']
+    }
+    const supportedModes = new Set(orderModes)
 
     // Construir payload per-mode solo con los modos enviados y válidos
     const delayPayload: Record<string, any> = {}
