@@ -23,6 +23,23 @@ interface PromoShape {
   sourceTriggers?: string[]
 }
 
+function addSchedulingFilter(query: any) {
+  const now = new Date()
+  const scheduleFilter: any[] = [
+    { scheduledStart: null },
+    { scheduledStart: { $lte: now } },
+  ]
+  const endFilter: any[] = [
+    { scheduledEnd: null },
+    { scheduledEnd: { $gte: now } },
+  ]
+  query.$and = [
+    { $or: scheduleFilter },
+    { $or: endFilter },
+  ]
+  return query
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -40,45 +57,62 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    // ── Resolución multicapa de la promo activa ─────────────────────
-    // Orden: 1) slug exacto, 2) match por source, 3) fallback última habilitada, 4) legacy
+    const tenantId = tenant._id
+
+    // ── Helper to find a matching promo with scheduling filter ──────────
+    async function findPromo(query: any): Promise<PromoShape | null> {
+      query.isEnabled = true
+      addSchedulingFilter(query)
+      const found = await QrPromo.findOne(query).lean()
+      return found
+    }
+
+    // ── Resolución multicapa ───────────────────────────────────────────
     let qrPromoConfig: PromoShape | null = null
     let matchedBy: string | null = null
 
+    // 1) Slug exacto: busca en tenant + global
     if (promoSlug) {
-      const found = await QrPromo.findOne({
-        tenantId: tenant._id,
+      qrPromoConfig = await findPromo({
+        $or: [
+          { scope: 'tenant', tenantId },
+          { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }] },
+        ],
         slug: promoSlug.toLowerCase().trim(),
-        isEnabled: true,
-      }).lean()
-      if (found) {
-        qrPromoConfig = found
-        matchedBy = 'slug'
-      }
+      })
+      if (qrPromoConfig) matchedBy = 'slug'
     }
 
+    // 2) Por source trigger: tenant first, then global
     if (!qrPromoConfig && source) {
-      const found = await QrPromo.findOne({
-        tenantId: tenant._id,
+      qrPromoConfig = await findPromo({
+        scope: 'tenant',
+        tenantId,
         sourceTriggers: source,
-        isEnabled: true,
-      }).lean()
-      if (found) {
-        qrPromoConfig = found
+      })
+      if (qrPromoConfig) {
         matchedBy = 'source'
+      } else {
+        qrPromoConfig = await findPromo({
+          scope: 'global',
+          $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+          sourceTriggers: source,
+        })
+        if (qrPromoConfig) matchedBy = 'source_global'
       }
     }
 
+    // 3) Default: última habilitada del tenant, luego global
     if (!qrPromoConfig) {
-      const firstEnabled = await QrPromo.findOne({ tenantId: tenant._id, isEnabled: true })
-        .sort({ createdAt: -1 })
-        .lean()
-      if (firstEnabled) {
-        qrPromoConfig = firstEnabled
-        matchedBy = 'default'
-      }
+      qrPromoConfig = await findPromo({ scope: 'tenant', tenantId })
+        .then(f => f || findPromo({
+          scope: 'global',
+          $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+        }))
+      if (qrPromoConfig) matchedBy = 'default'
     }
 
+    // 4) Legacy fallback
     if (!qrPromoConfig) {
       qrPromoConfig = tenant.qrPromo
       if (qrPromoConfig?.isEnabled) matchedBy = 'legacy'
@@ -150,8 +184,8 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    // Buscar si hay una promo activa en la colección QrPromo
     const activePromo = await QrPromo.findOne({
+      scope: 'tenant',
       tenantId: tenant._id,
       isEnabled: true,
     }).sort({ createdAt: -1 }).lean()

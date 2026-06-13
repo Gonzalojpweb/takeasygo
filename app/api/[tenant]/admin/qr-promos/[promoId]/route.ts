@@ -35,6 +35,7 @@ export async function PUT(
     if (body.slug !== undefined) {
       body.slug = body.slug.toLowerCase().trim()
       const existing = await QrPromo.findOne({
+        scope: 'tenant',
         tenantId: tenant._id,
         slug: body.slug,
         _id: { $ne: promoId },
@@ -49,6 +50,7 @@ export async function PUT(
       'title', 'subtitle', 'buttonText', 'termsText', 'imageUrl',
       'badgeLabel', 'offLabel', 'takeawayWarningTitle', 'takeawayWarningText',
       'loadingText', 'checkoutDiscountLabel', 'sourceTriggers',
+      'scheduledStart', 'scheduledEnd',
     ]
 
     const updateData: Record<string, unknown> = {}
@@ -59,7 +61,7 @@ export async function PUT(
     }
 
     const promo = await QrPromo.findOneAndUpdate(
-      { _id: promoId, tenantId: tenant._id },
+      { _id: promoId, scope: 'tenant', tenantId: tenant._id },
       { $set: updateData },
       { new: true, runValidators: true }
     )
@@ -101,7 +103,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    const promo = await QrPromo.findOneAndDelete({ _id: promoId, tenantId: tenant._id })
+    const promo = await QrPromo.findOneAndDelete({ _id: promoId, scope: 'tenant', tenantId: tenant._id })
     if (!promo) {
       return NextResponse.json({ error: 'Promo not found' }, { status: 404 })
     }
