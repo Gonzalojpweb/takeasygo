@@ -22,12 +22,13 @@ export async function GET(
 
     const searchParams = request.nextUrl.searchParams
     const dateStr = searchParams.get('date')
+    const orderMode = searchParams.get('orderMode')
 
     if (!dateStr || !DATE_REGEX.test(dateStr)) {
       return NextResponse.json({ error: 'Fecha inválida. Usar formato YYYY-MM-DD' }, { status: 400 })
     }
 
-    const result = await getAvailableSlotsForDate(locationId, dateStr)
+    const result = await getAvailableSlotsForDate(locationId, dateStr, (orderMode as any) || undefined)
 
     return NextResponse.json({
       date: result.date,

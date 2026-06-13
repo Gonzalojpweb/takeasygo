@@ -12,6 +12,7 @@ interface AvailableSlot {
 interface SchedulePickerProps {
   tenantSlug: string
   locationId: string
+  maxAdvanceHours?: number
   onSelect: (scheduledPickupAt: string) => void
 }
 
@@ -21,7 +22,7 @@ const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
 
-export default function SchedulePicker({ tenantSlug, locationId, onSelect }: SchedulePickerProps) {
+export default function SchedulePicker({ tenantSlug, locationId, maxAdvanceHours, onSelect }: SchedulePickerProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
@@ -84,7 +85,8 @@ export default function SchedulePicker({ tenantSlug, locationId, onSelect }: Sch
 
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
-  const maxDate = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+  const advanceHours = maxAdvanceHours ?? 24
+  const maxDate = new Date(today.getTime() + advanceHours * 60 * 60 * 1000)
   const maxDateStr = maxDate.toISOString().split('T')[0]
 
   const year = currentMonth.getFullYear()
@@ -109,6 +111,11 @@ export default function SchedulePicker({ tenantSlug, locationId, onSelect }: Sch
 
   return (
     <div className="space-y-4">
+      {/* Info text */}
+      <p className="text-[11px] text-zinc-500 leading-tight px-1">
+        Podés programar hasta {advanceHours === 1 ? '1 hora' : `${advanceHours} horas`} antes
+      </p>
+
       {/* Calendar */}
       <div className="bg-zinc-50 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-4">
@@ -180,11 +187,11 @@ export default function SchedulePicker({ tenantSlug, locationId, onSelect }: Sch
           ) : !dayOpen ? (
             <div className="flex items-center gap-2 py-4 text-center text-sm text-zinc-500">
               <AlertCircle size={16} />
-              <span>El local está cerrado en este día</span>
+              <span>Este día el local está cerrado. Elegí otra fecha.</span>
             </div>
           ) : slots.length === 0 ? (
             <div className="py-4 text-center text-sm text-zinc-500">
-              No hay horarios disponibles
+              Todos los turnos disponibles para este día ya están ocupados. Probá con otra fecha.
             </div>
           ) : (
             <div className="grid grid-cols-4 gap-2">
