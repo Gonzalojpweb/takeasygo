@@ -4,8 +4,10 @@ import type { ICustomizationGroup } from './Menu'
 export type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
 
 export interface IPromotion {
-  tenantId: mongoose.Types.ObjectId
+  tenantId?: mongoose.Types.ObjectId
   locationId?: mongoose.Types.ObjectId
+  scope: 'tenant' | 'global'
+  targetTenants?: mongoose.Types.ObjectId[]
   type: PromotionType
   title: string
   description: string
@@ -57,8 +59,19 @@ const PromotionSchema = new Schema<IPromotion>(
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
-      required: true,
+      required: false,
       index: true,
+    },
+    scope: {
+      type: String,
+      enum: ['tenant', 'global'],
+      default: 'tenant',
+      index: true,
+    },
+    targetTenants: {
+      type: [Schema.Types.ObjectId],
+      ref: 'Tenant',
+      default: [],
     },
     locationId: {
       type: Schema.Types.ObjectId,

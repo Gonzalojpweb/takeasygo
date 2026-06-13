@@ -37,21 +37,44 @@ export async function GET(
 
     const { searchParams } = new URL(request.url)
 
-    const query: any = { tenantId: tenant._id }
+    const tenantId = tenant._id
+
+    // Tenant-specific items
+    const tenantQuery: any = { scope: 'tenant', tenantId }
+
+    // Global items targeting this tenant (or all tenants)
+    const globalQuery: any = {
+      scope: 'global',
+      $or: [
+        { targetTenants: tenantId },
+        { targetTenants: { $size: 0 } },
+      ],
+    }
 
     if (isAdmin) {
       const category = searchParams.get('category')
       const isActive = searchParams.get('isActive')
       const isFeatured = searchParams.get('isFeatured')
-      if (category) query.category = category
-      if (isActive !== null) query.isActive = isActive === 'true'
-      if (isFeatured !== null) query.isFeatured = isFeatured === 'true'
+      if (category) {
+        tenantQuery.category = category
+        globalQuery.category = category
+      }
+      if (isActive !== null) {
+        tenantQuery.isActive = isActive === 'true'
+        globalQuery.isActive = isActive === 'true'
+      }
+      if (isFeatured !== null) {
+        tenantQuery.isFeatured = isFeatured === 'true'
+        globalQuery.isFeatured = isFeatured === 'true'
+      }
     } else {
-      // Modo público: solo items activos
-      query.isActive = true
+      tenantQuery.isActive = true
+      globalQuery.isActive = true
     }
 
-    const items = await StoreItem.find(query).sort({ sortOrder: 1, createdAt: -1 }).lean()
+    const items = await StoreItem.find({
+      $or: [tenantQuery, globalQuery],
+    }).sort({ sortOrder: 1, createdAt: -1 }).lean()
 
     return NextResponse.json({ items })
   } catch (error) {
