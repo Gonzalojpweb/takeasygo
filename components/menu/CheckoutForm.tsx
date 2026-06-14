@@ -104,6 +104,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [scheduleOrder, setScheduleOrder] = useState(false)
   const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(null)
   const [activeLegalModal, setActiveLegalModal] = useState<'terminos' | 'privacidad' | null>(null)
+  const [redirectingToMp, setRedirectingToMp] = useState(false)
 
   // ── Estimated time + Delay announcement ──────────────────────────
   const [estimatedTimeInfo, setEstimatedTimeInfo] = useState<{
@@ -462,7 +463,22 @@ async function handleSubmit(e: React.FormEvent) {
 
     // En desarrollo usamos sandbox, en producción initPoint
     const redirectUrl = process.env.NODE_ENV === 'development' ? sandboxInitPoint : initPoint
-    window.location.href = redirectUrl
+
+    // Guardar referencia del pedido para recuperación post-pago
+    try {
+      localStorage.setItem('tgo-pending-order', JSON.stringify({
+        orderNumber: order.orderNumber,
+        tenantSlug,
+        orderId: order._id,
+        createdAt: Date.now(),
+      }))
+    } catch {}
+
+    // Mostrar overlay instructivo antes de salir a MP
+    setRedirectingToMp(true)
+    setTimeout(() => {
+      window.location.href = redirectUrl
+    }, 120)
 
   } catch (err: any) {
     toast.error(err.message || 'Error al procesar el pedido')
@@ -1274,6 +1290,29 @@ async function handleSubmit(e: React.FormEvent) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {redirectingToMp && (
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center px-6">
+          <div className="text-center max-w-sm">
+            <div className="w-12 h-12 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin mx-auto mb-6" />
+            <h2 className="text-xl font-black text-zinc-900 mb-3">Redirigiendo a Mercado Pago</h2>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-left space-y-3">
+              <p className="text-sm font-bold text-amber-800">⚠️ Importante:</p>
+              <p className="text-sm text-amber-700 leading-relaxed">
+                Después de pagar, <strong className="text-amber-900">NO cierres la aplicación</strong>.
+                Esperá 2 segundos y volverás automáticamente para ver el seguimiento de tu pedido.
+              </p>
+              <div className="flex items-center gap-2 text-amber-700">
+                <span className="text-lg">✅</span>
+                <span className="text-sm font-medium">Pago aprobado</span>
+                <span className="text-zinc-400">→</span>
+                <span className="text-lg">📦</span>
+                <span className="text-sm font-medium">Ver seguimiento</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

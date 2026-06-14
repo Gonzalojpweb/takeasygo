@@ -6,6 +6,7 @@ import { Suspense } from 'react'
 import TenantFontLoader from '@/components/TenantFontLoader'
 import { QrPromoBanner } from '@/components/promo'
 import PWALoader from '@/components/menu/PWALoader'
+import ActiveOrderBanner from '@/components/menu/ActiveOrderBanner'
 
 
 
@@ -63,6 +64,9 @@ export default async function MenuLayout({ children, params }: Props) {
       />
       <Suspense fallback={null}>
         <QrPromoBanner tenantSlug={tenantSlug} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ActiveOrderBanner />
       </Suspense>
       {children}
     </TenantFontLoader>
