@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,8 @@ import {
     DollarSign, ShoppingBag, TrendingUp, Users,
     History, ArrowUpRight, ArrowDownRight, Award,
     Package, FileSpreadsheet, FileText, Loader2, Calendar,
-    Clock, XCircle, Zap, RefreshCw, CreditCard, AlertCircle
+    Clock, XCircle, Zap, RefreshCw, CreditCard, AlertCircle,
+    Printer, PlusCircle, CheckCircle2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -92,6 +93,50 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
     const [to, setTo] = useState(defaults.to)
     const [loadingExcel, setLoadingExcel] = useState(false)
     const [loadingPdf, setLoadingPdf] = useState(false)
+
+    // ── Pre-close ────────────────────────────────────────────────────────────
+    const [printers, setPrinters] = useState<any[]>([])
+    const [selectedPrinter, setSelectedPrinter] = useState('')
+    const [loadingPreclose, setLoadingPreclose] = useState(false)
+    const [precloseResult, setPrecloseResult] = useState<any>(null)
+
+    useEffect(() => {
+        fetch(`/api/${tenantSlug}/printers`)
+            .then(r => r.json())
+            .then(data => {
+                const list = Array.isArray(data) ? data : data.printers || []
+                setPrinters(list)
+                if (list.length > 0) setSelectedPrinter(list[0].name)
+            })
+            .catch(() => {})
+    }, [tenantSlug])
+
+    async function handlePrintPreclose() {
+        if (!selectedPrinter) {
+            toast.error('Seleccioná una impresora')
+            return
+        }
+        setLoadingPreclose(true)
+        setPrecloseResult(null)
+        try {
+            const res = await fetch(`/api/${tenantSlug}/preclose/print`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from, to, printerName: selectedPrinter }),
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Error al generar cierre')
+            }
+            const data = await res.json()
+            setPrecloseResult(data.summary)
+            toast.success('Cierre de turno enviado a la impresora')
+        } catch (e: any) {
+            toast.error(e.message || 'Error al enviar cierre de turno')
+        } finally {
+            setLoadingPreclose(false)
+        }
+    }
 
     // ── Download Excel ────────────────────────────────────────────────────────
     async function handleDownloadExcel() {
@@ -347,6 +392,100 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                                 </Button>
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
+            </motion.div>
+
+            {/* ── Cierre de Turno ──────────────────────────────────────────── */}
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+                <Card className="border-2 border-amber-500/20 bg-amber-500/5 rounded-3xl shadow-lg">
+                    <CardContent className="p-6">
+                        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                                    <Printer size={22} strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-amber-600 mb-0.5">Cierre de turno</p>
+                                    <p className="text-sm text-muted-foreground font-medium">Imprimí el resumen del período en la impresora térmica.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-end gap-3 w-full sm:w-auto">
+                                {/* Date range — reusing same state */}
+                                <div className="flex items-center gap-2 bg-white border-2 border-border/80 rounded-xl px-4 py-2.5 shadow-sm">
+                                    <Calendar size={14} className="text-amber-500 shrink-0" />
+                                    <input
+                                        type="date"
+                                        value={from}
+                                        max={to}
+                                        onChange={e => setFrom(e.target.value)}
+                                        className="text-sm font-medium text-foreground outline-none bg-transparent"
+                                    />
+                                    <span className="text-muted-foreground text-sm">→</span>
+                                    <input
+                                        type="date"
+                                        value={to}
+                                        min={from}
+                                        onChange={e => setTo(e.target.value)}
+                                        className="text-sm font-medium text-foreground outline-none bg-transparent"
+                                    />
+                                </div>
+
+                                {/* Printer selector */}
+                                <select
+                                    value={selectedPrinter}
+                                    onChange={e => setSelectedPrinter(e.target.value)}
+                                    className="bg-white border-2 border-border/80 rounded-xl px-4 py-2.5 text-sm font-medium outline-none shadow-sm min-w-[140px]"
+                                >
+                                    {printers.length === 0 && <option value="">Sin impresoras</option>}
+                                    {printers.map((p: any) => (
+                                        <option key={p._id} value={p.name}>{p.name}</option>
+                                    ))}
+                                </select>
+
+                                {/* Print button */}
+                                <Button
+                                    onClick={handlePrintPreclose}
+                                    disabled={loadingPreclose || printers.length === 0}
+                                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl px-5 h-11 shadow-md shadow-amber-600/20 gap-2 transition-all active:scale-95"
+                                >
+                                    {loadingPreclose
+                                        ? <Loader2 size={16} className="animate-spin" />
+                                        : <PlusCircle size={16} />
+                                    }
+                                    {loadingPreclose ? 'Imprimiendo...' : 'Imprimir'}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Result summary */}
+                        {precloseResult && (
+                            <div className="mt-4 p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <CheckCircle2 size={16} className="text-emerald-500" />
+                                    <p className="text-sm font-bold text-emerald-600">Impreso exitosamente</p>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                                    <div>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Órdenes</p>
+                                        <p className="font-black tabular-nums text-foreground">{precloseResult.totalOrders}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Ingreso</p>
+                                        <p className="font-black tabular-nums text-foreground">${precloseResult.totalRevenue?.toLocaleString('es-AR')}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Ticket prom.</p>
+                                        <p className="font-black tabular-nums text-foreground">${precloseResult.avgTicket?.toLocaleString('es-AR')}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Canceladas</p>
+                                        <p className="font-black tabular-nums text-destructive">{precloseResult.cancelledCount}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </motion.div>

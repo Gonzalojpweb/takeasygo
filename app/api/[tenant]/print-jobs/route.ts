@@ -3,6 +3,7 @@ import Order from '@/models/Order'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
+import PreClosePrintJob from '@/models/PreClosePrintJob'
 import { NextRequest, NextResponse } from 'next/server'
 import { safeDecrypt } from '@/lib/crypto'
 
@@ -44,6 +45,13 @@ export async function GET(
       isActive: true,
     }).lean()
 
+    // Trabajos de pre-cierre pendientes para esta sede
+    const preCloseJobs = await PreClosePrintJob.find({
+      tenantId: tenant._id,
+      locationId,
+      status: 'pending',
+    }).lean()
+
     // Enriquecer órdenes con datos de la sede y desencriptar PII del cliente
     const ordersWithLocation = (orders as any[]).map(o => ({
       ...o,
@@ -56,7 +64,7 @@ export async function GET(
       location: { locationName: location.name },
     }))
 
-    return NextResponse.json({ orders: ordersWithLocation, printers })
+    return NextResponse.json({ orders: ordersWithLocation, printers, preCloseJobs })
   } catch (error) {
     return NextResponse.json({ error: 'Error al obtener trabajos de impresión' }, { status: 500 })
   }
@@ -65,7 +73,8 @@ export async function GET(
 /**
  * POST /api/[tenant]/print-jobs
  * El agente confirma el resultado de cada intento de impresión.
- * Body: { orderId, printerName, role, success, errorMsg }
+ * Body (order): { orderId, printerName, role, success, errorMsg }
+ * Body (preClose): { preCloseJobId, printerName, success, errorMsg }
  */
 export async function POST(
   request: NextRequest,
@@ -78,7 +87,34 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const { orderId, printerName, role, success, errorMsg } = await request.json()
+    const body = await request.json()
+    const { printerName, success, errorMsg } = body
+    const preCloseJobId = body.preCloseJobId
+
+    // ── Pre-close job ──────────────────────────────────────────────────
+    if (preCloseJobId) {
+      const job = await PreClosePrintJob.findOne({ _id: preCloseJobId, tenantId: tenant._id })
+      if (!job) return NextResponse.json({ error: 'Trabajo de pre-cierre no encontrado' }, { status: 404 })
+
+      job.status = success ? 'success' : 'error'
+      await job.save()
+
+      await Printer.findOneAndUpdate(
+        { tenantId: tenant._id, name: printerName },
+        {
+          $set: {
+            lastStatus: success ? 'ok' : 'error',
+            lastError: errorMsg ?? '',
+            ...(success ? { lastPrintAt: new Date() } : {}),
+          },
+        }
+      )
+
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── Order job ──────────────────────────────────────────────────────
+    const { orderId, role } = body
 
     if (!orderId || !printerName || !role) {
       return NextResponse.json({ error: 'orderId, printerName y role son obligatorios' }, { status: 400 })
