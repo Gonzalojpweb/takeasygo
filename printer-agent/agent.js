@@ -339,12 +339,46 @@ function generateTicket(order, role, columns = 32) {
     return Buffer.concat(chunks);
 }
 
+// --- PROCESA UN TRABAJO DE PRE-CIERRE (CIERRE DE TURNO) ---
+function processPreCloseJob(preCloseJob, printers) {
+    const printer = printers.find(p => p.name === preCloseJob.printerName);
+    if (!printer) {
+        console.error(`[PRECLOSE] Impresora "${preCloseJob.printerName}" no encontrada para job ${preCloseJob._id}`);
+        return;
+    }
+
+    console.log(`[PRECLOSE] Encolando cierre de turno → ${printer.name}`);
+    const buffer = Buffer.from(preCloseJob.data, 'base64');
+
+    jobManager.enqueue(printer.uid, printer, buffer, async (success, errorMsg) => {
+        try {
+            await axios.post(`${config.apiUrl}/api/${config.tenantSlug}/print-jobs`, {
+                preCloseJobId: preCloseJob._id,
+                printerName: printer.name,
+                success,
+                errorMsg
+            });
+            console.log(`[CLOUD] Estado sincronizado para PreClose ${preCloseJob._id}`);
+        } catch (e) {
+            console.error(`[CLOUD ERROR] No se pudo confirmar pre-close: ${e.message}`);
+        }
+    });
+}
+
 // --- POLLING PRINCIPAL ---
 async function poll() {
     try {
         const url = `${config.apiUrl}/api/${config.tenantSlug}/print-jobs?locationId=${config.locationId}`;
         const response = await axios.get(url);
-        const { orders, printers } = response.data;
+        const { orders, printers, preCloseJobs } = response.data;
+
+        // Procesar trabajos de pre-cierre primero
+        if (preCloseJobs && preCloseJobs.length > 0) {
+            console.log(`[POLL] ${preCloseJobs.length} trabajo(s) de cierre de turno detectado(s).`);
+            for (const job of preCloseJobs) {
+                processPreCloseJob(job, printers);
+            }
+        }
 
         if (!orders || orders.length === 0) return;
 
