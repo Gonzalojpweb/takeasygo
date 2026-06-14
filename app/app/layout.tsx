@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { TenantProvider, TenantRefCapture } from '@/contexts/TenantContext'
 import { LocationProvider } from '@/components/explore/LocationContext'
 import { Suspense } from 'react'
+import ActiveOrderBanner from '@/components/menu/ActiveOrderBanner'
 
 export const viewport: Viewport = {
   themeColor: '#0d0b0a',
@@ -39,6 +40,9 @@ export default function ExploreLayout({ children }: { children: React.ReactNode 
         <TenantRefCapture />
       </Suspense>
       <LocationProvider>
+        <Suspense fallback={null}>
+          <ActiveOrderBanner />
+        </Suspense>
         <div className="consumer-dark min-h-screen bg-[#0d0b0a]">
           {children}
         </div>

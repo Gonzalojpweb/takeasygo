@@ -12,6 +12,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
+import PushSubscription from '@/models/PushSubscription'
+import webpush from 'web-push'
+
+webpush.setVapidDetails(
+  'mailto:clickandthink1@gmail.com',
+  process.env.VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+)
 
 
 /**
@@ -49,13 +57,14 @@ export async function POST(
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   const { tenant: tenantSlug } = await params
+  const traceId = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   
   // 1. Conexión y chequeo de firma (esto es fuera de la transacción para ser rápidos)
   try {
     await connectDB()
     const body = await request.json()
 
-    console.log('[Webhook MP] Webhook recibido:', body.type, 'ID:', body.data?.id)
+    console.log(`[Webhook MP][${traceId}] Recibido:`, body.type, 'ID:', body.data?.id, 'tenant:', tenantSlug)
 
     // Solo nos interesan pagos por ahora
     if (body.type !== 'payment') {
@@ -93,7 +102,7 @@ export async function POST(
 
     const isValid = verifyMercadoPagoSignature(signatureHeader, requestId, mpPaymentId, webhookSecret)
     if (!isValid) {
-      console.warn(`[Webhook MP] Firma invalida para tenant ${tenantSlug}`)
+      console.warn(`[Webhook MP][${traceId}] Firma inválida para tenant ${tenantSlug}, mpId: ${mpPaymentId}`)
       return NextResponse.json({ error: 'Firma invalida' }, { status: 401 })
     }
 
@@ -194,6 +203,36 @@ export async function POST(
             }
 
             await order.save({ session })
+
+            // ── Push notification al consumidor (fire-and-forget) ──────────
+            if (paymentData.status === 'approved' && 'clientToken' in order && order.clientToken) {
+              const clientToken = order.clientToken
+              const orderNumber = order.orderNumber
+              const tenantSlug = tenant.slug
+              setImmediate(async () => {
+                try {
+                  const sub = await PushSubscription.findOne({ clientToken }).lean() as any
+                  if (sub) {
+                    await webpush.sendNotification(
+                      { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+                      JSON.stringify({
+                        title: `✅ Pedido confirmado #${orderNumber}`,
+                        body: 'Tocá para ver el seguimiento de tu pedido',
+                        icon: '/tgoicon-192.png',
+                        badge: '/tgoicon-192.png',
+                        url: `/${tenantSlug}/tracking/${orderNumber}`,
+                      })
+                    )
+                  }
+                } catch (err) {
+                  if ((err as any)?.statusCode === 410) {
+                    await PushSubscription.deleteOne({ clientToken }).catch(() => {})
+                  }
+                  console.error('[webhook] Consumer push error:', (err as Error)?.message)
+                }
+              })
+            }
+
             notification.orderId = order._id as any
           }
         }
@@ -235,7 +274,7 @@ export async function POST(
 
       return NextResponse.json({ received: true })
     } catch (txError: any) {
-      console.error(`[Webhook MP] Error en transacción para tenant ${tenantSlug}:`, txError)
+      console.error(`[Webhook MP][${traceId}] Error en transacción tenant ${tenantSlug}, mpId ${mpPaymentId}:`, txError.message || txError)
       
       // Intentar loguear el error en la notificación (fuera de la tx fallida)
       await PaymentNotification.updateOne(
@@ -243,13 +282,19 @@ export async function POST(
         { error: txError.message || String(txError) }
       ).catch(() => {})
 
-      return NextResponse.json({ error: 'Error interno en persistencia' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Error interno en persistencia' },
+        { status: 500, headers: { 'Retry-After': '10' } }
+      )
     } finally {
       await session.endSession()
     }
 
   } catch (error: any) {
-    console.error(`[Webhook MP] Error general para tenant ${tenantSlug}:`, error)
-    return NextResponse.json({ error: 'Error al procesar webhook' }, { status: 500 })
+    console.error(`[Webhook MP][${traceId}] Error general tenant ${tenantSlug}:`, error.message || error)
+    return NextResponse.json(
+      { error: 'Error al procesar webhook' },
+      { status: 500, headers: { 'Retry-After': '30' } }
+    )
   }
 }
