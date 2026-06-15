@@ -7,6 +7,7 @@ import TenantFontLoader from '@/components/TenantFontLoader'
 import { QrPromoBanner } from '@/components/promo'
 import PWALoader from '@/components/menu/PWALoader'
 import ActiveOrderBanner from '@/components/menu/ActiveOrderBanner'
+import { AnalyticsProvider } from '@/components/providers/AnalyticsProvider'
 
 
 
@@ -68,7 +69,12 @@ export default async function MenuLayout({ children, params }: Props) {
       <Suspense fallback={null}>
         <ActiveOrderBanner />
       </Suspense>
-      {children}
+      <AnalyticsProvider
+        tenantId={tenant._id.toString()}
+        tenantSlug={tenantSlug}
+      >
+        {children}
+      </AnalyticsProvider>
     </TenantFontLoader>
   )
 }

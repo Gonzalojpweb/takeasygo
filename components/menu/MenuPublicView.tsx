@@ -21,6 +21,7 @@ import { isAvailableNow } from '@/lib/availability'
 import { getSuggestions } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
+import { captureMenuOpened, captureDishAdded } from '@/lib/tia/events'
 import { motion } from 'framer-motion'
 import LocationBar from '@/components/menu/LocationBar'
 
@@ -174,6 +175,10 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       .catch(() => setPromotionsLoading(false))
   }, [tenant.slug, location._id, mode])
 
+  useEffect(() => {
+    captureMenuOpened(location._id)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const clubMembership = useClubMembership(tenant.slug)
 
   // Sincronizar memberPoints desde el hook para StoreCarousel
@@ -324,6 +329,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       const suggestions = getSuggestions(categories, cart, String(item._id), insights)
       if (suggestions.length > 0) setUpsellSuggestions(suggestions)
     }
+    captureDishAdded({ _id: item._id, name: item.name, price: getItemPrice(item) }, 1, false)
     // Momento 01: feedback de posesión
     playAddSound()
     if (navigator.vibrate) navigator.vibrate(50)
@@ -462,6 +468,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         type: 'promotion',
         addedFrom: 'menu',
       }
+      if (cartItem.menuItemId) {
+        captureDishAdded({ _id: cartItem.menuItemId, name: itemName, price: cartItem.price }, cartItem.quantity, true)
+      }
       setCart(prev => {
         const existing = prev.find(i => i.cartItemId === uniqueId)
         if (existing) return prev.map(i => i.cartItemId === uniqueId ? { ...i, quantity: i.quantity + 1 } : i)
@@ -492,6 +501,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       return
     }
 
+    if (cartItem.menuItemId) {
+      captureDishAdded({ _id: cartItem.menuItemId, name: cartItem.name, price: cartItem.price }, cartItem.quantity, true)
+    }
     const taggedItem: CartItem = upsellModalRef.current
       ? { ...cartItem, addedFrom: 'upsell_sheet' }
       : cartItem

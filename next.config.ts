@@ -1,5 +1,8 @@
 import type { NextConfig } from 'next'
 
+const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST === '/ingest' ? 'https://us.i.posthog.com' : (process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com')
+const POSTHOG_HOSTNAME = new URL(POSTHOG_HOST).hostname
+
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -16,7 +19,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://res.cloudinary.com https://api.dicebear.com https://images.unsplash.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://www.google.com",
       "media-src 'self' blob: https://res.cloudinary.com",
       "font-src 'self' https://fonts.gstatic.com https://use.typekit.net data:",
-      "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com https://api.mymemory.translated.net https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://use.typekit.net https://*.typekit.net",
+      `connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com https://api.mymemory.translated.net https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://use.typekit.net https://*.typekit.net https://${POSTHOG_HOSTNAME} https://us-assets.i.posthog.com`,
       "worker-src 'self'",
       "frame-src https://www.mercadopago.com https://www.mercadopago.com.ar",
       "object-src 'none'",
@@ -27,6 +30,18 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://us-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: `${POSTHOG_HOST}/:path*`,
+      },
+    ]
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'res.cloudinary.com' },

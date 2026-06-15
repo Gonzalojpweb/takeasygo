@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import { notFound } from 'next/navigation'
 import OrderTracker from '@/components/tracking/OrderTracker'
+import TrackingAnalytics from '@/components/tracking/TrackingAnalytics'
 import { generateRatingToken } from '@/lib/rating-token'
 import { calculatePointsBreakdown } from '@/lib/loyalty'
 
@@ -161,6 +162,12 @@ export default async function TrackingPage({ params, searchParams }: Props) {
         <p className="text-center text-sm opacity-40 break-all">Pedido para {order.customer.name}</p>
 
       </main>
+
+        <TrackingAnalytics
+          order={{ _id: order._id.toString(), total: order.total, itemsCount: order.items?.length || 0, orderMode: order.orderMode }}
+          rewardAdvanceApplied={rewardAdvanceApplied}
+          rewardAdvanceConsolidated={rewardAdvanceConsolidated}
+        />
     </div>
   )
 }

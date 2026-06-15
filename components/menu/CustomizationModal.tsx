@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { X, Minus, Plus, Check } from 'lucide-react'
+import { captureDishViewed } from '@/lib/tia/events'
 import type { CartItem, SelectedCustomization, SelectedCustomizationOption, SelectedVariant } from '@/types/cart'
 
 interface VariantInfo {
@@ -104,6 +105,10 @@ export default function CustomizationModal({
 
   const unitPrice = basePrice + extraPrice
   const totalPrice = unitPrice * quantity
+
+  useEffect(() => {
+    captureDishViewed({ _id: item._id, name: item.name, price: basePrice })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleOption(group: CustomizationGroup, optionName: string) {
     setSelections(prev => {
