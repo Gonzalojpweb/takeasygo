@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Tag, Plus, Percent, Info, Megaphone, Heart, ExternalLink, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { capturePromotionViewed, capturePromotionClicked, capturePromotionApplied } from '@/lib/tia/events'
 import PromotionLoyaltyModal from './PromotionLoyaltyModal'
 
 // Helper function to check if a hex color is light
@@ -92,6 +93,23 @@ export function PromotionCard({
 }: PromotionCardProps) {
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false)
   const isFeatured = variant === 'featured' || (variant === undefined && promotion.isFeatured)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          capturePromotionViewed({ _id: promotion._id, type: promotion.type, title: promotion.title })
+          obs.disconnect()
+        }
+      },
+      { threshold: 0.3 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const styles = promotion.customStyles || {}
   const accent = styles.accentColor || primary || '#e11d48'
@@ -112,7 +130,9 @@ export function PromotionCard({
     return (
       <>
         <div
+          ref={cardRef}
           onClick={() => {
+            capturePromotionClicked({ _id: promotion._id, type: promotion.type })
             if (canAddToCart) {
               onAdd?.(promotion)
             } else if (promoType === 'loyalty') {
@@ -202,7 +222,7 @@ export function PromotionCard({
                 {promoType === 'sale' ? (
                   mode === 'takeaway' ? (
                     <button
-                      onClick={(e) => { e.stopPropagation(); onAdd?.(promotion) }}
+                      onClick={(e) => { e.stopPropagation(); onAdd?.(promotion); capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, discount) }}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all flex-shrink-0"
                       style={{ backgroundColor: '#ffffff', color: cardBgColor }}
                     >
@@ -307,7 +327,11 @@ export function PromotionCard({
   return (
     <>
       <div
-        onClick={() => { if (canAddToCart) onAdd?.(promotion) }}
+        ref={cardRef}
+        onClick={() => {
+          capturePromotionClicked({ _id: promotion._id, type: promotion.type })
+          if (canAddToCart) onAdd?.(promotion)
+        }}
         className={cn(
           'flex gap-3 rounded-2xl transition-all active:scale-[0.983] w-full overflow-hidden',
           canAddToCart ? 'cursor-pointer' : 'cursor-default'
@@ -400,12 +424,12 @@ export function PromotionCard({
                   )}
                 </div>
                 {mode === 'takeaway' && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onAdd?.(promotion) }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-all flex-shrink-0"
-                    style={{ backgroundColor: accent, color: isLightColor(accent) ? '#111' : '#fff' }}
-                  >
-                    <Plus size={16} strokeWidth={3} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onAdd?.(promotion); capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, discount) }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-all flex-shrink-0"
+                      style={{ backgroundColor: accent, color: isLightColor(accent) ? '#111' : '#fff' }}
+                    >
+                      <Plus size={16} strokeWidth={3} />
                   </button>
                 )}
               </>

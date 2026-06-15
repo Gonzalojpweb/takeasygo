@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import { useClubMembership } from '@/hooks/useClubMembership'
+import { captureMenuOpened, captureDishViewed } from '@/lib/tia/events'
 import LocationBar from '@/components/menu/LocationBar'
 
 interface Props {
@@ -99,6 +100,15 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
       })
       .catch(() => setPromotionsLoading(false))
   }, [tenant.slug, location._id])
+
+  useEffect(() => {
+    captureMenuOpened(location._id)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!modalItem) return
+    captureDishViewed({ _id: modalItem._id, name: tn(modalItem, 'name', locale), price: modalItem.price })
+  }, [modalItem]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const clubMembership = useClubMembership(tenant.slug)
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Flame, ChevronRight } from 'lucide-react'
+import { captureRewardViewed } from '@/lib/tia/events'
 
 interface StoreItem {
   _id: string
@@ -25,6 +26,12 @@ export default function StoreCarousel({ tenantSlug, memberPoints }: Props) {
   useEffect(() => {
     fetchItems()
   }, [tenantSlug])
+
+  useEffect(() => {
+    if (!loading && items.length > 0) {
+      captureRewardViewed({ type: 'store_item', currentPoints: memberPoints, pointsRequired: items[0]?.pointsCost })
+    }
+  }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchItems() {
     try {

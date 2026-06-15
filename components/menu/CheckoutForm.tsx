@@ -13,6 +13,7 @@ import type { CartItem } from '@/types/cart'
 import SchedulePicker from './SchedulePicker'
 import { FeedbackProvider, useFeedback } from '@/components/feedback/FeedbackContext'
 import FeedbackModal from '@/components/feedback/FeedbackModal'
+import { captureCheckoutStarted, captureRewardRedeemed, captureRewardAdvanceOffered, captureRewardAdvanceAccepted } from '@/lib/tia/events'
 
 interface Props {
   tenantSlug: string
@@ -303,6 +304,12 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     && missingPoints <= effectiveAdvanceLimit
     && !loyaltyMember?.hasAdvanceActive
 
+  useEffect(() => {
+    if (rewardNeedsAdvance && canUseSos && selectedRewardItem) {
+      captureRewardAdvanceOffered(missingPoints, loyaltyMember?.points ?? 0)
+    }
+  }, [rewardNeedsAdvance, canUseSos, selectedRewardItem]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function increaseQty(cartItemId: string) {
     setCart(prev => prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + 1 } : i))
   }
@@ -355,6 +362,8 @@ async function handleSubmit(e: React.FormEvent) {
   if (joinClub && form.email.trim() && !/^[^\s@]+@[^\s@]+$/.test(form.email.trim())) return toast.error('Formato de email inválido')
   if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
   setLoading(true)
+
+    captureCheckoutStarted({ total, itemsCount: cart.length, orderMode: mode })
 
     let lastOrder: any = null
 
@@ -441,6 +450,10 @@ async function handleSubmit(e: React.FormEvent) {
     }
     const { order } = await orderRes.json()
     lastOrder = order
+
+    if (rewardNeedsAdvance) {
+      captureRewardAdvanceAccepted(missingPoints)
+    }
 
     sessionStorage.removeItem('cart')
 
@@ -1056,6 +1069,7 @@ async function handleSubmit(e: React.FormEvent) {
                                 setSelectedRewardItemId(null)
                               } else if (enoughPoints || canAdvance) {
                                 setSelectedRewardItemId(item._id)
+                                captureRewardRedeemed({ _id: item._id, type: 'store_item', value: item.pointsCost })
                               }
                             }}
                             disabled={!enoughPoints && !canAdvance}
