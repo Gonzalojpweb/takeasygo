@@ -90,6 +90,11 @@ export const PLAN_ACCESS = {
   // Notificaciones push al admin cuando llega un pedido nuevo
   // Disponible en Trial, Crecimiento y Premium
   adminPushNotifications: ['trial', 'buy', 'full'] as const,
+
+  // TIA — Inteligencia TakeasyGO
+  // All features: 'buy' (Growth), 'full' (Premium)
+  // Premium sub-features (SIL, anomalies, recommendations) gated inside UI
+  tia: ['buy', 'full'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS

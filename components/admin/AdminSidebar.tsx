@@ -29,6 +29,7 @@ import {
   Zap,
   Smartphone,
   Building2,
+  BrainCircuit,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -181,6 +182,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
         { href: `${base}/analytics`, label: 'Analytics', icon: TrendingUp, roles: ['admin', 'manager'] },
         { href: `${base}/ico`, label: 'ICO', icon: Activity, roles: ['admin'], feature: 'ico', requiresTakeaway: true },
         { href: `${base}/audit`, label: 'Auditoría', icon: Shield, roles: ['admin'], feature: 'audit' },
+        { href: `${base}/tia`, label: 'Inteligencia TIA', icon: BrainCircuit, roles: ['admin', 'manager'], feature: 'tia' },
       ],
     },
     {
