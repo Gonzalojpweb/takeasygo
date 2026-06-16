@@ -2,6 +2,85 @@ import mongoose from 'mongoose'
 import Order from '@/models/Order'
 import LoyaltyMember from '@/models/LoyaltyMember'
 
+const POSTHOG_HOST = 'https://us.i.posthog.com'
+
+function getPostHogConfig() {
+  const key = process.env.POSTHOG_SERVER_KEY
+  const projectId = process.env.POSTHOG_PROJECT_ID
+  if (!key || !projectId) return null
+  return { key, projectId }
+}
+
+async function queryPostHog(query: any): Promise<any> {
+  const config = getPostHogConfig()
+  if (!config) return null
+
+  try {
+    const auth = Buffer.from(`${config.key}:`).toString('base64')
+    const res = await fetch(`${POSTHOG_HOST}/api/projects/${config.projectId}/query/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({ query }),
+    })
+    if (!res.ok) {
+      console.warn('[PostHog Query]', res.status, await res.text())
+      return null
+    }
+    return res.json()
+  } catch (err) {
+    console.warn('[PostHog Query] fetch failed', err)
+    return null
+  }
+}
+
+async function fetchFunnel(): Promise<ConversionFunnelData | null> {
+  const result = await queryPostHog({
+    kind: 'FunnelsQuery',
+    dateRange: { date_from: '-30d' },
+    funnelWindowInterval: 30,
+    funnelWindowIntervalUnit: 'day',
+    series: [
+      { kind: 'events', event: 'menu.opened', name: 'menu.opened' },
+      { kind: 'events', event: 'dish.viewed', name: 'dish.viewed' },
+      { kind: 'events', event: 'dish.added', name: 'dish.added' },
+      { kind: 'events', event: 'checkout.started', name: 'checkout.started' },
+      { kind: 'events', event: 'order.completed', name: 'order.completed' },
+    ],
+  })
+
+  if (!result?.results?.length) return null
+
+  const steps = result.results[0]
+  return {
+    menuOpened: steps[0]?.count ?? 0,
+    dishViewed: steps[1]?.count ?? 0,
+    dishAdded: steps[2]?.count ?? 0,
+    checkoutStarted: steps[3]?.count ?? 0,
+    orderCompleted: steps[4]?.count ?? 0,
+  }
+}
+
+async function fetchTrend(event: string, days = 30): Promise<number> {
+  const result = await queryPostHog({
+    kind: 'TrendsQuery',
+    dateRange: { date_from: `-${days}d` },
+    series: [{ kind: 'events', event, name: event }],
+    interval: 'day',
+    breakdown: undefined,
+  })
+
+  if (!result?.results?.length) return 0
+  const data = result.results[0].data as number[]
+  return data.reduce((sum: number, v: number) => sum + v, 0)
+}
+
+async function fetchMenuOpened(): Promise<number> {
+  return fetchTrend('menu.opened', 30)
+}
+
 export interface DailySummaryData {
   todayOrders: number
   todayRevenue: number
@@ -269,6 +348,12 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     historical.members.push({ label, value: memberData?.count ?? 0 })
   }
 
+  // PostHog: funnel + visits
+  const [funnel, menuOpenedCount] = await Promise.all([
+    fetchFunnel(),
+    fetchMenuOpened(),
+  ])
+
   const totalOrders7d = orders7d || 1
   const totalOrdersPrev7d = ordersPrev7d || 1
 
@@ -284,11 +369,11 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
       avgOrderValue,
     },
     conversionFunnel: {
-      menuOpened: 0,
-      dishViewed: 0,
-      dishAdded: 0,
-      checkoutStarted: 0,
-      orderCompleted: todayOrders,
+      menuOpened: funnel?.menuOpened ?? menuOpenedCount,
+      dishViewed: funnel?.dishViewed ?? 0,
+      dishAdded: funnel?.dishAdded ?? 0,
+      checkoutStarted: funnel?.checkoutStarted ?? 0,
+      orderCompleted: funnel?.orderCompleted ?? todayOrders,
     },
     topProducts: {
       mostSold: topSold,
