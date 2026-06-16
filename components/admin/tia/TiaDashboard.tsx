@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { RefreshCw, Loader2 } from 'lucide-react'
 import DailySummary from './DailySummary'
 import ConversionFunnel from './ConversionFunnel'
@@ -15,6 +15,7 @@ import AnomalyAlert from './AnomalyAlert'
 import RecommendationCard from './RecommendationCard'
 import DailyInsightPro from './DailyInsightPro'
 import type { TiaMetricsData } from '@/lib/tia/metrics'
+import type { Insight } from '@/lib/tia/types'
 
 interface Props {
   tenantId: string
@@ -40,6 +41,8 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [silData, setSilData] = useState<{ insights: Insight[]; anomalies: Insight[] }>({ insights: [], anomalies: [] })
+  const [silLoading, setSilLoading] = useState(false)
 
   const isPremium = plan === 'full'
 
@@ -59,13 +62,33 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
     }
   }
 
+  const fetchSil = useCallback(async () => {
+    setSilLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/tia/sil/analyze`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setSilData({ insights: data.insights ?? [], anomalies: data.anomalies ?? [] })
+      }
+    } catch (err) {
+      console.error('[SIL] fetch error', err)
+    } finally {
+      setSilLoading(false)
+    }
+  }, [tenantSlug])
+
   useEffect(() => {
     fetchMetrics()
   }, [tenantSlug]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!loading) fetchSil()
+  }, [loading, fetchSil])
+
   async function handleRefresh() {
     setRefreshing(true)
     await fetchMetrics()
+    await fetchSil()
   }
 
   if (loading) {
@@ -76,52 +99,13 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
     )
   }
 
-  // Generate rudimentary insights based on available data
-  const insights: { title: string; description: string; type: 'positive' | 'negative' | 'neutral' | 'warning' }[] = []
-
-  if (metrics.trends.orders7d > 0 && metrics.trends.ordersPrev7d > 0) {
-    const orderChange = ((metrics.trends.orders7d - metrics.trends.ordersPrev7d) / metrics.trends.ordersPrev7d) * 100
-    if (orderChange > 10) {
-      insights.push({ title: 'Pedidos en aumento', description: `Los pedidos aumentaron ${orderChange.toFixed(0)}% esta semana vs la anterior.`, type: 'positive' })
-    } else if (orderChange < -10) {
-      insights.push({ title: 'Pedidos en descenso', description: `Los pedidos disminuyeron ${Math.abs(orderChange).toFixed(0)}% esta semana.`, type: 'negative' })
-    }
-  }
-
-  if (metrics.trends.revenue7d > 0 && metrics.trends.revenuePrev7d > 0) {
-    const revenueChange = ((metrics.trends.revenue7d - metrics.trends.revenuePrev7d) / metrics.trends.revenuePrev7d) * 100
-    if (Math.abs(revenueChange) > 15) {
-      insights.push({
-        title: revenueChange > 0 ? 'Ingresos en alza' : 'Ingresos en baja',
-        description: `Los ingresos ${revenueChange > 0 ? 'aumentaron' : 'disminuyeron'} ${Math.abs(revenueChange).toFixed(0)}% vs la semana anterior.`,
-        type: revenueChange > 0 ? 'positive' : 'negative',
-      })
-    }
-  }
-
-  if (metrics.clubGrowth.newMembers7d > 0 && metrics.clubGrowth.newMembers30d > 0) {
-    const memberRate = metrics.clubGrowth.newMembers7d > 0 ? metrics.clubGrowth.newMembers7d : 0
-    if (memberRate > 5) {
-      insights.push({ title: 'Club en crecimiento', description: `${memberRate} nuevos miembros en los últimos 7 días. El club sigue sumando.`, type: 'positive' })
-    }
-  }
-
-  if (metrics.dailySummary.avgOrderValue > 0 && metrics.topProducts.mostSold.length > 0) {
-    const topItem = metrics.topProducts.mostSold[0]
-    insights.push({
-      title: `Producto top: ${topItem.name}`,
-      description: `${topItem.count} unidades vendidas ($${topItem.revenue.toLocaleString('es-AR')}) en los últimos 30 días.`,
-      type: 'neutral',
-    })
-  }
-
-  if (metrics.dailySummary.todayOrders > 0) {
-    insights.push({
-      title: 'Resumen del día',
-      description: `${metrics.dailySummary.todayOrders} pedidos • $${metrics.dailySummary.todayRevenue.toLocaleString('es-AR')} • ${metrics.dailySummary.todayNewMembers} nuevos miembros`,
-      type: 'neutral',
-    })
-  }
+  // Quick insights from SIL (growth plan gets 3, premium gets all)
+  const maxQuickInsights = isPremium ? silData.insights.length : 3
+  const quickInsights = silData.insights.slice(0, maxQuickInsights).map(i => ({
+    title: i.title,
+    description: i.description,
+    type: (i.severity === 'critical' ? 'warning' : i.severity === 'info' ? 'neutral' : 'warning') as 'positive' | 'negative' | 'neutral' | 'warning',
+  }))
 
   return (
     <div className="space-y-6">
@@ -150,12 +134,15 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
       {/* Daily Summary */}
       <DailySummary data={metrics.dailySummary} />
 
-      {/* Insights */}
-      {insights.length > 0 && (
+      {/* Quick insights from SIL */}
+      {quickInsights.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-zinc-900 mb-3">Hallazgos del día</h3>
+          <h3 className="text-sm font-semibold text-zinc-900 mb-3">
+            {isPremium ? 'Hallazgos SIL' : 'Hallazgos TIA'}
+            <span className="ml-2 text-[10px] font-normal text-zinc-400">({isPremium ? 'ilimitado' : `${quickInsights.length}/3 — upgrade a Premium para más`})</span>
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {insights.map((insight, i) => (
+            {quickInsights.map((insight, i) => (
               <InsightCard key={i} {...insight} />
             ))}
           </div>
@@ -181,17 +168,37 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
       {/* Historical (Growth + Premium) */}
       <HistoricalComparison data={metrics.historical} />
 
+      {/* SIL Section (visible for all TIA plans) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SilSection data={silData} loading={silLoading} />
+        {isPremium && <CategoryComparison data={metrics.sil.categories} />}
+      </div>
+
       {/* Premium sections */}
       {isPremium && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <SilSection data={metrics.sil} />
-            <CategoryComparison data={metrics.sil.categories} />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <AnomalyAlert anomalies={metrics.sil.anomalies} />
-            <RecommendationCard recommendations={metrics.sil.insights} />
+            <AnomalyAlert
+              anomalies={silData.anomalies.map(a => ({
+                type: a.severity === 'critical' ? 'negative' as const : 'positive' as const,
+                metric: a.metric,
+                itemName: a.title,
+                currentValue: a.currentValue,
+                expectedValue: a.previousValue ?? 0,
+                deviation: a.changePercent ?? 0,
+              }))}
+            />
+            <RecommendationCard
+              recommendations={silData.insights
+                .filter(i => i.recommendation)
+                .map(i => ({
+                  title: i.title,
+                  description: i.description,
+                  action: i.recommendation!,
+                  priority: (i.severity === 'critical' ? 'high' : i.severity === 'warning' ? 'medium' : 'low') as 'high' | 'medium' | 'low',
+                  category: 'operations' as const,
+                }))}
+            />
           </div>
         </>
       )}
