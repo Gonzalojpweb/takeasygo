@@ -7,6 +7,7 @@ interface Recommendation {
   title: string
   description: string
   action: string
+  expectedImpact?: string
   priority: 'high' | 'medium' | 'low'
   category: 'menu' | 'club' | 'operations' | 'promotions'
 }
@@ -80,6 +81,9 @@ export default function RecommendationCard({ recommendations }: Props) {
                     <span>{rec.action}</span>
                     <ArrowRight size={11} />
                   </div>
+                  {rec.expectedImpact && (
+                    <p className="text-[10px] text-zinc-400 mt-1 italic">Impacto esperado: {rec.expectedImpact}</p>
+                  )}
                 </div>
               </div>
             </div>
