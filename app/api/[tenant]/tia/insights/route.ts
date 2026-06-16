@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import TiaInsight from '@/models/TiaInsight'
+import { generateRecommendations } from '@/lib/tia/recommendations'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
@@ -40,8 +41,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       insights = [...regular, ...anomalies]
     }
 
+    // Generate recommendations from insights (only for Premium)
+    const typedInsights = insights.map(i => ({
+      type: i.type as any,
+      severity: i.severity as any,
+      category: i.category as any,
+      title: i.title ?? '',
+      description: i.description ?? '',
+      metric: i.metric ?? '',
+      currentValue: i.currentValue ?? 0,
+      previousValue: i.previousValue,
+      changePercent: i.changePercent,
+      sampleSize: i.sampleSize ?? 0,
+      recommendation: i.recommendation,
+    }))
+
+    const recommendations = isPremium ? generateRecommendations(typedInsights) : []
+
     return NextResponse.json({
       insights,
+      recommendations,
       plan: tenant.plan,
       generatedAt: insights.length > 0 ? insights[0].generatedAt : null,
       total: insights.length,

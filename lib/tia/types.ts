@@ -26,6 +26,19 @@ export interface Insight {
   recommendation?: string
 }
 
+export type RecommendationCategory = 'menu' | 'club' | 'operations' | 'promotions'
+export type Priority = 'high' | 'medium' | 'low'
+
+export interface Recommendation {
+  title: string
+  description: string
+  action: string
+  expectedImpact: string
+  priority: Priority
+  category: RecommendationCategory
+  sourceMetric: string
+}
+
 export interface SilAnalysisRequest {
   tenantId: string
   dateFrom?: string

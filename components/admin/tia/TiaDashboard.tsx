@@ -15,7 +15,7 @@ import AnomalyAlert from './AnomalyAlert'
 import RecommendationCard from './RecommendationCard'
 import DailyInsightPro from './DailyInsightPro'
 import type { TiaMetricsData } from '@/lib/tia/metrics'
-import type { Insight } from '@/lib/tia/types'
+import type { Insight, Recommendation } from '@/lib/tia/types'
 
 interface DbInsight {
   _id: string
@@ -74,6 +74,7 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [silData, setSilData] = useState<{ insights: Insight[]; anomalies: Insight[] }>({ insights: [], anomalies: [] })
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [silLoading, setSilLoading] = useState(false)
   const [lastGeneratedAt, setLastGeneratedAt] = useState<string | null>(null)
 
@@ -106,6 +107,7 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
           insights: all.filter((i: DbInsight) => i.type !== 'anomaly').map(mapDbInsight),
           anomalies: all.filter((i: DbInsight) => i.type === 'anomaly').map(mapDbInsight),
         })
+        setRecommendations(data.recommendations ?? [])
         setLastGeneratedAt(data.generatedAt ?? null)
       }
     } catch (err) {
@@ -120,16 +122,16 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
     try {
       const res = await fetch(`/api/${tenantSlug}/tia/sil/analyze`, { method: 'POST' })
       if (res.ok) {
-        const data = await res.json()
-        setSilData({ insights: data.insights ?? [], anomalies: data.anomalies ?? [] })
-        setLastGeneratedAt(new Date().toISOString())
+        setRecommendations([]) // will be refetched after
+        setSilData({ insights: [], anomalies: [] })
+        await fetchDailyInsights()
       }
     } catch (err) {
       console.error('[SIL] fetch error', err)
     } finally {
       setSilLoading(false)
     }
-  }, [tenantSlug])
+  }, [tenantSlug, fetchDailyInsights])
 
   useEffect(() => {
     fetchMetrics()
@@ -257,15 +259,7 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
               }))}
             />
             <RecommendationCard
-              recommendations={silData.insights
-                .filter(i => i.recommendation)
-                .map(i => ({
-                  title: i.title,
-                  description: i.description,
-                  action: i.recommendation!,
-                  priority: (i.severity === 'critical' ? 'high' : i.severity === 'warning' ? 'medium' : 'low') as 'high' | 'medium' | 'low',
-                  category: 'operations' as const,
-                }))}
+              recommendations={recommendations}
             />
           </div>
         </>
