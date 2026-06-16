@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { RefreshCw, Loader2 } from 'lucide-react'
+import { RefreshCw, Loader2, Sparkles } from 'lucide-react'
 import DailySummary from './DailySummary'
 import ConversionFunnel from './ConversionFunnel'
 import TopProducts from './TopProducts'
@@ -16,6 +16,22 @@ import RecommendationCard from './RecommendationCard'
 import DailyInsightPro from './DailyInsightPro'
 import type { TiaMetricsData } from '@/lib/tia/metrics'
 import type { Insight } from '@/lib/tia/types'
+
+interface DbInsight {
+  _id: string
+  type: Insight['type']
+  severity: Insight['severity']
+  category: Insight['category']
+  title: string
+  description: string
+  metric: string
+  currentValue: number
+  previousValue?: number
+  changePercent?: number
+  sampleSize: number
+  recommendation?: string
+  generatedAt: string
+}
 
 interface Props {
   tenantId: string
@@ -36,6 +52,22 @@ function getDefaultMetrics(): TiaMetricsData {
   }
 }
 
+function mapDbInsight(i: DbInsight): Insight {
+  return {
+    type: i.type,
+    severity: i.severity,
+    category: i.category,
+    title: i.title,
+    description: i.description,
+    metric: i.metric,
+    currentValue: i.currentValue,
+    previousValue: i.previousValue,
+    changePercent: i.changePercent,
+    sampleSize: i.sampleSize,
+    recommendation: i.recommendation,
+  }
+}
+
 export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor }: Props) {
   const [metrics, setMetrics] = useState<TiaMetricsData>(getDefaultMetrics)
   const [loading, setLoading] = useState(true)
@@ -43,6 +75,7 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
   const [refreshing, setRefreshing] = useState(false)
   const [silData, setSilData] = useState<{ insights: Insight[]; anomalies: Insight[] }>({ insights: [], anomalies: [] })
   const [silLoading, setSilLoading] = useState(false)
+  const [lastGeneratedAt, setLastGeneratedAt] = useState<string | null>(null)
 
   const isPremium = plan === 'full'
 
@@ -62,13 +95,34 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
     }
   }
 
-  const fetchSil = useCallback(async () => {
+  const fetchDailyInsights = useCallback(async () => {
+    setSilLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/tia/insights`)
+      if (res.ok) {
+        const data = await res.json()
+        const all = (data.insights ?? []) as DbInsight[]
+        setSilData({
+          insights: all.filter((i: DbInsight) => i.type !== 'anomaly').map(mapDbInsight),
+          anomalies: all.filter((i: DbInsight) => i.type === 'anomaly').map(mapDbInsight),
+        })
+        setLastGeneratedAt(data.generatedAt ?? null)
+      }
+    } catch (err) {
+      console.error('[TIA Insights] fetch error', err)
+    } finally {
+      setSilLoading(false)
+    }
+  }, [tenantSlug])
+
+  const runSilNow = useCallback(async () => {
     setSilLoading(true)
     try {
       const res = await fetch(`/api/${tenantSlug}/tia/sil/analyze`, { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
         setSilData({ insights: data.insights ?? [], anomalies: data.anomalies ?? [] })
+        setLastGeneratedAt(new Date().toISOString())
       }
     } catch (err) {
       console.error('[SIL] fetch error', err)
@@ -82,14 +136,16 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
   }, [tenantSlug]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!loading) fetchSil()
-  }, [loading, fetchSil])
+    if (!loading) fetchDailyInsights()
+  }, [loading, fetchDailyInsights])
 
   async function handleRefresh() {
     setRefreshing(true)
     await fetchMetrics()
-    await fetchSil()
+    await fetchDailyInsights()
   }
+
+  const hasInsights = silData.insights.length > 0 || silData.anomalies.length > 0
 
   if (loading) {
     return (
@@ -98,14 +154,6 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
       </div>
     )
   }
-
-  // Quick insights from SIL (growth plan gets 3, premium gets all)
-  const maxQuickInsights = isPremium ? silData.insights.length : 3
-  const quickInsights = silData.insights.slice(0, maxQuickInsights).map(i => ({
-    title: i.title,
-    description: i.description,
-    type: (i.severity === 'critical' ? 'warning' : i.severity === 'info' ? 'neutral' : 'warning') as 'positive' | 'negative' | 'neutral' | 'warning',
-  }))
 
   return (
     <div className="space-y-6">
@@ -134,18 +182,38 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
       {/* Daily Summary */}
       <DailySummary data={metrics.dailySummary} />
 
-      {/* Quick insights from SIL */}
-      {quickInsights.length > 0 && (
+      {/* Insights from Daily Engine */}
+      {silLoading ? null : hasInsights ? (
         <div>
           <h3 className="text-sm font-semibold text-zinc-900 mb-3">
             {isPremium ? 'Hallazgos SIL' : 'Hallazgos TIA'}
-            <span className="ml-2 text-[10px] font-normal text-zinc-400">({isPremium ? 'ilimitado' : `${quickInsights.length}/3 — upgrade a Premium para más`})</span>
+            <span className="ml-2 text-[10px] font-normal text-zinc-400">
+              ({silData.insights.length} hallazgos{lastGeneratedAt ? ` · ${new Date(lastGeneratedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}` : ''})
+            </span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {quickInsights.map((insight, i) => (
-              <InsightCard key={i} {...insight} />
+            {silData.insights.slice(0, isPremium ? undefined : 3).map((insight, i) => (
+              <InsightCard
+                key={i}
+                title={insight.title}
+                description={insight.description}
+                type={(insight.severity === 'critical' ? 'warning' : insight.severity === 'info' ? 'neutral' : 'warning') as 'positive' | 'negative' | 'neutral' | 'warning'}
+              />
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="bg-zinc-50 rounded-2xl border border-zinc-200 p-5 text-center">
+          <Sparkles size={24} className="mx-auto mb-2 text-zinc-300" />
+          <p className="text-sm text-zinc-500">Los insights del día se generan automáticamente a las 06:00 UTC</p>
+          <button
+            onClick={runSilNow}
+            disabled={silLoading}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+          >
+            {silLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            Generar ahora
+          </button>
         </div>
       )}
 
