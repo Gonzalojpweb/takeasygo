@@ -156,6 +156,7 @@ export async function validateScheduledPickupTime(
 
   const ordersInSlot = await Order.countDocuments({
     locationId,
+    deletedAt: null,
     scheduledPickupAt: { $gte: slotStart, $lt: slotEnd },
     status: { $in: ['awaiting_payment', 'confirmed', 'preparing', 'ready', 'pending'] },
     scheduledStatus: { $in: ['pending_schedule', 'active', null] },
@@ -237,6 +238,7 @@ export async function getAvailableSlotsForDate(
 
       const ordersCount = await Order.countDocuments({
         locationId,
+        deletedAt: null,
         scheduledPickupAt: { $gte: slotDate, $lt: slotEnd },
         status: { $in: ['awaiting_payment', 'confirmed', 'preparing', 'ready', 'pending'] },
         scheduledStatus: { $in: ['pending_schedule', 'active', null] },

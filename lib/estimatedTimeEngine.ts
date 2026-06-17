@@ -95,6 +95,7 @@ export async function calculateOptimalEstimatedTime(
         $match: {
           locationId: locationObjectId,
           tenantId: tenantObjectId,
+          deletedAt: null,
           orderMode: 'takeaway',
           orderTiming: { $in: ['immediate', null] },
           createdAt: { $gte: start30 },

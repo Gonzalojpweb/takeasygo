@@ -40,6 +40,7 @@ export async function GET(
 
     const filter: Record<string, any> = {
       tenantId: tenant._id,
+      deletedAt: null,
       corporateAccountId: corpAccount._id,
       orderMode: 'business',
       status: { $ne: 'open' },

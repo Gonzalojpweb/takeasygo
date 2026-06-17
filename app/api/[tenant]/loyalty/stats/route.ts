@@ -99,6 +99,7 @@ export async function GET(
       {
         $match: {
           tenantId: tenant._id,
+          deletedAt: null,
           payment: { $elemMatch: { status: 'approved' } },
           createdAt: { $gte: dateFrom },
         },
@@ -110,6 +111,7 @@ export async function GET(
       {
         $match: {
           tenantId: tenant._id,
+          deletedAt: null,
           'payment.status': 'approved',
           'customer.phoneHash': { $exists: true, $ne: null },
           createdAt: { $gte: dateFrom },

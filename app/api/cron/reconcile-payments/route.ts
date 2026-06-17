@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
 
         const pendingOrders = await Order.find({
           tenantId: tenant._id,
+          deletedAt: null,
           status: 'awaiting_payment',
           'payment.mercadopagoId': { $exists: true, $ne: null },
           createdAt: { $gte: windowStart, $lte: minAge },

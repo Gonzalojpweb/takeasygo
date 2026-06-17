@@ -427,7 +427,7 @@ export async function reconcileMissingPoints(member: any, tenant: any, explicitl
     ]
   }
 
-  const orders = await Order.find(query)
+  const orders = await Order.find({ ...query, deletedAt: null })
 
   let totalReconciled = 0
   let anyConsolidated = false

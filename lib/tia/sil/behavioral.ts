@@ -38,6 +38,7 @@ async function analyzeClubImpact(
     {
       $match: {
         tenantId: tid,
+        deletedAt: null,
         createdAt: { $gte: since },
         status: { $nin: ['cancelled', 'open', 'awaiting_payment'] },
         'customer.phoneHash': { $exists: true, $ne: '' },
@@ -136,6 +137,7 @@ async function analyzeRewardAdvanceImpact(
     {
       $match: {
         tenantId: tid,
+        deletedAt: null,
         createdAt: { $gte: since },
         status: { $nin: ['cancelled', 'open', 'awaiting_payment'] },
         rewardAdvanceApplied: true,
@@ -157,6 +159,7 @@ async function analyzeRewardAdvanceImpact(
     {
       $match: {
         tenantId: tid,
+        deletedAt: null,
         createdAt: { $gte: since },
         status: { $nin: ['cancelled', 'open', 'awaiting_payment'] },
         rewardAdvanceApplied: { $ne: true },

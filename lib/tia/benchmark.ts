@@ -105,6 +105,7 @@ export async function computeBenchmarks(tenantId: string): Promise<BenchmarkData
     {
       $match: {
         tenantId: { $in: peerIds },
+        deletedAt: null,
         createdAt: { $gte: sevenDaysAgo },
         status: { $nin: ['cancelled', 'open', 'awaiting_payment'] },
       },

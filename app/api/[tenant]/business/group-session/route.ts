@@ -54,6 +54,7 @@ export async function POST(
     // Check for existing open session for this account
     const existingOpen = await Order.findOne({
       tenantId: tenant._id,
+      deletedAt: null,
       corporateAccountId: corpAccount._id,
       status: 'open',
       sessionExpiresAt: { $gt: new Date() },

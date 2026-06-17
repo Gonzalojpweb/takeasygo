@@ -40,6 +40,7 @@ export async function GET(
         {
           $match: {
             tenantId,
+            deletedAt: null,
             createdAt: { $gte: since },
           },
         },
@@ -65,6 +66,7 @@ export async function GET(
         {
           $match: {
             tenantId,
+            deletedAt: null,
             createdAt: { $gte: since },
             'payment.status': 'approved',
           },
