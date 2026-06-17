@@ -10,18 +10,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const Tenant = (await import('@/models/Tenant')).default
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id plan').lean() as any
   if (!tenant) {
-    return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: { 'Cache-Control': 'no-cache' } })
   }
 
   if (!['buy', 'full'].includes(tenant.plan)) {
-    return NextResponse.json({ error: 'TIA not available for this plan' }, { status: 403 })
+    return NextResponse.json({ error: 'TIA not available for this plan' }, { status: 403, headers: { 'Cache-Control': 'no-cache' } })
   }
 
   try {
     const data = await computeBenchmarks(tenant._id.toString())
-    return NextResponse.json(data)
+    return NextResponse.json(data, {
+      headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=60' },
+    })
   } catch (error) {
     console.error('[TIA Benchmark]', error)
-    return NextResponse.json({ error: 'Error computing benchmarks' }, { status: 500 })
+    return NextResponse.json({ error: 'Error computing benchmarks' }, { status: 500, headers: { 'Cache-Control': 'no-cache' } })
   }
 }

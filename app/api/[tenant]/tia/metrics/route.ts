@@ -10,14 +10,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const Tenant = (await import('@/models/Tenant')).default
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id plan').lean() as any
   if (!tenant) {
-    return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: { 'Cache-Control': 'no-cache' } })
   }
 
   try {
     const metrics = await fetchDashboardMetrics(tenant._id.toString())
-    return NextResponse.json({ ...metrics, plan: tenant.plan })
+    return NextResponse.json({ ...metrics, plan: tenant.plan }, {
+      headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=30' },
+    })
   } catch (error) {
     console.error('[TIA Metrics]', error)
-    return NextResponse.json({ error: 'Error fetching metrics' }, { status: 500 })
+    return NextResponse.json({ error: 'Error fetching metrics' }, { status: 500, headers: { 'Cache-Control': 'no-cache' } })
   }
 }
