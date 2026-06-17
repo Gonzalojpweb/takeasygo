@@ -14,6 +14,7 @@ import HistoricalComparison from './HistoricalComparison'
 import AnomalyAlert from './AnomalyAlert'
 import RecommendationCard from './RecommendationCard'
 import DailyInsightPro from './DailyInsightPro'
+import BenchmarkSection from './BenchmarkSection'
 import type { TiaMetricsData } from '@/lib/tia/metrics'
 import type { Insight, Recommendation } from '@/lib/tia/types'
 
@@ -183,6 +184,9 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
 
       {/* Daily Summary */}
       <DailySummary data={metrics.dailySummary} />
+
+      {/* Benchmark Section (all TIA plans) */}
+      <BenchmarkSection isPremium={isPremium} tenantSlug={tenantSlug} />
 
       {/* Insights from Daily Engine */}
       {silLoading ? null : hasInsights ? (

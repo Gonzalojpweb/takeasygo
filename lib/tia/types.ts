@@ -60,3 +60,33 @@ export interface SilConfig {
   anomalyStdThreshold: number
   trendMinPoints: number
 }
+
+export type BenchmarkMetric =
+  | 'orders7d'
+  | 'revenue7d'
+  | 'avgOrderValue'
+  | 'newMembers7d'
+  | 'activeMembers'
+  | 'conversionRate'
+
+export type BenchmarkStatus = 'top' | 'above_average' | 'average' | 'below_average' | 'bottom'
+
+export interface BenchmarkItem {
+  metric: BenchmarkMetric
+  label: string
+  value: number
+  peerCount: number
+  percentile: number
+  p25: number
+  p50: number
+  p75: number
+  p90: number
+  status: BenchmarkStatus
+  badge: string
+  tooltip: string
+}
+
+export interface BenchmarkData {
+  benchmarks: BenchmarkItem[]
+  generatedAt: string
+}
