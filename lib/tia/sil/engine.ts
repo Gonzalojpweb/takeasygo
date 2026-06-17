@@ -12,6 +12,8 @@ import { analyzeHistorical } from './historical'
 import { analyzeCategory } from './category'
 import { analyzeTrend } from './trend'
 import { detectAnomaliesInSeries } from './anomaly'
+import { analyzeBehavioral } from './behavioral'
+import { analyzeChurn, analyzeRecurrence } from './churn'
 import { fetchPostHogTrend } from '../posthog'
 
 const DEFAULT_CONFIG: SilConfig = {
@@ -124,7 +126,19 @@ export async function runSilAnalysis(
     }
   }
 
-  // ── 6. Product-level anomaly (top sellers) ────────────────────────────────
+  // ── 7. Behavioral Intelligence ────────────────────────────────────────────
+  const behavioralResult = await analyzeBehavioral(tenantId, config)
+  if (behavioralResult.clubImpact) insights.push(behavioralResult.clubImpact)
+  if (behavioralResult.rewardAdvanceImpact) insights.push(behavioralResult.rewardAdvanceImpact)
+
+  // ── 8. Churn & Recurrence ──────────────────────────────────────────────────
+  const churnInsight = await analyzeChurn(tenantId, config)
+  if (churnInsight) insights.push(churnInsight)
+
+  const recurrenceInsight = await analyzeRecurrence(tenantId, config)
+  if (recurrenceInsight) insights.push(recurrenceInsight)
+
+  // ── 9. Product-level anomaly (top sellers) ────────────────────────────────
   if (metrics.topProducts.mostSold.length > 0) {
     const soldValues = metrics.topProducts.mostSold.map(p => p.count)
     if (soldValues.length >= 3) {
