@@ -104,6 +104,15 @@ export const createPaymentPreferenceSchema = z.object({
   orderId: objectIdSchema,
 })
 
+// ── Visit logging (menú público) ────────────────────────────────────────────
+
+const slugRegex = /^[a-z0-9-]{2,50}$/
+
+export const logVisitSchema = z.object({
+  tenantSlug: z.string().regex(slugRegex, 'Slug inválido'),
+  locationPath: z.string().optional(),
+})
+
 // ── Leads (landing pública) ──────────────────────────────────────────────────
 
 export const createLeadSchema = z.object({
