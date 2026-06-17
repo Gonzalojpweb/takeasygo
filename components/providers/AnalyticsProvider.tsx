@@ -29,6 +29,14 @@ export function AnalyticsProvider({ children, tenantId, tenantSlug }: AnalyticsP
       product: 'consumer',
       version: '1.0',
     })
+
+    // Log de visita al menú público via sendBeacon (fire-and-forget confiable)
+    const payload = JSON.stringify({
+      tenantSlug,
+      locationPath: window.location.pathname,
+    })
+    const blob = new Blob([payload], { type: 'application/json' })
+    navigator.sendBeacon('/api/visits/log', blob)
   }, [tenantId, tenantSlug])
 
   return <PostHogProvider client={posthog}>{children}</PostHogProvider>
