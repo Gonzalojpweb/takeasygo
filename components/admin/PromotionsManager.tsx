@@ -227,6 +227,27 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     return count
   }
 
+  function getLinkedItemsAllNoCustomizations(): boolean {
+    if (getTotalLinkedItems() === 0) return false
+    for (const cat of categories) {
+      if (form.linkedCategoryIds.includes(cat._id)) {
+        for (const item of cat.items) {
+          if (item.variants.length > 0 || item.customizationGroups.length > 0) return false
+        }
+      }
+    }
+    for (const itemId of form.linkedItemIds) {
+      if (categories.some(cat => form.linkedCategoryIds.includes(cat._id) && cat.items.some(i => i._id === itemId))) {
+        continue
+      }
+      for (const cat of categories) {
+        const item = cat.items.find(i => i._id === itemId)
+        if (item && (item.variants.length > 0 || item.customizationGroups.length > 0)) return false
+      }
+    }
+    return true
+  }
+
   // Override customization groups management
   function addOverrideGroup() {
     setForm(prev => ({
@@ -870,6 +891,14 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       </div>
                     )}
 
+                    {getTotalLinkedItems() > 0 && getLinkedItemsAllNoCustomizations() && (
+                      <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2">
+                        <span className="text-xs text-amber-600">
+                          ⚠ Los productos vinculados no tienen variantes ni personalizaciones. La promoción se agregará directamente al carrito sin solicitar personalización.
+                        </span>
+                      </div>
+                    )}
+
                     {/* Categories tree */}
                     {menuLoading ? (
                       <div className="text-center py-8 text-sm text-muted-foreground">Cargando menú...</div>
@@ -978,6 +1007,14 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       <p className="text-xs text-muted-foreground text-center py-3">
                         Sin customizaciones extra. La promo usará las que hereda de los productos vinculados.
                       </p>
+                    )}
+
+                    {form.overrideCustomizationGroups.length > 0 && getTotalLinkedItems() === 0 && (
+                      <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2">
+                        <span className="text-xs text-amber-600">
+                          ⚠ No hay productos vinculados. Las customizaciones extra se aplicarán a un item virtual con el nombre de la promoción, sin heredar variantes ni grupos de los productos.
+                        </span>
+                      </div>
                     )}
 
                     <div className="space-y-3">

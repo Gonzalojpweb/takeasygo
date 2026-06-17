@@ -358,6 +358,27 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   function addPromotionToCart(promotion: any) {
     // Determine linked items: nuevo array linkedItems o legacy linkedItem
     const linkedItems = promotion.linkedItems || (promotion.linkedItem ? [promotion.linkedItem] : [])
+
+    // Edge case: overrideCustomizationGroups without linked items
+    if (linkedItems.length === 0 && (promotion.overrideCustomizationGroups?.length ?? 0) > 0) {
+      const virtualItem = {
+        _id: `override:${promotion._id}`,
+        name: promotion.title,
+        price: promotion.price,
+        basePrice: promotion.price,
+        isPromotion: true,
+        _promotionId: promotion._id,
+        _promotionTitle: promotion.title,
+        _itemName: promotion.title,
+        customizationGroups: promotion.overrideCustomizationGroups.map((g: any, i: number) => ({
+          ...g,
+          _id: g._id || `og_${i}`,
+        })),
+      }
+      openCustomizationModal(virtualItem)
+      return
+    }
+
     const itemsWithCustomizations = linkedItems.filter(
       (li: any) => (li.customizationGroups?.length ?? 0) > 0 || (li.variants?.length ?? 0) > 0
     )

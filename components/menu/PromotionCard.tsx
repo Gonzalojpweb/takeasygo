@@ -220,7 +220,7 @@ export function PromotionCard({
 
               <div className="ml-auto">
                 {promoType === 'sale' ? (
-                  mode === 'takeaway' ? (
+                  mode === 'takeaway' || (mode === 'dine-in' && onAdd) ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); onAdd?.(promotion); capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, discount) }}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all flex-shrink-0"
@@ -423,7 +423,7 @@ export function PromotionCard({
                     </span>
                   )}
                 </div>
-                {mode === 'takeaway' && (
+                {(mode === 'takeaway' || (mode === 'dine-in' && onAdd)) && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onAdd?.(promotion); capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, discount) }}
                       className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-all flex-shrink-0"
