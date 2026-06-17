@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const Tenant = (await import('@/models/Tenant')).default
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id plan').lean() as any
   if (!tenant) {
-    return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: { 'Cache-Control': 'no-cache' } })
   }
 
   const todayStart = new Date()
@@ -64,9 +64,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       plan: tenant.plan,
       generatedAt: insights.length > 0 ? insights[0].generatedAt : null,
       total: insights.length,
+    }, {
+      headers: { 'Cache-Control': 's-maxage=600, stale-while-revalidate=300' },
     })
   } catch (error) {
     console.error('[TIA Insights]', error)
-    return NextResponse.json({ error: 'Error fetching insights' }, { status: 500 })
+    return NextResponse.json({ error: 'Error fetching insights' }, { status: 500, headers: { 'Cache-Control': 'no-cache' } })
   }
 }
