@@ -270,7 +270,7 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
       )}
 
       {/* Daily Insight Pro */}
-      <DailyInsightPro plan={plan} />
+      <DailyInsightPro plan={plan} insights={silData.insights} anomalies={silData.anomalies} recommendations={recommendations} />
     </div>
   )
 }

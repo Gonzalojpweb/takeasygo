@@ -149,5 +149,50 @@ function matchRule(i: Insight): Recommendation | null {
     )
   }
 
+  // ── 13. Churn — critical abandonment ────────────────────────────────────
+  if (i.type === 'historical' && i.category === 'operations' && i.metric === 'churn.rate' && i.severity === 'critical') {
+    return rec(i,
+      'Lanzar campaña de reenganche multicanal (email + SMS + push) con reward especial para clientes inactivos. Segmentar por tiempo sin compra.',
+      'Alto — reducir churn en 10% puede aumentar ingresos 25-30%.',
+      'operations',
+    )
+  }
+
+  // ── 14. Churn — warning ─────────────────────────────────────────────────
+  if (i.type === 'historical' && i.category === 'operations' && i.metric === 'churn.rate' && i.severity === 'warning') {
+    return rec(i,
+      'Activar secuencia de reengagement automática para clientes con +30 días sin compra.',
+      'Medio — prevenir el abandono temprano es más efectivo que recuperar.',
+      'club',
+    )
+  }
+
+  // ── 15. Low repeat purchase rate ────────────────────────────────────────
+  if (i.type === 'central_tendency' && i.category === 'conversion' && i.metric === 'recurrence.repeatRate' && i.severity !== 'info') {
+    return rec(i,
+      'Implementar reward por segunda compra. Ej: "Volvé y llevate 200 puntos bonus". Combinar con notificación push 7 días post-primera compra.',
+      'Alto — aumentar recompra en 10% duplica el valor del cliente.',
+      'club',
+    )
+  }
+
+  // ── 16. Club members spend more ─────────────────────────────────────────
+  if (i.type === 'central_tendency' && i.category === 'club' && i.metric === 'club.spendPerCustomer' && (i.changePercent ?? 0) > 0) {
+    return rec(i,
+      'Fortalecer call-to-action de membresía en checkout y menú. Los miembros generan mayor valor por cliente.',
+      'Alto — cada miembro nuevo incrementa el ticket promedio.',
+      'club',
+    )
+  }
+
+  // ── 17. Reward Advance boosts retention ─────────────────────────────────
+  if (i.type === 'central_tendency' && i.category === 'conversion' && i.metric === 'rewardAdvance.avgOrdersPerCustomer' && (i.changePercent ?? 0) > 0) {
+    return rec(i,
+      'Ofrecer Reward Advance automáticamente en checkout para clientes elegibles. Aumenta recurrencia y fidelización.',
+      'Medio — los usuarios de RA tienen mayor frecuencia de compra.',
+      'promotions',
+    )
+  }
+
   return null
 }
