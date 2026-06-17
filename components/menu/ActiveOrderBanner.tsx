@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { X, Package } from 'lucide-react'
+import { X, Package, Clock, CheckCircle, CookingPot, ShoppingBag, Truck } from 'lucide-react'
 
 const PENDING_ORDER_KEY = 'tgo-pending-order'
 const MAX_AGE_MS = 4 * 60 * 60 * 1000
@@ -15,8 +15,21 @@ interface PendingOrder {
   createdAt: number
 }
 
+type OrderStatus = 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
+
+const statusConfig: Record<OrderStatus, { label: string; icon: any; color: string; bg: string; ring: string }> = {
+  awaiting_payment: { label: 'Pendiente de pago', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', ring: 'ring-amber-500/30' },
+  pending:          { label: 'Pendiente', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', ring: 'ring-amber-500/30' },
+  confirmed:        { label: 'Confirmado', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/10', ring: 'ring-emerald-500/30' },
+  preparing:        { label: 'Preparando', icon: CookingPot, color: 'text-sky-400', bg: 'bg-sky-500/10', ring: 'ring-sky-500/30' },
+  ready:            { label: 'Listo', icon: ShoppingBag, color: 'text-emerald-400', bg: 'bg-emerald-500/10', ring: 'ring-emerald-500/30' },
+  delivered:        { label: 'Entregado', icon: Truck, color: 'text-zinc-400', bg: 'bg-zinc-500/10', ring: 'ring-zinc-500/30' },
+  cancelled:        { label: 'Cancelado', icon: X, color: 'text-red-400', bg: 'bg-red-500/10', ring: 'ring-red-500/30' },
+}
+
 export default function ActiveOrderBanner() {
   const [pending, setPending] = useState<PendingOrder | null>(null)
+  const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null)
   const [dismissed, setDismissed] = useState(false)
   const [checked, setChecked] = useState(false)
 
@@ -53,9 +66,13 @@ export default function ActiveOrderBanner() {
       fetch(`/api/${data.tenantSlug}/orders/verify-payment-by-number?orderNumber=${data.orderNumber}`, { cache: 'no-store' })
         .then(r => r.json())
         .then(res => {
-          if (res.status === 'confirmed' || res.status === 'preparing' || res.status === 'ready' || res.status === 'delivered' || res.status === 'cancelled') {
+          if (res.status === 'cancelled') {
             localStorage.removeItem(PENDING_ORDER_KEY)
             setPending(null)
+            return
+          }
+          if (res.status && res.status !== 'awaiting_payment') {
+            setOrderStatus(res.status)
           }
         })
         .catch(() => {})
@@ -67,19 +84,34 @@ export default function ActiveOrderBanner() {
 
   if (!checked || !pending || dismissed) return null
 
+  const cfg = orderStatus && orderStatus in statusConfig
+    ? statusConfig[orderStatus as OrderStatus]
+    : null
+
+  const StatusIcon = cfg?.icon || Package
+
   return (
     <div className="sticky top-0 z-50 w-full bg-zinc-900 border-b border-zinc-800">
       <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between gap-3">
         <Link
           href={`/${pending.tenantSlug}/tracking/${pending.orderNumber}`}
-          className="flex items-center gap-3 flex-1 min-w-0"
+          className="flex items-center gap-3 flex-1 min-w-0 group"
         >
-          <Package size={18} className="text-emerald-400 shrink-0" />
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ring-1 ${cfg ? cfg.ring : 'ring-white/10'} ${cfg ? cfg.bg : 'bg-white/5'}`}>
+            <StatusIcon size={16} className={cfg ? cfg.color : 'text-zinc-400'} />
+          </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white truncate">
               Pedido #{pending.orderNumber}
             </p>
-            <p className="text-[11px] text-zinc-400">Tocá para ver el seguimiento →</p>
+            <p className="text-[11px] flex items-center gap-1">
+              {cfg ? (
+                <span className={cfg.color}>{cfg.label}</span>
+              ) : (
+                <span className="text-zinc-400">Tocá para ver el seguimiento</span>
+              )}
+              <span className="text-zinc-600">→</span>
+            </p>
           </div>
         </Link>
         <button
