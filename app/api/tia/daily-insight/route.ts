@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
       plan: { $in: ['buy', 'full'] },
     }).select('_id plan name slug').lean() as any[]
 
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
+    const globalStart = Date.now()
+    console.log(`[DailyInsight] START — ${tenants.length} tenants to process`)
 
     const results: {
       tenantSlug: string
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     }[] = []
 
     for (const tenant of tenants) {
+      const tenantStart = Date.now()
       try {
         const metrics = await fetchDashboardMetrics(tenant._id.toString())
         const result = await runSilAnalysis(tenant._id.toString(), metrics)
@@ -85,6 +86,13 @@ export async function GET(request: NextRequest) {
           generatedAt: { $lt: thirtyDaysAgo },
         })
 
+        const elapsed = Date.now() - globalStart
+        const tenantElapsed = Date.now() - tenantStart
+        console.log(
+          `[DailyInsight] OK tenant=${tenant.slug} plan=${tenant.plan} ` +
+          `insights=${docs.length} ` +
+          `tenant=${tenantElapsed}ms cumulative=${elapsed}ms`
+        )
         results.push({
           tenantSlug: tenant.slug,
           tenantName: tenant.name,
@@ -92,7 +100,13 @@ export async function GET(request: NextRequest) {
           insightsGenerated: docs.length,
         })
       } catch (err) {
-        console.error(`[DailyInsight] Error processing tenant ${tenant.slug}:`, err)
+        const elapsed = Date.now() - globalStart
+        const tenantElapsed = Date.now() - tenantStart
+        console.error(
+          `[DailyInsight] ERROR tenant=${tenant.slug} ` +
+          `tenant=${tenantElapsed}ms cumulative=${elapsed}ms`,
+          err
+        )
         results.push({
           tenantSlug: tenant.slug,
           tenantName: tenant.name,
@@ -102,6 +116,13 @@ export async function GET(request: NextRequest) {
         })
       }
     }
+
+    const ok = results.filter(r => !r.errors).length
+    const failed = results.filter(r => r.errors).length
+    console.log(
+      `[DailyInsight] END — ${tenants.length} tenants, ${ok} ok, ${failed} errors, ` +
+      `total=${Date.now() - globalStart}ms`
+    )
 
     return NextResponse.json({
       success: true,
