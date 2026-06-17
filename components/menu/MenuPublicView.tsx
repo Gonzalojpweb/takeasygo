@@ -24,6 +24,7 @@ import { useClubMembership } from '@/hooks/useClubMembership'
 import { captureMenuOpened, captureDishAdded } from '@/lib/tia/events'
 import { motion } from 'framer-motion'
 import LocationBar from '@/components/menu/LocationBar'
+import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
 
 interface Props {
   tenant: any
@@ -998,6 +999,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           </div>
         </section>
       )}
+
+      {/* ── Order Lookup ── */}
+      <OrderLookupByPhone tenantSlug={tenant.slug} />
 
       {/* ── Footer ── */}
       <footer style={{ backgroundColor: '#1e293b' }}>
