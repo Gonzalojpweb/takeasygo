@@ -1,16 +1,20 @@
 'use client'
 
-import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
+import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import Link from 'next/link'
-import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag, ShoppingCart, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isAvailableNow } from '@/lib/availability'
 import { motion, AnimatePresence } from 'framer-motion'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
+import CustomizationModal from '@/components/menu/CustomizationModal'
 import { useClubMembership } from '@/hooks/useClubMembership'
-import { captureMenuOpened, captureDishViewed } from '@/lib/tia/events'
+import { captureMenuOpened, captureDishViewed, capturePromotionApplied } from '@/lib/tia/events'
 import LocationBar from '@/components/menu/LocationBar'
+import { toast } from 'sonner'
+import type { CartItem } from '@/types/cart'
 
 interface Props {
   tenant: any
@@ -78,6 +82,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const profile = tenant.profile ?? {}
   const applyGridToDineIn = branding.menuLayoutApplyTo === 'both' || branding.menuLayoutApplyTo === 'dine-in'
   const isGrid = applyGridToDineIn && branding.menuLayout === 'grid'
+  const router = useRouter()
 
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const [dark, setDark] = useState(false)
@@ -90,6 +95,13 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [showCartPopup, setShowCartPopup] = useState(false)
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [customizingItem, setCustomizingItem] = useState<any | null>(null)
+  const [promoItemSelection, setPromoItemSelection] = useState<{
+    promo: any
+    items: any[]
+    completedItemIds: string[]
+  } | null>(null)
 
   useEffect(() => {
     fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=dine-in`)
@@ -130,6 +142,159 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
 
   const featuredPromotions = promotions.filter(p => p.isFeatured)
   const regularPromotions = promotions.filter(p => !p.isFeatured)
+
+  // ── Promotion cart helpers ────────────────────────────────
+  function zeroExtraPrices(opts: any[]): any[] {
+    return opts.map((o: any) => ({
+      ...o,
+      extraPrice: 0,
+      subGroups: o.subGroups ? o.subGroups.map((sg: any) => ({
+        ...sg,
+        options: zeroExtraPrices(sg.options ?? []),
+      })) : undefined,
+    }))
+  }
+
+  function buildPromoCustomizationItem(item: any, promotion: any) {
+    return {
+      ...item,
+      _promotionId: promotion._id,
+      _promotionTitle: promotion.title,
+      _promotionDescription: promotion.description || '',
+      _promotionShortDescription: promotion.shortDescription || '',
+      _itemName: item.name,
+      _itemCategoryName: item.categoryName || '',
+      price: promotion.price,
+      basePrice: promotion.price,
+      isPromotion: true,
+      variants: (item.variants ?? []).map((v: any) => ({
+        ...v,
+        price: promotion.price,
+        takeawayPrice: promotion.price,
+      })),
+      customizationGroups: (item.customizationGroups ?? []).map((g: any) => ({
+        ...g,
+        options: zeroExtraPrices(g.options ?? []),
+      })),
+    }
+  }
+
+  function addPromotionToCart(promotion: any) {
+    const linkedItems = promotion.linkedItems || (promotion.linkedItem ? [promotion.linkedItem] : [])
+
+    // Edge case: overrideCustomizationGroups without linked items
+    if (linkedItems.length === 0 && (promotion.overrideCustomizationGroups?.length ?? 0) > 0) {
+      const virtualItem = {
+        _id: `override:${promotion._id}`,
+        name: promotion.title,
+        price: promotion.price,
+        basePrice: promotion.price,
+        isPromotion: true,
+        _promotionId: promotion._id,
+        _promotionTitle: promotion.title,
+        _itemName: promotion.title,
+        customizationGroups: promotion.overrideCustomizationGroups.map((g: any, i: number) => ({
+          ...g,
+          _id: g._id || `og_${i}`,
+        })),
+      }
+      setCustomizingItem({ ...virtualItem, customizationGroups: virtualItem.customizationGroups })
+      return
+    }
+
+    const itemsWithCustomizations = linkedItems.filter(
+      (li: any) => (li.customizationGroups?.length ?? 0) > 0 || (li.variants?.length ?? 0) > 0
+    )
+
+    if (itemsWithCustomizations.length === 0) {
+      const promoId = `promo:${promotion._id}`
+      setCart(prev => {
+        const existing = prev.find(i => i.cartItemId === promoId)
+        if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
+        return [...prev, {
+          cartItemId: promoId,
+          promotionId: promotion._id,
+          name: promotion.title,
+          basePrice: promotion.price,
+          extraPrice: 0,
+          price: promotion.price,
+          quantity: 1,
+          customizations: [],
+          customizationSummary: '',
+          addedFrom: 'menu',
+          type: 'promotion',
+        }]
+      })
+      toast.success(`${promotion.title} agregado al pedido`)
+      capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, promotion.originalPrice ? Math.round(((promotion.originalPrice - promotion.price) / promotion.originalPrice) * 100) : 0)
+      return
+    }
+
+    if (itemsWithCustomizations.length === 1) {
+      const item = itemsWithCustomizations[0]
+      setCustomizingItem(buildPromoCustomizationItem(item, promotion))
+      return
+    }
+
+    setPromoItemSelection({
+      promo: promotion,
+      items: itemsWithCustomizations,
+      completedItemIds: [],
+    })
+  }
+
+  function handleConfirmCustomization(cartItem: CartItem) {
+    if ((cartItem as any).isPromotion) {
+      const promoId = (cartItem as any)._promotionId
+      const itemName = (cartItem as any)._itemName || ''
+      const uniqueId = `promo:${promoId}:${itemName.replace(/\s+/g, '_') || Date.now()}`
+      const enrichedSummary = itemName && cartItem.customizationSummary
+        ? `${itemName} · ${cartItem.customizationSummary}`
+        : itemName || cartItem.customizationSummary || ''
+      const taggedItem: CartItem = {
+        ...cartItem,
+        cartItemId: uniqueId,
+        promotionId: promoId,
+        name: (cartItem as any)._promotionTitle,
+        customizationSummary: enrichedSummary,
+        type: 'promotion',
+        addedFrom: 'menu',
+      }
+      setCart(prev => {
+        const existing = prev.find(i => i.cartItemId === uniqueId)
+        if (existing) return prev.map(i => i.cartItemId === uniqueId ? { ...i, quantity: i.quantity + 1 } : i)
+        return [...prev, taggedItem]
+      })
+      setCustomizingItem(null)
+      if (promoItemSelection) {
+        const itemId = (cartItem as any)._id || itemName
+        setPromoItemSelection(prev => prev ? {
+          ...prev,
+          completedItemIds: [...prev.completedItemIds, itemId],
+        } : null)
+      }
+      toast.success(`${itemName} agregado a ${(cartItem as any)._promotionTitle}`)
+      return
+    }
+    setCustomizingItem(null)
+  }
+
+  function removeFromCart(cartItemId: string) {
+    setCart(prev => {
+      const existing = prev.find(i => i.cartItemId === cartItemId)
+      if (existing && existing.quantity > 1) return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity - 1 } : i)
+      return prev.filter(i => i.cartItemId !== cartItemId)
+    })
+  }
+
+  function goToCheckout() {
+    sessionStorage.setItem('cart', JSON.stringify(cart))
+    sessionStorage.setItem('mode', 'dine-in')
+    router.push(`/${tenant.slug}/menu/${location._id}/dine-in/checkout`)
+  }
+
+  const totalCartItems = cart.reduce((sum, i) => sum + i.quantity, 0)
+  const totalCartPrice = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
   async function switchToEnglish() {
     if (categories.length > 0 && hasMissingTranslations(categories)) {
@@ -353,6 +518,18 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             style={{ color: mutedText, border: `1.5px solid ${branding.primaryColor}40` }}>
             {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
+
+          {/* Cart button */}
+          {totalCartItems > 0 && (
+            <button
+              onClick={() => setShowCartPopup(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold text-xs flex-shrink-0"
+              style={{ backgroundColor: branding.primaryColor, color: '#fff' }}>
+              <ShoppingCart size={13} />
+              <span>{totalCartItems}</span>
+              <span>$ {totalCartPrice.toLocaleString('es-AR')}</span>
+            </button>
+          )}
 </div>
 
         {/* Promotions Section */}
@@ -368,6 +545,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                 <PromotionCarousel 
                   promotions={featuredPromotions}
                   tenantSlug={tenant.slug}
+                  onAdd={addPromotionToCart}
                   primary={branding.primaryColor}
                   bg={bg}
                   textColor={text}
@@ -391,6 +569,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
                 <PromotionCarousel 
                   promotions={regularPromotions}
                   tenantSlug={tenant.slug}
+                  onAdd={addPromotionToCart}
                   primary={branding.primaryColor}
                   bg={bg}
                   textColor={text}
@@ -731,6 +910,102 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── Customization modal ──────────────────────────── */}
+      {customizingItem && (
+        <CustomizationModal
+          item={{ ...customizingItem, price: customizingItem.price ?? 0, variants: customizingItem.variants ?? [] }}
+          onConfirm={handleConfirmCustomization}
+          onClose={() => setCustomizingItem(null)}
+          primaryColor={branding.primaryColor}
+          bgColor={bg}
+          textColor={text}
+          mode="dine-in"
+        />
+      )}
+
+      {/* ── Cart popup ───────────────────────────────────── */}
+      <AnimatePresence>
+        {showCartPopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+            onClick={() => setShowCartPopup(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 30 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+              className="w-full max-w-md bg-white rounded-3xl max-h-[80dvh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white border-b border-zinc-100 p-4 flex items-center justify-between rounded-t-3xl">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart size={18} className="text-zinc-800" />
+                  <h2 className="font-bold text-base text-zinc-900">Pedido</h2>
+                </div>
+                <button
+                  onClick={() => setShowCartPopup(false)}
+                  className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {cart.length === 0 && (
+                  <p className="text-sm text-zinc-400 text-center py-8">El pedido está vacío</p>
+                )}
+                {cart.map((item) => (
+                  <div key={item.cartItemId}
+                    className="flex items-start justify-between gap-2 p-3 rounded-2xl bg-zinc-50"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-zinc-800 truncate">{item.name}</p>
+                      {item.customizationSummary && (
+                        <p className="text-xs text-zinc-400 mt-0.5 truncate">{item.customizationSummary}</p>
+                      )}
+                      {item.quantity > 1 && (
+                        <p className="text-xs text-zinc-400 mt-0.5">Cantidad: {item.quantity}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="font-bold text-sm text-zinc-800">
+                        $ {(item.price * item.quantity).toLocaleString('es-AR')}
+                      </span>
+                      <button
+                        onClick={() => removeFromCart(item.cartItemId)}
+                        className="w-6 h-6 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-500 hover:bg-zinc-300 transition-colors"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {cart.length > 0 && (
+                <div className="sticky bottom-0 bg-white border-t border-zinc-100 p-4 rounded-b-3xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-zinc-500">Total</span>
+                    <span className="font-bold text-lg text-zinc-900">
+                      $ {totalCartPrice.toLocaleString('es-AR')}
+                    </span>
+                  </div>
+                  <button
+                    onClick={goToCheckout}
+                    className="w-full py-2.5 rounded-xl font-bold text-sm transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: branding.primaryColor, color: '#fff' }}
+                  >
+                    Ir a pagar
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Legal modal ────────────────────────────────────── */}
       <AnimatePresence>
