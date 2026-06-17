@@ -29,12 +29,12 @@ async function calcLayer(
 
   const [cancData, tppData, onTimeNew, onTimeFallback, actData7, actData30] = await Promise.all([
     Order.aggregate([
-      { $match: { tenantId, ...filter, createdAt: { $gte: start30 } } },
+      { $match: { tenantId, ...filter, deletedAt: null, createdAt: { $gte: start30 } } },
       { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
     ]),
     Order.aggregate([
       { $match: {
-        tenantId, ...filter,
+        tenantId, ...filter, deletedAt: null,
         createdAt: { $gte: start30 },
         [isScheduled ? 'statusTimestamps.preparingAt' : 'statusTimestamps.confirmedAt']: { $ne: null },
         'statusTimestamps.readyAt': { $ne: null },
@@ -50,12 +50,12 @@ async function calcLayer(
       { $group: { _id: null, avgMs: { $avg: '$tppMs' }, stdMs: { $stdDevPop: '$tppMs' }, count: { $sum: 1 } } },
     ]),
     Order.aggregate([
-      { $match: { tenantId, ...filter, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
+      { $match: { tenantId, ...filter, deletedAt: null, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
       { $project: { isOnTime: { $lte: ['$statusTimestamps.readyAt', '$statusTimestamps.estimatedReadyAt'] } } },
       { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } },
     ]),
     Order.aggregate([
-      { $match: { tenantId, ...filter, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': null } },
+      { $match: { tenantId, ...filter, deletedAt: null, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': null } },
       { $lookup: { from: 'locations', localField: 'locationId', foreignField: '_id', as: 'location' } },
       { $unwind: { path: '$location', preserveNullAndEmptyArrays: false } },
       { $project: { isOnTime: { $lte: [
@@ -64,8 +64,8 @@ async function calcLayer(
       ] } } },
       { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } },
     ]),
-    Order.countDocuments({ tenantId, ...filter, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
-    Order.countDocuments({ tenantId, ...filter, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
+    Order.countDocuments({ tenantId, ...filter, deletedAt: null, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
+    Order.countDocuments({ tenantId, ...filter, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
   ])
 
   const cRaw = cancData[0]
@@ -173,7 +173,7 @@ export async function GET(
 
     // Estabilidad horaria global (sección 5.6): días activos sobre TODOS los pedidos
     const globalActiveDaysData = await Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
       { $count: 'days' },
     ])

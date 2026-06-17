@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       ]),
 
       Order.aggregate([
-        { $match: { source: /^tgo-/i, status: { $ne: 'cancelled' }, createdAt: { $gte: startDate } } },
+        { $match: { deletedAt: null, source: /^tgo-/i, status: { $ne: 'cancelled' }, createdAt: { $gte: startDate } } },
         { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
       ]),
 

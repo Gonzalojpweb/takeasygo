@@ -130,6 +130,7 @@ export async function POST(
           {
             $match: {
               tenantId: tenant._id,
+              deletedAt: null,
               'customer.phoneHash': member.phoneHash,
               status: { $nin: ['cancelled'] },
             },

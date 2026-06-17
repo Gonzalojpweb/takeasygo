@@ -55,13 +55,13 @@ export async function GET(request: NextRequest) {
     }
 
     const [orders, total] = await Promise.all([
-      Order.find({ $or: orderFilter })
+      Order.find({ deletedAt: null, $or: orderFilter })
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .select('orderNumber status total items customer.name payment.status orderMode createdAt tenantId statusTimestamps')
         .lean(),
-      Order.countDocuments({ $or: orderFilter }),
+      Order.countDocuments({ deletedAt: null, $or: orderFilter }),
     ])
 
     // Enrich with tenant branding

@@ -18,6 +18,7 @@ export async function analyzeChurn(
     {
       $match: {
         tenantId: tid,
+        deletedAt: null,
         createdAt: { $gte: ninetyDaysAgo },
         status: { $nin: ['cancelled', 'open', 'awaiting_payment'] },
         'customer.phoneHash': { $exists: true, $ne: '' },
@@ -125,6 +126,7 @@ export async function analyzeRecurrence(
     {
       $match: {
         tenantId: tid,
+        deletedAt: null,
         createdAt: { $gte: ninetyDaysAgo },
         status: { $nin: ['cancelled', 'open', 'awaiting_payment'] },
         'customer.phoneHash': { $exists: true, $ne: '' },

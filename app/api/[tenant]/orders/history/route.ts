@@ -35,7 +35,7 @@ export async function GET(
     const to = sp.get('to') ?? ''
     const q = sp.get('q') ?? ''
 
-    const filter: Record<string, any> = { tenantId: tenant._id }
+    const filter: Record<string, any> = { tenantId: tenant._id, deletedAt: null }
 
     if (locationId) filter.locationId = locationId
     if (status) filter.status = status

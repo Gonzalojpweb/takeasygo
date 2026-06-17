@@ -36,6 +36,7 @@ export async function aggregateOrdersForRange(
   const allOrders = await Order.find({
     tenantId,
     locationId,
+    deletedAt: null,
     createdAt: { $gte: from, $lte: to },
   }).lean()
 

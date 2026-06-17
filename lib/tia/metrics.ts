@@ -221,11 +221,11 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     membersPrev30d,
   ] = await Promise.all([
     // Today's completed orders count
-    Order.countDocuments({ tenantId: tid, createdAt: { $gte: todayStart, $lte: todayEnd }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
+    Order.countDocuments({ tenantId: tid, deletedAt: null, createdAt: { $gte: todayStart, $lte: todayEnd }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
 
     // Today's revenue
     Order.aggregate([
-      { $match: { tenantId: tid, createdAt: { $gte: todayStart, $lte: todayEnd }, status: { $nin: ['cancelled'] } } },
+      { $match: { tenantId: tid, deletedAt: null, createdAt: { $gte: todayStart, $lte: todayEnd }, status: { $nin: ['cancelled'] } } },
       { $group: { _id: null, total: { $sum: '$total' } } },
     ]).then(r => r[0]?.total ?? 0),
 
@@ -233,35 +233,35 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     LoyaltyMember.countDocuments({ tenantId: tid, joinedAt: { $gte: todayStart, $lte: todayEnd } }),
 
     // Today's reward redemptions
-    Order.countDocuments({ tenantId: tid, createdAt: { $gte: todayStart, $lte: todayEnd }, rewardItems: { $exists: true, $not: { $size: 0 } } }),
+    Order.countDocuments({ tenantId: tid, deletedAt: null, createdAt: { $gte: todayStart, $lte: todayEnd }, rewardItems: { $exists: true, $not: { $size: 0 } } }),
 
     // Pending orders (not delivered/cancelled)
-    Order.countDocuments({ tenantId: tid, status: { $in: ['confirmed', 'preparing', 'pending'] } }),
+    Order.countDocuments({ tenantId: tid, deletedAt: null, status: { $in: ['confirmed', 'preparing', 'pending'] } }),
 
     // Orders last 7 days
-    Order.countDocuments({ tenantId: tid, createdAt: { $gte: sevenDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
+    Order.countDocuments({ tenantId: tid, deletedAt: null, createdAt: { $gte: sevenDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
 
     // Orders last 30 days
-    Order.countDocuments({ tenantId: tid, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
+    Order.countDocuments({ tenantId: tid, deletedAt: null, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
 
     // Orders previous 7 days (14-7 days ago)
-    Order.countDocuments({ tenantId: tid, createdAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
+    Order.countDocuments({ tenantId: tid, deletedAt: null, createdAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
 
     // Revenue last 7 days
     Order.aggregate([
-      { $match: { tenantId: tid, createdAt: { $gte: sevenDaysAgo }, status: { $nin: ['cancelled'] } } },
+      { $match: { tenantId: tid, deletedAt: null, createdAt: { $gte: sevenDaysAgo }, status: { $nin: ['cancelled'] } } },
       { $group: { _id: null, total: { $sum: '$total' } } },
     ]).then(r => r[0]?.total ?? 0),
 
     // Revenue last 30 days
     Order.aggregate([
-      { $match: { tenantId: tid, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled'] } } },
+      { $match: { tenantId: tid, deletedAt: null, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled'] } } },
       { $group: { _id: null, total: { $sum: '$total' } } },
     ]).then(r => r[0]?.total ?? 0),
 
     // Revenue previous 7 days
     Order.aggregate([
-      { $match: { tenantId: tid, createdAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo }, status: { $nin: ['cancelled'] } } },
+      { $match: { tenantId: tid, deletedAt: null, createdAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo }, status: { $nin: ['cancelled'] } } },
       { $group: { _id: null, total: { $sum: '$total' } } },
     ]).then(r => r[0]?.total ?? 0),
 
@@ -301,7 +301,7 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
 
   // Top products (most sold)
   const topSold = await Order.aggregate([
-    { $match: { tenantId: tid, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled'] } } },
+    { $match: { tenantId: tid, deletedAt: null, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled'] } } },
     { $unwind: '$items' },
     { $group: { _id: '$items.name', count: { $sum: '$items.quantity' }, revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
     { $sort: { count: -1 } },
@@ -311,7 +311,7 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
 
   // Category breakdown
   const categoryBreakdown = await Order.aggregate([
-    { $match: { tenantId: tid, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled'] } } },
+    { $match: { tenantId: tid, deletedAt: null, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled'] } } },
     { $unwind: '$items' },
     { $group: { _id: '$items.name', count: { $sum: '$items.quantity' }, revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
     { $sort: { count: -1 } },
@@ -322,7 +322,7 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
 
   // Daily historical (last 30 days)
   const dailyOrders = await Order.aggregate([
-    { $match: { tenantId: tid, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } } },
+    { $match: { tenantId: tid, deletedAt: null, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } } },
     { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 }, revenue: { $sum: '$total' } } },
     { $sort: { _id: 1 } },
   ])

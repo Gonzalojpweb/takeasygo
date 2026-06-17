@@ -59,6 +59,7 @@ export async function GET(
 
     const rawOrders = await Order.find({
       tenantId: tenant._id,
+      deletedAt: null,
       createdAt: { $gte: from, $lte: to },
     }).sort({ createdAt: -1 }).lean()
 

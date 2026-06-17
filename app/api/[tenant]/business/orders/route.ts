@@ -27,6 +27,7 @@ export async function GET(
 
     const filter: Record<string, any> = {
       tenantId: tenant._id,
+      deletedAt: null,
       orderMode: 'business',
     }
 

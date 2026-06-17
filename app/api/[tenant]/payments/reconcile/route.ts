@@ -33,6 +33,7 @@ export async function GET(
     
     const pendingOrders = await Order.find({
       tenantId: tenant._id,
+      deletedAt: null,
       'payment.status': 'pending',
       createdAt: { $gte: oneDayAgo }
     })

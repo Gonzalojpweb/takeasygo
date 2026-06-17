@@ -24,6 +24,7 @@ export async function computeMenuInsights(
     {
       tenantId,
       locationId,
+      deletedAt: null,
       'payment.status': 'approved',
       createdAt: { $gte: startDate },
     },

@@ -140,6 +140,7 @@ export interface IOrder extends Document {
   }
   createdAt: Date
   updatedAt: Date
+  deletedAt?: Date | null
 }
 
 const RewardRedemptionSchema = new Schema<IRewardRedemption>({
@@ -407,6 +408,7 @@ const OrderSchema = new Schema(
       },
       default: null,
     },
+    deletedAt: { type: Date, default: null, index: true },
   },
   {
     timestamps: true,

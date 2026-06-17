@@ -150,6 +150,7 @@ export async function PATCH(
     if (tenant.plan === 'trial' && status !== 'cancelled') {
       const activeCount = await Order.countDocuments({
         tenantId: tenant._id,
+        deletedAt: null,
         status: { $nin: ['cancelled'] },
       })
       milestoneReached = activeCount === 30

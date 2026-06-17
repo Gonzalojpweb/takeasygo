@@ -49,6 +49,7 @@ export async function GET(
 
       Order.find({
         tenantId: tenant._id,
+        deletedAt: null,
         'customer.phoneHash': member.phoneHash,
         $or: [
           { loyaltyPointsCredited: true },

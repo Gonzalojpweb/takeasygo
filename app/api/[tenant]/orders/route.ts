@@ -104,7 +104,7 @@ export async function GET(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const filter: Record<string, any> = { tenantId: tenant._id, status: { $ne: 'awaiting_payment' } }
+    const filter: Record<string, any> = { tenantId: tenant._id, deletedAt: null, status: { $ne: 'awaiting_payment' } }
     if (locationId) filter.locationId = locationId
 
     // Restrict by assignedLocations for non-admin users
@@ -233,6 +233,7 @@ export async function POST(
       const ph = hashPhone(body.customer.phone)
       const activeOrder = await Order.findOne({
         tenantId: tenant._id,
+        deletedAt: null,
         'customer.phoneHash': ph,
         status: { $in: ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready'] },
       }).select('orderNumber status').lean() as any

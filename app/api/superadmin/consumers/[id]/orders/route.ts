@@ -28,7 +28,7 @@ export async function GET(
     }
 
     // Find orders by phoneHash or emailHash
-    const orderFilter: Record<string, any> = {}
+    const orderFilter: Record<string, any> = { deletedAt: null }
     if (consumer.phoneHash) {
       orderFilter['customer.phoneHash'] = consumer.phoneHash
     }

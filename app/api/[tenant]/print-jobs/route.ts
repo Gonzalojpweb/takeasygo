@@ -33,6 +33,7 @@ export async function GET(
     const orders = await Order.find({
       tenantId: tenant._id,
       locationId,
+      deletedAt: null,
       printed: false,
       status: { $in: ['confirmed', 'preparing'] },
     })
