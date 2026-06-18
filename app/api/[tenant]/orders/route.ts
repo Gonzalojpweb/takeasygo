@@ -160,27 +160,54 @@ export async function POST(
       )
     }
     const body = parsed.data
+    const tenantId = tenant._id
+
+    function addSchedulingFilter(query: any) {
+      const now = new Date()
+      query.isEnabled = true
+      query.$and = [
+        { $or: [{ scheduledStart: null }, { scheduledStart: { $lte: now } }] },
+        { $or: [{ scheduledEnd: null }, { scheduledEnd: { $gte: now } }] },
+      ]
+      return query
+    }
 
     // Resolver QrPromo activa: 1) por slug, 2) por source, 3) última habilitada
+    // Incluye promos scope:'tenant' y scope:'global'
     if (body.qrPromoApplied && !activeQrPromo) {
       if (body.promoSlug) {
-        activeQrPromo = await QrPromo.findOne({
-          tenantId: tenant._id,
-          slug: body.promoSlug,
-          isEnabled: true,
-        }).lean()
+        activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
+          $or: [
+            { scope: 'tenant', tenantId },
+            { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }] },
+          ],
+          slug: body.promoSlug.toLowerCase().trim(),
+        })).sort({ createdAt: -1 }).lean()
       }
+
       if (!activeQrPromo && body.source) {
-        activeQrPromo = await QrPromo.findOne({
-          tenantId: tenant._id,
-          sourceTriggers: body.source,
-          isEnabled: true,
-        }).lean()
+        activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
+          scope: 'tenant', tenantId, sourceTriggers: body.source,
+        })).sort({ createdAt: -1 }).lean()
+        if (!activeQrPromo) {
+          activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
+            scope: 'global',
+            $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+            sourceTriggers: body.source,
+          })).sort({ createdAt: -1 }).lean()
+        }
       }
+
       if (!activeQrPromo) {
-        activeQrPromo = await QrPromo.findOne({ tenantId: tenant._id, isEnabled: true })
-          .sort({ createdAt: -1 })
-          .lean()
+        activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
+          scope: 'tenant', tenantId,
+        })).sort({ createdAt: -1 }).lean()
+        if (!activeQrPromo) {
+          activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
+            scope: 'global',
+            $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+          })).sort({ createdAt: -1 }).lean()
+        }
       }
     }
 

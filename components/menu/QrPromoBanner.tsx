@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Gift, Star, Info, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
@@ -47,6 +47,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   const [registered, setRegistered] = useState(false)
   const [error, setError] = useState('')
   const [loyaltyMsg, setLoyaltyMsg] = useState<LoyaltyMessaging | null>(null)
+  const resolvedSlug = useRef<string>('')
 
   useEffect(() => {
     checkPromo()
@@ -72,6 +73,9 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       const res = await fetch(apiUrl)
       const data = await res.json()
       if (data.show && data.promo) {
+        const slug = data.resolvedSlug || promoSlug
+        resolvedSlug.current = slug
+
         setPromo(data.promo)
         setShow(true)
         if (data.loyaltyMessaging) setLoyaltyMsg(data.loyaltyMessaging)
@@ -80,7 +84,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
             discountPercentage: data.promo.discountPercentage,
             tenantSlug,
             checkoutDiscountLabel: data.promo.checkoutDiscountLabel || 'Descuento QR',
-            promoSlug: promoSlug || undefined,
+            promoSlug: slug || undefined,
             source: source || undefined,
           }))
         }
@@ -97,7 +101,10 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
     fetch(`/api/${tenantSlug}/qr-promo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source }),
+      body: JSON.stringify({
+        source,
+        promoSlug: resolvedSlug.current || undefined,
+      }),
     })
   }
 

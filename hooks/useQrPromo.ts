@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import type { QrPromoData, LoyaltyMessaging } from '@/components/promo/types'
 
@@ -15,12 +15,13 @@ interface UseQrPromoReturn {
 export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
   const searchParams = useSearchParams()
   const source = searchParams?.get('source') || ''
-  const promoSlug = searchParams?.get('promo') || ''
+  const urlPromoSlug = searchParams?.get('promo') || ''
 
   const [show, setShow] = useState(false)
   const [promo, setPromo] = useState<QrPromoData | null>(null)
   const [loading, setLoading] = useState(true)
   const [loyaltyMsg, setLoyaltyMsg] = useState<LoyaltyMessaging | null>(null)
+  const resolvedSlug = useRef<string>('')
 
   const checkPromo = useCallback(async () => {
     let effectiveSource = source
@@ -36,19 +37,23 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
       return
     }
     try {
-      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${source}${promoSlug ? `&promo=${promoSlug}` : ''}&_=${Date.now()}`
+      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${source}${urlPromoSlug ? `&promo=${urlPromoSlug}` : ''}&_=${Date.now()}`
       const res = await fetch(apiUrl)
       const data = await res.json()
       if (data.show && data.promo) {
+        const slug = data.resolvedSlug || urlPromoSlug
+        resolvedSlug.current = slug
+
         setPromo(data.promo)
         setShow(true)
         if (data.loyaltyMessaging) setLoyaltyMsg(data.loyaltyMessaging)
+
         if (data.promo.type === 'discount') {
           sessionStorage.setItem('tgo-active-qr-promo', JSON.stringify({
             discountPercentage: data.promo.discountPercentage,
             tenantSlug,
             checkoutDiscountLabel: data.promo.checkoutDiscountLabel || 'Descuento QR',
-            promoSlug: promoSlug || undefined,
+            promoSlug: slug || undefined,
             source: source || undefined,
           }))
         }
@@ -58,7 +63,7 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
     } finally {
       setLoading(false)
     }
-  }, [tenantSlug, source, promoSlug])
+  }, [tenantSlug, source, urlPromoSlug])
 
   useEffect(() => {
     checkPromo()
@@ -71,7 +76,10 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
     fetch(`/api/${tenantSlug}/qr-promo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source }),
+      body: JSON.stringify({
+        source,
+        promoSlug: resolvedSlug.current || undefined,
+      }),
     })
   }, [tenantSlug, source])
 

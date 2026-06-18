@@ -5,6 +5,9 @@ import QrPromoView from '@/models/QrPromoView'
 import { NextRequest, NextResponse } from 'next/server'
 
 interface PromoShape {
+  _id: string
+  slug: string
+  scope: string
   isEnabled: boolean
   type: string
   discountPercentage: number
@@ -60,10 +63,10 @@ export async function GET(
     const tenantId = tenant._id
 
     // ── Helper to find a matching promo with scheduling filter ──────────
-    async function findPromo(query: any): Promise<PromoShape | null> {
+    async function findPromo(query: any, sort?: Record<string, 1 | -1>): Promise<PromoShape | null> {
       query.isEnabled = true
       addSchedulingFilter(query)
-      const found = await QrPromo.findOne(query).lean()
+      const found = await QrPromo.findOne(query).sort(sort || { createdAt: -1 }).lean()
       return found
     }
 
@@ -113,9 +116,15 @@ export async function GET(
     }
 
     // 4) Legacy fallback
-    if (!qrPromoConfig) {
-      qrPromoConfig = tenant.qrPromo
-      if (qrPromoConfig?.isEnabled) matchedBy = 'legacy'
+    if (!qrPromoConfig && (tenant as any).qrPromo?.isEnabled) {
+      const legacy = (tenant as any).qrPromo
+      qrPromoConfig = {
+        _id: 'legacy',
+        slug: 'legacy',
+        scope: 'tenant',
+        ...legacy,
+      }
+      matchedBy = 'legacy'
     }
 
     if (!qrPromoConfig || !qrPromoConfig.isEnabled) {
@@ -124,21 +133,26 @@ export async function GET(
 
     const forwarded = request.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown'
+    const promoId = qrPromoConfig._id
+    const resolvedSlug = qrPromoConfig.slug
 
     if (qrPromoConfig.frequency !== 'every_visit') {
+      const viewFilter: Record<string, any> = {
+        tenantId: tenant._id,
+        ip,
+        promoId,
+      }
+
       if (qrPromoConfig.frequency === 'once') {
-        const existingView = await QrPromoView.findOne({ tenantId: tenant._id, ip })
+        const existingView = await QrPromoView.findOne(viewFilter)
         if (existingView) {
           return NextResponse.json({ show: false, reason: 'already_viewed' })
         }
       } else if (qrPromoConfig.frequency === 'daily') {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
-        const existingView = await QrPromoView.findOne({
-          tenantId: tenant._id,
-          ip,
-          viewedAt: { $gte: today }
-        })
+        viewFilter.viewedAt = { $gte: today }
+        const existingView = await QrPromoView.findOne(viewFilter)
         if (existingView) {
           return NextResponse.json({ show: false, reason: 'already_viewed_today' })
         }
@@ -154,7 +168,9 @@ export async function GET(
         ...qrPromoConfig,
         subtitle,
         discountPercentage: discountPct,
+        slug: resolvedSlug,
       },
+      resolvedSlug,
       loyaltyMessaging: tenant.loyaltyMessaging,
       tenantName: tenant.name,
     })
@@ -171,7 +187,7 @@ export async function POST(
   try {
     const { tenant: tenantSlug } = await params
     const body = await request.json()
-    const { source } = body
+    const { source, promoSlug } = body
 
     const forwarded = request.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown'
@@ -184,19 +200,57 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    const activePromo = await QrPromo.findOne({
-      scope: 'tenant',
-      tenantId: tenant._id,
-      isEnabled: true,
-    }).sort({ createdAt: -1 }).lean()
+    const tenantId = tenant._id
+
+    async function findPromo(query: any): Promise<any> {
+      query.isEnabled = true
+      addSchedulingFilter(query)
+      return QrPromo.findOne(query).sort({ createdAt: -1 }).lean()
+    }
+
+    let resolvedPromo: any = null
+
+    if (promoSlug) {
+      resolvedPromo = await findPromo({
+        $or: [
+          { scope: 'tenant', tenantId },
+          { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }] },
+        ],
+        slug: promoSlug.toLowerCase().trim(),
+      })
+    }
+
+    if (!resolvedPromo && source) {
+      resolvedPromo = await findPromo({ scope: 'tenant', tenantId, sourceTriggers: source })
+      if (!resolvedPromo) {
+        resolvedPromo = await findPromo({
+          scope: 'global',
+          $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+          sourceTriggers: source,
+        })
+      }
+    }
+
+    if (!resolvedPromo) {
+      resolvedPromo = await findPromo({ scope: 'tenant', tenantId })
+      if (!resolvedPromo) {
+        resolvedPromo = await findPromo({
+          scope: 'global',
+          $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+        })
+      }
+    }
 
     await QrPromoView.create({
-      tenantId: tenant._id,
+      tenantId,
+      promoId: resolvedPromo?._id || null,
+      promoSlug: resolvedPromo?.slug || promoSlug || '',
+      scope: resolvedPromo?.scope || 'tenant',
       ip,
       userAgent,
-      source,
+      source: source || '',
       viewedAt: new Date(),
-      discountPercentage: activePromo?.discountPercentage || 0,
+      discountPercentage: resolvedPromo?.discountPercentage || 0,
     })
 
     return NextResponse.json({ success: true })
