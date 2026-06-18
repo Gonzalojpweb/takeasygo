@@ -1,23 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, AlertCircle, Loader2, Coins, Globe, Link as LinkIcon } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Loader2, Coins, Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
   enabled: boolean
   defaultCryptoNetworkId: number | null
-  defaultUsePaymentLinks: boolean
 }
 
 export default function PlatformKriptonSettings({
   enabled: initialEnabled,
   defaultCryptoNetworkId: initialNetworkId,
-  defaultUsePaymentLinks: initialUseLinks,
 }: Props) {
   const [kriptonEnabled, setKriptonEnabled] = useState(initialEnabled)
   const [defaultCryptoNetworkId, setDefaultCryptoNetworkId] = useState(String(initialNetworkId ?? ''))
-  const [defaultUsePaymentLinks, setDefaultUsePaymentLinks] = useState(initialUseLinks)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -33,7 +30,6 @@ export default function PlatformKriptonSettings({
         kripton: {
           enabled: kriptonEnabled,
           defaultCryptoNetworkId: defaultCryptoNetworkId ? Number(defaultCryptoNetworkId) : null,
-          defaultUsePaymentLinks,
         },
       }
 
@@ -79,7 +75,6 @@ export default function PlatformKriptonSettings({
       </div>
 
       <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
-        {/* Toggle habilitado */}
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -93,7 +88,6 @@ export default function PlatformKriptonSettings({
           </div>
         </label>
 
-        {/* Red por defecto */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
             <Globe size={12} /> Red Crypto por defecto (ID)
@@ -107,24 +101,6 @@ export default function PlatformKriptonSettings({
           />
           <p className="text-[10px] text-muted-foreground">
             10 = USDT BEP20 (recomendado). Usado como fallback cuando el tenant no especifica una red.
-          </p>
-        </div>
-
-        {/* Modo por defecto */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-            <LinkIcon size={12} /> Método por defecto
-          </label>
-          <select
-            value={defaultUsePaymentLinks ? 'links' : 'direct'}
-            onChange={(e) => setDefaultUsePaymentLinks(e.target.value === 'links')}
-            className="w-full bg-muted/30 border border-border/60 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-          >
-            <option value="links">Payment Links (recomendado)</option>
-            <option value="direct">Pagos directos</option>
-          </select>
-          <p className="text-[10px] text-muted-foreground">
-            Links: el cliente elige moneda. Directo: requiere red fija configurada.
           </p>
         </div>
 

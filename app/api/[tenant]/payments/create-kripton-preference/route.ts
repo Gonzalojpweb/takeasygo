@@ -5,7 +5,7 @@ import PlatformConfig from '@/models/PlatformConfig'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { z } from 'zod'
-import { createPaymentLink, createPayment, getKriptonClient } from '@/lib/kripton'
+import { createPayment, getKriptonClient } from '@/lib/kripton'
 
 const createKriptonPreferenceSchema = z.object({
   orderId: z.string().min(1, 'orderId es requerido'),
@@ -47,55 +47,29 @@ export async function POST(
 
     const { apiKey } = await getKriptonClient(tenantSlug)
     const baseUrl = request.nextUrl.origin
-    const usePaymentLinks = tenant.kripton?.usePaymentLinks ?? true
 
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
+    const cryptoNetworkId = tenant.kripton?.cryptoNetworkId
+      ?? platformConfig?.kripton?.defaultCryptoNetworkId
+      ?? 10
 
-    let url: string
-    let method: string
-    let externalCode: string | null = null
-    let token: string | null = null
+    const result = await createPayment(apiKey, {
+      crypto_network_id: cryptoNetworkId,
+      amount: order.total,
+      fiat: 'ars',
+      description: `Pedido #${order.orderNumber}`,
+      success_url: `${baseUrl}/${tenantSlug}/order-success/${order.orderNumber}`,
+      cancel_url: `${baseUrl}/${tenantSlug}/order-failure/${order.orderNumber}`,
+      notify_url: `${baseUrl}/api/webhooks/kripton/${tenantSlug}`,
+    })
 
-    if (usePaymentLinks) {
-      const result = await createPaymentLink(apiKey, {
-        amount: order.total,
-        currency_id: 'ars',
-        success_url: `${baseUrl}/${tenantSlug}/order-success/${order.orderNumber}`,
-        cancel_url: `${baseUrl}/${tenantSlug}/order-failure/${order.orderNumber}`,
-        notify_url: `${baseUrl}/api/webhooks/kripton/${tenantSlug}`,
-        minutes_to_expire: 30,
-        description: `Pedido #${order.orderNumber}`,
-      })
-      url = result.url
-      token = result.token
-      method = 'payment_link'
-    } else {
-      const cryptoNetworkId = tenant.kripton?.cryptoNetworkId
-        ?? platformConfig?.kripton?.defaultCryptoNetworkId
-        ?? 10
-
-      const result = await createPayment(apiKey, {
-        crypto_network_id: cryptoNetworkId,
-        amount: order.total,
-        fiat: 'ars',
-        description: `Pedido #${order.orderNumber}`,
-        success_url: `${baseUrl}/${tenantSlug}/order-success/${order.orderNumber}`,
-        cancel_url: `${baseUrl}/${tenantSlug}/order-failure/${order.orderNumber}`,
-        notify_url: `${baseUrl}/api/webhooks/kripton/${tenantSlug}`,
-      })
-      url = result.url
-      externalCode = result.external_code
-      token = result.external_code
-      method = 'payment'
-    }
-
-    order.payment.kriptonExternalCode = externalCode || token
-    order.payment.kriptonToken = token
+    order.payment.kriptonExternalCode = result.external_code
+    order.payment.kriptonToken = result.external_code
     await order.save()
 
     return NextResponse.json({
-      url,
-      method,
+      url: result.url,
+      method: 'payment',
     })
   } catch (error: any) {
     console.error('[create-kripton-preference] error:', error)

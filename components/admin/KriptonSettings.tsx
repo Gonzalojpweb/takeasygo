@@ -17,7 +17,7 @@ interface Props {
 export default function KriptonSettings({ tenantSlug, isConfigured }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ apiKey: '', cryptoNetworkId: '10', usePaymentLinks: true })
+  const [form, setForm] = useState({ apiKey: '', cryptoNetworkId: '10' })
   const [editing, setEditing] = useState(!isConfigured)
 
   async function handleSave(e: React.FormEvent) {
@@ -30,7 +30,6 @@ export default function KriptonSettings({ tenantSlug, isConfigured }: Props) {
         body: JSON.stringify({
           apiKey: form.apiKey,
           cryptoNetworkId: form.cryptoNetworkId ? Number(form.cryptoNetworkId) : null,
-          usePaymentLinks: form.usePaymentLinks,
         }),
       })
       if (!res.ok) throw new Error()
@@ -144,43 +143,22 @@ export default function KriptonSettings({ tenantSlug, isConfigured }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className={labelCls}>
-                  <div className="flex items-center gap-2">
-                    <Coins size={10} /> Red Crypto (ID)
-                  </div>
-                </label>
-                <input
-                  type="number"
-                  value={form.cryptoNetworkId}
-                  onChange={e => setForm(p => ({ ...p, cryptoNetworkId: e.target.value }))}
-                  placeholder="10 (USDT BEP20)"
-                  className={inputCls}
-                />
-                <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
-                  10 = USDT BEP20 (recomendado). Solo aplica si usás pagos directos.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className={labelCls}>
-                  <div className="flex items-center gap-2">
-                    <ExternalLink size={10} /> Método de pago
-                  </div>
-                </label>
-                <select
-                  value={form.usePaymentLinks ? 'links' : 'direct'}
-                  onChange={e => setForm(p => ({ ...p, usePaymentLinks: e.target.value === 'links' }))}
-                  className={inputCls}
-                >
-                  <option value="links">Payment Links (recomendado)</option>
-                  <option value="direct">Pagos directos</option>
-                </select>
-                <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
-                  Links: el cliente elije moneda al pagar. Directo: requiere red fija.
-                </p>
-              </div>
+            <div className="space-y-2">
+              <label className={labelCls}>
+                <div className="flex items-center gap-2">
+                  <Coins size={10} /> Red Crypto (ID)
+                </div>
+              </label>
+              <input
+                type="number"
+                value={form.cryptoNetworkId}
+                onChange={e => setForm(p => ({ ...p, cryptoNetworkId: e.target.value }))}
+                placeholder="10 (USDT BEP20)"
+                className={inputCls}
+              />
+              <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
+                10 = USDT BEP20 (recomendado). Si no se especifica, usa el default del superadmin.
+              </p>
             </div>
 
             <div className="flex items-center gap-3 pt-6 border-t border-border/40">

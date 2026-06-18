@@ -47,7 +47,6 @@ export default async function SuperAdminConfigPage() {
       <PlatformKriptonSettings
         enabled={kripton.enabled ?? false}
         defaultCryptoNetworkId={kripton.defaultCryptoNetworkId ?? null}
-        defaultUsePaymentLinks={kripton.defaultUsePaymentLinks ?? true}
       />
 
     </div>
