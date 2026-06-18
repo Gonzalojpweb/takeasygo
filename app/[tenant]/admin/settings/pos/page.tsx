@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Copy,
   Trash2,
-  Plus
+  Plus,
+  Tag
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -35,9 +36,14 @@ export default function POSSettingsPage() {
     hasWebhookSecret: false
   })
 
+  // ── Locations ──────────────────────────────────────────────────────────────
+  const [locations, setLocations] = useState<any[]>([])
+  const [selectedLocationId, setSelectedLocationId] = useState<string>('')
+
   // State for Section 2: Mapping
   const [catalog, setCatalog] = useState<any[]>([])
   const [menuItems, setMenuItems] = useState<any[]>([])
+  const [promotions, setPromotions] = useState<any[]>([])
   const [mapping, setMapping] = useState<any[]>([])
   const [syncingCatalog, setSyncingCatalog] = useState(false)
 
@@ -47,22 +53,42 @@ export default function POSSettingsPage() {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchData()
+    loadLocations()
   }, [tenant])
+
+  async function loadLocations() {
+    try {
+      const res = await fetch(`/api/${tenant}/locations`)
+      if (res.ok) {
+        const data = await res.json()
+        const locs = data.locations || data || []
+        setLocations(locs)
+        if (locs.length > 0) setSelectedLocationId(locs[0]._id)
+      }
+    } catch {
+      // silently fail
+    }
+  }
+
+  useEffect(() => {
+    if (selectedLocationId) fetchData()
+  }, [tenant, selectedLocationId])
 
   async function fetchData() {
     setLoading(true)
     try {
-      const [confRes, mapRes, menuRes, keysRes] = await Promise.all([
+      const [confRes, mapRes, menuRes, promoRes, keysRes] = await Promise.all([
         fetch(`/api/${tenant}/settings/pos`),
         fetch(`/api/${tenant}/settings/pos/mapping`),
-        fetch(`/api/${tenant}/menu`),
+        fetch(`/api/${tenant}/menu?locationId=${selectedLocationId}`),
+        fetch(`/api/${tenant}/menu/${selectedLocationId}/promotions`),
         fetch(`/api/${tenant}/settings/api-keys`)
       ])
 
       const conf = await confRes.json()
       const maps = await mapRes.json()
       const menu = await menuRes.json()
+      const promoData = await promoRes.json()
       const keys = await keysRes.json()
 
       setConfig(prev => ({ 
@@ -86,6 +112,11 @@ export default function POSSettingsPage() {
         })
       }
       setMenuItems(items)
+
+      // Promociones vigentes tipo 'sale' para mapeo POS
+      const promos: any[] = (promoData.promotions || []).filter((p: any) => p.type === 'sale')
+      setPromotions(promos)
+
       setApiKeys(keys.keys || [])
 
     } catch (error) {
@@ -402,19 +433,35 @@ export default function POSSettingsPage() {
         {/* COLUMNA 2-3: MAPEO DE PRODUCTOS */}
         <div className="lg:col-span-2">
           <section className="bg-card border rounded-xl overflow-hidden shadow-sm h-full flex flex-col">
-            <div className="p-4 border-b bg-muted/30 font-semibold flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4" />
-                Mapeo de Productos
+            <div className="p-4 border-b bg-muted/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 font-semibold">
+                  <RefreshCw className="w-4 h-4" />
+                  Mapeo de Productos
+                </div>
+                <button 
+                  onClick={handleSyncCatalog}
+                  disabled={syncingCatalog || config.provider === 'none'}
+                  className="text-xs py-1 px-3 rounded-lg bg-background border hover:bg-muted flex items-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  {syncingCatalog ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                  Sincronizar Catálogo POS
+                </button>
               </div>
-              <button 
-                onClick={handleSyncCatalog}
-                disabled={syncingCatalog || config.provider === 'none'}
-                className="text-xs py-1 px-3 rounded-lg bg-background border hover:bg-muted flex items-center gap-2 transition-colors disabled:opacity-50"
-              >
-                {syncingCatalog ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                Sincronizar Catálogo POS
-              </button>
+              {locations.length > 1 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Sede:</span>
+                  <select
+                    value={selectedLocationId}
+                    onChange={e => setSelectedLocationId(e.target.value)}
+                    className="px-2 py-1 rounded-lg border bg-background text-xs"
+                  >
+                    {locations.map(loc => (
+                      <option key={loc._id} value={loc._id}>{loc.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             
             <div className="flex-1 overflow-auto">
@@ -422,15 +469,16 @@ export default function POSSettingsPage() {
                 <thead className="bg-muted/50 sticky top-0">
                   <tr>
                     <th className="p-4 text-left font-semibold text-xs uppercase tracking-wider">Producto TakeasyGO</th>
-                    <th className="p-4 text-left font-semibold text-xs uppercase tracking-wider">Categoría</th>
+                    <th className="p-4 text-left font-semibold text-xs uppercase tracking-wider">Tipo</th>
                     <th className="p-4 text-left font-semibold text-xs uppercase tracking-wider">Vincular con Producto en POS ({config.provider.toUpperCase()})</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
+                  {/* Items de menú */}
                   {menuItems.map((item) => {
                     const currentMap = mapping.find(m => m.takeasyGoItemId === item._id)
                     return (
-                      <tr key={item._id} className="hover:bg-muted/30 transition-colors">
+                      <tr key={`item:${item._id}`} className="hover:bg-muted/30 transition-colors">
                         <td className="p-4 flex items-center gap-3">
                           {item.image && (
                             <img src={item.image} className="w-10 h-10 rounded-lg object-cover bg-muted" alt="" />
@@ -447,7 +495,6 @@ export default function POSSettingsPage() {
                             onChange={(e) => {
                               const posItemId = e.target.value
                               const posItemName = catalog.find(c => c.posItemId === posItemId)?.name || ''
-                              
                               const newMapping = mapping.filter(m => m.takeasyGoItemId !== item._id)
                               if (posItemId) {
                                 newMapping.push({
@@ -470,10 +517,71 @@ export default function POSSettingsPage() {
                       </tr>
                     )
                   })}
-                  {menuItems.length === 0 && (
+
+                  {/* Promociones tipo 'sale' */}
+                  {promotions.length > 0 && (
+                    <tr className="bg-muted/10">
+                      <td colSpan={3} className="p-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <Tag className="w-3 h-3" /> Promociones activas
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                  {promotions.map((promo) => {
+                    const currentMap = mapping.find(m => m.promotionId === promo._id)
+                    return (
+                      <tr key={`promo:${promo._id}`} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-4 flex items-center gap-3">
+                          {promo.imageUrl && (
+                            <img src={promo.imageUrl} className="w-10 h-10 rounded-lg object-cover bg-muted" alt="" />
+                          )}
+                          <div className="flex flex-col">
+                            <span className="font-medium">{promo.title}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              ${promo.price.toLocaleString('es-AR')}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="text-[10px] px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                            Promoción
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <select 
+                            className={`w-full p-2 rounded-lg border bg-background text-xs ${!currentMap ? 'border-amber-500/50 bg-amber-500/5' : ''}`}
+                            value={currentMap?.posItemId || ''}
+                            onChange={(e) => {
+                              const posItemId = e.target.value
+                              const posItemName = catalog.find(c => c.posItemId === posItemId)?.name || ''
+                              const newMapping = mapping.filter(m => m.promotionId !== promo._id)
+                              if (posItemId) {
+                                newMapping.push({
+                                  promotionId: promo._id,
+                                  posItemId,
+                                  posItemName
+                                })
+                              }
+                              setMapping(newMapping)
+                            }}
+                          >
+                            <option value="">No vinculado (Inyectar por nombre)</option>
+                            {catalog.map((c) => (
+                              <option key={c.posItemId} value={c.posItemId}>
+                                {c.name} - ${c.price}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    )
+                  })}
+
+                  {menuItems.length === 0 && promotions.length === 0 && (
                     <tr>
                       <td colSpan={3} className="p-12 text-center text-muted-foreground italic">
-                        Carga productos en tu menú antes de realizar el mapeo.
+                        Carga productos y promociones en tu menú antes de realizar el mapeo.
                       </td>
                     </tr>
                   )}
@@ -484,11 +592,11 @@ export default function POSSettingsPage() {
             <div className="p-6 border-t bg-muted/30 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <AlertCircle className="w-4 h-4" />
-                Los productos no vinculados se inyectarán usando su nombre de TakeasyGO.
+                Los productos y promociones no vinculados se inyectarán usando su nombre de TakeasyGO.
               </div>
               <button 
                 onClick={handleSaveMapping}
-                disabled={saving || menuItems.length === 0}
+                disabled={saving}
                 className="py-2 px-8 rounded-lg bg-primary text-primary-foreground font-semibold flex items-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50"
               >
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

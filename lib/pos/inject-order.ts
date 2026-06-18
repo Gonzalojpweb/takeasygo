@@ -20,6 +20,8 @@
 
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
+import Promotion from '@/models/Promotion'
+import Menu from '@/models/Menu'
 import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { getPOSConnector } from '@/lib/pos'
 import { logAudit } from '@/lib/audit'
@@ -71,28 +73,37 @@ interface BuildResult {
 }
 
 function buildPOSPayload(order: any, tenant: ITenant): BuildResult {
-  // El productMapping convierte los IDs de TakeasyGO a los IDs del POS
-  const mapping = new Map<string, { posItemId: string; posItemName: string }>(
-    (tenant.posIntegration?.productMapping ?? []).map(m => [
-      m.takeasyGoItemId,
-      { posItemId: m.posItemId, posItemName: m.posItemName },
-    ])
-  )
+  // El productMapping soporta dos claves:
+  //   takeasyGoItemId → para items de menú regulares
+  //   promotionId     → para promociones (itemType === 'promotion')
+  // Construimos el Map con ambas claves para resolución directa.
+  const mapping = new Map<string, { posItemId: string; posItemName: string }>()
+  for (const m of (tenant.posIntegration?.productMapping ?? [])) {
+    if (m.takeasyGoItemId) {
+      mapping.set(m.takeasyGoItemId, { posItemId: m.posItemId, posItemName: m.posItemName })
+    }
+    if (m.promotionId) {
+      mapping.set(m.promotionId, { posItemId: m.posItemId, posItemName: m.posItemName })
+    }
+  }
 
   const items: POSOrderPayload['items'] = []
   const unmappedNames: string[] = []
 
   for (const item of order.items) {
-    const itemId = item.menuItemId?.toString() ?? ''
+    // Resolver clave de mapping según el tipo de item
+    const isPromotion = item.itemType === 'promotion' || !!item.promotionId
+    const itemId = isPromotion
+      ? (item.promotionId?.toString() ?? '')
+      : (item.menuItemId?.toString() ?? '')
+
     const mapped = mapping.get(itemId)
 
-    // Rastrear items sin mapeo para alertar al admin
-    if (!mapped && itemId) {
-      unmappedNames.push(item.name)
+    if (!mapped) {
+      // Rastrear items sin mapeo para alertar al admin
+      unmappedNames.push(`${item.name} (${isPromotion ? 'promoción' : 'menú'})`)
     }
 
-    // Si el item no tiene mapeo, lo inyectamos por nombre (fallback)
-    // FUDO permite esto pero es menos confiable
     const variantModifier = item.selectedVariant
       ? [{ name: item.selectedVariant.name, extraPrice: 0 }]
       : []
@@ -126,6 +137,145 @@ function buildPOSPayload(order: any, tenant: ITenant): BuildResult {
     },
     unmappedNames,
   }
+}
+
+// ── Expansión de promociones en items individuales ─────────────────────────────
+// Cuando una promoción no tiene mapeo directo (promotionId → posItemId),
+// se intenta expandirla en sus items vinculados (linkedCategoryIds / linkedItemIds)
+// para que el POS reciba items individuales en lugar de un combo genérico.
+
+interface ExpansionItem {
+  name: string
+  quantity: number
+  unitPrice: number
+  categoryName: string
+}
+
+async function expandUnmappedPromotions(
+  order: any,
+  tenant: ITenant,
+  currentItems: POSOrderPayload['items'],
+  currentUnmapped: string[]
+): Promise<{ items: POSOrderPayload['items']; unmapped: string[] }> {
+  const promoItems: { index: number; item: any }[] = []
+
+  for (let i = 0; i < order.items.length; i++) {
+    const it = order.items[i]
+    if ((it.itemType === 'promotion' || !!it.promotionId) && it.menuItemId == null) {
+      promoItems.push({ index: i, item: it })
+    }
+  }
+
+  if (promoItems.length === 0) return { items: currentItems, unmapped: currentUnmapped }
+
+  // Cargar las promociones de la orden
+  const promoIds = promoItems.map(p => p.item.promotionId?.toString()).filter(Boolean)
+  const promotions = await Promotion.find({ _id: { $in: promoIds } }).lean()
+
+  // Cargar el menú para resolver linkedItemIds / linkedCategoryIds
+  const menu = await Menu.findOne({ tenantId: tenant._id, locationId: order.locationId }).lean() as any
+  const menuCats: any[] = menu?.categories ?? []
+
+  const promoMap = new Map(promotions.map(p => [p._id.toString(), p]))
+
+  // expandedCounts: cuántos items POS genera cada promoción en promoItems
+  const expandedCounts: number[] = []
+  const expandedBatches: POSOrderPayload['items'][] = []
+  const resolvedUnmapped: string[] = []
+
+  for (const { index, item } of promoItems) {
+    const promo = promoMap.get(item.promotionId?.toString() ?? '')
+    if (!promo) {
+      expandedCounts.push(1)
+      expandedBatches.push([currentItems[index]])
+      resolvedUnmapped.push(`${item.name} (promoción sin mapping — DB no encontrada)`)
+      continue
+    }
+
+    const linkedCategoryIds: string[] = (promo as any).linkedCategoryIds ?? []
+    const linkedItemIds: string[] = (promo as any).linkedItemIds ?? []
+    const hasLinkedItems = linkedCategoryIds.length > 0 || linkedItemIds.length > 0
+
+    if (!hasLinkedItems) {
+      expandedCounts.push(1)
+      expandedBatches.push([currentItems[index]])
+      continue
+    }
+
+    // Resolver items vinculados desde el menú
+    const resolved: ExpansionItem[] = []
+    const seenItemIds = new Set<string>()
+
+    for (const cat of menuCats) {
+      const catId = cat._id?.toString?.() || cat._id
+      if (linkedCategoryIds.some((lid: any) => (lid?.toString?.() || lid) === catId)) {
+        for (const menuItem of cat.items ?? []) {
+          const mid = menuItem._id?.toString?.() || menuItem._id
+          if (!seenItemIds.has(mid)) {
+            seenItemIds.add(mid)
+            resolved.push({
+              name: menuItem.name,
+              quantity: item.quantity,
+              unitPrice: 0,
+              categoryName: cat.name,
+            })
+          }
+        }
+      }
+    }
+
+    for (const menuItem of menuCats.flatMap((c: any) => c.items ?? [])) {
+      const mid = menuItem._id?.toString?.() || menuItem._id
+      if (linkedItemIds.some((lid: any) => (lid?.toString?.() || lid) === mid) && !seenItemIds.has(mid)) {
+        seenItemIds.add(mid)
+        resolved.push({
+          name: menuItem.name,
+          quantity: item.quantity,
+          unitPrice: 0,
+          categoryName: '',
+        })
+      }
+    }
+
+    if (resolved.length === 0) {
+      expandedCounts.push(1)
+      expandedBatches.push([currentItems[index]])
+      resolvedUnmapped.push(`${item.name} (linkedItems sin resolución en menú)`)
+      continue
+    }
+
+    const pricePerItem = item.price / resolved.length
+    const batch: POSOrderPayload['items'] = []
+
+    for (const r of resolved) {
+      batch.push({
+        posItemId: '',
+        name: r.name,
+        quantity: r.quantity,
+        unitPrice: Math.round(pricePerItem),
+        notes: `Parte de: ${item.name}`,
+        modifiers: [...flattenCustomizations(item.customizations ?? [])],
+      })
+    }
+
+    expandedCounts.push(batch.length)
+    expandedBatches.push(batch)
+  }
+
+  // Reemplazar cada promoción en currentItems por su batch expandido
+  const finalItems: POSOrderPayload['items'] = []
+  let promoIdx = 0
+  for (let i = 0; i < currentItems.length; i++) {
+    const isPromo = order.items[i] && (order.items[i].itemType === 'promotion' || !!order.items[i].promotionId)
+    if (isPromo && promoIdx < expandedBatches.length) {
+      finalItems.push(...expandedBatches[promoIdx])
+      promoIdx++
+    } else {
+      finalItems.push(currentItems[i])
+    }
+  }
+
+  return { items: finalItems, unmapped: resolvedUnmapped }
 }
 
 // ── Función principal ─────────────────────────────────────────────────────────
@@ -166,9 +316,15 @@ export async function injectOrderToPOS(
   const connector = getPOSConnector(tenant.posIntegration.provider as 'fudo' | 'bistrosoft')
   const { payload, unmappedNames } = buildPOSPayload(order, tenant)
 
+  // ── Expandir promociones sin mapeo en sus items vinculados ───────────────
+  const { items: expandedItems, unmapped: expandedUnmapped } =
+    await expandUnmappedPromotions(order, tenant, payload.items, unmappedNames)
+  payload.items = expandedItems
+  const finalUnmapped = unmappedNames.length > 0 ? expandedUnmapped : []
+
   // ── Alertar si hay items sin mapeo ───────────────────────────────────────
-  if (unmappedNames.length > 0) {
-    const msg = `Ítems sin mapeo POS: ${unmappedNames.join(', ')}. Se inyectarán por nombre.`
+  if (finalUnmapped.length > 0) {
+    const msg = `Ítems sin mapeo POS: ${finalUnmapped.join(', ')}. Se inyectarán por nombre.`
     logAudit({
       tenantId: tenant._id.toString(),
       action:   'pos.unmapped_items',
@@ -176,7 +332,7 @@ export async function injectOrderToPOS(
       entityId: orderId,
       details: {
         orderNumber: order.orderNumber,
-        unmappedItems: unmappedNames,
+        unmappedItems: finalUnmapped,
       },
     })
     // Guardar la advertencia en la orden para que el panel la muestre

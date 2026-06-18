@@ -111,7 +111,8 @@ export interface ITenant extends Document {
       apiEndpoint: string | null   // URL base override (opcional)
     }
     productMapping: {
-      takeasyGoItemId: string       // ObjectId del item en TakeasyGO
+      takeasyGoItemId: string       // ObjectId del item en TakeasyGO (opcional si es promoción)
+      promotionId: string           // ObjectId de la promoción (alternativa a takeasyGoItemId)
       posItemId: string             // ID del item en el POS
       posItemName: string           // Nombre legible del item en el POS
     }[]
@@ -402,7 +403,8 @@ const TenantSchema = new Schema<ITenant>(
       },
       productMapping: {
         type: [{
-          takeasyGoItemId: { type: String, required: true },
+          takeasyGoItemId: { type: String, default: null },
+          promotionId:     { type: String, default: null },
           posItemId:       { type: String, required: true },
           posItemName:     { type: String, default: '' },
         }],
