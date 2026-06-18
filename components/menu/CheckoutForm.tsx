@@ -106,6 +106,8 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(null)
   const [activeLegalModal, setActiveLegalModal] = useState<'terminos' | 'privacidad' | null>(null)
   const [redirectingToMp, setRedirectingToMp] = useState(false)
+  const [kriptonEnabled, setKriptonEnabled] = useState(false)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'mercadopago' | 'kripton'>('mercadopago')
 
   // ── Estimated time + Delay announcement ──────────────────────────
   const [estimatedTimeInfo, setEstimatedTimeInfo] = useState<{
@@ -197,6 +199,16 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       .catch(() => {
         setScheduledOrdersConfig(null)
       })
+
+    fetch(`/api/${tenantSlug}/kripton/status`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.enabled) {
+          setKriptonEnabled(true)
+          setSelectedPaymentMethod('kripton')
+        }
+      })
+      .catch(() => {})
   }, [])
   
   // Auto-fill from session and lookup loyalty by email
@@ -465,33 +477,57 @@ async function handleSubmit(e: React.FormEvent) {
       return
     }
 
-    // 2. Crear preferencia de MP
-    const prefRes = await fetch(`/api/${tenantSlug}/payments/create-preference`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: order._id }),
-    })
-    if (!prefRes.ok) throw new Error('Error al crear el pago')
-    const { sandboxInitPoint, initPoint } = await prefRes.json()
+    // 2. Crear preferencia de pago según método
+    if (kriptonEnabled && selectedPaymentMethod === 'kripton') {
+      const prefRes = await fetch(`/api/${tenantSlug}/payments/create-kripton-preference`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order._id }),
+      })
+      if (!prefRes.ok) {
+        const errData = await prefRes.json()
+        throw new Error(errData.error || 'Error al crear el pago con Kripton')
+      }
+      const { url, method } = await prefRes.json()
 
-    // En desarrollo usamos sandbox, en producción initPoint
-    const redirectUrl = process.env.NODE_ENV === 'development' ? sandboxInitPoint : initPoint
+      try {
+        localStorage.setItem('tgo-pending-order', JSON.stringify({
+          orderNumber: order.orderNumber,
+          tenantSlug,
+          orderId: order._id,
+          createdAt: Date.now(),
+        }))
+      } catch {}
 
-    // Guardar referencia del pedido para recuperación post-pago
-    try {
-      localStorage.setItem('tgo-pending-order', JSON.stringify({
-        orderNumber: order.orderNumber,
-        tenantSlug,
-        orderId: order._id,
-        createdAt: Date.now(),
-      }))
-    } catch {}
+      setRedirectingToMp(true)
+      setTimeout(() => {
+        window.location.href = url
+      }, 120)
+    } else {
+      const prefRes = await fetch(`/api/${tenantSlug}/payments/create-preference`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order._id }),
+      })
+      if (!prefRes.ok) throw new Error('Error al crear el pago')
+      const { sandboxInitPoint, initPoint } = await prefRes.json()
 
-    // Mostrar overlay instructivo antes de salir a MP
-    setRedirectingToMp(true)
-    setTimeout(() => {
-      window.location.href = redirectUrl
-    }, 120)
+      const redirectUrl = process.env.NODE_ENV === 'development' ? sandboxInitPoint : initPoint
+
+      try {
+        localStorage.setItem('tgo-pending-order', JSON.stringify({
+          orderNumber: order.orderNumber,
+          tenantSlug,
+          orderId: order._id,
+          createdAt: Date.now(),
+        }))
+      } catch {}
+
+      setRedirectingToMp(true)
+      setTimeout(() => {
+        window.location.href = redirectUrl
+      }, 120)
+    }
 
   } catch (err: any) {
     toast.error(err.message || 'Error al procesar el pedido')
@@ -1236,12 +1272,42 @@ async function handleSubmit(e: React.FormEvent) {
             </div>
           </div>
 
+          {kriptonEnabled && (
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Método de pago</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaymentMethod('mercadopago')}
+                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'mercadopago' ? 'border-zinc-900 bg-zinc-900/5' : 'border-zinc-200 bg-white'}`}
+                >
+                  <span className="text-2xl">💳</span>
+                  <div>
+                    <p className="text-sm font-bold text-zinc-900">Mercado Pago</p>
+                    <p className="text-[10px] text-zinc-500">Tarjeta, efectivo, transferencia</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaymentMethod('kripton')}
+                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'kripton' ? 'border-purple-600 bg-purple-600/5' : 'border-zinc-200 bg-white'}`}
+                >
+                  <span className="text-2xl">🪙</span>
+                  <div>
+                    <p className="text-sm font-bold text-zinc-900">Kripton</p>
+                    <p className="text-[10px] text-zinc-500">USDT, BTC, ETH y más</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading || cart.length === 0}
             className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50"
           >
-            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : mode === 'business' && businessInfo?.paymentMode !== 'cash_mp' ? '✅ Confirmar pedido' : deliveryMode ? '🚚 Pagar con MercadoPago' : '💳 Pagar con MercadoPago'}
+            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : mode === 'business' && businessInfo?.paymentMode !== 'cash_mp' ? '✅ Confirmar pedido' : deliveryMode ? `🚚 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : 'MercadoPago'}` : `💳 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : 'MercadoPago'}`}
           </button>
 
           {/* Términos y Privacidad */}
@@ -1309,7 +1375,7 @@ async function handleSubmit(e: React.FormEvent) {
         <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center px-6">
           <div className="text-center max-w-sm">
             <div className="w-12 h-12 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin mx-auto mb-6" />
-            <h2 className="text-xl font-black text-zinc-900 mb-3">Redirigiendo a Mercado Pago</h2>
+            <h2 className="text-xl font-black text-zinc-900 mb-3">Redirigiendo a {selectedPaymentMethod === 'kripton' ? 'Kripton' : 'Mercado Pago'}</h2>
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-left space-y-3">
               <p className="text-sm font-bold text-amber-800">⚠️ Importante:</p>
               <p className="text-sm text-amber-700 leading-relaxed">

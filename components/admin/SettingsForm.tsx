@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import MercadoPagoSettings from './MercadoPagoSettings'
+import KriptonSettings from './KriptonSettings'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette, User, MapPin,
@@ -21,7 +22,7 @@ import {
   ExternalLink,
   Database,
   ImageIcon,
-  Bell, PlusCircle, ShoppingBag,
+  Bell, PlusCircle, ShoppingBag, Coins,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -553,6 +554,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             <TabTrigger value="locations" icon={<MapPin size={16} />} label="Sedes" />
             <TabTrigger value="general" icon={<SettingsIcon size={16} />} label="General" />
             <TabTrigger value="mercadopago" icon={<CreditCard size={16} />} label="Pagos" />
+            <TabTrigger value="kripton" icon={<Coins size={16} />} label="Kripton" />
             <TabTrigger value="notifications" icon={<Bell size={16} />} label="Notificaciones" />
             {tenant.features?.reservations && (
               <TabTrigger value="reservas" icon={<CalendarDays size={16} />} label="Reservas" />
@@ -1516,6 +1518,16 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                   tenantSlug={tenantSlug}
                   isConfigured={tenant.mercadopago?.isConfigured}
                   mpOAuth={tenant.mpOAuth}
+                />
+              </div>
+            </TabsContent>
+
+            {/* ── Kripton ── */}
+            <TabsContent value="kripton" className="m-0 mt-2">
+              <div className="max-w-3xl">
+                <KriptonSettings
+                  tenantSlug={tenantSlug}
+                  isConfigured={tenant.kripton?.isConfigured ?? false}
                 />
               </div>
             </TabsContent>

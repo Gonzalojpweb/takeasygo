@@ -15,6 +15,12 @@ export interface IPlatformConfig {
     redirectUri: string | null     // OAuth redirect URI
     platformFeePercent: number     // Platform commission percentage (default: 5)
   }
+  /** Configuración global de Kripton */
+  kripton: {
+    enabled: boolean
+    defaultCryptoNetworkId: number | null
+    defaultUsePaymentLinks: boolean
+  }
   /** Configuración de estilos estándar para promoción QR de takeaway */
   qrPromoStyles: {
     primaryColor: string
@@ -44,6 +50,12 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
       appSecret:          { type: String, default: null },
       redirectUri:        { type: String, default: null },
       platformFeePercent: { type: Number, default: 5 },
+    },
+    /** Configuración global de Kripton */
+    kripton: {
+      enabled:                { type: Boolean, default: false },
+      defaultCryptoNetworkId: { type: Number, default: null },
+      defaultUsePaymentLinks: { type: Boolean, default: true },
     },
     /** Configuración de estilos estándar para promoción QR de takeaway */
     qrPromoStyles: {
