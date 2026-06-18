@@ -98,6 +98,10 @@ export interface IOrder extends Document {
     method: string
     mercadopagoId: string | null
     mercadopagoData: Record<string, any> | null
+    // ── Kripton ─────────────────────────────────────────────────────────
+    kriptonExternalCode: string | null
+    kriptonToken: string | null
+    kriptonData: Record<string, any> | null
   }
   notes: string
   clientToken: string | null
@@ -299,6 +303,10 @@ const OrderSchema = new Schema(
       method: { type: String, default: 'mercadopago' },
       mercadopagoId: { type: String, default: null },
       mercadopagoData: { type: Schema.Types.Mixed, default: null },
+      // ── Kripton ─────────────────────────────────────────────────────
+      kriptonExternalCode: { type: String, default: null },
+      kriptonToken: { type: String, default: null },
+      kriptonData: { type: Schema.Types.Mixed, default: null },
     },
     notes: { type: String, default: '', trim: true },
     // Token del dispositivo consumer para enviar push cuando el pedido esté listo

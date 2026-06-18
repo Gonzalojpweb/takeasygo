@@ -13,13 +13,13 @@ export async function GET(request: NextRequest) {
 
   const mp = config?.mercadopago ?? {}
   const mpOAuth = config?.mpOAuth ?? {}
+  const kripton = config?.kripton ?? {}
 
   return NextResponse.json({
     mercadopago: {
       isConfigured: !!mp.isConfigured,
       hasAccessToken: !!mp.accessToken,
       hasWebhookSecret: !!mp.webhookSecret,
-      // Mostrar sufijo enmascarado si existe
       accessTokenHint: mp.accessToken
         ? '••••••••' + decrypt(mp.accessToken).slice(-6)
         : null,
@@ -36,6 +36,11 @@ export async function GET(request: NextRequest) {
       platformFeePercent: mpOAuth.platformFeePercent || 5,
       isConfigured: !!(mpOAuth.appId && mpOAuth.appSecret && mpOAuth.redirectUri),
     },
+    kripton: {
+      enabled: kripton.enabled ?? false,
+      defaultCryptoNetworkId: kripton.defaultCryptoNetworkId ?? null,
+      defaultUsePaymentLinks: kripton.defaultUsePaymentLinks ?? true,
+    },
   })
 }
 
@@ -44,7 +49,7 @@ export async function POST(request: NextRequest) {
   if (authError) return authError
 
   const body = await request.json()
-  const { accessToken, webhookSecret, mpOAuth } = body as {
+  const { accessToken, webhookSecret, mpOAuth, kripton } = body as {
     accessToken?: string
     webhookSecret?: string
     mpOAuth?: {
@@ -52,6 +57,11 @@ export async function POST(request: NextRequest) {
       appSecret?: string
       redirectUri?: string
       platformFeePercent?: number
+    }
+    kripton?: {
+      enabled?: boolean
+      defaultCryptoNetworkId?: number | null
+      defaultUsePaymentLinks?: boolean
     }
   }
 
@@ -61,7 +71,6 @@ export async function POST(request: NextRequest) {
 
   const update: Record<string, any> = {}
 
-  // MercadoPago credentials (existing)
   if (accessToken) {
     update['mercadopago.accessToken'] = encrypt(accessToken.trim())
   }
@@ -69,7 +78,6 @@ export async function POST(request: NextRequest) {
     update['mercadopago.webhookSecret'] = encrypt(webhookSecret.trim())
   }
 
-  // OAuth configuration (new)
   if (mpOAuth) {
     if (mpOAuth.appId) {
       update['mpOAuth.appId'] = mpOAuth.appId.trim()
@@ -85,7 +93,18 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Marcar mercadopago como configurado si ambas claves existen
+  if (kripton) {
+    if (kripton.enabled !== undefined) {
+      update['kripton.enabled'] = kripton.enabled
+    }
+    if (kripton.defaultCryptoNetworkId !== undefined) {
+      update['kripton.defaultCryptoNetworkId'] = kripton.defaultCryptoNetworkId
+    }
+    if (kripton.defaultUsePaymentLinks !== undefined) {
+      update['kripton.defaultUsePaymentLinks'] = kripton.defaultUsePaymentLinks
+    }
+  }
+
   const hasToken = accessToken ? true : !!current?.mercadopago?.accessToken
   const hasSecret = webhookSecret ? true : !!current?.mercadopago?.webhookSecret
   update['mercadopago.isConfigured'] = hasToken && hasSecret

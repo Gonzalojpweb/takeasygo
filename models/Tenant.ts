@@ -101,6 +101,13 @@ export interface ITenant extends Document {
     authorizedAt: Date | null      // When the tenant authorized
     isConnected: boolean
   }
+  // ── Integración Kripton ─────────────────────────────────────────────────
+  kripton: {
+    apiKey: string | null          // Token de API (cifrado AES-256-GCM)
+    isConfigured: boolean          // Si el tenant configuró Kripton
+    cryptoNetworkId: number | null // Red crypto por defecto (para Payments, no Payment Links)
+    usePaymentLinks: boolean       // true = Payment Links (default)
+  }
   // ── Integración POS (FUDO / BISTROSOFT / etc.) ─────────────────────────────
   posIntegration: {
     provider: 'fudo' | 'bistrosoft' | 'none'
@@ -387,6 +394,13 @@ const TenantSchema = new Schema<ITenant>(
       expiresAt:    { type: Date, default: null },
       authorizedAt: { type: Date, default: null },
       isConnected:  { type: Boolean, default: false },
+    },
+    // ── Integración Kripton ─────────────────────────────────────────────────
+    kripton: {
+      apiKey:           { type: String, default: null },
+      isConfigured:     { type: Boolean, default: false },
+      cryptoNetworkId:  { type: Number, default: null },
+      usePaymentLinks:  { type: Boolean, default: true },
     },
     // ── Integración POS ──────────────────────────────────────────────────────
     posIntegration: {

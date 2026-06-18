@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import PlatformConfig from '@/models/PlatformConfig'
 import { decrypt } from '@/lib/crypto'
 import PlatformMPSettings from '@/components/superadmin/PlatformMPSettings'
+import PlatformKriptonSettings from '@/components/superadmin/PlatformKriptonSettings'
 import { Settings } from 'lucide-react'
 
 export default async function SuperAdminConfigPage() {
@@ -9,6 +10,7 @@ export default async function SuperAdminConfigPage() {
   const config = await PlatformConfig.findById('platform').lean() as any
   const mp = config?.mercadopago ?? {}
   const mpOAuth = config?.mpOAuth ?? {}
+  const kripton = config?.kripton ?? {}
 
   function hint(encrypted: string | null | undefined) {
     if (!encrypted) return null
@@ -40,6 +42,12 @@ export default async function SuperAdminConfigPage() {
           platformFeePercent: mpOAuth.platformFeePercent || 5,
           isConfigured: !!(mpOAuth.appId && mpOAuth.appSecret && mpOAuth.redirectUri),
         }}
+      />
+
+      <PlatformKriptonSettings
+        enabled={kripton.enabled ?? false}
+        defaultCryptoNetworkId={kripton.defaultCryptoNetworkId ?? null}
+        defaultUsePaymentLinks={kripton.defaultUsePaymentLinks ?? true}
       />
 
     </div>
