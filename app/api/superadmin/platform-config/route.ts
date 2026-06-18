@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
     kripton: {
       enabled: kripton.enabled ?? false,
       defaultCryptoNetworkId: kripton.defaultCryptoNetworkId ?? null,
-      defaultUsePaymentLinks: kripton.defaultUsePaymentLinks ?? true,
     },
   })
 }
@@ -61,7 +60,6 @@ export async function POST(request: NextRequest) {
     kripton?: {
       enabled?: boolean
       defaultCryptoNetworkId?: number | null
-      defaultUsePaymentLinks?: boolean
     }
   }
 
@@ -99,9 +97,6 @@ export async function POST(request: NextRequest) {
     }
     if (kripton.defaultCryptoNetworkId !== undefined) {
       update['kripton.defaultCryptoNetworkId'] = kripton.defaultCryptoNetworkId
-    }
-    if (kripton.defaultUsePaymentLinks !== undefined) {
-      update['kripton.defaultUsePaymentLinks'] = kripton.defaultUsePaymentLinks
     }
   }
 

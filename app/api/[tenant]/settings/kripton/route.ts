@@ -23,7 +23,6 @@ export async function GET(
       isConfigured: tenant.kripton?.isConfigured ?? false,
       hasApiKey: !!tenant.kripton?.apiKey,
       cryptoNetworkId: tenant.kripton?.cryptoNetworkId ?? null,
-      usePaymentLinks: tenant.kripton?.usePaymentLinks ?? true,
     })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
@@ -44,7 +43,7 @@ export async function POST(
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
 
-    const { apiKey, cryptoNetworkId, usePaymentLinks } = await request.json()
+    const { apiKey, cryptoNetworkId } = await request.json()
 
     if (!apiKey) {
       return NextResponse.json({ error: 'API Key es obligatoria' }, { status: 400 })
@@ -57,14 +56,13 @@ export async function POST(
     tenant.kripton.apiKey = encrypt(apiKey)
     tenant.kripton.isConfigured = true
     tenant.kripton.cryptoNetworkId = cryptoNetworkId ?? null
-    tenant.kripton.usePaymentLinks = usePaymentLinks ?? true
     await tenant.save()
 
     logAudit({
       tenantId: tenant._id.toString(),
       action: 'settings.kripton_updated',
       entity: 'settings',
-      details: { hasApiKey: true, cryptoNetworkId: tenant.kripton.cryptoNetworkId, usePaymentLinks: tenant.kripton.usePaymentLinks },
+      details: { hasApiKey: true, cryptoNetworkId: tenant.kripton.cryptoNetworkId },
       request,
     })
 

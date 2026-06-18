@@ -2,7 +2,13 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { decrypt } from '@/lib/crypto'
 
-const KRIPTON_BASE_URL = 'https://app.kriptonmarket.com'
+function getKriptonBaseUrl(): string {
+  const url = process.env.KRIPTON_API_URL
+  if (!url) {
+    throw new Error('KRIPTON_API_URL no está configurada en las variables de entorno')
+  }
+  return url
+}
 
 export class KriptonError extends Error {
   code: number
@@ -18,7 +24,9 @@ async function kriptonFetch(
   path: string,
   options: RequestInit = {}
 ): Promise<any> {
-  const url = `${KRIPTON_BASE_URL}${path}`
+  const url = `${getKriptonBaseUrl()}${path}`
+  console.log(`[kriptonFetch] ${options.method || 'GET'} ${url}`)
+
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -28,15 +36,27 @@ async function kriptonFetch(
     },
   })
 
-  const body = await res.json()
+  const text = await res.text()
+  console.log(`[kriptonFetch] status=${res.status} body="${text.slice(0, 500)}"`)
 
-  if (!res.ok || body.result !== 'ok') {
-    const msg = body.error?.message || `Kripton API error: ${res.status}`
+  if (!text) {
+    throw new KriptonError(`Respuesta vacía de Kripton (status ${res.status})`, res.status)
+  }
+
+  let body: any
+  try {
+    body = JSON.parse(text)
+  } catch {
+    throw new KriptonError(`Respuesta no JSON de Kripton: status=${res.status} body="${text.slice(0, 200)}"`, res.status)
+  }
+
+  if (!res.ok) {
+    const msg = body.error?.message || body.message || `Kripton API error: ${res.status}`
     const code = body.error?.code || res.status
     throw new KriptonError(msg, code)
   }
 
-  return body.data
+  return body.data ?? body
 }
 
 export async function getKriptonClient(tenantSlug: string) {
@@ -53,33 +73,6 @@ export async function getKriptonClient(tenantSlug: string) {
   return { apiKey, tenant }
 }
 
-export async function createPaymentLink(
-  apiKey: string,
-  params: {
-    amount: number
-    currency_id: string
-    success_url: string
-    cancel_url: string
-    notify_url: string
-    minutes_to_expire?: number
-    description?: string
-  }
-): Promise<{ url: string; token: string }> {
-  const data = await kriptonFetch(apiKey, '/hooks/payment-links', {
-    method: 'POST',
-    body: JSON.stringify({
-      amount: params.amount,
-      currency_id: params.currency_id,
-      success_url: params.success_url,
-      cancel_url: params.cancel_url,
-      notify_url: params.notify_url,
-      minutes_to_expire: params.minutes_to_expire ?? 30,
-      description: params.description || '',
-    }),
-  })
-  return { url: data.url, token: data.token }
-}
-
 export async function createPayment(
   apiKey: string,
   params: {
@@ -91,7 +84,7 @@ export async function createPayment(
     cancel_url: string
     notify_url: string
   }
-): Promise<{ url: string; external_code: string; address?: string }> {
+): Promise<{ url: string; external_code: string }> {
   const data = await kriptonFetch(apiKey, '/hooks/payments', {
     method: 'POST',
     body: JSON.stringify({
@@ -107,7 +100,6 @@ export async function createPayment(
   return {
     url: data.url,
     external_code: data.external_code,
-    address: data.address,
   }
 }
 
@@ -130,38 +122,6 @@ export async function getPayment(
   if (token) query.set('token', token)
 
   const data = await kriptonFetch(apiKey, `/hooks/payments?${query.toString()}`, {
-    method: 'GET',
-  })
-  return data
-}
-
-export async function getCryptoNetworks(
-  apiKey: string
-): Promise<Array<{
-  id: number
-  name: string
-  currency_name: string
-  allow: boolean
-}>> {
-  const data = await kriptonFetch(apiKey, '/hooks/config/crypto_networks/merchant', {
-    method: 'GET',
-  })
-  return data.crypto_networks || []
-}
-
-export async function getPaymentLink(
-  apiKey: string,
-  paymentLinkToken: string
-): Promise<{
-  id: number
-  amount: number | null
-  state: string
-  expired_at: string | null
-  created_at: string
-  currency_id: string | null
-  token: string
-}> {
-  const data = await kriptonFetch(apiKey, `/hooks/payment-links/${paymentLinkToken}`, {
     method: 'GET',
   })
   return data
