@@ -2,6 +2,9 @@ import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IQrPromoView extends Document {
   tenantId: mongoose.Types.ObjectId
+  promoId?: mongoose.Types.ObjectId
+  promoSlug?: string
+  scope?: 'tenant' | 'global'
   ip: string
   userAgent?: string
   source: string
@@ -16,6 +19,20 @@ const QrPromoViewSchema = new Schema<IQrPromoView>(
       ref: 'Tenant',
       required: true,
       index: true,
+    },
+    promoId: {
+      type: Schema.Types.ObjectId,
+      ref: 'QrPromo',
+      default: null,
+    },
+    promoSlug: {
+      type: String,
+      default: '',
+    },
+    scope: {
+      type: String,
+      enum: ['tenant', 'global'],
+      default: 'tenant',
     },
     ip: {
       type: String,
@@ -39,12 +56,12 @@ const QrPromoViewSchema = new Schema<IQrPromoView>(
     },
   },
   {
-    timestamps: false, // Usamos viewedAt directamente
+    timestamps: false,
   }
 )
 
-// Índice compuesto para buscar rápido por tenant + ip
-QrPromoViewSchema.index({ tenantId: 1, ip: 1, viewedAt: -1 })
+QrPromoViewSchema.index({ tenantId: 1, promoSlug: 1, ip: 1, viewedAt: -1 })
+QrPromoViewSchema.index({ tenantId: 1, source: 1 })
 
 if (process.env.NODE_ENV !== 'production') {
   delete (mongoose.models as any).QrPromoView
