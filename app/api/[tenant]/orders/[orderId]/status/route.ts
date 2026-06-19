@@ -3,6 +3,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import PushSubscription from '@/models/PushSubscription'
+import DeliveryPushSubscription from '@/models/DeliveryPushSubscription'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
@@ -156,6 +157,34 @@ export async function PATCH(
         }
         // No fallar el endpoint por un error de push
         console.warn('[push] Error enviando notificación:', pushErr?.message)
+      }
+    }
+
+    // ── Push notification a los deliveries cuando hay un pedido listo ──────────
+    if (status === 'ready' && order.orderMode === 'delivery') {
+      try {
+        const subs = await DeliveryPushSubscription.find({ tenantId: tenant._id }).lean()
+        const payload = JSON.stringify({
+          title: '📦 Nuevo pedido listo',
+          body: `Pedido #${order.orderNumber} — listo para entregar.`,
+          icon: '/tgoicon-192.png',
+          badge: '/tgoicon-192.png',
+          url: `/app`,
+        })
+        for (const sub of subs) {
+          try {
+            await webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              payload
+            )
+          } catch (pushErr: any) {
+            if (pushErr?.statusCode === 410) {
+              await DeliveryPushSubscription.deleteOne({ _id: sub._id })
+            }
+          }
+        }
+      } catch {
+        // No fallar el endpoint por errores de push a deliveries
       }
     }
 

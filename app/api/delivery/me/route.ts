@@ -27,21 +27,44 @@ export async function GET(
       return NextResponse.json({ error: 'Delivery no encontrado o desactivado' }, { status: 404 })
     }
 
-    const pendingOrders = await Order.find({
-      tenantId: person.tenantId,
-      status: { $in: ['ready', 'en_ruta', 'arrived'] },
-      deletedAt: null,
-      orderMode: 'delivery',
-      $or: [
-        { 'deliveryConfirmation.status': 'pending' },
-        { 'deliveryConfirmation.status': 'assigned', 'deliveryConfirmation.deliveryPersonId': person._id },
-        { 'deliveryConfirmation.status': 'en_ruta', 'deliveryConfirmation.deliveryPersonId': person._id },
-        { 'deliveryConfirmation.status': 'arrived', 'deliveryConfirmation.deliveryPersonId': person._id },
-      ],
-    })
-      .select('orderNumber status deliveryAddress deliveryConfirmation customer.name createdAt')
-      .sort({ createdAt: -1 })
-      .lean()
+    const [availableOrders, activeOrders, completedOrders] = await Promise.all([
+      // Pedidos listos para tomar (no asignados a nadie)
+      Order.find({
+        tenantId: person.tenantId,
+        status: 'ready',
+        deletedAt: null,
+        orderMode: 'delivery',
+        'deliveryConfirmation.status': 'pending',
+      })
+        .select('orderNumber status deliveryAddress deliveryConfirmation customer.name createdAt')
+        .sort({ createdAt: -1 })
+        .lean(),
+
+      // Pedidos asignados a este delivery (activos)
+      Order.find({
+        tenantId: person.tenantId,
+        deletedAt: null,
+        orderMode: 'delivery',
+        'deliveryConfirmation.deliveryPersonId': person._id,
+        status: { $in: ['en_ruta', 'arrived'] },
+      })
+        .select('orderNumber status deliveryAddress deliveryConfirmation customer.name createdAt')
+        .sort({ createdAt: -1 })
+        .lean(),
+
+      // Últimas 20 entregas completadas por este delivery
+      Order.find({
+        tenantId: person.tenantId,
+        deletedAt: null,
+        orderMode: 'delivery',
+        'deliveryConfirmation.deliveryPersonId': person._id,
+        status: 'delivered',
+      })
+        .select('orderNumber status deliveryAddress deliveryConfirmation customer.name createdAt')
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
+    ])
 
     return NextResponse.json({
       person: {
@@ -49,7 +72,9 @@ export async function GET(
         name: person.name,
         phone: person.phone,
       },
-      pendingOrders,
+      availableOrders,
+      activeOrders,
+      completedOrders,
     })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
