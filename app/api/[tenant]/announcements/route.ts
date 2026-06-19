@@ -19,33 +19,40 @@ export async function GET(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
+    const { searchParams } = request.nextUrl
+    const scope = searchParams.get('scope')
+
     const user = await getSessionUser(request)
-    const unreadFilter = user?.id
-      ? { readBy: { $ne: new mongoose.Types.ObjectId(user.id) } }
-      : {}
+    const userId = user?.id ? new mongoose.Types.ObjectId(user.id) : null
 
-    const announcements = await SystemAnnouncement.find({
+    const baseFilter: Record<string, any> = {
       status: 'published',
-      ...unreadFilter,
       $and: [
-        {
-          $or: [
-            { targetPlans: { $size: 0 } },
-            { targetPlans: tenant.plan },
-          ],
-        },
-        {
-          $or: [
-            { targetTenantIds: { $size: 0 } },
-            { targetTenantIds: tenant._id },
-          ],
-        },
+        { $or: [{ targetPlans: { $size: 0 } }, { targetPlans: tenant.plan }] },
+        { $or: [{ targetTenantIds: { $size: 0 } }, { targetTenantIds: tenant._id }] },
       ],
-    })
-    .sort({ publishedAt: -1, createdAt: -1 })
-    .lean()
+    }
 
-    return NextResponse.json({ announcements })
+    // scope=all returns everything with read status; default returns only unread
+    if (scope !== 'all' && userId) {
+      baseFilter.readBy = { $ne: userId }
+    }
+
+    const announcements = await SystemAnnouncement.find(baseFilter)
+      .sort({ publishedAt: -1, createdAt: -1 })
+      .lean()
+
+    let result: any[] = announcements
+
+    if (scope === 'all' && userId) {
+      result = announcements.map(a => ({
+        ...a,
+        read: (a as any).readBy?.some((id: mongoose.Types.ObjectId) => id.equals(userId)) ?? false,
+        readBy: undefined,
+      }))
+    }
+
+    return NextResponse.json({ announcements: result })
   } catch (error) {
     console.error('[[tenant]/announcements GET]', error)
     return NextResponse.json({ error: 'Error al obtener novedades' }, { status: 500 })
