@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const platformEnabled = platformConfig?.kripton?.enabled ?? true
+    const platformEnabled = platformConfig?.kripton?.enabled ?? false
 
     return NextResponse.json({
       enabled: platformEnabled && !!tenant.kripton?.isConfigured,
