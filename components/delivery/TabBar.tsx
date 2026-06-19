@@ -32,16 +32,16 @@ export default function TabBar({ activeTab, onTabChange, availableCount, activeC
           <button
             key={tab.key}
             onClick={() => onTabChange(tab.key)}
-            className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-0 py-2.5 px-1 rounded-lg font-bold transition-all flex items-center justify-center gap-1 ${
               isActive
                 ? 'bg-white text-zinc-900 shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-700'
             }`}
           >
-            <span className="text-base">{tab.icon}</span>
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="text-base flex-shrink-0">{tab.icon}</span>
+            <span className="text-xs truncate">{tab.label}</span>
             {count > 0 && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${
                 isActive ? 'bg-zinc-900 text-white' : 'bg-zinc-200 text-zinc-600'
               }`}>
                 {count}

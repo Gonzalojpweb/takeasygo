@@ -49,21 +49,21 @@ export default function CompletedOrdersList({ orders }: Props) {
           key={order._id}
           className="bg-white rounded-2xl border border-zinc-100 p-4 shadow-sm"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-lg">✅</span>
-              <div>
-                <span className="font-bold text-sm"># {order.orderNumber}</span>
-                <p className="text-xs text-zinc-500 mt-0.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-lg flex-shrink-0">✅</span>
+              <div className="min-w-0">
+                <span className="font-bold text-sm block truncate"># {order.orderNumber}</span>
+                <p className="text-xs text-zinc-500 mt-0.5 truncate">
                   {order.customer.name}
                 </p>
               </div>
             </div>
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs text-zinc-400 flex-shrink-0">
               {formatTime(order.createdAt)}
             </span>
           </div>
-          <p className="text-xs text-zinc-400 mt-2 ml-9">
+          <p className="text-xs text-zinc-400 mt-2 pl-8 break-words">
             📍 {order.deliveryAddress.street} {order.deliveryAddress.number}
             {order.deliveryAddress.apt ? `, ${order.deliveryAddress.apt}` : ''}
           </p>

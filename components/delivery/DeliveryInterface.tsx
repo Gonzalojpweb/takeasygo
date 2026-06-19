@@ -172,11 +172,11 @@ export default function DeliveryInterface() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <div className="max-w-md mx-auto px-4 py-6">
+    <div className="min-h-screen bg-zinc-50 overflow-x-hidden">
+      <div className="w-full max-w-md mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-black">
+          <h1 className="text-2xl font-black truncate">
             {person ? `👋 Hola, ${person.name}` : 'Delivery'}
           </h1>
           <p className="text-sm text-zinc-500 mt-1">
@@ -220,10 +220,10 @@ export default function DeliveryInterface() {
         )}
 
         {/* Bottom refresh */}
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center pb-6">
           <button
             onClick={fetchOrders}
-            className="text-xs text-zinc-400 hover:text-zinc-600 font-medium transition-colors"
+            className="text-xs text-zinc-400 hover:text-zinc-600 font-medium transition-colors py-2 px-4"
           >
             ↻ Actualizar pedidos
           </button>

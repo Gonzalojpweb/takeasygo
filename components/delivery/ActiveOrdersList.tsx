@@ -69,17 +69,17 @@ export default function ActiveOrdersList({ orders, token, tenant, onArrived, onC
             {/* Header (siempre visible) */}
             <button
               onClick={() => setExpandedId(isExpanded ? null : order._id)}
-              className="w-full text-left p-5 hover:bg-zinc-50 transition-colors"
+              className="w-full text-left p-4 hover:bg-zinc-50 transition-colors"
             >
-              <div className="flex items-center justify-between">
-                <span className="font-black text-lg"># {order.orderNumber}</span>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-bold border ${info.color}`}>
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-black text-lg leading-tight"># {order.orderNumber}</span>
+                <span className={`text-xs px-2 py-1 rounded-full font-bold border flex-shrink-0 ${info.color}`}>
                   {info.dot} {info.label}
                 </span>
               </div>
               <div className="mt-2 text-sm">
                 <p className="font-semibold text-zinc-700">{order.customer.name}</p>
-                <p className="text-zinc-500 mt-0.5">
+                <p className="text-zinc-500 mt-0.5 break-words">
                   📍 {order.deliveryAddress.street} {order.deliveryAddress.number}
                   {order.deliveryAddress.apt ? `, ${order.deliveryAddress.apt}` : ''}
                   , {order.deliveryAddress.city}
@@ -92,7 +92,7 @@ export default function ActiveOrdersList({ orders, token, tenant, onArrived, onC
 
             {/* Expanded actions */}
             {isExpanded && (
-              <div className="px-5 pb-5 border-t border-zinc-100 pt-4">
+              <div className="px-4 pb-4 border-t border-zinc-100 pt-4">
                 {isArrived ? (
                   <DeliveryCodeInput
                     orderId={order._id}
