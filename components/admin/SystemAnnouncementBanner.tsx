@@ -1,53 +1,21 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Sparkles, ArrowUpCircle, AlertTriangle, Wrench } from 'lucide-react'
+import { X, Sparkles, ArrowUpCircle, AlertTriangle, Wrench, ChevronRight } from 'lucide-react'
 
 interface Announcement {
   _id: string
   title: string
-  content: string
   type: 'feature' | 'update' | 'alert' | 'maintenance'
 }
 
 const TYPE_STYLES = {
-  feature: {
-    icon: Sparkles,
-    label: 'Nueva Función',
-    iconBg: 'rgba(99,102,241,0.1)',
-    iconBorder: 'rgba(99,102,241,0.25)',
-    iconColor: '#818cf8',
-    glow: 'rgba(99,102,241,0.12)',
-    accent: '#818cf8',
-  },
-  update: {
-    icon: ArrowUpCircle,
-    label: 'Actualización',
-    iconBg: 'rgba(59,130,246,0.1)',
-    iconBorder: 'rgba(59,130,246,0.25)',
-    iconColor: '#60a5fa',
-    glow: 'rgba(59,130,246,0.12)',
-    accent: '#60a5fa',
-  },
-  alert: {
-    icon: AlertTriangle,
-    label: 'Alerta',
-    iconBg: 'rgba(239,68,68,0.1)',
-    iconBorder: 'rgba(239,68,68,0.25)',
-    iconColor: '#f87171',
-    glow: 'rgba(239,68,68,0.12)',
-    accent: '#f87171',
-  },
-  maintenance: {
-    icon: Wrench,
-    label: 'Mantenimiento',
-    iconBg: 'rgba(245,158,11,0.1)',
-    iconBorder: 'rgba(245,158,11,0.25)',
-    iconColor: '#fbbf24',
-    glow: 'rgba(245,158,11,0.12)',
-    accent: '#fbbf24',
-  },
+  feature: { icon: Sparkles, accent: '#818cf8' },
+  update: { icon: ArrowUpCircle, accent: '#60a5fa' },
+  alert: { icon: AlertTriangle, accent: '#f87171' },
+  maintenance: { icon: Wrench, accent: '#fbbf24' },
 } as const
 
 interface Props {
@@ -55,30 +23,23 @@ interface Props {
 }
 
 export function SystemAnnouncementBanner({ tenantSlug }: Props) {
+  const router = useRouter()
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
+    if (!tenantSlug) { setLoading(false); return }
     let cancelled = false
-    if (!tenantSlug) {
-      setLoading(false)
-      return
-    }
     fetch(`/api/${tenantSlug}/announcements`)
       .then(r => r.json())
       .then(data => {
-        if (!cancelled) {
-          if (data.announcements?.length > 0) {
-            setAnnouncements(data.announcements)
-          }
-          setLoading(false)
+        if (!cancelled && data.announcements?.length > 0) {
+          setAnnouncements(data.announcements)
         }
-      })
-      .catch(() => {
         if (!cancelled) setLoading(false)
       })
+      .catch(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [tenantSlug])
 
@@ -98,100 +59,72 @@ export function SystemAnnouncementBanner({ tenantSlug }: Props) {
     setDismissed(true)
   }, [announcements, markAsRead])
 
-  const handleNext = useCallback(() => {
-    if (currentIndex < announcements.length - 1) {
-      setCurrentIndex(prev => prev + 1)
-    } else {
-      handleDismiss()
-    }
-  }, [currentIndex, announcements.length, handleDismiss])
-
   if (loading || dismissed || announcements.length === 0) return null
 
-  const announcement = announcements[currentIndex]
-  const style = TYPE_STYLES[announcement.type]
+  const latestType = announcements[announcements.length - 1].type
+  const style = TYPE_STYLES[latestType]
   const Icon = style.icon
-  const isLast = currentIndex === announcements.length - 1
+  const count = announcements.length
 
   return (
     <AnimatePresence>
       <motion.div
-        key="sa-overlay"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.15 }}
-        className="fixed inset-0 z-[120] flex items-center justify-center p-5"
-        style={{
-          background: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-        }}
+        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+        transition={{ type: 'spring', damping: 24, stiffness: 320 }}
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-[120] w-[92vw] max-w-[420px]"
+        style={{ pointerEvents: 'auto' }}
       >
-        <motion.div
-          key={announcement._id}
-          initial={{ scale: 0.92, opacity: 0, y: 16 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.92, opacity: 0, y: 16 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 360 }}
-          className="w-full max-w-[400px] relative overflow-hidden"
+        <div
           style={{
             background: 'linear-gradient(160deg, #1e1b19 0%, #161310 100%)',
             border: '1px solid rgba(255,255,255,0.07)',
-            borderRadius: 24,
-            boxShadow: '0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)',
+            borderRadius: 18,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
           }}
         >
           <div
             className="absolute top-0 left-0 right-0 h-[3px]"
-            style={{ background: `linear-gradient(90deg, ${style.accent} 60%, transparent)` }}
+            style={{ background: `linear-gradient(90deg, ${style.accent} 60%, transparent)`, borderRadius: '18px 18px 0 0' }}
           />
 
-          <div className="p-7">
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div className="flex items-center gap-3 min-w-0">
+          <div className="px-5 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div
-                  className="shrink-0"
+                  className="shrink-0 flex items-center justify-center"
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 14,
-                    background: style.iconBg,
-                    border: `1px solid ${style.iconBorder}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: `0 0 20px ${style.glow}`,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 11,
+                    background: `${style.accent}15`,
+                    border: `1px solid ${style.accent}30`,
                   }}
                 >
-                  <Icon size={22} style={{ color: style.iconColor }} />
+                  <Icon size={17} style={{ color: style.accent }} />
                 </div>
 
                 <div className="min-w-0">
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: style.accent,
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {style.label}
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f7f4f2', letterSpacing: '-0.01em' }}>
+                    Novedades del sistema
                   </span>
-                  <h3
-                    className="truncate"
+                  <span
+                    className="ml-2 inline-flex items-center justify-center"
                     style={{
-                      fontWeight: 800,
-                      fontSize: 17,
+                      fontSize: 10,
+                      fontWeight: 700,
                       color: '#f7f4f2',
-                      letterSpacing: '-0.02em',
-                      lineHeight: 1.2,
-                      marginTop: 2,
+                      background: style.accent,
+                      borderRadius: 99,
+                      padding: '1px 6px',
+                      minWidth: 18,
+                      height: 18,
+                      verticalAlign: 'middle',
                     }}
                   >
-                    {announcement.title}
-                  </h3>
+                    {count}
+                  </span>
                 </div>
               </div>
 
@@ -199,72 +132,44 @@ export function SystemAnnouncementBanner({ tenantSlug }: Props) {
                 onClick={handleDismiss}
                 className="shrink-0 flex items-center justify-center transition-all active:scale-90"
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 10,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  width: 28,
+                  height: 28,
+                  borderRadius: 9,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.06)',
                   cursor: 'pointer',
                 }}
               >
-                <X size={14} style={{ color: '#8a7f7a' }} />
+                <X size={12} style={{ color: '#6e6560' }} />
               </button>
             </div>
 
-            <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 20 }} />
+            <p className="mt-2.5 ml-[48px]" style={{ fontSize: 12.5, color: '#8a7f7a', lineHeight: 1.5 }}>
+              {count === 1
+                ? 'Hay una novedad nueva desde tu último ingreso.'
+                : `Tenés ${count} novedades nuevas desde tu último ingreso.`}
+            </p>
 
-            <div
-              className="text-sm leading-relaxed"
-              style={{ color: '#c4bbb6' }}
-              dangerouslySetInnerHTML={{ __html: announcement.content }}
-            />
-
-            <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', marginTop: 20, marginBottom: 20 }} />
-
-            <div className="flex items-center justify-between gap-3">
-              {announcements.length > 1 && (
-                <div className="flex items-center gap-1.5">
-                  {announcements.map((_, i) => (
-                    <div
-                      key={i}
-                      className="transition-all duration-300"
-                      style={{
-                        width: i === currentIndex ? 20 : 6,
-                        height: 6,
-                        borderRadius: 99,
-                        background: i === currentIndex ? style.accent : 'rgba(255,255,255,0.1)',
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {announcements.length <= 1 && <div />}
-
-              <motion.button
-                onClick={handleNext}
-                whileHover={{
-                  background: 'linear-gradient(135deg, #e83d1c 0%, #d13518 100%)',
-                  boxShadow: '0 4px 20px rgba(241,71,34,0.4)',
-                }}
-                whileTap={{ scale: 0.97 }}
+            <div className="mt-3 ml-[48px]">
+              <button
+                onClick={() => { handleDismiss(); router.push(`/${tenantSlug}/admin/updates`) }}
+                className="inline-flex items-center gap-1 transition-all active:scale-95"
                 style={{
-                  padding: '11px 24px',
-                  borderRadius: 12,
-                  background: 'linear-gradient(135deg, #f14722 0%, #e03c1a 100%)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: 700,
-                  color: '#fff',
+                  color: style.accent,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(241,71,34,0.3)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
                 }}
               >
-                {isLast ? 'Entendido' : 'Siguiente'}
-              </motion.button>
+                Ver novedades
+                <ChevronRight size={13} style={{ color: style.accent }} />
+              </button>
             </div>
           </div>
-        </motion.div>
+        </div>
       </motion.div>
     </AnimatePresence>
   )
