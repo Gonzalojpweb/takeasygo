@@ -105,16 +105,16 @@ export default function PendingOrdersList({ orders, token, onTakeOrder, onTakeAl
           key={order._id}
           className="bg-white rounded-2xl border border-zinc-200 p-5 space-y-3 shadow-sm"
         >
-          <div className="flex items-center justify-between">
-            <span className="font-black text-lg"># {order.orderNumber}</span>
-            <span className="text-xs px-2 py-1 bg-emerald-50 text-emerald-600 rounded-full font-bold border border-emerald-200">
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-black text-lg leading-tight"># {order.orderNumber}</span>
+            <span className="text-xs px-2 py-1 bg-emerald-50 text-emerald-600 rounded-full font-bold border border-emerald-200 flex-shrink-0">
               Listo
             </span>
           </div>
 
           <div className="text-sm">
             <p className="font-semibold text-zinc-700">{order.customer.name}</p>
-            <p className="text-zinc-500 mt-1">
+            <p className="text-zinc-500 mt-1 break-words">
               📍 {order.deliveryAddress.street} {order.deliveryAddress.number}
               {order.deliveryAddress.apt ? `, ${order.deliveryAddress.apt}` : ''}
               , {order.deliveryAddress.city}

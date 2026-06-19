@@ -82,7 +82,7 @@ export default function DeliveryCodeInput({
         </p>
       </div>
 
-      <div className="flex justify-center gap-1 sm:gap-2 mb-6">
+      <div className="grid grid-cols-6 gap-1.5 mb-6 w-full">
         {digits.map((d, i) => (
           <input
             key={i}
@@ -93,7 +93,7 @@ export default function DeliveryCodeInput({
             value={d}
             onChange={e => handleChange(i, e.target.value)}
             onKeyDown={e => handleKeyDown(i, e)}
-            className="w-10 h-12 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-black rounded-xl border-2 border-zinc-200 focus:border-emerald-500 focus:outline-none transition-all bg-zinc-50"
+            className="w-full aspect-square text-center text-xl font-black rounded-xl border-2 border-zinc-200 focus:border-emerald-500 focus:outline-none transition-all bg-zinc-50"
             autoFocus={i === 0}
           />
         ))}
