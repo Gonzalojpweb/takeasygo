@@ -13,6 +13,10 @@ interface OrderSummary {
     city: string
   }
   customer: { name: string }
+  deliveryConfirmation: {
+    status: string
+    customerCode?: { code: string }
+  }
 }
 
 interface Props {
