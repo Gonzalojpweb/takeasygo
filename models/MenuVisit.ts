@@ -12,6 +12,7 @@ export interface IMenuVisit extends Document {
   referrer: string | null
   locationPath: string | null
   isDuplicate?: boolean
+  promo: string | null
 }
 
 const MenuVisitSchema = new Schema<IMenuVisit>({
@@ -55,6 +56,11 @@ const MenuVisitSchema = new Schema<IMenuVisit>({
   isDuplicate: {
     type: Boolean,
     default: false,
+  },
+  promo: {
+    type: String,
+    default: null,
+    index: true,
   },
 }, {
   timestamps: false,

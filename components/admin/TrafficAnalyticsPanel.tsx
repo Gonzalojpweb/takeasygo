@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { 
   Smartphone, Monitor, Globe, TrendingUp, Users, 
   Instagram, QrCode, MessageCircle, Facebook, Search, MousePointer,
-  Calendar, RefreshCw, ChevronDown, ChevronUp, Info
+  Calendar, RefreshCw, ChevronDown, ChevronUp, Info, Tag
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -200,6 +200,32 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Promociones */}
+      {data?.byPromo && data.byPromo.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            Promociones activas
+            <span className="relative group">
+              <Info size={14} className="text-muted-foreground/60 cursor-help" />
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2 text-xs text-white bg-zinc-800 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center">
+                Visitas generadas desde enlaces con promoción activa (?promo=...)
+              </span>
+            </span>
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {data.byPromo.map((promo: any) => (
+              <div key={promo._id} className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-center">
+                <span className="inline-flex p-2 rounded-lg mb-2 bg-amber-500/10 text-amber-600">
+                  <Tag size={20} />
+                </span>
+                <p className="text-sm font-medium text-foreground capitalize">{promo._id}</p>
+                <p className="text-2xl font-bold text-foreground">{promo.count}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}

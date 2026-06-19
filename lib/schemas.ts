@@ -111,6 +111,7 @@ const slugRegex = /^[a-z0-9-]{2,50}$/
 export const logVisitSchema = z.object({
   tenantSlug: z.string().regex(slugRegex, 'Slug inválido'),
   locationPath: z.string().optional(),
+  promo: z.string().optional().nullable(),
 })
 
 // ── Leads (landing pública) ──────────────────────────────────────────────────
