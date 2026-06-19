@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import ExploreClient from '@/components/explore/ExploreClient'
+import DeliveryRedirectHandler from '@/components/delivery/DeliveryRedirectHandler'
 
 export const metadata: Metadata = {
   title: 'Explorar · TGO',
@@ -8,9 +9,10 @@ export const metadata: Metadata = {
 
 export default function ExplorePage() {
   return (
-    // Pantalla completa, sin scroll del body — el scroll es interno al listado
-    <div className="h-screen w-screen overflow-hidden">
-      <ExploreClient />
-    </div>
+    <DeliveryRedirectHandler>
+      <div className="h-screen w-screen overflow-hidden">
+        <ExploreClient />
+      </div>
+    </DeliveryRedirectHandler>
   )
 }

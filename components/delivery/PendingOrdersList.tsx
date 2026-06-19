@@ -23,10 +23,12 @@ interface Props {
   orders: OrderSummary[]
   token: string
   onTakeOrder: (order: OrderSummary) => void
+  onTakeAll?: (orders: OrderSummary[]) => void
 }
 
-export default function PendingOrdersList({ orders, token, onTakeOrder }: Props) {
+export default function PendingOrdersList({ orders, token, onTakeOrder, onTakeAll }: Props) {
   const [takingId, setTakingId] = useState<string | null>(null)
+  const [takingAll, setTakingAll] = useState(false)
 
   const pendingOrders = orders.filter(o => o.deliveryConfirmation?.status === 'pending')
 
@@ -59,11 +61,45 @@ export default function PendingOrdersList({ orders, token, onTakeOrder }: Props)
     }
   }
 
+  async function handleTakeAll() {
+    if (!onTakeAll) return
+    setTakingAll(true)
+    const taken: OrderSummary[] = []
+    for (const order of pendingOrders) {
+      try {
+        const res = await fetch(`/api/delivery/${order._id}/take`, {
+          method: 'POST',
+          headers: { 'x-delivery-token': token },
+        })
+        if (res.ok) {
+          taken.push(order)
+        }
+      } catch {
+        // individual failure, continue with others
+      }
+    }
+    if (taken.length > 0) {
+      onTakeAll(taken)
+    }
+    setTakingAll(false)
+  }
+
   return (
     <div className="space-y-3">
-      <h2 className="font-bold text-sm text-zinc-400 uppercase tracking-widest">
-        Pedidos listos para entregar
-      </h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-bold text-sm text-zinc-400 uppercase tracking-widest">
+          Pedidos listos
+        </h2>
+        {pendingOrders.length > 1 && onTakeAll && (
+          <button
+            onClick={handleTakeAll}
+            disabled={takingAll}
+            className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-all disabled:opacity-50"
+          >
+            {takingAll ? 'Tomando...' : `Tomar todos (${pendingOrders.length})`}
+          </button>
+        )}
+      </div>
       {pendingOrders.map(order => (
         <div
           key={order._id}

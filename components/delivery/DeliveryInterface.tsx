@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import PendingOrdersList from './PendingOrdersList'
-import DeliveryArrivalButton from './DeliveryArrivalButton'
-import DeliveryCodeInput from './DeliveryCodeInput'
+import ActiveOrdersList from './ActiveOrdersList'
+import CompletedOrdersList from './CompletedOrdersList'
+import TabBar from './TabBar'
+import DeliveryPushSetup from './DeliveryPushSetup'
 
-type Step = 'loading' | 'error' | 'orders' | 'arrived' | 'completed'
+type TabType = 'available' | 'active' | 'history'
+type PageStep = 'loading' | 'error' | 'ready'
 
 interface Person {
   _id: string
@@ -29,6 +32,7 @@ interface OrderSummary {
     status: string
     customerCode?: { code: string }
   }
+  createdAt?: string
 }
 
 export default function DeliveryInterface() {
@@ -36,10 +40,12 @@ export default function DeliveryInterface() {
   const token = params?.token as string
   const tenant = params?.tenant as string
 
-  const [step, setStep] = useState<Step>('loading')
+  const [step, setStep] = useState<PageStep>('loading')
   const [person, setPerson] = useState<Person | null>(null)
-  const [orders, setOrders] = useState<OrderSummary[]>([])
-  const [activeOrder, setActiveOrder] = useState<OrderSummary | null>(null)
+  const [tab, setTab] = useState<TabType>('available')
+  const [availableOrders, setAvailableOrders] = useState<OrderSummary[]>([])
+  const [activeOrders, setActiveOrders] = useState<OrderSummary[]>([])
+  const [completedOrders, setCompletedOrders] = useState<OrderSummary[]>([])
   const [error, setError] = useState('')
 
   const headers = { 'x-delivery-token': token }
@@ -57,32 +63,26 @@ export default function DeliveryInterface() {
       }
       const data = await res.json()
       setPerson(data.person)
+      setAvailableOrders(data.availableOrders || [])
+      setActiveOrders(data.activeOrders || [])
+      setCompletedOrders(data.completedOrders || [])
+      setStep('ready')
 
-      if (data.pendingOrders?.length > 0) {
-        const active = data.pendingOrders.find(
-          (o: any) => o.deliveryConfirmation?.status !== 'pending'
-        )
-        if (active) {
-          setActiveOrder(active)
-          if (active.status === 'arrived' || active.deliveryConfirmation?.status === 'arrived') {
-            setStep('arrived')
-          } else {
-            setStep('orders')
-          }
-        } else {
-          setActiveOrder(null)
-          setStep('orders')
-        }
+      // Default tab: active if has active orders, otherwise available
+      if (data.activeOrders?.length > 0) {
+        setTab('active')
       } else {
-        setActiveOrder(null)
-        setStep('orders')
+        setTab('available')
       }
-      setOrders(data.pendingOrders)
+
       setError('')
     } catch {
       setError('Error de conexión. Verificá tu internet.')
+      setStep('ready')
     }
   }, [headers])
+
+  const redirectStored = useRef(false)
 
   useEffect(() => {
     if (!token) {
@@ -91,27 +91,53 @@ export default function DeliveryInterface() {
       return
     }
     fetchOrders()
+    if (!redirectStored.current) {
+      redirectStored.current = true
+      localStorage.setItem('deliveryRedirect', window.location.pathname)
+    }
   }, [token, fetchOrders])
 
+  // Tomar un pedido → mover de available a active
   const handleTakeOrder = (order: OrderSummary) => {
-    setActiveOrder(order)
-    setStep('orders')
-    fetchOrders()
+    setAvailableOrders(prev => prev.filter(o => o._id !== order._id))
+    setActiveOrders(prev => [{
+      ...order,
+      deliveryConfirmation: { ...order.deliveryConfirmation, status: 'assigned' },
+    }, ...prev])
+    if (tab === 'available') setTab('active')
   }
 
+  const handleTakeAllOrders = (orders: OrderSummary[]) => {
+    const takenIds = new Set(orders.map(o => o._id))
+    setAvailableOrders(prev => prev.filter(o => !takenIds.has(o._id)))
+    setActiveOrders(prev => [
+      ...orders.map(o => ({
+        ...o,
+        deliveryConfirmation: { ...o.deliveryConfirmation, status: 'assigned' },
+      })),
+      ...prev,
+    ])
+    setTab('active')
+  }
+
+  // Delivery llegó → actualizar estado en active
   const handleArrived = (order: OrderSummary) => {
-    setActiveOrder(order)
-    setStep('arrived')
-    fetchOrders()
+    setActiveOrders(prev =>
+      prev.map(o =>
+        o._id === order._id
+          ? { ...order, deliveryConfirmation: { ...order.deliveryConfirmation, status: 'arrived' } }
+          : o
+      )
+    )
   }
 
-  const handleCompleted = () => {
-    setStep('completed')
-    setActiveOrder(null)
-    setTimeout(() => {
-      setStep('orders')
-      fetchOrders()
-    }, 3000)
+  // Entrega completada → mover de active a completed
+  const handleCompleted = (orderId: string) => {
+    const completed = activeOrders.find(o => o._id === orderId)
+    if (completed) {
+      setActiveOrders(prev => prev.filter(o => o._id !== orderId))
+      setCompletedOrders(prev => [completed, ...prev])
+    }
   }
 
   if (step === 'loading') {
@@ -143,18 +169,6 @@ export default function DeliveryInterface() {
     )
   }
 
-  if (step === 'completed') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-emerald-50 p-4">
-        <div className="max-w-sm text-center">
-          <div className="text-7xl mb-4 animate-bounce">✅</div>
-          <h1 className="text-2xl font-black text-emerald-800 mb-2">¡Entrega completada!</h1>
-          <p className="text-sm text-emerald-600">Pedido entregado con éxito</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="max-w-md mx-auto px-4 py-6">
@@ -164,38 +178,43 @@ export default function DeliveryInterface() {
             {person ? `👋 Hola, ${person.name}` : 'Delivery'}
           </h1>
           <p className="text-sm text-zinc-500 mt-1">
-            {activeOrder ? 'Tenés un pedido activo' : `${orders.length} pedido${orders.length !== 1 ? 's' : ''} pendiente${orders.length !== 1 ? 's' : ''}`}
+            {activeOrders.length > 0
+              ? `${activeOrders.length} entrega${activeOrders.length !== 1 ? 's' : ''} activa${activeOrders.length !== 1 ? 's' : ''}`
+              : `${availableOrders.length} pedido${availableOrders.length !== 1 ? 's' : ''} disponible${availableOrders.length !== 1 ? 's' : ''}`}
           </p>
         </div>
 
-        {/* Active order in progress */}
-        {activeOrder && activeOrder.deliveryConfirmation?.status === 'arrived' && (
-          <DeliveryCodeInput
-            orderId={activeOrder._id}
+        {/* Tabs */}
+        <TabBar
+          activeTab={tab}
+          onTabChange={setTab}
+          availableCount={availableOrders.length}
+          activeCount={activeOrders.length}
+          historyCount={completedOrders.length}
+        />
+
+        {/* Tab content */}
+        {tab === 'available' && (
+          <PendingOrdersList
+            orders={availableOrders}
+            token={token}
+            onTakeOrder={handleTakeOrder}
+            onTakeAll={handleTakeAllOrders}
+          />
+        )}
+
+        {tab === 'active' && (
+          <ActiveOrdersList
+            orders={activeOrders}
             token={token}
             tenant={tenant}
-            orderNumber={activeOrder.orderNumber}
+            onArrived={handleArrived}
             onCompleted={handleCompleted}
           />
         )}
 
-        {activeOrder && activeOrder.deliveryConfirmation?.status === 'assigned' && (
-          <DeliveryArrivalButton
-            orderId={activeOrder._id}
-            token={token}
-            orderNumber={activeOrder.orderNumber}
-            deliveryAddress={activeOrder.deliveryAddress}
-            onArrived={handleArrived}
-          />
-        )}
-
-        {/* Pending orders list */}
-        {!activeOrder && (
-          <PendingOrdersList
-            orders={orders}
-            token={token}
-            onTakeOrder={handleTakeOrder}
-          />
+        {tab === 'history' && (
+          <CompletedOrdersList orders={completedOrders} />
         )}
 
         {/* Bottom refresh */}
@@ -208,6 +227,8 @@ export default function DeliveryInterface() {
           </button>
         </div>
       </div>
+
+      <DeliveryPushSetup token={token} />
     </div>
   )
 }
