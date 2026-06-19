@@ -20,7 +20,9 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   pending:    ['confirmed', 'cancelled'],
   confirmed:  ['preparing', 'cancelled'],
   preparing:  ['ready', 'cancelled'],
-  ready:      ['delivered'],
+  ready:      ['en_ruta', 'delivered'],
+  en_ruta:    ['arrived', 'cancelled'],
+  arrived:    ['delivered', 'cancelled'],
   delivered:  [],
   cancelled:  [],
 }
@@ -30,6 +32,8 @@ const STATUS_TIMESTAMP: Record<string, keyof import('@/models/Order').IStatusTim
   confirmed: 'confirmedAt',
   preparing: 'preparingAt',
   ready:     'readyAt',
+  en_ruta:   'enRutaAt',
+  arrived:   'arrivedAt',
   delivered: 'deliveredAt',
   cancelled: 'cancelledAt',
 }
@@ -82,6 +86,24 @@ export async function PATCH(
     const previousStatus = order.status
     order.status = status
 
+    if (status === 'ready' && order.orderMode === 'delivery') {
+      // Generar customer code para delivery confirmation
+      const customerCode = String(Math.floor(100000 + Math.random() * 900000))
+      order.deliveryConfirmation = {
+        customerCode: {
+          code: customerCode,
+          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2h validez
+        },
+        deliveryPersonId: null,
+        deliveryPersonName: null,
+        status: 'pending',
+        arrivalLat: null,
+        arrivalLng: null,
+        arrivalAt: null,
+        completedAt: null,
+      }
+    }
+
     if (status === 'confirmed') {
       // Calcular estimatedReadyAt = confirmedAt + estimatedPickupTime de la sede (línea base ICO)
       // customerEstimatedReadyAt suma la demora informada para el modo específico (solo UX, no afecta ICO)
@@ -113,11 +135,14 @@ export async function PATCH(
       try {
         const sub = await PushSubscription.findOne({ clientToken: (order as any).clientToken })
         if (sub) {
+          const isDelivery = order.orderMode === 'delivery'
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
             JSON.stringify({
-              title: '🛍️ ¡Tu pedido está listo!',
-              body: `Pedido #${order.orderNumber} — podés pasar a retirarlo.`,
+              title: isDelivery ? '🛍️ ¡Tu pedido está listo!' : '🛍️ ¡Tu pedido está listo!',
+              body: isDelivery
+                ? `Pedido #${order.orderNumber} — el delivery está por pasar a buscarlo.`
+                : `Pedido #${order.orderNumber} — podés pasar a retirarlo.`,
               icon: '/tgoicon-192.png',
               badge: '/tgoicon-192.png',
               url: '/app',
