@@ -25,7 +25,7 @@ const QR_LOCATIONS = [
   { id: 'qr-mesa5', name: 'Mesa 5' },
   { id: 'qr-mesa6', name: 'Mesa 6' },
   { id: 'qr-puerta', name: 'Puerta entrada' },
-  { id: 'qr-takeaway', name: 'Zona Takeaway' },
+  { id: 'qr-takeaway', name: 'Zona Takeaway', promo: 'takeaway' },
 ]
 
 export default function UrlGeneratorPanel({ tenantSlug, tenantName }: UrlGeneratorPanelProps) {
@@ -40,9 +40,11 @@ export default function UrlGeneratorPanel({ tenantSlug, tenantName }: UrlGenerat
     }
   }, [tenantSlug])
 
-  const generateUrl = (source: string, label?: string) => {
-    const sourceParam = label ? `${source}-${label}` : source
-    return `${baseUrl}?source=${sourceParam}`
+  const generateUrl = (source: string, label?: string, promo?: string) => {
+    let url = `${baseUrl}?source=${source}`
+    if (label) url += `-${label}`
+    if (promo) url += `&promo=${promo}`
+    return url
   }
 
   const copyToClipboard = async (text: string, key: string) => {
@@ -116,8 +118,8 @@ export default function UrlGeneratorPanel({ tenantSlug, tenantName }: UrlGenerat
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          {(showAllQr ? QR_LOCATIONS : QR_LOCATIONS.slice(0, 4)).map((loc) => {
-            const url = generateUrl('qr', loc.id.replace('qr-', ''))
+            {(showAllQr ? QR_LOCATIONS : QR_LOCATIONS.slice(0, 4)).map((loc: any) => {
+            const url = loc.promo ? generateUrl('qr', undefined, loc.promo) : generateUrl('qr', loc.id.replace('qr-', ''))
             return (
               <div key={loc.id} className="flex flex-col gap-2 p-3 bg-card rounded-xl border border-border/60">
                 <div className="flex items-center gap-2">

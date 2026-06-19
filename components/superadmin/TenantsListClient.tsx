@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ExternalLink, MapPin, Settings, Users, Search, ArrowUpAZ, ArrowDownAZ, Clock, Pause, Play } from 'lucide-react'
+import { ExternalLink, MapPin, Settings, Users, Search, ArrowUpAZ, ArrowDownAZ, Clock, Pause, Play, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
@@ -85,6 +85,27 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
       } else {
         const error = await res.json()
         toast.error(error.error || 'Error al reactivar tenant')
+      }
+    } catch (error) {
+      toast.error('Error de conexión')
+    }
+  }
+
+  const handleResetTracking = async (tenantSlug: string, tenantName: string) => {
+    if (!confirm(`¿Resetear todo el tracking de "${tenantName}" (${tenantSlug})? Se borrarán todas las visitas registradas. Esta acción no se puede deshacer.`)) return
+
+    try {
+      const res = await fetch(`/api/superadmin/reset-traffic/${tenantSlug}`, {
+        method: 'POST',
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(`Tracking de "${tenantName}" reseteado: ${data.deleted} visitas borradas`)
+        window.location.reload()
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Error al resetear tracking')
       }
     } catch (error) {
       toast.error('Error de conexión')
@@ -280,6 +301,15 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
                         <MapPin className="mr-1.5 h-3.5 w-3.5 group-hover/btn:scale-110 transition-transform" /> Sedes
                       </Button>
                     </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleResetTracking(tenant.slug, tenant.name)}
+                      className="flex-1 min-w-[80px] h-9 rounded-xl font-bold text-[11px] border-2 border-red-200 text-red-600 hover:bg-red-500 hover:border-red-500 hover:text-white transition-all group/btn"
+                      title="Resetear tracking de visitas"
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5 group-hover/btn:scale-110 transition-transform" /> Reset
+                    </Button>
                     
                     <div className="flex items-center gap-2">
                       <Link href={`/superadmin/tenants/${tenant._id}/users`}>

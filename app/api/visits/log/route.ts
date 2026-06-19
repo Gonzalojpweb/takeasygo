@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
 
-    const { tenantSlug, locationPath } = parsed.data
+    const { tenantSlug, locationPath, promo: bodyPromo } = parsed.data
 
     const ip = request.headers.get('x-forwarded-for')
       || request.headers.get('cf-connecting-ip')
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get('user-agent')
     const referer = request.headers.get('referer')
     const urlSource = request.nextUrl.searchParams.get('source')
+    const promo = request.nextUrl.searchParams.get('promo') || bodyPromo || null
 
     // Rate limit: IP + tenantSlug para evitar bloquear tráfico legítimo de un WiFi compartido
     const identifier = `visit_log:${tenantSlug}:${cleanIp || 'unknown'}`
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
         referrer: referer,
         locationPath: locationPath || null,
         isDuplicate: false,
+        promo,
       })
     }
 

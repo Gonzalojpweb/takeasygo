@@ -43,7 +43,7 @@ export async function GET(
       visitedAt: { $gte: startDate }
     }
 
-    const [visits, total, bySource, byDevice, byDay] = await Promise.all([
+    const [visits, total, bySource, byDevice, byDay, byPromo] = await Promise.all([
       MenuVisit.find(query)
         .sort({ visitedAt: -1 })
         .limit(50)
@@ -74,6 +74,11 @@ export async function GET(
         { $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1 } },
         { $limit: 30 }
       ]),
+      MenuVisit.aggregate([
+        { $match: { ...query, promo: { $ne: null } } },
+        { $group: { _id: '$promo', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
     ])
 
     return NextResponse.json({
@@ -85,6 +90,7 @@ export async function GET(
         date: `${d._id.year}-${String(d._id.month).padStart(2, '0')}-${String(d._id.day).padStart(2, '0')}`,
         count: d.count
       })).reverse(),
+      byPromo,
       summary: {
         totalVisits: total,
         days,
