@@ -13,6 +13,8 @@ const NEXT_STATUS: Record<string, { label: string; value: string; color: string 
   confirmed: { label: 'Empezar Preparación', value: 'preparing', color: 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600' },
   preparing: { label: 'Marcar como Listo', value: 'ready', color: 'bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600' },
   ready: { label: 'Entregado', value: 'delivered', color: 'bg-zinc-800 shadow-zinc-800/20 hover:bg-zinc-900 rounded-xl' },
+  en_ruta: { label: 'Marcar Llegado', value: 'arrived', color: 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600' },
+  arrived: { label: 'Confirmar Entrega', value: 'delivered', color: 'bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600' },
   delivered: null,
   cancelled: null,
 }

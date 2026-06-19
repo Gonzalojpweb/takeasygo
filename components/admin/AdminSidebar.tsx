@@ -30,6 +30,7 @@ import {
   Smartphone,
   Building2,
   BrainCircuit,
+  Truck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -149,6 +150,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
         { href: `${base}/orders/history`, label: 'Historial', icon: ClipboardList, roles: ['admin', 'manager', 'cashier'], feature: 'orderHistory', requiresTakeaway: true },
         { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations' },
         { href: `${base}/printers`, label: 'Impresoras', icon: Printer, roles: ['admin', 'manager'], feature: 'printers', requiresTakeaway: true },
+        { href: `${base}/delivery`, label: 'Flota', icon: Truck, roles: ['admin', 'manager'], feature: 'delivery' },
       ],
     },
     {

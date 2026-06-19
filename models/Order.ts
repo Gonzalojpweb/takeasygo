@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
-export type OrderStatus = 'open' | 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
+export type OrderStatus = 'open' | 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'en_ruta' | 'arrived' | 'delivered' | 'cancelled'
 export type OrderMode = 'takeaway' | 'dine-in' | 'business' | 'delivery'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 export type PaymentModeSnapshot = 'cash_mp' | 'deferred' | 'mixed'
@@ -56,6 +56,8 @@ export interface IStatusTimestamps {
   confirmedAt:      Date | null
   preparingAt:      Date | null
   readyAt:          Date | null
+  enRutaAt:         Date | null
+  arrivedAt:        Date | null
   deliveredAt:      Date | null
   cancelledAt:      Date | null
   estimatedReadyAt: Date | null  // confirmedAt + location.estimatedPickupTime (línea base ICO)
@@ -127,6 +129,20 @@ export interface IOrder extends Document {
   loyaltyPointsCredited: boolean
   rewardDeductionProcessed?: boolean
   source?: string
+  // ── Delivery Confirmation (atestación mutua) ───────────────────────────────
+  deliveryConfirmation?: {
+    customerCode: {
+      code: string | null
+      expiresAt: Date | null
+    }
+    deliveryPersonId: mongoose.Types.ObjectId | null
+    deliveryPersonName: string | null
+    status: 'pending' | 'assigned' | 'en_ruta' | 'arrived' | 'completed' | 'disputed'
+    arrivalLat: number | null
+    arrivalLng: number | null
+    arrivalAt: Date | null
+    completedAt: Date | null
+  }
   // ── Delivery ───────────────────────────────────────────────────────────────
   deliveryAddress?: {
     street: string
@@ -234,7 +250,7 @@ const OrderSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['open', 'awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] as const,
+      enum: ['open', 'awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered', 'cancelled'] as const,
       default: 'awaiting_payment',
     },
     orderMode: {
@@ -316,6 +332,8 @@ const OrderSchema = new Schema(
       confirmedAt:      { type: Date, default: null },
       preparingAt:      { type: Date, default: null },
       readyAt:          { type: Date, default: null },
+      enRutaAt:         { type: Date, default: null },
+      arrivedAt:        { type: Date, default: null },
       deliveredAt:      { type: Date, default: null },
       cancelledAt:      { type: Date, default: null },
       estimatedReadyAt: { type: Date, default: null },
@@ -383,6 +401,34 @@ const OrderSchema = new Schema(
       type: String,
       default: null,
       index: true,
+    },
+    // ── Delivery Confirmation (atestación mutua) ──────────────────────────────
+    deliveryConfirmation: {
+      type: {
+        customerCode: {
+          type: {
+            code: { type: String, default: null },
+            expiresAt: { type: Date, default: null },
+          },
+          default: null,
+        },
+        deliveryPersonId: {
+          type: Schema.Types.ObjectId,
+          ref: 'DeliveryPerson',
+          default: null,
+        },
+        deliveryPersonName: { type: String, default: null },
+        status: {
+          type: String,
+          enum: ['pending', 'assigned', 'en_ruta', 'arrived', 'completed', 'disputed'],
+          default: 'pending',
+        },
+        arrivalLat: { type: Number, default: null },
+        arrivalLng: { type: Number, default: null },
+        arrivalAt: { type: Date, default: null },
+        completedAt: { type: Date, default: null },
+      },
+      default: null,
     },
     // ── Delivery ─────────────────────────────────────────────────────────────
     deliveryAddress: {

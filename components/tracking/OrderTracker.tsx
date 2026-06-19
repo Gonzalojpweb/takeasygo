@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
+import DeliveryCodeDisplay from './DeliveryCodeDisplay'
 import { Calendar, Star, Sparkles, Lock } from 'lucide-react'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
@@ -9,7 +10,7 @@ import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
 import PointsEarnedToast from '@/components/rewards/PointsEarnedToast'
 
-const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'delivered']
+const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
 
 const STATUS_INFO: Record<string, { label: string; description: string; emoji: string; pulse?: boolean }> = {
   awaiting_payment: { label: 'Esperando pago', description: 'Completá el pago para confirmar tu pedido', emoji: '💳' },
@@ -17,7 +18,9 @@ const STATUS_INFO: Record<string, { label: string; description: string; emoji: s
   confirmed: { label: 'Confirmado', description: 'El restaurante confirmó tu pedido', emoji: '✅', pulse: true },
   preparing: { label: 'Preparando', description: 'Tu pedido está siendo preparado', emoji: '👨‍🍳', pulse: true },
   ready:     { label: '¡Listo!',    description: '¡Pasá a retirar tu pedido!', emoji: '🎉', pulse: true },
-  delivered: { label: 'Entregado',  description: 'Pedido retirado. ¡Que lo disfrutes!', emoji: '🍽️' },
+  en_ruta:   { label: 'En camino',  description: 'El delivery está en camino a tu dirección', emoji: '🚗', pulse: true },
+  arrived:   { label: 'Llegó',      description: 'El delivery llegó a tu domicilio', emoji: '📍', pulse: true },
+  delivered: { label: 'Entregado',  description: 'Pedido entregado. ¡Que lo disfrutes!', emoji: '🍽️' },
   cancelled: { label: 'Cancelado',  description: 'El pedido fue cancelado', emoji: '❌' },
 }
 
@@ -110,6 +113,9 @@ export default function OrderTracker({
   const [scheduledPickupAt, setScheduledPickupAt] = useState<string | null>(initialScheduledPickupAt)
   const [scheduledStatus, setScheduledStatus] = useState<string | null>(initialScheduledStatus)
   const [scheduleCountdown, setScheduleCountdown] = useState('')
+  const [deliveryCode, setDeliveryCode] = useState<string | null>(null)
+  const [deliveryPersonName, setDeliveryPersonName] = useState<string | null>(null)
+  const [deliveryConfStatus, setDeliveryConfStatus] = useState<string | null>(null)
   const { play: playNotification } = useNotificationSound('/pop.mp3')
 
   const isScheduledPending = orderTiming === 'scheduled' && scheduledStatus === 'pending_schedule'
@@ -126,6 +132,9 @@ export default function OrderTracker({
       setOrderTiming(data.orderTiming ?? 'immediate')
       setScheduledPickupAt(data.scheduledPickupAt ?? null)
       setScheduledStatus(data.scheduledStatus ?? null)
+      setDeliveryCode(data.deliveryConfirmation?.customerCode ?? null)
+      setDeliveryPersonName(data.deliveryConfirmation?.deliveryPersonName ?? null)
+      setDeliveryConfStatus(data.deliveryConfirmation?.status ?? null)
       setLastChecked(new Date())
     } catch { /* ignora errores de red */ }
   }, [tenantSlug, orderId])
@@ -221,6 +230,25 @@ export default function OrderTracker({
       })
       playNotification()
       if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+    }
+    if (status === 'en_ruta' && prevStatusRef.current !== 'en_ruta') {
+      const name = deliveryPersonName ? ` (${deliveryPersonName})` : ''
+      toast.success('🚗 Delivery en camino' + name, {
+        description: 'El delivery está yendo a tu dirección',
+        duration: 8000,
+        position: 'top-center',
+      })
+      playNotification()
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100])
+    }
+    if (status === 'arrived' && prevStatusRef.current !== 'arrived') {
+      toast.success('📍 El delivery llegó', {
+        description: 'Entregale el código de 6 dígitos al delivery',
+        duration: 10000,
+        position: 'top-center',
+      })
+      playNotification()
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200])
     }
     prevStatusRef.current = status
   }, [status, playNotification])
@@ -406,8 +434,8 @@ export default function OrderTracker({
         </div>
       )}
 
-      {/* CTA: confirmar retiro */}
-      {status === 'ready' && (
+      {/* CTA: confirmar retiro (takeaway) o código delivery */}
+      {status === 'ready' && orderMode !== 'delivery' && (
         <div className="mb-8 rounded-2xl p-5"
           style={{ backgroundColor: primaryColor + '10', border: `2px solid ${primaryColor}40` }}>
           <p className="text-sm font-semibold mb-4 text-center opacity-70">
@@ -422,6 +450,61 @@ export default function OrderTracker({
             textColor={textColor}
             onConfirmed={() => setStatus('delivered')}
           />
+        </div>
+      )}
+
+      {/* Delivery code display */}
+      {status === 'ready' && orderMode === 'delivery' && deliveryCode && (
+        <DeliveryCodeDisplay
+          code={deliveryCode}
+          primaryColor={primaryColor}
+          backgroundColor={backgroundColor}
+          textColor={textColor}
+          orderMode={orderMode}
+        />
+      )}
+
+      {/* Delivery en ruta */}
+      {status === 'en_ruta' && orderMode === 'delivery' && (
+        <div className="mb-8 rounded-2xl p-5"
+          style={{ backgroundColor: primaryColor + '10', border: `2px solid ${primaryColor}40` }}>
+          <div className="text-center">
+            <div className="text-5xl mb-3 animate-bounce">🚗</div>
+            <p className="font-bold text-lg mb-1">Delivery en camino</p>
+            {deliveryPersonName && (
+              <p className="text-sm opacity-70">{deliveryPersonName} está yendo a tu domicilio</p>
+            )}
+            {deliveryCode && (
+              <div className="mt-4">
+                <p className="text-xs opacity-50 mb-2">Código de entrega (mostralo al delivery)</p>
+                <div className="inline-block px-6 py-3 rounded-2xl bg-white text-3xl font-black tracking-widest shadow-sm"
+                  style={{ color: primaryColor }}>
+                  {deliveryCode}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delivery arrived */}
+      {status === 'arrived' && orderMode === 'delivery' && (
+        <div className="mb-8 rounded-2xl p-5"
+          style={{ backgroundColor: primaryColor + '10', border: `2px solid ${primaryColor}40` }}>
+          <div className="text-center">
+            <div className="text-5xl mb-3">📍</div>
+            <p className="font-bold text-lg mb-1">Delivery llegó</p>
+            <p className="text-sm opacity-70 mb-4">El delivery está en tu domicilio</p>
+            {deliveryCode && (
+              <div>
+                <p className="text-xs opacity-50 mb-2">Entregale este código al delivery</p>
+                <div className="inline-block px-6 py-3 rounded-2xl bg-white text-3xl font-black tracking-widest shadow-sm"
+                  style={{ color: primaryColor }}>
+                  {deliveryCode}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

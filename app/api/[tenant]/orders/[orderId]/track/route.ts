@@ -71,7 +71,7 @@ export async function GET(
     console.log(`[track] Tenant ${tenantSlug}: mpConfigured=${hasMpConfigured}`)
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.mercadopagoId orderTiming scheduledPickupAt scheduledStatus')
+      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.mercadopagoId orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation')
       .lean() as any
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -113,15 +113,22 @@ export async function GET(
     }
 
     return NextResponse.json({
-      status:           currentStatus,
-      orderNumber:      order.orderNumber,
-      confirmedAt:      order.statusTimestamps?.confirmedAt ?? null,
-      estimatedReadyAt: order.statusTimestamps?.estimatedReadyAt ?? null,
+      status:              currentStatus,
+      orderNumber:         order.orderNumber,
+      confirmedAt:         order.statusTimestamps?.confirmedAt ?? null,
+      estimatedReadyAt:    order.statusTimestamps?.estimatedReadyAt ?? null,
       customerEstimatedReadyAt: order.statusTimestamps?.customerEstimatedReadyAt ?? null,
-      readyAt:          order.statusTimestamps?.readyAt ?? null,
-      orderTiming:      order.orderTiming ?? 'immediate',
-      scheduledPickupAt: order.scheduledPickupAt ?? null,
-      scheduledStatus:  order.scheduledStatus ?? null,
+      readyAt:             order.statusTimestamps?.readyAt ?? null,
+      orderTiming:         order.orderTiming ?? 'immediate',
+      scheduledPickupAt:   order.scheduledPickupAt ?? null,
+      scheduledStatus:     order.scheduledStatus ?? null,
+      deliveryConfirmation: order.deliveryConfirmation ? {
+        customerCode: order.deliveryConfirmation.customerCode?.code ?? null,
+        status: order.deliveryConfirmation.status,
+        deliveryPersonName: order.deliveryConfirmation.deliveryPersonName ?? null,
+        arrivalAt: order.deliveryConfirmation.arrivalAt ?? null,
+        completedAt: order.deliveryConfirmation.completedAt ?? null,
+      } : null,
     }, {
       headers: { 'Cache-Control': 'no-store' },
     })
