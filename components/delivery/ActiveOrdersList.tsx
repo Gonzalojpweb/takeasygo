@@ -25,7 +25,7 @@ interface Props {
   orders: OrderSummary[]
   token: string
   tenant: string
-  onArrived: (order: OrderSummary) => void
+  onArrived: (orderId: string) => void
   onCompleted: (orderId: string) => void
 }
 
@@ -107,9 +107,9 @@ export default function ActiveOrdersList({ orders, token, tenant, onArrived, onC
                     token={token}
                     orderNumber={order.orderNumber}
                     deliveryAddress={order.deliveryAddress}
-                    onArrived={(updated: OrderSummary) => {
+                    onArrived={() => {
                       setExpandedId(null)
-                      onArrived(updated)
+                      onArrived(order._id)
                     }}
                   />
                 )}

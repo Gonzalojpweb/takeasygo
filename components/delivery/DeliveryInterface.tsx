@@ -123,11 +123,11 @@ export default function DeliveryInterface() {
   }
 
   // Delivery llegó → actualizar estado en active
-  const handleArrived = (order: OrderSummary) => {
+  const handleArrived = (orderId: string) => {
     setActiveOrders(prev =>
       prev.map(o =>
-        o._id === order._id
-          ? { ...order, deliveryConfirmation: { ...order.deliveryConfirmation, status: 'arrived' } }
+        o._id === orderId
+          ? { ...o, deliveryConfirmation: { ...o.deliveryConfirmation, status: 'arrived' } }
           : o
       )
     )
