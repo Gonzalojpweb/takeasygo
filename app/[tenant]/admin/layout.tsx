@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import AdminPWAProvider from '@/components/admin/AdminPWAProvider'
 import AdminPushBanner from '@/components/admin/AdminPushBanner'
+import { SystemAnnouncementBanner } from '@/components/admin/SystemAnnouncementBanner'
 import MobileNav from '@/components/MobileNav'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
@@ -151,6 +152,7 @@ export default async function AdminLayout({
         />
       )}
       <Toaster />
+      <SystemAnnouncementBanner tenantSlug={tenant} />
     </div>
   )
 }

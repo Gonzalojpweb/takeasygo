@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
 import Tenant from '@/models/Tenant'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import mongoose from 'mongoose'
 
 export async function GET(
@@ -19,8 +19,14 @@ export async function GET(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
+    const user = await getSessionUser(request)
+    const unreadFilter = user?.id
+      ? { readBy: { $ne: new mongoose.Types.ObjectId(user.id) } }
+      : {}
+
     const announcements = await SystemAnnouncement.find({
       status: 'published',
+      ...unreadFilter,
       $and: [
         {
           $or: [
