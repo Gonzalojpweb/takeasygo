@@ -68,11 +68,14 @@ export default function DeliveryInterface() {
       setCompletedOrders(data.completedOrders || [])
       setStep('ready')
 
-      // Default tab: active if has active orders, otherwise available
-      if (data.activeOrders?.length > 0) {
-        setTab('active')
-      } else {
-        setTab('available')
+      // Default tab only on first load — never override user's choice on refresh
+      if (initialLoad.current) {
+        initialLoad.current = false
+        if (data.activeOrders?.length > 0) {
+          setTab('active')
+        } else {
+          setTab('available')
+        }
       }
 
       setError('')
@@ -82,6 +85,7 @@ export default function DeliveryInterface() {
     }
   }, [headers])
 
+  const initialLoad = useRef(true)
   const redirectStored = useRef(false)
 
   useEffect(() => {
@@ -97,14 +101,13 @@ export default function DeliveryInterface() {
     }
   }, [token, fetchOrders])
 
-  // Tomar un pedido → mover de available a active
+  // Tomar un pedido → mover de available a active, sin cambiar de tab
   const handleTakeOrder = (order: OrderSummary) => {
     setAvailableOrders(prev => prev.filter(o => o._id !== order._id))
     setActiveOrders(prev => [{
       ...order,
       deliveryConfirmation: { ...order.deliveryConfirmation, status: 'assigned' },
     }, ...prev])
-    if (tab === 'available') setTab('active')
   }
 
   const handleTakeAllOrders = (orders: OrderSummary[]) => {
@@ -117,7 +120,6 @@ export default function DeliveryInterface() {
       })),
       ...prev,
     ])
-    setTab('active')
   }
 
   // Delivery llegó → actualizar estado en active
