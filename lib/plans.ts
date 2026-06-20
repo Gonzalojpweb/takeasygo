@@ -95,6 +95,9 @@ export const PLAN_ACCESS = {
   // All features: 'buy' (Growth), 'full' (Premium)
   // Premium sub-features (SIL, anomalies, recommendations) gated inside UI
   tia: ['buy', 'full'] as const,
+
+  // CRM — Base de Datos de Consumidores (Crecimiento y Premium)
+  crm: ['buy', 'full'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS
