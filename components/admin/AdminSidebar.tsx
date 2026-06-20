@@ -46,6 +46,7 @@ interface Props {
   dineInOnly?: boolean
   unreadAnnouncements?: number
   businessEnabled?: boolean
+  crmEnabled?: boolean
   assignedLocations?: string[]
   locations?: { _id: string; name: string }[]
 }
@@ -130,11 +131,12 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false, unreadAnnouncements = 0, businessEnabled = false, assignedLocations = [], locations = [] }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false, unreadAnnouncements = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [] }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
 
   const showBusiness = businessEnabled && canAccess(plan, 'business')
+  const showCrm = crmEnabled && canAccess(plan, 'crm')
 
   const groups: NavGroup[] = [
     {
@@ -175,6 +177,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
         { href: `${base}/go-plus`,     label: 'GO+',           icon: Zap,       roles: ['admin', 'manager'], feature: 'loyaltyClub' },
         { href: `${base}/wallet`,      label: 'Wallet',        icon: Smartphone,roles: ['admin', 'manager'], feature: 'loyaltyClub' },
         { href: `${base}/store`,       label: 'Tienda',        icon: Gift,      roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        ...(showCrm ? [{ href: `${base}/crm`, label: 'CRM', icon: Users, roles: ['admin', 'manager'] } as NavItem] : []),
       ],
     },
     {

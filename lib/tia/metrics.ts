@@ -11,9 +11,23 @@ function getPostHogConfig() {
   return { key, projectId }
 }
 
-async function queryPostHog(query: any): Promise<any> {
+function addTenantFilter(query: any, tenantId: string): any {
+  if (!tenantId) return query
+  const tenantFilter = { key: 'tenantId', value: [tenantId], operator: 'exact', type: 'event' as const }
+  return {
+    ...query,
+    properties: [
+      ...(query.properties || []),
+      tenantFilter,
+    ],
+  }
+}
+
+async function queryPostHog(query: any, tenantId?: string): Promise<any> {
   const config = getPostHogConfig()
   if (!config) return null
+
+  const queryWithFilter = tenantId ? addTenantFilter(query, tenantId) : query
 
   try {
     const auth = Buffer.from(`${config.key}:`).toString('base64')
@@ -23,7 +37,7 @@ async function queryPostHog(query: any): Promise<any> {
         'Content-Type': 'application/json',
         Authorization: `Basic ${auth}`,
       },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query: queryWithFilter }),
     })
     if (!res.ok) {
       console.warn('[PostHog Query]', res.status, await res.text())
@@ -36,7 +50,7 @@ async function queryPostHog(query: any): Promise<any> {
   }
 }
 
-async function fetchFunnel(): Promise<ConversionFunnelData | null> {
+async function fetchFunnel(tenantId: string): Promise<ConversionFunnelData | null> {
   const result = await queryPostHog({
     kind: 'FunnelsQuery',
     dateRange: { date_from: '-30d' },
@@ -49,7 +63,7 @@ async function fetchFunnel(): Promise<ConversionFunnelData | null> {
       { kind: 'events', event: 'checkout.started', name: 'checkout.started' },
       { kind: 'events', event: 'order.completed', name: 'order.completed' },
     ],
-  })
+  }, tenantId)
 
   if (!result?.results?.length) return null
 
@@ -63,22 +77,22 @@ async function fetchFunnel(): Promise<ConversionFunnelData | null> {
   }
 }
 
-async function fetchTrend(event: string, days = 30): Promise<number> {
+async function fetchTrend(event: string, days = 30, tenantId?: string): Promise<number> {
   const result = await queryPostHog({
     kind: 'TrendsQuery',
     dateRange: { date_from: `-${days}d` },
     series: [{ kind: 'events', event, name: event }],
     interval: 'day',
     breakdown: undefined,
-  })
+  }, tenantId)
 
   if (!result?.results?.length) return 0
   const data = result.results[0].data as number[]
   return data.reduce((sum: number, v: number) => sum + v, 0)
 }
 
-async function fetchMenuOpened(): Promise<number> {
-  return fetchTrend('menu.opened', 30)
+async function fetchMenuOpened(tenantId: string): Promise<number> {
+  return fetchTrend('menu.opened', 30, tenantId)
 }
 
 export interface DailySummaryData {
@@ -348,10 +362,10 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     historical.members.push({ label, value: memberData?.count ?? 0 })
   }
 
-  // PostHog: funnel + visits
+  // PostHog: funnel + visits (filtered by tenant)
   const [funnel, menuOpenedCount] = await Promise.all([
-    fetchFunnel(),
-    fetchMenuOpened(),
+    fetchFunnel(tenantId),
+    fetchMenuOpened(tenantId),
   ])
 
   const totalOrders7d = orders7d || 1

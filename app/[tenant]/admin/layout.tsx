@@ -67,10 +67,11 @@ export default async function AdminLayout({
 
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
-    .select('plan business.enabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl')
+    .select('plan business.enabled features.crm.enabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl')
     .lean() as any
   const plan: Plan = tenantDoc?.plan ?? 'try'
   const businessEnabled = tenantDoc?.business?.enabled ?? false
+  const crmEnabled = tenantDoc?.features?.crm?.enabled ?? false
 
   const branding = tenantDoc?.branding || {}
   const primaryColor = branding.primaryColor || '#f74211'
@@ -113,6 +114,7 @@ export default async function AdminLayout({
     dineInOnly,
     unreadAnnouncements,
     businessEnabled,
+    crmEnabled,
     assignedLocations: session.user.assignedLocations ?? [],
     locations: sidebarLocations,
   }

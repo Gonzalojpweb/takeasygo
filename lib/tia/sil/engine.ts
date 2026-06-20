@@ -93,10 +93,10 @@ export async function runSilAnalysis(
     insights.push(...analyzeCategory(metrics.sil.categories, config))
   }
 
-  // ── 4. Behavioral trends from PostHog ─────────────────────────────────────
+  // ── 4. Behavioral trends from PostHog (filtered by tenant) ─────────────────
   const behavioralEvents = ['menu.opened', 'dish.viewed', 'dish.added']
   for (const event of behavioralEvents) {
-    const trend = await fetchPostHogTrend(event, 30)
+    const trend = await fetchPostHogTrend(event, 30, tenantId)
     if (trend.length >= config.trendMinPoints) {
       const values = trend.map(d => d.value)
       insights.push(...analyzeTrend(event, 'menu', values, 'últimos 30 días', config))

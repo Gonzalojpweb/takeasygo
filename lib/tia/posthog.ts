@@ -7,9 +7,24 @@ function getPostHogConfig() {
   return { key, projectId }
 }
 
-export async function queryPostHog(query: any): Promise<any> {
+function addTenantFilter(query: any, tenantId: string): any {
+  if (!tenantId) return query
+  const tenantFilter = { key: 'tenantId', value: [tenantId], operator: 'exact', type: 'event' as const }
+  return {
+    ...query,
+    properties: [
+      ...(query.properties || []),
+      tenantFilter,
+    ],
+  }
+}
+
+export async function queryPostHog(query: any, tenantId?: string): Promise<any> {
   const config = getPostHogConfig()
   if (!config) return null
+
+  const queryWithFilter = tenantId ? addTenantFilter(query, tenantId) : query
+
   try {
     const auth = Buffer.from(`${config.key}:`).toString('base64')
     const res = await fetch(`${POSTHOG_HOST}/api/projects/${config.projectId}/query/`, {
@@ -18,7 +33,7 @@ export async function queryPostHog(query: any): Promise<any> {
         'Content-Type': 'application/json',
         Authorization: `Basic ${auth}`,
       },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query: queryWithFilter }),
     })
     if (!res.ok) {
       console.warn('[PostHog Query]', res.status, await res.text())
@@ -31,21 +46,21 @@ export async function queryPostHog(query: any): Promise<any> {
   }
 }
 
-export async function fetchPostHogTrend(event: string, days = 30): Promise<{ label: string; value: number }[]> {
+export async function fetchPostHogTrend(event: string, days = 30, tenantId?: string): Promise<{ label: string; value: number }[]> {
   const result = await queryPostHog({
     kind: 'TrendsQuery',
     dateRange: { date_from: `-${days}d` },
     series: [{ kind: 'events', event, name: event }],
     interval: 'day',
     breakdown: undefined,
-  })
+  }, tenantId)
   if (!result?.results?.length) return []
   const rawLabels = result.results[0].labels as string[]
   const rawData = result.results[0].data as number[]
   return rawLabels.map((label, i) => ({ label, value: rawData[i] ?? 0 }))
 }
 
-export async function fetchPostHogTotal(event: string, days = 30): Promise<number> {
-  const trend = await fetchPostHogTrend(event, days)
+export async function fetchPostHogTotal(event: string, days = 30, tenantId?: string): Promise<number> {
+  const trend = await fetchPostHogTrend(event, days, tenantId)
   return trend.reduce((sum, d) => sum + d.value, 0)
 }
