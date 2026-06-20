@@ -2,7 +2,9 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
-import { Search, Package, Clock, CheckCircle, CookingPot, ShoppingBag, Truck, X, ChevronDown, Loader2, ArrowLeft, Phone } from 'lucide-react'
+import { Search, Package, Clock, CheckCircle, CookingPot, ShoppingBag, Truck, X, Loader2, ArrowLeft, Phone, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { AnimatedGradientText } from '@/registry/magicui/animated-gradient-text'
 
 type OrderStatus = 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
 
@@ -85,17 +87,33 @@ export default function OrderLookupByPhone({ tenantSlug }: { tenantSlug: string 
   }
 
   return (
-    <div className="border-t" style={{ borderColor: '#ffffff15' }}>
+    <div className="border-t" style={{ backgroundColor: '#1e293b', borderColor: '#ffffff15' }}>
       <div className="max-w-2xl mx-auto px-4 py-6">
         {viewState === 'collapsed' && (
           <button
             onClick={handleToggle}
-            className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-2xl transition-all hover:opacity-80"
-            style={{ backgroundColor: '#ffffff08' }}
+            className="group relative mx-auto flex w-full items-center justify-center rounded-full px-5 py-3 shadow-[inset_0_-8px_10px_#8fdfff1f] transition-shadow duration-500 ease-out hover:shadow-[inset_0_-5px_10px_#8fdfff3f] cursor-pointer"
           >
-            <Package size={16} className="text-emerald-400" />
-            <span className="text-sm font-semibold text-white">¿Ya pediste? Seguí tu pedido aquí</span>
-            <ChevronDown size={16} className="text-zinc-500" />
+            <span
+              className={cn(
+                "animate-gradient absolute inset-0 block h-full w-full rounded-[inherit] bg-gradient-to-r from-[#ffaa40]/50 via-[#9c40ff]/50 to-[#ffaa40]/50 bg-[length:300%_100%] p-[1px]"
+              )}
+              style={{
+                WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                WebkitMaskComposite: "destination-out",
+                mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                maskComposite: "subtract",
+                WebkitClipPath: "padding-box",
+              }}
+            />
+            <span className="flex items-center gap-2">
+              <span className="text-lg">🔍</span>
+              <span className="mx-2 h-5 w-px shrink-0 bg-neutral-500" />
+              <AnimatedGradientText className="text-sm font-semibold">
+                ¿Ya pediste? Seguí tu pedido
+              </AnimatedGradientText>
+              <ChevronRight className="ml-1 size-4 stroke-neutral-400 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
+            </span>
           </button>
         )}
 
