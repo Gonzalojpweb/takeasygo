@@ -55,6 +55,12 @@ interface Props {
   tenantName: string
   clubName: string
   orderMode?: string
+  deliveryAddress?: {
+    street: string
+    number: string
+    apt?: string
+    city: string
+  }
 }
 
 function formatCountdown(target: string): string {
@@ -462,6 +468,19 @@ export default function OrderTracker({
           textColor={textColor}
           orderMode={orderMode}
         />
+      )}
+
+      {/* Delivery address info */}
+      {orderMode === 'delivery' && deliveryAddress && (
+        <div className="mb-4 rounded-2xl p-4"
+          style={{ backgroundColor: primaryColor + '08', border: `1px solid ${primaryColor}20` }}>
+          <p className="text-xs opacity-50 uppercase tracking-widest font-bold mb-1">Dirección de entrega</p>
+          <p className="text-sm font-semibold">
+            {deliveryAddress.street} {deliveryAddress.number}
+            {deliveryAddress.apt ? `, ${deliveryAddress.apt}` : ''}
+            {deliveryAddress.city ? `, ${deliveryAddress.city}` : ''}
+          </p>
+        </div>
       )}
 
       {/* Delivery en ruta */}

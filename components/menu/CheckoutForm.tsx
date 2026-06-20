@@ -788,12 +788,14 @@ async function handleSubmit(e: React.FormEvent) {
             <h2 className="font-semibold text-sm text-zinc-500 uppercase tracking-wide">Dirección de entrega</h2>
             <div className="flex gap-2">
               <input
+                required
                 placeholder="Calle *"
                 value={deliveryAddress.street}
                 onChange={e => setDeliveryAddress(p => ({ ...p, street: e.target.value }))}
                 className="flex-1 border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
               />
               <input
+                required
                 placeholder="Número *"
                 value={deliveryAddress.number}
                 onChange={e => setDeliveryAddress(p => ({ ...p, number: e.target.value }))}
@@ -807,6 +809,7 @@ async function handleSubmit(e: React.FormEvent) {
               className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
             />
             <input
+              required
               placeholder="Localidad *"
               value={deliveryAddress.city}
               onChange={e => setDeliveryAddress(p => ({ ...p, city: e.target.value }))}

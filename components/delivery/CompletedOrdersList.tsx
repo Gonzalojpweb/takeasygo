@@ -66,6 +66,7 @@ export default function CompletedOrdersList({ orders }: Props) {
           <p className="text-xs text-zinc-400 mt-2 pl-8 break-words">
             📍 {order.deliveryAddress.street} {order.deliveryAddress.number}
             {order.deliveryAddress.apt ? `, ${order.deliveryAddress.apt}` : ''}
+            {order.deliveryAddress.city ? `, ${order.deliveryAddress.city}` : ''}
           </p>
         </div>
       ))}

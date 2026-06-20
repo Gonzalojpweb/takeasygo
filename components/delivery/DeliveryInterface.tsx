@@ -55,6 +55,7 @@ export default function DeliveryInterface() {
       const res = await fetch(`/api/delivery/me`, { headers })
       if (!res.ok) {
         if (res.status === 401 || res.status === 404) {
+          localStorage.removeItem('deliveryRedirect')
           setStep('error')
           setError('Link inválido o delivery desactivado. Contactá al restaurante.')
           return

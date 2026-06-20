@@ -138,6 +138,12 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           tenantName={tenant.name}
           clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
           orderMode={order.orderMode}
+          deliveryAddress={order.deliveryAddress ? {
+            street: order.deliveryAddress.street,
+            number: order.deliveryAddress.number,
+            apt: order.deliveryAddress.apt ?? '',
+            city: order.deliveryAddress.city,
+          } : undefined}
         />
 
         {/* Resumen del pedido */}
