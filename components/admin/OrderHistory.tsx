@@ -47,6 +47,13 @@ interface OrderSummary {
   printed: boolean
   createdAt: string
   locationName: string
+  orderMode?: string
+  deliveryAddress?: {
+    street: string
+    number: string
+    apt?: string
+    city: string
+  }
 }
 
 interface HistoryResponse {
@@ -221,6 +228,7 @@ export default function OrderHistory({
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">#</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Cliente</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Sede</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Dirección</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Estado</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Pago</th>
                 <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Total</th>
@@ -230,7 +238,7 @@ export default function OrderHistory({
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <td colSpan={8} className="text-center py-12 text-muted-foreground">
                     <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
                     Cargando...
                   </td>
@@ -238,7 +246,7 @@ export default function OrderHistory({
               )}
               {!loading && (!data || data.orders.length === 0) && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <td colSpan={8} className="text-center py-12 text-muted-foreground">
                     <ShoppingBag size={32} className="mx-auto mb-3 opacity-30" />
                     No se encontraron pedidos con esos filtros.
                   </td>
@@ -263,6 +271,11 @@ export default function OrderHistory({
                         )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">{order.locationName}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs max-w-[180px] truncate">
+                        {order.orderMode === 'delivery' && order.deliveryAddress
+                          ? `${order.deliveryAddress.street} ${order.deliveryAddress.number}${order.deliveryAddress.apt ? `, ${order.deliveryAddress.apt}` : ''}${order.deliveryAddress.city ? `, ${order.deliveryAddress.city}` : ''}`
+                          : '—'}
+                      </td>
                       <td className="px-4 py-3">
                         <Badge
                           variant="outline"

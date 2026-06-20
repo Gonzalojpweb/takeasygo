@@ -71,7 +71,7 @@ export async function GET(
         .sort({ createdAt: -1 })
         .skip((page - 1) * PAGE_SIZE)
         .limit(PAGE_SIZE)
-        .select('orderNumber status total customer notes payment printed createdAt locationId')
+        .select('orderNumber status total customer notes payment printed createdAt locationId orderMode deliveryAddress')
         .lean(),
       Order.countDocuments(filter),
       Location.find({ tenantId: tenant._id }).select('_id name').lean(),

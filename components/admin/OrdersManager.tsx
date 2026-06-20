@@ -774,6 +774,19 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                     </div>
                   )}
 
+                  {/* Delivery address */}
+                  {order.orderMode === 'delivery' && order.deliveryAddress && (
+                    <div className="mx-4 mb-3 flex items-start gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <span className="text-xs shrink-0 mt-0.5">📍</span>
+                      <div className="text-xs text-emerald-800">
+                        <span className="font-semibold">Dirección de entrega:</span>{' '}
+                        {order.deliveryAddress.street} {order.deliveryAddress.number}
+                        {order.deliveryAddress.apt ? `, ${order.deliveryAddress.apt}` : ''}
+                        {order.deliveryAddress.city ? `, ${order.deliveryAddress.city}` : ''}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Delivery info */}
                   {order.deliveryConfirmation?.deliveryPersonName && (
                     <div className="mx-4 mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200">
