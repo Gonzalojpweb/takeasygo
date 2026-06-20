@@ -107,6 +107,7 @@ export default function OrderTracker({
   tenantName,
   clubName,
   orderMode,
+  deliveryAddress,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [confirmedAt, setConfirmedAt]     = useState<string | null>(null)
