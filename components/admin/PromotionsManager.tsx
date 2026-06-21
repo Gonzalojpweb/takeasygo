@@ -63,6 +63,8 @@ interface Promotion {
   locationId?: string
   linkedCategoryIds?: string[]
   linkedItemIds?: string[]
+  linkedItemVariantFilters?: { itemId: string; variantNames: string[] }[]
+  allowCustomization?: boolean
   overrideCustomizationGroups?: OverrideGroup[]
   /** @deprecated */
   linkedMenuItemId?: string
@@ -126,6 +128,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     locationId: locations[0]?._id || '',
     linkedCategoryIds: [] as string[],
     linkedItemIds: [] as string[],
+    linkedItemVariantFilters: [] as { itemId: string; variantNames: string[] }[],
+    allowCustomization: true,
     overrideCustomizationGroups: [] as OverrideGroup[],
     customStyles: {
       backgroundColor: '#1a1a1a',
@@ -194,6 +198,17 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     return form.linkedItemIds.includes(itemId)
   }
 
+  function getVariantFilterEntry(itemId: string): { itemId: string; variantNames: string[] } | undefined {
+    return form.linkedItemVariantFilters.find(f => f.itemId === itemId)
+  }
+
+  function isVariantSelected(itemId: string, variantName: string): boolean {
+    const entry = getVariantFilterEntry(itemId)
+    if (!entry) return true
+    if (entry.variantNames.length === 0) return true
+    return entry.variantNames.includes(variantName)
+  }
+
   function toggleCategorySelection(catId: string) {
     setForm(prev => {
       const ids = prev.linkedCategoryIds.includes(catId)
@@ -205,10 +220,42 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
 
   function toggleItemSelection(itemId: string) {
     setForm(prev => {
-      const ids = prev.linkedItemIds.includes(itemId)
+      const wasSelected = prev.linkedItemIds.includes(itemId)
+      const ids = wasSelected
         ? prev.linkedItemIds.filter(id => id !== itemId)
         : [...prev.linkedItemIds, itemId]
-      return { ...prev, linkedItemIds: ids }
+
+      const filters = wasSelected
+        ? prev.linkedItemVariantFilters.filter(f => f.itemId !== itemId)
+        : prev.linkedItemVariantFilters
+
+      return { ...prev, linkedItemIds: ids, linkedItemVariantFilters: filters }
+    })
+  }
+
+  function toggleVariantFilter(itemId: string, variantName: string) {
+    setForm(prev => {
+      const entry = prev.linkedItemVariantFilters.find(f => f.itemId === itemId)
+      if (entry) {
+        const wasSelected = entry.variantNames.includes(variantName)
+        const updatedNames = wasSelected
+          ? entry.variantNames.filter(n => n !== variantName)
+          : [...entry.variantNames, variantName]
+        const filters = updatedNames.length === 0
+          ? prev.linkedItemVariantFilters.filter(f => f.itemId !== itemId)
+          : prev.linkedItemVariantFilters.map(f =>
+              f.itemId === itemId ? { ...f, variantNames: updatedNames } : f
+            )
+        return { ...prev, linkedItemVariantFilters: filters }
+      }
+      // No filter entry yet — init with all variants EXCEPT this one
+      const item = categories.flatMap(c => c.items).find(i => i._id === itemId)
+      const allNames = (item?.variants ?? []).map(v => v.name)
+      const variantNames = allNames.filter(n => n !== variantName)
+      return {
+        ...prev,
+        linkedItemVariantFilters: [...prev.linkedItemVariantFilters, { itemId, variantNames }],
+      }
     })
   }
 
@@ -355,6 +402,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       locationId: selectedLocation,
       linkedCategoryIds: [],
       linkedItemIds: [],
+      linkedItemVariantFilters: [],
+      allowCustomization: true,
       overrideCustomizationGroups: [],
       customStyles: {
         backgroundColor: '#1a1a1a',
@@ -393,6 +442,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       locationId: promotion.locationId || locations[0]?._id || '',
       linkedCategoryIds: promotion.linkedCategoryIds || [],
       linkedItemIds: promotion.linkedItemIds || [],
+      linkedItemVariantFilters: promotion.linkedItemVariantFilters || [],
+      allowCustomization: promotion.allowCustomization ?? true,
       overrideCustomizationGroups: promotion.overrideCustomizationGroups || [],
       customStyles: {
         backgroundColor: promotion.customStyles?.backgroundColor || '#1a1a1a',
@@ -852,7 +903,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       <div className="mb-3">
                         <select
                           value={form.locationId}
-                          onChange={e => setForm({ ...form, locationId: e.target.value, linkedCategoryIds: [], linkedItemIds: [] })}
+                          onChange={e => setForm({ ...form, locationId: e.target.value, linkedCategoryIds: [], linkedItemIds: [], linkedItemVariantFilters: [] })}
                           className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
                         >
                           {locations.map(loc => (
@@ -882,7 +933,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                         {(form.linkedCategoryIds.length > 0 || form.linkedItemIds.length > 0) && (
                           <button
                             type="button"
-                            onClick={() => setForm({ ...form, linkedCategoryIds: [], linkedItemIds: [] })}
+                            onClick={() => setForm({ ...form, linkedCategoryIds: [], linkedItemIds: [], linkedItemVariantFilters: [] })}
                             className="text-xs text-emerald-600 underline ml-auto"
                           >
                             Limpiar
@@ -946,29 +997,52 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                                   <p className="px-3 py-2 text-xs text-muted-foreground">Sin productos</p>
                                 ) : (
                                   cat.items.map(item => (
-                                    <div
-                                      key={item._id}
-                                      className="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors rounded-lg"
-                                    >
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleItemSelection(item._id)}
-                                        className={cn(
-                                          'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
-                                          isItemSelected(item._id)
-                                            ? 'bg-primary border-primary text-white'
-                                            : 'border-muted-foreground/30'
+                                    <div key={item._id}>
+                                      <div className="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors rounded-lg">
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleItemSelection(item._id)}
+                                          className={cn(
+                                            'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                                            isItemSelected(item._id)
+                                              ? 'bg-primary border-primary text-white'
+                                              : 'border-muted-foreground/30'
+                                          )}
+                                        >
+                                          {isItemSelected(item._id) && <span className="text-[8px]">✓</span>}
+                                        </button>
+                                        <span className="text-xs">{item.name}</span>
+                                        {(item.variants.length > 0 || item.customizationGroups.length > 0) && (
+                                          <span className="text-[10px] text-muted-foreground ml-auto">
+                                            {item.variants.length > 0 && (() => {
+                                              const entry = getVariantFilterEntry(item._id)
+                                              const selectedCount = entry ? entry.variantNames.length : item.variants.length
+                                              return selectedCount < item.variants.length
+                                                ? `${selectedCount}/${item.variants.length} var`
+                                                : `${item.variants.length} var`
+                                            })()}
+                                            {item.variants.length > 0 && item.customizationGroups.length > 0 && ' · '}
+                                            {item.customizationGroups.length > 0 && `${item.customizationGroups.length} cust`}
+                                          </span>
                                         )}
-                                      >
-                                        {isItemSelected(item._id) && <span className="text-[8px]">✓</span>}
-                                      </button>
-                                      <span className="text-xs">{item.name}</span>
-                                      {(item.variants.length > 0 || item.customizationGroups.length > 0) && (
-                                        <span className="text-[10px] text-muted-foreground ml-auto">
-                                          {item.variants.length > 0 && `${item.variants.length} var`}
-                                          {item.variants.length > 0 && item.customizationGroups.length > 0 && ' · '}
-                                          {item.customizationGroups.length > 0 && `${item.customizationGroups.length} cust`}
-                                        </span>
+                                      </div>
+                                      {isItemSelected(item._id) && item.variants.length > 0 && (
+                                        <div className="ml-8 pl-4 border-l-2 border-primary/20 space-y-0.5 pb-1.5">
+                                          {item.variants.map((v) => (
+                                            <label
+                                              key={v.name}
+                                              className="flex items-center gap-2 px-2 py-0.5 cursor-pointer hover:bg-muted/20 rounded transition-colors"
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                checked={isVariantSelected(item._id, v.name)}
+                                                onChange={() => toggleVariantFilter(item._id, v.name)}
+                                                className="w-3 h-3 rounded"
+                                              />
+                                              <span className="text-[11px] text-muted-foreground">{v.name}</span>
+                                            </label>
+                                          ))}
+                                        </div>
                                       )}
                                     </div>
                                   ))
@@ -979,6 +1053,35 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                         ))}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Allow customization toggle ── */}
+                {form.type === 'sale' && (
+                  <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-muted/10">
+                    <div className="flex-1 min-w-0">
+                      <Label className="text-xs font-bold text-foreground">Permitir personalización</Label>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Si desactivás, la promo se agrega directo sin pedir variantes ni extras al cliente
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={form.allowCustomization}
+                      onClick={() => setForm({ ...form, allowCustomization: !form.allowCustomization })}
+                      className={cn(
+                        'relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ml-3',
+                        form.allowCustomization ? 'bg-primary' : 'bg-muted-foreground/30'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform',
+                          form.allowCustomization && 'translate-x-4'
+                        )}
+                      />
+                    </button>
                   </div>
                 )}
 

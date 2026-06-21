@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag, ShoppingCart, Plus } from 'lucide-react'
+import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag, ShoppingCart, Plus, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isAvailableNow } from '@/lib/availability'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -103,6 +103,20 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
     completedItemIds: string[]
   } | null>(null)
 
+  const [promoQtyInput, setPromoQtyInput] = useState<{
+    item: any
+    promotion: any
+  } | null>(null)
+
+  const [promoUnitFlow, setPromoUnitFlow] = useState<{
+    item: any
+    promotion: any
+    totalUnits: number
+    currentUnit: number
+  } | null>(null)
+
+  const [promoQtyValue, setPromoQtyValue] = useState(1)
+
   useEffect(() => {
     fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=dine-in`)
       .then(r => r.ok ? r.json() : { promotions: [] })
@@ -144,17 +158,6 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
   const regularPromotions = promotions.filter(p => !p.isFeatured)
 
   // ── Promotion cart helpers ────────────────────────────────
-  function zeroExtraPrices(opts: any[]): any[] {
-    return opts.map((o: any) => ({
-      ...o,
-      extraPrice: 0,
-      subGroups: o.subGroups ? o.subGroups.map((sg: any) => ({
-        ...sg,
-        options: zeroExtraPrices(sg.options ?? []),
-      })) : undefined,
-    }))
-  }
-
   function buildPromoCustomizationItem(item: any, promotion: any) {
     return {
       ...item,
@@ -172,10 +175,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         price: promotion.price,
         takeawayPrice: promotion.price,
       })),
-      customizationGroups: (item.customizationGroups ?? []).map((g: any) => ({
-        ...g,
-        options: zeroExtraPrices(g.options ?? []),
-      })),
+      customizationGroups: item.customizationGroups ?? [],
     }
   }
 
@@ -206,7 +206,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
       (li: any) => (li.customizationGroups?.length ?? 0) > 0 || (li.variants?.length ?? 0) > 0
     )
 
-    if (itemsWithCustomizations.length === 0) {
+    if (itemsWithCustomizations.length === 0 || promotion.allowCustomization === false) {
       const promoId = `promo:${promotion._id}`
       setCart(prev => {
         const existing = prev.find(i => i.cartItemId === promoId)
@@ -232,7 +232,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
 
     if (itemsWithCustomizations.length === 1) {
       const item = itemsWithCustomizations[0]
-      setCustomizingItem(buildPromoCustomizationItem(item, promotion))
+      setPromoQtyInput({ item, promotion })
       return
     }
 
@@ -247,6 +247,38 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
     if ((cartItem as any).isPromotion) {
       const promoId = (cartItem as any)._promotionId
       const itemName = (cartItem as any)._itemName || ''
+
+      if (promoUnitFlow) {
+        const unitId = `promo:${promoId}:${itemName.replace(/\s+/g, '_')}:unit${promoUnitFlow.currentUnit}:${Date.now()}`
+        const enrichedSummary = itemName && cartItem.customizationSummary
+          ? `${itemName} · ${cartItem.customizationSummary}`
+          : itemName || cartItem.customizationSummary || ''
+        const taggedItem: CartItem = {
+          ...cartItem,
+          cartItemId: unitId,
+          promotionId: promoId,
+          quantity: 1,
+          name: (cartItem as any)._promotionTitle,
+          customizationSummary: enrichedSummary,
+          type: 'promotion',
+          addedFrom: 'menu',
+        }
+        if (cartItem.menuItemId) {
+          capturePromotionApplied({ _id: cartItem.menuItemId, type: 'promotion', title: itemName }, 0)
+        }
+        setCart(prev => [...prev, taggedItem])
+        setCustomizingItem(null)
+
+        if (promoUnitFlow.currentUnit < promoUnitFlow.totalUnits) {
+          setPromoUnitFlow(prev => prev ? { ...prev, currentUnit: prev.currentUnit + 1 } : null)
+          toast.success(`${itemName} unidad ${promoUnitFlow.currentUnit} de ${promoUnitFlow.totalUnits} agregada`)
+        } else {
+          setPromoUnitFlow(null)
+          toast.success(`${promoUnitFlow.totalUnits} × ${itemName} agregados a ${(cartItem as any)._promotionTitle}`)
+        }
+        return
+      }
+
       const uniqueId = `promo:${promoId}:${itemName.replace(/\s+/g, '_') || Date.now()}`
       const enrichedSummary = itemName && cartItem.customizationSummary
         ? `${itemName} · ${cartItem.customizationSummary}`
@@ -911,16 +943,83 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
         </div>
       )}
 
+      {/* ── Promo quantity input ── */}
+      {promoQtyInput && (() => {
+        const { item, promotion } = promoQtyInput
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60" onClick={() => { setPromoQtyInput(null); setPromoQtyValue(1) }} />
+            <div className="relative bg-background rounded-3xl w-full max-w-sm p-6 border border-border">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg">{promotion.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.name}</p>
+                </div>
+                <button onClick={() => { setPromoQtyInput(null); setPromoQtyValue(1) }} className="opacity-40 hover:opacity-70 ml-2 shrink-0">
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Cada unidad se personaliza por separado
+              </p>
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setPromoQtyValue(q => Math.max(1, q - 1))}
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: branding.primaryColor + '20', color: branding.primaryColor }}
+                >
+                  <Minus size={16} />
+                </button>
+                <span className="text-2xl font-bold w-8 text-center" style={{ color: text }}>
+                  {promoQtyValue}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPromoQtyValue(q => q + 1)}
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: branding.primaryColor, color: bg }}
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+              <p className="text-center text-sm font-semibold mb-4" style={{ color: branding.primaryColor }}>
+                ${(promotion.price * promoQtyValue).toLocaleString('es-AR')}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  const builtItem = buildPromoCustomizationItem(item, promotion)
+                  setPromoUnitFlow({ item: builtItem, promotion, totalUnits: promoQtyValue, currentUnit: 1 })
+                  setPromoQtyInput(null)
+                  setPromoQtyValue(1)
+                  setCustomizingItem(builtItem)
+                }}
+                className="w-full py-3 rounded-2xl font-bold text-sm"
+                style={{ backgroundColor: branding.primaryColor, color: bg }}
+              >
+                Personalizar {promoQtyValue} unidad{promoQtyValue !== 1 ? 'es' : ''}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── Customization modal ──────────────────────────── */}
       {customizingItem && (
         <CustomizationModal
           item={{ ...customizingItem, price: customizingItem.price ?? 0, variants: customizingItem.variants ?? [] }}
           onConfirm={handleConfirmCustomization}
-          onClose={() => setCustomizingItem(null)}
+          onClose={() => {
+            setCustomizingItem(null)
+            setPromoUnitFlow(null)
+          }}
           primaryColor={branding.primaryColor}
           bgColor={bg}
           textColor={text}
           mode="dine-in"
+          hideQuantity={!!promoUnitFlow}
+          unitLabel={promoUnitFlow ? `Unidad ${promoUnitFlow.currentUnit} de ${promoUnitFlow.totalUnits}` : undefined}
         />
       )}
 

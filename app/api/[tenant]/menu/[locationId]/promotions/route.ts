@@ -62,11 +62,20 @@ export async function GET(
         const id = item._id?.toString?.() || item._id
         if (seenItemIds.has(id)) return
         seenItemIds.add(id)
+
+        const variantFilter = (promo.linkedItemVariantFilters ?? []).find(
+          (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === id
+        )
+        const allowedNames = variantFilter?.variantNames ?? []
+        const variants = allowedNames.length > 0
+          ? (item.variants ?? []).filter((v: any) => allowedNames.includes(v.name))
+          : (item.variants ?? [])
+
         linkedItems.push({
           _id: id,
           name: item.name,
           categoryName: catName,
-          variants: item.variants ?? [],
+          variants,
           customizationGroups: [
             ...(catCustomGroups ?? []),
             ...(item.customizationGroups ?? []),

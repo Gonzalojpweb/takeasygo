@@ -37,6 +37,8 @@ interface Props {
   bgColor: string
   textColor: string
   mode: 'takeaway' | 'dine-in' | 'business'
+  hideQuantity?: boolean
+  unitLabel?: string
 }
 
 function computeActiveGroups(
@@ -69,6 +71,8 @@ export default function CustomizationModal({
   bgColor,
   textColor,
   mode,
+  hideQuantity = false,
+  unitLabel,
 }: Props) {
   const rootGroups: CustomizationGroup[] = item.customizationGroups ?? []
   const variants: VariantInfo[] = item.variants ?? []
@@ -222,7 +226,7 @@ export default function CustomizationModal({
       basePrice,
       extraPrice,
       price: unitPrice,
-      quantity,
+      quantity: hideQuantity ? 1 : quantity,
       customizations,
       customizationSummary,
       selectedVariant: selectedVariantData,
@@ -254,6 +258,11 @@ export default function CustomizationModal({
             <h2 className="font-bold text-lg leading-tight" style={{ color: textColor }}>
               {item.name}
             </h2>
+            {unitLabel && (
+              <p className="text-xs mt-0.5" style={{ color: textColor + '60' }}>
+                {unitLabel}
+              </p>
+            )}
             {!hasVariants && (
               <p className="text-sm mt-0.5" style={{ color: primaryColor }}>
                 ${basePrice.toLocaleString('es-AR')}
@@ -426,33 +435,35 @@ export default function CustomizationModal({
           </div>
 
           <div className="flex items-center gap-3">
-            <div
-              className="flex items-center gap-2 rounded-2xl px-2 py-2"
-              style={{ backgroundColor: textColor + '10' }}
-            >
-              <button
-                type="button"
-                onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                className="w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: primaryColor + '20', color: primaryColor }}
+            {!hideQuantity && (
+              <div
+                className="flex items-center gap-2 rounded-2xl px-2 py-2"
+                style={{ backgroundColor: textColor + '10' }}
               >
-                <Minus size={13} />
-              </button>
-              <span
-                className="w-6 text-center font-bold text-sm"
-                style={{ color: textColor }}
-              >
-                {quantity}
-              </span>
-              <button
-                type="button"
-                onClick={() => setQuantity(q => q + 1)}
-                className="w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: primaryColor, color: bgColor }}
-              >
-                <Plus size={13} />
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  className="w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: primaryColor + '20', color: primaryColor }}
+                >
+                  <Minus size={13} />
+                </button>
+                <span
+                  className="w-6 text-center font-bold text-sm"
+                  style={{ color: textColor }}
+                >
+                  {quantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity(q => q + 1)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: primaryColor, color: bgColor }}
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+            )}
 
             <button
               type="button"
@@ -464,7 +475,7 @@ export default function CustomizationModal({
               {!isValid && hasVariants && !selectedVariant
                 ? 'Seleccioná una variante'
                 : isValid
-                  ? 'Agregar al pedido'
+                  ? unitLabel ? 'Confirmar' : 'Agregar al pedido'
                   : 'Seleccioná las opciones obligatorias'}
             </button>
           </div>

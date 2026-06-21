@@ -185,6 +185,17 @@ const PromotionSchema = new Schema<IPromotion>(
       type: [Schema.Types.Mixed],
       default: [],
     },
+    linkedItemVariantFilters: {
+      type: [{
+        itemId: { type: Schema.Types.ObjectId, required: true },
+        variantNames: { type: [String], default: [] },
+      }],
+      default: [],
+    },
+    allowCustomization: {
+      type: Boolean,
+      default: true,
+    },
     // deprecated — mantenido para backward compat
     linkedMenuItemId: {
       type: Schema.Types.ObjectId,
