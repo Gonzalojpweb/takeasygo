@@ -402,3 +402,9 @@ html.lenis body {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Sonner toast width ─────────────────────────────────────────────── */
+[data-sonner-toast] {
+  width: 100% !important;
+  max-width: 460px !important;
+}
