@@ -42,6 +42,8 @@ export interface IPromotion {
   linkedItemIds?: mongoose.Types.ObjectId[]
   /** Customizaciones extra que el admin define, se mergean con las heredadas */
   overrideCustomizationGroups?: ICustomizationGroup[]
+  linkedItemVariantFilters?: { itemId: mongoose.Types.ObjectId; variantNames: string[] }[]
+  allowCustomization?: boolean
   /** @deprecated Usar linkedCategoryIds/linkedItemIds + overrideCustomizationGroups */
   linkedMenuItemId?: mongoose.Types.ObjectId
   /** @deprecated Usar overrideCustomizationGroups */
