@@ -8,6 +8,7 @@ import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
+import { StatusNotificationCard } from './StatusNotificationCard'
 import PointsEarnedToast from '@/components/rewards/PointsEarnedToast'
 
 const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
@@ -221,39 +222,55 @@ export default function OrderTracker({
   const prevStatusRef = useRef(status)
   useEffect(() => {
     if (status === 'confirmed' && prevStatusRef.current !== 'confirmed') {
-      toast.success('✅ Tu pedido fue confirmado', {
-        description: 'El restaurante está procesando tu pedido',
-        duration: 6000,
-        position: 'top-center',
-      })
+      toast(
+        <StatusNotificationCard
+          icon="✅"
+          iconBg="#10b981"
+          title="Tu pedido fue confirmado"
+          description="El restaurante está procesando tu pedido"
+        />,
+        { duration: 6000, position: 'top-center' }
+      )
       playNotification()
       if (navigator.vibrate) navigator.vibrate([100, 50, 100])
     }
     if (status === 'ready' && prevStatusRef.current !== 'ready') {
-      toast.success('🎉 ¡Tu pedido está listo!', {
-        description: 'Pasá a retirar tu pedido',
-        duration: 10000,
-        position: 'top-center',
-      })
+      toast(
+        <StatusNotificationCard
+          icon="🎉"
+          iconBg="#3b82f6"
+          title="¡Tu pedido está listo!"
+          description="Pasá a retirar tu pedido"
+        />,
+        { duration: 10000, position: 'top-center' }
+      )
       playNotification()
       if (navigator.vibrate) navigator.vibrate([200, 100, 200])
     }
     if (status === 'en_ruta' && prevStatusRef.current !== 'en_ruta') {
       const name = deliveryPersonName ? ` (${deliveryPersonName})` : ''
-      toast.success('🚗 Delivery en camino' + name, {
-        description: 'El delivery está yendo a tu dirección',
-        duration: 8000,
-        position: 'top-center',
-      })
+      toast(
+        <StatusNotificationCard
+          icon="🚗"
+          iconBg="#f59e0b"
+          title={`Delivery en camino${name}`}
+          description="El delivery está yendo a tu dirección"
+        />,
+        { duration: 8000, position: 'top-center' }
+      )
       playNotification()
       if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100])
     }
     if (status === 'arrived' && prevStatusRef.current !== 'arrived') {
-      toast.success('📍 El delivery llegó', {
-        description: 'Entregale el código de 6 dígitos al delivery',
-        duration: 10000,
-        position: 'top-center',
-      })
+      toast(
+        <StatusNotificationCard
+          icon="📍"
+          iconBg="#10b981"
+          title="El delivery llegó"
+          description="Entregale el código de 6 dígitos al delivery"
+        />,
+        { duration: 10000, position: 'top-center' }
+      )
       playNotification()
       if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200])
     }
@@ -268,18 +285,28 @@ export default function OrderTracker({
       advanceShownRef.current = true
       playNotification()
       if (navigator.vibrate) navigator.vibrate([80, 40, 80])
-      toast.success('✅ Reward Advance consolidado', {
-        description: 'Tus puntos se actualizaron y tu saldo está al día. ¡Seguí acumulando!',
-        duration: 6000,
-      })
+      toast(
+        <StatusNotificationCard
+          icon="✅"
+          iconBg="#10b981"
+          title="Reward Advance consolidado"
+          description="Tus puntos se actualizaron y tu saldo está al día. ¡Seguí acumulando!"
+        />,
+        { duration: 6000 }
+      )
     } else if (rewardAdvanceApplied) {
       advanceShownRef.current = true
       playNotification()
       if (navigator.vibrate) navigator.vibrate([60, 30, 60])
-      toast('✨ Reward Advance activado', {
-        description: 'Te adelantamos los puntos para que disfrutes tu recompensa. Consolidalos en tu próxima compra.',
-        duration: 6000,
-      })
+      toast(
+        <StatusNotificationCard
+          icon="✨"
+          iconBg="#f59e0b"
+          title="Reward Advance activado"
+          description="Te adelantamos los puntos para que disfrutes tu recompensa. Consolidalos en tu próxima compra."
+        />,
+        { duration: 6000 }
+      )
     }
   }, [rewardAdvanceApplied, rewardAdvanceConsolidated, playNotification])
 
@@ -312,11 +339,15 @@ export default function OrderTracker({
   useEffect(() => {
     if (status !== 'confirmed' || cancellationToastShown) return
     const timer = setTimeout(() => {
-      toast.info('🔒 Tu pedido ya entró en preparación', {
-        description: 'A partir de este momento ya no puede cancelarse',
-        duration: 5000,
-        position: 'top-center',
-      })
+      toast(
+        <StatusNotificationCard
+          icon="🔒"
+          iconBg="#e11d48"
+          title="Tu pedido ya entró en preparación"
+          description="A partir de este momento ya no puede cancelarse"
+        />,
+        { duration: 5000, position: 'top-center' }
+      )
       setCancellationToastShown(true)
     }, 2 * 60 * 1000 + 30 * 1000) // 2:30 min
     return () => clearTimeout(timer)
