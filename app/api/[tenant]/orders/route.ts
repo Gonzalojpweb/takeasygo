@@ -429,7 +429,14 @@ export async function POST(
                     seenItemIds.add(itemId)
                     validationGroups.unshift(...(item.customizationGroups ?? []))
                     if ((item.variants ?? []).length > 0) {
-                      validationVariants.push(...item.variants)
+                      const variantFilter = (promotion.linkedItemVariantFilters ?? []).find(
+                        (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === itemId
+                      )
+                      const allowedNames = variantFilter?.variantNames ?? []
+                      const itemVariants = (item.variants ?? []).filter(
+                        (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
+                      )
+                      validationVariants.push(...itemVariants)
                     }
                   }
                 }
@@ -445,7 +452,14 @@ export async function POST(
                   seenItemIds.add(itemId)
                   validationGroups.unshift(...(item.customizationGroups ?? []))
                   if ((item.variants ?? []).length > 0) {
-                    validationVariants.push(...item.variants)
+                    const variantFilter = (promotion.linkedItemVariantFilters ?? []).find(
+                      (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === itemId
+                    )
+                    const allowedNames = variantFilter?.variantNames ?? []
+                    const itemVariants = (item.variants ?? []).filter(
+                      (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
+                    )
+                    validationVariants.push(...itemVariants)
                   }
                 }
               }

@@ -81,6 +81,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
   const { play: playSound, stop: stopSound } = useNotificationSound()
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
   const [upcomingScheduledIds, setUpcomingScheduledIds] = useState<Set<string>>(new Set())
+  const [now, setNow] = useState(Date.now())
   const knownIdsRef = useRef<Set<string>>(new Set(orders.map(o => o._id)))
   const ringingIdsRef = useRef<Set<string>>(new Set())
 
@@ -253,7 +254,44 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
     return () => stopSound()
   }, [stopSound])
 
+  // Reloj para actualizar indicadores de tiempo cada 30s
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(interval)
+  }, [])
+
   function handleRefresh() { doRefresh() }
+
+  function getOrderTimeIndicator(order: any): { elapsedMin: number; totalMin: number; label: string; color: string; dotColor: string } | null {
+    const statusTimestamps = order.statusTimestamps
+    if (!statusTimestamps) return null
+
+    const refTime = statusTimestamps.confirmedAt ?? order.createdAt
+    if (!refTime) return null
+
+    const refMs = new Date(refTime).getTime()
+    const elapsed = now - refMs
+    const elapsedMin = Math.floor(elapsed / 60_000)
+
+    const estimatedReadyAt = statusTimestamps.estimatedReadyAt
+    const totalMin = estimatedReadyAt
+      ? Math.round((new Date(estimatedReadyAt).getTime() - refMs) / 60_000)
+      : 20
+
+    if (elapsedMin < 0) return null
+
+    if (['delivered', 'cancelled'].includes(order.status)) return null
+
+    const ratio = totalMin > 0 ? elapsed / (totalMin * 60_000) : 0
+
+    if (ratio < 0.8) {
+      return { elapsedMin, totalMin, label: `⏱ ${elapsedMin}/${totalMin} min`, color: 'text-emerald-600 bg-emerald-50 border-emerald-200', dotColor: 'bg-emerald-500' }
+    }
+    if (ratio < 1.5) {
+      return { elapsedMin, totalMin, label: `⏱ ${elapsedMin}/${totalMin} min`, color: 'text-orange-600 bg-orange-50 border-orange-200', dotColor: 'bg-orange-400' }
+    }
+    return { elapsedMin, totalMin, label: `⏱ ${elapsedMin}/${totalMin} min`, color: 'text-red-600 bg-red-50 border-red-200', dotColor: 'bg-red-500' }
+  }
 
   const countByStatus = orders.reduce((acc, o) => {
     acc[o.status] = (acc[o.status] || 0) + 1
@@ -682,6 +720,16 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                         <span className={cn('w-1.5 h-1.5 rounded-full', status.dot)} />
                         {status.label}
                       </span>
+                      {(() => {
+                        const indicator = getOrderTimeIndicator(order)
+                        if (!indicator) return null
+                        return (
+                          <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold border', indicator.color)}>
+                            <span className={cn('w-1 h-1 rounded-full', indicator.dotColor)} />
+                            {indicator.label}
+                          </span>
+                        )
+                      })()}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       {order.orderTiming === 'scheduled' && order.scheduledPickupAt ? (
