@@ -10,6 +10,7 @@ import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
 import { StatusNotificationCard } from './StatusNotificationCard'
 import PointsEarnedToast from '@/components/rewards/PointsEarnedToast'
+import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 
 const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
 
@@ -24,6 +25,12 @@ const STATUS_INFO: Record<string, { label: string; description: string; emoji: s
   delivered: { label: 'Entregado',  description: 'Pedido entregado. ¡Que lo disfrutes!', emoji: '🍽️' },
   cancelled: { label: 'Cancelado',  description: 'El pedido fue cancelado', emoji: '❌' },
 }
+
+const PREPARING_MESSAGES = [
+  'Tu pedido está siendo preparado',
+  'Estamos procesando tu pedido',
+  'El restaurante está trabajando en tu pedido',
+]
 
 interface Props {
   orderId: string
@@ -125,6 +132,9 @@ export default function OrderTracker({
   const [deliveryPersonName, setDeliveryPersonName] = useState<string | null>(null)
   const [deliveryConfStatus, setDeliveryConfStatus] = useState<string | null>(null)
   const { play: playNotification } = useNotificationSound('/pop.mp3')
+  const confettiRef = useRef<ConfettiRef>(null)
+
+  const [msgIndex, setMsgIndex] = useState(0)
 
   const isScheduledPending = orderTiming === 'scheduled' && scheduledStatus === 'pending_schedule'
 
@@ -244,6 +254,7 @@ export default function OrderTracker({
         />,
         { duration: 10000, position: 'top-center' }
       )
+      confettiRef.current?.fire({ particleCount: 120, spread: 140 })
       playNotification()
       if (navigator.vibrate) navigator.vibrate([200, 100, 200])
     }
@@ -353,12 +364,23 @@ export default function OrderTracker({
     return () => clearTimeout(timer)
   }, [status, cancellationToastShown])
 
+  // P5: Mensajes rotativos durante "preparing"
+  useEffect(() => {
+    if (status !== 'preparing') return
+    const interval = setInterval(() => {
+      setMsgIndex(i => (i + 1) % PREPARING_MESSAGES.length)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [status])
+
   const info = STATUS_INFO[status] ?? STATUS_INFO['pending']
   const currentStep = STATUS_STEPS.indexOf(status)
   const isCancelled = status === 'cancelled'
 
   return (
     <div>
+      <Confetti ref={confettiRef} className="fixed top-0 left-0 z-50 pointer-events-none size-full" />
+
       {/* Badge de pedido programado */}
       {isScheduledPending && scheduledPickupAt && (
         <div className="mb-6 flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-zinc-100 w-fit mx-auto">
@@ -389,11 +411,38 @@ export default function OrderTracker({
           </>
         ) : (
           <>
-            <div className={`text-6xl mb-4 ${info.pulse ? 'animate-bounce' : ''}`}>
-              {info.emoji}
+            <div key={status} className="animate-[scale-in_0.4s_ease-out]">
+              <div className={`
+                text-6xl mb-4
+                ${status === 'ready' ? 'animate-bounce' : ''}
+                ${status === 'preparing' ? 'animate-[wiggle_3s_ease-in-out_infinite]' : ''}
+                ${status === 'confirmed' ? '' : ''}
+              `}>
+                {status === 'confirmed' ? (
+                  <svg className="w-16 h-16 mx-auto" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="11" stroke="#10b981" strokeWidth={2} />
+                    <path
+                      d="M7 12l3 3 7-7"
+                      stroke="#10b981"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ strokeDasharray: 50, strokeDashoffset: 50 }}
+                      className="animate-[draw-check_0.5s_ease-out_forwards]"
+                    />
+                  </svg>
+                ) : (
+                  info.emoji
+                )}
+              </div>
+              <h1 className="text-2xl font-black mb-2">{info.label}</h1>
+              <p
+                key={status === 'preparing' ? msgIndex : 'desc'}
+                className="text-sm opacity-60 animate-[message-enter_0.35s_ease-out]"
+              >
+                {status === 'preparing' ? PREPARING_MESSAGES[msgIndex] : info.description}
+              </p>
             </div>
-            <h1 className="text-2xl font-black mb-2">{info.label}</h1>
-            <p className="text-sm opacity-60">{info.description}</p>
           </>
         )}
 
@@ -406,8 +455,9 @@ export default function OrderTracker({
 
         {/* Indicador de actualización en vivo */}
         {!['delivered', 'cancelled'].includes(status) && lastChecked && (
-          <p className="mt-2 text-xs opacity-30">
-            Actualiza automáticamente · última vez {lastChecked.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          <p className="mt-2 text-xs opacity-30 flex items-center justify-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+            <span>Actualiza automáticamente · última vez {lastChecked.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </p>
         )}
       </div>
@@ -419,12 +469,18 @@ export default function OrderTracker({
             {STATUS_STEPS.map((step, index) => (
               <div key={step} className="flex flex-col items-center gap-1.5 flex-1">
                 <div
-                  className="w-4 h-4 rounded-full transition-all duration-500 flex items-center justify-center"
+                  className="w-4 h-4 rounded-full transition-all duration-500 flex items-center justify-center relative"
                   style={{
                     backgroundColor: index <= currentStep ? primaryColor : primaryColor + '25',
                     boxShadow: index === currentStep ? `0 0 0 4px ${primaryColor}30` : 'none',
                   }}
                 >
+                  {index === currentStep && (
+                    <span
+                      className="absolute inset-0 rounded-full animate-[halo-expand_2.5s_ease-out_infinite]"
+                      style={{ boxShadow: `0 0 0 0 ${primaryColor}60` }}
+                    />
+                  )}
                   {index < currentStep && (
                     <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
