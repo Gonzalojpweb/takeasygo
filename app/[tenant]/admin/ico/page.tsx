@@ -37,6 +37,9 @@ const LAYER_FILTERS: Record<LayerKey, Record<string, any>> = {
   business: { orderMode: 'business' },
 }
 
+// ⚠️ DUPLICACIÓN: Esta función replica la lógica de `calcLayer()` en score/route.ts.
+// Ambas usan la misma fórmula ICO (5 componentes, pesos 0.25/0.30/0.20/0.15/0.10).
+// Si modificás la fórmula en un lugar, actualizá el otro también.
 async function simpleLayerScore(
   tenantId: Types.ObjectId,
   filter: Record<string, any>,
@@ -47,21 +50,21 @@ async function simpleLayerScore(
   const isScheduled = filter.orderTiming === 'scheduled'
   const [cancData, tppData, onTimeNew, onTimeFallback, actData7, actData30] = await Promise.all([
     Order.aggregate([
-      { $match: { tenantId, ...filter, createdAt: { $gte: start30 } } },
+      { $match: { tenantId, ...filter, deletedAt: null, createdAt: { $gte: start30 } } },
       { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
     ]),
     Order.aggregate([
-      { $match: { tenantId, ...filter, createdAt: { $gte: start30 }, [isScheduled ? 'statusTimestamps.preparingAt' : 'statusTimestamps.confirmedAt']: { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
+      { $match: { tenantId, ...filter, deletedAt: null, createdAt: { $gte: start30 }, [isScheduled ? 'statusTimestamps.preparingAt' : 'statusTimestamps.confirmedAt']: { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
       { $project: { tppMs: { $subtract: ['$statusTimestamps.readyAt', isScheduled ? '$statusTimestamps.preparingAt' : '$statusTimestamps.confirmedAt'] } } },
       { $group: { _id: null, avgMs: { $avg: '$tppMs' }, stdMs: { $stdDevPop: '$tppMs' }, count: { $sum: 1 } } },
     ]),
     Order.aggregate([
-      { $match: { tenantId, ...filter, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
+      { $match: { tenantId, ...filter, deletedAt: null, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
       { $project: { isOnTime: { $lte: ['$statusTimestamps.readyAt', '$statusTimestamps.estimatedReadyAt'] } } },
       { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } },
     ]),
     Order.aggregate([
-      { $match: { tenantId, ...filter, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': null } },
+      { $match: { tenantId, ...filter, deletedAt: null, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': null } },
       { $lookup: { from: 'locations', localField: 'locationId', foreignField: '_id', as: 'location' } },
       { $unwind: { path: '$location', preserveNullAndEmptyArrays: false } },
       { $project: { isOnTime: { $lte: [
@@ -70,8 +73,8 @@ async function simpleLayerScore(
       ] } } },
       { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } },
     ]),
-    Order.countDocuments({ tenantId, ...filter, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
-    Order.countDocuments({ tenantId, ...filter, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
+    Order.countDocuments({ tenantId, ...filter, deletedAt: null, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
+    Order.countDocuments({ tenantId, ...filter, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
   ])
 
   const cRaw = cancData[0]
@@ -188,38 +191,38 @@ export default async function ICOPage({
     // ≥30 pedidos: calcular y mostrar el informe de contexto
     const [tppD, cancD, confirmD, topItemsD, peakD, activeDaysD, onTimeD] = await Promise.all([
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
         { $project: { tppMs: { $subtract: ['$statusTimestamps.readyAt', '$statusTimestamps.confirmedAt'] } } },
         { $group: { _id: null, avgMs: { $avg: '$tppMs' }, stdMs: { $stdDevPop: '$tppMs' }, count: { $sum: 1 } } }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null } },
         { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, 'statusTimestamps.confirmedAt': { $ne: null } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, 'statusTimestamps.confirmedAt': { $ne: null } } },
         { $project: { ms: { $subtract: ['$statusTimestamps.confirmedAt', '$createdAt'] } } },
         { $group: { _id: null, avgMs: { $avg: '$ms' } } }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, status: { $nin: ['cancelled'] } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, status: { $nin: ['cancelled'] } } },
         { $unwind: '$items' },
         { $group: { _id: '$items.name', count: { $sum: '$items.quantity' } } },
         { $sort: { count: -1 } }, { $limit: 5 }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, status: { $nin: ['cancelled'] } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, status: { $nin: ['cancelled'] } } },
         { $project: { window: { $concat: [{ $toString: { $hour: '$createdAt' } }, ':', { $cond: [{ $gte: [{ $minute: '$createdAt' }, 30] }, '30', '00'] }] } } },
         { $group: { _id: '$window', count: { $sum: 1 } } },
         { $sort: { count: -1 } }, { $limit: 1 }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, status: { $nin: ['cancelled'] } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, status: { $nin: ['cancelled'] } } },
         { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
         { $count: 'days' }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
         { $project: { isOnTime: { $lte: ['$statusTimestamps.readyAt', '$statusTimestamps.estimatedReadyAt'] } } },
         { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } }
       ]),
@@ -293,7 +296,7 @@ export default async function ICOPage({
 
   // ── Estabilidad horaria global (todos los modos, sección 5.6) ──────────────
   const globalActiveDaysData = await Order.aggregate([
-    { $match: { tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
+    { $match: { tenantId, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
     { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
     { $count: 'days' },
   ])
@@ -318,12 +321,12 @@ export default async function ICOPage({
 
   const [cancData, tppData, onTimeData, actData7, actData30, recompraData, recompraBreakdownData, eventIntegrityData, capacityRawData] = await Promise.all([
     Order.aggregate([
-      { $match: { tenantId, ...selectedFilter, createdAt: { $gte: start30 } } },
+      { $match: { tenantId, ...selectedFilter, deletedAt: null, createdAt: { $gte: start30 } } },
       { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
     ]),
     Order.aggregate([
       { $match: {
-        tenantId, ...selectedFilter,
+        tenantId, ...selectedFilter, deletedAt: null,
         createdAt: { $gte: start30 },
         [isScheduled ? 'statusTimestamps.preparingAt' : 'statusTimestamps.confirmedAt']: { $ne: null },
         'statusTimestamps.readyAt': { $ne: null },
@@ -333,7 +336,7 @@ export default async function ICOPage({
     ]),
     Order.aggregate([
       { $match: {
-        tenantId, ...selectedFilter,
+        tenantId, ...selectedFilter, deletedAt: null,
         createdAt: { $gte: start30 },
         'statusTimestamps.readyAt': { $ne: null },
       }},
@@ -345,28 +348,28 @@ export default async function ICOPage({
       ] } } },
       { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } },
     ]),
-    Order.countDocuments({ tenantId, ...selectedFilter, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
-    Order.countDocuments({ tenantId, ...selectedFilter, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
+    Order.countDocuments({ tenantId, ...selectedFilter, deletedAt: null, createdAt: { $gte: start7 }, status: { $ne: 'cancelled' } }),
+    Order.countDocuments({ tenantId, ...selectedFilter, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
     // Recompra — global (sin filtro de capa)
     Order.aggregate([
-      { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: start90 } } },
+      { $match: { tenantId, deletedAt: null, 'customer.phone': { $ne: '' }, createdAt: { $gte: start90 } } },
       { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
       { $group: { _id: null, totalClients: { $sum: 1 }, recurring: { $sum: { $cond: [{ $gt: ['$count', 1] }, 1, 0] } } } },
     ]),
     Order.aggregate([
-      { $match: { tenantId, 'customer.phone': { $ne: '' }, createdAt: { $gte: start90 } } },
+      { $match: { tenantId, deletedAt: null, 'customer.phone': { $ne: '' }, createdAt: { $gte: start90 } } },
       { $group: { _id: '$customer.phone', count: { $sum: 1 } } },
       { $bucket: { groupBy: '$count', boundaries: [1, 2, 3, 99999], default: 'other', output: { clients: { $sum: 1 } } } },
     ]),
     // Event Integrity
     Order.aggregate([
-      { $match: { tenantId, ...selectedFilter, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.deliveredAt': { $ne: null } } },
+      { $match: { tenantId, ...selectedFilter, deletedAt: null, createdAt: { $gte: start30 }, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.deliveredAt': { $ne: null } } },
       { $project: { pickupDelayMs: { $subtract: ['$statusTimestamps.deliveredAt', '$statusTimestamps.readyAt'] } } },
       { $group: { _id: null, total: { $sum: 1 }, falseReady: { $sum: { $cond: [{ $gt: ['$pickupDelayMs', 600000] }, 1, 0] } }, avgDelayMs: { $avg: '$pickupDelayMs' } } },
     ]),
     // Capacidad operativa
     Order.aggregate([
-      { $match: { tenantId, ...selectedFilter, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, ...selectedFilter, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
       { $group: { _id: { date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, hour: { $hour: '$createdAt' } }, count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]),
@@ -414,26 +417,16 @@ export default async function ICOPage({
     ? { hour: peakHourRaw._id.hour as number, count: peakHourRaw.count as number }
     : null
 
-  // ── ICO: renormalización dinámica sobre componentes con dato real ────────────
-  // Si un componente no tiene datos (null), su peso se redistribuye proporcionalmente
-  // entre los disponibles. Ningún valor hardcodeado entra en la fórmula.
-  const icoComponents = [
-    { value: consistency,     weight: 0.22 },
-    { value: cumplimiento,    weight: 0.27 },
-    { value: bajaCancelacion, weight: 0.18 },
-    { value: actividad,       weight: 0.12 },
-    { value: estabilidad,     weight: 0.09 },
-    { value: integrityScore,  weight: 0.12 },
-  ] as const
-
+  // ── ICO: fórmula de 5 componentes (ICO.md v1.0) ──────────────────────────
+  // Si un componente no tiene datos (null), se usa fallback: 0.5 para consistency/cumplimiento, 1 para cancelación.
   let icoScore: number | null = null
   if (hasEnoughData) {
-    const available = icoComponents.filter(c => c.value !== null)
-    const totalWeight = available.reduce((s, c) => s + c.weight, 0)
-    if (totalWeight > 0) {
-      const raw = available.reduce((s, c) => s + (c.value as number) * c.weight, 0)
-      icoScore = Math.round((raw / totalWeight) * 100)
-    }
+    icoScore = (consistency   ?? 0.5) * 0.25
+             + (cumplimiento  ?? 0.5) * 0.30
+             + (bajaCancelacion ?? 1) * 0.20
+             + actividad           * 0.15
+             + estabilidad         * 0.10
+    icoScore = Math.round(icoScore * 100)
   }
 
   const band = icoScore !== null ? getBand(icoScore) : null
@@ -632,55 +625,37 @@ export default async function ICOPage({
   const tppSEMinutes  = tppSEMs ? Math.round(tppSEMs / 60000 * 10) / 10 : null
 
   // Peso efectivo de cada componente (renormalizado según los disponibles)
-  const availableWeight = icoComponents
-    .filter(c => c.value !== null)
-    .reduce((s, c) => s + c.weight, 0)
-  const effectiveWeight = (nominalWeight: number, hasData: boolean) =>
-    hasData && availableWeight > 0
-      ? `×${(nominalWeight / availableWeight).toFixed(2)}`
-      : '—'
-
   const componentsData = [
     {
-      label: 'Consistencia del TPP', nominalWeight: 0.22,
+      label: 'Consistencia del TPP', weight: '×0.25',
       value: consistency !== null ? Math.round(consistency * 100) : null,
       tip: consistency !== null
         ? 'Inverso del coeficiente de variación (σ/μ)'
         : 'Sin datos — se necesitan pedidos con timestamps confirmedAt y readyAt',
     },
     {
-      label: 'Cumplimiento de tiempos', nominalWeight: 0.27,
+      label: 'Cumplimiento de tiempos', weight: '×0.30',
       value: cumplimiento !== null ? Math.round(cumplimiento * 100) : null,
       tip: cumplimiento !== null
         ? '% de pedidos listos dentro del tiempo estimado de la sede'
         : 'Sin datos — se necesitan pedidos con readyAt y estimatedPickupTime configurado en la sede',
     },
     {
-      label: 'Baja tasa de cancelación', nominalWeight: 0.18,
+      label: 'Baja tasa de cancelación', weight: '×0.20',
       value: bajaCancelacion !== null ? Math.round(bajaCancelacion * 100) : null,
       tip: `${cancRate}% de cancelaciones en los últimos 30 días`,
     },
     {
-      label: 'Actividad sostenida', nominalWeight: 0.12,
+      label: 'Actividad sostenida', weight: '×0.15',
       value: Math.round(actividad * 100),
       tip: 'Pedidos últimos 7 días vs promedio semanal del mes',
     },
     {
-      label: 'Estabilidad horaria', nominalWeight: 0.09,
+      label: 'Estabilidad horaria', weight: '×0.10',
       value: Math.round(estabilidad * 100),
       tip: `${globalActiveDays} días activos en los últimos 30`,
     },
-    {
-      label: 'Integridad de eventos', nominalWeight: 0.12,
-      value: integrityScore !== null ? Math.round(integrityScore * 100) : null,
-      tip: integrityScore !== null
-        ? (falseReadyPct !== null ? `${falseReadyPct}% de pedidos marcados "listo" prematuramente` : '—')
-        : 'Sin datos — se necesitan al menos 5 pedidos con deliveredAt registrado',
-    },
-  ].map(c => ({
-    ...c,
-    weight: effectiveWeight(c.nominalWeight, c.value !== null),
-  }))
+  ]
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -821,7 +796,7 @@ export default async function ICOPage({
           <CardHeader className="border-b border-border/40 bg-muted/30 p-6">
             <CardTitle className="text-foreground text-base font-bold">Componentes del ICO</CardTitle>
             <p className="text-muted-foreground text-xs mt-0.5 font-medium">
-              {icoComponents.filter(c => c.value !== null).length} de 6 componentes con datos reales · pesos renormalizados automáticamente
+              5 componentes · pesos fijos según diseño ICO v1.0
             </p>
           </CardHeader>
           <CardContent className="p-6">
