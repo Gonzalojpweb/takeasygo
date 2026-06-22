@@ -475,11 +475,17 @@ export default function OrderTracker({
                     boxShadow: index === currentStep ? `0 0 0 4px ${primaryColor}30` : 'none',
                   }}
                 >
-                  {index === currentStep && (
-                    <span
-                      className="absolute inset-0 rounded-full animate-[halo-expand_2.5s_ease-out_infinite]"
-                      style={{ boxShadow: `0 0 0 0 ${primaryColor}60` }}
-                    />
+                  {index === currentStep && info.pulse && (
+                    <>
+                      <span
+                        className="absolute inset-0 rounded-full animate-[pulse-ring_1.5s_cubic-bezier(0.24,0,0.38,1)_infinite]"
+                        style={{ boxShadow: `0 0 0 0 ${primaryColor}60` }}
+                      />
+                      <span
+                        className="absolute inset-0 rounded-full animate-[pulse-ring_1.5s_cubic-bezier(0.24,0,0.38,1)_infinite]"
+                        style={{ boxShadow: `0 0 0 0 ${primaryColor}60`, animationDelay: '0.75s' }}
+                      />
+                    </>
                   )}
                   {index < currentStep && (
                     <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
