@@ -81,6 +81,7 @@ export interface IMenu extends Document {
   tenantId: mongoose.Types.ObjectId
   locationId: mongoose.Types.ObjectId
   categories: IMenuCategory[]
+  optionImageRegistry?: Record<string, string>  // nombre de opción → imageUrl global
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -269,6 +270,11 @@ const MenuSchema = new Schema<IMenu>(
       index: true,
     },
     categories: [MenuCategorySchema],
+    optionImageRegistry: {
+      type: Map,
+      of: String,
+      default: {},
+    },
     isActive: {
       type: Boolean,
       default: true,

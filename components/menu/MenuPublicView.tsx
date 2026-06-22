@@ -1196,6 +1196,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           mode={mode}
           hideQuantity={!!promoUnitFlow}
           unitLabel={promoUnitFlow ? `Unidad ${promoUnitFlow.currentUnit} de ${promoUnitFlow.totalUnits}` : undefined}
+          optionImageRegistry={menu.optionImageRegistry}
         />
       )}
 

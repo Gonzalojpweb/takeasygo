@@ -141,6 +141,58 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const router = useRouter()
   const [uploadingOptKey, setUploadingOptKey] = useState<string | null>(null)
   const optFileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const [optionImageRegistry, setOptionImageRegistry] = useState<Record<string, string>>({})
+  const [newRegistryName, setNewRegistryName] = useState('')
+  const [uploadingRegistryKey, setUploadingRegistryKey] = useState<string | null>(null)
+  const registryFileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const newRegistryFileRef = useRef<HTMLInputElement>(null)
+
+  // Load optionImageRegistry from current menu
+  useEffect(() => {
+    const menu = menus.find(m => m.locationId.toString() === selectedLocation)
+    if (menu?.optionImageRegistry) {
+      const reg = menu.optionImageRegistry instanceof Map
+        ? Object.fromEntries(menu.optionImageRegistry)
+        : menu.optionImageRegistry
+      setOptionImageRegistry(reg)
+    } else {
+      setOptionImageRegistry({})
+    }
+  }, [menus, selectedLocation])
+
+  async function handleRegistryImageUpload(e: React.ChangeEvent<HTMLInputElement>, name: string) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingRegistryKey(name)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
+      if (!res.ok) throw new Error()
+      const { url } = await res.json()
+      const updated = { ...optionImageRegistry, [name]: url }
+      setOptionImageRegistry(updated)
+      await saveOptionImageRegistry(updated)
+      toast.success('Imagen actualizada')
+    } catch {
+      toast.error('Error al subir imagen')
+    } finally {
+      setUploadingRegistryKey(null)
+      if (registryFileRefs.current[name]) registryFileRefs.current[name]!.value = ''
+    }
+  }
+
+  async function saveOptionImageRegistry(registry: Record<string, string>) {
+    try {
+      await fetch(`/api/${tenantSlug}/menu`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locationId: selectedLocation, optionImageRegistry: registry }),
+      })
+    } catch {
+      toast.error('Error al guardar registro de imágenes')
+    }
+  }
 
   async function handleOptionImageUpload(e: React.ChangeEvent<HTMLInputElement>, groupIdx: number, optionIdx: number, isItemLevel: boolean) {
     const file = e.target.files?.[0]
@@ -1434,7 +1486,107 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
         </DndContext>
       )}
 
+      {/* ── Registro global de imágenes de opciones ── */}
+      {currentMenu && (
+        <Card className="bg-zinc-800/80 border-zinc-700/60 rounded-2xl mt-6">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                <ImageIcon size={18} className="text-primary" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-sm">Imágenes de ingredientes</h3>
+                <p className="text-zinc-400 text-xs">Subí una vez, se usa en todos los platos que tengan ese ingrediente</p>
+              </div>
+            </div>
 
+            {Object.keys(optionImageRegistry).length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
+                {Object.entries(optionImageRegistry).sort(([a], [b]) => a.localeCompare(b)).map(([name, url]) => (
+                  <div key={name} className="relative group rounded-xl overflow-hidden border border-zinc-600/50 bg-zinc-900/50">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={el => { registryFileRefs.current[name] = el }}
+                      onChange={e => handleRegistryImageUpload(e, name)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => registryFileRefs.current[name]?.click()}
+                      disabled={uploadingRegistryKey === name}
+                      className="w-full aspect-square relative"
+                    >
+                      {uploadingRegistryKey === name ? (
+                        <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+                          <span className="text-xs text-zinc-400 font-bold">...</span>
+                        </div>
+                      ) : (
+                        <img src={url} alt={name} className="w-full h-full object-cover" />
+                      )}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <span className="text-white text-[10px] font-bold bg-black/60 px-2 py-1 rounded-lg">Cambiar</span>
+                      </div>
+                    </button>
+                    <div className="px-2 py-1.5 flex items-center justify-between">
+                      <span className="text-zinc-300 text-xs font-medium truncate">{name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = { ...optionImageRegistry }
+                          delete updated[name]
+                          setOptionImageRegistry(updated)
+                          saveOptionImageRegistry(updated)
+                        }}
+                        className="text-zinc-500 hover:text-red-400 transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <input
+                className="flex-1 bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-xs font-medium rounded-lg px-3 py-2 outline-none transition-all"
+                placeholder="Nombre del ingrediente"
+                value={newRegistryName}
+                onChange={e => setNewRegistryName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newRegistryName.trim()) {
+                    newRegistryFileRef.current?.click()
+                  }
+                }}
+              />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={newRegistryFileRef}
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (!file || !newRegistryName.trim()) return
+                  const name = newRegistryName.trim()
+                  handleRegistryImageUpload(e, name)
+                  setNewRegistryName('')
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="bg-primary/10 text-primary hover:bg-primary/20 border-0 rounded-lg h-9 px-4 text-xs font-bold"
+                onClick={() => {
+                  if (newRegistryName.trim()) newRegistryFileRef.current?.click()
+                }}
+              >
+                <Plus size={12} className="mr-1" strokeWidth={4} /> Agregar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modal Ajuste de Precios Masivo */}
       <AnimatePresence>

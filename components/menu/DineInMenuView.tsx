@@ -1020,6 +1020,7 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
           mode="dine-in"
           hideQuantity={!!promoUnitFlow}
           unitLabel={promoUnitFlow ? `Unidad ${promoUnitFlow.currentUnit} de ${promoUnitFlow.totalUnits}` : undefined}
+          optionImageRegistry={menu.optionImageRegistry}
         />
       )}
 

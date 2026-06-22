@@ -41,6 +41,7 @@ interface Props {
   mode: 'takeaway' | 'dine-in' | 'business'
   hideQuantity?: boolean
   unitLabel?: string
+  optionImageRegistry?: Record<string, string>
 }
 
 function computeActiveGroups(
@@ -75,6 +76,7 @@ export default function CustomizationModal({
   mode,
   hideQuantity = false,
   unitLabel,
+  optionImageRegistry,
 }: Props) {
   const rootGroups: CustomizationGroup[] = item.customizationGroups ?? []
   const variants: VariantInfo[] = item.variants ?? []
@@ -355,7 +357,8 @@ export default function CustomizationModal({
               <div className="space-y-3">
                 {group.options.map((opt) => {
                   const isSelected = (selections[group._id] ?? []).includes(opt.name);
-                  const hasImage = !!opt.imageUrl;
+                  const optImageUrl = opt.imageUrl || optionImageRegistry?.[opt.name]
+                  const hasImage = !!optImageUrl;
                   return (
                     <button
                       key={opt.name}
@@ -371,7 +374,7 @@ export default function CustomizationModal({
                       {hasImage && (
                         <div className="relative flex-shrink-0">
                           <img
-                            src={opt.imageUrl}
+                            src={optImageUrl}
                             alt={opt.name}
                             className="w-14 h-14 rounded-2xl object-cover border border-zinc-200"
                           />
