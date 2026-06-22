@@ -29,6 +29,7 @@ interface Props {
 type CustomizationOptionForm = {
   name: string
   extraPrice: string
+  imageUrl: string
   subGroups: CustomizationGroupForm[]   // grupos que se activan si esta opción es elegida
 }
 type CustomizationGroupForm = {
@@ -74,6 +75,7 @@ function serializeGroups(groups: CustomizationGroupForm[]): any[] {
     options: g.options.map((o: CustomizationOptionForm) => ({
       name: o.name,
       extraPrice: parseFloat(o.extraPrice) || 0,
+      imageUrl: o.imageUrl || undefined,
       subGroups: serializeGroups(o.subGroups ?? []),
     })),
   }))
@@ -107,6 +109,7 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
     options: (g.options || []).map((o: any) => ({
       name: o.name,
       extraPrice: o.extraPrice?.toString() ?? '0',
+      imageUrl: o.imageUrl || '',
       subGroups: deserializeGroups(o.subGroups ?? []),
     })),
   }))
@@ -136,6 +139,37 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [bulkPercentage, setBulkPercentage] = useState('')
   const [bulkTarget, setBulkTarget] = useState<'dine-in' | 'takeaway' | 'both'>('takeaway')
   const router = useRouter()
+  const [uploadingOptKey, setUploadingOptKey] = useState<string | null>(null)
+  const optFileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  async function handleOptionImageUpload(e: React.ChangeEvent<HTMLInputElement>, groupIdx: number, optionIdx: number, isItemLevel: boolean) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const key = `${isItemLevel ? 'item' : 'cat'}-${groupIdx}-${optionIdx}`
+    setUploadingOptKey(key)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
+      if (!res.ok) throw new Error()
+      const { url } = await res.json()
+      if (isItemLevel) {
+        const updated = [...editingItemData.customizationGroups]
+        updated[groupIdx].options[optionIdx] = { ...updated[groupIdx].options[optionIdx], imageUrl: url }
+        setEditingItemData({ ...editingItemData, customizationGroups: updated })
+      } else {
+        const updated = [...editingCategoryGroups]
+        updated[groupIdx].options[optionIdx] = { ...updated[groupIdx].options[optionIdx], imageUrl: url }
+        setEditingCategoryGroups(updated)
+      }
+      toast.success('Imagen subida')
+    } catch {
+      toast.error('Error al subir imagen')
+    } finally {
+      setUploadingOptKey(null)
+      if (optFileRefs.current[key]) optFileRefs.current[key]!.value = ''
+    }
+  }
 
   const currentMenu = menus.find(m => m.locationId.toString() === selectedLocation)
   const currentLocation = locations.find(l => l._id === selectedLocation)
@@ -1073,6 +1107,27 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                 }}
                                               />
                                             </div>
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              className="hidden"
+                                              ref={el => { optFileRefs.current[`cat-${cgi}-${oi}`] = el }}
+                                              onChange={e => handleOptionImageUpload(e, cgi, oi, false)}
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => optFileRefs.current[`cat-${cgi}-${oi}`]?.click()}
+                                              disabled={uploadingOptKey === `cat-${cgi}-${oi}`}
+                                              className="w-8 h-8 rounded-lg border-2 border-dashed border-border/60 flex items-center justify-center flex-shrink-0 hover:border-primary/40 transition-all overflow-hidden"
+                                            >
+                                              {uploadingOptKey === `cat-${cgi}-${oi}` ? (
+                                                <span className="text-[8px] font-bold text-muted-foreground">...</span>
+                                              ) : opt.imageUrl ? (
+                                                <img src={opt.imageUrl} alt="" className="w-full h-full object-cover rounded-md" />
+                                              ) : (
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                              )}
+                                            </button>
                                             <button
                                               type="button"
                                               className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive opacity-0 group-hover/cgopt:opacity-100 transition-all"
@@ -1091,7 +1146,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                           className="text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-all"
                                           onClick={() => {
                                             const updated = [...editingCategoryGroups]
-                                            updated[cgi].options.push({ name: '', extraPrice: '0', subGroups: [] })
+                                            updated[cgi].options.push({ name: '', extraPrice: '0', imageUrl: '', subGroups: [] })
                                             setEditingCategoryGroups(updated)
                                           }}
                                         >
@@ -1513,9 +1568,34 @@ function ItemForm({
   const [upsellOpen, setUpsellOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const upsellBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [uploadingOptKey, setUploadingOptKey] = useState<string | null>(null)
+  const optFileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const labelCls = "text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block"
   const inputCls = 'w-full bg-muted/30 border-2 border-border/80 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-xl px-4 py-3 outline-none transition-all shadow-sm flex items-center gap-2'
+
+  async function handleOptionImageUpload(e: React.ChangeEvent<HTMLInputElement>, groupIdx: number, optionIdx: number) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const key = `item-${groupIdx}-${optionIdx}`
+    setUploadingOptKey(key)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
+      if (!res.ok) throw new Error()
+      const { url } = await res.json()
+      const updated = [...data.customizationGroups]
+      updated[groupIdx].options[optionIdx] = { ...updated[groupIdx].options[optionIdx], imageUrl: url }
+      onChange({ ...data, customizationGroups: updated })
+      toast.success('Imagen subida')
+    } catch {
+      toast.error('Error al subir imagen')
+    } finally {
+      setUploadingOptKey(null)
+      if (optFileRefs.current[key]) optFileRefs.current[key]!.value = ''
+    }
+  }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -1844,6 +1924,27 @@ function ItemForm({
                             }}
                           />
                         </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          ref={el => { optFileRefs.current[`item-${gi}-${oi}`] = el }}
+                          onChange={e => handleOptionImageUpload(e, gi, oi)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => optFileRefs.current[`item-${gi}-${oi}`]?.click()}
+                          disabled={uploadingOptKey === `item-${gi}-${oi}`}
+                          className="h-10 w-10 rounded-xl border-2 border-dashed border-border/60 flex items-center justify-center flex-shrink-0 hover:border-primary/40 transition-all overflow-hidden"
+                        >
+                          {uploadingOptKey === `item-${gi}-${oi}` ? (
+                            <span className="text-[9px] font-bold text-muted-foreground">...</span>
+                          ) : opt.imageUrl ? (
+                            <img src={opt.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" />
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          )}
+                        </button>
 
                         {/* Toggle sub-grupo */}
                         <button
@@ -2024,7 +2125,7 @@ function ItemForm({
                                     const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
                                     newSgs[sgi] = {
                                       ...newSgs[sgi],
-                                      options: [...newSgs[sgi].options, { name: '', extraPrice: '0', subGroups: [] }],
+                                      options: [...newSgs[sgi].options, { name: '', extraPrice: '0', imageUrl: '', subGroups: [] }],
                                     }
                                     updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
                                     onChange({ ...data, customizationGroups: updated })
@@ -2047,7 +2148,7 @@ function ItemForm({
                   size="sm"
                   onClick={() => {
                     const updated = [...data.customizationGroups]
-                    updated[gi].options.push({ name: '', extraPrice: '0', subGroups: [] })
+                    updated[gi].options.push({ name: '', extraPrice: '0', imageUrl: '', subGroups: [] })
                     onChange({ ...data, customizationGroups: updated })
                   }}
                   className="text-primary hover:bg-primary/5 text-[10px] font-black uppercase tracking-widest mt-2 px-4 h-9 rounded-lg"

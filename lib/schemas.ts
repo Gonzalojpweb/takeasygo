@@ -8,6 +8,7 @@ const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'ID inválido')
 
 const customizationOptionSchema: z.ZodType<any> = z.object({
   name: z.string().min(1).max(100),
+  imageUrl: z.string().max(500).optional(),
   subGroups: z.array(z.lazy(() => customizationGroupSchema)).max(5).optional(),
 })
 

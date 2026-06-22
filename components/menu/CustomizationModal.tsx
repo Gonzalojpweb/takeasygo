@@ -18,6 +18,8 @@ interface CustomizationOption {
   _id?: string
   name: string
   extraPrice: number
+  imageUrl?: string
+  description?: string
   subGroups?: CustomizationGroup[]
 }
 
@@ -217,9 +219,7 @@ export default function CustomizationModal({
     }
 
     const cartItem: any = {
-      // Primero todas las props extra del item (isPromotion, _promotionId, etc.)
       ...(item as any),
-      // Después los campos calculados del modal (sobrescriben)
       cartItemId: `${item._id}:${Date.now()}`,
       menuItemId: item._id,
       name: itemName,
@@ -239,246 +239,233 @@ export default function CustomizationModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end">
-      <div
-        className="absolute inset-0 bg-black/60"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
 
       <div
-        className="relative rounded-t-3xl overflow-y-auto"
-        style={{
-          backgroundColor: bgColor,
-          maxHeight: '90dvh',
-        }}
+        className="relative rounded-t-3xl overflow-hidden h-full flex flex-col"
+        style={{ backgroundColor: bgColor }}
       >
-        {/* Header */}
-        <div className="sticky top-0 z-10 px-5 pt-5 pb-3 flex items-start justify-between"
-          style={{ backgroundColor: bgColor }}>
-          <div className="flex-1 pr-4">
-            <h2 className="font-bold text-lg leading-tight" style={{ color: textColor }}>
-              {item.name}
-            </h2>
-            {unitLabel && (
-              <p className="text-xs mt-0.5" style={{ color: textColor + '60' }}>
-                {unitLabel}
-              </p>
-            )}
-            {!hasVariants && (
-              <p className="text-sm mt-0.5" style={{ color: primaryColor }}>
-                ${basePrice.toLocaleString('es-AR')}
-              </p>
-            )}
+        {/* Header con imagen */}
+        <div className="relative">
+          {item.imageUrl && (
+            <div className="h-52 w-full relative">
+              <img
+                src={item.imageUrl}
+                alt={item.name}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-black/80" />
+            </div>
+          )}
+
+          {/* Header content */}
+          <div className="absolute top-0 left-0 right-0 px-5 pt-5 flex items-start justify-between">
+            <button
+              onClick={onClose}
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-black/50 backdrop-blur-md"
+            >
+              <X size={20} color="white" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: primaryColor + '20', color: textColor }}
-          >
-            <X size={16} />
-          </button>
+
+          <div className="absolute bottom-0 left-0 right-0 px-5 pb-5">
+            <h1 className="text-2xl font-bold text-white drop-shadow-md">
+              {item.name}
+            </h1>
+            {unitLabel && <p className="text-white/80 mt-1">{unitLabel}</p>}
+          </div>
         </div>
 
-        {/* Item image */}
-        {item.imageUrl && (
-          <div className="mx-5 mb-4 rounded-2xl overflow-hidden" style={{ height: 180 }}>
-            <img
-              src={item.imageUrl}
-              alt={item.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-
-        <div className="px-5 pb-4 space-y-5">
-          {/* ── Variant Selector ── */}
+        {/* Contenido scrollable */}
+        <div className="flex-1 overflow-y-auto px-5 pt-6 pb-24 space-y-8">
+          {/* Variants */}
           {hasVariants && (
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="font-semibold text-sm" style={{ color: textColor }}>
-                  Variante
+              <div className="flex items-center gap-2 mb-4">
+                <span className="font-semibold text-lg" style={{ color: textColor }}>
+                  Elegí tu variante
                 </span>
-                <span
-                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: primaryColor + '20', color: primaryColor }}
-                >
-                  Obligatorio
-                </span>
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-100 text-red-600">Obligatorio</span>
               </div>
-              <div className="space-y-2">
-                {variants.map(v => {
-                  const variantPrice = mode === 'takeaway' ? (Number(v.takeawayPrice ?? v.price) || 0) : mode === 'business' ? (Number(v.businessPrice ?? v.price) || 0) : Number(v.price) || 0
-                  const selected = selectedVariant?.name === v.name
+              <div className="space-y-3">
+                {variants.map((v) => {
+                  const variantPrice = mode === 'takeaway' 
+                    ? (Number(v.takeawayPrice ?? v.price) || 0) 
+                    : mode === 'business' 
+                    ? (Number(v.businessPrice ?? v.price) || 0) 
+                    : Number(v.price) || 0;
+                  const isSelected = selectedVariant?.name === v.name;
+
                   return (
                     <button
                       key={v.name}
-                      type="button"
                       onClick={() => setSelectedVariant(v)}
-                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all"
+                      className={`w-full flex items-center justify-between p-5 rounded-2xl transition-all active:scale-[0.985] ${
+                        isSelected 
+                          ? 'shadow-lg ring-2' 
+                          : 'hover:bg-zinc-100'
+                      }`}
                       style={{
-                        backgroundColor: selected ? primaryColor + '18' : textColor + '08',
-                        border: `1.5px solid ${selected ? primaryColor : 'transparent'}`,
+                        backgroundColor: isSelected ? primaryColor + '15' : textColor + '05',
+                        border: isSelected ? `2px solid ${primaryColor}` : '1px solid transparent',
                       }}
                     >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-5 h-5 flex items-center justify-center flex-shrink-0 transition-all rounded-full"
-                          style={{
-                            backgroundColor: selected ? primaryColor : 'transparent',
-                            border: `2px solid ${selected ? primaryColor : textColor + '40'}`,
-                          }}
-                        >
-                          {selected && <Check size={11} color={bgColor} strokeWidth={3} />}
+                      <div className="flex items-center gap-4">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all ${
+                          isSelected ? '' : 'border-zinc-300'
+                        }`} style={{ borderColor: isSelected ? primaryColor : undefined }}>
+                          {isSelected && <Check size={18} color={primaryColor} strokeWidth={3} />}
                         </div>
-                        <span className="text-sm font-medium text-left" style={{ color: textColor }}>
+                        <span className="text-base font-medium" style={{ color: textColor }}>
                           {v.name}
                         </span>
                       </div>
-                      <span className="text-sm font-semibold" style={{ color: primaryColor }}>
+                      <span className="font-semibold text-lg" style={{ color: primaryColor }}>
                         ${variantPrice.toLocaleString('es-AR')}
                       </span>
                     </button>
-                  )
+                  );
                 })}
               </div>
             </div>
           )}
 
-          {/* ── Customization Groups ── */}
-          {activeGroups.map((group, index) => {
-            const isSubGroup = !rootGroups.some(rg => rg._id === group._id)
-
-            return (
-              <div
-                key={`${group._id}-${index}`}
-                className={isSubGroup ? 'ml-4 pl-4 border-l-2' : ''}
-                style={isSubGroup ? { borderColor: primaryColor + '30' } : {}}
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="font-semibold text-sm" style={{ color: textColor }}>
-                    {group.name}
-                  </span>
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                    style={
-                      group.required
-                        ? { backgroundColor: primaryColor + '20', color: primaryColor }
-                        : { backgroundColor: textColor + '15', color: textColor + '80' }
-                    }
-                  >
-                    {group.required ? 'Obligatorio' : 'Opcional'}
-                  </span>
-                  {group.type === 'multiple' && (
-                    <span className="text-[10px]" style={{ color: textColor + '60' }}>
-                      (varias)
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  {group.options.map(opt => {
-                    const selected = (selections[group._id] ?? []).includes(opt.name)
-                    return (
-                      <button
-                        key={opt.name}
-                        type="button"
-                        onClick={() => toggleOption(group, opt.name)}
-                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all"
-                        style={{
-                          backgroundColor: selected ? primaryColor + '18' : textColor + '08',
-                          border: `1.5px solid ${selected ? primaryColor : 'transparent'}`,
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-5 h-5 flex items-center justify-center flex-shrink-0 transition-all"
-                            style={{
-                              backgroundColor: selected ? primaryColor : 'transparent',
-                              border: `2px solid ${selected ? primaryColor : textColor + '40'}`,
-                              borderRadius: group.type === 'multiple' ? 4 : '50%',
-                            }}
-                          >
-                            {selected && <Check size={11} color={bgColor} strokeWidth={3} />}
-                          </div>
-                          <span className="text-sm font-medium text-left" style={{ color: textColor }}>
-                            {opt.name}
-                          </span>
-                        </div>
-                        {opt.extraPrice > 0 && (
-                          <span className="text-sm font-semibold" style={{ color: primaryColor }}>
-                            +${opt.extraPrice.toLocaleString('es-AR')}
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
+          {/* Customizations */}
+          {activeGroups.map((group, index) => (
+            <div key={`${group._id}-${index}`} className="scroll-mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="font-semibold text-lg" style={{ color: textColor }}>
+                  {group.name}
+                </span>
+                <span
+                  className="text-xs font-bold px-3 py-1 rounded-full"
+                  style={
+                    group.required
+                      ? { backgroundColor: primaryColor + '20', color: primaryColor }
+                      : { backgroundColor: textColor + '10', color: textColor + '70' }
+                  }
+                >
+                  {group.required ? 'Obligatorio' : 'Opcional'}
+                </span>
+                {group.type === 'multiple' && (
+                  <span className="text-xs" style={{ color: textColor + '60' }}>(podés elegir varias)</span>
+                )}
               </div>
-            )
-          })}
+
+              <div className="space-y-3">
+                {group.options.map((opt) => {
+                  const isSelected = (selections[group._id] ?? []).includes(opt.name);
+                  const hasImage = !!opt.imageUrl;
+                  return (
+                    <button
+                      key={opt.name}
+                      onClick={() => toggleOption(group, opt.name)}
+                      className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all active:scale-[0.985] ${
+                        isSelected ? 'shadow-md' : ''
+                      }`}
+                      style={{
+                        backgroundColor: isSelected ? primaryColor + '10' : textColor + '05',
+                        border: isSelected ? `2px solid ${primaryColor}` : '1px solid transparent',
+                      }}
+                    >
+                      {hasImage && (
+                        <div className="relative flex-shrink-0">
+                          <img
+                            src={opt.imageUrl}
+                            alt={opt.name}
+                            className="w-14 h-14 rounded-2xl object-cover border border-zinc-200"
+                          />
+                          {isSelected && (
+                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow">
+                              <Check size={16} style={{ color: primaryColor }} strokeWidth={4} />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {!hasImage && (
+                        <div
+                          className={`w-7 h-7 flex-shrink-0 flex items-center justify-center border-2 transition-all ${
+                            group.type === 'multiple' ? 'rounded-xl' : 'rounded-full'
+                          }`}
+                          style={{
+                            backgroundColor: isSelected ? primaryColor : 'transparent',
+                            borderColor: isSelected ? primaryColor : textColor + '40',
+                          }}
+                        >
+                          {isSelected && <Check size={18} color={bgColor} strokeWidth={3} />}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-base" style={{ color: textColor }}>
+                          {opt.name}
+                        </p>
+                        {opt.description && (
+                          <p className="text-sm line-clamp-1" style={{ color: textColor + '80' }}>{opt.description}</p>
+                        )}
+                      </div>
+                      {opt.extraPrice > 0 && (
+                        <div className="text-right flex-shrink-0">
+                          <p className="font-semibold text-lg" style={{ color: primaryColor }}>
+                            +${opt.extraPrice.toLocaleString('es-AR')}
+                          </p>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Footer */}
+        {/* Footer fijo premium */}
         <div
-          className="sticky bottom-0 px-5 py-4 border-t"
-          style={{
-            backgroundColor: bgColor,
-            borderColor: textColor + '15',
-          }}
+          className="absolute bottom-0 left-0 right-0 border-t px-5 py-5"
+          style={{ backgroundColor: bgColor, borderColor: textColor + '15' }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium" style={{ color: textColor + '70' }}>
-              Total
-            </span>
-            <span className="font-bold text-lg" style={{ color: textColor }}>
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-sm font-medium" style={{ color: textColor + '70' }}>Total</span>
+            <span className="text-2xl font-bold tracking-tight" style={{ color: textColor }}>
               ${totalPrice.toLocaleString('es-AR')}
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             {!hideQuantity && (
-              <div
-                className="flex items-center gap-2 rounded-2xl px-2 py-2"
-                style={{ backgroundColor: textColor + '10' }}
-              >
+              <div className="flex items-center bg-zinc-100 rounded-2xl p-1" style={{ backgroundColor: textColor + '08' }}>
                 <button
-                  type="button"
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  className="w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: primaryColor + '20', color: primaryColor }}
+                  className="w-11 h-11 rounded-xl flex items-center justify-center active:bg-black/10"
+                  style={{ color: primaryColor }}
                 >
-                  <Minus size={13} />
+                  <Minus size={20} />
                 </button>
-                <span
-                  className="w-6 text-center font-bold text-sm"
-                  style={{ color: textColor }}
-                >
+                <span className="w-10 text-center font-bold text-xl" style={{ color: textColor }}>
                   {quantity}
                 </span>
                 <button
-                  type="button"
                   onClick={() => setQuantity(q => q + 1)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center active:bg-black/10"
                   style={{ backgroundColor: primaryColor, color: bgColor }}
                 >
-                  <Plus size={13} />
+                  <Plus size={20} />
                 </button>
               </div>
             )}
 
             <button
-              type="button"
               onClick={handleConfirm}
               disabled={!isValid}
-              className="flex-1 py-3 rounded-2xl font-bold text-sm transition-opacity disabled:opacity-40"
+              className="flex-1 h-14 rounded-2xl font-bold text-base transition-all active:scale-[0.985] disabled:opacity-60"
               style={{ backgroundColor: primaryColor, color: bgColor }}
             >
-              {!isValid && hasVariants && !selectedVariant
-                ? 'Seleccioná una variante'
-                : isValid
-                  ? unitLabel ? 'Confirmar' : 'Agregar al pedido'
-                  : 'Seleccioná las opciones obligatorias'}
+              {isValid 
+                ? (unitLabel ? 'Confirmar' : 'Agregar al pedido') 
+                : hasVariants && !selectedVariant 
+                  ? 'Personalizá tu Pedido!' 
+                  : 'Completá las opciones obligatorias'}
             </button>
-          </div>
+          </div>  
         </div>
       </div>
     </div>
