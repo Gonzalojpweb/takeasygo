@@ -885,17 +885,21 @@ export async function POST(
       } : {}),
     })
 
-    // Sync consumer registry (fire-and-forget — never fails the order)
-    if (body.customer?.phone || body.customer?.email) {
-      upsertConsumerFromOrder({
-        name: body.customer.name,
-        email: body.customer.email || '',
-        phone: body.customer.phone || '',
-        phoneHash: hashPhone(body.customer.phone || ''),
-        tenantId: tenant._id,
-        total,
-        createdAt: order.createdAt,
-      }).catch(e => console.error('[consumer] upsert error:', e))
+    // Sync consumer registry (never fails the order)
+    if (body.customer?.name || body.customer?.phone || body.customer?.email) {
+      try {
+        await upsertConsumerFromOrder({
+          name: body.customer.name,
+          email: body.customer.email || '',
+          phone: body.customer.phone || '',
+          phoneHash: hashPhone(body.customer.phone || ''),
+          tenantId: tenant._id,
+          total,
+          createdAt: order.createdAt,
+        })
+      } catch (e) {
+        console.error('[consumer] upsert error:', e)
+      }
     }
 
     const customerName = body.customer?.name?.trim() || 'Cliente'

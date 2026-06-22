@@ -1,12 +1,6 @@
-import crypto from 'crypto'
-import { encrypt } from '@/lib/crypto'
+import { encrypt, hashEmail } from '@/lib/crypto'
 import Consumer, { type IConsumer } from '@/models/Consumer'
 import type { Types } from 'mongoose'
-
-function hashEmail(email: string): string {
-  if (!email) return ''
-  return crypto.createHash('sha256').update(email.toLowerCase().trim()).digest('hex')
-}
 
 interface OrderConsumerData {
   name: string
@@ -18,25 +12,22 @@ interface OrderConsumerData {
   createdAt: Date
 }
 
-export async function upsertConsumerFromOrder(data: OrderConsumerData): Promise<void> {
+export async function upsertConsumerFromOrder(data: OrderConsumerData): Promise<boolean> {
   const { name, email, phone, phoneHash, tenantId, total, createdAt } = data
   const emailH = hashEmail(email)
-  const dedupKey: Record<string, any> = {}
-  if (phoneHash) {
-    dedupKey.phoneHash = phoneHash
-  } else if (emailH) {
-    dedupKey.emailHash = emailH
-  } else {
-    return
-  }
+
+  const orConditions: Record<string, any>[] = []
+  if (phoneHash) orConditions.push({ phoneHash })
+  if (emailH) orConditions.push({ emailHash: emailH })
+  if (orConditions.length === 0) return false
 
   const setFields: Record<string, any> = {
     name: encrypt(name),
     email: email ? encrypt(email) : '',
     phone: phone ? encrypt(phone) : '',
-    phoneHash,
     isLoyaltyMember: false,
   }
+  if (phoneHash) setFields.phoneHash = phoneHash
   if (emailH) setFields.emailHash = emailH
 
   const update: Record<string, any> = {
@@ -47,16 +38,21 @@ export async function upsertConsumerFromOrder(data: OrderConsumerData): Promise<
     $max: { lastOrderAt: createdAt },
   }
 
-  await Consumer.updateOne(dedupKey, update, { upsert: true }).catch((err) => {
+  try {
+    await Consumer.updateOne({ $or: orConditions }, update, { upsert: true })
+    return true
+  } catch (err: any) {
     if (err?.code === 11000) {
-      const fallbackKey: Record<string, any> = {}
-      if (emailH) fallbackKey.emailHash = emailH
-      if (Object.keys(fallbackKey).length) {
-        return Consumer.updateOne(fallbackKey, update, { upsert: true })
+      for (const cond of orConditions) {
+        try {
+          await Consumer.updateOne(cond, update, { upsert: true })
+          return true
+        } catch {}
       }
     }
-    throw err
-  })
+    console.error('[consumer] upsert error:', err)
+    return false
+  }
 }
 
 export async function upsertConsumerFromLoyaltyMember(data: {
@@ -68,22 +64,19 @@ export async function upsertConsumerFromLoyaltyMember(data: {
 }): Promise<void> {
   const { name, email, phone, phoneHash, tenantId } = data
   const emailH = hashEmail(email)
-  const dedupKey: Record<string, any> = {}
-  if (phoneHash) {
-    dedupKey.phoneHash = phoneHash
-  } else if (emailH) {
-    dedupKey.emailHash = emailH
-  } else {
-    return
-  }
+
+  const orConditions: Record<string, any>[] = []
+  if (phoneHash) orConditions.push({ phoneHash })
+  if (emailH) orConditions.push({ emailHash: emailH })
+  if (orConditions.length === 0) return
 
   const setFields: Record<string, any> = {
     name: encrypt(name),
     email: email ? encrypt(email) : '',
     phone: phone ? encrypt(phone) : '',
-    phoneHash,
     isLoyaltyMember: true,
   }
+  if (phoneHash) setFields.phoneHash = phoneHash
   if (emailH) setFields.emailHash = emailH
 
   const update: Record<string, any> = {
@@ -91,14 +84,17 @@ export async function upsertConsumerFromLoyaltyMember(data: {
     $addToSet: { tenantIds: tenantId },
   }
 
-  await Consumer.updateOne(dedupKey, update, { upsert: true }).catch((err) => {
+  try {
+    await Consumer.updateOne({ $or: orConditions }, update, { upsert: true })
+  } catch (err: any) {
     if (err?.code === 11000) {
-      const fallbackKey: Record<string, any> = {}
-      if (emailH) fallbackKey.emailHash = emailH
-      if (Object.keys(fallbackKey).length) {
-        return Consumer.updateOne(fallbackKey, update, { upsert: true })
+      for (const cond of orConditions) {
+        try {
+          await Consumer.updateOne(cond, update, { upsert: true })
+          return
+        } catch {}
       }
     }
-    throw err
-  })
+    console.error('[consumer] upsert error:', err)
+  }
 }

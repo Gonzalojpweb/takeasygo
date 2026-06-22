@@ -30,12 +30,11 @@ async function queryPostHog(query: any, tenantId?: string): Promise<any> {
   const queryWithFilter = tenantId ? addTenantFilter(query, tenantId) : query
 
   try {
-    const auth = Buffer.from(`${config.key}:`).toString('base64')
     const res = await fetch(`${POSTHOG_HOST}/api/projects/${config.projectId}/query/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Basic ${auth}`,
+        Authorization: `Bearer ${config.key}`,
       },
       body: JSON.stringify({ query: queryWithFilter }),
     })
@@ -54,14 +53,12 @@ async function fetchFunnel(tenantId: string): Promise<ConversionFunnelData | nul
   const result = await queryPostHog({
     kind: 'FunnelsQuery',
     dateRange: { date_from: '-30d' },
-    funnelWindowInterval: 30,
-    funnelWindowIntervalUnit: 'day',
     series: [
-      { kind: 'events', event: 'menu.opened', name: 'menu.opened' },
-      { kind: 'events', event: 'dish.viewed', name: 'dish.viewed' },
-      { kind: 'events', event: 'dish.added', name: 'dish.added' },
-      { kind: 'events', event: 'checkout.started', name: 'checkout.started' },
-      { kind: 'events', event: 'order.completed', name: 'order.completed' },
+      { kind: 'EventsNode', event: 'menu.opened', name: 'menu.opened' },
+      { kind: 'EventsNode', event: 'dish.viewed', name: 'dish.viewed' },
+      { kind: 'EventsNode', event: 'dish.added', name: 'dish.added' },
+      { kind: 'EventsNode', event: 'checkout.started', name: 'checkout.started' },
+      { kind: 'EventsNode', event: 'order.completed', name: 'order.completed' },
     ],
   }, tenantId)
 
@@ -81,9 +78,8 @@ async function fetchTrend(event: string, days = 30, tenantId?: string): Promise<
   const result = await queryPostHog({
     kind: 'TrendsQuery',
     dateRange: { date_from: `-${days}d` },
-    series: [{ kind: 'events', event, name: event }],
+    series: [{ kind: 'EventsNode', event, name: event }],
     interval: 'day',
-    breakdown: undefined,
   }, tenantId)
 
   if (!result?.results?.length) return 0
