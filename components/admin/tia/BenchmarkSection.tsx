@@ -3,19 +3,28 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react'
 import InfoTooltip from './InfoTooltip'
-import type { BenchmarkItem, BenchmarkStatus } from '@/lib/tia/types'
+import type { BenchmarkComparison } from '@/lib/tia/reporting/types'
 
-interface Props {
-  isPremium: boolean
+interface ApiProps {
   tenantSlug: string
 }
 
-const STATUS_STYLES: Record<BenchmarkStatus, { bg: string; text: string; icon: 'up' | 'down' | 'neutral' }> = {
-  top: { bg: 'bg-green-100', text: 'text-green-700', icon: 'up' },
-  above_average: { bg: 'bg-emerald-50', text: 'text-emerald-600', icon: 'up' },
-  average: { bg: 'bg-zinc-100', text: 'text-zinc-600', icon: 'neutral' },
-  below_average: { bg: 'bg-amber-50', text: 'text-amber-600', icon: 'down' },
-  bottom: { bg: 'bg-red-50', text: 'text-red-600', icon: 'down' },
+interface ReportProps {
+  benchmark: BenchmarkComparison[]
+}
+
+type Props = ApiProps | ReportProps
+
+function isReportProps(props: Props): props is ReportProps {
+  return 'benchmark' in props
+}
+
+const STATUS_STYLES: Record<string, { bg: string; text: string; icon: 'up' | 'down' | 'neutral'; emoji: string }> = {
+  top: { bg: 'bg-green-100', text: 'text-green-700', icon: 'up', emoji: '🟢' },
+  above_average: { bg: 'bg-emerald-50', text: 'text-emerald-600', icon: 'up', emoji: '🟢' },
+  average: { bg: 'bg-zinc-100', text: 'text-zinc-600', icon: 'neutral', emoji: '🟡' },
+  below_average: { bg: 'bg-amber-50', text: 'text-amber-600', icon: 'down', emoji: '🔴' },
+  bottom: { bg: 'bg-red-50', text: 'text-red-600', icon: 'down', emoji: '🔴' },
 }
 
 function formatValue(metric: string, value: number): string {
@@ -25,40 +34,72 @@ function formatValue(metric: string, value: number): string {
   return value.toLocaleString('es-AR')
 }
 
-function formatShortValue(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}k`
-  return `$${value}`
+export default function BenchmarkSection(props: Props) {
+  // Report mode: receives pre-computed narrative
+  if (isReportProps(props)) {
+    return <ReportBenchmark benchmark={props.benchmark} />
+  }
+
+  // API mode: fetches data itself (legacy, for non-dashboard usage)
+  return <ApiBenchmark tenantSlug={props.tenantSlug} />
 }
 
-export default function BenchmarkSection({ isPremium, tenantSlug }: Props) {
-  const [data, setData] = useState<BenchmarkItem[] | null>(null)
+function ReportBenchmark({ benchmark }: { benchmark: BenchmarkComparison[] }) {
+  if (benchmark.length === 0) return null
+
+  return (
+    <div className="bg-white rounded-2xl border border-zinc-200 p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <h3 className="text-sm font-semibold text-zinc-900">Comparación vs. restaurantes similares</h3>
+        <InfoTooltip text="Cómo te comparás con otros restaurantes que usan TakeasyGO. Datos anónimos y agregados." />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {benchmark.map(item => {
+          const style = STATUS_STYLES[item.status] ?? STATUS_STYLES.average
+          return (
+            <div key={item.label} className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-3.5">
+              <span className="text-[11px] font-medium text-zinc-600">{item.label}</span>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-lg font-bold text-zinc-900">{item.value}</span>
+                <span className="text-lg">{style.emoji}</span>
+              </div>
+              <p className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">{item.narrative}</p>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function ApiBenchmark({ tenantSlug }: { tenantSlug: string }) {
+  const [data, setData] = useState<BenchmarkComparison[] | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`/api/${tenantSlug}/tia/benchmark`)
-      .then(res => {
-        if (!res.ok) throw new Error('Error')
-        return res.json()
-      })
-      .then((json: { benchmarks: BenchmarkItem[] }) => {
-        setData(json.benchmarks)
+      .then(res => res.json())
+      .then((json: { benchmarks: { metric: string; label: string; value: number; status: string }[] }) => {
+        const mapped: BenchmarkComparison[] = json.benchmarks.map(b => ({
+          label: b.label,
+          value: formatValue(b.metric, b.value),
+          status: b.status as BenchmarkComparison['status'],
+          narrative: b.status === 'top' || b.status === 'above_average'
+            ? `Estás en una buena posición.`
+            : b.status === 'average'
+            ? `Estás en el promedio.`
+            : `Hay espacio para mejorar.`,
+        }))
+        setData(mapped)
         setLoading(false)
       })
-      .catch(err => {
-        setError(err.message)
-        setLoading(false)
-      })
+      .catch(() => setLoading(false))
   }, [tenantSlug])
 
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-zinc-200 p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <h3 className="text-sm font-semibold text-zinc-900">Benchmark vs. restaurantes similares</h3>
-          <InfoTooltip text="Comparación anónima de tus métricas contra otros restaurantes en TakeasyGO" />
-        </div>
         <div className="flex items-center justify-center py-6">
           <Loader2 size={18} className="animate-spin text-zinc-300" />
         </div>
@@ -66,68 +107,7 @@ export default function BenchmarkSection({ isPremium, tenantSlug }: Props) {
     )
   }
 
-  if (error || !data) return null
+  if (!data) return null
 
-  if (data.length === 0) return null
-
-  return (
-    <div className="bg-white rounded-2xl border border-zinc-200 p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <h3 className="text-sm font-semibold text-zinc-900">Benchmark vs. restaurantes similares</h3>
-        <InfoTooltip text="Comparación anónima de tus métricas contra otros restaurantes en TakeasyGO. Ningún dato individual de otros restaurantes es revelado." />
-        <span className="text-[10px] text-zinc-400 ml-auto">
-          {data.length} métricas · {data[0]?.peerCount ?? 0} restaurantes
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {data.map(item => (
-          <BenchmarkCard key={item.metric} item={item} isPremium={isPremium} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function BenchmarkCard({ item, isPremium }: { item: BenchmarkItem; isPremium: boolean }) {
-  const style = STATUS_STYLES[item.status]
-  const IconComponent = style.icon === 'up' ? TrendingUp : style.icon === 'down' ? TrendingDown : Minus
-
-  return (
-    <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-3.5">
-      {/* Header with label + tooltip */}
-      <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-[11px] font-medium text-zinc-600">{item.label}</span>
-        <InfoTooltip text={item.tooltip} />
-      </div>
-
-      {/* Value + badge */}
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-lg font-bold text-zinc-900">
-          {formatValue(item.metric, item.value)}
-        </span>
-        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
-          <IconComponent size={10} />
-          {item.badge}
-        </span>
-      </div>
-
-      {/* Percentile bar */}
-      {isPremium && (
-        <div className="space-y-1.5">
-          <div className="relative h-1.5 bg-zinc-200 rounded-full overflow-hidden">
-            <div
-              className="absolute top-0 left-0 h-full bg-zinc-800 rounded-full transition-all"
-              style={{ width: `${item.percentile}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-[10px] text-zinc-400">
-            <span>P25: {formatShortValue(item.p25)}</span>
-            <span className="font-medium text-zinc-600">P{item.percentile}</span>
-            <span>P75: {formatShortValue(item.p75)}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  return <ReportBenchmark benchmark={data} />
 }

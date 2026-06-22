@@ -1,4 +1,5 @@
 import type { Insight, SilConfig } from '../types'
+import { translateMetricShort } from '../reporting/metric-names'
 
 export function standardDeviation(values: number[]): number {
   if (values.length < 2) return 0
@@ -22,16 +23,16 @@ export function analyzeVariability(
   if (values.length < config.minSampleSize) return []
 
   const cv = coefficientOfVariation(values)
+  const name = translateMetricShort(metric)
   const insights: Insight[] = []
 
-  // CV > 1 indicates very high volatility
   if (cv > 1) {
     insights.push({
       type: 'variability',
       severity: 'warning',
       category,
-      title: `Alta volatilidad en ${metric}`,
-      description: `El coeficiente de variación es ${cv.toFixed(2)} — los valores fluctúan más del ${(cv * 100).toFixed(0)}% respecto al promedio.`,
+      title: `Tus ${name} cambian mucho día a día`,
+      description: `Los valores son muy irregulares. Pueden haber días con mucha demanda y otros con muy poca actividad.`,
       metric,
       currentValue: cv,
       sampleSize: values.length,

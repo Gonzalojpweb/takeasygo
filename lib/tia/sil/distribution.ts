@@ -1,4 +1,5 @@
 import type { Insight, SilConfig } from '../types'
+import { translateMetricShort } from '../reporting/metric-names'
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0
@@ -35,16 +36,16 @@ export function analyzeDistribution(
   if (values.length < config.minSampleSize) return []
 
   const dist = computeDistribution(values)
+  const name = translateMetricShort(metric)
   const insights: Insight[] = []
 
-  // Ratio p90/p50 > 2 suggests high-end spikes worth noting
   if (dist.p50 > 0 && dist.p90 / dist.p50 > 2) {
     insights.push({
       type: 'distribution',
       severity: 'info',
       category,
-      title: `Alta dispersión en ${metric} (p90/p50 = ${(dist.p90 / dist.p50).toFixed(1)})`,
-      description: `P50: ${dist.p50.toFixed(1)} • P75: ${dist.p75.toFixed(1)} • P90: ${dist.p90.toFixed(1)} — los picos altos distorsionan el promedio.`,
+      title: `Hay días excepcionales en tus ${name}`,
+      description: `La mayoría de los días son moderados pero algunos se disparan mucho por encima de lo normal. Revisá qué causó esos picos.`,
       metric,
       currentValue: dist.p90,
       previousValue: dist.p50,
