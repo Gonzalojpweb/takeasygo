@@ -240,15 +240,15 @@ export default function CustomizationModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+    <div className="fixed inset-0 z-[60]">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
 
       <div
-        className="relative rounded-t-3xl overflow-hidden h-full flex flex-col"
+        className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-3xl overflow-hidden flex flex-col"
         style={{ backgroundColor: bgColor }}
       >
         {/* Header con imagen */}
-        <div className="relative">
+        <div className="relative shrink-0">
           {item.imageUrl && (
             <div className="h-52 w-full relative">
               <img
@@ -279,7 +279,7 @@ export default function CustomizationModal({
         </div>
 
         {/* Contenido scrollable */}
-        <div className="flex-1 overflow-y-auto px-5 pt-6 pb-24 space-y-8">
+        <div className="flex-1 overflow-y-auto px-5 pt-6 pb-4 space-y-8">
           {/* Variants */}
           {hasVariants && (
             <div>
@@ -421,9 +421,9 @@ export default function CustomizationModal({
           ))}
         </div>
 
-        {/* Footer fijo premium */}
+        {/* Footer */}
         <div
-          className="absolute bottom-0 left-0 right-0 border-t px-5 py-5"
+          className="shrink-0 border-t px-5 py-5"
           style={{ backgroundColor: bgColor, borderColor: textColor + '15' }}
         >
           <div className="flex justify-between items-center mb-4">
