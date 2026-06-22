@@ -15,15 +15,20 @@ const MAX_PAIRS   = 100  // top N pares a guardar
  */
 export async function computeMenuInsights(
   tenantId: mongoose.Types.ObjectId,
-  locationId: string,
+  locationId: mongoose.Types.ObjectId,
 ): Promise<{ pairs: ICoOccurrencePair[]; totalOrdersAnalyzed: number }> {
   const startDate = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000)
 
   // Solo órdenes pagas y con items
+  // Usamos string para locationId porque en algunas órdenes antiguas se guardó como string
+  const locationStr = locationId.toString()
   const orders = await Order.find(
     {
       tenantId,
-      locationId,
+      $or: [
+        { locationId: locationId },
+        { locationId: locationStr },
+      ],
       deletedAt: null,
       'payment.status': 'approved',
       createdAt: { $gte: startDate },
@@ -31,9 +36,13 @@ export async function computeMenuInsights(
     'items.menuItemId',
   ).lean()
 
-  // Filtrar órdenes con ≥ 2 ítems distintos
+  // Filtrar órdenes con ≥ 2 ítems distintos (excluir items sin menuItemId como promos)
   const multiItemOrders = orders.filter((o) => {
-    const ids = new Set(o.items.map((i: any) => String(i.menuItemId)))
+    const ids = new Set(
+      o.items
+        .map((i: any) => String(i.menuItemId))
+        .filter((id) => id && id !== 'undefined'),
+    )
     return ids.size >= 2
   })
 
@@ -45,7 +54,11 @@ export async function computeMenuInsights(
   const coMap = new Map<string, number>()
 
   for (const order of multiItemOrders) {
-    const ids = [...new Set(order.items.map((i: any) => String(i.menuItemId)))]
+    const ids = [...new Set(
+      order.items
+        .map((i: any) => String(i.menuItemId))
+        .filter((id) => id && id !== 'undefined'),
+    )]
 
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {

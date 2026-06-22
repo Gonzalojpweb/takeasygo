@@ -1,8 +1,10 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import MenuInsights from '@/models/MenuInsights'
 import { computeMenuInsights } from '@/lib/menu-insights'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 
 const STALE_MS = 24 * 60 * 60 * 1000 // 24 horas
 
@@ -28,8 +30,18 @@ export async function GET(
 
     const tenantId = (tenant as any)._id
 
+    // Validar que locationId es un ObjectId válido y pertenece al tenant
+    if (!mongoose.Types.ObjectId.isValid(locationId)) {
+      return NextResponse.json({ pairs: [], totalOrdersAnalyzed: 0 })
+    }
+    const locationObjId = new mongoose.Types.ObjectId(locationId)
+    const location = await Location.findOne({ _id: locationObjId, tenantId, isActive: true }).lean()
+    if (!location) {
+      return NextResponse.json({ pairs: [], totalOrdersAnalyzed: 0 })
+    }
+
     // Devolver caché si está vigente
-    const cached = await MenuInsights.findOne({ tenantId, locationId }).lean()
+    const cached = await MenuInsights.findOne({ tenantId, locationId: locationObjId }).lean()
     if (cached && Date.now() - new Date(cached.computedAt).getTime() < STALE_MS) {
       return NextResponse.json({
         pairs: cached.pairs,
@@ -39,10 +51,10 @@ export async function GET(
     }
 
     // Computar fresh
-    const { pairs, totalOrdersAnalyzed } = await computeMenuInsights(tenantId, locationId)
+    const { pairs, totalOrdersAnalyzed } = await computeMenuInsights(tenantId, locationObjId)
 
     await MenuInsights.findOneAndUpdate(
-      { tenantId, locationId },
+      { tenantId, locationId: locationObjId },
       { pairs, totalOrdersAnalyzed, computedAt: new Date() },
       { upsert: true },
     )
