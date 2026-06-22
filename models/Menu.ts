@@ -4,6 +4,7 @@ export interface ICustomizationOption {
   _id?: mongoose.Types.ObjectId
   name: string
   extraPrice: number
+  imageUrl?: string
   subGroups?: ICustomizationGroup[]  // Grupos que se activan si esta opción es elegida
 }
 
@@ -105,6 +106,7 @@ const CustomizationGroupSchema: Schema = new Schema({})
 CustomizationOptionSchema.add({
   name:       { type: String, required: true, trim: true },
   extraPrice: { type: Number, default: 0, min: 0 },
+  imageUrl:   { type: String, default: '' },
   subGroups:  { type: [CustomizationGroupSchema], default: [] },
 })
 

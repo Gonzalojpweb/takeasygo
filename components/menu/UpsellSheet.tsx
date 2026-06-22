@@ -11,8 +11,16 @@ function tn(obj: any, field: 'name' | 'description', locale: 'es' | 'en'): strin
 }
 
 const LABELS = {
-  es: { title: '¿Le sumás algo más?', skip: 'No, gracias' },
-  en: { title: 'Add something?', skip: 'No, thanks' },
+  es: { 
+    title: '¿Completamos tu pedido?', 
+    subtitle: 'Otros clientes también agregaron...',
+    skip: 'No, gracias' 
+  },
+  en: { 
+    title: 'Complete your order?', 
+    subtitle: 'Customers also added...',
+    skip: 'No thanks' 
+  },
 }
 
 interface Props {
@@ -52,62 +60,104 @@ export default function UpsellSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative rounded-t-3xl p-6" style={{ backgroundColor: bg }}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-base" style={{ color: text }}>
-            {L.title}
-          </h3>
-          <button onClick={onClose} className="opacity-40 hover:opacity-70">
-            <X size={18} style={{ color: text }} />
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+
+      <div 
+        className="relative rounded-t-3xl overflow-hidden max-h-[85dvh] flex flex-col"
+        style={{ backgroundColor: bg }}
+      >
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-2xl font-bold" style={{ color: text }}>
+              {L.title}
+            </h3>
+            <button 
+              onClick={onClose}
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-black/10"
+            >
+              <X size={20} style={{ color: text }} />
+            </button>
+          </div>
+          
+          <p className="text-base opacity-70" style={{ color: text }}>
+            {L.subtitle}
+          </p>
+        </div>
+
+        {/* Suggestions List */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
+          {suggestions.map((item: any) => {
+            const hasCustomization = (item.variants ?? []).length > 0 || 
+                                   (item.customizationGroups ?? []).length > 0
+
+            return (
+              <div
+                key={item._id}
+                className="flex gap-4 bg-white/90 dark:bg-zinc-900 rounded-3xl p-4 active:scale-[0.985] transition-all shadow-sm border"
+                style={{ 
+                  borderColor: primary + '20',
+                  backgroundColor: bg 
+                }}
+              >
+                {/* Image */}
+                {item.imageUrl && (
+                  <div className="flex-shrink-0">
+                    <img
+                      src={item.imageUrl}
+                      alt={tn(item, 'name', locale)}
+                      className="w-24 h-24 object-cover rounded-2xl"
+                    />
+                  </div>
+                )}
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <div className="flex-1">
+                    <p className="font-bold text-lg leading-tight" style={{ color: text }}>
+                      {tn(item, 'name', locale)}
+                    </p>
+                    
+                    {item.description && (
+                      <p className="text-sm mt-1.5 line-clamp-2 opacity-70" style={{ color: text }}>
+                        {tn(item, 'description', locale)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-3">
+                    <p className="font-bold text-xl" style={{ color: primary }}>
+                      ${item.price.toLocaleString('es-AR')}
+                    </p>
+
+                    <button
+                      onClick={() => handleAdd(item)}
+                      className="flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold text-sm active:scale-95 transition-all"
+                      style={{ 
+                        backgroundColor: primary, 
+                        color: bg 
+                      }}
+                    >
+                      <Plus size={18} />
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Skip Button */}
+        <div className="px-6 py-5 border-t" style={{ borderColor: text + '15' }}>
+          <button
+            onClick={onClose}
+            className="w-full py-4 text-base font-medium transition-opacity hover:opacity-70"
+            style={{ color: text }}
+          >
+            {L.skip}
           </button>
         </div>
-
-        <div className="space-y-3 mb-5">
-          {suggestions.map((item: any) => (
-            <div
-              key={item._id}
-              className="flex items-center gap-3 p-3 rounded-2xl border"
-              style={{ borderColor: primary + '25' }}
-            >
-              {item.imageUrl && (
-                <img
-                  src={item.imageUrl}
-                  alt={tn(item, 'name', locale)}
-                  className="w-14 h-14 object-cover rounded-xl flex-shrink-0"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm" style={{ color: text }}>
-                  {tn(item, 'name', locale)}
-                </p>
-                {item.description && (
-                  <p className="text-xs opacity-50 line-clamp-1 mt-0.5">
-                    {tn(item, 'description', locale)}
-                  </p>
-                )}
-                <p className="font-bold text-sm mt-1" style={{ color: primary }}>
-                  ${item.price.toLocaleString('es-AR')}
-                </p>
-              </div>
-              <button
-                onClick={() => handleAdd(item)}
-                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: primary, color: bg }}
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <button
-          onClick={onClose}
-          className="w-full py-3 text-sm font-medium opacity-50 hover:opacity-70 transition-opacity"
-          style={{ color: text }}
-        >
-          {L.skip}
-        </button>
       </div>
     </div>
   )
