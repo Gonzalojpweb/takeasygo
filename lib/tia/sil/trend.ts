@@ -1,4 +1,5 @@
 import type { Insight, SilConfig } from '../types'
+import { translateMetricShort } from '../reporting/metric-names'
 
 export interface TrendResult {
   slope: number
@@ -20,7 +21,6 @@ export function linearRegression(values: number[]): TrendResult {
   const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
   const intercept = (sumY - slope * sumX) / n
 
-  // Mean of values to contextualize slope
   const meanY = sumY / n
   const relativeSlope = meanY !== 0 ? Math.abs(slope / meanY) : 0
 
@@ -47,25 +47,32 @@ export function analyzeTrend(
   const trend = linearRegression(values)
   if (trend.direction === 'stable') return []
 
+  const name = translateMetricShort(metric)
   const isPositive = trend.direction === 'growing'
   const isStrong = trend.strength === 'strong'
+
+  const narrative = isPositive
+    ? `${name} muestra crecimiento sostenido en los ${label}.`
+    : `${name} muestra una tendencia a la baja en los ${label}.`
+
+  const changePercent = values.length >= 2 && values[0] > 0
+    ? Math.round(((values[values.length - 1] - values[0]) / values[0]) * 100)
+    : undefined
 
   return [{
     type: 'trend',
     severity: isPositive ? 'info' : isStrong ? 'critical' : 'warning',
     category,
     title: isPositive
-      ? `Tendencia positiva en ${metric}`
-      : `Tendencia negativa en ${metric}`,
-    description: isPositive
-      ? `${metric} muestra crecimiento sostenido (${label}). Pendiente: ${trend.slope.toFixed(3)} por día.`
-      : `${metric} muestra declive (${label}). Pendiente: ${trend.slope.toFixed(3)} por día.`,
+      ? `Tendencia positiva en ${name}`
+      : `Tendencia negativa en ${name}`,
+    description: narrative,
     metric,
     currentValue: trend.slope,
     sampleSize: values.length,
     recommendation: isPositive
       ? undefined
-      : 'Identificar causa del declive y evaluar cambios en menú, precios o promociones.',
-    changePercent: trend.strength === 'strong' ? Math.round(trend.slope * values.length) : undefined,
+      : 'Identificar la causa del declive y evaluar cambios en menú, precios o promociones.',
+    changePercent,
   }]
 }

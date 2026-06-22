@@ -1,4 +1,5 @@
 import type { Insight, SilConfig } from '../types'
+import { translateMetricShort } from '../reporting/metric-names'
 
 export function zScore(value: number, mean: number, std: number): number {
   if (std === 0) return 0
@@ -18,6 +19,7 @@ export function detectAnomaliesInSeries(
 
   if (std === 0) return []
 
+  const name = translateMetricShort(metric)
   const anomalies: Insight[] = []
 
   for (let i = 0; i < values.length; i++) {
@@ -29,9 +31,11 @@ export function detectAnomaliesInSeries(
         severity: Math.abs(z) > 3 ? 'critical' : 'warning',
         category,
         title: isPositive
-          ? `Pico anómalo detectado en ${metric}`
-          : `Caída anómala detectada en ${metric}`,
-        description: `Valor: ${values[i].toFixed(0)} (Z-score: ${z.toFixed(2)}). Esperado: ~${avg.toFixed(0)}.`,
+          ? `Buen pico en ${name}`
+          : `Caída en ${name}`,
+        description: isPositive
+          ? `Tuviste ${values[i].toFixed(0)} (vs ~${avg.toFixed(0)} habitual). Algo bueno pasó — revisá si hubo promoción o evento para repetirlo.`
+          : `Tuviste ${values[i].toFixed(0)} (vs ~${avg.toFixed(0)} habitual). Preocupante — revisá si hubo problema operativo.`,
         metric,
         currentValue: values[i],
         previousValue: Math.round(avg),

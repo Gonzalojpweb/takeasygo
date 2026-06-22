@@ -22,7 +22,7 @@ export default function AnomalyAlert({ anomalies }: Props) {
       <div className="bg-white rounded-2xl border border-zinc-200 p-5">
         <div className="flex items-center gap-2 mb-2">
           <h2 className="text-sm font-semibold text-zinc-900">Alertas de anomalías</h2>
-          <InfoTooltip text="Detección de comportamientos inusuales usando desviación estándar (Z-score). Sin anomalías detectadas." />
+          <InfoTooltip text="Detección de comportamientos inusuales en tus datos. Sin anomalías detectadas." />
         </div>
         <p className="text-sm text-zinc-400 text-center py-6">Sin anomalías detectadas en los últimos 30 días</p>
       </div>
@@ -34,7 +34,7 @@ export default function AnomalyAlert({ anomalies }: Props) {
       <div className="flex items-center gap-2 mb-4">
         <AlertTriangle size={16} className="text-amber-500" />
         <h2 className="text-sm font-semibold text-zinc-900">Alertas de anomalías</h2>
-        <InfoTooltip text="Comportamientos inusuales detectados por SIL usando desviación estándar (Z-score > 2 o < -2)." />
+          <InfoTooltip text="Comportamientos inusuales detectados por TIA." />
       </div>
 
       <div className="space-y-2">

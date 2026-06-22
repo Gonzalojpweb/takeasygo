@@ -1,22 +1,23 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { RefreshCw, Loader2, Sparkles } from 'lucide-react'
 import DailySummary from './DailySummary'
-import ConversionFunnel from './ConversionFunnel'
+import TopFindings from './TopFindings'
+import OpportunitiesSection from './OpportunitiesSection'
 import TopProducts from './TopProducts'
+import ConversionFunnel from './ConversionFunnel'
+import BenchmarkSection from './BenchmarkSection'
+import WeekPriorities from './WeekPriorities'
+import DailyInsightPro from './DailyInsightPro'
 import ClubGrowth from './ClubGrowth'
 import TrendsOverview from './TrendsOverview'
-import InsightCard from './InsightCard'
-import SilSection from './SilSection'
-import CategoryComparison from './CategoryComparison'
 import HistoricalComparison from './HistoricalComparison'
-import AnomalyAlert from './AnomalyAlert'
-import RecommendationCard from './RecommendationCard'
-import DailyInsightPro from './DailyInsightPro'
-import BenchmarkSection from './BenchmarkSection'
+import CategoryComparison from './CategoryComparison'
+import { generateReport } from '@/lib/tia/reporting/engine'
+import type { TiaReport, ReportContext } from '@/lib/tia/reporting/types'
 import type { TiaMetricsData } from '@/lib/tia/metrics'
-import type { Insight, Recommendation } from '@/lib/tia/types'
+import type { Insight, Recommendation, BenchmarkItem } from '@/lib/tia/types'
 
 interface DbInsight {
   _id: string
@@ -77,7 +78,7 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
   const [silData, setSilData] = useState<{ insights: Insight[]; anomalies: Insight[] }>({ insights: [], anomalies: [] })
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [silLoading, setSilLoading] = useState(false)
-  const [lastGeneratedAt, setLastGeneratedAt] = useState<string | null>(null)
+  const [benchmarkData, setBenchmarkData] = useState<BenchmarkItem[]>([])
 
   const isPremium = plan === 'full'
 
@@ -109,7 +110,6 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
           anomalies: all.filter((i: DbInsight) => i.type === 'anomaly').map(mapDbInsight),
         })
         setRecommendations(data.recommendations ?? [])
-        setLastGeneratedAt(data.generatedAt ?? null)
       }
     } catch (err) {
       console.error('[TIA Insights] fetch error', err)
@@ -118,12 +118,24 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
     }
   }, [tenantSlug])
 
+  const fetchBenchmark = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/tia/benchmark`)
+      if (res.ok) {
+        const json = await res.json()
+        setBenchmarkData(json.benchmarks ?? [])
+      }
+    } catch {
+      // Silently fail — benchmark is non-critical
+    }
+  }, [tenantSlug])
+
   const runSilNow = useCallback(async () => {
     setSilLoading(true)
     try {
       const res = await fetch(`/api/${tenantSlug}/tia/sil/analyze`, { method: 'POST' })
       if (res.ok) {
-        setRecommendations([]) // will be refetched after
+        setRecommendations([])
         setSilData({ insights: [], anomalies: [] })
         await fetchDailyInsights()
       }
@@ -136,17 +148,31 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
 
   useEffect(() => {
     fetchMetrics()
-  }, [tenantSlug]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tenantSlug])
 
   useEffect(() => {
-    if (!loading) fetchDailyInsights()
-  }, [loading, fetchDailyInsights])
+    if (!loading) {
+      fetchDailyInsights()
+      fetchBenchmark()
+    }
+  }, [loading, fetchDailyInsights, fetchBenchmark])
 
   async function handleRefresh() {
     setRefreshing(true)
     await fetchMetrics()
     await fetchDailyInsights()
+    await fetchBenchmark()
   }
+
+  const reportContext: ReportContext = useMemo(() => ({
+    metrics,
+    insights: silData.insights,
+    anomalies: silData.anomalies,
+    recommendations,
+    benchmark: benchmarkData,
+  }), [metrics, silData, recommendations, benchmarkData])
+
+  const report: TiaReport = useMemo(() => generateReport(reportContext), [reportContext])
 
   const hasInsights = silData.insights.length > 0 || silData.anomalies.length > 0
 
@@ -160,7 +186,7 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
 
   return (
     <div className="space-y-6">
-      {/* Refresh + Plan badge */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {error && <span className="text-xs text-red-500">{error}</span>}
@@ -182,33 +208,59 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
         </div>
       </div>
 
-      {/* Daily Summary */}
+      {/* SECCIÓN 0: Resumen del día */}
       <DailySummary data={metrics.dailySummary} />
 
-      {/* Benchmark Section (all TIA plans) */}
-      <BenchmarkSection isPremium={isPremium} tenantSlug={tenantSlug} />
+      {/* SECCIÓN 1: Lo más importante de hoy */}
+      <TopFindings findings={report.findings} />
 
-      {/* Insights from Daily Engine */}
-      {silLoading ? null : hasInsights ? (
+      {/* SECCIÓN 2: Oportunidades detectadas */}
+      <OpportunitiesSection opportunities={report.opportunities} />
+
+      {/* SECCIÓN 3: Productos */}
+      <TopProducts data={metrics.topProducts} report={report.products} narrative={report.productNarrative} />
+
+      {/* SECCIÓN 4: Conversión */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <ConversionFunnel data={metrics.conversionFunnel} bottleneck={report.conversion.bottleneck} />
+        </div>
         <div>
-          <h3 className="text-sm font-semibold text-zinc-900 mb-3">
-            {isPremium ? 'Hallazgos SIL' : 'Hallazgos TIA'}
-            <span className="ml-2 text-[10px] font-normal text-zinc-400">
-              ({silData.insights.length} hallazgos{lastGeneratedAt ? ` · ${new Date(lastGeneratedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}` : ''})
-            </span>
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {silData.insights.slice(0, isPremium ? undefined : 3).map((insight, i) => (
-              <InsightCard
-                key={i}
-                title={insight.title}
-                description={insight.description}
-                type={(insight.severity === 'critical' ? 'warning' : insight.severity === 'info' ? 'neutral' : 'warning') as 'positive' | 'negative' | 'neutral' | 'warning'}
-              />
+          <TrendsOverview data={metrics.trends} />
+        </div>
+      </div>
+
+      {/* SECCIÓN 5: Comparación vs restaurantes similares */}
+      <BenchmarkSection benchmark={report.benchmark} />
+
+      {/* SECCIÓN extra: Club + Histórico */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ClubGrowth data={metrics.clubGrowth} />
+        <HistoricalComparison data={metrics.historical} />
+      </div>
+
+      {/* SECCIÓN 6: Prioridades de esta semana */}
+      <WeekPriorities priorities={report.priorities} />
+
+      {/* SECCIÓN extra: SIL raw insights for debug/fallback */}
+      {!silLoading && hasInsights && (
+        <details className="bg-zinc-50 rounded-2xl border border-zinc-200 p-4">
+          <summary className="text-xs font-semibold text-zinc-500 cursor-pointer hover:text-zinc-700">
+            Ver análisis SIL detallado ({silData.insights.length + silData.anomalies.length} hallazgos)
+          </summary>
+          <div className="mt-3 space-y-2">
+            {silData.insights.slice(0, 5).map((insight, i) => (
+              <div key={i} className="text-xs text-zinc-600 p-2 bg-white rounded-lg border border-zinc-100">
+                <span className="font-semibold">{insight.title}</span>
+                <span className="text-zinc-400 ml-2">{insight.description}</span>
+              </div>
             ))}
           </div>
-        </div>
-      ) : (
+        </details>
+      )}
+
+      {/* SIL generate button */}
+      {!silLoading && !hasInsights && (
         <div className="bg-zinc-50 rounded-2xl border border-zinc-200 p-5 text-center">
           <Sparkles size={24} className="mx-auto mb-2 text-zinc-300" />
           <p className="text-sm text-zinc-500">Los insights del día se generan automáticamente a las 06:00 UTC</p>
@@ -223,54 +275,8 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
         </div>
       )}
 
-      {/* Two column layout: Funnel + Trends */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <ConversionFunnel data={metrics.conversionFunnel} />
-        </div>
-        <div>
-          <TrendsOverview data={metrics.trends} />
-        </div>
-      </div>
-
-      {/* Two column: TopProducts + ClubGrowth */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TopProducts data={metrics.topProducts} />
-        <ClubGrowth data={metrics.clubGrowth} />
-      </div>
-
-      {/* Historical (Growth + Premium) */}
-      <HistoricalComparison data={metrics.historical} />
-
-      {/* SIL Section (visible for all TIA plans) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SilSection data={silData} loading={silLoading} />
-        {isPremium && <CategoryComparison data={metrics.sil.categories} />}
-      </div>
-
-      {/* Premium sections */}
-      {isPremium && (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <AnomalyAlert
-              anomalies={silData.anomalies.map(a => ({
-                type: a.severity === 'critical' ? 'negative' as const : 'positive' as const,
-                metric: a.metric,
-                itemName: a.title,
-                currentValue: a.currentValue,
-                expectedValue: a.previousValue ?? 0,
-                deviation: a.changePercent ?? 0,
-              }))}
-            />
-            <RecommendationCard
-              recommendations={recommendations}
-            />
-          </div>
-        </>
-      )}
-
-      {/* Daily Insight Pro */}
-      <DailyInsightPro plan={plan} insights={silData.insights} anomalies={silData.anomalies} recommendations={recommendations} />
+      {/* SECCIÓN 7: Resumen diario */}
+      <DailyInsightPro plan={plan} whatsapp={report.whatsapp} />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import type { Insight, SilConfig } from '../types'
 import type { CategoryData } from '../metrics'
+import { translateMetricShort } from '../reporting/metric-names'
 
 export function analyzeCategory(
   categories: CategoryData[],
@@ -8,8 +9,8 @@ export function analyzeCategory(
   if (categories.length < 2) return []
 
   const totalSold = categories.reduce((s, c) => s + c.totalSold, 0)
-  const totalRevenue = categories.reduce((s, c) => s + c.revenue, 0)
   const categoryCount = categories.length
+  const expectedShare = 100 / categoryCount
 
   const insights: Insight[] = []
 
@@ -17,12 +18,11 @@ export function analyzeCategory(
     if (cat.totalSold < config.minSampleSize) continue
 
     const share = totalSold > 0 ? (cat.totalSold / totalSold) * 100 : 0
-    const expectedShare = 100 / categoryCount
     const shareDiff = share - expectedShare
 
-    // Flag categories significantly above or below expected share
     if (Math.abs(shareDiff) > 15) {
       const isOverperforming = shareDiff > 0
+      const name = translateMetricShort(`category.${cat.category}`)
       insights.push({
         type: 'category',
         severity: isOverperforming ? 'info' : 'warning',
@@ -31,8 +31,8 @@ export function analyzeCategory(
           ? `${cat.category} rinde por encima del promedio`
           : `${cat.category} rinde por debajo del promedio`,
         description: isOverperforming
-          ? `Representa el ${share.toFixed(0)}% de ventas (esperado: ${expectedShare.toFixed(0)}%). +${shareDiff.toFixed(0)}% vs promedio.`
-          : `Solo el ${share.toFixed(0)}% de ventas (esperado: ${expectedShare.toFixed(0)}%). ${shareDiff.toFixed(0)}% vs promedio.`,
+          ? `Representa el ${share.toFixed(0)}% de ventas, muy por encima del promedio esperado. Considerar ampliar variedad.`
+          : `Solo el ${share.toFixed(0)}% de ventas, por debajo del promedio. Revisar precios, visibilidad o rotación.`,
         metric: `category.${cat.category}.share`,
         currentValue: cat.totalSold,
         previousValue: Math.round(totalSold / categoryCount),
