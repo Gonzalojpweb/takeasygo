@@ -38,24 +38,20 @@ const ESC_POS = {
     ALIGN_RIGHT: Buffer.from([0x1b, 0x61, 0x02]),
     TEXT_SIZE_NORMAL: Buffer.from([0x1d, 0x21, 0x00]),
     TEXT_SIZE_LARGE: Buffer.from([0x1d, 0x21, 0x11]),
+    CODE_PAGE: Buffer.from([0x1b, 0x74, 43]), // CP858 (Latin-1 + Euro)
 };
 
-const SANITIZE_MAP = {
-    'á':'a','é':'e','í':'i','ó':'o','ú':'u',
-    'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U',
-    'ñ':'n','Ñ':'N','ü':'u','Ü':'U',
-    '¿':'','¡':'','€':'EUR','º':'o','ª':'a'
-};
+const NON_LATIN1_RE = /[^\x00-\xFF]/g;
 
 function sanitizeText(str) {
     if (typeof str !== 'string') return '';
-    return str.replace(/[áéíóúÁÉÍÓÚñÑüÜ¿¡€ºª]/g, c => SANITIZE_MAP[c] || c);
+    return str.replace(NON_LATIN1_RE, '');
 }
 
 function buf(input) {
     if (Buffer.isBuffer(input)) return input;
-    if (typeof input === 'string') return Buffer.from(sanitizeText(input));
-    return Buffer.from(String(input));
+    if (typeof input === 'string') return Buffer.from(sanitizeText(input), 'latin1');
+    return Buffer.from(String(input), 'latin1');
 }
 
 // --- LOGICA DE TRASMISIÓN (TCP RAW) ---
@@ -187,10 +183,10 @@ function printCustomizations(customizations, chunks, indent) {
     customizations.forEach(c => {
         const group = c.groupName || '';
         const sels = Array.isArray(c.selectedOptions) && c.selectedOptions.length > 0
-            ? c.selectedOptions.map(o => o.name).filter(Boolean)
+            ? c.selectedOptions.map(o => o.name?.toUpperCase()).filter(Boolean)
             : [];
         if (sels.length > 0) {
-            const prefix = group ? group + ': ' : '';
+            const prefix = group ? group.toUpperCase() + ': ' : '';
             chunks.push(buf(`${indent}> ${prefix}${sels.join(', ')}\n`));
         }
         if (Array.isArray(c.selectedOptions)) {
@@ -225,7 +221,7 @@ function generateTicket(order, role, columns = 32) {
     const lineStr = '-'.repeat(columns);
     const money = (v) => Number(v || 0).toLocaleString('es-AR');
 
-    chunks.push(ESC_POS.INIT, ESC_POS.ALIGN_CENTER);
+    chunks.push(ESC_POS.INIT, ESC_POS.CODE_PAGE, ESC_POS.ALIGN_CENTER);
     chunks.push(Buffer.from([0x1b, 0x33, 36]));
 
     if (role === 'cashier') {
@@ -266,7 +262,7 @@ function generateTicket(order, role, columns = 32) {
 
     // Info del cliente
     chunks.push(ESC_POS.BOLD_ON);
-    chunks.push(buf(`Cliente: ${customer.name || ''}\n`));
+    chunks.push(buf(`Cliente: ${(customer.name || '').toUpperCase()}\n`));
     if (customer.phone) {
         chunks.push(buf(`Tel: ${customer.phone}\n`));
     }
@@ -291,13 +287,13 @@ function generateTicket(order, role, columns = 32) {
             chunks.push(buf(`[RECOMPENSA]\n`));
         }
 
-        const line = `${item.quantity}x ${item.name}`;
+        const line = `${item.quantity}x ${item.name.toUpperCase()}`;
 
         // Nombre de categoría (solo cuando cambia)
         const currentCategory = (item.categoryName && item.itemType !== 'promotion' && item.itemType !== 'reward')
             ? item.categoryName : null;
         if (currentCategory && currentCategory !== lastCategory) {
-            chunks.push(buf(`[${currentCategory}]\n`));
+            chunks.push(buf(`[${currentCategory.toUpperCase()}]\n`));
         }
         lastCategory = currentCategory;
 
@@ -316,12 +312,12 @@ function generateTicket(order, role, columns = 32) {
             const desc = item.description.length > columns
                 ? item.description.substring(0, columns - 3) + '...'
                 : item.description
-            chunks.push(buf(`  ${desc}\n`));
+            chunks.push(buf(`  ${desc.toUpperCase()}\n`));
         }
 
         // Mostrar variante seleccionada
         if (item.selectedVariant) {
-            chunks.push(buf(`  > Variante: ${item.selectedVariant.name}\n`));
+            chunks.push(buf(`  > Variante: ${item.selectedVariant.name.toUpperCase()}\n`));
         }
 
         // Mostrar customizaciones (incluye subGroups recursivamente)
