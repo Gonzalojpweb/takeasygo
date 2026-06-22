@@ -22,7 +22,7 @@ const ConsumerSchema = new Schema<IConsumer>(
     email: { type: String, default: '' },
     phone: { type: String, default: '' },
     phoneHash: { type: String, default: '' },
-    emailHash: { type: String, default: '' },
+    emailHash: { type: String },
     tenantIds: [{ type: Schema.Types.ObjectId, ref: 'Tenant' }],
     totalOrders: { type: Number, default: 0 },
     totalSpent: { type: Number, default: 0 },

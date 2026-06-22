@@ -26,12 +26,11 @@ export async function queryPostHog(query: any, tenantId?: string): Promise<any> 
   const queryWithFilter = tenantId ? addTenantFilter(query, tenantId) : query
 
   try {
-    const auth = Buffer.from(`${config.key}:`).toString('base64')
     const res = await fetch(`${POSTHOG_HOST}/api/projects/${config.projectId}/query/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Basic ${auth}`,
+        Authorization: `Bearer ${config.key}`,
       },
       body: JSON.stringify({ query: queryWithFilter }),
     })
@@ -50,9 +49,8 @@ export async function fetchPostHogTrend(event: string, days = 30, tenantId?: str
   const result = await queryPostHog({
     kind: 'TrendsQuery',
     dateRange: { date_from: `-${days}d` },
-    series: [{ kind: 'events', event, name: event }],
+    series: [{ kind: 'EventsNode', event, name: event }],
     interval: 'day',
-    breakdown: undefined,
   }, tenantId)
   if (!result?.results?.length) return []
   const rawLabels = result.results[0].labels as string[]

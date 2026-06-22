@@ -52,3 +52,8 @@ export function hashPhone(phone: string): string {
   const normalized = digits.length >= 10 ? digits.slice(-10) : digits
   return crypto.createHash('sha256').update(normalized).digest('hex')
 }
+
+export function hashEmail(email: string): string {
+  if (!email) return ''
+  return crypto.createHash('sha256').update(email.toLowerCase().trim()).digest('hex')
+}
