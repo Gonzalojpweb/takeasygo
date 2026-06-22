@@ -116,6 +116,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [insights, setInsights] = useState<ICoOccurrencePair[] | null>(null)
   const skipUpsellRef = useRef(false)
   const upsellModalRef = useRef(false)
+  const upsellDismissedRef = useRef(false)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
   const { play: playAddSound } = useNotificationSound('/pop.mp3')
@@ -286,6 +287,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       .catch(() => { /* falla silenciosa, el fallback estático sigue funcionando */ })
   }, [tenant.slug, location._id])
 
+  // Reset upsell suppression when cart becomes empty
+  useEffect(() => {
+    if (cart.length === 0) upsellDismissedRef.current = false
+  }, [cart.length])
+
   const handleFlyToCart = useCallback((item: any, rect: DOMRect) => {
     const cartRect = cartBtnRef.current?.getBoundingClientRect()
     const targetX = cartRect
@@ -340,7 +346,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         takeawayOriginalPrice: item.takeawayOriginalPrice,
       }]
     })
-    if (triggerUpsell && isNew) {
+    if (triggerUpsell && isNew && !upsellDismissedRef.current) {
       const suggestions = getSuggestions(categories, cart, String(item._id), insights)
       if (suggestions.length > 0) setUpsellSuggestions(suggestions)
     }
@@ -564,7 +570,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       : cartItem
     setCart(prev => [...prev, taggedItem])
     setCustomizingItem(null)
-    if (!skipUpsellRef.current && cartItem.menuItemId) {
+    if (!skipUpsellRef.current && !upsellDismissedRef.current && cartItem.menuItemId) {
       const suggestions = getSuggestions(categories, cart, cartItem.menuItemId, insights)
       if (suggestions.length > 0) setUpsellSuggestions(suggestions)
     }
@@ -1199,7 +1205,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           suggestions={upsellSuggestions}
           onAddPlain={(item) => { addPlainToCart(item, false, 'upsell_sheet'); setUpsellSuggestions([]) }}
           onOpenModal={handleUpsellOpenModal}
-          onClose={() => setUpsellSuggestions([])}
+          onClose={() => { upsellDismissedRef.current = true; setUpsellSuggestions([]) }}
           primary={primary}
           bg={bg}
           text={text}
