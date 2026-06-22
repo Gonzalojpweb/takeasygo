@@ -403,6 +403,18 @@ html.lenis body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Pulsating ring (Magic UI style) ─────────────────────────────────── */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
 /* ── Sonner toast width ─────────────────────────────────────────────── */
 [data-sonner-toast] {
   width: 100% !important;
