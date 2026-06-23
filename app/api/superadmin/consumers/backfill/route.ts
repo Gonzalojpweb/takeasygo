@@ -47,6 +47,8 @@ export async function POST() {
         totalSpent: number
         firstOrderAt: Date | null
         lastOrderAt: Date | null
+        isCorporate: boolean
+        corporateAccountId: any
       }
     > = {}
 
@@ -72,6 +74,8 @@ export async function POST() {
           totalSpent: 0,
           firstOrderAt: null,
           lastOrderAt: null,
+          isCorporate: false,
+          corporateAccountId: null,
         }
       }
 
@@ -83,6 +87,10 @@ export async function POST() {
       const createdAt = order.createdAt
       if (!g.firstOrderAt || createdAt < g.firstOrderAt) g.firstOrderAt = createdAt
       if (!g.lastOrderAt || createdAt > g.lastOrderAt) g.lastOrderAt = createdAt
+      if ((order as any).corporateAccountId) {
+        g.isCorporate = true
+        g.corporateAccountId = (order as any).corporateAccountId
+      }
     }
 
     let created = 0
@@ -101,8 +109,10 @@ export async function POST() {
         email: g.email ? encrypt(g.email) : '',
         phone: g.phone ? encrypt(g.phone) : '',
         phoneHash: g.phoneHash,
+        isCorporate: g.isCorporate,
       }
       if (g.emailHash) setFields.emailHash = g.emailHash
+      if (g.corporateAccountId) setFields.corporateAccountId = g.corporateAccountId
 
       const result = await Consumer.updateOne(
         dedupKey,

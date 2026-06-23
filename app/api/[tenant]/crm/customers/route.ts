@@ -67,6 +67,7 @@ export async function GET(
       firstOrderAt: c.firstOrderAt ?? null,
       lastOrderAt: c.lastOrderAt ?? null,
       isLoyaltyMember: c.isLoyaltyMember ?? false,
+      isCorporate: c.isCorporate ?? false,
     }))
 
     return NextResponse.json({

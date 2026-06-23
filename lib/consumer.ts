@@ -10,25 +10,33 @@ interface OrderConsumerData {
   tenantId: Types.ObjectId | string
   total: number
   createdAt: Date
+  isCorporate?: boolean
+  corporateAccountId?: Types.ObjectId | string | null
 }
 
 export async function upsertConsumerFromOrder(data: OrderConsumerData): Promise<boolean> {
-  const { name, email, phone, phoneHash, tenantId, total, createdAt } = data
+  const { name, email, phone, phoneHash, tenantId, total, createdAt, isCorporate, corporateAccountId } = data
   const emailH = hashEmail(email)
 
   const orConditions: Record<string, any>[] = []
   if (phoneHash) orConditions.push({ phoneHash })
   if (emailH) orConditions.push({ emailHash: emailH })
-  if (orConditions.length === 0) return false
+  if (orConditions.length === 0) {
+    console.warn('[consumer] upsert skipped: no phoneHash or emailHash for order', { name, tenantId: String(tenantId) })
+    return false
+  }
 
   const setFields: Record<string, any> = {
     name: encrypt(name),
     email: email ? encrypt(email) : '',
     phone: phone ? encrypt(phone) : '',
-    isLoyaltyMember: false,
   }
   if (phoneHash) setFields.phoneHash = phoneHash
   if (emailH) setFields.emailHash = emailH
+  if (isCorporate) {
+    setFields.isCorporate = true
+    if (corporateAccountId) setFields.corporateAccountId = corporateAccountId
+  }
 
   const update: Record<string, any> = {
     $set: setFields,
@@ -47,7 +55,9 @@ export async function upsertConsumerFromOrder(data: OrderConsumerData): Promise<
         try {
           await Consumer.updateOne(cond, update, { upsert: true })
           return true
-        } catch {}
+        } catch (innerErr) {
+          console.warn('[consumer] upsert fallback failed:', cond, innerErr)
+        }
       }
     }
     console.error('[consumer] upsert error:', err)

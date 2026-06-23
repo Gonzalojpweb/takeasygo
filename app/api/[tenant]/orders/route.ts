@@ -896,6 +896,8 @@ export async function POST(
           tenantId: tenant._id,
           total,
           createdAt: order.createdAt,
+          isCorporate: isBusinessOrder && !!body.corporateAccountId,
+          corporateAccountId: body.corporateAccountId ?? null,
         })
       } catch (e) {
         console.error('[consumer] upsert error:', e)
