@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { CURATED_FONTS, FONT_ROLES, FONT_MAP } from '@/lib/fonts'
@@ -802,6 +803,134 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               </div>
                             )}
                           </div>
+                  </section>
+
+                  {/* ── Mejores Vendidos ─────────────────────────── */}
+                  <section className="space-y-5 p-5 rounded-3xl border border-border bg-card">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-orange-100">
+                        <span className="text-sm">🔥</span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Mejores Vendidos</p>
+                        <p className="text-[10px] text-muted-foreground/60">Carrusel de los más pedidos según TIA</p>
+                      </div>
+                    </div>
+
+                    {/* Toggle show/hide */}
+                    <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-muted/10">
+                      <div className="flex-1 min-w-0">
+                        <Label className="text-xs font-bold text-foreground">Mostrar sección</Label>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Mostrar el carrusel de Los más vendidos en el menú
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={branding.bestSellers?.showSection !== false}
+                        onClick={() => setBranding((p: any) => ({
+                          ...p,
+                          bestSellers: { ...p.bestSellers, showSection: !(p.bestSellers?.showSection !== false) },
+                        }))}
+                        className={cn(
+                          'relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ml-3',
+                          (branding.bestSellers?.showSection !== false) ? 'bg-primary' : 'bg-muted-foreground/30'
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform',
+                            (branding.bestSellers?.showSection !== false) && 'translate-x-4'
+                          )}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Section title */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-foreground">Título de la sección</Label>
+                      <input
+                        type="text"
+                        value={branding.bestSellers?.sectionTitle ?? 'Los más vendidos'}
+                        onChange={e => setBranding((p: any) => ({
+                          ...p,
+                          bestSellers: { ...p.bestSellers, sectionTitle: e.target.value },
+                        }))}
+                        placeholder="Los más vendidos"
+                        className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+
+                    {/* Section subtitle */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-foreground">Subtítulo (vacío = dinámico con sucursal)</Label>
+                      <input
+                        type="text"
+                        value={branding.bestSellers?.sectionSubtitle ?? ''}
+                        onChange={e => setBranding((p: any) => ({
+                          ...p,
+                          bestSellers: { ...p.bestSellers, sectionSubtitle: e.target.value },
+                        }))}
+                        placeholder="Lo que más están pidiendo"
+                        className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+
+                    {/* Colors */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-muted-foreground uppercase">Acento / Precio</Label>
+                        <div className="flex items-center gap-2 px-3 h-11 rounded-xl border border-border bg-background">
+                          <input
+                            type="color"
+                            value={branding.bestSellers?.accentColor || branding.primaryColor || '#f54500'}
+                            onChange={e => setBranding((p: any) => ({
+                              ...p,
+                              bestSellers: { ...p.bestSellers, accentColor: e.target.value },
+                            }))}
+                            className="w-6 h-6 rounded cursor-pointer"
+                          />
+                          <span className="text-xs text-muted-foreground truncate">
+                            {(branding.bestSellers?.accentColor || branding.primaryColor || '#f54500').slice(0, 7)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-muted-foreground uppercase">Fondo Card</Label>
+                        <div className="flex items-center gap-2 px-3 h-11 rounded-xl border border-border bg-background">
+                          <input
+                            type="color"
+                            value={branding.bestSellers?.cardBgColor || '#ffffff'}
+                            onChange={e => setBranding((p: any) => ({
+                              ...p,
+                              bestSellers: { ...p.bestSellers, cardBgColor: e.target.value },
+                            }))}
+                            className="w-6 h-6 rounded cursor-pointer"
+                          />
+                          <span className="text-xs text-muted-foreground truncate">
+                            {(branding.bestSellers?.cardBgColor || '#ffffff').slice(0, 7)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-muted-foreground uppercase">Badge</Label>
+                        <div className="flex items-center gap-2 px-3 h-11 rounded-xl border border-border bg-background">
+                          <input
+                            type="color"
+                            value={branding.bestSellers?.badgeBgColor || '#ef4444'}
+                            onChange={e => setBranding((p: any) => ({
+                              ...p,
+                              bestSellers: { ...p.bestSellers, badgeBgColor: e.target.value },
+                            }))}
+                            className="w-6 h-6 rounded cursor-pointer"
+                          />
+                          <span className="text-xs text-muted-foreground truncate">
+                            {(branding.bestSellers?.badgeBgColor || '#ef4444').slice(0, 7)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </section>
 
                   <div className="pt-4">

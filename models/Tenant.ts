@@ -39,6 +39,14 @@ export interface ITenant extends Document {
       display: { source: string; family: string; weight?: string; files?: { woff2?: string; woff?: string; ttf?: string }; adobeFamily?: string }
       tag: { source: string; family: string; weight?: string; files?: { woff2?: string; woff?: string; ttf?: string }; adobeFamily?: string }
     }
+    bestSellers?: {
+      showSection?: boolean
+      sectionTitle?: string
+      sectionSubtitle?: string
+      accentColor?: string
+      cardBgColor?: string
+      badgeBgColor?: string
+    }
   }
   profile: {
     menuDescription: string
@@ -338,6 +346,24 @@ const TenantSchema = new Schema<ITenant>(
           body: { source: 'google', family: 'Inter', weight: '' },
           display: { source: 'google', family: 'Playfair Display', weight: '' },
           tag: { source: 'google', family: 'Inter', weight: '' },
+        }),
+      },
+      bestSellers: {
+        type: {
+          showSection: { type: Boolean, default: true },
+          sectionTitle: { type: String, default: 'Los más vendidos' },
+          sectionSubtitle: { type: String, default: '' },
+          accentColor: { type: String, default: '' },
+          cardBgColor: { type: String, default: '#ffffff' },
+          badgeBgColor: { type: String, default: '#ef4444' },
+        },
+        default: () => ({
+          showSection: true,
+          sectionTitle: 'Los más vendidos',
+          sectionSubtitle: '',
+          accentColor: '',
+          cardBgColor: '#ffffff',
+          badgeBgColor: '#ef4444',
         }),
       },
     },

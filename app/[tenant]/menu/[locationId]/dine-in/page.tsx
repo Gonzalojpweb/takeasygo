@@ -4,6 +4,7 @@ import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { notFound } from 'next/navigation'
 import DineInMenuView from '@/components/menu/DineInMenuView'
+import { getBestSellers } from '@/lib/tia/bestSellers'
 import type { Types } from 'mongoose'
 
 export const revalidate = 300
@@ -49,11 +50,14 @@ export default async function DineInMenuPage({ params }: Props) {
   const menuDoc = await Menu.findOne({ tenantId: tenantDoc._id, locationId, isActive: true }).lean()
   if (!menuDoc) notFound()
 
+  const bestSellers = await getBestSellers(tenantDoc._id, locationId).catch(() => [])
+
   return (
     <DineInMenuView
       tenant={JSON.parse(JSON.stringify(tenantDoc))}
       location={JSON.parse(JSON.stringify(locationDoc))}
       menu={JSON.parse(JSON.stringify(menuDoc))}
+      bestSellers={JSON.parse(JSON.stringify(bestSellers))}
     />
   )
 }
