@@ -64,10 +64,10 @@ export async function getBestSellers(
     if (match) {
       result.push({
         _id: String(match._id),
-        name: match.name,
-        description: match.description ?? undefined,
-        price: match.price ?? 0,
-        imageUrl: match.imageUrl ?? undefined,
+        name: String(match.name ?? ''),
+        description: match.description ? String(match.description) : undefined,
+        price: Number(match.price ?? 0),
+        imageUrl: match.imageUrl ? String(match.imageUrl) : undefined,
         count: tp.count,
         revenue: tp.revenue,
       })
