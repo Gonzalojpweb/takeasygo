@@ -240,7 +240,7 @@ export default function CustomizationModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[60]">
+    <div className="fixed inset-0 z-[60] overflow-hidden">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
 
       <div
@@ -279,7 +279,7 @@ export default function CustomizationModal({
         </div>
 
         {/* Contenido scrollable */}
-        <div className="flex-1 overflow-y-auto px-5 pt-6 pb-4 space-y-8">
+        <div className="flex-1 overflow-y-auto overscroll-none px-5 pt-6 pb-4 space-y-8">
           {/* Variants */}
           {hasVariants && (
             <div>
