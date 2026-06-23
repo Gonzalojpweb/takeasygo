@@ -2,7 +2,7 @@ import { Types } from 'mongoose'
 import Order from '@/models/Order'
 import Menu from '@/models/Menu'
 
-interface BestSellerItem {
+export interface BestSellerItem {
   _id: string
   name: string
   description?: string
