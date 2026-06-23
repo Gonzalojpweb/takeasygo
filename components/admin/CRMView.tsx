@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search, ChevronDown, Download, Users, ArrowUpDown, Loader2, Phone, Mail, ShoppingBag, DollarSign, Calendar, Award, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronDown, Download, Users, ArrowUpDown, Loader2, Phone, Mail, ShoppingBag, DollarSign, Calendar, Award, ChevronLeft, ChevronRight, Building2 } from 'lucide-react'
 
 interface Consumer {
   _id: string
@@ -13,6 +13,7 @@ interface Consumer {
   firstOrderAt: string | null
   lastOrderAt: string | null
   isLoyaltyMember: boolean
+  isCorporate: boolean
 }
 
 interface Props {
@@ -105,7 +106,7 @@ export default function CRMView({ tenantSlug }: Props) {
   }
 
   const exportCSV = () => {
-    const headers = ['Nombre', 'Teléfono', 'Email', 'Pedidos', 'Gasto Total', 'Primera Compra', 'Última Compra', 'Miembro Club']
+    const headers = ['Nombre', 'Teléfono', 'Email', 'Pedidos', 'Gasto Total', 'Primera Compra', 'Última Compra', 'Club', 'Corporativo']
     const rows = consumers.map(c => [
       `"${c.name}"`,
       c.phone,
@@ -115,6 +116,7 @@ export default function CRMView({ tenantSlug }: Props) {
       c.firstOrderAt ? new Date(c.firstOrderAt).toISOString() : '',
       c.lastOrderAt ? new Date(c.lastOrderAt).toISOString() : '',
       c.isLoyaltyMember ? 'Sí' : 'No',
+      c.isCorporate ? 'Sí' : 'No',
     ].join(','))
 
     const csv = [headers.join(','), ...rows].join('\n')
@@ -237,7 +239,7 @@ export default function CRMView({ tenantSlug }: Props) {
                     <ArrowUpDown size={12} className={sortBy === 'lastOrderAt' ? 'text-primary' : 'opacity-30'} />
                   </span>
                 </th>
-                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Club</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Tags</th>
               </tr>
             </thead>
             <tbody>
@@ -281,14 +283,21 @@ export default function CRMView({ tenantSlug }: Props) {
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">{fmtCurrency(c.totalSpent)}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDate(c.lastOrderAt)}</td>
                   <td className="px-4 py-3">
-                    {c.isLoyaltyMember ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 text-[10px] font-bold">
-                        <Award size={10} />
-                        Club
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/50">—</span>
-                    )}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {c.isLoyaltyMember && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 text-[10px] font-bold">
+                          <Award size={10} />
+                          Club
+                        </span>
+                      )}
+                      {c.isCorporate && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 text-[10px] font-bold">
+                          <Building2 size={10} />
+                          Corp
+                        </span>
+                      )}
+                      {!c.isLoyaltyMember && !c.isCorporate && <span className="text-xs text-muted-foreground/50">—</span>}
+                    </div>
                   </td>
                 </tr>
               ))}

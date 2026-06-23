@@ -5,6 +5,8 @@ import CorporateAccount from '@/models/CorporateAccount'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
+import { hashPhone } from '@/lib/crypto'
+import { upsertConsumerFromOrder } from '@/lib/consumer'
 import crypto from 'crypto'
 
 // Only company admin email can start a group session
@@ -108,6 +110,25 @@ export async function POST(
       orderTiming: 'immediate',
       loyaltyPointsCredited: false,
     })
+
+    // Sync consumer registry (never fails the order)
+    if (normalizedEmail) {
+      try {
+        await upsertConsumerFromOrder({
+          name: corpAccount.companyName,
+          email: normalizedEmail,
+          phone: '',
+          phoneHash: '',
+          tenantId: tenant._id,
+          total: 0,
+          createdAt: order.createdAt,
+          isCorporate: true,
+          corporateAccountId: corpAccount._id,
+        })
+      } catch (e) {
+        console.error('[consumer] group-session upsert error:', e)
+      }
+    }
 
     const shareLink = `/${tenantSlug}/menu/${locationId}/business/group/${token}`
 

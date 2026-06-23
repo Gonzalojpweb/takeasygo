@@ -12,6 +12,8 @@ export interface IConsumer extends Document {
   firstOrderAt: Date | null
   lastOrderAt: Date | null
   isLoyaltyMember: boolean
+  isCorporate: boolean
+  corporateAccountId: Types.ObjectId | null
   createdAt: Date
   updatedAt: Date
 }
@@ -29,6 +31,8 @@ const ConsumerSchema = new Schema<IConsumer>(
     firstOrderAt: { type: Date, default: null },
     lastOrderAt: { type: Date, default: null },
     isLoyaltyMember: { type: Boolean, default: false },
+    isCorporate: { type: Boolean, default: false },
+    corporateAccountId: { type: Schema.Types.ObjectId, default: null },
   },
   { timestamps: true }
 )

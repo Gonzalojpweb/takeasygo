@@ -16,6 +16,8 @@ interface OrderGroup {
   totalSpent: number
   firstOrderAt: Date
   lastOrderAt: Date
+  isCorporate: boolean
+  corporateAccountId: any
 }
 
 export async function GET(
@@ -82,6 +84,10 @@ export async function GET(
             existing.totalSpent += order.total ?? 0
             if (order.createdAt && order.createdAt < existing.firstOrderAt) existing.firstOrderAt = order.createdAt
             if (order.createdAt && order.createdAt > existing.lastOrderAt) existing.lastOrderAt = order.createdAt
+            if ((order as any).corporateAccountId) {
+              existing.isCorporate = true
+              existing.corporateAccountId = (order as any).corporateAccountId
+            }
           } else {
             groups.set(key, {
               phoneHash: pHash,
@@ -93,6 +99,8 @@ export async function GET(
               totalSpent: order.total ?? 0,
               firstOrderAt: order.createdAt ?? new Date(),
               lastOrderAt: order.createdAt ?? new Date(),
+              isCorporate: !!(order as any).corporateAccountId,
+              corporateAccountId: (order as any).corporateAccountId ?? null,
             })
           }
         } catch (e) {
@@ -112,6 +120,7 @@ export async function GET(
           email: g.email ? encrypt(g.email) : '',
           phone: g.phone ? encrypt(g.phone) : '',
           isLoyaltyMember: false,
+          isCorporate: g.isCorporate,
           totalOrders: g.totalOrders,
           totalSpent: g.totalSpent,
           firstOrderAt: g.firstOrderAt,
@@ -119,6 +128,7 @@ export async function GET(
         }
         if (g.phoneHash) setFields.phoneHash = g.phoneHash
         if (g.emailHash) setFields.emailHash = g.emailHash
+        if (g.corporateAccountId) setFields.corporateAccountId = g.corporateAccountId
 
         const update: Record<string, any> = {
           $set: setFields,
