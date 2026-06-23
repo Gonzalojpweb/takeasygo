@@ -5,6 +5,7 @@ import { CheckCircle2, AlertCircle, Eye, EyeOff, Loader2, ShieldCheck, Zap } fro
 import { cn } from '@/lib/utils'
 
 interface Props {
+  origin: string
   isConfigured: boolean
   hasAccessToken: boolean
   hasWebhookSecret: boolean
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export default function PlatformMPSettings({
+  origin,
   isConfigured: initialConfigured,
   hasAccessToken: initialHasToken,
   hasWebhookSecret: initialHasSecret,
@@ -354,7 +356,7 @@ export default function PlatformMPSettings({
         <div className="rounded-xl bg-muted/30 border border-border/40 p-4 space-y-1">
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">URL del webhook</p>
           <p className="font-mono text-xs text-foreground break-all select-all">
-            {typeof window !== 'undefined' ? window.location.origin : 'https://tu-dominio.com'}/api/webhooks/mp-subscription
+            {origin}/api/webhooks/mp-subscription
           </p>
           <p className="text-[11px] text-muted-foreground">
             Configurá esta URL en el panel de MercadoPago → Notificaciones → Tipo: subscription_preapproval

@@ -4,8 +4,14 @@ import { decrypt } from '@/lib/crypto'
 import PlatformMPSettings from '@/components/superadmin/PlatformMPSettings'
 import PlatformKriptonSettings from '@/components/superadmin/PlatformKriptonSettings'
 import { Settings } from 'lucide-react'
+import { headers } from 'next/headers'
 
 export default async function SuperAdminConfigPage() {
+  const headersList = await headers()
+  const host = headersList.get('host') ?? 'tu-dominio.com'
+  const proto = headersList.get('x-forwarded-proto') ?? (host.includes('localhost') ? 'http' : 'https')
+  const origin = `${proto}://${host}`
+
   await connectDB()
   const config = await PlatformConfig.findById('platform').lean() as any
   const mp = config?.mercadopago ?? {}
@@ -30,6 +36,7 @@ export default async function SuperAdminConfigPage() {
       </div>
 
       <PlatformMPSettings
+        origin={origin}
         isConfigured={!!mp.isConfigured}
         hasAccessToken={!!mp.accessToken}
         hasWebhookSecret={!!mp.webhookSecret}

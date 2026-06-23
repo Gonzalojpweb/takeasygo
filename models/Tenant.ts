@@ -109,6 +109,8 @@ export interface ITenant extends Document {
     expiresAt: Date | null         // When the access token expires
     authorizedAt: Date | null      // When the tenant authorized
     isConnected: boolean
+    /** Per-tenant commission override (null = use global platformFeePercent) */
+    commissionPercent?: number | null
   }
   // ── Integración Kripton ─────────────────────────────────────────────────
   kripton: {
@@ -422,6 +424,8 @@ const TenantSchema = new Schema<ITenant>(
       expiresAt:    { type: Date, default: null },
       authorizedAt: { type: Date, default: null },
       isConnected:  { type: Boolean, default: false },
+      /** Per-tenant commission override (null = usar global platformFeePercent) */
+      commissionPercent: { type: Number, default: null, min: 0, max: 100 },
     },
     // ── Integración Kripton ─────────────────────────────────────────────────
     kripton: {

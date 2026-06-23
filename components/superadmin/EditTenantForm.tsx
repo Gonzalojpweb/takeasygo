@@ -72,6 +72,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     promotionLabelInfo: tenant.promotionLabels?.info ?? 'INFO',
     promotionLabelAnnouncement: tenant.promotionLabels?.announcement ?? 'AVISO',
     promotionLabelLoyalty: tenant.promotionLabels?.loyalty ?? 'CLUB',
+    commissionPercent: tenant.mpOAuth?.commissionPercent ?? '',
     // Mensajes del modal de Club
     loyaltyModalSubtitle: tenant.loyaltyMessaging?.modalSubtitle ?? 'Completá tus datos para unirte al club y comenzar a sumar puntos',
     loyaltySuccessTitle: tenant.loyaltyMessaging?.successTitle ?? '¡Registro exitoso!',
@@ -95,6 +96,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           features: { reservations: form.featuresReservations, crm: { enabled: form.featuresCrmEnabled } },
           business: { enabled: form.businessEnabled },
           sosMaxLimit: form.sosMaxLimit,
+          commissionPercent: form.commissionPercent === '' ? null : Number(form.commissionPercent),
           promotionLabels: {
             sale: form.promotionLabelSale,
             info: form.promotionLabelInfo,
@@ -261,6 +263,30 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                 }
                 return null
               })()}
+            </div>
+
+            {/* Comisión por tenant */}
+            <div className="pt-6 border-t border-border/40">
+              <div className="flex items-center gap-3 mb-4">
+                <CreditCard size={16} className="text-primary" />
+                <div>
+                  <span className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Comisión por split</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">Porcentaje de comisión que cobra la plataforma. Vacío = usar el valor global de PlatformConfig.</p>
+                </div>
+              </div>
+              <div className="max-w-[200px]">
+                <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Comisión %</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  value={form.commissionPercent}
+                  onChange={e => setForm(p => ({ ...p, commissionPercent: e.target.value }))}
+                  placeholder="Global"
+                  className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                />
+              </div>
             </div>
 
             {/* Estado del tenant + Features */}
