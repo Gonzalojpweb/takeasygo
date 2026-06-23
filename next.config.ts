@@ -30,6 +30,7 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['mongoose'],
   async rewrites() {
     return [
       {

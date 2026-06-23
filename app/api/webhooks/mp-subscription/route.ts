@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { getPlatformMPClient, getPlatformWebhookSecret, type BillablePlan } from '@/lib/mp-platform'
+import { notifyPlanChange } from '@/lib/notify-plan-change'
 
 /**
  * Verifica la firma HMAC-SHA256 del webhook de MercadoPago.
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
     if (!tenant) return NextResponse.json({ received: true })
 
     const subStatus = (sub as any).status as string
+    const oldPlan = (tenant as any).plan as string
 
     // Calcular próxima fecha de facturación
     const nextBilling = (sub as any).next_payment_date
@@ -98,11 +100,21 @@ export async function POST(request: NextRequest) {
     } else if (subStatus === 'cancelled') {
       tenant.subscription.status = 'cancelled'
       tenant.subscription.lastUpdated = new Date()
-      // Al cancelar, bajar al plan try
       tenant.plan = 'try'
     }
 
     await tenant.save()
+
+    // Notificar a los admins del tenant si el plan cambió
+    if (oldPlan !== (tenant as any).plan) {
+      notifyPlanChange(
+        tenantId,
+        (tenant as any).name || 'Tu restaurante',
+        (tenant as any).slug || '',
+        oldPlan as any,
+        (tenant as any).plan as any,
+      ).catch(e => console.error('[webhook/mp-subscription] notifyPlanChange error:', e))
+    }
 
     return NextResponse.json({ received: true })
   } catch (error) {

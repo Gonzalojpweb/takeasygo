@@ -1,18 +1,32 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { Suspense, useEffect } from 'react'
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
+import UpgradeTour from '@/components/admin/UpgradeTour'
+import type { Plan } from '@/lib/plans'
 
-export default function BillingSuccessPage() {
+function BillingSuccessContent() {
   const router = useRouter()
   const { tenant: tenantSlug } = useParams<{ tenant: string }>()
+  const searchParams = useSearchParams()
+  const oldPlan = searchParams.get('oldPlan') as Plan | null
+  const newPlan = searchParams.get('newPlan') as Plan | null
+
+  const PLAN_ORDER: Record<string, number> = { trial: 0, try: 1, buy: 2, full: 3, anfitrion: 0 }
+  const isUpgrade = oldPlan && newPlan && (PLAN_ORDER[newPlan] ?? 0) > (PLAN_ORDER[oldPlan] ?? 0)
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      router.replace(`/${tenantSlug}/admin/billing`)
-    }, 3000)
-    return () => clearTimeout(t)
-  }, [router, tenantSlug])
+    if (!isUpgrade) {
+      const t = setTimeout(() => {
+        router.replace(`/${tenantSlug}/admin/billing`)
+      }, 3000)
+      return () => clearTimeout(t)
+    }
+  }, [isUpgrade, router, tenantSlug])
+
+  if (isUpgrade && oldPlan && newPlan) {
+    return <UpgradeTour oldPlan={oldPlan} newPlan={newPlan} />
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
@@ -28,5 +42,13 @@ export default function BillingSuccessPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function BillingSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+      <BillingSuccessContent />
+    </Suspense>
   )
 }

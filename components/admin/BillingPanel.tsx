@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, Zap, Star, Rocket, ExternalLink, X, AlertCircle, Loader2 } from 'lucide-react'
+import { CheckCircle2, Zap, Star, Rocket, ExternalLink, X, AlertCircle, Loader2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PLAN_LABELS, PLAN_FEATURES_LANDING, type Plan } from '@/lib/plans'
 import { BILLING_CONFIG, type BillablePlan } from '@/lib/billing-config'
+import DowngradeWarningModal from './DowngradeWarningModal'
 
 interface SubscriptionInfo {
   status: string | null
@@ -43,13 +44,33 @@ const PLAN_BTN: Record<BillablePlan, string> = {
 }
 
 const BILLABLE: BillablePlan[] = ['try', 'buy', 'full']
+const BILLABLE_ORDER: Record<string, number> = { try: 0, buy: 1, full: 2, trial: -1, anfitrion: -1 }
 
 export default function BillingPanel({ currentPlan, tenantSlug, subscription }: Props) {
   const [loading, setLoading] = useState<BillablePlan | null>(null)
   const [cancelLoading, setCancelLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [downgradeTarget, setDowngradeTarget] = useState<BillablePlan | null>(null)
+
+  const currentOrder = BILLABLE_ORDER[currentPlan] ?? -1
+
+  function isUpgrade(plan: BillablePlan): boolean {
+    return BILLABLE_ORDER[plan] > currentOrder
+  }
+
+  function isDowngrade(plan: BillablePlan): boolean {
+    return BILLABLE_ORDER[plan] < currentOrder && currentOrder >= 0
+  }
 
   async function handleSubscribe(targetPlan: BillablePlan) {
+    if (isDowngrade(targetPlan)) {
+      setDowngradeTarget(targetPlan)
+      return
+    }
+    await doSubscribe(targetPlan)
+  }
+
+  async function doSubscribe(targetPlan: BillablePlan) {
     setError(null)
     setLoading(targetPlan)
     try {
@@ -60,7 +81,6 @@ export default function BillingPanel({ currentPlan, tenantSlug, subscription }: 
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Error al iniciar suscripción')
-      // Redirigir al checkout de MP
       window.location.href = data.initPoint
     } catch (err: any) {
       setError(err.message)
@@ -88,7 +108,6 @@ export default function BillingPanel({ currentPlan, tenantSlug, subscription }: 
 
   return (
     <div className="space-y-8">
-
       {/* Estado actual */}
       <div className="rounded-2xl border-2 border-border/60 bg-card p-6">
         <p className="text-xs uppercase font-black tracking-widest text-muted-foreground mb-3">Plan actual</p>
@@ -136,6 +155,8 @@ export default function BillingPanel({ currentPlan, tenantSlug, subscription }: 
           const isCurrent = currentPlan === plan
           const features = PLAN_FEATURES_LANDING[plan]
           const isLoading = loading === plan
+          const upgrade = isUpgrade(plan)
+          const downgrade = isDowngrade(plan)
 
           return (
             <div
@@ -190,17 +211,25 @@ export default function BillingPanel({ currentPlan, tenantSlug, subscription }: 
                   disabled={!!loading || cancelLoading}
                   className={cn(
                     'w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50',
-                    PLAN_BTN[plan]
+                    upgrade ? 'bg-zinc-900 hover:bg-zinc-800 text-white' : PLAN_BTN[plan]
                   )}
                 >
                   {isLoading ? (
                     <Loader2 size={16} className="animate-spin" />
+                  ) : upgrade ? (
+                    <>
+                      <ArrowUpCircle size={16} />
+                      Mejorar plan
+                    </>
+                  ) : downgrade ? (
+                    <>
+                      <ArrowDownCircle size={16} />
+                      Reducir plan
+                    </>
                   ) : (
                     <>
                       <ExternalLink size={14} />
-                      {currentPlan === 'trial' || BILLABLE.indexOf(plan) > BILLABLE.indexOf(currentPlan as BillablePlan)
-                        ? 'Suscribirse'
-                        : 'Cambiar plan'}
+                      Suscribirse
                     </>
                   )}
                 </button>
@@ -213,6 +242,20 @@ export default function BillingPanel({ currentPlan, tenantSlug, subscription }: 
       <p className="text-xs text-muted-foreground text-center">
         El pago se procesa de forma segura a través de MercadoPago. Podés cancelar en cualquier momento.
       </p>
+
+      {/* Downgrade Warning Modal */}
+      {downgradeTarget && (
+        <DowngradeWarningModal
+          currentPlan={currentPlan}
+          targetPlan={downgradeTarget}
+          onConfirm={() => {
+            const target = downgradeTarget
+            setDowngradeTarget(null)
+            doSubscribe(target)
+          }}
+          onCancel={() => setDowngradeTarget(null)}
+        />
+      )}
     </div>
   )
 }

@@ -81,7 +81,7 @@ export default function BestSellersSection({
         {bestSellers.map((item) => (
           <div
             key={item._id}
-            className="w-[78%] flex-shrink-0 snap-start"
+            className="w-[58%] flex-shrink-0 snap-start"
           >
             <div
               className={cn(
@@ -90,7 +90,7 @@ export default function BestSellersSection({
               style={{ backgroundColor: cardBg }}
               onClick={() => onAdd(item)}
             >
-              <div className="relative h-52">
+              <div className="relative h-35">
                 {item.imageUrl ? (
                   <img
                     src={item.imageUrl}
@@ -111,18 +111,18 @@ export default function BestSellersSection({
               </div>
 
               <div className="p-4">
-                <h3 className="font-bold text-lg leading-tight text-zinc-900">
+                <h3 className="font-bold text-sm leading-tight text-zinc-900">
                   {item.name}
                 </h3>
 
                 {item.description && (
-                  <p className="text-sm text-zinc-600 line-clamp-2 mt-2">
+                  <p className="text-[12px] text-zinc-600 line-clamp-2 mt-2">
                     {item.description}
                   </p>
                 )}
 
                 <div className="flex items-center justify-between mt-5">
-                  <span className="text-2xl font-bold" style={{ color: accent }}>
+                  <span className="text-xl font-bold" style={{ color: accent }}>
                     ${item.price.toLocaleString('es-AR')}
                   </span>
 
@@ -131,7 +131,7 @@ export default function BestSellersSection({
                       e.stopPropagation()
                       onAdd(item)
                     }}
-                    className="text-white px-7 py-3 rounded-2xl font-semibold text-sm active:scale-95 transition-all"
+                    className="text-white px-6 py-2 rounded-2xl font-semibold text-sm active:scale-95 transition-all"
                     style={{ backgroundColor: accent }}
                   >
                     Agregar
