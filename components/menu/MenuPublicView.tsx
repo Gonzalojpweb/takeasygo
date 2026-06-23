@@ -18,6 +18,7 @@ import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCar
 import StoreCarousel from '@/components/menu/StoreCarousel'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
+import BestSellersSection from '@/components/menu/BestSellersSection'
 import { getSuggestions } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
@@ -34,6 +35,7 @@ interface Props {
   groupSessionToken?: string
   groupEmail?: string
   onGroupItemAdded?: (itemName: string, updatedItems: any[]) => void
+  bestSellers?: any[]
 }
 
 const VEGETARIAN_TAGS = ['vegetariano', 'vegano', 'vegan', 'vegetarian']
@@ -101,7 +103,7 @@ const UI = {
   },
 }
 
-export default function MenuPublicView({ tenant, location, menu, mode, groupSessionToken, groupEmail, onGroupItemAdded }: Props) {
+export default function MenuPublicView({ tenant, location, menu, mode, groupSessionToken, groupEmail, onGroupItemAdded, bestSellers }: Props) {
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [translating, setTranslating] = useState(false)
@@ -886,6 +888,22 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               })}
             </div>
           </section>
+        )}
+
+        {/* Best Sellers */}
+        {bestSellers && bestSellers.length > 0 && tenant.branding?.bestSellers?.showSection !== false && (
+          <BestSellersSection
+            bestSellers={bestSellers}
+            styles={tenant.branding?.bestSellers}
+            locationName={location.name}
+            primaryColor={primary}
+            onAdd={(item) => {
+              const enriched = categories.flatMap((c: any) => c.items ?? []).find((i: any) => String(i._id) === item._id)
+              if (enriched) {
+                openCustomizationModal(enriched)
+              }
+            }}
+          />
         )}
 
         {/* All categories */}

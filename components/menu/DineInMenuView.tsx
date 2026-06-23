@@ -15,11 +15,13 @@ import { captureMenuOpened, captureDishViewed, capturePromotionApplied } from '@
 import LocationBar from '@/components/menu/LocationBar'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
+import BestSellersSection from '@/components/menu/BestSellersSection'
 
 interface Props {
   tenant: any
   location: any
   menu: any
+  bestSellers?: any[]
 }
 
 const VEGETARIAN_TAGS = ['vegetariano', 'vegano', 'vegan', 'vegetarian']
@@ -77,7 +79,7 @@ const UI = {
   },
 }
 
-export default function DineInMenuView({ tenant, location, menu }: Props) {
+export default function DineInMenuView({ tenant, location, menu, bestSellers }: Props) {
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
   const applyGridToDineIn = branding.menuLayoutApplyTo === 'both' || branding.menuLayoutApplyTo === 'dine-in'
@@ -748,6 +750,22 @@ export default function DineInMenuView({ tenant, location, menu }: Props) {
             </div>
           </div>
         </section>
+      )}
+
+      {/* Best Sellers */}
+      {bestSellers && bestSellers.length > 0 && tenant.branding?.bestSellers?.showSection !== false && (
+        <BestSellersSection
+          bestSellers={bestSellers}
+          styles={tenant.branding?.bestSellers}
+          locationName={location.name}
+          primaryColor={branding.primaryColor}
+          onAdd={(item) => {
+            const enriched = categories.flatMap((c: any) => c.items ?? []).find((i: any) => String(i._id) === item._id)
+            if (enriched) {
+              setCustomizingItem(enriched)
+            }
+          }}
+        />
       )}
 
       {/* ── Footer ────────────────────────────────────────── */}

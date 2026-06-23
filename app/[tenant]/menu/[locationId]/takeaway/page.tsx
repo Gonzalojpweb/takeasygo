@@ -4,6 +4,7 @@ import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { notFound } from 'next/navigation'
 import MenuPublicView from '@/components/menu/MenuPublicView'
+import { getBestSellers } from '@/lib/tia/bestSellers'
 import type { Types } from 'mongoose'
 
 export const revalidate = 300
@@ -53,12 +54,15 @@ export default async function TakeawayMenuPage({ params }: Props) {
   const location = JSON.parse(JSON.stringify(locationDoc))
   const menu = JSON.parse(JSON.stringify(menuDoc))
 
+  const bestSellers = await getBestSellers(tenantDoc._id, locationId).catch(() => [])
+
   return (
     <MenuPublicView
       tenant={tenant}
       location={location}
       menu={menu}
       mode="takeaway"
+      bestSellers={JSON.parse(JSON.stringify(bestSellers))}
     />
   )
 }
