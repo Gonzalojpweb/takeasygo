@@ -26,7 +26,7 @@ export async function GET(
 
     const baseTime = location.settings?.estimatedPickupTime ?? 20
 
-    return NextResponse.json({ location, effectiveEstimatedTime: baseTime })
+    return NextResponse.json({ location, effectiveEstimatedTime: baseTime, tenantName: tenant.name })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
