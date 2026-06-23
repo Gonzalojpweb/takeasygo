@@ -2,9 +2,197 @@ const axios = require('axios');
 const net = require('node:net');
 const fs = require('fs');
 const path = require('path');
-const { execFile } = require('child_process');
+const os = require('os');
+const { execFile, spawn } = require('child_process');
 
-// --- CONFIGURACIÓN ---
+// --- LEER VERSIÓN LOCAL ---
+let LOCAL_VERSION = '0.0.0';
+try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+    LOCAL_VERSION = pkg.version || '0.0.0';
+} catch (e) {
+    console.error('[UPDATE] No se pudo leer package.json, usando versión 0.0.0');
+}
+
+// --- AUTO-UPDATE ---
+const SERVICE_NAME = 'Takeasygo Printer Agent';
+const AGENT_DIR = __dirname;
+const AGENT_EXE = process.argv[0]; // node.exe or printer-agent.exe
+
+function isPkg() {
+    return typeof process.pkg !== 'undefined';
+}
+
+function isWindows() {
+    return process.platform === 'win32';
+}
+
+async function checkForUpdate() {
+    try {
+        const url = `${config.apiUrl}/api/agent/version`;
+        const response = await axios.get(url, { timeout: 5000 });
+        const { version: remoteVersion, downloadUrl } = response.data;
+
+        console.log(`[UPDATE] Versión local: ${LOCAL_VERSION} | Versión remota: ${remoteVersion}`);
+
+        if (!remoteVersion || remoteVersion === LOCAL_VERSION) {
+            console.log('[UPDATE] El agente está actualizado.');
+            return;
+        }
+
+        console.log(`[UPDATE] Nueva versión disponible: ${remoteVersion}. Descargando...`);
+        await performUpdate(downloadUrl);
+    } catch (error) {
+        console.error(`[UPDATE] No se pudo verificar versión: ${error.message}`);
+        console.log('[UPDATE] Continuando con la versión actual...');
+    }
+}
+
+async function performUpdate(downloadUrl) {
+    const tempDir = os.tmpdir();
+    const ext = isWindows() ? '.exe' : '';
+    const tempFile = path.join(tempDir, `printer-agent-update${ext}`);
+
+    try {
+        const response = await axios({
+            method: 'GET',
+            url: downloadUrl,
+            responseType: 'stream',
+            timeout: 120000,
+        });
+
+        const writer = fs.createWriteStream(tempFile);
+        response.data.pipe(writer);
+
+        await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+        });
+
+        const stats = fs.statSync(tempFile);
+        if (stats.size < 10000) {
+            console.error('[UPDATE] Archivo descargado demasiado pequeño, abortando.');
+            fs.unlinkSync(tempFile);
+            return;
+        }
+
+        console.log(`[UPDATE] Descargado: ${tempFile} (${(stats.size / 1024 / 1024).toFixed(1)} MB)`);
+        console.log('[UPDATE] Creando script de actualización...');
+
+        if (isWindows()) {
+            await applyUpdateWindows(tempFile);
+        } else {
+            await applyUpdateLinux(tempFile);
+        }
+    } catch (error) {
+        console.error(`[UPDATE] Error descargando actualización: ${error.message}`);
+        if (fs.existsSync(tempFile)) {
+            try { fs.unlinkSync(tempFile); } catch (e) { /* ignore */ }
+        }
+    }
+}
+
+function applyUpdateWindows(tempFile) {
+    const script = path.join(os.tmpdir(), 'takeasygo-update.bat');
+    const currentExe = isPkg() ? process.execPath : process.argv[1];
+    const agentDir = path.dirname(currentExe);
+
+    const content = `@echo off
+echo ===================================================
+echo    ACTUALIZANDO AGENTE DE IMPRESION - TAKEASYGO
+echo ===================================================
+echo.
+echo Esperando a que el agente se detenga...
+timeout /t 3 /nobreak >nul
+echo.
+echo Deteniendo servicio...
+net stop "${SERVICE_NAME}" >nul 2>&1
+timeout /t 2 /nobreak >nul
+echo.
+echo Reemplazando archivos...
+copy /Y "${tempFile}" "${currentExe}" >nul
+echo.
+echo Iniciando servicio...
+net start "${SERVICE_NAME}"
+echo.
+echo ===================================================
+echo    ACTUALIZACION COMPLETADA
+echo ===================================================
+del "%~f0"
+`;
+
+    fs.writeFileSync(script, content, 'utf8');
+    console.log(`[UPDATE] Script creado: ${script}`);
+    console.log('[UPDATE] Lanzando script de actualización y reiniciando...');
+
+    spawn('cmd.exe', ['/c', script], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+    }).unref();
+
+    process.exit(0);
+}
+
+function applyUpdateLinux(tempFile) {
+    const script = path.join(os.tmpdir(), 'takeasygo-update.sh');
+    const currentExe = process.execPath;
+    const agentDir = path.dirname(currentExe);
+
+    const content = `#!/bin/bash
+echo "=================================================="
+echo "   ACTUALIZANDO AGENTE DE IMPRESION - TAKEASYGO"
+echo "=================================================="
+echo ""
+echo "Esperando a que el agente se detenga..."
+sleep 3
+
+# Detectar pm2 o systemctl
+if command -v pm2 &> /dev/null; then
+    echo "Deteniendo servicio con pm2..."
+    pm2 stop printer-agent 2>/dev/null || true
+    sleep 2
+    echo "Reemplazando archivos..."
+    cp -f "${tempFile}" "${currentExe}"
+    chmod +x "${currentExe}"
+    echo "Iniciando servicio..."
+    pm2 start printer-agent || pm2 resurrect
+elif systemctl is-active --quiet printer-agent 2>/dev/null; then
+    echo "Deteniendo servicio con systemctl..."
+    sudo systemctl stop printer-agent
+    sleep 2
+    echo "Reemplazando archivos..."
+    cp -f "${tempFile}" "${currentExe}"
+    chmod +x "${currentExe}"
+    echo "Iniciando servicio..."
+    sudo systemctl start printer-agent
+else
+    echo "No se detectó pm2 ni systemd. Reemplazando archivos..."
+    cp -f "${tempFile}" "${currentExe}"
+    chmod +x "${currentExe}"
+    echo "Reiniciando con nohup..."
+    nohup "${currentExe}" > /dev/null 2>&1 &
+fi
+
+echo ""
+echo "=================================================="
+echo "   ACTUALIZACION COMPLETADA"
+echo "=================================================="
+rm -f "${script}"
+`;
+
+    fs.writeFileSync(script, content, 'utf8');
+    fs.chmodSync(script, '755');
+    console.log(`[UPDATE] Script creado: ${script}`);
+    console.log('[UPDATE] Lanzando script de actualización y reiniciando...');
+
+    spawn('bash', [script], {
+        detached: true,
+        stdio: 'ignore',
+    }).unref();
+
+    process.exit(0);
+}
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 
 let config = {
@@ -445,6 +633,12 @@ API:     ${config.apiUrl}
 `);
 
 listUSBPrinters();
+
+// Verificar actualizaciones al arrancar (en background, no bloquea el arranque)
+checkForUpdate();
+
+// Verificar actualizaciones cada hora
+setInterval(checkForUpdate, 60 * 60 * 1000);
 
 let pollTimer = setInterval(poll, config.pollInterval);
 poll();
