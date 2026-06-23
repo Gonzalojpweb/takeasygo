@@ -7,7 +7,8 @@ import {
   CreditCard, Search, ChevronRight, X, BookOpen,
   Target, CheckCircle2, Star, HelpCircle, ArrowRight,
   Sparkles, ShieldCheck, Lock, Database, Clock,
-  Gift, Globe, Smartphone, Zap, QrCode
+  Gift, Globe, Smartphone, Zap, QrCode,
+  BrainCircuit, Truck
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
@@ -331,6 +332,68 @@ const SECTIONS: Section[] = [
       'Usá nombres descriptivos para las impresoras: "Cocina Principal", "Barra", "Caja 1".',
       'Si la impresora deja de responder, verificá que su IP no haya cambiado (configurar IP fija en el router evita esto).',
       'En locales con mucho volumen, tener una impresora en cocina y otra en caja evita confusiones.',
+    ],
+  },
+  {
+    id: 'delivery',
+    icon: Truck,
+    label: 'Delivery',
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-500/10',
+    plan: 'inicial',
+    roles: ['admin', 'gerente'],
+    objective: 'Gestionar repartidores y configurar zonas de delivery con precios por distancia.',
+    description: 'El módulo Delivery te permite administrar tu flota de repartidores y configurar las zonas de cobertura con tarifas dinámicas según la distancia. Cada repartidor recibe un link único para acceder a la app de delivery, donde recibe pedidos asignados, marca llegada y confirma entregas.',
+    features: [
+      { title: 'Gestión de flota', desc: 'Creá repartidores con nombre y teléfono. Cada uno obtiene un link único para acceder a la app de delivery. Podés desactivarlos cuando lo necesites.' },
+      { title: 'Link único por repartidor', desc: 'Al crear un repartidor se genera un link exclusivo que solo funciona para esa persona. Compartilo por WhatsApp. El link se muestra una sola vez.' },
+      { title: 'Zonas de delivery por sede', desc: 'En Configuración → Sedes, definí rangos de distancia en km con su precio correspondiente. Ej: 0-3 km = $800, 3-7 km = $1200.' },
+      { title: 'Cálculo automático de tarifa', desc: 'Cuando un cliente ingresa su domicilio, el sistema calcula la distancia y aplica la tarifa del rango correspondiente. El costo se muestra antes de confirmar la orden.' },
+      { title: 'Repartidores activos e inactivos', desc: 'Vista clara de quién está disponible. Los repartidores desactivados no pueden acceder a la app con su link.' },
+    ],
+    steps: [
+      { action: 'Agregá un repartidor', detail: 'En Delivery → "Agregar delivery", ingresá nombre y teléfono. Se genera un link único.' },
+      { action: 'Copiá y compartí el link', detail: 'El link aparece en un banner verde. Copialo y enviáselo al repartidor por WhatsApp. Solo se muestra una vez.' },
+      { action: 'Configurá las zonas de delivery', detail: 'En Configuración → Sedes, seleccioná una sede, activá Delivery y agregá rangos (ej: 0-3 km → $800, 3-7 km → $1200).' },
+      { action: 'Desactivá repartidores', detail: 'Si un repartidor ya no trabaja con vos, desactivalo desde el panel. Su link dejará de funcionar.' },
+    ],
+    tips: [
+      'Los rangos de km deben ser contiguos — no pueden quedar espacios sin cubrir entre un rango y el siguiente.',
+      'Empezá con un rango amplio (0-10 km = $1500) y después ajustá según la demanda.',
+      'El repartidor recibe pedidos asignados automáticamente y marca cada etapa (toma, llegada, completado).',
+      'El teléfono del repartidor está visible en su ficha para que puedas contactarlo directamente.',
+      'Si desactivás el delivery en una sede, los clientes no verán la opción de envío a domicilio.',
+    ],
+  },
+  {
+    id: 'demora',
+    icon: Clock,
+    label: 'Aviso de Demora',
+    color: 'text-red-600',
+    bgColor: 'bg-red-500/10',
+    plan: 'inicial',
+    roles: ['admin', 'gerente'],
+    objective: 'Informar a los clientes sobre demoras estimadas antes de que hagan su pedido.',
+    description: 'El Aviso de Demora te permite configurar tiempos de preparación extendidos por sede y por tipo de servicio (takeaway o delivery). Cuando activás una demora, el cliente ve una advertencia en el menú y el tiempo estimado se ajusta automáticamente.',
+    features: [
+      { title: 'Configuración por sede', desc: 'Cada sede tiene su propia configuración de demora. Seleccioná una sede específica para activarla.' },
+      { title: 'Independiente por modo', desc: 'Podés activar demora solo para takeaway, solo para delivery, o ambos. Cada modo tiene su propio tiempo adicional y mensaje.' },
+      { title: 'Minutos adicionales', desc: 'Configurá entre 0 y 120 minutos extra que se suman al tiempo de preparación estimado.' },
+      { title: 'Mensaje personalizado', desc: 'Agregá un texto explicativo (ej: "Alta demanda en la cocina", "Falta personal de delivery"). Hasta 120 caracteres.' },
+      { title: 'Advertencia visual en el menú', desc: 'Cuando hay una demora activa, el cliente ve un aviso destacado antes de ordenar. El panel admin muestra un indicador rojo con pulso.' },
+    ],
+    steps: [
+      { action: 'Seleccioná una sede', detail: 'En Pedidos, asegurate de tener una sede específica seleccionada (no "Todas las sedes").' },
+      { action: 'Activá el aviso de demora', detail: 'En la tarjeta "Aviso de demora", activá el toggle para takeaway y/o delivery.' },
+      { action: 'Configurá los minutos extra', detail: 'Usá el slider para definir cuántos minutos adicionales se suman al tiempo estimado.' },
+      { action: 'Opcional: agregá un mensaje', detail: 'Escribí el motivo de la demora para que los clientes estén informados.' },
+      { action: 'Guardá los cambios', detail: 'Hacé clic en "Guardar". El aviso se activa al instante en el menú público.' },
+    ],
+    tips: [
+      'Activá las demoras durante los picos de demanda (horario de almuerzo, cena) para gestionar expectativas.',
+      'Desactivá la demora cuando la operación vuelva a la normalidad para no desalentar pedidos.',
+      'Usá el mensaje para ser transparente con el cliente — reduce reclamos y pedidos cancelados.',
+      'Las demoras solo aplican a takeaway y delivery. Dine-in y pedidos corporativos no se ven afectados.',
     ],
   },
   {
@@ -662,6 +725,46 @@ const SECTIONS: Section[] = [
       'El descuento se recalcula en el servidor al crear la orden para evitar fraudes. El porcentaje que ves en el admin es el que se aplica realmente.',
     ],
   },
+  {
+    id: 'tia',
+    icon: BrainCircuit,
+    label: 'Inteligencia TIA',
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-500/10',
+    plan: 'crecimiento',
+    roles: ['admin', 'gerente'],
+    objective: 'Obtener una visión completa del rendimiento de tu negocio con métricas inteligentes, tendencias, embudo de conversión y benchmarking.',
+    description: 'TIA (TakeasyGO Intelligence Analytics) es el centro de inteligencia de tu restaurante. Combina métricas en tiempo real, análisis de tendencias, rendimiento de productos, embudo de conversión, comparación con restaurantes similares e insights generados automáticamente para que tomes decisiones informadas todos los días.',
+    features: [
+      { title: 'Resumen diario', desc: '6 métricas clave de un vistazo: pedidos hoy, ingresos del día, ticket promedio, nuevos miembros del club, recompensas canjeadas y pedidos pendientes.' },
+      { title: 'Hallazgos principales', desc: 'Lo más importante que pasó hoy en tu negocio, generado automáticamente con recomendaciones accionables y nivel de impacto.' },
+      { title: 'Oportunidades detectadas', desc: 'Áreas de mejora identificadas por el sistema, con explicación, recomendación y rating de impacto.' },
+      { title: 'Top productos', desc: 'Los 5 productos más vendidos en los últimos 30 días, con porcentaje de participación y etiquetas de rendimiento (Estrella, Bueno).' },
+      { title: 'Embudo de conversión', desc: 'Analizá paso a paso dónde pierde clientes: Menú abierto → Plato visto → Agregado al carrito → Inició checkout → Orden completada.' },
+      { title: 'Tendencias', desc: 'Comparativa de pedidos e ingresos entre los últimos 7 días y los 7 anteriores, con indicador de tendencia (sube/baja/estable).' },
+      { title: 'Benchmark vs similares', desc: 'Compará tu rendimiento contra restaurantes similares anónimos: ingresos, ticket promedio, tasa de conversión y más.' },
+      { title: 'Prioridades semanales', desc: 'Acciones priorizadas generadas por IA para enfocarte en lo que más impacto tiene esta semana.' },
+      { title: 'Crecimiento del Club', desc: 'Evolución de miembros totales, activos, nuevos, puntos emitidos y canjes realizados.' },
+      { title: 'Histórico 30 días', desc: 'Gráfico de barras de la evolución diaria de pedidos, ingresos o miembros (seleccionable).' },
+      { title: 'Análisis SIL', desc: 'Insights automáticos generados diariamente a las 6:00 AM. Detecta anomalías, tendencias y oportunidades. Exclusivo Premium.' },
+      { title: 'Resumen diario Premium', desc: 'Texto listo para copiar y compartir por WhatsApp con el resumen del día. Generado automáticamente. Exclusivo Premium.' },
+    ],
+    steps: [
+      { action: 'Entrá a Inteligencia TIA', detail: 'Está en el menú principal, sección Inteligencia. Vas a ver el dashboard completo con todos los paneles.' },
+      { action: 'Revisá el resumen diario', detail: 'Las 6 métricas clave de arriba te dan el pulso del día en segundos.' },
+      { action: 'Analizá el embudo de conversión', detail: 'Identificá en qué paso perdés más clientes y trabajá en mejorar ese punto específico.' },
+      { action: 'Comparate con otros restaurantes', detail: 'En la sección Benchmark, ves cómo estás vs restaurantes similares. Usalo para identificar áreas de mejora.' },
+      { action: 'Generá análisis SIL (Premium)', detail: 'Si estás en plan Premium, los insights se generan automáticamente cada día. También podés tocar "Generar ahora" para forzar un análisis.' },
+      { action: 'Compartí el resumen diario (Premium)', detail: 'En "Resumen diario", tocalo para expandirlo y copiá el texto para compartirlo por WhatsApp con tu equipo.' },
+    ],
+    tips: [
+      'Revisá TIA todos los días al abrir el local para arrancar la jornada con datos concretos.',
+      'El embudo de conversión es tu mejor herramienta para detectar problemas en la experiencia de compra.',
+      'Si ves una anomalía en TIA, entrá al módulo correspondiente (Pedidos, Menú, etc.) para ver el detalle.',
+      'Los benchmarks se actualizan con datos agregados de todos los restaurantes en la plataforma.',
+      'Compartí el resumen diario con tu equipo de cocina para alinear objetivos.',
+    ],
+  },
 ]
 
 // ── Visibility per plan ────────────────────────────────────────────────────────
@@ -693,6 +796,9 @@ const VISIBILITY: Record<string, Record<Plan, SectionVisibility>> = {
   tienda:  { anfitrion: 'hidden', trial: 'hidden', try: 'hook',  buy: 'full', full: 'full' },
   trafico: { anfitrion: 'hidden', trial: 'hook',   try: 'hook',  buy: 'full', full: 'full' },
   'marketing-qr': { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full' },
+  delivery: { anfitrion: 'hidden', trial: 'full',   try: 'hook',  buy: 'hook', full: 'full' },
+  demora:   { anfitrion: 'hidden', trial: 'full',   try: 'full', buy: 'full', full: 'full' },
+  tia:      { anfitrion: 'hidden', trial: 'hidden', try: 'hook', buy: 'full', full: 'full' },
 }
 
 function getVisibility(plan: Plan, sectionId: string): SectionVisibility {
@@ -725,6 +831,16 @@ const HOOK_CONTENT: Record<string, { headline: string; body: string; upgradeLabe
   trafico: {
     headline: 'Analytics de fuentes de tráfico',
     body: 'Descubrí de dónde vienen tus clientes: Instagram, Facebook, WhatsApp, códigos QR, Google o visitas directas. El sistema detecta automáticamente la fuente y te muestra métricas por período para que optimices tus campañas de marketing.',
+    upgradeLabel: 'Disponible desde el plan Crecimiento',
+  },
+  delivery: {
+    headline: 'Delivery con flota propia y zonas tarifadas',
+    body: 'Gestioná tus repartidores con links de acceso únicos y configurá zonas de delivery con precios por distancia. Cada repartidor recibe pedidos asignados y marca cada etapa. El cliente ve el costo de envío antes de confirmar la orden.',
+    upgradeLabel: 'Disponible desde el plan Crecimiento',
+  },
+  tia: {
+    headline: 'Inteligencia artificial para tu restaurante',
+    body: 'Descubrí métricas inteligentes, embudo de conversión, tendencias, top productos, benchmarking contra restaurantes similares e insights automáticos diarios. Todo en un dashboard que te ayuda a tomar mejores decisiones todos los días.',
     upgradeLabel: 'Disponible desde el plan Crecimiento',
   },
 }

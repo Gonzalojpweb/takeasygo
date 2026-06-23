@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { canAccess } from '@/lib/plans'
 import GoPlusSettings from '@/components/admin/GoPlusSettings'
 import type { Plan } from '@/lib/plans'
-import mongoose from 'mongoose'
+import type { Types } from 'mongoose'
 
 interface PageProps {
   params: Promise<{ tenant: string }>
@@ -20,7 +20,7 @@ export default async function GoPlusPage({ params }: PageProps) {
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     .select('plan loyalty name pointsConfig')
-    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string; pointsConfig: any }>()
+    .lean<{ _id: Types.ObjectId; plan: Plan; loyalty: any; name: string; pointsConfig: any }>()
 
   if (!tenant) redirect('/')
 

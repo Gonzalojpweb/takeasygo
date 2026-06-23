@@ -65,7 +65,7 @@ export async function GET(
       location: { locationName: location.name },
     }))
 
-    return NextResponse.json({ orders: ordersWithLocation, printers, preCloseJobs })
+    return NextResponse.json({ orders: ordersWithLocation, printers, preCloseJobs, pollInterval: 15000 })
   } catch (error) {
     return NextResponse.json({ error: 'Error al obtener trabajos de impresión' }, { status: 500 })
   }

@@ -6,7 +6,7 @@ import { canAccess } from '@/lib/plans'
 import ClubInfoSettings from '@/components/admin/ClubInfoSettings'
 import LoyaltyManager from '@/components/admin/LoyaltyManager'
 import type { Plan } from '@/lib/plans'
-import mongoose from 'mongoose'
+import type { Types } from 'mongoose'
 
 interface PageProps {
   params: Promise<{ tenant: string }>
@@ -21,7 +21,7 @@ export default async function ClubPage({ params }: PageProps) {
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     .select('plan loyalty name')
-    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty: any; name: string }>()
+    .lean<{ _id: Types.ObjectId; plan: Plan; loyalty: any; name: string }>()
 
   if (!tenant) redirect('/')
 

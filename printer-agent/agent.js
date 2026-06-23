@@ -11,7 +11,7 @@ let config = {
     apiUrl: 'https://tu-dominio.com',
     tenantSlug: 'tu-restaurante',
     locationId: 'PEGAR_ID_DE_SEDE_AQUI',
-    pollInterval: 3000
+    pollInterval: 15000
 };
 
 // Carga o creación de configuración inicial
@@ -366,7 +366,15 @@ async function poll() {
     try {
         const url = `${config.apiUrl}/api/${config.tenantSlug}/print-jobs?locationId=${config.locationId}`;
         const response = await axios.get(url);
-        const { orders, printers, preCloseJobs } = response.data;
+        const { orders, printers, preCloseJobs, pollInterval: serverPollInterval } = response.data;
+
+        if (serverPollInterval && serverPollInterval !== config.pollInterval) {
+            config.pollInterval = serverPollInterval;
+            fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+            clearInterval(pollTimer);
+            pollTimer = setInterval(poll, config.pollInterval);
+            console.log(`[CONFIG] pollInterval actualizado a ${config.pollInterval}ms`);
+        }
 
         // Procesar trabajos de pre-cierre primero
         if (preCloseJobs && preCloseJobs.length > 0) {
@@ -438,5 +446,5 @@ API:     ${config.apiUrl}
 
 listUSBPrinters();
 
-setInterval(poll, config.pollInterval);
+let pollTimer = setInterval(poll, config.pollInterval);
 poll();

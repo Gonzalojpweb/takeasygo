@@ -9,7 +9,7 @@ import RedemptionValidator from '@/components/admin/RedemptionValidator'
 import RedemptionHistory from '@/components/admin/RedemptionHistory'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Plan } from '@/lib/plans'
-import mongoose from 'mongoose'
+import type { Types } from 'mongoose'
 import { Package, QrCode, Settings, History } from 'lucide-react'
 
 interface PageProps {
@@ -28,7 +28,7 @@ export default async function StorePage({ params }: PageProps) {
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     .select('plan name loyalty store branding')
-    .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; name: string; loyalty: any; store: any; branding: any }>()
+    .lean<{ _id: Types.ObjectId; plan: Plan; name: string; loyalty: any; store: any; branding: any }>()
 
   if (!tenant) {
     redirect('/')

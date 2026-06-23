@@ -6,7 +6,7 @@
  */
 
 import { calculateOptimalEstimatedTime, applyOptimalEstimatedTime } from '../estimatedTimeEngine'
-import mongoose from 'mongoose'
+import { Types } from 'mongoose'
 
 interface AdjustmentOptions {
   /** Mínimo de pedidos nuevos desde último ajuste para recalcular */
@@ -29,8 +29,8 @@ const DEFAULT_OPTIONS: Required<AdjustmentOptions> = {
  * - Solo ajusta si el cambio es significativo (>2 min)
  */
 export async function maybeAdjustEstimatedTime(
-  locationId: string | mongoose.Types.ObjectId,
-  tenantId: string | mongoose.Types.ObjectId,
+  locationId: string | Types.ObjectId,
+  tenantId: string | Types.ObjectId,
   options: AdjustmentOptions = {}
 ): Promise<{
   adjusted: boolean
@@ -46,7 +46,7 @@ export async function maybeAdjustEstimatedTime(
     await connectDB()
 
     const locationObjectId = typeof locationId === 'string'
-      ? new mongoose.Types.ObjectId(locationId)
+      ? new Types.ObjectId(locationId)
       : locationId
 
     const location = await Location.findById(locationObjectId)
@@ -131,8 +131,8 @@ export async function maybeAdjustEstimatedTime(
  * No bloquea la respuesta HTTP (fire-and-forget).
  */
 export function triggerBackgroundAdjustment(
-  locationId: string | mongoose.Types.ObjectId,
-  tenantId: string | mongoose.Types.ObjectId
+  locationId: string | Types.ObjectId,
+  tenantId: string | Types.ObjectId
 ): void {
   // Ejecutar en background sin await (no bloquear respuesta HTTP)
   maybeAdjustEstimatedTime(locationId, tenantId)
