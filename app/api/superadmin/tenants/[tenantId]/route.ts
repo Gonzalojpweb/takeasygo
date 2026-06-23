@@ -25,7 +25,7 @@ export async function PUT(
     }
 
     // 2. Extraer campos anidados que no están en el body plano
-    const { sosMaxLimit, business, promotionLabels, loyaltyMessaging, ...flatBody } = body
+    const { sosMaxLimit, business, promotionLabels, loyaltyMessaging, commissionPercent, ...flatBody } = body
 
     // 3. Construir update con dot-notation
     const updateSet: Record<string, any> = { ...flatBody }
@@ -53,6 +53,9 @@ export async function PUT(
       if (loyaltyMessaging.successTitle !== undefined) updateSet['loyaltyMessaging.successTitle'] = loyaltyMessaging.successTitle
       if (loyaltyMessaging.successMessage !== undefined) updateSet['loyaltyMessaging.successMessage'] = loyaltyMessaging.successMessage
       if (loyaltyMessaging.welcomePointsMsg !== undefined) updateSet['loyaltyMessaging.welcomePointsMsg'] = loyaltyMessaging.welcomePointsMsg
+    }
+    if (commissionPercent !== undefined) {
+      updateSet['mpOAuth.commissionPercent'] = commissionPercent === null ? null : Number(commissionPercent)
     }
 
     const tenant = await Tenant.findByIdAndUpdate(

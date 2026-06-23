@@ -39,7 +39,7 @@ if (!success) {
 
     // ── Get platform commission from PlatformConfig ────────────────────────────
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
-    const platformFeePercent = platformConfig?.mpOAuth?.platformFeePercent ?? 5
+    const platformFeePercent = tenant.mpOAuth?.commissionPercent ?? platformConfig?.mpOAuth?.platformFeePercent ?? 5
 
     // ── Determine which access token to use ───────────────────────────────────
     // If OAuth is connected, use the OAuth token (marketplace mode).
