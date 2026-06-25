@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search, ChevronDown, Download, Users, ArrowUpDown, Loader2, Phone, Mail, ShoppingBag, DollarSign, Calendar, Award, ChevronLeft, ChevronRight, Building2, Trash2 } from 'lucide-react'
+import { Search, ChevronDown, Download, Users, ArrowUpDown, Loader2, Phone, Mail, ShoppingBag, DollarSign, Calendar, Award, ChevronLeft, ChevronRight, Building2, Trash2, Activity } from 'lucide-react'
 import { toast } from 'sonner'
+import { CustomerSegmentBadge, CustomerHealthScore } from './cis'
+import ConsumerDetailModal from './crm/ConsumerDetailModal'
 
 interface Consumer {
   _id: string
@@ -15,6 +17,8 @@ interface Consumer {
   lastOrderAt: string | null
   isLoyaltyMember: boolean
   isCorporate: boolean
+  segment: string | null
+  healthScore: number | null
 }
 
 interface Props {
@@ -48,6 +52,7 @@ export default function CRMView({ tenantSlug }: Props) {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortField>('lastOrderAt')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+  const [selectedConsumer, setSelectedConsumer] = useState<Consumer | null>(null)
 
   const load = useCallback(async (p: number, s: string, sb: SortField, so: SortOrder) => {
     setLoading(true)
@@ -107,7 +112,7 @@ export default function CRMView({ tenantSlug }: Props) {
   }
 
   const exportCSV = () => {
-    const headers = ['Nombre', 'Teléfono', 'Email', 'Pedidos', 'Gasto Total', 'Primera Compra', 'Última Compra', 'Club', 'Corporativo']
+    const headers = ['Nombre', 'Teléfono', 'Email', 'Pedidos', 'Gasto Total', 'Primera Compra', 'Última Compra', 'Segmento', 'Club', 'Corporativo']
     const rows = consumers.map(c => [
       `"${c.name}"`,
       c.phone,
@@ -116,6 +121,7 @@ export default function CRMView({ tenantSlug }: Props) {
       c.totalSpent,
       c.firstOrderAt ? new Date(c.firstOrderAt).toISOString() : '',
       c.lastOrderAt ? new Date(c.lastOrderAt).toISOString() : '',
+      c.segment ?? '',
       c.isLoyaltyMember ? 'Sí' : 'No',
       c.isCorporate ? 'Sí' : 'No',
     ].join(','))
@@ -254,6 +260,8 @@ export default function CRMView({ tenantSlug }: Props) {
                     <ArrowUpDown size={12} className={sortBy === 'lastOrderAt' ? 'text-primary' : 'opacity-30'} />
                   </span>
                 </th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Segmento</th>
+                <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Salud</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Tags</th>
                 <th className="w-10"></th>
               </tr>
@@ -261,7 +269,7 @@ export default function CRMView({ tenantSlug }: Props) {
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <td colSpan={9} className="text-center py-12 text-muted-foreground">
                     <Loader2 size={20} className="animate-spin mx-auto mb-2" />
                     Cargando clientes...
                   </td>
@@ -269,14 +277,14 @@ export default function CRMView({ tenantSlug }: Props) {
               )}
               {!loading && consumers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <td colSpan={9} className="text-center py-12 text-muted-foreground">
                     <Users size={32} className="mx-auto mb-3 opacity-30" />
                     {search ? 'No se encontraron clientes con ese criterio.' : 'No hay clientes registrados todavía.'}
                   </td>
                 </tr>
               )}
               {!loading && consumers.map(c => (
-                <tr key={c._id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                <tr key={c._id} className="border-b border-border/50 hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => setSelectedConsumer(c)}>
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{c.name || '—'}</p>
                   </td>
@@ -298,6 +306,23 @@ export default function CRMView({ tenantSlug }: Props) {
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">{c.totalOrders}</td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">{fmtCurrency(c.totalSpent)}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDate(c.lastOrderAt)}</td>
+                  <td className="px-4 py-3">
+                    {c.segment ? (
+                      <CustomerSegmentBadge segment={c.segment as any} compact />
+                    ) : (
+                      <span className="text-xs text-muted-foreground/50">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {c.healthScore !== null ? (
+                      <CustomerHealthScore
+                        score={{ total: c.healthScore, components: {}, calculatedAt: null }}
+                        compact
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground/50">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 flex-wrap">
                       {c.isLoyaltyMember && (
@@ -357,6 +382,15 @@ export default function CRMView({ tenantSlug }: Props) {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Detail modal */}
+      {selectedConsumer && (
+        <ConsumerDetailModal
+          consumer={selectedConsumer}
+          tenantSlug={tenantSlug}
+          onClose={() => setSelectedConsumer(null)}
+        />
       )}
     </div>
   )

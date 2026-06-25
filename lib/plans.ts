@@ -98,6 +98,10 @@ export const PLAN_ACCESS = {
 
   // CRM — Base de Datos de Consumidores (Crecimiento y Premium)
   crm: ['buy', 'full'] as const,
+
+  // CIS — Customer Intelligence System (Crecimiento y Premium)
+  // Incluye: métricas, segmentación, health score, insights, señales
+  cis: ['buy', 'full'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS
