@@ -1367,7 +1367,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               type="button"
                               onClick={() => setScheduledOrdersMap(prev => ({
                                 ...prev,
-                                [loc._id]: { ...prev[loc._id], enabled: !prev[loc._id].enabled }
+                                [loc._id]: { ...prev[loc._id], enabled: !(prev[loc._id]?.enabled ?? false) }
                               }))}
                               className={cn(
                                 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
@@ -1478,7 +1478,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                                 type="button"
                                 onClick={() => setReservationMap(prev => ({
                                   ...prev,
-                                  [loc._id]: { ...prev[loc._id], enabled: !prev[loc._id].enabled }
+                                  [loc._id]: { ...prev[loc._id], enabled: !(prev[loc._id]?.enabled ?? false) }
                                 }))}
                                 className={cn(
                                   'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
@@ -1776,7 +1776,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               type="button"
                               onClick={() => setReservationMap(prev => ({
                                 ...prev,
-                                [loc._id]: { ...prev[loc._id], enabled: !prev[loc._id].enabled }
+                                [loc._id]: { ...prev[loc._id], enabled: !(prev[loc._id]?.enabled ?? false) }
                               }))}
                               className={cn(
                                 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
@@ -2087,8 +2087,8 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
   tenantSlug: string
   initialConfig: { enabled: boolean; ranges: Array<{ fromKm: number; toKm: number; price: number }>; maxRangeKm: number }
 }) {
-  const [enabled, setEnabled] = useState(initialConfig.enabled)
-  const [ranges, setRanges] = useState(initialConfig.ranges)
+  const [enabled, setEnabled] = useState(initialConfig?.enabled ?? false)
+  const [ranges, setRanges] = useState(initialConfig?.ranges ?? [])
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
