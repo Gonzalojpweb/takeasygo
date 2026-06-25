@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search, ChevronDown, Download, Users, ArrowUpDown, Loader2, Phone, Mail, ShoppingBag, DollarSign, Calendar, Award, ChevronLeft, ChevronRight, Building2 } from 'lucide-react'
+import { Search, ChevronDown, Download, Users, ArrowUpDown, Loader2, Phone, Mail, ShoppingBag, DollarSign, Calendar, Award, ChevronLeft, ChevronRight, Building2, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Consumer {
   _id: string
@@ -129,6 +130,20 @@ export default function CRMView({ tenantSlug }: Props) {
     URL.revokeObjectURL(url)
   }
 
+  const handleDelete = async (consumer: Consumer) => {
+    const label = consumer.name || consumer.phone || consumer.email || 'este cliente'
+    if (!window.confirm(`¿Eliminar a "${label}" del CRM? Esta acción no se puede deshacer.`)) return
+
+    try {
+      const res = await fetch(`/api/${tenantSlug}/crm/customers/${consumer._id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Error al eliminar')
+      toast.success('Cliente eliminado')
+      load(page, search, sortBy, sortOrder)
+    } catch {
+      toast.error('Error al eliminar el cliente')
+    }
+  }
+
   const totalRevenue = consumers.reduce((sum, c) => sum + c.totalSpent, 0)
   const totalClients = total
   const avgOrders = totalClients > 0 ? (consumers.reduce((sum, c) => sum + c.totalOrders, 0) / consumers.length).toFixed(1) : '0'
@@ -240,12 +255,13 @@ export default function CRMView({ tenantSlug }: Props) {
                   </span>
                 </th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Tags</th>
+                <th className="w-10"></th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <td colSpan={7} className="text-center py-12 text-muted-foreground">
                     <Loader2 size={20} className="animate-spin mx-auto mb-2" />
                     Cargando clientes...
                   </td>
@@ -253,7 +269,7 @@ export default function CRMView({ tenantSlug }: Props) {
               )}
               {!loading && consumers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <td colSpan={7} className="text-center py-12 text-muted-foreground">
                     <Users size={32} className="mx-auto mb-3 opacity-30" />
                     {search ? 'No se encontraron clientes con ese criterio.' : 'No hay clientes registrados todavía.'}
                   </td>
@@ -298,6 +314,15 @@ export default function CRMView({ tenantSlug }: Props) {
                       )}
                       {!c.isLoyaltyMember && !c.isCorporate && <span className="text-xs text-muted-foreground/50">—</span>}
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleDelete(c)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                      title="Eliminar cliente"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </td>
                 </tr>
               ))}
