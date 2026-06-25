@@ -1,3 +1,5 @@
+import { getNowInTimezone } from './restaurant-time'
+
 export type AvailabilitySlot = { days: number[]; timeStart: string; timeEnd: string }
 
 /**
@@ -30,12 +32,23 @@ export type ServiceSlot = { days: number[]; open: string; close: string }
 /**
  * Returns true if the service is open right now based on the given slots.
  * If no slots are configured, assumes always open.
+ * If timezone is provided, uses the restaurant's timezone instead of the browser's local time.
  */
-export function isServiceOpen(slots: ServiceSlot[] | undefined): boolean {
-  if (!slots?.length) return true // if not configured, assume always open
-  const now = new Date()
-  const day = now.getDay()
-  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+export function isServiceOpen(slots: ServiceSlot[] | undefined, timezone?: string): boolean {
+  if (!slots?.length) return true
+
+  let day: number
+  let currentMinutes: number
+
+  if (timezone) {
+    const now = getNowInTimezone(timezone)
+    day = now.day
+    currentMinutes = now.minutes
+  } else {
+    const now = new Date()
+    day = now.getDay()
+    currentMinutes = now.getHours() * 60 + now.getMinutes()
+  }
 
   return slots.some(slot => {
     if (!slot.days.includes(day)) return false

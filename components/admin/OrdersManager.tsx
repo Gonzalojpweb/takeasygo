@@ -68,7 +68,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
   const [supportedModes, setSupportedModes] = useState<string[]>([])
   const [delayConfigs, setDelayConfigs] = useState<Record<string, { enabled: boolean; extraMinutes: number; message: string }>>({})
 
-  const hasDelayActive = Object.values(delayConfigs).some(c => c.enabled)
+  const hasDelayActive = Object.values(delayConfigs).some(c => c?.enabled ?? false)
 
   const isAdmin = userAssignedLocations.length === 0
   const availableLocations = isAdmin
@@ -419,7 +419,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
               </p>
               <p className="text-[10px] text-muted-foreground font-medium">
                 {hasDelayActive
-                  ? Object.entries(delayConfigs).filter(([, c]) => c.enabled).map(([m]) => m).join(', ')
+                  ? Object.entries(delayConfigs).filter(([, c]) => c?.enabled).map(([m]) => m).join(', ')
                   : 'Informar a los clientes sobre demoras antes de la compra'}
               </p>
             </div>

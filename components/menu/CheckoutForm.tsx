@@ -203,7 +203,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     fetch(`/api/${tenantSlug}/kripton/status`)
       .then(r => r.json())
       .then(data => {
-        if (data.enabled) {
+        if (data?.enabled) {
           setKriptonEnabled(true)
           setSelectedPaymentMethod('kripton')
         }

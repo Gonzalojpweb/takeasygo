@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "highlight.js/styles/github.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -419,4 +420,65 @@ html.lenis body {
 [data-sonner-toast] {
   width: 100% !important;
   max-width: 460px !important;
+}
+
+/* ── Highlight.js Dark Mode ─────────────────────────────────────────── */
+.dark .hljs {
+  color: #e4e4e7;
+  background: #18181b;
+}
+
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-literal,
+.dark .hljs-section,
+.dark .hljs-link {
+  color: #c084fc;
+}
+
+.dark .hljs-string,
+.dark .hljs-title,
+.dark .hljs-name,
+.dark .hljs-type,
+.dark .hljs-attribute,
+.dark .hljs-symbol,
+.dark .hljs-bullet,
+.dark .hljs-addition,
+.dark .hljs-variable,
+.dark .hljs-template-tag,
+.dark .hljs-template-variable {
+  color: #86efac;
+}
+
+.dark .hljs-comment,
+.dark .hljs-quote,
+.dark .hljs-deletion,
+.dark .hljs-meta {
+  color: #71717a;
+}
+
+.dark .hljs-number,
+.dark .hljs-regexp,
+.dark .hljs-literal,
+.dark .hljs-built_in {
+  color: #fbbf24;
+}
+
+.dark .hljs-attr,
+.dark .hljs-selector-class {
+  color: #93c5fd;
+}
+
+/* ── Pre/Code base styles ───────────────────────────────────────────── */
+.hljs {
+  border-radius: 0 0 0.5rem 0.5rem;
+  padding: 1rem !important;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+pre code.hljs {
+  padding: 0 !important;
+  background: transparent !important;
 }

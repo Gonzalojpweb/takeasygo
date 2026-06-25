@@ -3,11 +3,26 @@
 import { useRouter } from 'next/navigation'
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { cn } from '@/lib/utils'
+import { isServiceOpen } from '@/lib/availability'
+import { toast } from 'sonner'
 
 export default function DeliveryModeToggle() {
   const router = useRouter()
   const { state, dispatch } = useCheckout()
-  const { deliveryMode, tenantSlug, locationId } = state
+  const { deliveryMode, tenantSlug, locationId, serviceHours, timezone } = state
+
+  const deliveryAvailable = isServiceOpen(serviceHours?.delivery, timezone)
+
+  const handleDeliveryClick = () => {
+    if (!deliveryAvailable) {
+      toast.error('Fuera del horario de delivery', {
+        description: 'El delivery no está disponible en este momento. Revisá los horarios de atención.',
+      })
+      return
+    }
+    dispatch({ type: 'SET_DELIVERY_MODE', delivery: true })
+    router.replace(`/${tenantSlug}/menu/${locationId}/delivery/checkout`)
+  }
 
   return (
     <div>
@@ -32,12 +47,11 @@ export default function DeliveryModeToggle() {
         </button>
         <button
           type="button"
-          onClick={() => {
-            dispatch({ type: 'SET_DELIVERY_MODE', delivery: true })
-            router.replace(`/${tenantSlug}/menu/${locationId}/delivery/checkout`)
-          }}
+          onClick={handleDeliveryClick}
+          disabled={!deliveryAvailable}
           className={cn(
             'flex-1 py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all',
+            !deliveryAvailable && 'opacity-40 cursor-not-allowed',
             deliveryMode
               ? 'border-zinc-900 bg-zinc-900 text-white'
               : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400',
@@ -46,6 +60,11 @@ export default function DeliveryModeToggle() {
           🚚 Delivery
         </button>
       </div>
+      {!deliveryAvailable && serviceHours?.delivery && serviceHours.delivery.length > 0 && (
+        <p className="text-[10px] text-red-400 font-medium mt-2">
+          🕐 No hay delivery disponible en este horario
+        </p>
+      )}
     </div>
   )
 }

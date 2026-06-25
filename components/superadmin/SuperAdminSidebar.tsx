@@ -24,6 +24,7 @@ import {
   Trophy,
   ShoppingBag,
   QrCode,
+  BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -116,6 +117,12 @@ export default function SuperAdminSidebar() {
         { href: '/superadmin/marketing-qr/promos', label: 'QrPromos Globales', icon: QrCode },
         { href: '/superadmin/marketing-qr', label: 'Marketing QR', icon: Gift },
         { href: '/superadmin/announcements', label: 'Anuncios', icon: Megaphone },
+      ],
+    },
+    {
+      section: 'Developer',
+      items: [
+        { href: '/superadmin/developer', label: 'Documentación', icon: BookOpen },
       ],
     },
     {
