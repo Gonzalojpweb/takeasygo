@@ -2,7 +2,7 @@ const Service = require('node-windows').Service;
 const path = require('path');
 
 const svc = new Service({
-    name: 'Meeting Printer Agent',
+    name: 'Takeasygo Printer Agent',
     script: path.join(__dirname, 'agent.js')
 });
 

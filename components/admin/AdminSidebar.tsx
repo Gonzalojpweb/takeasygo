@@ -188,6 +188,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
         { href: `${base}/ico`, label: 'ICO', icon: Activity, roles: ['admin'], feature: 'ico', requiresTakeaway: true },
         { href: `${base}/audit`, label: 'Auditoría', icon: Shield, roles: ['admin'], feature: 'audit' },
         { href: `${base}/tia`, label: 'Inteligencia TIA', icon: BrainCircuit, roles: ['admin', 'manager'], feature: 'tia' },
+        { href: `${base}/cis`, label: 'Inteligencia Clientes', icon: Users, roles: ['admin', 'manager'], feature: 'cis' },
       ],
     },
     {

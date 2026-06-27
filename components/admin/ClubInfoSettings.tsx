@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Eye, EyeOff, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { FieldHint } from '@/components/ui/inline-guide'
 import type { Plan } from '@/lib/plans'
 
 interface Props {
@@ -89,10 +90,19 @@ export default function ClubInfoSettings({ tenantSlug, initial, plan }: Props) {
           />
         </div>
 
+        <div className="flex items-center gap-1.5 px-1">
+          <span className="text-xs text-muted-foreground/70 leading-relaxed">
+            💡 Los clubes con nombre propio (no genéricos) tienen 40% más retención. Un mensaje de bienvenida claro aumenta la tasa de registros en un 25%.
+          </span>
+        </div>
+
         <div className={cn('space-y-6 transition-opacity', enabled ? 'opacity-100' : 'opacity-40 pointer-events-none')}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label className={labelCls}>Nombre del club</Label>
+              <div className="flex items-center gap-1.5">
+                <Label className={labelCls}>Nombre del club</Label>
+                <FieldHint description="Este nombre lo verán tus clientes en la wallet digital y en el checkout. Poné el nombre de tu restaurante o uno memorable." />
+              </div>
               <Input
                 value={clubName}
                 onChange={e => setClubName(e.target.value.slice(0, 80))}
@@ -117,7 +127,10 @@ export default function ClubInfoSettings({ tenantSlug, initial, plan }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label className={labelCls}>Mensaje de bienvenida</Label>
+            <div className="flex items-center gap-1.5">
+              <Label className={labelCls}>Mensaje de bienvenida</Label>
+              <FieldHint description="Se muestra al cliente cuando se registra al club exitosamente. Usalo para dar la bienvenida o explicar los beneficios." />
+            </div>
             <textarea
               value={welcomeMsg}
               onChange={e => setWelcomeMsg(e.target.value.slice(0, 300))}

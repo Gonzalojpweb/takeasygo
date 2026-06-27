@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Package, ToggleLeft, ToggleRight, Edit, Trash2, Image as ImageIcon, Search, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import ImageUpload from './ImageUpload'
+import { FieldHint } from '@/components/ui/inline-guide'
 
 interface StoreItem {
   _id: string
@@ -477,7 +478,10 @@ function StoreItemForm({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Puntos Requeridos *</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-sm font-medium">Puntos Requeridos *</label>
+                <FieldHint description="Cuántos puntos necesita el cliente para canjear este producto. Regla: ≈ ticket promedio × visitas necesarias × 5.75%." />
+              </div>
               <input
                 type="number"
                 value={formData.pointsCost}
@@ -498,7 +502,10 @@ function StoreItemForm({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Stock (vacío = ilimitado)</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-sm font-medium">Stock (vacío = ilimitado)</label>
+                <FieldHint description="Cantidad disponible. Si se acaba, el producto se oculta automáticamente. Si es digital o ilimitado, dejalo vacío." />
+              </div>
               <input
                 type="number"
                 value={formData.stock ?? ''}

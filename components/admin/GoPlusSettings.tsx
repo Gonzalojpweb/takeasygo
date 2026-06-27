@@ -11,6 +11,7 @@ import { canAccess } from '@/lib/plans'
 import { Loader2, Calculator, Percent, Save, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import SosCalculator from '@/components/admin/SosCalculator'
+import { FieldHint, SectionTip, BannerContext } from '@/components/ui/inline-guide'
 import type { Plan } from '@/lib/plans'
 
 interface Props {
@@ -83,6 +84,8 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
 
   return (
     <div className="space-y-8">
+      <BannerContext module="go-plus" />
+
       {/* ── SISTEMA DE PUNTOS ── */}
       <Card className="border-2 border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
         <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
@@ -127,7 +130,10 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
 
           <div className={cn('space-y-6 transition-opacity', pointsEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none')}>
             <div className="space-y-2">
-              <Label className={labelCls}>Modo de cálculo</Label>
+              <div className="flex items-center gap-1.5">
+                <Label className={labelCls}>Modo de cálculo</Label>
+                <FieldHint description="Fijo: mismos puntos por cada pedido. Porcentaje: escala con el ticket (recomendado). Híbrido: combina ambos para un piso más bonus." />
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 {([
                   { key: 'fixed_per_currency' as const, label: 'Fijo por monto', desc: '1 punto cada $10' },
@@ -155,7 +161,10 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {(pointsMode === 'fixed_per_currency' || pointsMode === 'hybrid') && (
                 <div className="space-y-2">
-                  <Label className={labelCls}>Puntos por cada $1</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className={labelCls}>Puntos por cada $1</Label>
+                    <FieldHint description="Puntos por cada unidad monetaria. Ej: si ponés 10, cada $1 = 10 puntos. En una compra de $10,000 son 100,000 puntos." />
+                  </div>
                   <div className="flex items-center gap-3">
                     <Input
                       type="number" step="0.01" min="0" max="1"
@@ -169,7 +178,10 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
               )}
               {(pointsMode === 'percentage' || pointsMode === 'hybrid') && (
                 <div className="space-y-2">
-                  <Label className={labelCls}>Porcentaje del monto</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className={labelCls}>Porcentaje del monto</Label>
+                    <FieldHint description="Porcentaje del ticket que se convierte en puntos. Ej: 5.75% → en una compra de $10,000 suma 575 puntos." />
+                  </div>
                   <div className="flex items-center gap-3">
                     <Input
                       type="number" step="0.5" min="0" max="100"
@@ -185,7 +197,10 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
                 </div>
               )}
               <div className="space-y-2">
-                <Label className={labelCls}>Puntos fijos por pedido</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label className={labelCls}>Puntos fijos por pedido</Label>
+                  <FieldHint description="Puntos base por cada pedido SIN importar el monto. Funciona como piso mínimo de acumulación." />
+                </div>
                 <Input
                   type="number" min="0"
                   value={pointsPerOrder}
@@ -194,7 +209,10 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <Label className={labelCls}>Monto mínimo</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label className={labelCls}>Monto mínimo</Label>
+                  <FieldHint description="Pedidos menores a este monto NO generan puntos. Útil para evitar que pedidos muy chicos acumulen sin sentido." />
+                </div>
                 <Input
                   type="number" min="0" step="0.01"
                   value={minOrderForPoints}
@@ -203,7 +221,10 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <Label className={labelCls}>Valor de canje (ARS)</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label className={labelCls}>Valor de canje (ARS)</Label>
+                  <FieldHint description="Valor en pesos de cada punto cuando el cliente lo canjea. Si ponés $1, cada 100 puntos = $100 de descuento." />
+                </div>
                 <Input
                   type="number" min="0" step="1"
                   value={pointsRedemptionValue}
@@ -241,7 +262,10 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label className={labelCls}>Puntos de bienvenida</Label>
+              <div className="flex items-center gap-1.5">
+                <Label className={labelCls}>Puntos de bienvenida</Label>
+                <FieldHint description="Puntos que recibe el cliente al registrarse al club. Es un incentivo inicial para que empiece a usar el sistema." />
+              </div>
               <div className="flex items-center gap-3">
                 <Input
                   type="number"
@@ -260,27 +284,38 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
 
           {/* Preview de cálculo */}
           {pointsEnabled && (
-            <div className="p-4 rounded-xl bg-muted/20 border border-border/40">
-              <Label className={`${labelCls} mb-3`}>Ejemplo de cálculo</Label>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Monto del pedido:</span>
-                  <span className="font-bold">$1,000</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Puntos ganados:</span>
-                  <span className="font-bold text-orange-500">
-                    {(() => {
-                      let pts = 0
-                      if (pointsMode === 'fixed_per_currency' || pointsMode === 'hybrid') pts += Math.floor(1000 * pointsPerCurrency)
-                      if (pointsMode === 'percentage' || pointsMode === 'hybrid') pts += Math.floor(1000 * pointsPercentage / 100)
-                      pts += pointsPerOrder
-                      return `${fmt(pts)} puntos`
-                    })()}
-                  </span>
+            <>
+              <div className="p-4 rounded-xl bg-muted/20 border border-border/40">
+                <Label className={`${labelCls} mb-3`}>Ejemplo de cálculo</Label>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Monto del pedido:</span>
+                    <span className="font-bold">$1,000</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Puntos ganados:</span>
+                    <span className="font-bold text-orange-500">
+                      {(() => {
+                        let pts = 0
+                        if (pointsMode === 'fixed_per_currency' || pointsMode === 'hybrid') pts += Math.floor(1000 * pointsPerCurrency)
+                        if (pointsMode === 'percentage' || pointsMode === 'hybrid') pts += Math.floor(1000 * pointsPercentage / 100)
+                        pts += pointsPerOrder
+                        return `${fmt(pts)} puntos`
+                      })()}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+              <SectionTip type="metric">
+                {pointsMode === 'percentage' ? (
+                  <>El 5.75% está calibrado para que el premio equivalga al ~25% del ticket. Si lo subís, los clientes llegan más rápido al premio pero tu margen baja.</>
+                ) : pointsMode === 'fixed_per_currency' ? (
+                  <>Modo Fijo: asegurate de que los puntos cubran al menos el 5% del ticket promedio. Si tu ticket promedio es $10,000, poné al menos 500 puntos por pedido.</>
+                ) : (
+                  <>Híbrido es ideal cuando tenés tickets variables (pedidos chicos + grandes). El punto fijo garantiza que todos acumulen, y el % recompensa compras grandes.</>
+                )}
+              </SectionTip>
+            </>
           )}
         </CardContent>
       </Card>
@@ -301,10 +336,17 @@ export default function GoPlusSettings({ tenantSlug, plan, initial }: Props) {
         <CardContent className="p-8 space-y-6">
           {sosAccessible ? (
             <>
+              <SectionTip type="warn">
+                Reward Advance permite que el cliente canjee aunque le falten puntos. Queda en negativo y los paga con puntos de futuras compras. Si el límite SOS es muy alto, el cliente puede acumular deuda que nunca paga si no vuelve.
+              </SectionTip>
+
               <div className="p-6 rounded-2xl bg-muted/30 border border-border/40 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className={labelCls}>Límite de adelanto</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label className={labelCls}>Límite de adelanto</Label>
+                      <FieldHint description="Límite máximo de puntos que le podés adelantar al cliente. Recomendado: 20% del valor del premio en puntos." />
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {sosLimit === 0
                         ? 'Desactivado — el cliente debe tener los puntos exactos'

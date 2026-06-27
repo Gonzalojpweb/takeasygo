@@ -19,6 +19,7 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import Consumer from '@/models/Consumer'
 import CustomerProfile from '@/models/CustomerProfile'
 import type { CustomerMetrics } from '@/types/cis'
+import { fetchCustomerEngagement, fetchBatchEngagement } from './posthog-bridge'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -160,13 +161,12 @@ export async function computeFavorites(
   }
 }
 
-// ── Agregación: métricas de engagement ───────────────────────────────────────
+// ── Agregación: métricas de engagement (PostHog real) ────────────────────────
 
 export async function computeEngagementMetrics(
   consumerId: mongoose.Types.ObjectId,
   tenantId: mongoose.Types.ObjectId
 ): Promise<Pick<CustomerMetrics, 'menuViews' | 'productViews' | 'cartAdds' | 'checkoutStarts' | 'completedOrders' | 'conversionRate'>> {
-  // Por ahora, contamos las órdenes completadas como base
   const consumer = await Consumer.findById(consumerId).lean()
   if (!consumer) {
     return { menuViews: 0, productViews: 0, cartAdds: 0, checkoutStarts: 0, completedOrders: 0, conversionRate: 0 }
@@ -174,15 +174,44 @@ export async function computeEngagementMetrics(
 
   const completedOrders = consumer.totalOrders ?? 0
 
-  // TODO: Integrar con PostHog events cuando esté disponible la vinculación
-  // Por ahora usamos un proxy: checkoutStarts ≈ completedOrders * 1.3 (estimación)
-  const checkoutStarts = Math.round(completedOrders * 1.3)
-  const cartAdds = Math.round(checkoutStarts * 1.5)
-  const productViews = Math.round(cartAdds * 2)
-  const menuViews = Math.round(productViews * 1.5)
+  // Consultar datos reales de PostHog
+  const phEngagement = await fetchCustomerEngagement(consumer.phoneHash, tenantId.toString(), 90)
+
+  // Usar datos reales de PostHog si están disponibles, fallback a defaults razonables
+  const menuViews = phEngagement.menuViews || Math.round(completedOrders * 3)
+  const productViews = phEngagement.productViews || Math.round(completedOrders * 4)
+  const cartAdds = phEngagement.cartAdds || Math.round(completedOrders * 2)
+  const checkoutStarts = phEngagement.checkoutStarts || Math.round(completedOrders * 1.3)
   const conversionRate = checkoutStarts > 0 ? completedOrders / checkoutStarts : 0
 
   return { menuViews, productViews, cartAdds, checkoutStarts, completedOrders, conversionRate }
+}
+
+// ── Batch: métricas de engagement para múltiples customers ───────────────────
+
+export async function computeBatchEngagementMetrics(
+  consumers: { phoneHash: string; totalOrders: number }[],
+  tenantId: mongoose.Types.ObjectId
+): Promise<Map<string, Pick<CustomerMetrics, 'menuViews' | 'productViews' | 'cartAdds' | 'checkoutStarts' | 'completedOrders' | 'conversionRate'>>> {
+  const result = new Map<string, Pick<CustomerMetrics, 'menuViews' | 'productViews' | 'cartAdds' | 'checkoutStarts' | 'completedOrders' | 'conversionRate'>>()
+
+  const phoneHashes = consumers.map(c => c.phoneHash)
+  const phBatch = await fetchBatchEngagement(phoneHashes, tenantId.toString(), 90)
+
+  for (const consumer of consumers) {
+    const ph = phBatch.get(consumer.phoneHash)
+    const completedOrders = consumer.totalOrders ?? 0
+
+    const menuViews = ph?.menuViews || Math.round(completedOrders * 3)
+    const productViews = ph?.productViews || Math.round(completedOrders * 4)
+    const cartAdds = ph?.cartAdds || Math.round(completedOrders * 2)
+    const checkoutStarts = ph?.checkoutStarts || Math.round(completedOrders * 1.3)
+    const conversionRate = checkoutStarts > 0 ? completedOrders / checkoutStarts : 0
+
+    result.set(consumer.phoneHash, { menuViews, productViews, cartAdds, checkoutStarts, completedOrders, conversionRate })
+  }
+
+  return result
 }
 
 // ── Agregación: métricas de rewards ──────────────────────────────────────────
