@@ -54,6 +54,46 @@ const CATEGORY_COLORS = [
   'text-emerald-600', 'text-rose-500', 'text-amber-600',
 ]
 
+function CustomizationDetails({ customizations, indent = 0 }: { customizations: any[]; indent?: number }) {
+  if (!customizations?.length) return null
+  return (
+    <>
+      {customizations.map((c: any, ci: number) => {
+        const selected = c.selectedOptions?.filter((o: any) => o.name) ?? []
+        if (selected.length === 0) return null
+        return (
+          <div key={ci} style={{ paddingLeft: indent * 12 }}>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              <span className="font-semibold uppercase text-[10px] tracking-wide">{c.groupName}:</span>{' '}
+              {selected.map((o: any) => o.name).join(', ')}
+            </p>
+            {selected.some((o: any) => o.subGroups?.length > 0) && (
+              <CustomizationDetails customizations={selected.flatMap((o: any) => o.subGroups ?? [])} indent={indent + 1} />
+            )}
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
+function OrderItemDetails({ item }: { item: any }) {
+  return (
+    <>
+      {item.description && (
+        <p className="text-xs text-muted-foreground/70 mt-0.5 italic">{item.description}</p>
+      )}
+      {item.selectedVariant && (
+        <p className="text-xs text-muted-foreground mt-0.5">
+          <span className="font-semibold uppercase text-[10px] tracking-wide">VARIANTE:</span>{' '}
+          {item.selectedVariant.name}
+        </p>
+      )}
+      <CustomizationDetails customizations={item.customizations} />
+    </>
+  )
+}
+
 export default function OrdersManager({ orders, locationMap, tenantSlug, trialOrderCount, load30m, load60m, locations = [], userAssignedLocations = [] }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -778,14 +818,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                                     )}
                                     {item.quantity}x {item.name}
                                   </p>
-                                  {item.customizations?.map((c: any, ci: number) => (
-                                  c.selectedOptions?.length > 0 && (
-                                    <p key={ci} className="text-xs text-muted-foreground mt-0.5">
-                                      <span className="font-semibold uppercase text-[10px] tracking-wide">{c.groupName}:</span>{' '}
-                                      {c.selectedOptions.map((o: any) => o.name).join(', ')}
-                                    </p>
-                                  )
-                                ))}
+                                   <OrderItemDetails item={item} />
                               </div>
                               <span className="text-sm font-bold text-foreground/70 tabular-nums shrink-0">
                                 ${item.subtotal.toLocaleString('es-AR')}
