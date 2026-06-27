@@ -65,7 +65,7 @@ export async function validateCheckoutRewards(
   rewardItemIds: string[],
   loyaltyPointsRequired: number,
   tenant: any
-): Promise<{ valid: boolean; error?: string; resolved: any[] }> {
+): Promise<{ valid: boolean; error?: string; resolved: any[]; microSosRequired?: boolean }> {
   if (!rewardItemIds || rewardItemIds.length === 0) {
     return { valid: true, resolved: [] }
   }
@@ -107,9 +107,15 @@ export async function validateCheckoutRewards(
 
   const projectedBalance = (member.loyalty?.points ?? 0) - loyaltyPointsRequired
 
-  // Tiene puntos suficientes — todo bien, sin advance
-  if (projectedBalance >= 0) {
+  // Tiene puntos de sobra — sin advance, sin micro-SOS
+  if (projectedBalance > 0) {
     return { valid: true, resolved }
+  }
+
+  // Tiene exactamente los puntos necesarios — sin advance explícito,
+  // pero se aplicará micro-SOS para forzar retorno
+  if (projectedBalance === 0) {
+    return { valid: true, resolved, microSosRequired: true }
   }
 
   // No alcanzan: evaluar Reward Advance (antes llamado SOS)
@@ -164,15 +170,28 @@ export async function processRewardDeduction(
   const newBalance = currentPoints - totalPointsCost
   const isAdvance = order.rewardAdvanceApplied === true
 
-  member.loyalty.points = newBalance
+  // Micro-SOS: si el saldo queda en exactamente 0 y no se usó SOS explícito,
+  // forzar un adelanto pequeño para que el miembro siempre tenga deuda que consolidar
+  if (newBalance === 0 && !isAdvance) {
+    const sosLimit = tenant.loyalty?.sosLimit ?? 250
+    const microSosAmount = Math.min(Math.ceil(totalPointsCost * 0.2), sosLimit)
+
+    member.loyalty.points = -microSosAmount
+    member.sosConfig.hasPendingSos = true
+    member.sosConfig.sosUsed = microSosAmount
+    order.rewardAdvanceApplied = true
+    order.rewardAdvanceAmount = microSosAmount
+  } else if (isAdvance) {
+    member.loyalty.points = newBalance
+    member.sosConfig.hasPendingSos = true
+    member.sosConfig.sosUsed = (member.sosConfig.sosUsed || 0) + Math.abs(Math.min(0, newBalance))
+  } else {
+    member.loyalty.points = newBalance
+  }
+
   member.store.totalRedemptions = (member.store.totalRedemptions || 0) + order.rewardItems.length
   member.store.totalPointsSpent = (member.store.totalPointsSpent || 0) + totalPointsCost
   member.store.lastRedemptionAt = new Date()
-
-  if (isAdvance) {
-    member.sosConfig.hasPendingSos = true
-    member.sosConfig.sosUsed = (member.sosConfig.sosUsed || 0) + Math.abs(Math.min(0, newBalance))
-  }
 
   await member.save({ session })
 
