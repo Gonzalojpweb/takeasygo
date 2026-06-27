@@ -818,6 +818,9 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                                     )}
                                     {item.quantity}x {item.name}
                                   </p>
+                                  {item.itemType === 'promotion' && item.shortDescription && (
+                                    <p className="text-xs text-muted-foreground/70 mt-0.5 italic">{item.shortDescription}</p>
+                                  )}
                                    <OrderItemDetails item={item} />
                               </div>
                               <span className="text-sm font-bold text-foreground/70 tabular-nums shrink-0">
