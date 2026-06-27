@@ -3,7 +3,7 @@ import mongoose, { Schema } from 'mongoose'
 const PushSubscriptionSchema = new Schema(
   {
     // Token único por dispositivo, guardado en localStorage del consumer
-    clientToken: { type: String, required: true, index: true },
+    clientToken: { type: String, required: true },
     endpoint:    { type: String, required: true },
     p256dh:      { type: String, required: true },
     auth:        { type: String, required: true },
