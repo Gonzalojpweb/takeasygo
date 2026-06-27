@@ -6,6 +6,8 @@ import StoreRedemption from '@/models/StoreRedemption'
 import Order from '@/models/Order'
 import { calculatePoints } from '@/lib/loyalty'
 import { requireAuth } from '@/lib/apiAuth'
+import { safeDecrypt } from '@/lib/crypto'
+import crypto from 'crypto'
 
 export async function GET(
   request: NextRequest,
@@ -32,10 +34,49 @@ export async function GET(
     const skip = (page - 1) * limit
 
     const member = await LoyaltyMember.findById(memberId)
-      .select('phoneHash name')
+      .select('phoneHash phone email name')
       .lean()
     if (!member) {
       return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
+    }
+
+    // Build multi-hash + email query to match how addPointsFromOrder finds members
+    const phoneHashes: string[] = [member.phoneHash].filter(Boolean)
+    if (member.phone) {
+      try {
+        const phoneRaw = safeDecrypt(member.phone)
+        const digits = phoneRaw.replace(/\D/g, '')
+        const normalized = digits.length >= 10 ? digits.slice(-10) : digits
+        const hashDirect = crypto.createHash('sha256').update(normalized).digest('hex')
+        const hashWithPlus = crypto.createHash('sha256').update('+' + digits).digest('hex')
+        const hashDigits = crypto.createHash('sha256').update(digits).digest('hex')
+        if (!phoneHashes.includes(hashDirect)) phoneHashes.push(hashDirect)
+        if (!phoneHashes.includes(hashWithPlus)) phoneHashes.push(hashWithPlus)
+        if (!phoneHashes.includes(hashDigits)) phoneHashes.push(hashDigits)
+      } catch {}
+    }
+
+    const orderQuery: any = {
+      tenantId: tenant._id,
+      deletedAt: null,
+      $or: [
+        { loyaltyPointsCredited: true },
+        { 'rewardItems.0': { $exists: true } },
+      ],
+    }
+
+    const orIdentity: any[] = []
+    if (phoneHashes.length > 0) {
+      orIdentity.push({ 'customer.phoneHash': { $in: phoneHashes } })
+    }
+    if (member.email) {
+      try {
+        const emailRaw = safeDecrypt(member.email).toLowerCase().trim()
+        if (emailRaw) orIdentity.push({ 'customer.email': emailRaw })
+      } catch {}
+    }
+    if (orIdentity.length > 0) {
+      orderQuery.$and = [{ $or: orIdentity }]
     }
 
     const [redemptions, orders] = await Promise.all([
@@ -47,15 +88,7 @@ export async function GET(
         .sort({ createdAt: -1 })
         .lean(),
 
-      Order.find({
-        tenantId: tenant._id,
-        deletedAt: null,
-        'customer.phoneHash': member.phoneHash,
-        $or: [
-          { loyaltyPointsCredited: true },
-          { 'rewardItems.0': { $exists: true } },
-        ],
-      })
+      Order.find(orderQuery)
         .select('orderNumber total items rewardItems loyaltyPointsCredited createdAt')
         .sort({ createdAt: -1 })
         .lean(),
