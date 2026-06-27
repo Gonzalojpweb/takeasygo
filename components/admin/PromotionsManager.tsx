@@ -1268,30 +1268,30 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                   </div>
                 </div>
 
-                {(form.scheduledStart || form.scheduledEnd) && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Horario de disponibilidad</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Hora inicio</Label>
                       <Input
                         type="time"
                         value={form.activeTimeStart}
                         onChange={e => setForm({ ...form, activeTimeStart: e.target.value })}
                         className="mt-1.5"
-                        placeholder="Todo el día"
                       />
                     </div>
                     <div>
-                      <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Hora fin</Label>
                       <Input
                         type="time"
                         value={form.activeTimeEnd}
                         onChange={e => setForm({ ...form, activeTimeEnd: e.target.value })}
                         className="mt-1.5"
-                        placeholder="Todo el día"
                       />
                     </div>
                   </div>
-                )}
+                  <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
+                    Si ambos campos están vacíos, la promo está disponible todo el día.
+                  </p>
+                </div>
 
                 {/* Terms only for sale */}
                 {form.type === 'sale' && (
