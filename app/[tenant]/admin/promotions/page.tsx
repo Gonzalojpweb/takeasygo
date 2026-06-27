@@ -30,6 +30,7 @@ export default async function PromotionsPage() {
   const promotions = await Promotion.find({
     $or: [
       { scope: 'tenant', tenantId },
+      { scope: { $exists: false }, tenantId },
       {
         scope: 'global',
         $or: [
