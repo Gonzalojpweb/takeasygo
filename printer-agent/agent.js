@@ -508,6 +508,14 @@ function generateTicket(order, role, columns = 32) {
             chunks.push(buf(`  ${desc.toUpperCase()}\n`));
         }
 
+        // Mostrar descripción corta para promociones
+        if (item.itemType === 'promotion' && item.shortDescription) {
+            const short = item.shortDescription.length > columns
+                ? item.shortDescription.substring(0, columns - 3) + '...'
+                : item.shortDescription
+            chunks.push(buf(`  ${short.toUpperCase()}\n`));
+        }
+
         // Mostrar variante seleccionada
         if (item.selectedVariant) {
             chunks.push(buf(`  > Variante: ${item.selectedVariant.name.toUpperCase()}\n`));
