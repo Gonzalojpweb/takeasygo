@@ -28,10 +28,21 @@ export async function POST(
 
     const phoneHash = hashPhone(phone)
 
-    // Buscar si ya existe un User con este teléfono o email
-    let user = await User.findOne({ $or: [{ phone }, { email }] })
+    // Buscar users por email y phone por separado para evitar E11000
+    const userByEmail = await User.findOne({ email })
+    const userByPhone = await User.findOne({ phone })
 
-    if (!user) {
+    let user: typeof userByEmail
+
+    if (userByEmail && userByPhone && userByEmail._id.toString() !== userByPhone._id.toString()) {
+      // Conflicto: phone y email pertenecen a users distintos → priorizar el del email
+      user = userByEmail
+    } else if (userByEmail) {
+      user = userByEmail
+    } else if (userByPhone) {
+      user = userByPhone
+    } else {
+      // Crear nuevo user
       user = await User.create({
         name,
         phone,
@@ -39,15 +50,6 @@ export async function POST(
         role: 'consumer',
         isActive: true,
       })
-    } else {
-      if (user.phone !== phone) {
-        await User.updateOne({ _id: user._id }, { $set: { phone } })
-        user.phone = phone
-      }
-      if (user.email !== email) {
-        await User.updateOne({ _id: user._id }, { $set: { email } })
-        user.email = email
-      }
     }
 
     // Verificar si ya es miembro del club
