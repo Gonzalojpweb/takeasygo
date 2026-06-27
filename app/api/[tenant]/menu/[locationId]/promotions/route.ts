@@ -145,6 +145,15 @@ export async function GET(
       if (p.visibility === 'both') return true
       if (p.visibility === mode) return true
       return false
+    }).filter((p: any) => {
+      if (!p.activeTimeStart || !p.activeTimeEnd) return true
+      const now = new Date()
+      const currentMinutes = now.getHours() * 60 + now.getMinutes()
+      const [startH, startM] = p.activeTimeStart.split(':').map(Number)
+      const [endH, endM] = p.activeTimeEnd.split(':').map(Number)
+      const startMinutes = startH * 60 + startM
+      const endMinutes = endH * 60 + endM
+      return currentMinutes >= startMinutes && currentMinutes <= endMinutes
     })
 
     return NextResponse.json({ promotions: filteredPromotions })

@@ -25,6 +25,8 @@ export interface IPromotion {
   isFeatured: boolean
   scheduledStart?: Date
   scheduledEnd?: Date
+  activeTimeStart?: string
+  activeTimeEnd?: string
   customStyles?: {
     backgroundColor?: string
     textColor?: string
@@ -153,6 +155,14 @@ const PromotionSchema = new Schema<IPromotion>(
     },
     scheduledEnd: {
       type: Date,
+      default: null,
+    },
+    activeTimeStart: {
+      type: String,
+      default: null,
+    },
+    activeTimeEnd: {
+      type: String,
       default: null,
     },
     customStyles: {

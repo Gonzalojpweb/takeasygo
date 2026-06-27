@@ -565,18 +565,6 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
             style={{ color: mutedText, border: `1.5px solid ${branding.primaryColor}40` }}>
             {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
-
-          {/* Cart button */}
-          {totalCartItems > 0 && (
-            <button
-              onClick={() => setShowCartPopup(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold text-xs flex-shrink-0"
-              style={{ backgroundColor: branding.primaryColor, color: '#fff' }}>
-              <ShoppingCart size={13} />
-              <span>{totalCartItems}</span>
-              <span>$ {totalCartPrice.toLocaleString('es-AR')}</span>
-            </button>
-          )}
 </div>
 
         {/* Promotions Section */}
@@ -590,7 +578,6 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
             <PromotionCarousel
               promotions={[...featuredPromotions, ...regularPromotions]}
               tenantSlug={tenant.slug}
-              onAdd={addPromotionToCart}
               primary={branding.primaryColor}
               bg={bg}
               textColor={text}
@@ -1025,89 +1012,6 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           optionImageRegistry={menu.optionImageRegistry}
         />
       )}
-
-      {/* ── Cart popup ───────────────────────────────────── */}
-      <AnimatePresence>
-        {showCartPopup && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
-            onClick={() => setShowCartPopup(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 30 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 30 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 380 }}
-              className="w-full max-w-md bg-white rounded-3xl max-h-[80dvh] flex flex-col"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="sticky top-0 bg-white border-b border-zinc-100 p-4 flex items-center justify-between rounded-t-3xl">
-                <div className="flex items-center gap-2">
-                  <ShoppingCart size={18} className="text-zinc-800" />
-                  <h2 className="font-bold text-base text-zinc-900">Pedido</h2>
-                </div>
-                <button
-                  onClick={() => setShowCartPopup(false)}
-                  className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {cart.length === 0 && (
-                  <p className="text-sm text-zinc-400 text-center py-8">El pedido está vacío</p>
-                )}
-                {cart.map((item) => (
-                  <div key={item.cartItemId}
-                    className="flex items-start justify-between gap-2 p-3 rounded-2xl bg-zinc-50"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-zinc-800 truncate">{item.name}</p>
-                      {item.customizationSummary && (
-                        <p className="text-xs text-zinc-400 mt-0.5 truncate">{item.customizationSummary}</p>
-                      )}
-                      {item.quantity > 1 && (
-                        <p className="text-xs text-zinc-400 mt-0.5">Cantidad: {item.quantity}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="font-bold text-sm text-zinc-800">
-                        $ {(item.price * item.quantity).toLocaleString('es-AR')}
-                      </span>
-                      <button
-                        onClick={() => removeFromCart(item.cartItemId)}
-                        className="w-6 h-6 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-500 hover:bg-zinc-300 transition-colors"
-                      >
-                        <X size={11} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {cart.length > 0 && (
-                <div className="sticky bottom-0 bg-white border-t border-zinc-100 p-4 rounded-b-3xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-500">Total</span>
-                    <span className="font-bold text-lg text-zinc-900">
-                      $ {totalCartPrice.toLocaleString('es-AR')}
-                    </span>
-                  </div>
-                  <button
-                    onClick={goToCheckout}
-                    className="w-full py-2.5 rounded-xl font-bold text-sm transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: branding.primaryColor, color: '#fff' }}
-                  >
-                    Ir a pagar
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── Legal modal ────────────────────────────────────── */}
       <AnimatePresence>
