@@ -5,7 +5,7 @@ export const authConfig = {
   providers: [],
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === 'google') {
+      if (account?.provider === 'google' || account?.provider === 'nodemailer') {
         const { connectDB } = await import('@/lib/mongoose')
         const User = (await import('@/models/User')).default
 
@@ -16,13 +16,18 @@ export const authConfig = {
         
         if (!existingUser) {
           await User.create({
-            name: user.name,
+            name: user.name || user.email?.split('@')[0] || 'Usuario',
             email: user.email,
             image: user.image,
             role: 'consumer',
             isActive: true,
+            emailVerified: account.provider === 'nodemailer' ? new Date() : null,
           })
         } else {
+          if (account.provider === 'nodemailer' && !existingUser.emailVerified) {
+            existingUser.emailVerified = new Date()
+            await existingUser.save()
+          }
           // Update profile picture if it changed
           if (user.image && existingUser.image !== user.image) {
             existingUser.image = user.image
@@ -48,7 +53,11 @@ export const authConfig = {
         token.assignedTenants = (user as any).assignedTenants || []
         token.image = user.image
         token.name = user.name || token.name
-      } 
+      }
+      else if (user && account?.provider === 'nodemailer') {
+        token.id = user.id
+        token.role = (user as any).role || 'consumer'
+      }
       else if (token.email) {
         const { connectDB } = await import('@/lib/mongoose')
         const User = (await import('@/models/User')).default

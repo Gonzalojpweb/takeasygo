@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
+import Email from 'next-auth/providers/email'
 import bcrypt from 'bcryptjs'
 import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
@@ -44,6 +45,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID || process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.AUTH_GOOGLE_SECRET,
+    }),
+    Email({
+      server: {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT ?? 587),
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASSWORD,
+        },
+      },
+      from: process.env.SMTP_FROM,
+      maxAge: 15 * 60,
     }),
     Credentials({
       name: 'credentials',

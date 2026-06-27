@@ -45,6 +45,10 @@ export default function ProfileContent() {
   const loading = status === 'loading'
   const [showAddressSelector, setShowAddressSelector] = useState(false)
   const [showRestaurantLead, setShowRestaurantLead] = useState(false)
+  const [showEmailForm, setShowEmailForm] = useState(false)
+  const [emailInput, setEmailInput] = useState('')
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [emailError, setEmailError] = useState('')
 
   const [myClubs, setMyClubs] = useState<ClubSummary[]>([])
   const [suggestedClubs, setSuggestedClubs] = useState<SuggestedClub[]>([])
@@ -101,12 +105,13 @@ export default function ProfileContent() {
           <div className="w-full max-w-[320px] space-y-3">
             <button
               onClick={() => {}} // Placeholder for Apple
-              className="w-full flex items-center justify-center gap-3 py-3.5 bg-black text-white rounded-2xl font-bold transition-transform active:scale-95"
+              disabled
+              className="w-full flex items-center justify-center gap-3 py-3.5 bg-black text-white rounded-2xl font-bold transition-transform active:scale-95 opacity-50 cursor-not-allowed"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
                 <path d="M17.05 20.28c-.96.95-2.04 2.15-3.32 2.15-1.24 0-1.63-.78-3.08-.78-1.46 0-1.89.76-3.08.76-1.28 0-2.31-1.13-3.32-2.15-2.07-2.08-3.66-5.88-3.66-9.15 0-5.23 3.39-8 6.58-8 1.63 0 2.92.57 3.82.57.85 0 2.37-.62 4.24-.62 1.93 0 4.09.87 5.3 2.76-3.8 1.83-3.18 6.78.29 8.24-1.07 2.47-2.73 5.3-3.77 6.22zm-4.33-14.89c.83-1.05 1.4-2.5 1.4-3.94 0-.2-.02-.4-.05-.59-1.34.05-2.95.89-3.92 2.03-.86 1-1.61 2.5-1.61 4 .01.21.04.42.06.6.14.01.29.02.43.02 1.25 0 2.87-.78 3.69-2.12z" />
               </svg>
-              Continuar con Apple
+              Próximamente Apple
             </button>
 
             <button
@@ -123,13 +128,58 @@ export default function ProfileContent() {
               Continuar con Google
             </button>
 
-            <button
-              onClick={() => {}} // Placeholder for Email
-              className="w-full flex items-center justify-center gap-3 py-3.5 bg-zinc-100 text-zinc-900 rounded-2xl font-bold transition-transform active:scale-95"
-            >
-              <LogIn size={20} className="text-zinc-600" />
-              Continuar con Email
-            </button>
+            {!showEmailForm ? (
+              <button
+                onClick={() => setShowEmailForm(true)}
+                className="w-full flex items-center justify-center gap-3 py-3.5 bg-zinc-100 text-zinc-900 rounded-2xl font-bold transition-transform active:scale-95"
+              >
+                <LogIn size={20} className="text-zinc-600" />
+                Continuar con Email
+              </button>
+            ) : (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  if (!emailInput) return
+                  setEmailLoading(true)
+                  setEmailError('')
+                  try {
+                    await signIn('email', { email: emailInput, callbackUrl, redirect: false })
+                  } catch {
+                    setEmailError('Error al enviar el link. Intentá de nuevo.')
+                  } finally {
+                    setEmailLoading(false)
+                  }
+                }}
+                className="space-y-2"
+              >
+                <input
+                  type="email"
+                  required
+                  placeholder="Tu email"
+                  value={emailInput}
+                  onChange={e => setEmailInput(e.target.value)}
+                  className="w-full h-12 px-4 bg-zinc-100 rounded-2xl text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none focus:ring-2 focus:ring-[#f14722]/30 transition-all"
+                />
+                {emailError && (
+                  <p className="text-xs text-red-500 font-medium">{emailError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={emailLoading || !emailInput}
+                  className="w-full h-12 rounded-2xl bg-zinc-900 text-white font-bold text-sm transition-all active:scale-[0.985] disabled:opacity-50"
+                >
+                  {emailLoading ? 'Enviando...' : 'Enviar link mágico'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowEmailForm(false); setEmailInput(''); setEmailError('') }}
+                  className="w-full text-xs text-zinc-400 hover:text-zinc-600 font-medium transition-colors"
+                >
+                  Volver
+                </button>
+              </form>
+            )}
           </div>
 
           <BlurFade delay={0.4} className="mt-8">
