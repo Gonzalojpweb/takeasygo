@@ -110,7 +110,20 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   // menuData is kept in state so we can update it after bulk translation
   const [menuData, setMenuData] = useState(menu)
 
-  const [cart, setCart] = useState<CartItem[]>([])
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = sessionStorage.getItem('cart')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        return parsed.map((item: any) => ({
+          ...item,
+          type: item.type || (item.promotionId ? 'promotion' : 'menuItem'),
+        }))
+      }
+    } catch {}
+    return []
+  })
   const [showCart, setShowCart] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [customizingItem, setCustomizingItem] = useState<any | null>(null)
@@ -336,6 +349,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         cartItemId: plainId,
         menuItemId: item._id,
         name: item.name,
+        description: item.description,
+        imageUrl: item.imageUrl,
         basePrice: getItemPrice(item),
         extraPrice: 0,
         price: getItemPrice(item),
