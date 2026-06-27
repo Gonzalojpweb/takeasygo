@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { CustomerSegmentBadge, CustomerHealthScore, CustomerInsights } from '../cis'
+import { HealthScoreTrendChart } from '../cis/charts'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ConsumerDetailModal — Perfil V2 del cliente con datos CIS (P1-P9)
@@ -174,6 +175,14 @@ export default function ConsumerDetailModal({ consumer, tenantSlug, onClose }: P
                   trend={profile.healthScoreTrend}
                 />
               </div>
+
+              {/* Evolución de Salud (P4) */}
+              {profile.healthScoreHistory && profile.healthScoreHistory.length > 0 && (
+                <HealthScoreTrendChart
+                  data={profile.healthScoreHistory}
+                  trend={profile.healthScoreTrend}
+                />
+              )}
 
               {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

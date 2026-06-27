@@ -10,6 +10,7 @@ import { Loader2, Smartphone, CreditCard, QrCode, Bell, Save } from 'lucide-reac
 import { toast } from 'sonner'
 import { cn, fmt } from '@/lib/utils'
 import { markGeofenceNotified } from '@/components/feedback/GeofenceFeedback'
+import { FieldHint, BannerContext } from '@/components/ui/inline-guide'
 
 interface Props {
   tenantSlug: string
@@ -92,6 +93,8 @@ export default function WalletDesignSettings({ tenantSlug, initial }: Props) {
 
   return (
     <div className="space-y-8">
+      <BannerContext module="wallet" />
+
       {/* ── WALLET DIGITAL ── */}
       <Card className="border-2 border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
         <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
@@ -137,7 +140,10 @@ export default function WalletDesignSettings({ tenantSlug, initial }: Props) {
           <div className={cn('space-y-6 transition-opacity', walletEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none')}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className={labelCls}>Color de tarjeta</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label className={labelCls}>Color de tarjeta</Label>
+                  <FieldHint description="Color de fondo de la tarjeta. Elegí un color que identifique tu marca. Funciona mejor en tonos oscuros." />
+                </div>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -154,7 +160,10 @@ export default function WalletDesignSettings({ tenantSlug, initial }: Props) {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className={labelCls}>Color de texto</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label className={labelCls}>Color de texto</Label>
+                  <FieldHint description="Color del texto y el nombre del club en la tarjeta. Debe contrastar con el color de fondo." />
+                </div>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -173,7 +182,10 @@ export default function WalletDesignSettings({ tenantSlug, initial }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label className={labelCls}>URL del logo</Label>
+              <div className="flex items-center gap-1.5">
+                <Label className={labelCls}>URL del logo</Label>
+                <FieldHint description="URL de tu logo que aparecerá en la tarjeta. Usá un formato cuadrado (mínimo 200x200px)." />
+              </div>
               <Input
                 value={walletLogoUrl}
                 onChange={e => setWalletLogoUrl(e.target.value)}
@@ -229,8 +241,11 @@ export default function WalletDesignSettings({ tenantSlug, initial }: Props) {
           <CardContent className="p-8 space-y-6">
             <div className="space-y-4 p-6 rounded-2xl bg-muted/30 border border-border/40">
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
                   <Label className={labelCls}>Radio (metros)</Label>
+                  <FieldHint description="Radio en metros desde tu local para activar la notificación de bienvenida. Recomendado: 200-500m en zona urbana." />
+                </div>
                   <Input
                     type="number"
                     value={geofenceRadius}

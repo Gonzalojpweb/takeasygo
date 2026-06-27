@@ -28,6 +28,10 @@ function isWindows() {
 }
 
 async function checkForUpdate() {
+    if (!config.autoUpdate) {
+        console.log('[UPDATE] Auto-update deshabilitado. Para habilitar, agregar "autoUpdate": true en config.json');
+        return;
+    }
     try {
         const url = `${config.apiUrl}/api/agent/version`;
         const response = await axios.get(url, { timeout: 5000 });
@@ -199,7 +203,8 @@ let config = {
     apiUrl: 'https://tu-dominio.com',
     tenantSlug: 'tu-restaurante',
     locationId: 'PEGAR_ID_DE_SEDE_AQUI',
-    pollInterval: 15000
+    pollInterval: 15000,
+    autoUpdate: false
 };
 
 // Carga o creación de configuración inicial
@@ -564,6 +569,17 @@ async function poll() {
             console.log(`[CONFIG] pollInterval actualizado a ${config.pollInterval}ms`);
         }
 
+        // --- DIAGNÓSTICO: SIEMPRE mostrar qué devuelve el servidor ---
+        const orderCount = (orders || []).length;
+        const printerCount = (printers || []).length;
+        const preCloseCount = (preCloseJobs || []).length;
+        console.log(`[POLL] órdenes=${orderCount} impresoras=${printerCount} preClose=${preCloseCount}`);
+
+        if (printerCount === 0) {
+            console.warn('[WARN] No hay impresoras configuradas para esta sede. El agente no puede imprimir nada.');
+            console.warn('[WARN] Verificar en el panel de TakeasyGO: Configuración > Impresoras > Agregar impresora.');
+        }
+
         // Procesar trabajos de pre-cierre primero
         if (preCloseJobs && preCloseJobs.length > 0) {
             console.log(`[POLL] ${preCloseJobs.length} trabajo(s) de cierre de turno detectado(s).`);
@@ -625,10 +641,12 @@ console.log(`
 ##########################################
 #   AGENTE DE IMPRESIÓN - TAKEASYGO      #
 ##########################################
-Estado:  Iniciado y Escuchando
-Tenant:  ${config.tenantSlug}
-Sede:    ${config.locationId}
-API:     ${config.apiUrl}
+Estado:   Iniciado y Escuchando
+Tenant:   ${config.tenantSlug}
+Sede:     ${config.locationId}
+API:      ${config.apiUrl}
+Intervalo: ${config.pollInterval}ms
+AutoUpdate: ${config.autoUpdate ? 'HABILITADO' : 'DESHABILITADO'}
 ------------------------------------------
 `);
 

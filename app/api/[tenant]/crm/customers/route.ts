@@ -7,9 +7,10 @@ import { safeDecrypt } from '@/lib/crypto'
 import { canAccess } from '@/lib/plans'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/[tenant]/crm/customers — Lista enriquecida con datos CIS (P1-P3)
+// GET /api/[tenant]/crm/customers — Lista enriquecida con filtros CIS
 // ─────────────────────────────────────────────────────────────────────────────
 // Devuelve consumers con segment + healthScore del CustomerProfile.
+// Soporta filtros: segment, healthScoreMin/Max, ltvMin/Max, lastOrderFrom/To.
 // CIS data es null si el customer no fue procesado por el cron todavía.
 
 const PAGE_SIZE = 50
@@ -36,10 +37,66 @@ export async function GET(
     const sortBy = url.searchParams.get('sortBy') || 'lastOrderAt'
     const sortOrder = url.searchParams.get('order') === 'asc' ? 1 : -1
 
-    const filter: Record<string, any> = { tenantIds: tenant._id }
+    // Filtros CIS
+    const segmentFilter = url.searchParams.get('segment') || ''
+    const healthScoreMin = url.searchParams.get('healthScoreMin')
+    const healthScoreMax = url.searchParams.get('healthScoreMax')
+    const ltvMin = url.searchParams.get('ltvMin')
+    const ltvMax = url.searchParams.get('ltvMax')
+    const lastOrderFrom = url.searchParams.get('lastOrderFrom')
+    const lastOrderTo = url.searchParams.get('lastOrderTo')
+
+    const hasCisFilters = segmentFilter || healthScoreMin || healthScoreMax || ltvMin || ltvMax || lastOrderFrom || lastOrderTo
+
+    // Si hay filtros CIS, primero buscar los phoneHashes que cumplen
+    let cisPhoneHashes: string[] | null = null
+    if (hasCisFilters) {
+      const cisFilter: Record<string, any> = { tenantId: tenant._id }
+
+      if (segmentFilter) {
+        const segments = segmentFilter.split(',').map(s => s.trim()).filter(Boolean)
+        cisFilter.segment = segments.length === 1 ? segments[0] : { $in: segments }
+      }
+
+      if (healthScoreMin || healthScoreMax) {
+        cisFilter['healthScore.total'] = {}
+        if (healthScoreMin) cisFilter['healthScore.total'].$gte = parseInt(healthScoreMin)
+        if (healthScoreMax) cisFilter['healthScore.total'].$lte = parseInt(healthScoreMax)
+      }
+
+      if (ltvMin || ltvMax) {
+        cisFilter.totalSpent = {}
+        if (ltvMin) cisFilter.totalSpent.$gte = parseInt(ltvMin)
+        if (ltvMax) cisFilter.totalSpent.$lte = parseInt(ltvMax)
+      }
+
+      if (lastOrderFrom || lastOrderTo) {
+        cisFilter.lastOrderAt = {}
+        if (lastOrderFrom) cisFilter.lastOrderAt.$gte = new Date(lastOrderFrom)
+        if (lastOrderTo) cisFilter.lastOrderAt.$lte = new Date(lastOrderTo)
+      }
+
+      const matchingProfiles = await CustomerProfile.find(cisFilter)
+        .select({ phoneHash: 1 })
+        .lean()
+
+      cisPhoneHashes = matchingProfiles.map((p: any) => p.phoneHash)
+
+      // Si no hay profiles que matcheen, devolver vacío
+      if (cisPhoneHashes.length === 0) {
+        return NextResponse.json({ consumers: [], total: 0, page: 1, pages: 0 })
+      }
+    }
+
+    // Construir filtro de Consumer
+    const consumerFilter: Record<string, any> = { tenantIds: tenant._id }
+
+    if (cisPhoneHashes) {
+      consumerFilter.phoneHash = { $in: cisPhoneHashes }
+    }
 
     if (search) {
-      filter.$or = [
+      consumerFilter.$or = [
         { name: { $regex: search, $options: 'i' } },
         { phone: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
@@ -56,12 +113,12 @@ export async function GET(
     }
 
     const [rawConsumers, total] = await Promise.all([
-      Consumer.find(filter)
+      Consumer.find(consumerFilter)
         .sort(sort)
         .skip((page - 1) * limit)
         .limit(limit)
         .lean(),
-      Consumer.countDocuments(filter),
+      Consumer.countDocuments(consumerFilter),
     ])
 
     // Obtener datos CIS (segment + healthScore) para el batch de consumers
@@ -73,7 +130,7 @@ export async function GET(
       phoneHash: { $in: phoneHashes },
       tenantId: tenant._id,
     })
-      .select({ phoneHash: 1, segment: 1, 'healthScore.total': 1 })
+      .select({ phoneHash: 1, segment: 1, 'healthScore.total': 1, totalSpent: 1, avgTicket: 1, visitFrequency: 1, daysSinceLastOrder: 1 })
       .lean()
 
     // Indexar profiles por phoneHash para lookup O(1)
@@ -97,6 +154,9 @@ export async function GET(
         // Datos CIS (null si no fue procesado)
         segment: profile?.segment ?? null,
         healthScore: profile?.healthScore?.total ?? null,
+        avgTicket: profile?.avgTicket ?? null,
+        visitFrequency: profile?.visitFrequency ?? null,
+        daysSinceLastOrder: profile?.daysSinceLastOrder ?? null,
       }
     })
 

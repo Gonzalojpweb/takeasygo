@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { Save, Settings, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import ImageUpload from './ImageUpload'
+import { FieldHint, BannerContext } from '@/components/ui/inline-guide'
 
 interface StoreConfig {
   enabled: boolean
@@ -112,6 +113,8 @@ export default function StoreSettings({ tenantSlug }: Props) {
       </CardHeader>
 
       <CardContent className="p-8 space-y-8">
+        <BannerContext module="tienda" />
+
         <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
@@ -141,9 +144,12 @@ export default function StoreSettings({ tenantSlug }: Props) {
         <div className={`space-y-6 transition-opacity ${config.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
-                Título de la Tienda
-              </Label>
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Título de la Tienda
+                </Label>
+                <FieldHint description="Nombre de tu tienda. Aparece en el carrusel de productos para los clientes." />
+              </div>
               <Input
                 value={config.title || ''}
                 onChange={e => setConfig({ ...config, title: e.target.value })}
@@ -155,9 +161,12 @@ export default function StoreSettings({ tenantSlug }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
-                Expiración de Códigos (horas)
-              </Label>
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                  Expiración de Códigos (horas)
+                </Label>
+                <FieldHint description="Horas antes de que el código de canje expire. 24-48h es lo estándar. Menos genera reclamos." />
+              </div>
               <div className="flex items-center gap-3">
                 <Clock size={16} className="text-muted-foreground" />
                 <Input
@@ -244,6 +253,12 @@ export default function StoreSettings({ tenantSlug }: Props) {
               onCheckedChange={(checked) => setConfig({ ...config, enableCheckoutRedemption: checked })}
               className="data-[state=checked]:bg-emerald-500"
             />
+          </div>
+
+          <div className="flex items-center gap-1.5 px-1">
+            <span className="text-xs text-muted-foreground/70 leading-relaxed">
+              📊 El costo en puntos de cada producto debe representar ~25% del ticket promedio multiplicado por las visitas necesarias. Ej: ticket $10,000, 4 visitas → 2,300 pts. Si activás canje online, asegurate de tener el mapeo de productos en POS (si usás Fudo).
+            </span>
           </div>
         </div>
 

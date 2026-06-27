@@ -27,6 +27,7 @@ interface CartInfo {
   total: number
   itemsCount: number
   orderMode?: string
+  phoneHash?: string  // CIS: vincula eventos a customer específico
 }
 
 interface OrderInfo {
@@ -35,6 +36,7 @@ interface OrderInfo {
   paymentMethod?: string
   itemsCount: number
   orderMode?: string
+  phoneHash?: string  // CIS: vincula eventos a customer específico
 }
 
 // ── Conversion Funnel ─────────────────────────────────────────────────────────
@@ -67,6 +69,7 @@ export function captureCheckoutStarted(cart: CartInfo) {
     cart_total: cart.total,
     cart_items_count: cart.itemsCount,
     order_mode: cart.orderMode || '',
+    phoneHash: cart.phoneHash || '',
   })
 }
 
@@ -77,6 +80,7 @@ export function captureOrderCompleted(order: OrderInfo) {
     payment_method: order.paymentMethod || '',
     items_count: order.itemsCount,
     order_mode: order.orderMode || '',
+    phoneHash: order.phoneHash || '',
   })
 }
 

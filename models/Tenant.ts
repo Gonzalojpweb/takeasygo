@@ -198,6 +198,15 @@ export interface ITenant extends Document {
     whatsappPhone: string | null
     notifyOnOrder: boolean
     notifyOnReservation: boolean
+    cis?: {
+      notifyAtRisk: boolean
+      notifyDormant: boolean
+      notifyNewVip: boolean
+      notifyFrequencyDrop: boolean
+      notifyRecovered: boolean
+      emailEnabled: boolean
+      pushEnabled: boolean
+    }
   }
   /** Labels personalizables por tenant para los badges de tipo de promoción (solo superadmin) */
   promotionLabels: {
@@ -520,6 +529,15 @@ const TenantSchema = new Schema<ITenant>(
       whatsappPhone: { type: String, default: null },
       notifyOnOrder: { type: Boolean, default: true },
       notifyOnReservation: { type: Boolean, default: true },
+      cis: {
+        notifyAtRisk: { type: Boolean, default: true },
+        notifyDormant: { type: Boolean, default: true },
+        notifyNewVip: { type: Boolean, default: true },
+        notifyFrequencyDrop: { type: Boolean, default: true },
+        notifyRecovered: { type: Boolean, default: true },
+        emailEnabled: { type: Boolean, default: true },
+        pushEnabled: { type: Boolean, default: true },
+      },
     },
     /** Labels de tipo de promoción — configurables solo por superadmin */
     promotionLabels: {

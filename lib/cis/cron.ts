@@ -27,6 +27,7 @@ import { detectSignals } from './signals'
 import { classifySegment, computeTenantStats } from './segmentation'
 import { saveHealthScoreSnapshot } from './history'
 import { captureSegmentChanged, captureSignalDetected, captureHealthScoreChanged } from './events'
+import { notifyAtRiskCustomer, notifyDormantCustomer, notifyNewVipCustomer, notifyFrequencyDrop, notifyRecoveredCustomer } from './notifications'
 import type { CisAnalysisResult, CisConfig, CustomerCalcData } from './types'
 import { DEFAULT_CIS_CONFIG } from './types'
 
@@ -131,11 +132,56 @@ export async function processTenant(
         await captureSegmentChanged(consumer.phoneHash, tenantId, previousSegment, newSegment)
         segmentsChanged++
         eventsCreated++
+
+        // 2i. Notificaciones CIS: enviar alertas por cambios de segmento
+        const customerName = consumer.name ? (await import('@/lib/crypto')).safeDecrypt(consumer.name) : 'Cliente'
+        const notificationCtx = {
+          tenantId,
+          tenantName: '', // Se llena después si es necesario
+          tenantSlug: '',
+          customerName,
+          phoneHash: consumer.phoneHash,
+          segment: newSegment,
+          previousSegment,
+          healthScore: healthScore.total,
+          previousHealthScore: previousProfile?.healthScore?.total,
+          daysSinceLastOrder: metrics.daysSinceLastOrder ?? undefined,
+          avgOrderInterval: metrics.avgOrderInterval || undefined,
+          totalSpent: metrics.totalSpent,
+        }
+
+        // Notificar según el cambio de segmento
+        if (newSegment === 'AT_RISK' && previousSegment !== 'AT_RISK') {
+          notifyAtRiskCustomer(notificationCtx).catch(() => {})
+        } else if (newSegment === 'DORMANT' && previousSegment !== 'DORMANT') {
+          notifyDormantCustomer(notificationCtx).catch(() => {})
+        } else if (newSegment === 'VIP' && previousSegment !== 'VIP') {
+          notifyNewVipCustomer(notificationCtx).catch(() => {})
+        } else if (newSegment !== 'DORMANT' && previousSegment === 'DORMANT') {
+          notifyRecoveredCustomer(notificationCtx).catch(() => {})
+        }
       }
 
       for (const signal of signals) {
         await captureSignalDetected(consumer.phoneHash, tenantId, signal)
         eventsCreated++
+
+        // Notificar frequency_drop
+        if (signal === 'frequency_drop') {
+          const customerName = consumer.name ? (await import('@/lib/crypto')).safeDecrypt(consumer.name) : 'Cliente'
+          notifyFrequencyDrop({
+            tenantId,
+            tenantName: '',
+            tenantSlug: '',
+            customerName,
+            phoneHash: consumer.phoneHash,
+            segment: newSegment,
+            healthScore: healthScore.total,
+            daysSinceLastOrder: metrics.daysSinceLastOrder ?? undefined,
+            avgOrderInterval: metrics.avgOrderInterval || undefined,
+            totalSpent: metrics.totalSpent,
+          }).catch(() => {})
+        }
       }
 
       if (previousProfile && healthScore.total !== previousProfile.healthScore?.total) {
