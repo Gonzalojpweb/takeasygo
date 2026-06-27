@@ -49,6 +49,8 @@ interface Promotion {
   isFeatured: boolean
   scheduledStart?: string
   scheduledEnd?: string
+  activeTimeStart?: string
+  activeTimeEnd?: string
   customStyles?: {
     backgroundColor?: string
     textColor?: string
@@ -124,6 +126,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     isFeatured: false,
     scheduledStart: '',
     scheduledEnd: '',
+    activeTimeStart: '',
+    activeTimeEnd: '',
     maxRedemptions: '',
     locationId: locations[0]?._id || '',
     linkedCategoryIds: [] as string[],
@@ -398,6 +402,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       isFeatured: false,
       scheduledStart: '',
       scheduledEnd: '',
+      activeTimeStart: '',
+      activeTimeEnd: '',
       maxRedemptions: '',
       locationId: selectedLocation,
       linkedCategoryIds: [],
@@ -438,6 +444,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       isFeatured: promotion.isFeatured,
       scheduledStart: promotion.scheduledStart ? promotion.scheduledStart.split('T')[0] : '',
       scheduledEnd: promotion.scheduledEnd ? promotion.scheduledEnd.split('T')[0] : '',
+      activeTimeStart: promotion.activeTimeStart || '',
+      activeTimeEnd: promotion.activeTimeEnd || '',
       maxRedemptions: promotion.maxRedemptions?.toString() || '',
       locationId: promotion.locationId || locations[0]?._id || '',
       linkedCategoryIds: promotion.linkedCategoryIds || [],
@@ -1259,6 +1267,31 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                     />
                   </div>
                 </div>
+
+                {(form.scheduledStart || form.scheduledEnd) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Hora inicio</Label>
+                      <Input
+                        type="time"
+                        value={form.activeTimeStart}
+                        onChange={e => setForm({ ...form, activeTimeStart: e.target.value })}
+                        className="mt-1.5"
+                        placeholder="Todo el día"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Hora fin</Label>
+                      <Input
+                        type="time"
+                        value={form.activeTimeEnd}
+                        onChange={e => setForm({ ...form, activeTimeEnd: e.target.value })}
+                        className="mt-1.5"
+                        placeholder="Todo el día"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Terms only for sale */}
                 {form.type === 'sale' && (
