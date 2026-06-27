@@ -587,46 +587,17 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
               <h2 className="text-base font-bold tracking-tight" style={{ color: text }}>Promociones</h2>
             </div>
             
-            {featuredPromotions.length > 0 && (
-              <div className="mb-6">
-                <PromotionCarousel 
-                  promotions={featuredPromotions}
-                  tenantSlug={tenant.slug}
-                  onAdd={addPromotionToCart}
-                  primary={branding.primaryColor}
-                  bg={bg}
-                  textColor={text}
-                  mode="dine-in"
-                  variant="featured"
-                  typeLabels={tenant.promotionLabels}
-                  loyaltyMessaging={tenant.loyaltyMessaging}
-                />
-              </div>
-            )}
-
-            {regularPromotions.length > 0 && (
-              <div>
-                {featuredPromotions.length > 0 && (
-                  <div className="flex items-center justify-between mb-3 mt-4">
-                    <span className="text-[10px] font-bold tracking-wider uppercase opacity-60" style={{ color: text }}>
-                      Destacadas / Ofertas del día
-                    </span>
-                  </div>
-                )}
-                <PromotionCarousel 
-                  promotions={regularPromotions}
-                  tenantSlug={tenant.slug}
-                  onAdd={addPromotionToCart}
-                  primary={branding.primaryColor}
-                  bg={bg}
-                  textColor={text}
-                  mode="dine-in"
-                  variant="standard"
-                  typeLabels={tenant.promotionLabels}
-                  loyaltyMessaging={tenant.loyaltyMessaging}
-                />
-              </div>
-            )}
+            <PromotionCarousel
+              promotions={[...featuredPromotions, ...regularPromotions]}
+              tenantSlug={tenant.slug}
+              onAdd={addPromotionToCart}
+              primary={branding.primaryColor}
+              bg={bg}
+              textColor={text}
+              mode="dine-in"
+              typeLabels={tenant.promotionLabels}
+              loyaltyMessaging={tenant.loyaltyMessaging}
+            />
           </section>
         )}
 
