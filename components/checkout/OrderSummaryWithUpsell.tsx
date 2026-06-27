@@ -23,8 +23,8 @@ export default function OrderSummaryWithUpsell() {
         {cart.map((item) => {
           const hasCustomizations = item.customizations.length > 0
           return (
-            <div key={item.cartItemId} className="flex items-center gap-3">
-              <div className="flex items-center gap-2 flex-shrink-0">
+            <div key={item.cartItemId} className="flex items-start gap-3">
+              <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
                 <button
                   type="button"
                   onClick={() => decreaseQty(item.cartItemId)}
@@ -46,22 +46,33 @@ export default function OrderSummaryWithUpsell() {
                 )}
               </div>
 
+              {item.imageUrl && (
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="w-12 h-12 object-cover rounded-xl flex-shrink-0"
+                />
+              )}
+
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {item.type === 'promotion' && (
                     <span className="text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded bg-blue-100 text-blue-700 leading-none">Promo</span>
                   )}
-                  <p className="text-sm font-medium text-zinc-700 truncate">{item.name}</p>
+                  <p className="text-sm font-medium text-zinc-700 break-words">{item.name}</p>
                 </div>
+                {item.description && (
+                  <p className="text-xs text-zinc-400 break-words mt-0.5">{item.description}</p>
+                )}
                 {item.customizationSummary && (
-                  <p className="text-xs text-zinc-400 truncate">{item.customizationSummary}</p>
+                  <p className="text-xs text-zinc-400 break-words mt-0.5">{item.customizationSummary}</p>
                 )}
                 {!item.customizationSummary && item.selectedVariant && (
-                  <p className="text-xs text-zinc-400 truncate">{item.selectedVariant.name}</p>
+                  <p className="text-xs text-zinc-400 break-words mt-0.5">{item.selectedVariant.name}</p>
                 )}
               </div>
 
-              <span className="text-sm font-semibold text-zinc-800 flex-shrink-0">
+              <span className="text-sm font-semibold text-zinc-800 flex-shrink-0 pt-0.5">
                 ${(item.price * item.quantity).toLocaleString('es-AR')}
               </span>
             </div>

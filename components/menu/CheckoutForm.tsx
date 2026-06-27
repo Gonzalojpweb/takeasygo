@@ -602,9 +602,9 @@ async function handleSubmit(e: React.FormEvent) {
               {cart.map((item: CartItem) => {
                 const hasCustomizations = item.customizations.length > 0
                 return (
-                  <div key={item.cartItemId} className="flex items-center gap-3">
+                  <div key={item.cartItemId} className="flex items-start gap-3">
                     {/* Controles de cantidad */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
                       <button
                         type="button"
                         onClick={() => decreaseQty(item.cartItemId)}
@@ -629,31 +629,34 @@ async function handleSubmit(e: React.FormEvent) {
 
                     {/* Nombre e info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         {item.type === 'promotion' && (
                           <span className="text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded bg-blue-100 text-blue-700 leading-none">Promo</span>
                         )}
-                        <p className="text-sm font-medium text-zinc-700 truncate">{item.name}</p>
+                        <p className="text-sm font-medium text-zinc-700 break-words">{item.name}</p>
                       </div>
+                      {item.description && (
+                        <p className="text-xs text-zinc-400 break-words mt-0.5">{item.description}</p>
+                      )}
                       {(item as any)._promotionShortDescription && (
-                        <p className="text-[10px] text-zinc-400 truncate italic">{(item as any)._promotionShortDescription}</p>
+                        <p className="text-[10px] text-zinc-400 break-words italic mt-0.5">{(item as any)._promotionShortDescription}</p>
                       )}
                       {(item as any)._itemName && item.customizationSummary && (
-                        <p className="text-xs text-zinc-400 truncate">{(item as any)._itemName} · {item.customizationSummary}</p>
+                        <p className="text-xs text-zinc-400 break-words mt-0.5">{(item as any)._itemName} · {item.customizationSummary}</p>
                       )}
                       {!(item as any)._itemName && item.customizationSummary && (
-                        <p className="text-xs text-zinc-400 truncate">{item.customizationSummary}</p>
+                        <p className="text-xs text-zinc-400 break-words mt-0.5">{item.customizationSummary}</p>
                       )}
                       {!item.customizationSummary && item.selectedVariant && (
-                        <p className="text-xs text-zinc-400 truncate">{item.selectedVariant.name}</p>
+                        <p className="text-xs text-zinc-400 break-words mt-0.5">{item.selectedVariant.name}</p>
                       )}
                       {(item as any)._itemName && !item.customizationSummary && !item.selectedVariant && (
-                        <p className="text-xs text-zinc-400 truncate">{(item as any)._itemName}</p>
+                        <p className="text-xs text-zinc-400 break-words mt-0.5">{(item as any)._itemName}</p>
                       )}
                     </div>
 
                     {/* Subtotal */}
-                    <span className="text-sm font-semibold text-zinc-800 flex-shrink-0">
+                    <span className="text-sm font-semibold text-zinc-800 flex-shrink-0 pt-0.5">
                       ${(item.price * item.quantity).toLocaleString('es-AR')}
                     </span>
                   </div>

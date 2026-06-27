@@ -23,6 +23,8 @@ export interface CartItem {
   menuItemId?: string
   promotionId?: string         // ID de la promoción si type === 'promotion'
   name: string
+  description?: string
+  imageUrl?: string
   basePrice: number
   extraPrice: number           // sum of selected options' extraPrice
   price: number                // basePrice + extraPrice

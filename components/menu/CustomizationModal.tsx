@@ -274,6 +274,11 @@ export default function CustomizationModal({
             <h1 className="text-2xl font-bold text-white drop-shadow-md">
               {item.name}
             </h1>
+            {item.description && (
+              <p className="text-sm text-white/70 mt-1 line-clamp-2 drop-shadow-sm">
+                {item.description}
+              </p>
+            )}
             {unitLabel && <p className="text-white/80 mt-1">{unitLabel}</p>}
           </div>
         </div>

@@ -97,7 +97,20 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [showCartPopup, setShowCartPopup] = useState(false)
-  const [cart, setCart] = useState<CartItem[]>([])
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = sessionStorage.getItem('cart')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        return parsed.map((item: any) => ({
+          ...item,
+          type: item.type || (item.promotionId ? 'promotion' : 'menuItem'),
+        }))
+      }
+    } catch {}
+    return []
+  })
   const [customizingItem, setCustomizingItem] = useState<any | null>(null)
   const [promoItemSelection, setPromoItemSelection] = useState<{
     promo: any
