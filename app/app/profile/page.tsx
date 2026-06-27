@@ -1,7 +1,7 @@
 'use client'
 
 import { signIn, signOut, useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle, MapPin, X, Loader2 } from 'lucide-react'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
@@ -39,6 +39,8 @@ interface SuggestedClub {
 export default function ProfilePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/'
   const { tenantSlug } = useTenant()
   const loading = status === 'loading'
   const [showAddressSelector, setShowAddressSelector] = useState(false)
@@ -108,7 +110,7 @@ export default function ProfilePage() {
             </button>
 
             <button
-              onClick={() => signIn('google')}
+              onClick={() => signIn('google', { callbackUrl })}
               className="w-full flex items-center justify-center gap-3 py-3.5 bg-white text-zinc-900 rounded-2xl font-bold shadow-sm border border-zinc-200 transition-transform active:scale-95"
             >
               <Image 
