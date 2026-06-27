@@ -71,6 +71,14 @@ export async function POST(
         return NextResponse.json({ error: 'Miembro no activo' }, { status: 400 })
       }
 
+      // Bloquear canje si el miembro tiene un adelanto SOS pendiente
+      if (member.sosConfig?.hasPendingSos && (member.sosConfig?.sosUsed || 0) > 0) {
+        await session.abortTransaction()
+        return NextResponse.json({
+          error: 'Tenés un adelanto de puntos pendiente. Completá una compra para consolidar tu saldo antes de canjear.',
+        }, { status: 400 })
+      }
+
       // Buscar item
       const item = await StoreItem.findOne({ _id: storeItemId, tenantId: tenant._id, isActive: true }).session(session)
       if (!item) {
@@ -179,20 +187,51 @@ export async function POST(
       await redemption.save({ session })
 
       // Deductir puntos del miembro
-      await LoyaltyMember.updateOne(
-        { _id: memberId },
-        {
-          $inc: {
-            'loyalty.points': -item.pointsCost,
-            'store.totalRedemptions': 1,
-            'store.totalPointsSpent': item.pointsCost,
+      // Micro-SOS: si el saldo queda en exactamente 0, forzar un adelanto pequeño
+      // para que el miembro siempre tenga una deuda que consolidar y deba volver
+      const projectedBalance = member.loyalty.points - item.pointsCost
+      let microSosApplied = false
+      let microSosAmount = 0
+
+      if (projectedBalance === 0) {
+        // El micro-SOS es el 20% del costo del premio (per matrices.md),
+        // pero nunca mayor al sosLimit del tenant
+        const sosLimit = tenant.loyalty?.sosLimit ?? 250
+        microSosAmount = Math.min(Math.ceil(item.pointsCost * 0.2), sosLimit)
+        microSosApplied = true
+
+        await LoyaltyMember.updateOne(
+          { _id: memberId },
+          {
+            $inc: {
+              'loyalty.points': -item.pointsCost,
+              'store.totalRedemptions': 1,
+              'store.totalPointsSpent': item.pointsCost,
+            },
+            $set: {
+              'store.lastRedemptionAt': new Date(),
+              'sosConfig.hasPendingSos': true,
+              'sosConfig.sosUsed': microSosAmount,
+            },
           },
-          $set: {
-            'store.lastRedemptionAt': new Date(),
+          { session }
+        )
+      } else {
+        await LoyaltyMember.updateOne(
+          { _id: memberId },
+          {
+            $inc: {
+              'loyalty.points': -item.pointsCost,
+              'store.totalRedemptions': 1,
+              'store.totalPointsSpent': item.pointsCost,
+            },
+            $set: {
+              'store.lastRedemptionAt': new Date(),
+            },
           },
-        },
-        { session }
-      )
+          { session }
+        )
+      }
 
       // Actualizar stock del item
       if (item.stock !== null) {
@@ -227,8 +266,10 @@ export async function POST(
         item,
         member: {
           name: member.name,
-          points: member.loyalty.points - item.pointsCost,
-        }
+          points: microSosApplied ? 0 : member.loyalty.points - item.pointsCost,
+        },
+        microSosApplied,
+        pendingAdvance: microSosAmount,
       })
 
     } catch (error) {

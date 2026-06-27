@@ -129,6 +129,11 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
       
       // Update points
       setPoints(data.member?.points ?? points - items.find(i => i._id === itemId)!.pointsCost)
+
+      // Mostrar mensaje si se aplicó micro-SOS (adelanto forzado)
+      if (data.microSosApplied && data.pendingAdvance > 0) {
+        toast.success(`Canje exitoso. Tenés ${data.pendingAdvance} puntos pendientes para consolidar en tu próxima compra.`, { duration: 6000 })
+      }
     } catch (err: any) {
       toast.error(err.message || 'Error al canjear')
     }
