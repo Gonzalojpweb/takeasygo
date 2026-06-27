@@ -29,6 +29,9 @@ export async function GET(
     // Tenant-specific promotions
     const tenantPromos: any = { scope: 'tenant', tenantId }
 
+    // Legacy promotions without scope field
+    const legacyPromos: any = { scope: { $exists: false }, tenantId }
+
     // Global promotions targeting this tenant (or all tenants)
     const globalPromos: any = {
       scope: 'global',
@@ -56,7 +59,7 @@ export async function GET(
     }
 
     const promotions = await Promotion.find({
-      $or: [tenantPromos, globalPromos],
+      $or: [tenantPromos, legacyPromos, globalPromos],
     }).sort({ sortOrder: 1, createdAt: -1 })
 
     return NextResponse.json({ promotions })
