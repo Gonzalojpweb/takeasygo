@@ -37,8 +37,12 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
       return
     }
     try {
-      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${source}${urlPromoSlug ? `&promo=${urlPromoSlug}` : ''}&_=${Date.now()}`
+      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${effectiveSource}${urlPromoSlug ? `&promo=${urlPromoSlug}` : ''}&_=${Date.now()}`
       const res = await fetch(apiUrl)
+      if (!res.ok) {
+        console.error(`QR promo fetch failed: ${res.status} ${res.statusText}`)
+        return
+      }
       const data = await res.json()
       if (data.show && data.promo) {
         const slug = data.resolvedSlug || urlPromoSlug
@@ -54,7 +58,7 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
             tenantSlug,
             checkoutDiscountLabel: data.promo.checkoutDiscountLabel || 'Descuento QR',
             promoSlug: slug || undefined,
-            source: source || undefined,
+            source: effectiveSource || undefined,
           }))
         }
       }

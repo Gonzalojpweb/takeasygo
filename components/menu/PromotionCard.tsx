@@ -621,29 +621,32 @@ export function PromotionCarousel({
         onScroll={handleScroll}
         onPointerDown={handlePointerDown}
       >
-        {promotions.map((promo) => (
-          <div
-            key={promo._id}
-            className="flex-shrink-0 snap-start"
-            style={{
-              width: isFeatured ? 'calc(92% - 6px)' : 'calc(88% - 5px)',
-              maxWidth: isFeatured ? '400px' : '320px',
-            }}
-          >
-            <PromotionCard
-              promotion={promo}
-              tenantSlug={tenantSlug}
-              onAdd={onAdd}
-              primary={primary}
-              bg={bg}
-              textColor={textColor}
-              mode={mode}
-              variant={variant}
-              typeLabels={typeLabels}
-              loyaltyMessaging={loyaltyMessaging}
-            />
-          </div>
-        ))}
+        {promotions.map((promo) => {
+          const cardIsFeatured = promo.isFeatured
+          return (
+            <div
+              key={promo._id}
+              className="flex-shrink-0 snap-start"
+              style={{
+                width: cardIsFeatured ? 'calc(92% - 6px)' : 'calc(88% - 5px)',
+                maxWidth: cardIsFeatured ? '400px' : '320px',
+              }}
+            >
+              <PromotionCard
+                promotion={promo}
+                tenantSlug={tenantSlug}
+                onAdd={onAdd}
+                primary={primary}
+                bg={bg}
+                textColor={textColor}
+                mode={mode}
+                variant={cardIsFeatured ? 'featured' : 'standard'}
+                typeLabels={typeLabels}
+                loyaltyMessaging={loyaltyMessaging}
+              />
+            </div>
+          )
+        })}
       </div>
 
       {/* Dots + progress */}
