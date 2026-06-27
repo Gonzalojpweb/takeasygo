@@ -55,7 +55,19 @@ export default function ProfileContent() {
   const [clubsLoading, setClubsLoading] = useState(false)
 
   useEffect(() => {
+    if (callbackUrl && callbackUrl !== '/') {
+      localStorage.setItem('auth_pending_redirect', callbackUrl)
+    }
+  }, [])
+
+  useEffect(() => {
     if (session) {
+      const pendingRedirect = localStorage.getItem('auth_pending_redirect')
+      if (pendingRedirect && pendingRedirect !== window.location.href) {
+        localStorage.removeItem('auth_pending_redirect')
+        router.push(pendingRedirect)
+        return
+      }
       setClubsLoading(true)
       fetch('/api/explore/loyalty/clubs')
         .then(res => res.json())
