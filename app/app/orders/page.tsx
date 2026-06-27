@@ -64,7 +64,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/app/profile')
+      router.push(`/app/profile?callbackUrl=${encodeURIComponent(window.location.href)}`)
       return
     }
 
