@@ -200,9 +200,9 @@ rm -f "${script}"
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 
 let config = {
-    apiUrl: 'https://tu-dominio.com',
-    tenantSlug: 'tu-restaurante',
-    locationId: 'PEGAR_ID_DE_SEDE_AQUI',
+    apiUrl: null,
+    tenantSlug: null,
+    locationId: null,
     pollInterval: 15000,
     autoUpdate: false
 };
@@ -218,6 +218,15 @@ if (fs.existsSync(CONFIG_PATH)) {
 } else {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
     console.log('✅ Creado config.json por defecto.');
+}
+
+if (!config.apiUrl || !config.tenantSlug || !config.locationId ||
+    config.tenantSlug.startsWith('TU-') || config.locationId.startsWith('TU-')) {
+    console.log('');
+    console.log('⚠️  Configuracion no completada.');
+    console.log('    Ejecuta SETUP.bat para configurar el agente.');
+    console.log('');
+    process.exit(1);
 }
 
 // --- COMANDOS ESC/POS ---

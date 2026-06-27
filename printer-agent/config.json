@@ -1,6 +1,6 @@
 {
-  "apiUrl": "https://tu-dominio.com",
-  "tenantSlug": "tu-restaurante",
-  "locationId": "PEGAR_ID_DE_SEDE_AQUI",
+  "apiUrl": "https://takeasygo.com",
+  "tenantSlug": "TU-SLUG-DEL-RESTAURANTE",
+  "locationId": "TU-OBJECT-ID-DE-LA-SEDE",
   "pollInterval": 15000
 }
