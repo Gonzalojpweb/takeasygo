@@ -261,6 +261,34 @@ html.lenis body {
   color: var(--c-text);
 }
 
+/* Fix shadcn button variants inside consumer-dark */
+.consumer-dark [data-slot="button"][data-variant="outline"] {
+  background: var(--c-surface);
+  border-color: var(--c-border-active);
+  color: var(--c-text);
+}
+.consumer-dark [data-slot="button"][data-variant="outline"]:hover {
+  background: var(--c-surface-elevated);
+  color: var(--c-text);
+}
+.consumer-dark [data-slot="button"][data-variant="outline"]:disabled {
+  opacity: 0.6;
+}
+.consumer-dark [data-slot="button"][data-variant="ghost"] {
+  color: var(--c-text-secondary);
+}
+.consumer-dark [data-slot="button"][data-variant="ghost"]:hover {
+  background: var(--c-surface-elevated);
+  color: var(--c-text);
+}
+.consumer-dark [data-slot="button"][data-variant="secondary"] {
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+.consumer-dark [data-slot="button"][data-variant="destructive"] {
+  color: white;
+}
+
 /* Glass card with blur */
 .glass-card {
   background: var(--c-surface-glass);

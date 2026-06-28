@@ -47,6 +47,10 @@ interface ClubData {
   clubName: string
   welcomeMessage: string
   message?: string
+  branding?: {
+    primaryColor: string
+    secondaryColor: string
+  }
 }
 
 function ClubContent({ tenantSlug }: { tenantSlug: string }) {
@@ -148,18 +152,19 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="w-fit mb-6 text-[#5a524d]"
+          aria-label="Volver atrás"
+          className="w-fit mb-6 text-[#a8a29e] hover:text-[#f7f4f2]"
         >
           <ArrowLeft size={20} className="mr-2" />
           Volver
         </Button>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <AlertCircle size={48} className="text-[#5a524d] mb-4" />
+          <AlertCircle size={48} className="text-[#a8a29e] mb-4" />
           <h2 className="text-xl font-bold text-[#f7f4f2] mb-2">
             Club no disponible
           </h2>
-          <p className="text-[#5a524d] text-sm">
+          <p className="text-[#a8a29e] text-sm">
             Este restaurante no tiene el club de fidelización activo.
           </p>
         </div>
@@ -177,6 +182,11 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
           memberId={clubData.member.id}
           memberPoints={clubData.member.points}
           memberTier={clubData.member.tier}
+          tenantBranding={clubData.branding ? {
+            primaryColor: clubData.branding.primaryColor,
+            secondaryColor: clubData.branding.secondaryColor,
+            logoUrl: '',
+          } : undefined}
           onBack={() => router.replace(`${pathname}?tab=club`)}
         />
       ) : currentTab === 'canjes' && clubData?.member ? (
@@ -191,7 +201,8 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
             <Button
               variant="ghost"
               onClick={() => router.back()}
-              className="w-fit mb-4 text-[#5a524d]"
+              aria-label="Volver atrás"
+              className="w-fit mb-4 text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-2 focus-visible:ring-[#a8a29e]"
             >
               <ArrowLeft size={20} className="mr-2" />
               Volver
@@ -201,42 +212,59 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
               {clubData?.clubName || 'Club de Fidelización'}
             </h1>
             {clubData?.welcomeMessage && (
-              <p className="text-[#5a524d] text-sm">{clubData.welcomeMessage}</p>
+              <p className="text-[#a8a29e] text-sm">{clubData.welcomeMessage}</p>
             )}
           </div>
 
           {clubData?.member && (
             <div className="px-6 pb-4">
-              <div className="flex items-center gap-2 bg-zinc-900/50 rounded-xl p-1">
+              <div 
+                className="flex items-center gap-2 rounded-xl p-1"
+                role="tablist"
+                aria-label="Navegación del club"
+                style={{ backgroundColor: `${clubData.branding?.primaryColor || '#000'}15` }}
+              >
                 <button
+                  role="tab"
+                  aria-selected={currentTab === 'club'}
+                  aria-controls="panel-club"
                   onClick={() => router.replace(`${pathname}?tab=club`)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                     currentTab === 'club'
-                      ? 'bg-[#f14722] text-white shadow-lg'
-                      : 'text-[#5a524d] hover:text-[#f7f4f2]'
+                      ? 'text-white shadow-lg'
+                      : 'text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-[#a8a29e]'
                   }`}
+                  style={currentTab === 'club' ? { backgroundColor: clubData.branding?.primaryColor || '#f14722' } : undefined}
                 >
                   <Trophy size={16} />
                   Club
                 </button>
                 <button
+                  role="tab"
+                  aria-selected={currentTab === 'store'}
+                  aria-controls="panel-store"
                   onClick={() => router.replace(`${pathname}?tab=store`)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                     currentTab === 'store'
-                      ? 'bg-[#f14722] text-white shadow-lg'
-                      : 'text-[#5a524d] hover:text-[#f7f4f2]'
+                      ? 'text-white shadow-lg'
+                      : 'text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-[#a8a29e]'
                   }`}
+                  style={currentTab === 'store' ? { backgroundColor: clubData.branding?.primaryColor || '#f14722' } : undefined}
                 >
                   <Gift size={16} />
                   Tienda
                 </button>
                 <button
+                  role="tab"
+                  aria-selected={currentTab === 'canjes'}
+                  aria-controls="panel-canjes"
                   onClick={() => router.replace(`${pathname}?tab=canjes`)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                     currentTab === 'canjes'
-                      ? 'bg-[#f14722] text-white shadow-lg'
-                      : 'text-[#5a524d] hover:text-[#f7f4f2]'
+                      ? 'text-white shadow-lg'
+                      : 'text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-[#a8a29e]'
                   }`}
+                  style={currentTab === 'canjes' ? { backgroundColor: clubData.branding?.primaryColor || '#f14722' } : undefined}
                 >
                   <ShoppingBag size={16} />
                   Canjes
@@ -260,11 +288,11 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
             <div className="p-6">
               <Card className="border-[var(--c-border)] bg-[var(--c-surface)]">
                 <CardContent className="p-6 text-center">
-                  <Trophy size={48} className="text-[#5a524d] mx-auto mb-4" />
+                  <Trophy size={48} className="text-[#a8a29e] mx-auto mb-4" />
                   <h3 className="text-lg font-bold text-[#f7f4f2] mb-2">
                     No sos miembro del club
                   </h3>
-                  <p className="text-[#5a524d] text-sm mb-6">
+                  <p className="text-[#a8a29e] text-sm mb-6">
                     Unite al club para acumular puntos en cada compra y obtener beneficios exclusivos.
                   </p>
                   <Button
@@ -325,7 +353,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <ShoppingBag size={18} className="text-[#f14722]" />
-                      <p className="text-[10px] text-[#5a524d] uppercase tracking-wider">
+                      <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider">
                         Pedidos
                       </p>
                     </div>
@@ -339,7 +367,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <DollarSign size={18} className="text-emerald-500" />
-                      <p className="text-[10px] text-[#5a524d] uppercase tracking-wider">
+                      <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider">
                         Gastado
                       </p>
                     </div>
@@ -354,9 +382,9 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
                 <Card className="border-[var(--c-border)] bg-[var(--c-surface)]">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2">
-                      <Calendar size={18} className="text-[#5a524d]" />
+                      <Calendar size={18} className="text-[#a8a29e]" />
                       <div>
-                        <p className="text-[10px] text-[#5a524d] uppercase tracking-wider">
+                        <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider">
                           Último pedido
                         </p>
                         <p className="text-sm text-[#f7f4f2]">
@@ -374,7 +402,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
 
               {clubData.walletEnabled && (
                 <div className="space-y-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[#5a524d]">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[#a8a29e]">
                     Billetera Digital
                   </h3>
                   <div className="flex items-start gap-3 p-4 bg-violet-50 rounded-xl border border-violet-100">

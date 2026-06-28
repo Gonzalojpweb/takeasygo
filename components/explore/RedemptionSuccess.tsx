@@ -77,7 +77,8 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
         <Button
           onClick={onBack}
           variant="ghost"
-          className="mb-4"
+          aria-label="Volver a la tienda"
+          className="mb-4 focus-visible:ring-2 focus-visible:ring-primary"
         >
           <ArrowLeft size={18} className="mr-2" />
           Volver
@@ -115,6 +116,8 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
                   size="icon"
                   variant="ghost"
                   onClick={handleCopyCode}
+                  aria-label={copied ? 'Código copiado' : 'Copiar código de redención'}
+                  className="focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   {copied ? <CheckCircle size={16} className="text-emerald-600" /> : <Copy size={16} />}
                 </Button>
@@ -143,7 +146,8 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
             <Button
               onClick={handleShare}
               variant="outline"
-              className="w-full mb-3"
+              aria-label="Compartir canje"
+              className="w-full mb-3 focus-visible:ring-2 focus-visible:ring-primary"
             >
               <Share2 size={16} className="mr-2" />
               Compartir
@@ -160,18 +164,22 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => sendRedeemFeedback(true)}
+                    aria-label="El canje fue fácil, sí"
                     className={cn(
                       'flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm border-2 transition-all',
-                      'border-emerald-200 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50'
+                      'border-emerald-200 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2'
                     )}
                   >
                     <ThumbsUp size={16} /> Sí
                   </button>
                   <button
                     onClick={() => sendRedeemFeedback(false)}
+                    aria-label="El canje no fue fácil, no"
                     className={cn(
                       'flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm border-2 transition-all',
-                      'border-red-200 text-red-600 hover:border-red-400 hover:bg-red-50'
+                      'border-red-200 text-red-600 hover:border-red-400 hover:bg-red-50',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2'
                     )}
                   >
                     <ThumbsDown size={16} /> No

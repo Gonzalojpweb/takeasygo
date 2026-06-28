@@ -188,7 +188,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
             La tienda de recompensas no está habilitada en este momento.
           </p>
           {onBack && (
-            <Button onClick={onBack} variant="outline">
+            <Button onClick={onBack} variant="outline" aria-label="Volver al club">
               Volver
             </Button>
           )}
@@ -211,7 +211,8 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
                 onClick={onBack}
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-white/10"
+                aria-label="Volver al club"
+                className="text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white"
               >
                 <ArrowLeft size={24} />
               </Button>
@@ -230,7 +231,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
                 </div>
                 <div className="text-right">
                   <p className="text-3xl font-black text-white">{points}</p>
-                  <p className="text-xs text-white/80">Puntos disponibles</p>
+                  <p className="text-xs text-white font-medium">Puntos disponibles</p>
                 </div>
               </div>
               <Badge className="bg-white text-black font-bold">
@@ -247,22 +248,28 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
             />
           )}
 
-          <p className="text-white/80 text-sm">{config.description}</p>
+          <p className="text-white text-sm">{config.description}</p>
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Category Filters */}
-        <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
-          <Filter size={18} className="text-muted-foreground shrink-0" />
+        <div 
+          className="flex items-center gap-2 mb-6 overflow-x-auto pb-2"
+          role="tablist"
+          aria-label="Filtrar por categoría"
+        >
+          <Filter size={18} className="text-muted-foreground shrink-0" aria-hidden="true" />
           {CATEGORIES.map(cat => (
             <Button
               key={cat.value}
               size="sm"
+              role="tab"
+              aria-selected={filterCategory === cat.value}
               variant={filterCategory === cat.value ? 'default' : 'outline'}
               onClick={() => setFilterCategory(cat.value)}
-              className="shrink-0"
+              className="shrink-0 focus-visible:ring-2 focus-visible:ring-primary"
             >
               {cat.icon} {cat.label}
             </Button>
@@ -271,7 +278,8 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
             size="sm"
             variant="outline"
             onClick={() => setShowMyRedemptions(true)}
-            className="shrink-0 ml-auto"
+            aria-label="Ver mis canjes"
+            className="shrink-0 ml-auto focus-visible:ring-2 focus-visible:ring-primary"
           >
             Mis Canjes
           </Button>

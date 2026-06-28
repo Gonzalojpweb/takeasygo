@@ -105,8 +105,11 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
         
         {/* Points Badge */}
         <div className="absolute top-3 right-3">
-          <Badge className="bg-black/80 backdrop-blur-sm text-white font-bold px-3 py-1.5">
-            <Star size={14} className="fill-white mr-1" />
+          <Badge 
+            className="bg-black/90 backdrop-blur-sm text-white font-bold px-3 py-1.5"
+            aria-label={`${item.pointsCost} puntos requeridos`}
+          >
+            <Star size={14} className="fill-white mr-1" aria-hidden="true" />
             {item.pointsCost} pts
           </Badge>
         </div>
@@ -116,7 +119,8 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
           <div className="absolute top-3 left-3">
             <Badge 
               variant={inStock ? 'default' : 'destructive'}
-              className="bg-black/80 backdrop-blur-sm"
+              className="bg-black/90 backdrop-blur-sm"
+              aria-label={inStock ? `${item.stock} unidades disponibles` : 'Sin stock'}
             >
               {inStock ? `${item.stock} disponibles` : 'Sin stock'}
             </Badge>
@@ -179,7 +183,15 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
         <Button
           onClick={handleRedeem}
           disabled={!canRedeem || loading}
-          className="w-full"
+          aria-label={
+            loading ? 'Procesando canje' :
+            !canAfford ? `Puntos insuficientes para canjear ${item.name}` :
+            !meetsTier ? `Nivel insuficiente para canjear ${item.name}` :
+            !inStock ? `${item.name} sin stock` :
+            hasRecurrenceRequirement ? `${item.name} requiere compras recurrentes` :
+            `Canjear ${item.name} por ${item.pointsCost} puntos`
+          }
+          className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           variant={canRedeem ? 'default' : 'outline'}
         >
           {loading ? (
