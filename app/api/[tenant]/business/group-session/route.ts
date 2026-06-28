@@ -118,7 +118,7 @@ export async function POST(
           name: corpAccount.companyName,
           email: normalizedEmail,
           phone: '',
-          phoneHash: '',
+          phoneHash: null,
           tenantId: tenant._id,
           total: 0,
           createdAt: order.createdAt,
