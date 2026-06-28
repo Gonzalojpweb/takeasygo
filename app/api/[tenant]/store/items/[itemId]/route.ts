@@ -26,10 +26,18 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    const itemFilter = {
+      _id: itemId,
+      $or: [
+        { tenantId: tenant._id },
+        { scope: 'global', $or: [{ targetTenants: tenant._id }, { targetTenants: { $size: 0 } }] },
+      ],
+    }
+
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const item = await StoreItem.findOne({ _id: itemId, tenantId: tenant._id }).lean()
+    const item = await StoreItem.findOne(itemFilter).lean()
     if (!item) {
       return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
     }
@@ -54,12 +62,20 @@ export async function PUT(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    const itemFilter = {
+      _id: itemId,
+      $or: [
+        { tenantId: tenant._id },
+        { scope: 'global', $or: [{ targetTenants: tenant._id }, { targetTenants: { $size: 0 } }] },
+      ],
+    }
+
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
     const body = await request.json()
     const item = await StoreItem.findOneAndUpdate(
-      { _id: itemId, tenantId: tenant._id },
+      itemFilter,
       { $set: body },
       { new: true }
     )
@@ -88,10 +104,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    const itemFilter = {
+      _id: itemId,
+      $or: [
+        { tenantId: tenant._id },
+        { scope: 'global', $or: [{ targetTenants: tenant._id }, { targetTenants: { $size: 0 } }] },
+      ],
+    }
+
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const item = await StoreItem.findOneAndDelete({ _id: itemId, tenantId: tenant._id })
+    const item = await StoreItem.findOneAndDelete(itemFilter)
     if (!item) {
       return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
     }

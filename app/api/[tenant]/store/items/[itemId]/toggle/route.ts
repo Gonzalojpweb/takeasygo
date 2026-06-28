@@ -26,7 +26,13 @@ export async function PATCH(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const item = await StoreItem.findOne({ _id: itemId, tenantId: tenant._id })
+    const item = await StoreItem.findOne({
+      _id: itemId,
+      $or: [
+        { tenantId: tenant._id },
+        { scope: 'global', $or: [{ targetTenants: tenant._id }, { targetTenants: { $size: 0 } }] },
+      ],
+    })
     if (!item) {
       return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
     }
