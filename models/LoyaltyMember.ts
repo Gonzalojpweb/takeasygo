@@ -198,8 +198,11 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
 )
 
 // ── Índices compuestos ────────────────────────────────────────────────────────
-// Unicidad por tenant + teléfono: un cliente no puede unirse dos veces al mismo club
-LoyaltyMemberSchema.index({ tenantId: 1, phoneHash: 1 }, { unique: true, sparse: true })
+// Unicidad por tenant + teléfono: solo aplica cuando phoneHash es un string real
+LoyaltyMemberSchema.index(
+  { tenantId: 1, phoneHash: 1 },
+  { unique: true, partialFilterExpression: { phoneHash: { $type: 'string', $gt: '' } } }
+)
 LoyaltyMemberSchema.index({ tenantId: 1, email: 1 })
 LoyaltyMemberSchema.index({ tenantId: 1, status: 1, joinedAt: -1 })
 LoyaltyMemberSchema.index({ tenantId: 1, source: 1 })
