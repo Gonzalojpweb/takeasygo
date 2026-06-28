@@ -405,7 +405,7 @@ export default function ProfileContent() {
             </button>
 
             <button 
-              onClick={() => signOut()}
+              onClick={() => signOut({ callbackUrl: window.location.pathname })}
               className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group border-red-500/10 hover:border-red-500/30 transition-all mt-8"
             >
               <div className="w-10 h-10 rounded-xl bg-red-500/5 flex items-center justify-center text-red-500">

@@ -74,15 +74,23 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-background p-4">
       <div className="max-w-md mx-auto">
-        <Button
-          onClick={onBack}
-          variant="ghost"
-          aria-label="Volver a la tienda"
-          className="mb-4 focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <ArrowLeft size={18} className="mr-2" />
-          Volver
-        </Button>
+        <div className="flex gap-2 mb-4">
+          <Button
+            onClick={onBack}
+            variant="ghost"
+            aria-label="Volver a la tienda"
+            className="focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <ArrowLeft size={18} className="mr-2" />
+            Volver
+          </Button>
+          <a
+            href={`/${tenantSlug}`}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+          >
+            Ir al menú
+          </a>
+        </div>
 
         <Card className="border-2 border-emerald-200 overflow-hidden">
           <CardContent className="p-8 text-center">
