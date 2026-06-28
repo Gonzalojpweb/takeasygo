@@ -25,6 +25,7 @@ import {
   ShoppingBag,
   QrCode,
   BookOpen,
+  Printer,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -128,6 +129,7 @@ export default function SuperAdminSidebar() {
     {
       section: 'Sistema',
       items: [
+        { href: '/superadmin/printer-agent', label: 'Agente de Impresión', icon: Printer },
         { href: '/superadmin/configuracion', label: 'Configuración', icon: Settings },
       ],
     },
