@@ -4,40 +4,27 @@ export const authConfig = {
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 }, // 8 horas — SECURITY.md R-AUTH-05
   providers: [],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       if (account?.provider === 'google' || account?.provider === 'nodemailer') {
         const { connectDB } = await import('@/lib/mongoose')
         const User = (await import('@/models/User')).default
-
         await connectDB()
-
-        // Find or create user
         const existingUser = await User.findOne({ email: user.email })
-        
-        if (!existingUser) {
-          await User.create({
-            name: user.name || user.email?.split('@')[0] || 'Usuario',
-            email: user.email,
-            image: user.image,
-            role: 'consumer',
-            isActive: true,
-            emailVerified: account.provider === 'nodemailer' ? new Date() : null,
-          })
-        } else {
+        if (existingUser) {
+          let needsSave = false
           if (account.provider === 'nodemailer' && !existingUser.emailVerified) {
             existingUser.emailVerified = new Date()
-            await existingUser.save()
+            needsSave = true
           }
-          // Update profile picture if it changed
           if (user.image && existingUser.image !== user.image) {
             existingUser.image = user.image
-            await existingUser.save()
+            needsSave = true
           }
-          // Update name from Google if user had no name
           if (user.name && !existingUser.name) {
             existingUser.name = user.name
-            await existingUser.save()
+            needsSave = true
           }
+          if (needsSave) await existingUser.save()
         }
       }
       return true
@@ -54,29 +41,28 @@ export const authConfig = {
         token.image = user.image
         token.name = user.name || token.name
       }
-      else if (user && account?.provider === 'nodemailer') {
-        token.id = user.id
-        token.role = (user as any).role || 'consumer'
-      }
-      else if (token.email) {
-        const { connectDB } = await import('@/lib/mongoose')
-        const User = (await import('@/models/User')).default
-        const Tenant = (await import('@/models/Tenant')).default
-
-        await connectDB()
-        const dbUser = await User.findOne({ email: token.email })
-        if (dbUser) {
-          token.id = dbUser._id.toString()
-          token.role = dbUser.role || 'consumer'
-          token.tenantId = dbUser.tenantId?.toString() || null
-          token.assignedLocation = dbUser.assignedLocations?.[0]?.toString() || null
-          token.assignedLocations = dbUser.assignedLocations?.map((id: any) => id.toString()) || []
-          token.assignedTenants = dbUser.assignedTenants?.map((id: any) => id.toString()) || []
-          token.name = dbUser.name || token.name
-          
-          if (dbUser.tenantId) {
-            const tenant = await Tenant.findById(dbUser.tenantId).select('slug').lean<{ slug: string }>()
-            token.tenantSlug = tenant?.slug || null
+      else {
+        if (user || trigger === 'update') {
+          const email = user?.email || token.email
+          if (email) {
+            const { connectDB } = await import('@/lib/mongoose')
+            const User = (await import('@/models/User')).default
+            const Tenant = (await import('@/models/Tenant')).default
+            await connectDB()
+            const dbUser = await User.findOne({ email })
+            if (dbUser) {
+              token.id = dbUser._id.toString()
+              token.role = dbUser.role || 'consumer'
+              token.tenantId = dbUser.tenantId?.toString() || null
+              token.assignedLocation = dbUser.assignedLocations?.[0]?.toString() || null
+              token.assignedLocations = dbUser.assignedLocations?.map((id: any) => id.toString()) || []
+              token.assignedTenants = dbUser.assignedTenants?.map((id: any) => id.toString()) || []
+              token.name = dbUser.name || token.name
+              if (dbUser.tenantId) {
+                const tenant = await Tenant.findById(dbUser.tenantId).select('slug').lean<{ slug: string }>()
+                token.tenantSlug = tenant?.slug || null
+              }
+            }
           }
         }
       }

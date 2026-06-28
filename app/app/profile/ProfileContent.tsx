@@ -143,11 +143,10 @@ export default function ProfileContent() {
             {!showEmailForm ? (
               <button
                 onClick={() => setShowEmailForm(true)}
-                disabled
-                className="w-full flex items-center justify-center gap-3 py-3.5 bg-zinc-100 text-zinc-900 rounded-2xl font-bold transition-transform active:scale-95 opacity-50 cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 py-3.5 bg-zinc-100 text-zinc-900 rounded-2xl font-bold transition-transform active:scale-95"
               >
                 <LogIn size={20} className="text-zinc-600" />
-                Próximamente Email
+                Continuar con Email
               </button>
             ) : (
               <form
