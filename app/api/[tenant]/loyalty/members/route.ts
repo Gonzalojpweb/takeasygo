@@ -152,7 +152,7 @@ export async function POST(
     const cleanName   = String(name).trim().slice(0, 100)
     const cleanPhone  = phone ? String(phone).trim().slice(0, 30) : ''
     const cleanEmail  = email ? String(email).trim().toLowerCase().slice(0, 200) : ''
-    const phoneHash   = cleanPhone ? hashPhone(cleanPhone) : ''
+    const phoneHash   = cleanPhone ? hashPhone(cleanPhone) : null
 
     if (cleanPhone) {
       const existing = await LoyaltyMember.findOne({

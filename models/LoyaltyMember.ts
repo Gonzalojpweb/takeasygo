@@ -108,7 +108,7 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
     },
     phoneHash: {
       type:    String,
-      default: '',
+      default: null,
       index:   true,
     },
 

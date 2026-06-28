@@ -6,7 +6,7 @@ interface OrderConsumerData {
   name: string
   email: string
   phone: string
-  phoneHash: string
+  phoneHash: string | null
   tenantId: Types.ObjectId | string
   total: number
   createdAt: Date
