@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Star, CheckCircle2, Sparkles, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -41,6 +42,9 @@ export default function PromotionLoyaltyModal({
   const [understood, setUnderstood] = useState<'loading' | 'yes' | 'no' | null>(null)
   const [welcomePointsAwarded, setWelcomePointsAwarded] = useState(0)
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -96,7 +100,9 @@ export default function PromotionLoyaltyModal({
     }).catch(() => {})
   }
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
@@ -277,6 +283,7 @@ export default function PromotionLoyaltyModal({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }
