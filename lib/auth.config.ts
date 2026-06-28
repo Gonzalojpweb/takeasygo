@@ -4,6 +4,13 @@ export const authConfig = {
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 }, // 8 horas — SECURITY.md R-AUTH-05
   providers: [],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith('/')) return `${baseUrl}${url}`
+      try {
+        if (new URL(url).origin === new URL(baseUrl).origin) return url
+      } catch {}
+      return baseUrl
+    },
     async signIn({ user, account }) {
       if (account?.provider === 'google' || account?.provider === 'nodemailer') {
         const { connectDB } = await import('@/lib/mongoose')

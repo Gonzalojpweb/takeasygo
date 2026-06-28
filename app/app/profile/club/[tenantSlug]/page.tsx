@@ -69,7 +69,8 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push(`/app/profile?callbackUrl=${encodeURIComponent(window.location.href)}`)
+      const dest = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
+      router.push(`/app/profile?callbackUrl=${encodeURIComponent(dest)}`)
       return
     }
 

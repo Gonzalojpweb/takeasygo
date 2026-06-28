@@ -58,7 +58,7 @@ export default function ProfileContent() {
     if (callbackUrl && callbackUrl !== '/') {
       localStorage.setItem('auth_pending_redirect', callbackUrl)
     }
-  }, [])
+  }, [callbackUrl])
 
   useEffect(() => {
     if (session) {
