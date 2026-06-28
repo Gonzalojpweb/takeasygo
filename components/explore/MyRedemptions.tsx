@@ -96,7 +96,8 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack }: Props) {
         <Button
           onClick={onBack}
           variant="ghost"
-          className="mb-4"
+          aria-label="Volver a la tienda"
+          className="mb-4 focus-visible:ring-2 focus-visible:ring-primary"
         >
           <ArrowLeft size={18} className="mr-2" />
           Volver
@@ -112,25 +113,38 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack }: Props) {
 
           <CardContent className="p-8">
             {/* Filter Tabs */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            <div 
+              className="flex gap-2 mb-6 overflow-x-auto pb-2"
+              role="tablist"
+              aria-label="Filtrar por estado"
+            >
               <Button
                 size="sm"
+                role="tab"
+                aria-selected={filterStatus === 'all'}
                 variant={filterStatus === 'all' ? 'default' : 'outline'}
                 onClick={() => setFilterStatus('all')}
+                className="focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Todos
               </Button>
               <Button
                 size="sm"
+                role="tab"
+                aria-selected={filterStatus === 'pending'}
                 variant={filterStatus === 'pending' ? 'default' : 'outline'}
                 onClick={() => setFilterStatus('pending')}
+                className="focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Pendientes
               </Button>
               <Button
                 size="sm"
+                role="tab"
+                aria-selected={filterStatus === 'claimed'}
                 variant={filterStatus === 'claimed' ? 'default' : 'outline'}
                 onClick={() => setFilterStatus('claimed')}
+                className="focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Reclamados
               </Button>

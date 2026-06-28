@@ -26,7 +26,7 @@ export async function GET(
 
     // Buscar el tenant (necesario incluso sin sesión para saber si el club está habilitado)
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan loyalty wallet')
+      .select('_id plan loyalty wallet branding')
       .lean()
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -39,7 +39,11 @@ export async function GET(
         member: null,
         clubEnabled: tenant.loyalty?.enabled ?? false,
         walletEnabled: tenant.wallet?.enabled ?? false,
-        appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier)
+        appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier),
+        branding: {
+          primaryColor: tenant.branding?.primaryColor || '#f14722',
+          secondaryColor: tenant.branding?.secondaryColor || '#1a1816',
+        }
       })
     }
 
@@ -55,7 +59,11 @@ export async function GET(
         member: null,
         clubEnabled: false,
         walletEnabled: tenant.wallet?.enabled ?? false,
-        appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier)
+        appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier),
+        branding: {
+          primaryColor: tenant.branding?.primaryColor || '#f14722',
+          secondaryColor: tenant.branding?.secondaryColor || '#1a1816',
+        }
       })
     }
 
@@ -90,7 +98,11 @@ export async function GET(
         clubEnabled: true,
         walletEnabled: tenant.wallet?.enabled ?? false,
         appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier),
-        message: 'No sos miembro del club de fidelización de este restaurante'
+        message: 'No sos miembro del club de fidelización de este restaurante',
+        branding: {
+          primaryColor: tenant.branding?.primaryColor || '#f14722',
+          secondaryColor: tenant.branding?.secondaryColor || '#1a1816',
+        }
       })
     }
 
@@ -106,7 +118,11 @@ export async function GET(
         clubEnabled: true,
         walletEnabled: tenant.wallet?.enabled ?? false,
         appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier),
-        message: member.status === 'blocked' ? 'Tu membresía está bloqueada' : 'Tu membresía está inactiva'
+        message: member.status === 'blocked' ? 'Tu membresía está bloqueada' : 'Tu membresía está inactiva',
+        branding: {
+          primaryColor: tenant.branding?.primaryColor || '#f14722',
+          secondaryColor: tenant.branding?.secondaryColor || '#1a1816',
+        }
       })
     }
 
@@ -138,7 +154,11 @@ export async function GET(
       walletEnabled: tenant.wallet?.enabled ?? false,
       appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier),
       clubName: tenant.loyalty.clubName || `Club ${tenant.name}`,
-      welcomeMessage: tenant.loyalty.welcomeMessage || ''
+      welcomeMessage: tenant.loyalty.welcomeMessage || '',
+      branding: {
+        primaryColor: tenant.branding?.primaryColor || '#f14722',
+        secondaryColor: tenant.branding?.secondaryColor || '#1a1816',
+      }
     })
 
   } catch (error) {
