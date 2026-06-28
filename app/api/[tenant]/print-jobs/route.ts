@@ -38,7 +38,7 @@ export async function GET(
       locationId,
       deletedAt: null,
       printed: false,
-      status: { $in: ['confirmed', 'preparing'] },
+      status: { $in: ['confirmed', 'preparing', 'ready'] },
     })
       .select('orderNumber items total customer notes status payment createdAt locationId orderTiming scheduledPickupAt scheduledStatus orderMode')
       .lean()
