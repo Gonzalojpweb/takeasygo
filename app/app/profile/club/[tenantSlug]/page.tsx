@@ -60,6 +60,9 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const currentTab = searchParams.get('tab') || 'club'
+  const origin = searchParams.get('origin')
+  const locationId = searchParams.get('locationId')
+  const menuUrl = (origin === 'menu' && locationId) ? `/${tenantSlug}/menu/${locationId}` : null
 
   const [clubData, setClubData] = useState<ClubData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -188,12 +191,14 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
             logoUrl: '',
           } : undefined}
           onBack={() => router.replace(`${pathname}?tab=club`)}
+          menuUrl={menuUrl ?? undefined}
         />
       ) : currentTab === 'canjes' && clubData?.member ? (
         <MyRedemptions
           tenantSlug={tenantSlug}
           memberId={clubData.member.id}
           onBack={() => router.replace(`${pathname}?tab=club`)}
+          menuUrl={menuUrl ?? undefined}
         />
       ) : (
         <>
@@ -207,6 +212,18 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
               <ArrowLeft size={20} className="mr-2" />
               Volver
             </Button>
+
+            {menuUrl && (
+              <Button
+                variant="ghost"
+                onClick={() => router.push(menuUrl)}
+                aria-label="Volver al menú"
+                className="w-fit mb-4 text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-2 focus-visible:ring-[#a8a29e]"
+              >
+                <ArrowLeft size={18} className="mr-2" />
+                Volver al Menú
+              </Button>
+            )}
 
             <h1 className="text-2xl font-bold text-[#f7f4f2] mb-1">
               {clubData?.clubName || 'Club de Fidelización'}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -28,9 +29,11 @@ interface Props {
   tenantSlug: string
   memberId: string
   onBack: () => void
+  menuUrl?: string
 }
 
-export default function MyRedemptions({ tenantSlug, memberId, onBack }: Props) {
+export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }: Props) {
+  const router = useRouter()
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -102,6 +105,18 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack }: Props) {
           <ArrowLeft size={18} className="mr-2" />
           Volver
         </Button>
+
+        {menuUrl && (
+          <Button
+            onClick={() => router.push(menuUrl)}
+            variant="ghost"
+            aria-label="Volver al menú"
+            className="mb-4 focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <ArrowLeft size={18} className="mr-2" />
+            Volver al Menú
+          </Button>
+        )}
 
         <Card className="border-2 border-border/60 rounded-[2.5rem] overflow-hidden">
           <CardHeader className="p-8 border-b border-border/40 bg-muted/5">

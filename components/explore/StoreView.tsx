@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -51,6 +52,7 @@ interface Props {
     logoUrl: string
   }
   onBack?: () => void
+  menuUrl?: string
 }
 
 const CATEGORIES = [
@@ -61,7 +63,8 @@ const CATEGORIES = [
   { value: 'experience', label: 'Experiencia', icon: '🎟️' },
 ]
 
-export default function StoreView({ tenantSlug, memberId, memberPoints, memberTier, tenantBranding, onBack }: Props) {
+export default function StoreView({ tenantSlug, memberId, memberPoints, memberTier, tenantBranding, onBack, menuUrl }: Props) {
+  const router = useRouter()
   const [items, setItems] = useState<StoreItem[]>([])
   const [config, setConfig] = useState<StoreConfig | null>(null)
   const [loading, setLoading] = useState(true)
@@ -145,6 +148,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
         tenantSlug={tenantSlug}
         memberId={memberId}
         onBack={() => setShowMyRedemptions(false)}
+        menuUrl={menuUrl}
       />
     )
   }
@@ -212,6 +216,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
                 variant="ghost"
                 size="icon"
                 aria-label="Volver al club"
+                title="Volver al club"
                 className="text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white"
               >
                 <ArrowLeft size={24} />
@@ -221,6 +226,17 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
               {config.title}
             </h1>
           </div>
+
+          {menuUrl && (
+            <Button
+              onClick={() => router.push(menuUrl)}
+              variant="ghost"
+              className="w-fit mb-4 text-white/80 hover:text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <ArrowLeft size={18} className="mr-2" />
+              Volver al Menú
+            </Button>
+          )}
 
           {/* Points Balance */}
           <Card className="bg-white/10 backdrop-blur-sm border-white/20 p-4 mb-6">
