@@ -192,7 +192,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
             La tienda de recompensas no está habilitada en este momento.
           </p>
           {onBack && (
-            <Button onClick={onBack} variant="outline" aria-label="Volver al club">
+            <Button onClick={onBack} variant="outline" aria-label="Volver al club" className="text-white">
               Volver
             </Button>
           )}
@@ -231,7 +231,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
             <Button
               onClick={() => router.push(menuUrl)}
               variant="ghost"
-              className="w-fit mb-4 text-white/80 hover:text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white"
+              className="w-fit mb-4 text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white"
             >
               <ArrowLeft size={18} className="mr-2" />
               Volver al Menú
