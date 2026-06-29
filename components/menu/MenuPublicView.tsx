@@ -823,7 +823,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         )}
 
         {/* Store Points Carousel — hidden for company admin in business mode */}
-        {!isAdminCorp && <StoreCarousel tenantSlug={tenant.slug} memberPoints={memberPoints} />}
+        {!isAdminCorp && <StoreCarousel tenantSlug={tenant.slug} memberPoints={memberPoints} locationId={location._id} />}
 
         {/* Featured strip at top */}
         {featuredItems.length > 0 && (

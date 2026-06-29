@@ -16,9 +16,10 @@ interface StoreItem {
 interface Props {
   tenantSlug: string
   memberPoints: number
+  locationId?: string
 }
 
-export default function StoreCarousel({ tenantSlug, memberPoints }: Props) {
+export default function StoreCarousel({ tenantSlug, memberPoints, locationId }: Props) {
   const router = useRouter()
   const [items, setItems] = useState<StoreItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,13 +50,15 @@ export default function StoreCarousel({ tenantSlug, memberPoints }: Props) {
 
   if (loading || items.length === 0) return null
 
+  const storeUrl = `/app/profile/club/${tenantSlug}?tab=store&origin=menu${locationId ? `&locationId=${locationId}` : ''}`
+
   return (
     <div className="px-4 py-6 bg-gradient-to-b from-purple-50/50 to-transparent">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-gray-900">Canjeá tus puntos</h2>
         <button 
-          onClick={() => router.push(`/app/profile/club/${tenantSlug}?tab=store`)}
+          onClick={() => router.push(storeUrl)}
           className="flex items-center gap-1 text-sm font-medium text-orange-500 hover:text-orange-600 transition-colors"
         >
           Ver más
@@ -76,7 +79,7 @@ export default function StoreCarousel({ tenantSlug, memberPoints }: Props) {
         {items.map((item) => (
           <button
             key={item._id}
-          onClick={() => router.push(`/app/profile/club/${tenantSlug}?tab=store`)}
+          onClick={() => router.push(storeUrl)}
             className="flex-shrink-0 w-28 snap-start text-left group"
           >
             {/* Product Image */}
