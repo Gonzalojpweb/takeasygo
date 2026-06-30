@@ -6,7 +6,7 @@
 //   - Salt único por tenant
 // ============================================================================
 
-const PBKDF2_ITERATIONS = 600000 // OWASP recommendation for PBKDF2-SHA256
+export const PBKDF2_ITERATIONS = 600000 // OWASP recommendation for PBKDF2-SHA256
 const SALT_LENGTH = 16
 const IV_LENGTH = 12 // 96 bits recommended for AES-GCM
 const KEY_LENGTH = 256
@@ -105,6 +105,27 @@ export async function decrypt(
 // ============================================================================
 // IndexedDB Encryption Store — Para cifrar/decifrar objetos completos
 // ============================================================================
+
+/**
+ * Deriva una clave de cifrado para IndexedDB a partir del PIN de sesión del cajero.
+ *
+ * Según SECURITYPOS.md §7.2 + decisión sellada por Sirius:
+ *   - El PIN/password del login se descarta de memoria INMEDIATAMENTE tras derivar
+ *   - La clave derivada vive SOLO en memoria (nunca en IndexedDB)
+ *   - Al cerrar sesión, la referencia se pierde y la clave se descarta
+ *   - Los eventos cifrados quedan ilegibles hasta el próximo login del mismo cajero
+ *     → comportamiento esperado, no es bug
+ *
+ * @param sessionPin - PIN de sesión del cajero (se descarta tras la llamada)
+ * @param tenantSalt - Salt único por tenant (generado con generateSalt, almacenado en tenant config)
+ * @returns CryptoKey AES-256-GCM para usar en encryptStore/decryptStore
+ */
+export async function deriveSessionEncryptionKey(
+  sessionPin: string,
+  tenantSalt: Uint8Array
+): Promise<CryptoKey> {
+  return deriveKey(sessionPin, tenantSalt)
+}
 
 /**
  * Cifra un objeto JSON completo para almacenar en IndexedDB.
