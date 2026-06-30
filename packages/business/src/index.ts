@@ -7,11 +7,15 @@ export {
   verifyJwt,
   decodeJwt,
   isJwtExpiringSoon,
+  HUB_TOKEN_TTL_MS,
+  SPOKE_TOKEN_TTL_MS,
 } from "./jwt"
 export type { KeyPair } from "./jwt"
 export {
   generateSalt,
   deriveKey,
+  deriveSessionEncryptionKey,
+  PBKDF2_ITERATIONS,
   encrypt,
   decrypt,
   encryptStore,

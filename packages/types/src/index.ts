@@ -24,6 +24,7 @@ export interface JwtPair {
   accessToken: string
   refreshToken?: string
   expiresAt: number
+  deviceType: DeviceType
 }
 
 // ============================================================================
@@ -41,7 +42,7 @@ export interface Tenant {
 }
 
 export interface TenantConfig {
-  fiscalDriver: FiscalDriver
+  fiscalConfig: FiscalConfig
   paymentMethods: PaymentMethod[]
   offlineTimeout: number
   timezone: string
@@ -333,13 +334,25 @@ export type FiscalDriver = "printer" | "wsfe"
 
 export type ComprobanteType = "A" | "B" | "C" | "ticket"
 
-export interface AFIPConfig {
+export interface FiscalPrinterConfig {
+  driver: "printer"
+  connectionType: "serial" | "usb" | "tcp"
+  port?: string
+  ipAddress?: string
+  model: string
+  homologationNumber: string
+}
+
+export interface FiscalWSFEConfig {
+  driver: "wsfe"
   certificate: string
   privateKey: string
   endpoint: string
   cuit: string
   puntoVenta: number
 }
+
+export type FiscalConfig = FiscalPrinterConfig | FiscalWSFEConfig
 
 export interface FiscalDocument {
   id: string
@@ -504,7 +517,7 @@ export interface POSConfig {
   socketUrl: string
   lanPort: number
   offlineTimeout: number
-  fiscalDriver: FiscalDriver
+  fiscalConfig: FiscalConfig
   paymentMethods: PaymentMethod[]
   menuVersion: number
   lastSyncAt?: Date

@@ -2,6 +2,14 @@ import { createSign, createVerify, generateKeyPairSync } from "node:crypto"
 import type { JwtPayload } from "@takeasygo/types"
 
 // ============================================================================
+// TTL Constants — Según SECURITYPOS.md sección 4.2
+// Usar estas constantes en lugar de números hardcodeados.
+// ============================================================================
+
+export const HUB_TOKEN_TTL_MS = 30 * 60 * 1000    // 30 minutos
+export const SPOKE_TOKEN_TTL_MS = 2 * 60 * 1000   // 2 minutos
+
+// ============================================================================
 // JWT RS256 — Implementación según SECURITYPOS.md sección 4
 // Clave pública para verificar, clave privada para firmar.
 // Las claves se generan una vez y se almacenan en Vault/Secrets Manager.
@@ -35,7 +43,7 @@ export function generateKeyPair(): KeyPair {
 export function signJwt(
   payload: Omit<JwtPayload, "iat" | "exp">,
   privateKey: string,
-  expiresInMs: number = 30 * 60 * 1000
+  expiresInMs: number = HUB_TOKEN_TTL_MS
 ): string {
   const now = Math.floor(Date.now() / 1000)
   const exp = now + Math.floor(expiresInMs / 1000)
