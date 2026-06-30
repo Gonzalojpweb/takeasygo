@@ -1,0 +1,61 @@
+import { connectDB } from '@/lib/mongoose'
+import PlatformConfig from '@/models/PlatformConfig'
+import { decrypt } from '@/lib/crypto'
+import PlatformMPSettings from '@/components/superadmin/PlatformMPSettings'
+import PlatformKriptonSettings from '@/components/superadmin/PlatformKriptonSettings'
+import { Settings } from 'lucide-react'
+import { headers } from 'next/headers'
+
+export default async function SuperAdminConfigPage() {
+  const headersList = await headers()
+  const host = headersList.get('host') ?? 'tu-dominio.com'
+  const proto = headersList.get('x-forwarded-proto') ?? (host.includes('localhost') ? 'http' : 'https')
+  const origin = `${proto}://${host}`
+
+  await connectDB()
+  const config = await PlatformConfig.findById('platform').lean() as any
+  const mp = config?.mercadopago ?? {}
+  const mpOAuth = config?.mpOAuth ?? {}
+  const kripton = config?.kripton ?? {}
+
+  function hint(encrypted: string | null | undefined) {
+    if (!encrypted) return null
+    try { return '••••••••' + decrypt(encrypted).slice(-6) } catch { return null }
+  }
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-primary/10">
+          <Settings size={22} className="text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Configuración de la plataforma</h1>
+          <p className="text-xs text-muted-foreground font-medium">Credenciales globales del sistema</p>
+        </div>
+      </div>
+
+      <PlatformMPSettings
+        origin={origin}
+        isConfigured={!!mp.isConfigured}
+        hasAccessToken={!!mp.accessToken}
+        hasWebhookSecret={!!mp.webhookSecret}
+        accessTokenHint={hint(mp.accessToken)}
+        webhookSecretHint={hint(mp.webhookSecret)}
+        mpOAuth={{
+          appId: mpOAuth.appId || null,
+          appSecretHint: hint(mpOAuth.appSecret),
+          redirectUri: mpOAuth.redirectUri || null,
+          platformFeePercent: mpOAuth.platformFeePercent || 5,
+          isConfigured: !!(mpOAuth.appId && mpOAuth.appSecret && mpOAuth.redirectUri),
+        }}
+      />
+
+      <PlatformKriptonSettings
+        enabled={kripton.enabled ?? false}
+        defaultCryptoNetworkId={kripton.defaultCryptoNetworkId ?? null}
+      />
+
+    </div>
+  )
+}
