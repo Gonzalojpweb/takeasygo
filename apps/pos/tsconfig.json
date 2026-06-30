@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@takeasygo/types": ["../../packages/types/src"],
+      "@takeasygo/db": ["../../packages/db/src"],
+      "@takeasygo/business": ["../../packages/business/src"],
+      "@takeasygo/ui": ["../../packages/ui/src"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

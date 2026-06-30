@@ -1,0 +1,126 @@
+import type { NextConfig } from 'next'
+
+const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST === '/ingest' ? 'https://us.i.posthog.com' : (process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com')
+const POSTHOG_HOSTNAME = new URL(POSTHOG_HOST).hostname
+
+const securityHeaders = [
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  // geolocation=(self) permite que nuestras propias páginas (/app) pidan GPS al usuario
+  { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self), payment=()' },
+  { key: 'X-XSS-Protection', value: '1; mode=block' },
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com",
+      "style-src 'self' 'unsafe-inline' https://use.typekit.net",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://api.dicebear.com https://images.unsplash.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://www.google.com",
+      "media-src 'self' blob: https://res.cloudinary.com",
+      "font-src 'self' https://fonts.gstatic.com https://use.typekit.net data:",
+      `connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com https://api.mymemory.translated.net https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://use.typekit.net https://*.typekit.net https://${POSTHOG_HOSTNAME} https://us-assets.i.posthog.com`,
+      "worker-src 'self'",
+      "frame-src https://www.mercadopago.com https://www.mercadopago.com.ar",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; '),
+  },
+]
+
+const nextConfig: NextConfig = {
+  serverExternalPackages: ['mongoose'],
+  async rewrites() {
+    return [
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://us-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: `${POSTHOG_HOST}/:path*`,
+      },
+    ]
+  },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'https', hostname: 'api.dicebear.com' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'www.google.com' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' }, // Para fotos de perfil de Google
+    ],
+  },
+  async redirects() {
+    return [
+      {
+        source: '/explore',
+        destination: '/app',
+        permanent: true,
+      },
+    ]
+  },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: securityHeaders,
+      },
+      // ── CORS same-origin: rutas admin (solo acepta el propio dominio) ────────
+      {
+        source: '/api/:tenant/settings/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      {
+        source: '/api/:tenant/users/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      {
+        source: '/api/:tenant/analytics/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      // ── CORS abierto: rutas consumidas por clientes externos (POS, PWA) ──────
+      // Protegidas por API Key (Bearer Token), no por CORS
+      {
+        source: '/api/:tenant/orders/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PATCH,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      {
+        source: '/api/:tenant/menu/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      // Webhook POS: FUDO/BISTROSOFT necesitan poder hacer POST desde sus servidores
+      {
+        source: '/api/webhooks/pos/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'POST,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, X-POS-Signature, X-POS-Provider' },
+        ],
+      },
+    ]
+  },
+}
+
+export default nextConfig

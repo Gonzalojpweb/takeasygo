@@ -1,0 +1,429 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+
+interface SlotItem {
+  time: string
+  available: boolean
+}
+
+interface Props {
+  tenant: any
+  location: any
+}
+
+const PARTY_SIZES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+function getTodayStr() {
+  return new Date().toISOString().split('T')[0]
+}
+
+const UI = {
+  es: {
+    title: 'Reservar mesa',
+    deposit: (amount: string) => `Seña de $${amount} para confirmar`,
+    date: 'Fecha',
+    time: 'Horario',
+    noSlots: 'No hay horarios configurados',
+    slotUnavailable: 'No disponible',
+    loadingSlots: 'Cargando horarios...',
+    partySize: 'Personas',
+    name: 'Nombre',
+    namePlaceholder: 'Tu nombre',
+    phone: 'Teléfono',
+    phonePlaceholder: '+54 9 11 1234 5678',
+    notes: 'Observaciones (opcional)',
+    notesPlaceholder: 'Ej: Mesa afuera, celebración de cumpleaños, alergias...',
+    submit: 'Confirmar reserva',
+    submitPay: (amount: string) => `Pagar seña $${amount}`,
+    processing: 'Procesando...',
+    confirmed: '¡Reserva confirmada!',
+    confirmedMsg: (phone: string) => `Nos vemos pronto. Podés comunicarte al ${phone} si necesitás modificar tu reserva.`,
+    errTime: 'Seleccioná un horario',
+    errName: 'Ingresá tu nombre',
+    errPhone: 'Ingresá tu teléfono',
+    errConnection: 'Error de conexión. Intentá de nuevo.',
+    errPayment: 'Error al iniciar el pago',
+    errCreate: 'Error al crear la reserva',
+  },
+  en: {
+    title: 'Book a table',
+    deposit: (amount: string) => `$${amount} deposit required to confirm`,
+    date: 'Date',
+    time: 'Time',
+    noSlots: 'No time slots available',
+    slotUnavailable: 'Unavailable',
+    loadingSlots: 'Loading times...',
+    partySize: 'Party size',
+    name: 'Name',
+    namePlaceholder: 'Your name',
+    phone: 'Phone',
+    phonePlaceholder: '+54 9 11 1234 5678',
+    notes: 'Notes (optional)',
+    notesPlaceholder: 'E.g.: outdoor table, birthday celebration, allergies...',
+    submit: 'Confirm reservation',
+    submitPay: (amount: string) => `Pay deposit $${amount}`,
+    processing: 'Processing...',
+    confirmed: 'Reservation confirmed!',
+    confirmedMsg: (phone: string) => `See you soon. You can reach us at ${phone} if you need to modify your reservation.`,
+    errTime: 'Please select a time',
+    errName: 'Please enter your name',
+    errPhone: 'Please enter your phone number',
+    errConnection: 'Connection error. Please try again.',
+    errPayment: 'Error starting payment',
+    errCreate: 'Error creating reservation',
+  },
+}
+
+export default function ReservaForm({ tenant, location }: Props) {
+  const branding = tenant.branding
+  const config = location.reservationConfig || {}
+  const staticTimeSlots: string[] = config.timeSlots || []
+  const minPayment: number = config.minPayment || 0
+  const maxPartySize: number = config.maxPartySize || 10
+  const useAutoSlots = config.slotConfig?.enabled && config.slotConfig?.operatingHours?.length > 0
+
+  const [locale, setLocale] = useState<'es' | 'en'>('es')
+  const [step, setStep] = useState<'form' | 'paying' | 'free_done'>('form')
+  const [loading, setLoading] = useState(false)
+  const [slotsLoading, setSlotsLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const [slots, setSlots] = useState<SlotItem[]>(
+    useAutoSlots ? [] : staticTimeSlots.map(t => ({ time: t, available: true }))
+  )
+
+  const [form, setForm] = useState({
+    date: getTodayStr(),
+    time: useAutoSlots ? '' : (staticTimeSlots[0] || ''),
+    partySize: 2,
+    name: '',
+    phone: '',
+    email: '',
+    notes: '',
+  })
+
+  const clientToken = typeof window !== 'undefined' ? localStorage.getItem('push_client_token') : null
+
+  // Fetch available slots when date changes (auto mode)
+  useEffect(() => {
+    if (!useAutoSlots) return
+    let cancelled = false
+    async function fetchSlots() {
+      setSlotsLoading(true)
+      try {
+        const res = await fetch(`/api/${tenant.slug}/locations/${location._id}/reservation-slots?date=${form.date}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        setSlots(data.slots || [])
+        // Reset selected time if no longer available
+        if (data.slots?.length > 0) {
+          const currentStillAvailable = data.slots.some((s: SlotItem) => s.time === form.time && s.available)
+          if (!currentStillAvailable) {
+            const firstAvailable = data.slots.find((s: SlotItem) => s.available)
+            setForm(f => ({ ...f, time: firstAvailable?.time || '' }))
+          }
+        } else {
+          setForm(f => ({ ...f, time: '' }))
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setSlotsLoading(false)
+      }
+    }
+    fetchSlots()
+    return () => { cancelled = true }
+  }, [form.date, location._id, useAutoSlots])
+
+  const t = UI[locale]
+  const primary = branding.primaryColor
+  const br = branding.borderRadius === 'pill' ? '9999px' : branding.borderRadius === 'sharp' ? '4px' : '12px'
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError('')
+    if (!form.time) { setError(t.errTime); return }
+    if (!form.name.trim()) { setError(t.errName); return }
+    if (!form.phone.trim()) { setError(t.errPhone); return }
+
+    setLoading(true)
+    try {
+      // 1. Create reservation
+      const resRes = await fetch(`/api/${tenant.slug}/reservas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, locationId: location._id, clientToken: clientToken || undefined }),
+      })
+      if (!resRes.ok) {
+        const d = await resRes.json()
+        setError(d.error || t.errCreate)
+        return
+      }
+      const { reservation } = await resRes.json()
+
+      // 2. Create MP preference
+      const prefRes = await fetch(`/api/${tenant.slug}/reservas/preference`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservaId: reservation._id }),
+      })
+      if (!prefRes.ok) {
+        setError(t.errPayment)
+        return
+      }
+      const prefData = await prefRes.json()
+
+      if (prefData.free) {
+        // No payment needed
+        setStep('free_done')
+        return
+      }
+
+      // 3. Redirect to MP
+      const url = process.env.NODE_ENV === 'production'
+        ? prefData.initPoint
+        : (prefData.sandboxInitPoint || prefData.initPoint)
+      window.location.href = url
+    } catch {
+      setError(t.errConnection)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '12px 16px',
+    borderRadius: br,
+    border: `1.5px solid ${primary}30`,
+    backgroundColor: '#ffffff',
+    color: branding.textColor,
+    fontSize: '14px',
+    outline: 'none',
+    fontFamily: 'inherit',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: '10px',
+    fontWeight: 700,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.15em',
+    color: branding.textColor,
+    opacity: 0.5,
+    marginBottom: '6px',
+  }
+
+  if (step === 'free_done') {
+    return (
+      <div style={{ minHeight: '100dvh', backgroundColor: branding.backgroundColor, color: branding.textColor, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ textAlign: 'center', maxWidth: '360px' }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: primary + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '8px' }}>{t.confirmed}</h2>
+          <p style={{ opacity: 0.6, fontSize: '14px' }}>{t.confirmedMsg(location.phone)}</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ minHeight: '100dvh', backgroundColor: branding.backgroundColor, color: branding.textColor, fontFamily: 'inherit' }}>
+      {/* Header */}
+      <div style={{ padding: '32px 20px 0', textAlign: 'center' }}>
+        {/* Language toggle */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: 4, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700 }}>
+            <button
+              onClick={() => setLocale('es')}
+              style={{ padding: '2px 6px', borderRadius: 4, border: 'none', background: 'none', cursor: 'pointer', color: primary, opacity: locale === 'es' ? 1 : 0.35 }}>
+              ES
+            </button>
+            <span style={{ opacity: 0.25, color: branding.textColor }}>|</span>
+            <button
+              onClick={() => setLocale('en')}
+              style={{ padding: '2px 6px', borderRadius: 4, border: 'none', background: 'none', cursor: 'pointer', color: primary, opacity: locale === 'en' ? 1 : 0.35 }}>
+              EN
+            </button>
+          </div>
+        </div>
+
+        {branding.logoUrl ? (
+          <img src={branding.logoUrl} alt={tenant.name} style={{ height: 52, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }} />
+        ) : (
+          <h1 style={{ fontSize: '22px', fontWeight: 900, color: primary, marginBottom: '8px' }}>{tenant.name}</h1>
+        )}
+        <p style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>{t.title}</p>
+        <p style={{ fontSize: '12px', opacity: 0.5 }}>{location.name}</p>
+        {minPayment > 0 && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '5px 14px', borderRadius: 9999, backgroundColor: primary + '15', border: `1px solid ${primary}30` }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: primary }}>
+              {t.deposit(minPayment.toLocaleString('es-AR'))}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} style={{ maxWidth: '420px', margin: '0 auto', padding: '28px 20px 40px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+          {/* Date */}
+          <div>
+            <label style={labelStyle}>{t.date}</label>
+            <input
+              type="date"
+              value={form.date}
+              min={getTodayStr()}
+              onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+              style={inputStyle}
+              required
+            />
+          </div>
+
+          {/* Time slots */}
+          <div>
+            <label style={labelStyle}>{t.time}</label>
+            {slotsLoading ? (
+              <p style={{ fontSize: '13px', opacity: 0.5 }}>{t.loadingSlots}</p>
+            ) : slots.length === 0 ? (
+              <p style={{ fontSize: '13px', opacity: 0.5 }}>{t.noSlots}</p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {slots.map(slot => (
+                  <button
+                    key={slot.time}
+                    type="button"
+                    disabled={!slot.available}
+                    onClick={() => slot.available && setForm(f => ({ ...f, time: slot.time }))}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: br,
+                      border: `1.5px solid ${form.time === slot.time ? primary : primary}40`,
+                      backgroundColor: !slot.available ? '#f5f5f5' : form.time === slot.time ? primary : 'transparent',
+                      color: !slot.available ? '#ccc' : form.time === slot.time ? '#ffffff' : primary,
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: slot.available ? 'pointer' : 'not-allowed',
+                      opacity: !slot.available ? 0.5 : 1,
+                      textDecoration: !slot.available ? 'line-through' : 'none',
+                    }}
+                  >
+                    {slot.time}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Party size */}
+          <div>
+            <label style={labelStyle}>{t.partySize}</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {PARTY_SIZES.filter(s => s <= maxPartySize).map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, partySize: s }))}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: br,
+                    border: `1.5px solid ${primary}`,
+                    backgroundColor: form.partySize === s ? primary : 'transparent',
+                    color: form.partySize === s ? '#ffffff' : primary,
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label style={labelStyle}>{t.name}</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder={t.namePlaceholder}
+              style={inputStyle}
+              required
+            />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label style={labelStyle}>{t.phone}</label>
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+              placeholder={t.phonePlaceholder}
+              style={inputStyle}
+              required
+            />
+          </div>
+
+          {/* Email (optional, for notifications) */}
+          <div>
+            <label style={{ ...labelStyle, opacity: 0.35 }}>EMAIL (para confirmación)</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              placeholder="tucorreo@ejemplo.com"
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label style={labelStyle}>{t.notes}</label>
+            <textarea
+              value={form.notes}
+              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder={t.notesPlaceholder}
+              rows={3}
+              style={{ ...inputStyle, resize: 'none', height: 80 }}
+            />
+          </div>
+
+          {error && (
+            <p style={{ fontSize: '13px', color: '#ef4444', textAlign: 'center' }}>{error}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || slots.length === 0}
+            style={{
+              width: '100%',
+              padding: '15px',
+              borderRadius: br,
+              border: 'none',
+              backgroundColor: primary,
+              color: '#ffffff',
+              fontSize: '15px',
+              fontWeight: 700,
+              cursor: loading ? 'wait' : 'pointer',
+              opacity: loading ? 0.7 : 1,
+              boxShadow: `0 8px 24px ${primary}44`,
+            }}
+          >
+            {loading ? t.processing : minPayment > 0 ? t.submitPay(minPayment.toLocaleString('es-AR')) : t.submit}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
