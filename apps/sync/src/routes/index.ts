@@ -1,0 +1,33 @@
+import { Router } from "express"
+import type { Queue as BullQueue } from "bullmq"
+import type { Server as SocketServer } from "socket.io"
+import { authMiddleware } from "../auth/middleware"
+import { tenantMiddleware } from "../middleware/tenant"
+import { rateLimiter } from "../middleware/rate-limiter"
+import { healthRouter } from "./health"
+import { authRouter } from "./auth"
+import { ordersRouter } from "./orders"
+import { menuRouter } from "./menu"
+import { syncRouter } from "./sync"
+
+export function createRouter(
+  io: SocketServer,
+  orderQueue: BullQueue
+): Router {
+  const router = Router()
+
+  router.use(rateLimiter)
+
+  router.use("/health", healthRouter)
+
+  router.use("/auth", authRouter)
+
+  router.use(authMiddleware)
+  router.use(tenantMiddleware)
+
+  router.use("/orders", ordersRouter(io, orderQueue))
+  router.use("/menu", menuRouter())
+  router.use("/sync", syncRouter(io))
+
+  return router
+}
