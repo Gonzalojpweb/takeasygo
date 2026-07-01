@@ -1,0 +1,34 @@
+export const config = {
+  port: parseInt(process.env.SYNC_PORT ?? "3001", 10),
+  env: process.env.NODE_ENV ?? "development",
+
+  mongoUri: process.env.MONGODB_URI ?? "",
+
+  redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
+
+  jwtPublicKey: process.env.JWT_PUBLIC_KEY ?? "",
+
+  corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+
+  rateLimitToken: parseInt(process.env.RATE_LIMIT_TOKEN ?? "100", 10),
+  rateLimitTenant: parseInt(process.env.RATE_LIMIT_TENANT ?? "1000", 10),
+  rateLimitLogin: parseInt(process.env.RATE_LIMIT_LOGIN ?? "10", 10),
+
+  offlineTimeoutMs: parseInt(process.env.OFFLINE_TIMEOUT_MS ?? "180000", 10),
+
+  eventMaxAgeDays: parseInt(process.env.EVENT_MAX_AGE_DAYS ?? "7", 10),
+  eventMaxQueueSize: parseInt(process.env.EVENT_MAX_QUEUE_SIZE ?? "1000", 10),
+
+  socketMaxConnectionsPerHub: parseInt(
+    process.env.SOCKET_MAX_CONNECTIONS ?? "10",
+    10
+  ),
+  socketHeartbeatInterval: parseInt(
+    process.env.SOCKET_HEARTBEAT_INTERVAL ?? "30000",
+    10
+  ),
+  socketHeartbeatTimeout: parseInt(
+    process.env.SOCKET_HEARTBEAT_TIMEOUT ?? "90000",
+    10
+  ),
+}
