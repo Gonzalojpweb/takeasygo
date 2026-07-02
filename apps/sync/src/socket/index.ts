@@ -49,6 +49,18 @@ export function createSocketServer(
 
     socket.emit("heartbeat", { timestamp: new Date().toISOString() })
 
+    // Emit sync:pending_events on every connection/reconnection.
+    // This is intentionally emitted EVERY time — not just on "first" connect.
+    // Reason: If the Sync Layer restarts, in-memory conflict state is lost.
+    // By always emitting this, the hub re-sends its local event queue on reconnect,
+    // and the Sync Layer re-processes and re-detects any conflicts.
+    // DO NOT remove this "optimization" — it would silently lose conflict state on restart.
+    io.to(`tenant:${auth.tenantId}:hub`).emit("sync:pending_events", {
+      count: 0,
+      tenantId: auth.tenantId,
+      timestamp: new Date().toISOString(),
+    })
+
     socket.on("heartbeat", () => {
       socket.emit("heartbeat", { timestamp: new Date().toISOString() })
     })

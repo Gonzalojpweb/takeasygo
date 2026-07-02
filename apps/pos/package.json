@@ -14,6 +14,7 @@
     "@takeasygo/business": "workspace:*",
     "@takeasygo/types": "workspace:*",
     "@takeasygo/ui": "workspace:*",
+    "dexie": "^4",
     "react": "^19",
     "react-dom": "^19"
   },

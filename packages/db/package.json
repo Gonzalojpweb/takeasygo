@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@takeasygo/types": "workspace:*",
+    "bcryptjs": "^2.4.3",
     "mongoose": "^9.2.1"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2",
     "@types/node": "^20"
   }
 }

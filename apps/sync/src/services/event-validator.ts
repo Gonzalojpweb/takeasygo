@@ -1,7 +1,28 @@
 import { validateEventSignature } from "@takeasygo/business"
+import Redis from "ioredis"
 import { config } from "../config"
 
 const MAX_EVENT_AGE_MS = config.eventMaxAgeDays * 24 * 60 * 60 * 1000
+const NONCE_TTL_SECONDS = config.eventMaxAgeDays * 86400
+
+let redis: Redis | null = null
+
+function getRedis(): Redis {
+  if (!redis) {
+    redis = new Redis(config.redisUrl, {
+      maxRetriesPerRequest: 3,
+      enableReadyCheck: true,
+    })
+  }
+  return redis
+}
+
+process.on("SIGTERM", () => {
+  if (redis) {
+    redis.quit()
+    redis = null
+  }
+})
 
 export interface ValidatedEvent {
   id: string
@@ -12,15 +33,7 @@ export interface ValidatedEvent {
   signature: string
 }
 
-const seenNonces = new Set<string>()
-
-setInterval(() => {
-  if (seenNonces.size > 10000) {
-    seenNonces.clear()
-  }
-}, 60_000 * 10)
-
-export function validateEvent(
+export async function validateEvent(
   event: {
     id: string
     type: string
@@ -29,8 +42,9 @@ export function validateEvent(
     nonce: string
     signature: string
   },
-  tenantSecret: string
-): { valid: true; event: ValidatedEvent } | { valid: false; reason: string } {
+  tenantSecret: string,
+  tenantId: string
+): Promise<{ valid: true; event: ValidatedEvent } | { valid: false; reason: string }> {
   const eventTime = new Date(event.timestamp).getTime()
   const now = Date.now()
 
@@ -46,7 +60,10 @@ export function validateEvent(
     return { valid: false, reason: "Invalid nonce" }
   }
 
-  if (seenNonces.has(event.nonce)) {
+  const r = getRedis()
+  const nonceKey = `nonce:${tenantId}:${event.nonce}`
+  const exists = await r.exists(nonceKey)
+  if (exists) {
     return { valid: false, reason: "Duplicate nonce (replay)" }
   }
 
@@ -69,7 +86,7 @@ export function validateEvent(
     return { valid: false, reason: "Invalid signature" }
   }
 
-  seenNonces.add(event.nonce)
+  await r.set(nonceKey, "1", "EX", NONCE_TTL_SECONDS)
 
   return {
     valid: true,

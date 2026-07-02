@@ -17,10 +17,18 @@ export function validate(schema: ZodSchema) {
   }
 }
 
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-})
+export const loginSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("email"),
+    email: z.string().email(),
+    password: z.string().min(1),
+  }),
+  z.object({
+    mode: z.literal("pin"),
+    employeePin: z.string().min(4).max(8),
+    tenantId: z.string(),
+  }),
+])
 
 export const orderCreateSchema = z.object({
   source: z.literal("takeasygo"),

@@ -21,3 +21,4 @@ export {
   encryptStore,
   decryptStore,
 } from "./crypto"
+export { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES } from "./role-mapping"

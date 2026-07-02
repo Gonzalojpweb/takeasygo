@@ -4,6 +4,7 @@ import type { Server as SocketServer } from "socket.io"
 import { authMiddleware } from "../auth/middleware"
 import { tenantMiddleware } from "../middleware/tenant"
 import { rateLimiter } from "../middleware/rate-limiter"
+import { requestIdMiddleware } from "../middleware/request-id"
 import { healthRouter } from "./health"
 import { authRouter } from "./auth"
 import { ordersRouter } from "./orders"
@@ -16,6 +17,7 @@ export function createRouter(
 ): Router {
   const router = Router()
 
+  router.use(requestIdMiddleware)
   router.use(rateLimiter)
 
   router.use("/health", healthRouter)
