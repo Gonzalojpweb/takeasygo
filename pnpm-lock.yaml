@@ -41,6 +41,9 @@ importers:
       '@takeasygo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      dexie:
+        specifier: ^4
+        version: 4.4.4
       react:
         specifier: ^19
         version: 19.2.3
@@ -48,6 +51,9 @@ importers:
         specifier: ^19
         version: 19.2.3(react@19.2.3)
     devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.33
       '@types/react':
         specifier: ^19
         version: 19.2.14
@@ -4011,6 +4017,9 @@ packages:
 
   devlop@1.1.0:
     resolution: {integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==}
+
+  dexie@4.4.4:
+    resolution: {integrity: sha512-jIwsYI8Os2hgnqc6O49YwFDKGc5v5QjGx0wPVp543ip1F53VFAKMLthV2pQosQcVTv3eAskTWYspOx195PM0FQ==}
 
   diff@8.0.3:
     resolution: {integrity: sha512-qejHi7bcSD4hQAZE0tNAawRK1ZtafHDmMTMkrrIGgSLl7hTnQHmKCeB45xAcbfTqK2zowkM3j3bHt/4b/ARbYQ==}
@@ -10855,6 +10864,8 @@ snapshots:
   devlop@1.1.0:
     dependencies:
       dequal: 2.0.3
+
+  dexie@4.4.4: {}
 
   diff@8.0.3: {}
 
