@@ -66,3 +66,25 @@ export const syncReplaySchema = z.object({
     })
   ),
 })
+
+export const pairingPublishSchema = z.object({
+  hubId: z.string(),
+  nonce: z.string().min(8),
+  hubIp: z.string(),
+  hubPort: z.number().int().positive(),
+  pubKey: z.string(),
+})
+
+export const pairingClaimSchema = z.object({
+  code: z.string().length(6),
+  nonce: z.string().min(8),
+  deviceId: z.string(),
+  deviceName: z.string().min(1),
+  fingerprint: z.string(),
+})
+
+export const pairingApproveSchema = z.object({
+  code: z.string().length(6),
+  deviceId: z.string(),
+  deviceSecret: z.string().min(16),
+})

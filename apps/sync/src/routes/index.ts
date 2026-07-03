@@ -10,6 +10,7 @@ import { authRouter } from "./auth"
 import { ordersRouter } from "./orders"
 import { menuRouter } from "./menu"
 import { syncRouter } from "./sync"
+import { pairingRouter } from "./pairing"
 
 export function createRouter(
   io: SocketServer,
@@ -30,6 +31,7 @@ export function createRouter(
   router.use("/orders", ordersRouter(io, orderQueue))
   router.use("/menu", menuRouter())
   router.use("/sync", syncRouter(io))
+  router.use("/pairing", pairingRouter(io))
 
   return router
 }
