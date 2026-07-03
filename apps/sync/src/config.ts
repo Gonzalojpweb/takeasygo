@@ -1,3 +1,13 @@
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
+
+declare const __dirname: string
+
+function readPem(filename: string): string {
+  const filepath = resolve(__dirname, "..", filename)
+  return readFileSync(filepath, "utf-8").trim()
+}
+
 export const config = {
   port: parseInt(process.env.SYNC_PORT ?? "3001", 10),
   env: process.env.NODE_ENV ?? "development",
@@ -6,7 +16,8 @@ export const config = {
 
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
 
-  jwtPublicKey: process.env.JWT_PUBLIC_KEY ?? "",
+  jwtPrivateKey: process.env.JWT_PRIVATE_KEY ?? readPem("keys.private.pem"),
+  jwtPublicKey: process.env.JWT_PUBLIC_KEY ?? readPem("keys.public.pem"),
 
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
 

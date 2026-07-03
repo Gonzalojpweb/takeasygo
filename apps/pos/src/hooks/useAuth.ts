@@ -4,8 +4,7 @@ import {
   deriveSessionEncryptionKey,
   encryptStore,
   decryptStore,
-  isJwtExpiringSoon,
-} from "@takeasygo/business"
+} from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
 import { getEncryptionKey, setEncryptionKey } from "./useEncryptionKey"
 import * as authApi from "../services/auth-api"
@@ -25,6 +24,15 @@ function isJwtEncrypted(
     "iv" in data &&
     "ciphertext" in data
   )
+}
+
+function isJwtExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return payload.exp * 1000 < Date.now()
+  } catch {
+    return true
+  }
 }
 
 export function useAuth() {
@@ -132,7 +140,7 @@ export function useAuth() {
         key
       )
 
-      if (isJwtExpiringSoon(jwt.accessToken)) {
+      if (isJwtExpired(jwt.accessToken)) {
         setEncryptionKey(null)
         setState({ status: "login" })
         return

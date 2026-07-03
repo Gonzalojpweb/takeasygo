@@ -87,6 +87,19 @@ patch_menu.js
 .next
 /next
 .opencode
-.kilo   
+.kilo
 .turbo
 
+# RSA Keys — nunca al repo
+apps/sync/keys.private.pem
+apps/sync/keys.public.pem
+
+# Env files
+apps/sync/.env.local
+.env.local
+.env.*.local
+
+
+# Env files
+apps/sync/.env.local
+.env.local
