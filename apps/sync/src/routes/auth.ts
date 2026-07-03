@@ -41,7 +41,7 @@ authRouter.post("/login", validate(loginSchema), async (req, res) => {
           role: posRole as Role,
           deviceType: "hub",
         },
-        config.jwtPublicKey,
+        config.jwtPrivateKey,
         HUB_TOKEN_TTL_MS
       )
 
@@ -85,7 +85,7 @@ authRouter.post("/login", validate(loginSchema), async (req, res) => {
           role: posRole as Role,
           deviceType: "hub",
         },
-        config.jwtPublicKey,
+        config.jwtPrivateKey,
         HUB_TOKEN_TTL_MS
       )
 
