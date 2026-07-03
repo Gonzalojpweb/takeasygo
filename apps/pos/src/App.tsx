@@ -1,8 +1,39 @@
+import { useEffect } from "react"
 import { useAuth } from "./hooks/useAuth"
 import { LoginScreen } from "./components/LoginScreen"
+import {
+  startConnectivityMonitoring,
+  stopConnectivityMonitoring,
+  onReconnect,
+} from "./services/connectivity"
+import { flush } from "./services/event-queue"
 
 function App() {
   const { state, login, logout } = useAuth()
+
+  useEffect(() => {
+    if (state.status !== "authenticated" || !state.tenantId || !state.jwt) {
+      return
+    }
+
+    startConnectivityMonitoring()
+
+    const unsubscribe = onReconnect(async () => {
+      console.log("[App] reconnect detected, flushing events...")
+      const result = await flush(state.tenantId!, state.jwt!.accessToken)
+      if (result.synced > 0) {
+        console.log(`[App] flushed ${result.synced} events`)
+      }
+      if (result.failed > 0) {
+        console.warn(`[App] ${result.failed} events failed to flush`)
+      }
+    })
+
+    return () => {
+      unsubscribe()
+      stopConnectivityMonitoring()
+    }
+  }, [state.status, state.tenantId, state.jwt])
 
   if (state.status === "login" || state.status === "error") {
     return (

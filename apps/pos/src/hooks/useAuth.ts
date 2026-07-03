@@ -5,6 +5,12 @@ import {
   encryptStore,
   decryptStore,
 } from "@takeasygo/business/browser"
+
+function generateDeviceSecret(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
+}
 import { db } from "../db/dexie"
 import { getEncryptionKey, setEncryptionKey } from "./useEncryptionKey"
 import * as authApi from "../services/auth-api"
@@ -12,6 +18,7 @@ import * as authApi from "../services/auth-api"
 export interface AuthState {
   status: "loading" | "login" | "authenticated" | "error"
   error?: string
+  tenantId?: string
   jwt?: authApi.LoginResponse
 }
 
@@ -44,19 +51,25 @@ export function useAuth() {
 
       try {
         let salt: Uint8Array
+        let tenantId: string
 
         if (mode === "pin") {
-          const { employeePin, tenantId } = credentials as {
+          const { employeePin, tenantId: tid } = credentials as {
             employeePin: string
             tenantId: string
           }
+          tenantId = tid
 
           const existing = await db.tenantConfig.get(tenantId)
           if (existing) {
             salt = existing.tenantSalt
           } else {
             salt = generateSalt()
-            await db.tenantConfig.put({ tenantId, tenantSalt: salt })
+            await db.tenantConfig.put({
+              tenantId,
+              tenantSalt: salt,
+              deviceSecret: generateDeviceSecret(),
+            })
           }
 
           const key = await deriveSessionEncryptionKey(employeePin, salt)
@@ -67,21 +80,25 @@ export function useAuth() {
           const encrypted = await encryptStore(result, key)
           await db.session.put({ tenantId, encryptedJwt: encrypted })
 
-          setState({ status: "authenticated", jwt: result })
+          setState({ status: "authenticated", tenantId, jwt: result })
         } else {
           const { email, password } = credentials as {
             email: string
             password: string
           }
 
-          const tenantId = credentials.tenantId ?? email
+          tenantId = credentials.tenantId ?? email
 
           const existing = await db.tenantConfig.get(tenantId)
           if (existing) {
             salt = existing.tenantSalt
           } else {
             salt = generateSalt()
-            await db.tenantConfig.put({ tenantId, tenantSalt: salt })
+            await db.tenantConfig.put({
+              tenantId,
+              tenantSalt: salt,
+              deviceSecret: generateDeviceSecret(),
+            })
           }
 
           const key = await deriveSessionEncryptionKey(password, salt)
@@ -92,7 +109,7 @@ export function useAuth() {
           const encrypted = await encryptStore(result, key)
           await db.session.put({ tenantId, encryptedJwt: encrypted })
 
-          setState({ status: "authenticated", jwt: result })
+          setState({ status: "authenticated", tenantId, jwt: result })
         }
       } catch (err) {
         const message =
@@ -146,7 +163,7 @@ export function useAuth() {
         return
       }
 
-      setState({ status: "authenticated", jwt })
+      setState({ status: "authenticated", tenantId, jwt })
     } catch {
       setEncryptionKey(null)
       setState({ status: "login" })
