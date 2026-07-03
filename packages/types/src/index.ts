@@ -397,7 +397,7 @@ export type SyncEventType =
   | "device.paired"
   | "device.blacklisted"
 
-export type EventStatus = "pending" | "synced" | "conflict" | "failed" | "expired"
+export type EventStatus = "pending" | "synced" | "conflict" | "failed" | "expired" | "requires_manual_attention"
 
 export interface SyncEvent {
   id: string
