@@ -25,6 +25,8 @@ export const config = {
   rateLimitTenant: parseInt(process.env.RATE_LIMIT_TENANT ?? "1000", 10),
   rateLimitLogin: parseInt(process.env.RATE_LIMIT_LOGIN ?? "10", 10),
 
+  pairingCodeTTL: parseInt(process.env.PAIRING_CODE_TTL ?? "300", 10),
+
   offlineTimeoutMs: parseInt(process.env.OFFLINE_TIMEOUT_MS ?? "180000", 10),
 
   eventMaxAgeDays: parseInt(process.env.EVENT_MAX_AGE_DAYS ?? "7", 10),

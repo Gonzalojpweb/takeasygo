@@ -2,7 +2,9 @@ import { Router } from "express"
 import type { Server as SocketServer } from "socket.io"
 import { getPendingOrders } from "../services/order-translator"
 import { getTenantConflicts } from "../services/conflict-resolver"
+import { validateEvent } from "../services/event-validator"
 import { validate, syncReplaySchema } from "../middleware/validation"
+import { getDeviceSecret } from "./pairing"
 
 export function syncRouter(io: SocketServer): Router {
   const router = Router()
@@ -11,6 +13,26 @@ export function syncRouter(io: SocketServer): Router {
     try {
       const auth = req.auth!
       const { events } = req.body
+
+      const deviceSecret = await getDeviceSecret(auth.tenantId)
+      const eventsFallidos: { id: string; reason: string }[] = []
+
+      if (deviceSecret) {
+        for (const event of events) {
+          const result = await validateEvent(event, deviceSecret, auth.tenantId)
+          if (!result.valid) {
+            eventsFallidos.push({ id: event.id, reason: result.reason })
+          }
+        }
+
+        if (eventsFallidos.length > 0) {
+          res.status(400).json({
+            error: "Event signature validation failed",
+            eventsFallidos,
+          })
+          return
+        }
+      }
 
       const pendingOrders = await getPendingOrders(auth.tenantId)
 
