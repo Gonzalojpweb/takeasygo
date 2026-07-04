@@ -1,5 +1,5 @@
 import Dexie from "dexie"
-import type { OfflineEvent } from "@takeasygo/types"
+import type { OfflineEvent, Table, Order, KitchenCommand } from "@takeasygo/types"
 
 export interface TenantConfigRecord {
   tenantId: string
@@ -26,11 +26,18 @@ export interface PairedSpokeRecord {
   lastSeenAt?: Date
 }
 
+export type TableRecord = Table
+export type OrderRecord = Order
+export type CommandRecord = KitchenCommand
+
 export class PosDatabase extends Dexie {
   tenantConfig!: Dexie.Table<TenantConfigRecord, string>
   session!: Dexie.Table<SessionRecord, string>
   pendingEvents!: Dexie.Table<PendingEventRecord, string>
   pairedSpokes!: Dexie.Table<PairedSpokeRecord, string>
+  diningTable!: Dexie.Table<TableRecord, string>
+  orders!: Dexie.Table<OrderRecord, string>
+  commands!: Dexie.Table<CommandRecord, string>
 
   constructor() {
     super("TakeasyGoPOS")
@@ -48,6 +55,15 @@ export class PosDatabase extends Dexie {
       session: "tenantId",
       pendingEvents: "++id, tenantId, status, timestamp",
       pairedSpokes: "deviceId, tenantId, pairedAt",
+    })
+    this.version(4).stores({
+      tenantConfig: "tenantId",
+      session: "tenantId",
+      pendingEvents: "++id, tenantId, status, timestamp",
+      pairedSpokes: "deviceId, tenantId, pairedAt",
+      diningTable: "id, tenantId, status, section, number",
+      orders: "id, tenantId, status, tableId, createdAt",
+      commands: "id, tenantId, status, createdAt",
     })
   }
 }

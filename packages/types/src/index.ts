@@ -240,6 +240,7 @@ export interface OrderItem {
   name: string
   quantity: number
   unitPrice: number
+  /** unitPrice * quantity — does NOT include modifiers. Total real = total + (modifiersPrice * quantity) */
   total: number
   modifiers?: OrderItemModifier[]
   notes?: string
@@ -248,6 +249,34 @@ export interface OrderItem {
 export interface OrderItemModifier {
   name: string
   price: number
+}
+
+// ============================================================================
+// 9b. KITCHEN COMMAND — Comandas de cocina
+// ============================================================================
+
+export interface KitchenCommand {
+  id: string
+  tenantId: string
+  orderId: string
+  tableNumber: number
+  items: KitchenCommandItem[]
+  status: "pending" | "preparing" | "ready"
+  startedAt?: Date
+  completedAt?: Date
+  notes?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface KitchenCommandItem {
+  productId: string
+  name: string
+  quantity: number
+  modifiers?: string[]
+  notes?: string
+  category: string
+  station?: string
 }
 
 // ============================================================================
@@ -387,6 +416,9 @@ export type SyncEventType =
   | "order.updated"
   | "order.cancelled"
   | "order.delivered"
+  | "order.confirmed"
+  | "order.preparing"
+  | "order.ready"
   | "table.status_changed"
   | "payment.completed"
   | "payment.refunded"
@@ -532,6 +564,9 @@ export type SocketEvent =
   | "order:updated"
   | "order:confirmed"
   | "order:cancelled"
+  | "order:preparing"
+  | "order:ready"
+  | "order:delivered"
   | "table:updated"
   | "payment:completed"
   | "sync:pending_events"
