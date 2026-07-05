@@ -1,6 +1,7 @@
 import { Router } from "express"
 import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
+import mongoose from "mongoose"
 import {
   createTranslatedOrder,
   updateOrderStatus,
@@ -13,6 +14,50 @@ export function ordersRouter(
   orderQueue: BullQueue
 ): Router {
   const router = Router()
+
+  // GET /orders — list orders with optional filters (status, orderMode)
+  router.get("/", async (req, res) => {
+    try {
+      const auth = req.auth!
+      const tenantId = new mongoose.Types.ObjectId(auth.tenantId)
+      const status = req.query.status as string | undefined
+      const orderMode = req.query.orderMode as string | undefined
+
+      const db = mongoose.connection.db!
+      const orders = db.collection("orders")
+
+      const filter: Record<string, any> = { tenantId }
+      if (status) {
+        filter.status = { $in: status.split(",") }
+      }
+      if (orderMode) {
+        filter.orderMode = orderMode
+      }
+
+      const docs = await orders
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .toArray()
+
+      const result = docs.map((o) => ({
+        id: o._id?.toString() ?? "",
+        orderNumber: o.orderNumber ?? "",
+        status: o.status ?? "pending",
+        orderMode: o.orderMode ?? "dine-in",
+        customer: o.customer ?? {},
+        items: o.items ?? [],
+        total: o.total ?? 0,
+        createdAt: o.createdAt?.toISOString?.() ?? "",
+        notes: o.notes ?? undefined,
+      }))
+
+      res.json(result)
+    } catch (err) {
+      console.error("[orders] list error:", err)
+      res.status(500).json({ error: "Internal server error" })
+    }
+  })
 
   router.post("/", validate(orderCreateSchema), async (req, res) => {
     try {
