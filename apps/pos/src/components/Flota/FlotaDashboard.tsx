@@ -51,7 +51,7 @@ export function FlotaDashboard() {
   }
 
   return (
-    <div className="workspace" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="workspace">
       {/* Header */}
       <div className="workspace-header">
         <div>
@@ -83,7 +83,7 @@ export function FlotaDashboard() {
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {/* Scene: Repartidores */}
         {scene === "repartidores" && (
           <div>

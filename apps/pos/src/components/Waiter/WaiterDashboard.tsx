@@ -4,10 +4,11 @@ import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { ProductSelector } from "../shared/ProductSelector"
+import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { formatOrderStatus } from "../../utils/format"
 
-type Scene = "turno" | "mesa" | "pedido" | "cocina" | "entrega" | "cuenta" | "cierre"
+type Scene = "turno" | "mesa" | "configurar" | "pedido" | "cocina" | "entrega" | "cuenta" | "cierre"
 
 interface CartItem extends OrderItem {
   product: Product
@@ -18,6 +19,7 @@ export function WaiterDashboard() {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [configProduct, setConfigProduct] = useState<Product | null>(null)
 
   const { tables } = useTables()
   const { products, categories } = useMenu()
@@ -44,6 +46,12 @@ export function WaiterDashboard() {
   }, [])
 
   const handleAddProduct = useCallback((product: Product) => {
+    const hasModifiers = product.modifiers && product.modifiers.length > 0
+    if (hasModifiers) {
+      setConfigProduct(product)
+      setScene("configurar")
+      return
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id)
       if (existing) {
@@ -83,6 +91,13 @@ export function WaiterDashboard() {
     setCart((prev) => prev.filter((i) => i.productId !== productId))
   }, [])
 
+  const handleConfigConfirm = useCallback((item: OrderItem) => {
+    if (!configProduct) return
+    setCart((prev) => [...prev, { ...item, product: configProduct }])
+    setConfigProduct(null)
+    setScene("pedido")
+  }, [configProduct])
+
   const handleNewSale = useCallback(() => {
     setCart([])
     setSelectedTableId(null)
@@ -91,7 +106,7 @@ export function WaiterDashboard() {
   }, [])
 
   return (
-    <div className="workspace" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="workspace">
       {/* Scene: Turno */}
       {scene === "turno" && (
         <>
@@ -137,8 +152,8 @@ export function WaiterDashboard() {
 
       {/* Scene: Mesa */}
       {scene === "mesa" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", height: "100%", gap: 0 }}>
-          <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", flex: 1, minHeight: 0, gap: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
             <div className="workspace-header">
               <div>
                 <div className="workspace-title">Mesa {selectedTable?.number ?? "?"}</div>
@@ -164,7 +179,7 @@ export function WaiterDashboard() {
               </div>
             </div>
           </div>
-          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", height: "100%", display: "flex", flexDirection: "column" }}>
+          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", minHeight: 0 }}>
             <OrderPanel
               title={`Mesa ${selectedTable?.number ?? "?"}`}
               items={[]}
@@ -179,10 +194,22 @@ export function WaiterDashboard() {
         </div>
       )}
 
+      {/* Scene: Configurar producto */}
+      {scene === "configurar" && configProduct && (
+        <ProductConfigurationPanel
+          product={configProduct}
+          onConfirm={handleConfigConfirm}
+          onCancel={() => {
+            setConfigProduct(null)
+            setScene("pedido")
+          }}
+        />
+      )}
+
       {/* Scene: Pedido */}
       {scene === "pedido" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", height: "100%", gap: 0 }}>
-          <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", flex: 1, minHeight: 0, gap: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
             <div className="workspace-header">
               <div>
                 <div className="workspace-title">
@@ -204,7 +231,7 @@ export function WaiterDashboard() {
               onSelectProduct={handleAddProduct}
             />
           </div>
-          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", height: "100%", display: "flex", flexDirection: "column" }}>
+          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", minHeight: 0 }}>
             <OrderPanel
               title={`Pedido — Mesa ${selectedTable?.number ?? "?"}`}
               items={cart}
@@ -347,7 +374,7 @@ export function WaiterDashboard() {
 
       {/* Scene: Cierre */}
       {scene === "cierre" && (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center" }}>
           <div className="text-center">
             <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
             <div className="workspace-title" style={{ marginBottom: 8 }}>
