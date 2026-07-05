@@ -3,6 +3,7 @@ import mongoose, { Schema, type Document } from "mongoose"
 export interface TenantDocument extends Document {
   name: string
   slug: string
+  plan: "trial" | "try" | "buy" | "full" | "anfitrion"
   config: {
     fiscalDriver: "printer" | "wsfe"
     paymentMethods: string[]
@@ -22,6 +23,11 @@ export const TenantSchema = new Schema<TenantDocument>(
   {
     name: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
+    plan: {
+      type: String,
+      enum: ["trial", "try", "buy", "full", "anfitrion"],
+      default: "trial",
+    },
     config: {
       fiscalDriver: {
         type: String,

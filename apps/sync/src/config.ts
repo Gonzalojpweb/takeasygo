@@ -21,6 +21,9 @@ export const config = {
 
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
 
+  internalApiSecret: process.env.INTERNAL_API_SECRET ?? "",
+  saasBaseUrl: process.env.SAAS_BASE_URL ?? "http://localhost:3000",
+
   rateLimitToken: parseInt(process.env.RATE_LIMIT_TOKEN ?? "100", 10),
   rateLimitTenant: parseInt(process.env.RATE_LIMIT_TENANT ?? "1000", 10),
   rateLimitLogin: parseInt(process.env.RATE_LIMIT_LOGIN ?? "10", 10),

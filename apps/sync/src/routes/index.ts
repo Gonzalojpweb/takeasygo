@@ -9,10 +9,9 @@ import { healthRouter } from "./health"
 import { authRouter } from "./auth"
 import { ordersRouter } from "./orders"
 import { menuRouter } from "./menu"
-import { crmRouter } from "./crm"
-import { deliveryRouter } from "./delivery"
 import { syncRouter } from "./sync"
 import { pairingRouter } from "./pairing"
+import { customersRouter } from "./customers"
 
 export function createRouter(
   io: SocketServer,
@@ -32,10 +31,9 @@ export function createRouter(
 
   router.use("/orders", ordersRouter(io, orderQueue))
   router.use("/menu", menuRouter())
-  router.use("/crm", crmRouter())
-  router.use("/delivery", deliveryRouter())
   router.use("/sync", syncRouter(io))
   router.use("/pairing", pairingRouter(io))
+  router.use("/customers", customersRouter())
 
   return router
 }

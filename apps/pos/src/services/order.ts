@@ -35,7 +35,8 @@ export async function createOrder(
   tableId: string,
   items: OrderItem[],
   notes?: string,
-  serverId?: string
+  serverId?: string,
+  customerId?: string
 ): Promise<Order> {
   const validation = validateOrderItems(items)
   if (!validation.valid) {
@@ -50,6 +51,7 @@ export async function createOrder(
     source: "pos",
     status: "pending",
     tableId,
+    customerId,
     items,
     total,
     menuVersion: 1,
@@ -63,6 +65,7 @@ export async function createOrder(
   await enqueue(tenantId, "order.created", {
     orderId: order.id,
     tableId,
+    customerId,
     items,
     total,
     notes,

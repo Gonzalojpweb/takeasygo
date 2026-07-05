@@ -1,0 +1,208 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// packages/business/src/plans.ts — Fuente de verdad del sistema de planes SaaS
+// Compartido entre SaaS, Sync Layer y POS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type Plan = 'trial' | 'try' | 'buy' | 'full' | 'anfitrion'
+
+// ── Labels comerciales ────────────────────────────────────────────────────────
+export const PLAN_LABELS: Record<Plan, string> = {
+  trial:   'Trial',
+  try:     'Inicial',
+  buy:     'Crecimiento',
+  full:    'Premium',
+  anfitrion: 'Anfitriones',
+}
+
+export const PLAN_TAGLINES: Record<Plan, string> = {
+  trial:   'Probá la plataforma con tus primeros 30 pedidos',
+  try:     'Para restaurantes que quieren vender sin complicaciones',
+  buy:     'Para restaurantes que quieren mejorar su operación',
+  full:    'Para restaurantes que quieren optimizar su negocio con datos',
+  anfitrion: 'Acceso exclusivo de lanzamiento — para los primeros en sumarse a la plataforma',
+}
+
+// ── Colores por plan (clases Tailwind) ────────────────────────────────────────
+export const PLAN_COLORS: Record<Plan, string> = {
+  trial:   'text-violet-600 bg-violet-500/10 border-violet-500/20',
+  try:     'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+  buy:     'text-blue-600 bg-blue-500/10 border-blue-500/20',
+  full:    'text-primary bg-primary/10 border-primary/20',
+  anfitrion: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+}
+
+// ── Precios de referencia ─────────────────────────────────────────────────────
+export const PLAN_PRICE: Record<Plan, string> = {
+  trial:   'Gratis',
+  try:     '$35.000 ARS/mes',
+  buy:     '$45.000 ARS/mes',
+  full:    '$60.000 ARS/mes',
+  anfitrion: '$7.500/mes',
+}
+
+// ── Matriz de acceso por feature ──────────────────────────────────────────────
+// Cada feature lista los planes que tienen acceso.
+export const PLAN_ACCESS = {
+  // Siempre disponibles (trial con límites: 1 sede, 1 impresora)
+  // anfitrion: solo menu y settings — pedidos/impresoras/historial bloqueados
+  menu:          ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
+  orders:        ['trial', 'try', 'buy', 'full'] as const,
+  orderHistory:  ['trial', 'try', 'buy', 'full'] as const,
+  printers:      ['trial', 'try', 'buy', 'full'] as const, // trial/try = máximo 1
+  settings:      ['trial', 'try', 'buy', 'full', 'anfitrion'] as const, // trial/try = máximo 1 ubicación
+
+  // Plan Crecimiento y superior
+  reports:       ['buy', 'full'] as const,
+  users:         ['buy', 'full'] as const,
+  audit:         ['buy', 'full'] as const,
+  multiLocation: ['buy', 'full'] as const,
+  multiPrinter:  ['buy', 'full'] as const,
+  ico:           ['buy', 'full'] as const, // buy = simplificado, full = avanzado
+
+  // Solo para plan Trial (informe de contexto operativo al llegar a 30 pedidos)
+  icoTrial:      ['trial'] as const,
+
+  // Solo Plan Premium
+  analyticsAdv:  ['full'] as const,  // performance + menú + horarios inteligentes
+  icoAdvanced:   ['full'] as const,  // diagnóstico completo con factores
+  store:         ['full'] as const,  // Tienda de canje de puntos
+  sos:           ['buy', 'full'] as const,  // Reward Advance (préstamo de puntos en checkout)
+  dineIn:        ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
+
+  // Plan Crecimiento y superior
+  reservations:  ['buy', 'full'] as const,
+
+  // Módulo Business (precios corporativos) — Crecimiento y Premium
+  business:      ['buy', 'full'] as const,
+
+  // Club de Fidelización — disponible en todos los planes con límites distintos
+  // Límites de miembros: trial=30, try=150, buy/full=ilimitado
+  // Exportación de lista: solo desde buy/full
+  loyaltyClub:       ['trial', 'try', 'buy', 'full'] as const,
+  loyaltyExport:     ['buy', 'full'] as const,
+  loyaltyAnalytics:  ['full'] as const,  // Fase 2: métricas avanzadas del club
+
+  // Integración POS — disponible en Crecimiento y Premium
+  posIntegration:    ['buy', 'full'] as const,
+
+  // Delivery — Trial + Premium
+  delivery:          ['trial', 'full'] as const,
+
+  // Notificaciones push al admin cuando llega un pedido nuevo
+  // Disponible en Trial, Crecimiento y Premium
+  adminPushNotifications: ['trial', 'buy', 'full'] as const,
+
+  // TIA — Inteligencia TakeasyGO
+  // All features: 'buy' (Growth), 'full' (Premium)
+  // Premium sub-features (SIL, anomalies, recommendations) gated inside UI
+  tia: ['buy', 'full'] as const,
+
+  // CRM — Base de Datos de Consumidores (Crecimiento y Premium)
+  crm: ['buy', 'full'] as const,
+
+  // CIS — Customer Intelligence System (Crecimiento y Premium)
+  // Incluye: métricas, segmentación, health score, insights, señales
+  cis: ['buy', 'full'] as const,
+}
+
+export type Feature = keyof typeof PLAN_ACCESS
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Devuelve true si el plan tiene acceso a la feature */
+export function canAccess(plan: Plan, feature: Feature): boolean {
+  return (PLAN_ACCESS[feature] as readonly string[]).includes(plan)
+}
+
+/** Devuelve el plan mínimo requerido para una feature */
+export function requiredPlanFor(feature: Feature): Plan {
+  const order: Plan[] = ['try', 'buy', 'full']
+  return order.find(p =>
+    (PLAN_ACCESS[feature] as readonly string[]).includes(p)
+  ) ?? 'full'
+}
+
+/** Límite de miembros del club por plan. null = sin límite */
+export const LOYALTY_MEMBER_LIMIT: Record<Plan, number | null> = {
+  trial:    30,
+  try:      150,
+  buy:      null,
+  full:     null,
+  anfitrion: 0,  // el plan anfitrion no incluye pedidos ni club activo
+}
+
+// ── Feature lists para la landing ────────────────────────────────────────────
+
+export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: string[] }> = {
+  trial: {
+    featured: [
+      'Menú digital completo con imágenes y customizaciones',
+      'Pedidos online con pago por MercadoPago',
+      'Tracking del pedido en tiempo real para el cliente',
+      'Impresión automática de tickets en cocina',
+    ],
+    extra: [
+      'Hasta 30 pedidos para generar tu Informe ICO de contexto',
+      '1 sede / ubicación',
+      'Panel de administración',
+    ],
+  },
+  try: {
+    featured: [
+      'Menú digital completo con imágenes y customizaciones',
+      'Pedidos online con pago por MercadoPago',
+      'Tracking del pedido en tiempo real para el cliente',
+      'Impresión automática de tickets en cocina',
+    ],
+    extra: [
+      'Club de Fidelización (hasta 150 miembros)',
+      'Carrito de compras y checkout optimizado',
+      'Importación de menú desde CSV',
+      'Historial de órdenes',
+      'Branding básico (colores y logo)',
+      '1 sede / ubicación',
+      'Panel de administración',
+    ],
+  },
+  buy: {
+    featured: [
+      'Todo el plan Inicial incluido',
+      'Integración POS (Fudo / Bistrosoft / API)',
+      'Gestión de Reservas con pago de seña',
+      'Club de Fidelización ilimitado y exportable',
+    ],
+    extra: [
+      'Reportes de ventas con comparativa mensual y exportación',
+      'Múltiples sedes y usuarios con roles',
+      'ICO — Score de Fiabilidad Operativa',
+      'Múltiples impresoras por local',
+      'Log de auditoría de acciones del equipo',
+      'Historial completo de pedidos con filtros',
+    ],
+  },
+  full: {
+    featured: [
+      'Todo el plan Crecimiento incluido',
+      'Advanced Analytics: Recompra y Hora Pico',
+      'ICO avanzado con diagnóstico por factores',
+      'KPIs operativos: TPP y Tasa de Cancelación',
+    ],
+    extra: [
+      'Distribución horaria de pedidos y performance',
+      'Tasa de recompra y frecuencia de clientes (90 días)',
+      'Modo Dine-in (menú para consumo en el local)',
+      'Delivery con costo variable por zona',
+      'Conversión de pagos MercadoPago',
+      'Loyalty Analytics detallado',
+    ],
+  },
+  anfitrion: {
+    featured: [
+      'Panel de administración completo',
+      'Menú digital con imágenes y customizaciones',
+      'Configuración completa de tu restaurante',
+      'Gestión de facturación y suscripción',
+    ],
+    extra: [],
+  },
+}
