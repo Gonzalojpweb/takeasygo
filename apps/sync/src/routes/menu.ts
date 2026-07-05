@@ -1,4 +1,93 @@
 import { Router } from "express"
+import { MenuModel, type IMenuDocument } from "@takeasygo/db"
+import mongoose from "mongoose"
+
+// ============================================================================
+// Menu Router — serves flattened menu snapshot for POS
+// Queries the `menus` collection (same as SaaS) and flattens the nested
+// structure into Product[] + MenuCategory[] arrays that the POS expects.
+// ============================================================================
+
+interface FlatProduct {
+  id: string
+  tenantId: string
+  name: string
+  description: string
+  price: number
+  category: string
+  isAvailable: boolean
+  modifiers?: Array<{
+    name: string
+    options: Array<{ name: string; price: number }>
+    required?: boolean
+    maxSelections?: number
+  }>
+  imageUrl?: string
+  sortOrder?: number
+}
+
+interface FlatCategory {
+  id: string
+  name: string
+  sortOrder: number
+  isVisible: boolean
+}
+
+function flattenMenu(doc: IMenuDocument): {
+  products: FlatProduct[]
+  categories: FlatCategory[]
+} {
+  const products: FlatProduct[] = []
+  const categories: FlatCategory[] = []
+
+  for (const cat of doc.categories) {
+    const catId = cat._id?.toString() ?? ""
+
+    categories.push({
+      id: catId,
+      name: cat.name,
+      sortOrder: cat.sortOrder ?? 0,
+      isVisible: cat.isAvailable ?? true,
+    })
+
+    // Inherit category-level customization groups to items
+    const inheritedGroups = cat.customizationGroups ?? []
+
+    for (const item of cat.items) {
+      const itemId = item._id?.toString() ?? ""
+
+      // Merge item-level + inherited customization groups
+      const allGroups = [...inheritedGroups, ...(item.customizationGroups ?? [])]
+
+      const modifiers =
+        allGroups.length > 0
+          ? allGroups.map((g) => ({
+              name: g.name,
+              required: g.required ?? false,
+              maxSelections: g.type === "single" ? 1 : undefined,
+              options: g.options.map((o) => ({
+                name: o.name,
+                price: o.extraPrice ?? 0,
+              })),
+            }))
+          : undefined
+
+      products.push({
+        id: itemId,
+        tenantId: doc.tenantId.toString(),
+        name: item.name,
+        description: item.description ?? "",
+        price: item.price,
+        category: cat.name,
+        isAvailable: item.isAvailable ?? true,
+        modifiers,
+        imageUrl: item.imageUrl || undefined,
+      })
+    }
+  }
+
+  return { products, categories }
+}
 
 export function menuRouter(): Router {
   const router = Router()
@@ -6,12 +95,50 @@ export function menuRouter(): Router {
   router.get("/snapshot", async (req, res) => {
     try {
       const auth = req.auth!
+      const tenantId = new mongoose.Types.ObjectId(auth.tenantId)
+
+      // Find all active menus for this tenant
+      const menus = await MenuModel.find({
+        tenantId,
+        isActive: true,
+      }).lean()
+
+      if (!menus || menus.length === 0) {
+        res.json({
+          version: 1,
+          tenantId: auth.tenantId,
+          products: [],
+          categories: [],
+          createdAt: new Date().toISOString(),
+          signature: "",
+        })
+        return
+      }
+
+      // Merge products from all locations into a single snapshot
+      const allProducts: FlatProduct[] = []
+      const allCategories: FlatCategory[] = []
+      let latestVersion = 1
+
+      for (const menu of menus) {
+        const flat = flattenMenu(menu as IMenuDocument)
+        allProducts.push(...flat.products)
+        allCategories.push(...flat.categories)
+      }
+
+      // Deduplicate categories by name (in case multiple locations share categories)
+      const seenCats = new Set<string>()
+      const dedupedCategories = allCategories.filter((c) => {
+        if (seenCats.has(c.name)) return false
+        seenCats.add(c.name)
+        return true
+      })
 
       res.json({
-        version: 1,
+        version: latestVersion,
         tenantId: auth.tenantId,
-        products: [],
-        categories: [],
+        products: allProducts,
+        categories: dedupedCategories.sort((a, b) => a.sortOrder - b.sortOrder),
         createdAt: new Date().toISOString(),
         signature: "",
       })
