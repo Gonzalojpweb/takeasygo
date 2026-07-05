@@ -35,45 +35,53 @@ export function OrderPanel({
           </div>
         ) : (
           <div className="order-items">
-            {items.map((item) => (
-              <div key={item.productId} className="order-item">
-                <span className="order-item-name">{item.name}</span>
-                <div className="order-item-qty">
+            {items.map((item, idx) => (
+              <div key={`${item.productId}-${idx}`} className="order-item-card">
+                <div className="order-item-main">
+                  <div className="order-item-top">
+                    <span className="order-item-name">{item.name}</span>
+                    <span className="order-item-total">
+                      {formatCurrency(item.total)}
+                    </span>
+                  </div>
+                  {item.modifiers && item.modifiers.length > 0 && (
+                    <div className="order-item-modifiers">
+                      {item.modifiers.map((m, i) => (
+                        <span key={i} className="order-item-modifier">
+                          {m.name}{m.price > 0 ? ` (+${formatCurrency(m.price)})` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {item.notes && (
+                    <div className="order-item-notes">{item.notes}</div>
+                  )}
+                </div>
+                <div className="order-item-actions">
                   {onUpdateQuantity && (
-                    <>
-                      <button
-                        onClick={() =>
-                          onUpdateQuantity(item.productId, item.quantity - 1)
-                        }
-                      >
+                    <div className="order-item-qty">
+                      <button onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)}>
                         −
                       </button>
                       <span style={{ minWidth: 20, textAlign: "center" }}>
                         {item.quantity}
                       </span>
-                      <button
-                        onClick={() =>
-                          onUpdateQuantity(item.productId, item.quantity + 1)
-                        }
-                      >
+                      <button onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)}>
                         +
                       </button>
-                    </>
+                    </div>
                   )}
-                  {!onUpdateQuantity && <span>{item.quantity}</span>}
+                  {!onUpdateQuantity && <span className="order-item-qty">{item.quantity}×</span>}
+                  {onRemoveItem && (
+                    <button
+                      className="order-item-remove"
+                      onClick={() => onRemoveItem(item.productId)}
+                      title="Eliminar"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
-                <span className="order-item-total">
-                  {formatCurrency(item.total)}
-                </span>
-                {onRemoveItem && (
-                  <button
-                    className="order-item-remove"
-                    onClick={() => onRemoveItem(item.productId)}
-                    title="Eliminar"
-                  >
-                    ✕
-                  </button>
-                )}
               </div>
             ))}
           </div>

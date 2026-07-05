@@ -155,8 +155,11 @@ export interface Product {
   sortOrder?: number
 }
 
+export type ModifierGroupType = "single" | "multiple"
+
 export interface ProductModifier {
   name: string
+  type?: ModifierGroupType
   options: ModifierOption[]
   required?: boolean
   maxSelections?: number
@@ -165,6 +168,30 @@ export interface ProductModifier {
 export interface ModifierOption {
   name: string
   price: number
+  subGroups?: ProductModifier[]
+}
+
+// ============================================================================
+// 6b. PRODUCT CONFIGURATION — PCP resolved state
+// ============================================================================
+
+export interface ProductConfiguration {
+  /** Group name → selected option name(s) */
+  selections: Record<string, string | string[]>
+  /** Free text observations */
+  notes: string
+  /** Quantity to add */
+  quantity: number
+}
+
+export interface ConfiguredOrderItem {
+  productId: string
+  name: string
+  quantity: number
+  unitPrice: number
+  total: number
+  modifiers?: OrderItemModifier[]
+  notes?: string
 }
 
 // ============================================================================

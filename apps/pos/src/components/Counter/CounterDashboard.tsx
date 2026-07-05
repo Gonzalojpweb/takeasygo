@@ -4,13 +4,14 @@ import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
 import { usePayments } from "../../hooks/usePayments"
 import { ProductSelector } from "../shared/ProductSelector"
+import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { CustomerSearch } from "../shared/CustomerSearch"
 import { PaymentSelector } from "../shared/PaymentSelector"
 import { SalonSetup } from "./SalonSetup"
 import { formatCurrency } from "../../utils/format"
 
-type Scene = "salon" | "productos" | "revision" | "cobro" | "cierre" | "setup"
+type Scene = "salon" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup"
 
 interface CartItem extends OrderItem {
   product: Product
@@ -23,6 +24,7 @@ export function CounterDashboard() {
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [configProduct, setConfigProduct] = useState<Product | null>(null)
 
   const { tables } = useTables()
   const { products, categories } = useMenu()
@@ -44,6 +46,12 @@ export function CounterDashboard() {
   }, [])
 
   const handleAddProduct = useCallback((product: Product) => {
+    const hasModifiers = product.modifiers && product.modifiers.length > 0
+    if (hasModifiers) {
+      setConfigProduct(product)
+      setScene("configurar")
+      return
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id)
       if (existing) {
@@ -83,6 +91,13 @@ export function CounterDashboard() {
     setCart((prev) => prev.filter((i) => i.productId !== productId))
   }, [])
 
+  const handleConfigConfirm = useCallback((item: OrderItem) => {
+    if (!configProduct) return
+    setCart((prev) => [...prev, { ...item, product: configProduct }])
+    setConfigProduct(null)
+    setScene("productos")
+  }, [configProduct])
+
   const handlePay = useCallback(async (method: PaymentMethod) => {
     try {
       await processPayment("temp-order", cartTotal, "Pedido Counter", method)
@@ -101,9 +116,21 @@ export function CounterDashboard() {
   }, [])
 
   return (
-    <div className="workspace" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="workspace">
       {/* Scene: Setup — shown when no tables exist */}
       {scene === "setup" && <SalonSetup onDone={() => setScene("salon")} />}
+
+      {/* Scene: Configurar producto */}
+      {scene === "configurar" && configProduct && (
+        <ProductConfigurationPanel
+          product={configProduct}
+          onConfirm={handleConfigConfirm}
+          onCancel={() => {
+            setConfigProduct(null)
+            setScene("productos")
+          }}
+        />
+      )}
 
       {/* Scene: Salón */}
       {scene === "salon" && (
@@ -181,8 +208,8 @@ export function CounterDashboard() {
 
       {/* Scene: Productos */}
       {scene === "productos" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", height: "100%", gap: 0 }}>
-          <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", flex: 1, minHeight: 0, gap: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
             <div className="workspace-header">
               <div>
                 <div className="workspace-title">
@@ -222,7 +249,7 @@ export function CounterDashboard() {
               onSelectProduct={handleAddProduct}
             />
           </div>
-          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", height: "100%", display: "flex", flexDirection: "column" }}>
+          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", minHeight: 0 }}>
             <OrderPanel
               title={`Mesa ${selectedTable?.number ?? "?"}`}
               items={cart}
@@ -241,8 +268,8 @@ export function CounterDashboard() {
 
       {/* Scene: Revisión */}
       {scene === "revision" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", height: "100%", gap: 0 }}>
-          <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", flex: 1, minHeight: 0, gap: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
             <div className="workspace-header">
               <div>
                 <div className="workspace-title">Revisión del pedido</div>
@@ -263,18 +290,34 @@ export function CounterDashboard() {
                   <span className="card-title">Items ({cart.length})</span>
                 </div>
                 <div className="order-items">
-                  {cart.map((item) => (
-                    <div key={item.productId} className="order-item">
-                      <span className="order-item-name">{item.name}</span>
-                      <span className="order-item-qty">×{item.quantity}</span>
-                      <span className="order-item-total">{formatCurrency(item.total)}</span>
+                  {cart.map((item, idx) => (
+                    <div key={`${item.productId}-${idx}`} className="order-item-card">
+                      <div className="order-item-main">
+                        <div className="order-item-top">
+                          <span className="order-item-name">{item.name}</span>
+                          <span className="order-item-qty">×{item.quantity}</span>
+                          <span className="order-item-total">{formatCurrency(item.total)}</span>
+                        </div>
+                        {item.modifiers && item.modifiers.length > 0 && (
+                          <div className="order-item-modifiers">
+                            {item.modifiers.map((m, i) => (
+                              <span key={i} className="order-item-modifier">
+                                {m.name}{m.price > 0 ? ` (+${formatCurrency(m.price)})` : ""}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {item.notes && (
+                          <div className="order-item-notes">{item.notes}</div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
           </div>
-          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", height: "100%", display: "flex", flexDirection: "column" }}>
+          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", minHeight: 0 }}>
             <OrderPanel
               title="Resumen"
               items={cart}
@@ -290,7 +333,7 @@ export function CounterDashboard() {
 
       {/* Scene: Cobro */}
       {scene === "cobro" && (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "auto" }}>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "auto" }}>
           <div className="workspace-header">
             <div>
               <div className="workspace-title">Cobro</div>
@@ -312,7 +355,7 @@ export function CounterDashboard() {
 
       {/* Scene: Cierre */}
       {scene === "cierre" && (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center" }}>
           <div className="text-center">
             <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
             <div className="workspace-title" style={{ marginBottom: 8 }}>

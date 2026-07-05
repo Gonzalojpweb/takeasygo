@@ -18,7 +18,17 @@ interface FlatProduct {
   isAvailable: boolean
   modifiers?: Array<{
     name: string
-    options: Array<{ name: string; price: number }>
+    type?: "single" | "multiple"
+    options: Array<{
+      name: string
+      price: number
+      subGroups?: Array<{
+        name: string
+        type?: "single" | "multiple"
+        required?: boolean
+        options: Array<{ name: string; price: number }>
+      }>
+    }>
     required?: boolean
     maxSelections?: number
   }>
@@ -31,6 +41,23 @@ interface FlatCategory {
   name: string
   sortOrder: number
   isVisible: boolean
+}
+
+function flattenSubGroups(groups: Array<{ name: string; type?: string; required?: boolean; options: Array<{ name: string; extraPrice?: number; subGroups?: any[] }> }>): Array<{
+  name: string
+  type?: "single" | "multiple"
+  required?: boolean
+  options: Array<{ name: string; price: number }>
+}> {
+  return groups.map((g) => ({
+    name: g.name,
+    type: g.type as "single" | "multiple" | undefined,
+    required: g.required,
+    options: g.options.map((o) => ({
+      name: o.name,
+      price: o.extraPrice ?? 0,
+    })),
+  }))
 }
 
 function flattenMenu(doc: IMenuDocument): {
@@ -63,11 +90,16 @@ function flattenMenu(doc: IMenuDocument): {
         allGroups.length > 0
           ? allGroups.map((g) => ({
               name: g.name,
+              type: g.type as "single" | "multiple" | undefined,
               required: g.required ?? false,
               maxSelections: g.type === "single" ? 1 : undefined,
               options: g.options.map((o) => ({
                 name: o.name,
                 price: o.extraPrice ?? 0,
+                subGroups:
+                  o.subGroups && o.subGroups.length > 0
+                    ? flattenSubGroups(o.subGroups)
+                    : undefined,
               })),
             }))
           : undefined

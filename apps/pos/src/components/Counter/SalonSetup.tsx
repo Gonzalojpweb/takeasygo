@@ -105,7 +105,7 @@ export function SalonSetup({ onDone }: SalonSetupProps) {
   const totalTables = sectors.reduce((sum, s) => sum + s.tables.length, 0)
 
   return (
-    <div className="workspace" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="workspace">
       <div className="workspace-header">
         <div>
           <div className="workspace-title">Configurar salón</div>

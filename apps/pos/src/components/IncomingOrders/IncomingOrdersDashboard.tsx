@@ -108,7 +108,7 @@ export function IncomingOrdersDashboard() {
     items.map((i) => `${i.quantity}× ${i.name}`).join(", ")
 
   return (
-    <div className="workspace" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="workspace">
       <div className="workspace-header">
         <div>
           <div className="workspace-title">Pedidos entrantes</div>
@@ -141,7 +141,7 @@ export function IncomingOrdersDashboard() {
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {filteredOrders.length === 0 ? (
           <div className="empty-state">
             <span className="empty-state-icon">📦</span>
