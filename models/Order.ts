@@ -91,6 +91,7 @@ export interface IOrder extends Document {
   promoSlug: string | null
   total: number
   customer: {
+    customerId?: string
     name: string
     phone: string
     email: string
@@ -307,6 +308,7 @@ const OrderSchema = new Schema(
       min: 0,
     },
     customer: {
+      customerId: { type: String, default: null, index: true },
       name: { type: String, required: true, trim: true },
       phone: { type: String, default: '', trim: true },
       email: { type: String, default: '', trim: true },
