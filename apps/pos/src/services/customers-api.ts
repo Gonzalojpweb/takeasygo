@@ -20,6 +20,18 @@ export interface CustomerSearchResult {
   healthScore?: number | null
 }
 
+export interface CreateCustomerInput {
+  name: string
+  phone?: string
+  email?: string
+}
+
+export interface UpdateCustomerInput {
+  name?: string
+  phone?: string
+  email?: string
+}
+
 export interface CustomerSearchResponse {
   customers: CustomerSearchResult[]
   total: number
@@ -97,6 +109,55 @@ export async function getCustomerOrders(
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Network error" }))
     throw new Error(err.error ?? `Customer orders failed (${res.status})`)
+  }
+
+  return res.json()
+}
+
+/**
+ * Crear un nuevo cliente desde el POS.
+ */
+export async function createCustomer(
+  input: CreateCustomerInput,
+  jwt: string
+): Promise<{ customerId: string; name: string; phone?: string; email?: string }> {
+  const res = await fetch(`${SYNC_URL}/api/v1/customers`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify(input),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Network error" }))
+    throw new Error(err.error ?? `Create customer failed (${res.status})`)
+  }
+
+  return res.json()
+}
+
+/**
+ * Actualizar un cliente existente desde el POS.
+ */
+export async function updateCustomer(
+  customerId: string,
+  input: UpdateCustomerInput,
+  jwt: string
+): Promise<{ customerId: string; name: string; phone?: string; email?: string }> {
+  const res = await fetch(`${SYNC_URL}/api/v1/customers/${customerId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify(input),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Network error" }))
+    throw new Error(err.error ?? `Update customer failed (${res.status})`)
   }
 
   return res.json()

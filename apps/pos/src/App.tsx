@@ -5,6 +5,7 @@ import { CounterDashboard } from "./components/Counter/CounterDashboard"
 import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
 import { IncomingOrdersDashboard } from "./components/IncomingOrders/IncomingOrdersDashboard"
 import { FlotaDashboard } from "./components/Flota/FlotaDashboard"
+import { CustomersDashboard } from "./components/Customers/CustomersDashboard"
 import {
   startConnectivityMonitoring,
   stopConnectivityMonitoring,
@@ -14,7 +15,7 @@ import { flush } from "./services/event-queue"
 import { disconnectSocket } from "./services/socket-client"
 import "./styles/pos.css"
 
-type Context = "counter" | "waiter" | "incoming" | "flota"
+type Context = "counter" | "customers" | "waiter" | "incoming" | "flota"
 
 function App() {
   const { state, login, logout } = useAuth()
@@ -114,6 +115,14 @@ function App() {
         </div>
 
         <div
+          className={`nav-item ${activeContext === "customers" ? "active" : ""}`}
+          onClick={() => setActiveContext("customers")}
+        >
+          <div className="nav-item-icon">👥</div>
+          <span>Clientes</span>
+        </div>
+
+        <div
           className={`nav-item ${activeContext === "waiter" ? "active" : ""}`}
           onClick={() => setActiveContext("waiter")}
         >
@@ -150,6 +159,7 @@ function App() {
 
       {/* Workspace — active context */}
       {activeContext === "counter" && <CounterDashboard />}
+      {activeContext === "customers" && <CustomersDashboard />}
       {activeContext === "waiter" && <WaiterDashboard />}
       {activeContext === "incoming" && <IncomingOrdersDashboard />}
       {activeContext === "flota" && <FlotaDashboard />}
