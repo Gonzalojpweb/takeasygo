@@ -96,6 +96,8 @@ apps/sync/keys.public.pem
 
 # Env files
 apps/sync/.env.local
+apps/sync/.env.example
+apps/pos/.env.example
 .env.local
 .env.*.local
 
