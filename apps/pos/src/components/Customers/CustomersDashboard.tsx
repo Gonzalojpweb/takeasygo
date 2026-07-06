@@ -30,7 +30,11 @@ function customerInitials(name: string) {
     .join("")
 }
 
-export function CustomersDashboard() {
+interface CustomersDashboardProps {
+  isPremium?: boolean
+}
+
+export function CustomersDashboard({ isPremium = true }: CustomersDashboardProps) {
   const { state } = useAuth()
   const jwt = state.status === "authenticated" ? state.jwt?.accessToken : undefined
 
@@ -169,7 +173,11 @@ export function CustomersDashboard() {
           >
             Limpiar
           </button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
+          <button
+            className={`btn btn-primary btn-sm${!isPremium ? " feature-disabled" : ""}`}
+            disabled={!isPremium}
+            onClick={() => setShowCreateModal(true)}
+          >
             Nuevo cliente
           </button>
         </div>
@@ -337,7 +345,11 @@ export function CustomersDashboard() {
               <div className="customer-section">
                 <div className="customer-section-title">Acciones</div>
                 <div className="customer-action-stack">
-                  <button className="btn btn-primary btn-sm" onClick={() => setShowEditForm(true)}>
+                  <button
+                    className={`btn btn-primary btn-sm${!isPremium ? " feature-disabled" : ""}`}
+                    disabled={!isPremium}
+                    onClick={() => setShowEditForm(true)}
+                  >
                     Editar cliente
                   </button>
                   <button className="btn btn-ghost btn-sm" disabled title="Vincular a pedido, mesa o delivery (proximamente)">
