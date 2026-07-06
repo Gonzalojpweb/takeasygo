@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react"
 import type { CustomerProfile } from "@takeasygo/types"
 import { useAuth } from "./useAuth"
-import { searchCustomers, toCustomerProfile } from "../services/customer"
+import { searchCustomers } from "../services/customers-api"
 
 export function useCustomers() {
   const { state } = useAuth()
@@ -22,8 +22,23 @@ export function useCustomers() {
       setError(null)
 
       try {
-        const customers = await searchCustomers(query, jwt)
-        setResults(customers.map(toCustomerProfile))
+        const response = await searchCustomers(query, jwt)
+        setResults(
+          response.customers.map((customer) => ({
+            id: customer.customerId,
+            name: customer.name,
+            phone: customer.phone,
+            email: customer.email,
+            totalOrders: customer.totalOrders,
+            totalSpent: customer.totalSpent,
+            averageTicket:
+              customer.totalOrders > 0
+                ? Math.round(customer.totalSpent / customer.totalOrders)
+                : 0,
+            lastVisit: customer.lastOrderAt ? new Date(customer.lastOrderAt) : undefined,
+            segment: customer.segment as CustomerProfile["segment"] | undefined,
+          }))
+        )
       } catch (err) {
         setError(err instanceof Error ? err.message : "Search failed")
         setResults([])

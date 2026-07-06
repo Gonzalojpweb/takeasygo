@@ -10,7 +10,7 @@ import { Router, type Request, type Response } from "express"
 import { ConsumerModel } from "@takeasygo/db"
 import { TenantModel } from "@takeasygo/db"
 import { canAccess, normalizeForSearch, type Plan } from "@takeasygo/business"
-import { decryptNames } from "../services/internal-api"
+import { decryptNames, encryptFields } from "../services/internal-api"
 import crypto from "crypto"
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -274,6 +274,147 @@ export function customersRouter(): Router {
       })
     } catch (error) {
       console.error("[customers] orders error:", error)
+      return res.status(500).json({ error: "Internal error" })
+    }
+  })
+
+  // ── POST /api/v1/customers ─────────────────────────────────────────────────
+  // Crear un nuevo cliente desde el POS.
+  router.post("/", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.auth?.tenantId
+      if (!tenantId) {
+        return res.status(401).json({ error: "Missing tenant context" })
+      }
+
+      const { name, phone, email } = req.body
+
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ error: "name is required" })
+      }
+
+      // 1. Encrypt sensitive fields via SaaS internal API
+      const encryptBatch: { field: string; value: string }[] = [
+        { field: "name", value: name.trim() },
+      ]
+      if (phone) encryptBatch.push({ field: "phone", value: phone.trim() })
+      if (email) encryptBatch.push({ field: "email", value: email.trim() })
+
+      const { encrypted } = await encryptFields(encryptBatch)
+
+      const encryptedName = encrypted[0] || ""
+      const encryptedPhone = phone ? encrypted[encryptBatch.findIndex(e => e.field === "phone")] || "" : ""
+      const encryptedEmail = email ? encrypted[encryptBatch.findIndex(e => e.field === "email")] || "" : ""
+
+      // 2. Compute search tokens
+      const phoneDigits = phone ? phone.replace(/\D/g, "") : ""
+      const phoneHash = phoneDigits ? crypto.createHash("sha256").update(phoneDigits.slice(-10)).digest("hex") : ""
+
+      // 3. Create consumer document
+      const consumer = await ConsumerModel.create({
+        customerId: crypto.randomUUID(),
+        name: encryptedName,
+        phone: encryptedPhone,
+        email: encryptedEmail,
+        phoneHash,
+        nameSearchToken: normalizeForSearch(name),
+        tenantIds: [tenantId],
+        totalOrders: 0,
+        totalSpent: 0,
+        firstOrderAt: null,
+        lastOrderAt: null,
+        isLoyaltyMember: false,
+        isCorporate: false,
+      })
+
+      return res.status(201).json({
+        customerId: consumer.customerId,
+        name: name.trim(),
+        phone: phone?.trim() || null,
+        email: email?.trim() || null,
+      })
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        return res.status(409).json({ error: "Ya existe un cliente con ese teléfono o email" })
+      }
+      console.error("[customers] create error:", error)
+      return res.status(500).json({ error: "Internal error" })
+    }
+  })
+
+  // ── PUT /api/v1/customers/:customerId ──────────────────────────────────────
+  // Actualizar un cliente existente desde el POS.
+  router.put("/:customerId", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.auth?.tenantId
+      if (!tenantId) {
+        return res.status(401).json({ error: "Missing tenant context" })
+      }
+
+      const { customerId } = req.params
+      const { name, phone, email } = req.body
+
+      // Find existing consumer
+      const consumer = await ConsumerModel.findOne({
+        customerId,
+        tenantIds: tenantId,
+      })
+
+      if (!consumer) {
+        return res.status(404).json({ error: "Customer not found" })
+      }
+
+      // 1. Encrypt changed fields
+      const encryptBatch: { field: string; value: string }[] = []
+
+      if (name && typeof name === "string" && name.trim()) {
+        encryptBatch.push({ field: "name", value: name.trim() })
+      }
+      if (phone && typeof phone === "string") {
+        encryptBatch.push({ field: "phone", value: phone.trim() })
+      }
+      if (email && typeof email === "string") {
+        encryptBatch.push({ field: "email", value: email.trim() })
+      }
+
+      let encrypted: string[] = []
+      if (encryptBatch.length > 0) {
+        const result = await encryptFields(encryptBatch)
+        encrypted = result.encrypted
+      }
+
+      // 2. Build update
+      const update: Record<string, any> = {}
+      let idx = 0
+
+      if (name && typeof name === "string" && name.trim()) {
+        update.name = encrypted[idx++] || ""
+        update.nameSearchToken = normalizeForSearch(name)
+      }
+      if (phone && typeof phone === "string") {
+        update.phone = encrypted[idx++] || ""
+        const phoneDigits = phone.replace(/\D/g, "")
+        update.phoneHash = phoneDigits
+          ? crypto.createHash("sha256").update(phoneDigits.slice(-10)).digest("hex")
+          : ""
+      }
+      if (email && typeof email === "string") {
+        update.email = encrypted[idx++] || ""
+      }
+
+      await ConsumerModel.updateOne({ _id: consumer._id }, { $set: update })
+
+      return res.json({
+        customerId: consumer.customerId,
+        name: name?.trim() || "",
+        phone: phone?.trim() || null,
+        email: email?.trim() || null,
+      })
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        return res.status(409).json({ error: "Ya existe un cliente con ese teléfono o email" })
+      }
+      console.error("[customers] update error:", error)
       return res.status(500).json({ error: "Internal error" })
     }
   })

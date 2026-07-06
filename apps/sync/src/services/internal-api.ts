@@ -66,3 +66,48 @@ export async function decryptNames(
   const { decrypted } = await decryptFields(fields)
   return decrypted
 }
+
+interface EncryptField {
+  field: string
+  value: string
+}
+
+/**
+ * Encripta un batch de campos vía /internal/encrypt del SaaS.
+ * La ENCRYPTION_KEY nunca sale del proceso del SaaS.
+ */
+export async function encryptFields(
+  fields: EncryptField[]
+): Promise<{ encrypted: string[]; errors?: string[] }> {
+  if (!config.internalApiSecret) {
+    throw new Error("INTERNAL_API_SECRET not configured")
+  }
+
+  const response = await fetch(`${config.saasBaseUrl}/api/internal/encrypt`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.internalApiSecret}`,
+      "X-Caller-Id": "sync-layer",
+    },
+    body: JSON.stringify({ fields }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Internal encrypt failed (${response.status}): ${text}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Encripta un solo valor.
+ */
+export async function encryptField(
+  field: string,
+  value: string
+): Promise<string> {
+  const { encrypted } = await encryptFields([{ field, value }])
+  return encrypted[0] ?? ""
+}
