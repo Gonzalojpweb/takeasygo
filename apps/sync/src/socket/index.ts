@@ -21,6 +21,8 @@ export function createSocketServer(
 
   const pubClient = new Redis(redisUrl)
   const subClient = new Redis(redisUrl)
+  pubClient.on("error", (err) => console.error("[socket/pub/redis] error:", err.message))
+  subClient.on("error", (err) => console.error("[socket/sub/redis] error:", err.message))
   io.adapter(createAdapter(pubClient, subClient))
 
   io.use((socket, next) => {

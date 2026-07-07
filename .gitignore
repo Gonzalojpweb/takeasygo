@@ -73,7 +73,6 @@ takeasygo_extracted*
 /CLUB
 /FUNDAMENTOS
 /test
-/docs
 
 # Misc
 wireframe.png
@@ -107,3 +106,4 @@ apps/sync/.env.local
 .env.local
 
 /POS
+/docs

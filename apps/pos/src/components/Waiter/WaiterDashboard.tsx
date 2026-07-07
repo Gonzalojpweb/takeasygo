@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import type { Product, OrderItem } from "@takeasygo/types"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
+import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
@@ -21,6 +22,7 @@ export function WaiterDashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
 
+  const { setContextPanel, setActionBar } = useLayout()
   const { tables } = useTables()
   const { products, categories } = useMenu()
   const { pendingCommands } = useKitchenCommands()
@@ -105,8 +107,188 @@ export function WaiterDashboard() {
     setScene("turno")
   }, [])
 
+  // ==========================================================================
+  // Context Panel +ActionBar per scene
+  // ==========================================================================
+
+  useEffect(() => {
+    switch (scene) {
+      case "turno":
+        setContextPanel({
+          title: "Tu turno",
+          subtitle: `${occupiedTables.length} mesas activas`,
+          body: (
+            <div style={{ padding: "var(--sp-2)" }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
+                Pedidos pendientes
+              </div>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                {pendingCommands.length}
+              </div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", marginTop: "var(--sp-4)" }}>
+                Mesas activas
+              </div>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                {occupiedTables.length}
+              </div>
+            </div>
+          ),
+        })
+        setActionBar(null)
+        break
+
+      case "mesa":
+        setContextPanel({
+          title: `Mesa ${selectedTable?.number ?? "?"}`,
+          subtitle: cart.length > 0 ? `${cart.length} items — $${cartTotal.toFixed(2)}` : "Sin pedidos activos",
+          body: (
+            <OrderPanel
+              title={`Mesa ${selectedTable?.number ?? "?"}`}
+              items={[]}
+              total={0}
+              footerContent={
+                <div className="text-muted text-sm text-center" style={{ padding: 16 }}>
+                  Sin pedidos activos
+                </div>
+              }
+            />
+          ),
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("turno")}>
+              ← Volver
+            </button>
+          ),
+        })
+        break
+
+      case "configurar":
+        setContextPanel(null)
+        setActionBar(null)
+        break
+
+      case "pedido":
+        setContextPanel({
+          title: `Pedido — Mesa ${selectedTable?.number ?? "?"}`,
+          subtitle: cart.length > 0 ? `${cart.length} items` : "Agregá productos",
+          body: (
+            <OrderPanel
+              title={`Pedido — Mesa ${selectedTable?.number ?? "?"}`}
+              items={cart}
+              onUpdateQuantity={handleUpdateQuantity}
+              onRemoveItem={handleRemoveItem}
+              total={cartTotal}
+              primaryAction={{
+                label: "Enviar a cocina",
+                onClick: () => setScene("cocina"),
+                disabled: cart.length === 0,
+              }}
+            />
+          ),
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("mesa")}>
+              ← Volver
+            </button>
+          ),
+        })
+        break
+
+      case "cocina":
+        setContextPanel({
+          title: "Cocina",
+          subtitle: `${pendingCommands.length} pedidos pendientes`,
+          body: (
+            <div style={{ padding: "var(--sp-2)" }}>
+              {pendingCommands.length === 0 ? (
+                <div style={{ color: "var(--text-muted)", fontSize: "var(--font-size-sm)", textAlign: "center", padding: "var(--sp-4)" }}>
+                  Todo al día ✓
+                </div>
+              ) : (
+                pendingCommands.map((cmd) => (
+                  <div key={cmd.id} style={{ padding: "var(--sp-2) 0", borderBottom: "1px solid var(--border-light)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontWeight: 600, fontSize: "var(--font-size-sm)" }}>Mesa {cmd.tableNumber}</span>
+                      <span className={`status-badge ${cmd.status}`}>{formatOrderStatus(cmd.status)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ),
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("turno")}>
+              ← Volver
+            </button>
+          ),
+        })
+        break
+
+      case "entrega":
+        setContextPanel({
+          title: "Entrega",
+          subtitle: `Mesa ${selectedTable?.number ?? "?"}`,
+          body: (
+            <div style={{ padding: "var(--sp-4)", color: "var(--text-muted)", fontSize: "var(--font-size-sm)", textAlign: "center" }}>
+              Pedidos listos para entregar
+            </div>
+          ),
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("turno")}>
+              ← Volver
+            </button>
+          ),
+        })
+        break
+
+      case "cuenta":
+        setContextPanel({
+          title: "Cuenta",
+          subtitle: `Mesa ${selectedTable?.number ?? "?"}`,
+          body: (
+            <div style={{ padding: "var(--sp-4)", textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: "var(--sp-2)" }}>📄</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+                La cuenta fue enviada a caja
+              </div>
+            </div>
+          ),
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("mesa")}>
+              ← Volver
+            </button>
+          ),
+          right: (
+            <button className="btn btn-primary" onClick={handleNewSale}>
+              Cerrar mesa
+            </button>
+          ),
+        })
+        break
+
+      case "cierre":
+        setContextPanel(null)
+        setActionBar({
+          center: (
+            <button className="btn btn-primary" onClick={handleNewSale}>
+              Volver al turno
+            </button>
+          ),
+        })
+        break
+    }
+  }, [scene, selectedTable, cart, cartTotal, occupiedTables, pendingCommands, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale])
+
   return (
-    <div className="workspace">
+    <>
       {/* Scene: Turno */}
       {scene === "turno" && (
         <>
@@ -152,44 +334,25 @@ export function WaiterDashboard() {
 
       {/* Scene: Mesa */}
       {scene === "mesa" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", flex: 1, minHeight: 0, gap: 0 }}>
-          <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <div className="workspace-header">
-              <div>
-                <div className="workspace-title">Mesa {selectedTable?.number ?? "?"}</div>
-                <div className="workspace-subtitle">Acciones para esta mesa</div>
-              </div>
-              <div className="workspace-actions">
-                <button className="btn btn-ghost" onClick={() => setScene("turno")}>
-                  ← Volver
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="grid-3">
-                <button className="btn btn-primary btn-lg" style={{ width: "100%", height: 80 }} onClick={() => setScene("pedido")}>
-                  📝 Tomar pedido
-                </button>
-                <button className="btn btn-ghost btn-lg" style={{ width: "100%", height: 80 }} onClick={() => setScene("cocina")}>
-                  🍳 Cocina
-                </button>
-                <button className="btn btn-ghost btn-lg" style={{ width: "100%", height: 80 }} onClick={() => setScene("cuenta")}>
-                  💰 Solicitar cuenta
-                </button>
-              </div>
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div className="workspace-header">
+            <div>
+              <div className="workspace-title">Mesa {selectedTable?.number ?? "?"}</div>
+              <div className="workspace-subtitle">Acciones para esta mesa</div>
             </div>
           </div>
-          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <OrderPanel
-              title={`Mesa ${selectedTable?.number ?? "?"}`}
-              items={[]}
-              total={0}
-              footerContent={
-                <div className="text-muted text-sm text-center" style={{ padding: 16 }}>
-                  Sin pedidos activos
-                </div>
-              }
-            />
+          <div className="p-6">
+            <div className="grid-3">
+              <button className="btn btn-primary btn-lg" style={{ width: "100%", height: 80 }} onClick={() => setScene("pedido")}>
+                📝 Tomar pedido
+              </button>
+              <button className="btn btn-ghost btn-lg" style={{ width: "100%", height: 80 }} onClick={() => setScene("cocina")}>
+                🍳 Cocina
+              </button>
+              <button className="btn btn-ghost btn-lg" style={{ width: "100%", height: 80 }} onClick={() => setScene("cuenta")}>
+                💰 Solicitar cuenta
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -208,43 +371,22 @@ export function WaiterDashboard() {
 
       {/* Scene: Pedido */}
       {scene === "pedido" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", flex: 1, minHeight: 0, gap: 0 }}>
-          <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <div className="workspace-header">
-              <div>
-                <div className="workspace-title">
-                  Tomar pedido — Mesa {selectedTable?.number ?? "?"}
-                </div>
-                <div className="workspace-subtitle">Agregá productos al pedido</div>
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div className="workspace-header">
+            <div>
+              <div className="workspace-title">
+                Tomar pedido — Mesa {selectedTable?.number ?? "?"}
               </div>
-              <div className="workspace-actions">
-                <button className="btn btn-ghost" onClick={() => setScene("mesa")}>
-                  ← Volver
-                </button>
-              </div>
+              <div className="workspace-subtitle">Agregá productos al pedido</div>
             </div>
-            <ProductSelector
-              products={products}
-              categories={categories}
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              onSelectProduct={handleAddProduct}
-            />
           </div>
-          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <OrderPanel
-              title={`Pedido — Mesa ${selectedTable?.number ?? "?"}`}
-              items={cart}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemoveItem={handleRemoveItem}
-              total={cartTotal}
-              primaryAction={{
-                label: "Enviar a cocina",
-                onClick: () => setScene("cocina"),
-                disabled: cart.length === 0,
-              }}
-            />
-          </div>
+          <ProductSelector
+            products={products}
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            onSelectProduct={handleAddProduct}
+          />
         </div>
       )}
 
@@ -257,11 +399,6 @@ export function WaiterDashboard() {
               <div className="workspace-subtitle">
                 {pendingCommands.length} pedidos pendientes
               </div>
-            </div>
-            <div className="workspace-actions">
-              <button className="btn btn-ghost" onClick={() => setScene("turno")}>
-                ← Volver
-              </button>
             </div>
           </div>
           <div className="p-6">
@@ -320,11 +457,6 @@ export function WaiterDashboard() {
                 Mesa {selectedTable?.number ?? "?"} — Pedidos listos para entregar
               </div>
             </div>
-            <div className="workspace-actions">
-              <button className="btn btn-ghost" onClick={() => setScene("turno")}>
-                ← Volver
-              </button>
-            </div>
           </div>
           <div className="p-6">
             <div className="empty-state">
@@ -346,11 +478,6 @@ export function WaiterDashboard() {
               <div className="workspace-subtitle">
                 Mesa {selectedTable?.number ?? "?"}
               </div>
-            </div>
-            <div className="workspace-actions">
-              <button className="btn btn-ghost" onClick={() => setScene("mesa")}>
-                ← Volver
-              </button>
             </div>
           </div>
           <div className="p-6" style={{ maxWidth: 400, margin: "0 auto" }}>
@@ -389,6 +516,6 @@ export function WaiterDashboard() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import type { Product, ProductModifier, OrderItem } from "@takeasygo/types"
+import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"
 
 interface ProductConfigurationPanelProps {
@@ -18,6 +19,8 @@ export function ProductConfigurationPanel({
   const [selections, setSelections] = useState<Selections>({})
   const [notes, setNotes] = useState("")
   const [quantity, setQuantity] = useState(1)
+
+  const { setContextPanel, setActionBar } = useLayout()
 
   const totalPrice = useMemo(() => {
     let total = product.price
@@ -96,155 +99,107 @@ export function ProductConfigurationPanel({
 
   const groups = product.modifiers ?? []
 
-  return (
-    <div className="workspace">
-      {/* Header */}
-      <div className="workspace-header">
-        <div>
-          <div className="workspace-title">{product.name}</div>
-          <div className="workspace-subtitle">
-            {formatCurrency(product.price)} — Configurá el producto
-          </div>
-        </div>
-        <div className="workspace-actions">
-          <button className="btn btn-ghost" onClick={onCancel}>
-            ← Volver
-          </button>
-        </div>
-      </div>
+  // Set Context Panel with selection summary
+  useEffect(() => {
+    setContextPanel({
+      title: "Tu selección",
+      body: (
+        <>
+          {groups.map((group) => {
+            const sel = selections[group.name]
+            if (!sel) {
+              if (group.required) {
+                return (
+                  <div key={group.name} className="pcp-summary-group">
+                    <div className="pcp-summary-group-label">{group.name}</div>
+                    <div className="pcp-summary-empty">Sin seleccionar</div>
+                  </div>
+                )
+              }
+              return null
+            }
 
-      {/* Body: Config + Summary */}
-      <div className="pcp-body">
-        {/* Left: Configuration options */}
-        <div className="pcp-config">
-          {/* Modifier groups in 2-column grid */}
-          <div className="pcp-groups-grid">
-            {groups.map((group) => (
-              <ModifierGroup
-                key={group.name}
-                group={group}
-                selection={selections[group.name]}
-                onSelect={(name) => handleSingleSelect(group.name, name)}
-                onToggle={(name) => handleMultiToggle(group.name, name)}
-              />
-            ))}
-          </div>
+            const names = Array.isArray(sel) ? sel : [sel]
+            if (names.length === 0) {
+              if (group.required) {
+                return (
+                  <div key={group.name} className="pcp-summary-group">
+                    <div className="pcp-summary-group-label">{group.name}</div>
+                    <div className="pcp-summary-empty">Sin seleccionar</div>
+                  </div>
+                )
+              }
+              return null
+            }
 
-          {/* Notes */}
-          <div className="pcp-notes">
-            <div className="pcp-group-title">OBSERVACIONES</div>
-            <textarea
-              placeholder="Sin cebolla, sin sal, bien cocida..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Right: Summary panel (Context Panel role) */}
-        <div className="pcp-summary">
-          <div className="pcp-summary-header">
-            <div className="pcp-summary-title">Tu selección</div>
-          </div>
-
-          <div className="pcp-summary-body">
-            {/* Render current selections per group */}
-            {groups.map((group) => {
-              const sel = selections[group.name]
-              if (!sel) {
-                if (group.required) {
+            return (
+              <div key={group.name} className="pcp-summary-group">
+                <div className="pcp-summary-group-label">{group.name}</div>
+                {names.map((name) => {
+                  const opt = group.options.find((o) => o.name === name)
                   return (
-                    <div key={group.name} className="pcp-summary-group">
-                      <div className="pcp-summary-group-label">{group.name}</div>
-                      <div className="pcp-summary-empty">Sin seleccionar</div>
+                    <div key={name} className="pcp-summary-item">
+                      <div className="pcp-summary-item-dot" />
+                      <span>{name}</span>
+                      {opt && opt.price > 0 && (
+                        <span style={{ marginLeft: "auto", color: "var(--primary-action)", fontSize: "var(--font-size-xs)" }}>
+                          +{formatCurrency(opt.price)}
+                        </span>
+                      )}
                     </div>
                   )
-                }
-                return null
-              }
-
-              const names = Array.isArray(sel) ? sel : [sel]
-              if (names.length === 0) {
-                if (group.required) {
-                  return (
-                    <div key={group.name} className="pcp-summary-group">
-                      <div className="pcp-summary-group-label">{group.name}</div>
-                      <div className="pcp-summary-empty">Sin seleccionar</div>
-                    </div>
-                  )
-                }
-                return null
-              }
-
-              return (
-                <div key={group.name} className="pcp-summary-group">
-                  <div className="pcp-summary-group-label">{group.name}</div>
-                  {names.map((name) => {
-                    const opt = group.options.find((o) => o.name === name)
-                    return (
-                      <div key={name} className="pcp-summary-item">
-                        <div className="pcp-summary-item-dot" />
-                        <span>{name}</span>
-                        {opt && opt.price > 0 && (
-                          <span style={{ marginLeft: "auto", color: "var(--primary-action)", fontSize: "var(--font-size-xs)" }}>
-                            +{formatCurrency(opt.price)}
-                          </span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })}
-
-            {/* Notes */}
-            {notes && (
-              <div className="pcp-summary-group">
-                <div className="pcp-summary-group-label">Observaciones</div>
-                <div className="pcp-summary-item" style={{ fontStyle: "italic" }}>
-                  {notes}
-                </div>
+                })}
               </div>
-            )}
-          </div>
+            )
+          })}
 
-          {/* Quantity + Total */}
-          <div style={{ borderTop: "1px solid var(--border)" }}>
-            <div style={{ padding: "0 var(--sp-4)" }}>
-              <div className="pcp-summary-quantity">
-                <div className="pcp-group-title">CANTIDAD</div>
-                <div className="pcp-summary-quantity-controls">
-                  <button
-                    className="pcp-summary-qty-btn"
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  >
-                    −
-                  </button>
-                  <span className="pcp-summary-qty-value">{quantity}</span>
-                  <button
-                    className="pcp-summary-qty-btn"
-                    onClick={() => setQuantity((q) => q + 1)}
-                  >
-                    +
-                  </button>
-                </div>
+          {notes && (
+            <div className="pcp-summary-group">
+              <div className="pcp-summary-group-label">Observaciones</div>
+              <div className="pcp-summary-item" style={{ fontStyle: "italic" }}>
+                {notes}
               </div>
             </div>
-            <div className="pcp-summary-total">
-              <div className="pcp-summary-total-row">
-                <span className="pcp-summary-total-label">Total</span>
-                <span className="pcp-summary-total-value">{formatCurrency(totalPrice)}</span>
-              </div>
+          )}
+        </>
+      ),
+      footer: (
+        <>
+          <div className="pcp-summary-quantity">
+            <div className="pcp-group-title">CANTIDAD</div>
+            <div className="pcp-summary-quantity-controls">
+              <button
+                className="pcp-summary-qty-btn"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              >
+                −
+              </button>
+              <span className="pcp-summary-qty-value">{quantity}</span>
+              <button
+                className="pcp-summary-qty-btn"
+                onClick={() => setQuantity((q) => q + 1)}
+              >
+                +
+              </button>
             </div>
           </div>
-        </div>
-      </div>
+          <div className="pcp-summary-total">
+            <div className="pcp-summary-total-row">
+              <span className="pcp-summary-total-label">Total</span>
+              <span className="pcp-summary-total-value">{formatCurrency(totalPrice)}</span>
+            </div>
+          </div>
+        </>
+      ),
+    })
 
-      {/* Action Bar (pinned to bottom) */}
-      <div className="pcp-action-bar">
+    setActionBar({
+      left: (
         <button className="btn btn-ghost" onClick={onCancel}>
           Cancelar
         </button>
+      ),
+      right: (
         <button
           className="btn btn-primary"
           onClick={handleConfirm}
@@ -252,6 +207,38 @@ export function ProductConfigurationPanel({
         >
           Agregar al pedido — {formatCurrency(totalPrice)}
         </button>
+      ),
+    })
+
+    return () => {
+      setContextPanel(null)
+      setActionBar(null)
+    }
+  }, [selections, notes, quantity, totalPrice, isValid, groups, setContextPanel, setActionBar, onCancel, handleConfirm])
+
+  return (
+    <div className="pcp-config">
+      {/* Modifier groups in 2-column grid */}
+      <div className="pcp-groups-grid">
+        {groups.map((group) => (
+          <ModifierGroup
+            key={group.name}
+            group={group}
+            selection={selections[group.name]}
+            onSelect={(name) => handleSingleSelect(group.name, name)}
+            onToggle={(name) => handleMultiToggle(group.name, name)}
+          />
+        ))}
+      </div>
+
+      {/* Notes */}
+      <div className="pcp-notes">
+        <div className="pcp-group-title">OBSERVACIONES</div>
+        <textarea
+          placeholder="Sin cebolla, sin sal, bien cocida..."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
       </div>
     </div>
   )
