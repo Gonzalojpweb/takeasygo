@@ -6,6 +6,11 @@ import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
 import { IncomingOrdersDashboard } from "./components/IncomingOrders/IncomingOrdersDashboard"
 import { FlotaDashboard } from "./components/Flota/FlotaDashboard"
 import { CustomersDashboard } from "./components/Customers/CustomersDashboard"
+import { Header } from "./components/layout/Header"
+import { Navigation } from "./components/layout/Navigation"
+import { ContextPanel } from "./components/layout/ContextPanel"
+import { ActionBar } from "./components/layout/ActionBar"
+import { LayoutProvider } from "./components/layout/LayoutContext"
 import {
   startConnectivityMonitoring,
   stopConnectivityMonitoring,
@@ -16,6 +21,14 @@ import { disconnectSocket } from "./services/socket-client"
 import "./styles/pos.css"
 
 type Context = "counter" | "customers" | "waiter" | "incoming" | "flota"
+
+const NAV_ITEMS = [
+  { id: "counter", icon: "🧮", label: "Counter" },
+  { id: "customers", icon: "👥", label: "Clientes" },
+  { id: "waiter", icon: "🍽️", label: "Waiter" },
+  { id: "incoming", icon: "📦", label: "Pedidos" },
+  { id: "flota", icon: "🛵", label: "Flota" },
+]
 
 function App() {
   const { state, login, logout } = useAuth()
@@ -73,97 +86,31 @@ function App() {
 
   const tenantName = state.tenantId ?? "Restaurante"
   const userName = "Operador"
-  const initials = userName.slice(0, 2).toUpperCase()
 
   return (
-    <div className="ros-app">
-      {/* Header */}
-      <header className="header">
-        <div className="header-left">
-          <div className="brand">
-            <div className="brand-icon">TG</div>
-            <span>TakeasyGO</span>
-          </div>
-          <div className="header-divider" />
-          <div className="header-info">
-            <span>📍 {tenantName}</span>
-            <span className="header-divider" />
-            <span>🕐 {new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</span>
-          </div>
-        </div>
-        <div className="header-right">
-          <div className="sync-status">
-            <div className="sync-dot" />
-            <span>Sincronizado</span>
-          </div>
-          <div className="header-avatar" title={userName}>
-            {initials}
-          </div>
-        </div>
-      </header>
+    <LayoutProvider>
+      <div className="ros-app">
+        <Header tenantName={tenantName} userName={userName} />
 
-      {/* Navigation */}
-      <nav className="navigation">
-        <div className="nav-label">Contextos</div>
+        <Navigation
+          items={NAV_ITEMS}
+          activeId={activeContext}
+          onSelect={(id) => setActiveContext(id as Context)}
+          onLogout={logout}
+        />
 
-        <div
-          className={`nav-item ${activeContext === "counter" ? "active" : ""}`}
-          onClick={() => setActiveContext("counter")}
-        >
-          <div className="nav-item-icon">🧮</div>
-          <span>Counter</span>
-        </div>
+        <main className="workspace">
+          {activeContext === "counter" && <CounterDashboard />}
+          {activeContext === "customers" && <CustomersDashboard />}
+          {activeContext === "waiter" && <WaiterDashboard />}
+          {activeContext === "incoming" && <IncomingOrdersDashboard />}
+          {activeContext === "flota" && <FlotaDashboard />}
+        </main>
 
-        <div
-          className={`nav-item ${activeContext === "customers" ? "active" : ""}`}
-          onClick={() => setActiveContext("customers")}
-        >
-          <div className="nav-item-icon">👥</div>
-          <span>Clientes</span>
-        </div>
-
-        <div
-          className={`nav-item ${activeContext === "waiter" ? "active" : ""}`}
-          onClick={() => setActiveContext("waiter")}
-        >
-          <div className="nav-item-icon">🍽️</div>
-          <span>Waiter</span>
-        </div>
-
-        <div
-          className={`nav-item ${activeContext === "incoming" ? "active" : ""}`}
-          onClick={() => setActiveContext("incoming")}
-        >
-          <div className="nav-item-icon">📦</div>
-          <span>Pedidos</span>
-        </div>
-
-        <div
-          className={`nav-item ${activeContext === "flota" ? "active" : ""}`}
-          onClick={() => setActiveContext("flota")}
-        >
-          <div className="nav-item-icon">🛵</div>
-          <span>Flota</span>
-        </div>
-
-        <div className="nav-spacer" />
-
-        <div
-          className="nav-item"
-          onClick={logout}
-        >
-          <div className="nav-item-icon">🚪</div>
-          <span>Salir</span>
-        </div>
-      </nav>
-
-      {/* Workspace — active context */}
-      {activeContext === "counter" && <CounterDashboard />}
-      {activeContext === "customers" && <CustomersDashboard />}
-      {activeContext === "waiter" && <WaiterDashboard />}
-      {activeContext === "incoming" && <IncomingOrdersDashboard />}
-      {activeContext === "flota" && <FlotaDashboard />}
-    </div>
+        <ContextPanel />
+        <ActionBar />
+      </div>
+    </LayoutProvider>
   )
 }
 

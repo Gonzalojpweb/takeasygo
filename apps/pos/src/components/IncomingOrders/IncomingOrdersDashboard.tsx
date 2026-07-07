@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import type { Order } from "@takeasygo/types"
 import { useAuth } from "../../hooks/useAuth"
+import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency, timeAgo, formatOrderStatus } from "../../utils/format"
 import { onSocketEvent, connectSocket } from "../../services/socket-client"
 
@@ -12,6 +13,7 @@ export function IncomingOrdersDashboard() {
   const { state } = useAuth()
   const jwt = state.status === "authenticated" ? state.jwt?.accessToken : undefined
 
+  const { setContextPanel, setActionBar } = useLayout()
   const [orders, setOrders] = useState<Order[]>([])
   const [filter, setFilter] = useState<Filter>("all")
   const [connected, setConnected] = useState(false)
@@ -107,13 +109,67 @@ export function IncomingOrdersDashboard() {
   const formatOrderItems = (items: Order["items"]) =>
     items.map((i) => `${i.quantity}× ${i.name}`).join(", ")
 
+  // ==========================================================================
+  // Context Panel + ActionBar
+  // ==========================================================================
+
+  useEffect(() => {
+    setContextPanel({
+      title: "Pedidos entrantes",
+      subtitle: connected ? "● Conectado en tiempo real" : "○ Desconectado — modo offline",
+      body: (
+        <div style={{ padding: "var(--sp-2)" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+            <div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Total
+              </div>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                {orders.length}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Pendientes
+              </div>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: pendingCount > 0 ? "var(--warning)" : "var(--text-structure)" }}>
+                {pendingCount}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Filtro activo
+              </div>
+              <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-structure)" }}>
+                {formatOrderStatus(filter)}
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+    })
+
+    setActionBar({
+      right: pendingCount > 0 ? (
+        <button className="btn btn-primary btn-sm" onClick={handleConfirmAllPaid}>
+          Confirmar todos pagados
+        </button>
+      ) : undefined,
+    })
+
+    return () => {
+      setContextPanel(null)
+      setActionBar(null)
+    }
+  }, [connected, orders.length, pendingCount, filter, setContextPanel, setActionBar, handleConfirmAllPaid])
+
   return (
-    <div className="workspace">
+    <>
       <div className="workspace-header">
         <div>
           <div className="workspace-title">Pedidos entrantes</div>
           <div className="workspace-subtitle">
-            {connected ? "● Conectado en tiempo real" : "○ Desconectado — modo offline"}
+            {filteredOrders.length} pedidos {filter !== "all" ? formatOrderStatus(filter) : ""}
           </div>
         </div>
         <div className="workspace-actions">
@@ -133,11 +189,6 @@ export function IncomingOrdersDashboard() {
               </button>
             ))}
           </div>
-          {pendingCount > 0 && (
-            <button className="btn btn-primary btn-sm" onClick={handleConfirmAllPaid}>
-              Confirmar todos pagados
-            </button>
-          )}
         </div>
       </div>
 
@@ -190,6 +241,6 @@ export function IncomingOrdersDashboard() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

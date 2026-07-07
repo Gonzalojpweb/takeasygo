@@ -7,6 +7,7 @@ export interface QueueServer {
 
 export function createQueueServer(redisUrl: string): QueueServer {
   const connection = new Redis(redisUrl, { maxRetriesPerRequest: null })
+  connection.on("error", (err) => console.error("[queue/redis] error:", err.message))
 
   const orderQueue = new BullQueue("orders", {
     connection: connection as any,

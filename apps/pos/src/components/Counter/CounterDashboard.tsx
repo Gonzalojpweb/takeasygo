@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import type { Product, OrderItem, CustomerProfile, PaymentMethod } from "@takeasygo/types"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
 import { usePayments } from "../../hooks/usePayments"
+import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
@@ -26,6 +27,7 @@ export function CounterDashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
 
+  const { setContextPanel, setActionBar } = useLayout()
   const { tables } = useTables()
   const { products, categories } = useMenu()
   const { processPayment } = usePayments()
@@ -115,8 +117,120 @@ export function CounterDashboard() {
     setScene("salon")
   }, [])
 
+  // ==========================================================================
+  // Context Panel + ActionBar per scene
+  // ==========================================================================
+
+  useEffect(() => {
+    switch (scene) {
+      case "salon":
+      case "setup":
+        setContextPanel(null)
+        setActionBar(null)
+        break
+
+      case "productos":
+        setContextPanel({
+          title: `Mesa ${selectedTable?.number ?? "?"}`,
+          subtitle: cart.length > 0 ? `${cart.length} items — ${formatCurrency(cartTotal)}` : "Sin productos",
+          body: (
+            <OrderPanel
+              title={`Mesa ${selectedTable?.number ?? "?"}`}
+              items={cart}
+              onUpdateQuantity={handleUpdateQuantity}
+              onRemoveItem={handleRemoveItem}
+              total={cartTotal}
+              primaryAction={{
+                label: "Revisar pedido",
+                onClick: () => setScene("revision"),
+                disabled: cart.length === 0,
+              }}
+            />
+          ),
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("salon")}>
+              ← Volver
+            </button>
+          ),
+          right: (
+            <>
+              {customer ? (
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowCustomerSearch(true)}>
+                  👤 {customer.name}
+                </button>
+              ) : (
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowCustomerSearch(true)}>
+                  + Cliente
+                </button>
+              )}
+            </>
+          ),
+        })
+        break
+
+      case "configurar":
+        setContextPanel(null)
+        setActionBar(null)
+        break
+
+      case "revision":
+        setContextPanel({
+          title: "Resumen del pedido",
+          subtitle: `Mesa ${selectedTable?.number ?? "?"}${customer ? ` — ${customer.name}` : ""}`,
+          body: (
+            <OrderPanel
+              title="Resumen"
+              items={cart}
+              total={cartTotal}
+              primaryAction={{
+                label: "Cobrar",
+                onClick: () => setScene("cobro"),
+              }}
+            />
+          ),
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("productos")}>
+              ← Agregar más
+            </button>
+          ),
+        })
+        break
+
+      case "cobro":
+        setContextPanel(null)
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("revision")}>
+              ← Volver
+            </button>
+          ),
+          center: (
+            <span style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, color: "var(--primary-action)" }}>
+              {formatCurrency(cartTotal)}
+            </span>
+          ),
+        })
+        break
+
+      case "cierre":
+        setContextPanel(null)
+        setActionBar({
+          center: (
+            <button className="btn btn-primary" onClick={handleNewSale}>
+              Nueva venta
+            </button>
+          ),
+        })
+        break
+    }
+  }, [scene, selectedTable, cart, cartTotal, customer, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale])
+
   return (
-    <div className="workspace">
+    <>
       {/* Scene: Setup — shown when no tables exist */}
       {scene === "setup" && <SalonSetup onDone={() => setScene("salon")} />}
 
@@ -208,125 +322,70 @@ export function CounterDashboard() {
 
       {/* Scene: Productos */}
       {scene === "productos" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", flex: 1, minHeight: 0, gap: 0 }}>
-          <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <div className="workspace-header">
-              <div>
-                <div className="workspace-title">
-                  Mesa {selectedTable?.number ?? "?"}
-                </div>
-                <div className="workspace-subtitle">
-                  Agregá productos al pedido
-                </div>
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div className="workspace-header">
+            <div>
+              <div className="workspace-title">
+                Mesa {selectedTable?.number ?? "?"}
               </div>
-              <div className="workspace-actions">
-                <button className="btn btn-ghost" onClick={() => setScene("salon")}>
-                  ← Volver
-                </button>
-                {customer && (
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setShowCustomerSearch(true)}
-                  >
-                    👤 {customer.name}
-                  </button>
-                )}
-                {!customer && (
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setShowCustomerSearch(true)}
-                  >
-                    + Cliente
-                  </button>
-                )}
+              <div className="workspace-subtitle">
+                Agregá productos al pedido
               </div>
             </div>
-            <ProductSelector
-              products={products}
-              categories={categories}
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              onSelectProduct={handleAddProduct}
-            />
           </div>
-          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <OrderPanel
-              title={`Mesa ${selectedTable?.number ?? "?"}`}
-              items={cart}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemoveItem={handleRemoveItem}
-              total={cartTotal}
-              primaryAction={{
-                label: "Revisar pedido",
-                onClick: () => setScene("revision"),
-                disabled: cart.length === 0,
-              }}
-            />
-          </div>
+          <ProductSelector
+            products={products}
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            onSelectProduct={handleAddProduct}
+          />
         </div>
       )}
 
       {/* Scene: Revisión */}
       {scene === "revision" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", flex: 1, minHeight: 0, gap: 0 }}>
-          <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
-            <div className="workspace-header">
-              <div>
-                <div className="workspace-title">Revisión del pedido</div>
-                <div className="workspace-subtitle">
-                  Mesa {selectedTable?.number ?? "?"}
-                  {customer && ` — ${customer.name}`}
-                </div>
-              </div>
-              <div className="workspace-actions">
-                <button className="btn btn-ghost" onClick={() => setScene("productos")}>
-                  ← Agregar más
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="card">
-                <div className="card-header">
-                  <span className="card-title">Items ({cart.length})</span>
-                </div>
-                <div className="order-items">
-                  {cart.map((item, idx) => (
-                    <div key={`${item.productId}-${idx}`} className="order-item-card">
-                      <div className="order-item-main">
-                        <div className="order-item-top">
-                          <span className="order-item-name">{item.name}</span>
-                          <span className="order-item-qty">×{item.quantity}</span>
-                          <span className="order-item-total">{formatCurrency(item.total)}</span>
-                        </div>
-                        {item.modifiers && item.modifiers.length > 0 && (
-                          <div className="order-item-modifiers">
-                            {item.modifiers.map((m, i) => (
-                              <span key={i} className="order-item-modifier">
-                                {m.name}{m.price > 0 ? ` (+${formatCurrency(m.price)})` : ""}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {item.notes && (
-                          <div className="order-item-notes">{item.notes}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
+          <div className="workspace-header">
+            <div>
+              <div className="workspace-title">Revisión del pedido</div>
+              <div className="workspace-subtitle">
+                Mesa {selectedTable?.number ?? "?"}
+                {customer && ` — ${customer.name}`}
               </div>
             </div>
           </div>
-          <div style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <OrderPanel
-              title="Resumen"
-              items={cart}
-              total={cartTotal}
-              primaryAction={{
-                label: "Cobrar",
-                onClick: () => setScene("cobro"),
-              }}
-            />
+          <div className="p-6">
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Items ({cart.length})</span>
+              </div>
+              <div className="order-items">
+                {cart.map((item, idx) => (
+                  <div key={`${item.productId}-${idx}`} className="order-item-card">
+                    <div className="order-item-main">
+                      <div className="order-item-top">
+                        <span className="order-item-name">{item.name}</span>
+                        <span className="order-item-qty">×{item.quantity}</span>
+                        <span className="order-item-total">{formatCurrency(item.total)}</span>
+                      </div>
+                      {item.modifiers && item.modifiers.length > 0 && (
+                        <div className="order-item-modifiers">
+                          {item.modifiers.map((m, i) => (
+                            <span key={i} className="order-item-modifier">
+                              {m.name}{m.price > 0 ? ` (+${formatCurrency(m.price)})` : ""}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {item.notes && (
+                        <div className="order-item-notes">{item.notes}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -340,11 +399,6 @@ export function CounterDashboard() {
               <div className="workspace-subtitle">
                 Mesa {selectedTable?.number ?? "?"} — {formatCurrency(cartTotal)}
               </div>
-            </div>
-            <div className="workspace-actions">
-              <button className="btn btn-ghost" onClick={() => setScene("revision")}>
-                ← Volver
-              </button>
             </div>
           </div>
           <div className="p-6" style={{ maxWidth: 480, margin: "0 auto", width: "100%" }}>
@@ -364,9 +418,6 @@ export function CounterDashboard() {
             <div className="workspace-subtitle" style={{ marginBottom: 24 }}>
               {formatCurrency(cartTotal)} — Mesa {selectedTable?.number ?? "?"}
             </div>
-            <button className="btn btn-primary" onClick={handleNewSale}>
-              Nueva venta
-            </button>
           </div>
         </div>
       )}
@@ -381,6 +432,6 @@ export function CounterDashboard() {
           onClose={() => setShowCustomerSearch(false)}
         />
       )}
-    </div>
+    </>
   )
 }

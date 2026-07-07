@@ -13,6 +13,7 @@ function getRedis(): Redis {
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
     })
+    redis.on("error", (err) => console.error("[event-validator/redis] error:", err.message))
   }
   return redis
 }

@@ -119,14 +119,17 @@ input, select, textarea {
 ::-webkit-scrollbar-thumb:hover { background: #B0B4B8; }
 
 /* ========================================
-   APP SHELL — Grid ROS Architecture
+   APP SHELL — Grid ROS Architecture (5-slot)
    ======================================== */
 
 .ros-app {
   display: grid;
-  grid-template-rows: var(--header-height) 1fr;
-  grid-template-columns: var(--nav-width) 1fr;
-  grid-template-areas: "header header" "nav workspace";
+  grid-template-rows: var(--header-height) 1fr var(--action-bar-height);
+  grid-template-columns: var(--nav-width) 1fr var(--context-panel-width);
+  grid-template-areas:
+    "header  header   header"
+    "nav     workspace context"
+    "action  action   action";
   height: 100vh;
   width: 100vw;
 }
@@ -219,6 +222,27 @@ input, select, textarea {
   flex-direction: column;
   overflow: hidden;
 }
+.context-panel--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.context-panel-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--sp-6);
+}
+.context-panel-empty-icon {
+  font-size: 32px;
+  opacity: 0.5;
+}
+.context-panel-empty-text {
+  font-size: var(--font-size-sm);
+}
 .context-panel-header {
   display: flex;
   align-items: center;
@@ -228,12 +252,39 @@ input, select, textarea {
   flex-shrink: 0;
 }
 .context-panel-title { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--text-structure); }
+.context-panel-subtitle { font-size: var(--font-size-xs); color: var(--text-secondary); margin-top: 2px; }
 .context-panel-body { flex: 1; overflow-y: auto; padding: var(--sp-3); }
 .context-panel-footer {
   padding: var(--sp-4);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
+
+/* ACTION BAR */
+.action-bar {
+  grid-area: action;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-6);
+  min-height: var(--action-bar-height);
+}
+.action-bar--empty {
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border-light);
+}
+.action-bar-left,
+.action-bar-center,
+.action-bar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.action-bar-left { flex: 1; }
+.action-bar-center { flex: 0 0 auto; }
+.action-bar-right { flex: 1; justify-content: flex-end; }
 
 /* ORDER PANEL (cart sidebar) */
 .order-panel {
@@ -1135,20 +1186,12 @@ input, select, textarea {
    PRODUCT CONFIGURATION PANEL (PCP)
    ======================================== */
 
-/* Body: 2-column layout (config + summary) */
-.pcp-body {
-  display: grid;
-  grid-template-columns: 1fr var(--context-panel-width);
-  flex: 1;
-  min-height: 0;
-  gap: 0;
-}
-
-/* Left column: scrollable configuration */
+/* Body: scrollable configuration (Context Panel is now in the shell) */
 .pcp-config {
   overflow-y: auto;
   padding: var(--sp-4) var(--sp-6);
   min-width: 0;
+  flex: 1;
 }
 
 /* 2-column grid for modifier groups */

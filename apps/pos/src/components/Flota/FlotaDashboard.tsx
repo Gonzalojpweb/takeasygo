@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useDelivery } from "../../hooks/useDelivery"
+import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"
 import type { DeliveryOrder } from "../../services/delivery"
 
@@ -9,6 +10,7 @@ export function FlotaDashboard() {
   const [scene, setScene] = useState<Scene>("repartidores")
   const [selectedOrder, setSelectedOrder] = useState<DeliveryOrder | null>(null)
   const [handoffCode, setHandoffCode] = useState("")
+  const { setContextPanel, setActionBar } = useLayout()
   const { persons, orders, loading, error, complete } = useDelivery()
 
   const handleSelectOrder = (order: DeliveryOrder) => {
@@ -28,30 +30,139 @@ export function FlotaDashboard() {
     }
   }
 
+  // ==========================================================================
+  // Context Panel + ActionBar per scene
+  // ==========================================================================
+
+  useEffect(() => {
+    switch (scene) {
+      case "repartidores":
+        setContextPanel({
+          title: "Flota",
+          subtitle: `${persons.length} repartidores — ${orders.length} órdenes disponibles`,
+          body: (
+            <div style={{ padding: "var(--sp-2)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Repartidores
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                    {persons.length}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Disponibles
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                    {persons.filter((p) => p.isAvailable).length}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Órdenes pendientes
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                    {orders.length}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ),
+        })
+        setActionBar(null)
+        break
+
+      case "ordenes":
+        setContextPanel({
+          title: "Órdenes disponibles",
+          subtitle: `${orders.length} órdenes listas para entregar`,
+          body: (
+            <div style={{ padding: "var(--sp-2)" }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Órdenes
+              </div>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                {orders.length}
+              </div>
+            </div>
+          ),
+        })
+        setActionBar(null)
+        break
+
+      case "entrega":
+        setContextPanel({
+          title: "Entrega activa",
+          subtitle: selectedOrder ? `Pedido #${selectedOrder.id.slice(0, 8)}` : "",
+          body: selectedOrder ? (
+            <div style={{ padding: "var(--sp-2)" }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
+                Código de handoff
+              </div>
+              <div className="handoff-code" style={{ fontSize: 20, padding: "var(--sp-3) var(--sp-4)" }}>
+                {selectedOrder.confirmationCode ?? "----"}
+              </div>
+              <div style={{ marginTop: "var(--sp-3)", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
+                {selectedOrder.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
+              </div>
+            </div>
+          ) : null,
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("ordenes")}>
+              ← Volver
+            </button>
+          ),
+          right: (
+            <button
+              className="btn btn-success"
+              onClick={handleCompleteDelivery}
+              disabled={!handoffCode}
+            >
+              Completar entrega ✓
+            </button>
+          ),
+        })
+        break
+
+      case "historial":
+        setContextPanel({
+          title: "Historial",
+          subtitle: "Próximamente",
+          body: (
+            <div style={{ padding: "var(--sp-4)", textAlign: "center", color: "var(--text-muted)", fontSize: "var(--font-size-sm)" }}>
+              Historial de entregas
+            </div>
+          ),
+        })
+        setActionBar(null)
+        break
+    }
+  }, [scene, selectedOrder, persons, orders, setContextPanel, setActionBar])
+
   if (loading) {
     return (
-      <div className="workspace">
-        <div className="loading-state">
-          <span className="spinner" />
-          Cargando...
-        </div>
+      <div className="loading-state">
+        <span className="spinner" />
+        Cargando...
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="workspace">
-        <div className="empty-state">
-          <span className="empty-state-icon">🛵</span>
-          <span className="empty-state-text">{error}</span>
-        </div>
+      <div className="empty-state">
+        <span className="empty-state-icon">🛵</span>
+        <span className="empty-state-text">{error}</span>
       </div>
     )
   }
 
   return (
-    <div className="workspace">
+    <>
       {/* Header */}
       <div className="workspace-header">
         <div>
@@ -198,19 +309,6 @@ export function FlotaDashboard() {
                   style={{ textAlign: "center", fontSize: 18, letterSpacing: "0.1em" }}
                 />
               </div>
-
-              <div className="flex gap-4" style={{ justifyContent: "center" }}>
-                <button className="btn btn-ghost" onClick={() => setScene("ordenes")}>
-                  ← Volver
-                </button>
-                <button
-                  className="btn btn-success"
-                  onClick={handleCompleteDelivery}
-                  disabled={!handoffCode}
-                >
-                  Completar entrega ✓
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -226,6 +324,6 @@ export function FlotaDashboard() {
           </div>
         )}
       </div>
-    </div>
+    </>
   )
 }
