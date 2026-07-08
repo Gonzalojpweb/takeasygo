@@ -14,6 +14,10 @@ interface TenantFees {
     kripton?: { feePercent: number }
     transfer?: { feePercent: number }
   }
+  // Mercado Pago OAuth connection status
+  mpOAuth?: { isConnected?: boolean }
+  // Configured split percentage for platform commission (0-100)
+  paymentSplitPercentage?: number
 }
 
 interface PlatformFees {
@@ -39,7 +43,10 @@ export function calculateFinalTotal(
   }
 
   const tenantFeePercent = tenant.paymentSurcharges?.[paymentMethod]?.feePercent ?? 0
-  const platformFeePercent = platformConfig.platformFees?.takeasygoCommissionPercent ?? 1
+  // Apply platform commission only if MP OAuth is connected and split is configured
+  const platformFeePercent = (tenant.mpOAuth?.isConnected && tenant.paymentSplitPercentage != null)
+    ? tenant.paymentSplitPercentage
+    : (platformConfig.platformFees?.takeasygoCommissionPercent ?? 1)
 
   const tenantFee = tenantFeePercent / 100
   const platformFee = platformFeePercent / 100
