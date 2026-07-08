@@ -103,6 +103,12 @@ export const PLAN_ACCESS = {
   // CIS — Customer Intelligence System (Crecimiento y Premium)
   // Incluye: métricas, segmentación, health score, insights, señales
   cis: ['buy', 'full'] as const,
+
+  // Transferencia bancaria — disponible en todos los planes
+  transferPayment: ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
+
+  // Configuración de recargos por método de pago — disponible en todos los planes
+  paymentSurcharges: ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS

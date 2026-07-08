@@ -7,6 +7,7 @@ import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { createPaymentPreferenceSchema } from '@/lib/schemas'
+import { calculateFinalTotal } from '@/lib/pricing'
 
 export async function POST(
   request: NextRequest,
@@ -39,6 +40,10 @@ if (!success) {
 
     // ── Get platform commission from PlatformConfig ────────────────────────────
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
+
+    // Usar pricing engine: el order.total ya tiene el recargo incluido del checkout
+    // Pero necesitamos calcular el marketplace_fee correcto sobre el total final
+    const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', tenant, platformConfig || {})
     const platformFeePercent = tenant.mpOAuth?.commissionPercent ?? platformConfig?.mpOAuth?.platformFeePercent ?? 5
 
     // ── Determine which access token to use ───────────────────────────────────
@@ -55,9 +60,9 @@ if (!success) {
     const baseUrl = request.nextUrl.origin
 
     // ── Marketplace fee (platform commission) ─────────────────────────────────
-    // Only charged when tenant has authorized via OAuth (marketplace split mode).
+    // Usamos el monto calculado por el pricing engine (1% TakeasyGO)
     const marketplaceFee = useMarketplace
-      ? Math.round(order.total * (platformFeePercent / 100))
+      ? pricing.platformFeeAmount
       : undefined
 
     // ── Construir items de MP aplicando descuento QR proporcional ─────────

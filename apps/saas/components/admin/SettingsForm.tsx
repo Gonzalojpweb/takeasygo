@@ -8,6 +8,8 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import MercadoPagoSettings from './MercadoPagoSettings'
 import KriptonSettings from './KriptonSettings'
+import TransferSettings from './TransferSettings'
+import PaymentSurchargeSettings from './PaymentSurchargeSettings'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette, User, MapPin,
@@ -22,7 +24,7 @@ import {
   ExternalLink,
   Database,
   ImageIcon,
-  Bell, PlusCircle, ShoppingBag, Coins,
+  Bell, PlusCircle, ShoppingBag, Coins, Banknote, Percent,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -557,6 +559,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             <TabTrigger value="mercadopago" icon={<CreditCard size={16} />} label="Pagos" />
             <TabTrigger value="kripton" icon={<Coins size={16} />} label="Kripton" />
             <TabTrigger value="notifications" icon={<Bell size={16} />} label="Notificaciones" />
+            {canAccess(plan as Plan, 'transferPayment') && (
+              <TabTrigger value="transferencia" icon={<Banknote size={16} />} label="Transferencia" />
+            )}
+            <TabTrigger value="recargos" icon={<Percent size={16} />} label="Recargos" />
             {tenant.features?.reservations && (
               <TabTrigger value="reservas" icon={<CalendarDays size={16} />} label="Reservas" />
             )}
@@ -1741,6 +1747,28 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                   </div>
                 </div>
               </Card>
+            </TabsContent>
+
+            {/* ── Transferencia ── */}
+            {canAccess(plan as Plan, 'transferPayment') && (
+              <TabsContent value="transferencia" className="m-0 mt-2">
+                <div className="max-w-3xl">
+                  <TransferSettings
+                    tenantSlug={tenantSlug}
+                    initialConfig={tenant.transfer}
+                  />
+                </div>
+              </TabsContent>
+            )}
+
+            {/* ── Recargos ── */}
+            <TabsContent value="recargos" className="m-0 mt-2">
+              <div className="max-w-3xl">
+                <PaymentSurchargeSettings
+                  tenantSlug={tenantSlug}
+                  initialSurcharges={tenant.paymentSurcharges}
+                />
+              </div>
             </TabsContent>
 
             {/* ── Reservas ── */}
