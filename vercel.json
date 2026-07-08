@@ -1,5 +1,4 @@
 {
-  "rootDirectory": "apps/saas",
   "crons": [
     {
       "path": "/api/cron/activate-scheduled-orders",
