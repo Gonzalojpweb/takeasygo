@@ -62,7 +62,7 @@ export async function GET(
       id: 'transfer',
       label: 'Transferencia',
       description: 'Precio de carta sin recargo',
-      enabled: transferEnabled && tenant.paymentMethodsVisibility?.transfer !== false,
+      enabled: transferEnabled,
       surchargePercent: 0,
     })
 

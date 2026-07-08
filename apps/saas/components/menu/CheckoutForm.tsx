@@ -1345,70 +1345,69 @@ async function handleSubmit(e: React.FormEvent) {
             )}
           </div>
 
-          {(kriptonEnabled || transferEnabled) && (
-            <div className="space-y-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Método de pago</p>
-              <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Método de pago</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedPaymentMethod('mercadopago')}
+                className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'mercadopago' ? 'border-zinc-900 bg-zinc-900/5' : 'border-zinc-200 bg-white'}`}
+              >
+                <span className="text-2xl">💳</span>
+                <div>
+                  <p className="text-sm font-bold text-zinc-900">Mercado Pago</p>
+                  <p className="text-[10px] text-zinc-500">Tarjeta, efectivo, transferencia</p>
+                </div>
+              </button>
+              {transferEnabled && (
                 <button
                   type="button"
-                  onClick={() => setSelectedPaymentMethod('mercadopago')}
-                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'mercadopago' ? 'border-zinc-900 bg-zinc-900/5' : 'border-zinc-200 bg-white'}`}
+                  onClick={() => setSelectedPaymentMethod('transfer')}
+                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'transfer' ? 'border-emerald-600 bg-emerald-600/5' : 'border-zinc-200 bg-white'}`}
                 >
-                  <span className="text-2xl">💳</span>
+                  <span className="text-2xl">🏦</span>
                   <div>
-                    <p className="text-sm font-bold text-zinc-900">Mercado Pago</p>
-                    <p className="text-[10px] text-zinc-500">Tarjeta, efectivo, transferencia</p>
+                    <p className="text-sm font-bold text-zinc-900">Transferencia</p>
+                    <p className="text-[10px] text-zinc-500">Precio de carta</p>
                   </div>
                 </button>
-                {transferEnabled && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPaymentMethod('transfer')}
-                    className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'transfer' ? 'border-emerald-600 bg-emerald-600/5' : 'border-zinc-200 bg-white'}`}
-                  >
-                    <span className="text-2xl">🏦</span>
-                    <div>
-                      <p className="text-sm font-bold text-zinc-900">Transferencia</p>
-                      <p className="text-[10px] text-zinc-500">Precio de carta</p>
-                    </div>
-                  </button>
-                )}
-                {kriptonEnabled && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPaymentMethod('kripton')}
-                    className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'kripton' ? 'border-purple-600 bg-purple-600/5' : 'border-zinc-200 bg-white'}`}
-                  >
-                    <span className="text-2xl">🪙</span>
-                    <div>
-                      <p className="text-sm font-bold text-zinc-900">Kripton</p>
-                      <p className="text-[10px] text-zinc-500">USDT, BTC, ETH y más</p>
-                    </div>
-                  </button>
-                )}
-              </div>
-
-              {/* Info de recargo para MP y Kripton */}
-              {selectedPaymentMethod !== 'transfer' && activeSurchargePercent > 0 && (
-                <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-start gap-2">
-                  <span className="text-lg">💡</span>
-                  <div className="text-xs text-amber-800">
-                    <p className="font-semibold">
-                      {selectedPaymentMethod === 'mercadopago' ? 'Mercado Pago' : 'Kripton'} · Precio con recargo
-                    </p>
-                    <p className="mt-0.5">
-                      ${(baseTotal).toLocaleString('es-AR')} + {activeSurchargePercent}% ={' '}
-                      <strong>${total.toLocaleString('es-AR')}</strong>
-                    </p>
-                    <p className="mt-0.5 text-amber-600">
-                      Incluye costos operativos del medio de pago.
-                    </p>
-                  </div>
-                </div>
               )}
+              {kriptonEnabled && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaymentMethod('kripton')}
+                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'kripton' ? 'border-purple-600 bg-purple-600/5' : 'border-zinc-200 bg-white'}`}
+                >
+                  <span className="text-2xl">🪙</span>
+                  <div>
+                    <p className="text-sm font-bold text-zinc-900">Kripton</p>
+                    <p className="text-[10px] text-zinc-500">USDT, BTC, ETH y más</p>
+                  </div>
+                </button>
+              )}
+            </div>
 
-              {/* Datos bancarios para transferencia */}
-              {selectedPaymentMethod === 'transfer' && transferData && (
+            {/* Info de recargo para MP y Kripton */}
+            {selectedPaymentMethod !== 'transfer' && activeSurchargePercent > 0 && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-start gap-2">
+                <span className="text-lg">💡</span>
+                <div className="text-xs text-amber-800">
+                  <p className="font-semibold">
+                    {selectedPaymentMethod === 'mercadopago' ? 'Mercado Pago' : 'Kripton'} · Precio con recargo
+                  </p>
+                  <p className="mt-0.5">
+                    ${(baseTotal).toLocaleString('es-AR')} + {activeSurchargePercent}% ={' '}
+                    <strong>${total.toLocaleString('es-AR')}</strong>
+                  </p>
+                  <p className="mt-0.5 text-amber-600">
+                    Incluye costos operativos del medio de pago.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Datos bancarios para transferencia */}
+            {selectedPaymentMethod === 'transfer' && transferData && (
                 <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <Banknote size={18} className="text-blue-700" />
@@ -1475,7 +1474,6 @@ async function handleSubmit(e: React.FormEvent) {
                 </div>
               )}
             </div>
-          )}
 
           <button
             type="submit"
