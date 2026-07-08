@@ -6,6 +6,25 @@ export interface IBusinessConfig {
   activatedBy: Types.ObjectId | null
 }
 
+export interface ITransferConfig {
+  enabled: boolean
+  alias: string | null
+  cbu: string | null
+  cvu: string | null
+  bankName: string | null
+  holderName: string | null
+}
+
+export interface IPaymentSurcharge {
+  feePercent: number
+}
+
+export interface IPaymentMethodsVisibility {
+  mercadopago: boolean
+  kripton: boolean
+  transfer: boolean
+}
+
 export interface ITenant extends Document {
   name: string
   slug: string
@@ -22,6 +41,16 @@ export interface ITenant extends Document {
     nextBillingDate: Date | null
     lastUpdated: Date | null
   }
+  // ── Transferencia bancaria ──────────────────────────────────────
+  transfer: ITransferConfig
+  // ── Recargos por método de pago ────────────────────────────────
+  paymentSurcharges: {
+    mercadopago: IPaymentSurcharge
+    kripton: IPaymentSurcharge
+    transfer: IPaymentSurcharge
+  }
+  // ── Visibilidad de métodos de pago ────────────────────────────
+  paymentMethodsVisibility: IPaymentMethodsVisibility
   branding: {
     primaryColor: string
     secondaryColor: string
@@ -523,6 +552,27 @@ const TenantSchema = new Schema<ITenant>(
       allowOnlineRedemption: { type: Boolean, default: false },
       redemptionExpiryHours: { type: Number, default: 24, min: 1, max: 168 }, // 1 hora a 7 días
       enableCheckoutRedemption: { type: Boolean, default: false },
+    },
+    // ── Transferencia bancaria ─────────────────────────────────────────────
+    transfer: {
+      enabled: { type: Boolean, default: false },
+      alias: { type: String, default: null },
+      cbu: { type: String, default: null },
+      cvu: { type: String, default: null },
+      bankName: { type: String, default: null },
+      holderName: { type: String, default: null },
+    },
+    // ── Recargos por método de pago ──────────────────────────────────────
+    paymentSurcharges: {
+      mercadopago: { feePercent: { type: Number, default: 0, min: 0, max: 100 } },
+      kripton: { feePercent: { type: Number, default: 0, min: 0, max: 100 } },
+      transfer: { feePercent: { type: Number, default: 0, min: 0, max: 100 } },
+    },
+    // ── Visibilidad de métodos de pago (por location/sede) ──────────────
+    paymentMethodsVisibility: {
+      mercadopago: { type: Boolean, default: true },
+      kripton: { type: Boolean, default: false },
+      transfer: { type: Boolean, default: false },
     },
     /** Configuración de notificaciones WhatsApp para admins */
     notifications: {

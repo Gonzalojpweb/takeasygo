@@ -74,6 +74,9 @@ export const createOrderSchema = z.object({
   // ── Delivery ──────────────────────────────────────────────────────────────
   deliveryAddress: deliveryAddressSchema.optional(),
   deliveryCost: z.number().min(0).optional(),
+  paymentMethod: z.enum(['mercadopago', 'kripton', 'transfer', 'cash']).optional().default('mercadopago'),
+  baseTotal: z.number().min(0).optional(),
+  surchargePercent: z.number().min(0).optional().default(0),
 })
 
 export const deliveryQuoteSchema = z.object({

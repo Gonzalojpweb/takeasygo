@@ -25,6 +25,9 @@ import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
 import QrPromo from '@/models/QrPromo'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
+import { calculateFinalTotal } from '@/lib/pricing'
+import PlatformConfig from '@/models/PlatformConfig'
 import { calculateDeliveryCost } from '@/lib/geocode'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
@@ -851,11 +854,28 @@ export async function POST(
 
     const isDeferredBusiness = isBusinessOrder && body.paymentModeSnapshot === 'deferred'
 
+    // ── Determinar status inicial según método de pago ──────────────
+    const paymentMethod = body.paymentMethod || 'mercadopago'
+    let initialStatus: string
+    if (isDeferredBusiness) {
+      initialStatus = 'confirmed'
+    } else if (paymentMethod === 'transfer') {
+      initialStatus = 'awaiting_payment'
+    } else {
+      initialStatus = 'awaiting_payment'
+    }
+
+    // ── Calcular pricing dinámico ────────────────────────────────────
+    const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean() as any
+    const pricing = paymentMethod === 'transfer'
+      ? { baseTotal: total, surchargePercent: 0, surchargeAmount: 0, finalTotal: total, platformFeeAmount: 0 }
+      : calculateFinalTotal(total, paymentMethod as any, tenant, platformConfig || {})
+
     const order = await Order.create({
       tenantId: tenant._id,
       locationId: body.locationId,
       orderNumber: generateOrderNumber(tenantSlug),
-      status: isDeferredBusiness ? 'confirmed' : 'awaiting_payment',
+      status: initialStatus,
       orderMode: body.mode,
       items: resolvedItems,
       rewardItems: resolvedRewards,
@@ -864,8 +884,13 @@ export async function POST(
       subtotal,
       discountAmount,
       qrPromoApplied,
-      total,
+      total: pricing.finalTotal,
       customer: encryptedCustomer,
+      'payment.method': paymentMethod,
+      'payment.baseTotal': pricing.baseTotal,
+      'payment.surchargePercent': pricing.surchargePercent,
+      'payment.surchargeAmount': pricing.surchargeAmount,
+      'payment.platformFeeAmount': pricing.platformFeeAmount,
       notes: body.notes || '',
       clientToken: body.clientToken ?? null,
       orderTiming: body.orderTiming,
@@ -908,10 +933,37 @@ export async function POST(
     const customerName = body.customer?.name?.trim() || 'Cliente'
 
     if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
-      sendWhatsApp(
-        tenant.notifications.whatsappPhone,
-        `🔔 Nuevo pedido en ${tenant.name}\n💰 Total: $${total.toLocaleString('es-AR')}\n👤 ${customerName}`
-      ).catch(e => console.error('[whapi] order notification error:', e))
+      const baseUrl = process.env.NEXT_PUBLIC_URL || request.nextUrl.origin
+      const trackingUrl = `${baseUrl}/${tenantSlug}/tracking/${order.orderNumber}`
+      const waMessage = buildOrderWhatsAppMessage(
+        {
+          orderNumber: order.orderNumber,
+          orderMode: order.orderMode,
+          items: resolvedItems,
+          total: pricing.finalTotal,
+          customer: { name: customerName },
+          notes: order.notes,
+          payment: { method: paymentMethod },
+          deliveryAddress: isDeliveryOrder && deliveryAddressData ? {
+            street: deliveryAddressData.street,
+            number: deliveryAddressData.number,
+            apt: deliveryAddressData.apt,
+            city: deliveryAddressData.city,
+          } : undefined,
+          orderTiming: body.orderTiming,
+          scheduledPickupAt: scheduledPickupAt?.toISOString(),
+        },
+        {
+          name: tenant.name,
+          transfer: tenant.transfer ? {
+            alias: tenant.transfer.alias,
+            cbu: tenant.transfer.cbu,
+          } : undefined,
+        },
+        trackingUrl
+      )
+      sendWhatsApp(tenant.notifications.whatsappPhone, waMessage)
+        .catch(e => console.error('[whapi] order notification error:', e))
     }
 
     // ── Push notification a admins suscriptos ────────────────────────────────

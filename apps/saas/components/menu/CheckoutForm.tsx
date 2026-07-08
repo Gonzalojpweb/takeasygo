@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift, Wallet, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift, Wallet, AlertTriangle, Copy, Check, Banknote } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
@@ -107,7 +107,11 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [activeLegalModal, setActiveLegalModal] = useState<'terminos' | 'privacidad' | null>(null)
   const [redirectingToMp, setRedirectingToMp] = useState(false)
   const [kriptonEnabled, setKriptonEnabled] = useState(false)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'mercadopago' | 'kripton'>('mercadopago')
+  const [transferEnabled, setTransferEnabled] = useState(false)
+  const [transferData, setTransferData] = useState<{ alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null>(null)
+  const [paymentSurcharges, setPaymentSurcharges] = useState<Record<string, number>>({})
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'mercadopago' | 'kripton' | 'transfer'>('mercadopago')
+  const [copiedField, setCopiedField] = useState<string | null>(null)
 
   // ── Estimated time + Delay announcement ──────────────────────────
   const [estimatedTimeInfo, setEstimatedTimeInfo] = useState<{
@@ -205,7 +209,35 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       .then(data => {
         if (data?.enabled) {
           setKriptonEnabled(true)
-          setSelectedPaymentMethod('kripton')
+        }
+      })
+      .catch(() => {})
+
+    fetch(`/api/${tenantSlug}/payment-methods`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.methods) {
+          const surcharges: Record<string, number> = {}
+          for (const m of data.methods) {
+            surcharges[m.id] = m.surchargePercent || 0
+          }
+          setPaymentSurcharges(surcharges)
+
+          const mpAvailable = data.methods.find((m: any) => m.id === 'mercadopago')?.enabled
+          const krAvailable = data.methods.find((m: any) => m.id === 'kripton')?.enabled
+          const trAvailable = data.methods.find((m: any) => m.id === 'transfer')?.enabled
+
+          if (!mpAvailable && krAvailable) {
+            setKriptonEnabled(true)
+            setSelectedPaymentMethod('kripton')
+          }
+          if (trAvailable) {
+            setTransferEnabled(true)
+            setTransferData(data.transfer)
+            if (!mpAvailable && !krAvailable) {
+              setSelectedPaymentMethod('transfer')
+            }
+          }
         }
       })
       .catch(() => {})
@@ -364,7 +396,11 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   }
 
   const deliveryCost = deliveryMode && deliveryQuote.withinRange ? deliveryQuote.cost : 0
-  const total = Math.max(0, subtotal - discountAmount) + deliveryCost
+  const baseTotal = Math.max(0, subtotal - discountAmount) + deliveryCost
+  const activeSurchargePercent = paymentSurcharges[selectedPaymentMethod] ?? 0
+  const total = selectedPaymentMethod === 'transfer'
+    ? baseTotal
+    : Math.round(baseTotal * (1 + activeSurchargePercent / 100))
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault()
@@ -412,6 +448,9 @@ async function handleSubmit(e: React.FormEvent) {
           },
           deliveryCost: deliveryQuote.cost,
         } : {}),
+        paymentMethod: selectedPaymentMethod,
+        baseTotal,
+        surchargePercent: activeSurchargePercent,
       }
 
       // Delivery mode validation
@@ -468,6 +507,12 @@ async function handleSubmit(e: React.FormEvent) {
     }
 
     sessionStorage.removeItem('cart')
+
+    // Transferencia: no redirigir a pasarela, mostrar datos bancarios en tracking
+    if (selectedPaymentMethod === 'transfer') {
+      router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
+      return
+    }
 
     // Business deferred: skip MP, show success directly
     const skipPayment = mode === 'business' && businessInfo?.paymentMode === 'deferred'
@@ -1272,13 +1317,35 @@ async function handleSubmit(e: React.FormEvent) {
                 <span>${deliveryQuote.cost.toLocaleString('es-AR')}</span>
               </div>
             )}
-            <div className="flex justify-between text-lg font-black text-zinc-900">
-              <span>Total</span>
-              <span>${total.toLocaleString('es-AR')}</span>
-            </div>
+            {selectedPaymentMethod === 'transfer' ? (
+              <div className="flex justify-between text-lg font-black text-emerald-700">
+                <span>Total (precio de carta)</span>
+                <span>${total.toLocaleString('es-AR')}</span>
+              </div>
+            ) : activeSurchargePercent > 0 ? (
+              <>
+                <div className="flex justify-between text-sm text-zinc-500">
+                  <span>Precio de carta</span>
+                  <span>${baseTotal.toLocaleString('es-AR')}</span>
+                </div>
+                <div className="flex justify-between text-sm text-amber-600 font-semibold">
+                  <span>Recargo ({activeSurchargePercent}%)</span>
+                  <span>+${(total - baseTotal).toLocaleString('es-AR')}</span>
+                </div>
+                <div className="flex justify-between text-lg font-black text-zinc-900">
+                  <span>Total</span>
+                  <span>${total.toLocaleString('es-AR')}</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-between text-lg font-black text-zinc-900">
+                <span>Total</span>
+                <span>${total.toLocaleString('es-AR')}</span>
+              </div>
+            )}
           </div>
 
-          {kriptonEnabled && (
+          {(kriptonEnabled || transferEnabled) && (
             <div className="space-y-3">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Método de pago</p>
               <div className="grid grid-cols-2 gap-3">
@@ -1293,18 +1360,120 @@ async function handleSubmit(e: React.FormEvent) {
                     <p className="text-[10px] text-zinc-500">Tarjeta, efectivo, transferencia</p>
                   </div>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPaymentMethod('kripton')}
-                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'kripton' ? 'border-purple-600 bg-purple-600/5' : 'border-zinc-200 bg-white'}`}
-                >
-                  <span className="text-2xl">🪙</span>
-                  <div>
-                    <p className="text-sm font-bold text-zinc-900">Kripton</p>
-                    <p className="text-[10px] text-zinc-500">USDT, BTC, ETH y más</p>
-                  </div>
-                </button>
+                {transferEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod('transfer')}
+                    className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'transfer' ? 'border-emerald-600 bg-emerald-600/5' : 'border-zinc-200 bg-white'}`}
+                  >
+                    <span className="text-2xl">🏦</span>
+                    <div>
+                      <p className="text-sm font-bold text-zinc-900">Transferencia</p>
+                      <p className="text-[10px] text-zinc-500">Precio de carta</p>
+                    </div>
+                  </button>
+                )}
+                {kriptonEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod('kripton')}
+                    className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selectedPaymentMethod === 'kripton' ? 'border-purple-600 bg-purple-600/5' : 'border-zinc-200 bg-white'}`}
+                  >
+                    <span className="text-2xl">🪙</span>
+                    <div>
+                      <p className="text-sm font-bold text-zinc-900">Kripton</p>
+                      <p className="text-[10px] text-zinc-500">USDT, BTC, ETH y más</p>
+                    </div>
+                  </button>
+                )}
               </div>
+
+              {/* Info de recargo para MP y Kripton */}
+              {selectedPaymentMethod !== 'transfer' && activeSurchargePercent > 0 && (
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-start gap-2">
+                  <span className="text-lg">💡</span>
+                  <div className="text-xs text-amber-800">
+                    <p className="font-semibold">
+                      {selectedPaymentMethod === 'mercadopago' ? 'Mercado Pago' : 'Kripton'} · Precio con recargo
+                    </p>
+                    <p className="mt-0.5">
+                      ${(baseTotal).toLocaleString('es-AR')} + {activeSurchargePercent}% ={' '}
+                      <strong>${total.toLocaleString('es-AR')}</strong>
+                    </p>
+                    <p className="mt-0.5 text-amber-600">
+                      Incluye costos operativos del medio de pago.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Datos bancarios para transferencia */}
+              {selectedPaymentMethod === 'transfer' && transferData && (
+                <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Banknote size={18} className="text-blue-700" />
+                    <p className="text-sm font-bold text-blue-900">Datos para transferir</p>
+                  </div>
+                  {transferData.alias && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Alias</p>
+                      <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-blue-100">
+                        <span className="text-sm font-mono font-bold text-zinc-900">{transferData.alias}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(transferData.alias!)
+                            setCopiedField('alias')
+                            setTimeout(() => setCopiedField(null), 2000)
+                          }}
+                          className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 hover:bg-blue-200 transition-colors"
+                        >
+                          {copiedField === 'alias' ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {(transferData.cbu || transferData.cvu) && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                        {transferData.cbu && transferData.cvu ? 'CBU / CVU' : transferData.cbu ? 'CBU' : 'CVU'}
+                      </p>
+                      <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-blue-100">
+                        <span className="text-sm font-mono font-bold text-zinc-900">
+                          {transferData.cbu || transferData.cvu}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(transferData.cbu || transferData.cvu!)
+                            setCopiedField('cbu')
+                            setTimeout(() => setCopiedField(null), 2000)
+                          }}
+                          className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 hover:bg-blue-200 transition-colors"
+                        >
+                          {copiedField === 'cbu' ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {transferData.bankName && (
+                    <div className="text-xs text-blue-600">
+                      <span className="font-semibold">Banco:</span> {transferData.bankName}
+                    </div>
+                  )}
+                  {transferData.holderName && (
+                    <div className="text-xs text-blue-600">
+                      <span className="font-semibold">Titular:</span> {transferData.holderName}
+                    </div>
+                  )}
+                  <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-200">
+                    <p className="text-[11px] text-amber-800 font-medium flex items-center gap-1">
+                      <span>⚠️</span>
+                      Transferí el monto exacto de <strong>${total.toLocaleString('es-AR')}</strong> y luego confirmá el pago en la pantalla de seguimiento.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1313,7 +1482,7 @@ async function handleSubmit(e: React.FormEvent) {
             disabled={loading || cart.length === 0}
             className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50"
           >
-            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : mode === 'business' && businessInfo?.paymentMode !== 'cash_mp' ? '✅ Confirmar pedido' : deliveryMode ? `🚚 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : 'MercadoPago'}` : `💳 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : 'MercadoPago'}`}
+            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : mode === 'business' && businessInfo?.paymentMode !== 'cash_mp' ? '✅ Confirmar pedido' : deliveryMode ? `🚚 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'MercadoPago'}` : `💳 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'MercadoPago'}`}
           </button>
 
           {/* Términos y Privacidad */}
@@ -1381,7 +1550,7 @@ async function handleSubmit(e: React.FormEvent) {
         <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center px-6">
           <div className="text-center max-w-sm">
             <div className="w-12 h-12 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin mx-auto mb-6" />
-            <h2 className="text-xl font-black text-zinc-900 mb-3">Redirigiendo a {selectedPaymentMethod === 'kripton' ? 'Kripton' : 'Mercado Pago'}</h2>
+            <h2 className="text-xl font-black text-zinc-900 mb-3">Redirigiendo a {selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'Mercado Pago'}</h2>
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-left space-y-3">
               <p className="text-sm font-bold text-amber-800">⚠️ Importante:</p>
               <p className="text-sm text-amber-700 leading-relaxed">

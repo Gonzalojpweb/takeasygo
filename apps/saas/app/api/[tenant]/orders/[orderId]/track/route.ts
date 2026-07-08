@@ -71,14 +71,51 @@ export async function GET(
     console.log(`[track] Tenant ${tenantSlug}: mpConfigured=${hasMpConfigured}`)
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.mercadopagoId orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress')
+      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress')
       .lean() as any
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    // Si el pedido está esperando pago, verificamos el estado real en MercadoPago
     let currentStatus = order.status
-    console.log(`[track] Order ${order.orderNumber}:status=${order.status}, mpId=${order.payment?.mercadopagoId}`)
+    console.log(`[track] Order ${order.orderNumber}:status=${order.status}, method=${order.payment?.method}`)
 
+    // Si es transferencia, no verificar MP — el flujo es manual
+    if (order.payment?.method === 'transfer') {
+      return NextResponse.json({
+        status: currentStatus,
+        orderNumber: order.orderNumber,
+        confirmedAt: order.statusTimestamps?.confirmedAt ?? null,
+        estimatedReadyAt: order.statusTimestamps?.estimatedReadyAt ?? null,
+        customerEstimatedReadyAt: order.statusTimestamps?.customerEstimatedReadyAt ?? null,
+        orderTiming: order.orderTiming ?? 'immediate',
+        scheduledPickupAt: order.scheduledPickupAt ?? null,
+        scheduledStatus: order.scheduledStatus ?? null,
+        deliveryAddress: order.deliveryAddress ? {
+          street: order.deliveryAddress.street,
+          number: order.deliveryAddress.number,
+          apt: order.deliveryAddress.apt ?? null,
+          city: order.deliveryAddress.city,
+          coordinates: order.deliveryAddress.coordinates ?? null,
+        } : null,
+        deliveryConfirmation: order.deliveryConfirmation ? {
+          customerCode: order.deliveryConfirmation.customerCode?.code ?? null,
+          status: order.deliveryConfirmation.status,
+          deliveryPersonName: order.deliveryConfirmation.deliveryPersonName ?? null,
+          arrivalAt: order.deliveryConfirmation.arrivalAt ?? null,
+          completedAt: order.deliveryConfirmation.completedAt ?? null,
+        } : null,
+        payment: {
+          method: order.payment.method,
+          baseTotal: order.payment.baseTotal,
+          surchargePercent: order.payment.surchargePercent,
+          surchargeAmount: order.payment.surchargeAmount,
+          transferConfirmed: order.payment.transferConfirmed,
+        },
+      }, {
+        headers: { 'Cache-Control': 'no-store' },
+      })
+    }
+
+    // Si el pedido está esperando pago, verificamos el estado real en MercadoPago
     if (order.status === 'awaiting_payment' && order.payment?.mercadopagoId && hasMpConfigured && tenant.mercadopago?.accessToken) {
       const accessToken = decrypt(tenant.mercadopago.accessToken) as string
       const tenantId = (tenant as any)._id?.toString()
@@ -136,6 +173,13 @@ export async function GET(
         arrivalAt: order.deliveryConfirmation.arrivalAt ?? null,
         completedAt: order.deliveryConfirmation.completedAt ?? null,
       } : null,
+      payment: {
+        method: order.payment?.method ?? 'mercadopago',
+        baseTotal: order.payment?.baseTotal ?? 0,
+        surchargePercent: order.payment?.surchargePercent ?? 0,
+        surchargeAmount: order.payment?.surchargeAmount ?? 0,
+        transferConfirmed: order.payment?.transferConfirmed ?? false,
+      },
     }, {
       headers: { 'Cache-Control': 'no-store' },
     })

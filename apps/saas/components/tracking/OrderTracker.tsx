@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
 import DeliveryCodeDisplay from './DeliveryCodeDisplay'
-import { Calendar, Star, Sparkles, Lock } from 'lucide-react'
+import LiveTrackingBadge from './LiveTrackingBadge'
+import { Calendar, Star, Sparkles, Lock, Copy, Check, Banknote, Loader2 } from 'lucide-react'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
@@ -12,10 +13,11 @@ import { StatusNotificationCard } from './StatusNotificationCard'
 import PointsEarnedToast from '@/components/rewards/PointsEarnedToast'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 
-const STATUS_STEPS = ['awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
+const STATUS_STEPS = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
 
 const STATUS_INFO: Record<string, { label: string; description: string; emoji: string; pulse?: boolean }> = {
   awaiting_payment: { label: 'Esperando pago', description: 'Completá el pago para confirmar tu pedido', emoji: '💳' },
+  awaiting_confirmation: { label: 'Esperando confirmación', description: 'El local está verificando tu pago', emoji: '⏳', pulse: true },
   pending:   { label: 'Recibido',   description: 'Tu pedido fue recibido y está esperando confirmación', emoji: '📋' },
   confirmed: { label: 'Confirmado', description: 'El restaurante confirmó tu pedido', emoji: '✅', pulse: true },
   preparing: { label: 'Preparando', description: 'Tu pedido está siendo preparado', emoji: '👨‍🍳', pulse: true },
@@ -69,6 +71,19 @@ interface Props {
     apt?: string
     city: string
   }
+  // ── Transferencia ─────────────────────────────────────────────────
+  initialPaymentMethod?: string
+  initialBaseTotal?: number
+  initialSurchargePercent?: number
+  initialSurchargeAmount?: number
+  initialTransferConfirmed?: boolean
+  initialTransferData?: {
+    alias: string | null
+    cbu: string | null
+    cvu: string | null
+    bankName: string | null
+    holderName: string | null
+  } | null
 }
 
 function formatCountdown(target: string): string {
@@ -116,6 +131,12 @@ export default function OrderTracker({
   clubName,
   orderMode,
   deliveryAddress,
+  initialPaymentMethod,
+  initialBaseTotal,
+  initialSurchargePercent,
+  initialSurchargeAmount,
+  initialTransferConfirmed,
+  initialTransferData,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [confirmedAt, setConfirmedAt]     = useState<string | null>(null)
@@ -131,6 +152,15 @@ export default function OrderTracker({
   const [deliveryCode, setDeliveryCode] = useState<string | null>(null)
   const [deliveryPersonName, setDeliveryPersonName] = useState<string | null>(null)
   const [deliveryConfStatus, setDeliveryConfStatus] = useState<string | null>(null)
+  // ── Transferencia (cache local que se actualiza vía polling) ──────
+  const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod || 'mercadopago')
+  const [baseTotal, setBaseTotal] = useState(initialBaseTotal || 0)
+  const [surchargePercent, setSurchargePercent] = useState(initialSurchargePercent || 0)
+  const [surchargeAmount, setSurchargeAmount] = useState(initialSurchargeAmount || 0)
+  const [transferConfirmed, setTransferConfirmed] = useState(initialTransferConfirmed || false)
+  const [transferData, setTransferData] = useState(initialTransferData || null)
+  const [confirmTransferLoading, setConfirmTransferLoading] = useState(false)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
   const { play: playNotification } = useNotificationSound('/pop.mp3')
   const confettiRef = useRef<ConfettiRef>(null)
 
@@ -153,6 +183,13 @@ export default function OrderTracker({
       setDeliveryCode(data.deliveryConfirmation?.customerCode ?? null)
       setDeliveryPersonName(data.deliveryConfirmation?.deliveryPersonName ?? null)
       setDeliveryConfStatus(data.deliveryConfirmation?.status ?? null)
+      if (data.payment) {
+        setPaymentMethod(data.payment.method || 'mercadopago')
+        setBaseTotal(data.payment.baseTotal || 0)
+        setSurchargePercent(data.payment.surchargePercent || 0)
+        setSurchargeAmount(data.payment.surchargeAmount || 0)
+        setTransferConfirmed(data.payment.transferConfirmed || false)
+      }
       setLastChecked(new Date())
     } catch { /* ignora errores de red */ }
   }, [tenantSlug, orderId])
@@ -529,6 +566,117 @@ export default function OrderTracker({
                 Tu pedido ya está en preparación y no puede ser cancelado.
                 Si necesitás asistencia, contactá al restaurante directamente.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TRANSFERENCIA: awaiting_payment — mostrar datos bancarios + botón confirmar ── */}
+      {paymentMethod === 'transfer' && status === 'awaiting_payment' && transferData && (
+        <div className="mb-8 rounded-2xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 space-y-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Banknote size={20} className="text-blue-700" />
+            <h3 className="font-bold text-base text-blue-900">Datos para transferir</h3>
+          </div>
+
+          {transferData.alias && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Alias</p>
+              <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-blue-200">
+                <span className="text-sm font-mono font-bold text-zinc-900">{transferData.alias}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(transferData.alias!)
+                    setCopiedField('alias')
+                    setTimeout(() => setCopiedField(null), 2000)
+                  }}
+                  className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 hover:bg-blue-200 transition-colors"
+                >
+                  {copiedField === 'alias' ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(transferData.cbu || transferData.cvu) && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                {transferData.cbu && transferData.cvu ? 'CBU / CVU' : transferData.cbu ? 'CBU' : 'CVU'}
+              </p>
+              <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-blue-200">
+                <span className="text-sm font-mono font-bold text-zinc-900">{transferData.cbu || transferData.cvu}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(transferData.cbu || transferData.cvu!)
+                    setCopiedField('cbu')
+                    setTimeout(() => setCopiedField(null), 2000)
+                  }}
+                  className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 hover:bg-blue-200 transition-colors"
+                >
+                  {copiedField === 'cbu' ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
+            <p className="text-xs text-amber-800 font-medium flex items-center gap-1">
+              <span>⚠️</span>
+              Transferí el monto exacto de <strong>${(baseTotal || 0).toLocaleString('es-AR')}</strong> y luego confirmá abajo.
+            </p>
+          </div>
+
+          <button
+            onClick={async () => {
+              setConfirmTransferLoading(true)
+              try {
+                const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/confirm-transfer-client`, { method: 'PATCH' })
+                if (!res.ok) {
+                  const err = await res.json()
+                  throw new Error(err.error || 'Error')
+                }
+                setStatus('awaiting_confirmation')
+              } catch (err: any) {
+                toast.error(err.message || 'Error al confirmar la transferencia')
+              } finally {
+                setConfirmTransferLoading(false)
+              }
+            }}
+            disabled={confirmTransferLoading}
+            className="w-full py-4 rounded-2xl font-bold text-base text-white disabled:opacity-50 transition-all"
+            style={{ backgroundColor: '#059669' }}
+          >
+            {confirmTransferLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 size={16} className="animate-spin" /> Confirmando...
+              </span>
+            ) : (
+              '✅ YA TRANSFERÍ — Confirmar pago'
+            )}
+          </button>
+          <p className="text-xs text-center text-zinc-500">
+            Solo confirmá después de haber realizado la transferencia por el monto exacto
+          </p>
+        </div>
+      )}
+
+      {/* ── TRANSFERENCIA: awaiting_confirmation — card llamativa ── */}
+      {paymentMethod === 'transfer' && status === 'awaiting_confirmation' && (
+        <div className="mb-8 rounded-2xl border-2 border-blue-400 bg-gradient-to-br from-blue-600 to-indigo-700 p-6 shadow-xl text-white relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]" />
+          </div>
+          <div className="relative z-10 text-center">
+            <div className="text-5xl mb-4 animate-pulse">⏳</div>
+            <h2 className="text-xl font-black mb-2">Esperando confirmación</h2>
+            <p className="text-blue-100 text-sm mb-4">
+              El local está verificando tu pago por transferencia. Te notificaremos cuando esté confirmado.
+            </p>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 text-sm font-semibold">
+              <span className="w-2 h-2 rounded-full bg-green-300 animate-pulse" />
+              Transferencia reportada
             </div>
           </div>
         </div>

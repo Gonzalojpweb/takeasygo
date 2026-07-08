@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import { notFound } from 'next/navigation'
 import OrderTracker from '@/components/tracking/OrderTracker'
+import LiveTrackingBadge from '@/components/tracking/LiveTrackingBadge'
 import TrackingAnalytics from '@/components/tracking/TrackingAnalytics'
 import { generateRatingToken } from '@/lib/rating-token'
 import { calculatePointsBreakdown } from '@/lib/loyalty'
@@ -144,7 +145,24 @@ export default async function TrackingPage({ params, searchParams }: Props) {
             apt: order.deliveryAddress.apt ?? '',
             city: order.deliveryAddress.city,
           } : undefined}
+          initialPaymentMethod={order.payment?.method}
+          initialBaseTotal={order.payment?.baseTotal}
+          initialSurchargePercent={order.payment?.surchargePercent}
+          initialSurchargeAmount={order.payment?.surchargeAmount}
+          initialTransferConfirmed={order.payment?.transferConfirmed}
+          initialTransferData={order.payment?.method === 'transfer' && tenant.transfer?.enabled ? {
+            alias: tenant.transfer.alias,
+            cbu: tenant.transfer.cbu,
+            cvu: tenant.transfer.cvu,
+            bankName: tenant.transfer.bankName,
+            holderName: tenant.transfer.holderName,
+          } : null}
         />
+
+        {/* Live tracking badge */}
+        {!['delivered', 'cancelled'].includes(order.status) && (
+          <LiveTrackingBadge />
+        )}
 
         {/* Resumen del pedido */}
         <div className="rounded-2xl p-4 mb-6"
