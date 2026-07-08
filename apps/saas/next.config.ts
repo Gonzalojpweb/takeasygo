@@ -31,6 +31,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['mongoose'],
+  transpilePackages: ['@takeasygo/business', '@takeasygo/types'],
   async rewrites() {
     return [
       {
