@@ -3,6 +3,8 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Dynamic Web App Manifest per tenant.
  * Each restaurant gets its own installable PWA with its name and branding colors.
