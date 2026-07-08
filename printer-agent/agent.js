@@ -240,8 +240,31 @@ const ESC_POS = {
     ALIGN_RIGHT: Buffer.from([0x1b, 0x61, 0x02]),
     TEXT_SIZE_NORMAL: Buffer.from([0x1d, 0x21, 0x00]),
     TEXT_SIZE_LARGE: Buffer.from([0x1d, 0x21, 0x11]),
+    TEXT_SIZE_DOUBLE_HEIGHT: Buffer.from([0x1d, 0x21, 0x01]),
+    TEXT_SIZE_DOUBLE_WIDTH: Buffer.from([0x1d, 0x21, 0x10]),
+    TEXT_SIZE_DOUBLE_BOTH: Buffer.from([0x1d, 0x21, 0x11]),
+    TEXT_SIZE_TRIPLE_HEIGHT: Buffer.from([0x1d, 0x21, 0x02]),
+    TEXT_SIZE_TRIPLE_WIDTH: Buffer.from([0x1d, 0x21, 0x20]),
+    TEXT_SIZE_TRIPLE_BOTH: Buffer.from([0x1d, 0x21, 0x22]),
+    LINE_SPACING: (n) => Buffer.from([0x1b, 0x33, n]),
     CODE_PAGE: Buffer.from([0x1b, 0x74, 43]), // CP858 (Latin-1 + Euro)
 };
+
+// --- MAPEO DE TAMAÑOS DE FUENTE ---
+function getFontSizeCommand(size) {
+    switch (size) {
+        case 'normal':
+            return ESC_POS.TEXT_SIZE_NORMAL;
+        case 'large':
+            return ESC_POS.TEXT_SIZE_LARGE;
+        case 'double':
+            return ESC_POS.TEXT_SIZE_DOUBLE_BOTH;
+        case 'triple':
+            return ESC_POS.TEXT_SIZE_TRIPLE_BOTH;
+        default:
+            return ESC_POS.TEXT_SIZE_NORMAL;
+    }
+}
 
 const NON_LATIN1_RE = /[^\x00-\xFF]/g;
 
@@ -402,10 +425,24 @@ function printCustomizations(customizations, chunks, indent) {
 }
 
 // --- GENERADOR DE TICKETS (Lógica compartida) ---
-function generateTicket(order, role, columns = 32) {
+function generateTicket(order, role, columns = 32, printSettings = null) {
     let chunks = [];
     const customer = order.customer || {};
     const allItems = order.items || [];
+
+    // CONFIGURACIÓN POR DEFECTO SI NO SE PROPORCIONA
+    const settings = printSettings || {
+        fontSize: role === 'cashier' ? 'normal' : 'large',
+        lineSpacing: role === 'cashier' ? 36 : 48,
+        showDescriptions: role === 'cashier',
+        showPrices: role === 'cashier',
+        showCategory: true,
+        showCustomerInfo: true,
+        showOrderNotes: true,
+        showTotal: role === 'cashier',
+        headerTemplate: '',
+        footerTemplate: '',
+    };
 
     // FILTRADO DE ITEMS SEGÚN ROL
     let itemsToPrint = [];
@@ -424,15 +461,15 @@ function generateTicket(order, role, columns = 32) {
     const money = (v) => Number(v || 0).toLocaleString('es-AR');
 
     chunks.push(ESC_POS.INIT, ESC_POS.CODE_PAGE, ESC_POS.ALIGN_CENTER);
-    chunks.push(Buffer.from([0x1b, 0x33, 36]));
+    chunks.push(ESC_POS.LINE_SPACING(settings.lineSpacing));
 
     if (role === 'cashier') {
-        chunks.push(ESC_POS.TEXT_SIZE_LARGE, ESC_POS.BOLD_ON);
+        chunks.push(getFontSizeCommand(settings.fontSize), ESC_POS.BOLD_ON);
         chunks.push(buf(`${(order.location?.locationName?.toUpperCase()) || 'MI NEGOCIO'}\n`));
         chunks.push(ESC_POS.TEXT_SIZE_NORMAL, ESC_POS.BOLD_OFF);
         chunks.push(buf(`TICKET DE PAGO\n`));
     } else {
-        chunks.push(ESC_POS.TEXT_SIZE_LARGE, ESC_POS.BOLD_ON);
+        chunks.push(getFontSizeCommand(settings.fontSize), ESC_POS.BOLD_ON);
         chunks.push(buf(`ORDEN: ${order.orderNumber}\n`));
         chunks.push(ESC_POS.TEXT_SIZE_NORMAL, ESC_POS.BOLD_OFF);
 
@@ -462,16 +499,18 @@ function generateTicket(order, role, columns = 32) {
         chunks.push(ESC_POS.BOLD_OFF);
     }
 
-    // Info del cliente
-    chunks.push(ESC_POS.BOLD_ON);
-    chunks.push(buf(`Cliente: ${(customer.name || '').toUpperCase()}\n`));
-    if (customer.phone) {
-        chunks.push(buf(`Tel: ${customer.phone}\n`));
+    // Info del cliente (según configuración)
+    if (settings.showCustomerInfo) {
+        chunks.push(ESC_POS.BOLD_ON);
+        chunks.push(buf(`Cliente: ${(customer.name || '').toUpperCase()}\n`));
+        if (customer.phone) {
+            chunks.push(buf(`Tel: ${customer.phone}\n`));
+        }
+        chunks.push(ESC_POS.BOLD_OFF);
     }
-    chunks.push(ESC_POS.BOLD_OFF);
 
-    // Observaciones del cliente (prominente)
-    if (order.notes) {
+    // Observaciones del cliente (según configuración)
+    if (settings.showOrderNotes && order.notes) {
         chunks.push(buf(`${lineStr}\n`));
         chunks.push(ESC_POS.BOLD_ON);
         chunks.push(buf(`OBS: ${order.notes}\n`));
@@ -491,15 +530,17 @@ function generateTicket(order, role, columns = 32) {
 
         const line = `${item.quantity}x ${item.name.toUpperCase()}`;
 
-        // Nombre de categoría (solo cuando cambia)
-        const currentCategory = (item.categoryName && item.itemType !== 'promotion' && item.itemType !== 'reward')
-            ? item.categoryName : null;
-        if (currentCategory && currentCategory !== lastCategory) {
-            chunks.push(buf(`[${currentCategory.toUpperCase()}]\n`));
+        // Nombre de categoría (según configuración)
+        if (settings.showCategory) {
+            const currentCategory = (item.categoryName && item.itemType !== 'promotion' && item.itemType !== 'reward')
+                ? item.categoryName : null;
+            if (currentCategory && currentCategory !== lastCategory) {
+                chunks.push(buf(`[${currentCategory.toUpperCase()}]\n`));
+            }
+            lastCategory = currentCategory;
         }
-        lastCategory = currentCategory;
 
-        if (role === 'cashier') {
+        if (settings.showPrices && role === 'cashier') {
             const price = `$${money(item.price * item.quantity)}`;
             const dots = '.'.repeat(Math.max(2, columns - line.length - price.length));
             chunks.push(buf(`${line}${dots}${price}\n`));
@@ -509,16 +550,16 @@ function generateTicket(order, role, columns = 32) {
             chunks.push(ESC_POS.BOLD_OFF);
         }
 
-        // Mostrar descripción del ítem si existe
-        if (item.description) {
+        // Mostrar descripción del ítem (según configuración)
+        if (settings.showDescriptions && item.description) {
             const desc = item.description.length > columns
                 ? item.description.substring(0, columns - 3) + '...'
                 : item.description
             chunks.push(buf(`  ${desc.toUpperCase()}\n`));
         }
 
-        // Mostrar descripción corta para promociones
-        if (item.itemType === 'promotion' && item.shortDescription) {
+        // Mostrar descripción corta para promociones (según configuración)
+        if (settings.showDescriptions && item.itemType === 'promotion' && item.shortDescription) {
             const short = item.shortDescription.length > columns
                 ? item.shortDescription.substring(0, columns - 3) + '...'
                 : item.shortDescription
@@ -536,7 +577,7 @@ function generateTicket(order, role, columns = 32) {
     });
 
     chunks.push(buf(`${lineStr}\n`));
-    if (role === 'cashier') {
+    if (settings.showTotal && role === 'cashier') {
         chunks.push(ESC_POS.ALIGN_RIGHT, ESC_POS.BOLD_ON);
         chunks.push(buf(`TOTAL: $${money(order.total)}\n`));
     }
@@ -616,7 +657,8 @@ async function poll() {
 
                     let ticketBuffer;
                     try {
-                        ticketBuffer = generateTicket(order, role, printer.paperWidth === 80 ? 48 : 32);
+                        const settings = printer.printSettings?.[role] || null;
+                        ticketBuffer = generateTicket(order, role, printer.paperWidth === 80 ? 48 : 32, settings);
                     } catch (err) {
                         console.error(`[ERROR] generateTicket falló: ${err.message}`);
                         continue;

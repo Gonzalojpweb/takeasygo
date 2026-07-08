@@ -15,6 +15,27 @@ export interface ITenant extends Document {
   isOperational: boolean // Si el local ya está aceptando pedidos o está en modo catálogo
   pausedAt?: Date | null
   pausedReason?: string
+  // ── Transferencia bancaria ───────────────────────────────────────────────
+  transfer: {
+    enabled: boolean
+    alias: string | null
+    cbu: string | null
+    cvu: string | null
+    bankName: string | null
+    holderName: string | null
+  }
+  // ── Recargos por método de pago ───────────────────────────────────────────
+  paymentSurcharges: {
+    mercadopago: { feePercent: number }
+    kripton: { feePercent: number }
+    transfer: { feePercent: number }
+  }
+  // ── Visibilidad de métodos de pago ───────────────────────────────────────────
+  paymentMethodsVisibility: {
+    mercadopago: boolean
+    kripton: boolean
+    transfer: boolean
+  }
   subscription: {
     preapprovalId: string | null
     status: 'authorized' | 'pending' | 'cancelled' | 'paused' | null
@@ -552,6 +573,36 @@ const TenantSchema = new Schema<ITenant>(
       successTitle:     { type: String, default: '¡Registro exitoso!' },
       successMessage:   { type: String, default: 'Bienvenido al club de fidelización' },
       welcomePointsMsg: { type: String, default: '{points} puntos de bienvenida' },
+    },
+    // ── Transferencia bancaria ───────────────────────────────────────────────
+    transfer: {
+      enabled:     { type: Boolean, default: false },
+      alias:       { type: String, default: null },
+      cbu:         { type: String, default: null },
+      cvu:         { type: String, default: null },
+      bankName:    { type: String, default: null },
+      holderName:  { type: String, default: null },
+    },
+    // ── Recargos por método de pago ───────────────────────────────────────────
+    paymentSurcharges: {
+      mercadopago: {
+        type: { feePercent: { type: Number, default: 0 } },
+        default: { feePercent: 0 },
+      },
+      kripton: {
+        type: { feePercent: { type: Number, default: 0 } },
+        default: { feePercent: 0 },
+      },
+      transfer: {
+        type: { feePercent: { type: Number, default: 0 } },
+        default: { feePercent: 0 },
+      },
+    },
+    // ── Visibilidad de métodos de pago ───────────────────────────────────────────
+    paymentMethodsVisibility: {
+      mercadopago: { type: Boolean, default: true },
+      kripton:     { type: Boolean, default: false },
+      transfer:    { type: Boolean, default: false },
     },
   },
   {

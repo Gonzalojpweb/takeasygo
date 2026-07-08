@@ -21,6 +21,10 @@ export interface IPlatformConfig {
     defaultCryptoNetworkId: number | null
     defaultUsePaymentLinks: boolean
   }
+  /** Configuración de comisiones de TakeasyGO */
+  platformFees: {
+    takeasygoCommissionPercent: number  // Comisión TakeasyGO (default: 1%)
+  }
   /** Configuración de estilos estándar para promoción QR de takeaway */
   qrPromoStyles: {
     primaryColor: string
@@ -56,6 +60,10 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
       enabled:                { type: Boolean, default: false },
       defaultCryptoNetworkId: { type: Number, default: null },
       defaultUsePaymentLinks: { type: Boolean, default: true },
+    },
+    /** Configuración de comisiones de TakeasyGO */
+    platformFees: {
+      takeasygoCommissionPercent: { type: Number, default: 1, min: 0, max: 100 },
     },
     /** Configuración de estilos estándar para promoción QR de takeaway */
     qrPromoStyles: {
