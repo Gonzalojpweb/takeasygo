@@ -572,7 +572,7 @@ const TenantSchema = new Schema<ITenant>(
     paymentMethodsVisibility: {
       mercadopago: { type: Boolean, default: true },
       kripton: { type: Boolean, default: false },
-      transfer: { type: Boolean, default: false },
+      transfer: { type: Boolean, default: true },
     },
     /** Configuración de notificaciones WhatsApp para admins */
     notifications: {
