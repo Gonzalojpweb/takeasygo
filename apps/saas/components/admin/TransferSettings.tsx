@@ -17,12 +17,13 @@ interface Props {
 }
 
 export default function TransferSettings({ tenantSlug, initialConfig }: Props) {
-  const [enabled, setEnabled] = useState(initialConfig.enabled)
-  const [alias, setAlias] = useState(initialConfig.alias || '')
-  const [cbu, setCbu] = useState(initialConfig.cbu || '')
-  const [cvu, setCvu] = useState(initialConfig.cvu || '')
-  const [bankName, setBankName] = useState(initialConfig.bankName || '')
-  const [holderName, setHolderName] = useState(initialConfig.holderName || '')
+  const cfg = initialConfig || { enabled: false, alias: null, cbu: null, cvu: null, bankName: null, holderName: null }
+  const [enabled, setEnabled] = useState(cfg.enabled)
+  const [alias, setAlias] = useState(cfg.alias || '')
+  const [cbu, setCbu] = useState(cfg.cbu || '')
+  const [cvu, setCvu] = useState(cfg.cvu || '')
+  const [bankName, setBankName] = useState(cfg.bankName || '')
+  const [holderName, setHolderName] = useState(cfg.holderName || '')
   const [saving, setSaving] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, AlertCircle, Eye, EyeOff, Loader2, ShieldCheck, Zap } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Eye, EyeOff, Loader2, ShieldCheck, Zap, Percent } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -18,6 +18,9 @@ interface Props {
     platformFeePercent: number
     isConfigured: boolean
   }
+  platformFees?: {
+    takeasygoCommissionPercent: number
+  }
 }
 
 export default function PlatformMPSettings({
@@ -28,6 +31,7 @@ export default function PlatformMPSettings({
   accessTokenHint: initialTokenHint,
   webhookSecretHint: initialSecretHint,
   mpOAuth: initialMpOAuth,
+  platformFees: initialPlatformFees,
 }: Props) {
   const [accessToken, setAccessToken]     = useState('')
   const [webhookSecret, setWebhookSecret] = useState('')
@@ -55,6 +59,11 @@ export default function PlatformMPSettings({
   const [oauthRedirectUriHint, setOAuthRedirectUriHint] = useState(initialMpOAuth?.redirectUri ?? null)
   const [oauthPlatformFeeHint, setOAuthPlatformFeeHint] = useState(initialMpOAuth?.platformFeePercent ?? 5)
 
+  // ── Comisión TakeasyGO ────────────────────────────────────────────
+  const [takeasygoCommissionPercent, setTakeasygoCommissionPercent] = useState(
+    initialPlatformFees?.takeasygoCommissionPercent ?? 1
+  )
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!accessToken && !webhookSecret && !oauthAppId && !oauthAppSecret && !oauthRedirectUri) return
@@ -74,6 +83,10 @@ export default function PlatformMPSettings({
         if (oauthAppSecret) body.mpOAuth.appSecret = oauthAppSecret
         if (oauthRedirectUri) body.mpOAuth.redirectUri = oauthRedirectUri
         if (oauthPlatformFee !== 5) body.mpOAuth.platformFeePercent = oauthPlatformFee
+      }
+
+      body.platformFees = {
+        takeasygoCommissionPercent,
       }
 
       const res = await fetch('/api/superadmin/platform-config', {
@@ -349,6 +362,50 @@ export default function PlatformMPSettings({
             {loading ? <Loader2 size={16} className="animate-spin" /> : 'Guardar configuración OAuth'}
           </button>
         </form>
+      </div>
+
+      {/* ── Comisión TakeasyGO ──────────────────────────────────────── */}
+      <div className="border-t border-border/40">
+        <div className="flex items-center gap-4 px-6 py-5 border-b border-border/40 bg-muted/20">
+          <div className="p-2.5 rounded-xl bg-emerald-100">
+            <Percent size={20} className="text-emerald-700" />
+          </div>
+          <div>
+            <p className="font-bold text-foreground text-sm">Comisión TakeasyGO</p>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
+              Porcentaje invisible que TakeasyGO cobra en cada venta (se suma al recargo del tenant).
+              No se muestra al tenant.
+            </p>
+          </div>
+        </div>
+        <div className="px-6 py-4 space-y-3">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Comisión global (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={takeasygoCommissionPercent}
+                onChange={e => setTakeasygoCommissionPercent(parseFloat(e.target.value) || 0)}
+                className="w-full mt-1.5 bg-muted/30 border border-border/60 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Se aplica a todas las ventas de todos los tenants. No visible para los restaurantes.
+              </p>
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-emerald-700 transition-colors"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : 'Guardar comisión'}
+          </button>
+        </div>
       </div>
 
       {/* Instrucciones webhook */}
