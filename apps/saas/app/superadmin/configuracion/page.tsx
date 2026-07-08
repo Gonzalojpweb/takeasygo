@@ -17,6 +17,7 @@ export default async function SuperAdminConfigPage() {
   const mp = config?.mercadopago ?? {}
   const mpOAuth = config?.mpOAuth ?? {}
   const kripton = config?.kripton ?? {}
+  const platformFees = config?.platformFees ?? {}
 
   function hint(encrypted: string | null | undefined) {
     if (!encrypted) return null
@@ -37,6 +38,9 @@ export default async function SuperAdminConfigPage() {
 
       <PlatformMPSettings
         origin={origin}
+        platformFees={{
+          takeasygoCommissionPercent: platformFees.takeasygoCommissionPercent ?? 1,
+        }}
         isConfigured={!!mp.isConfigured}
         hasAccessToken={!!mp.accessToken}
         hasWebhookSecret={!!mp.webhookSecret}

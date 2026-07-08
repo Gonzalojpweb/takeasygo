@@ -14,8 +14,12 @@ export async function GET(request: NextRequest) {
   const mp = config?.mercadopago ?? {}
   const mpOAuth = config?.mpOAuth ?? {}
   const kripton = config?.kripton ?? {}
+  const platformFees = config?.platformFees ?? {}
 
   return NextResponse.json({
+    platformFees: {
+      takeasygoCommissionPercent: platformFees.takeasygoCommissionPercent ?? 1,
+    },
     mercadopago: {
       isConfigured: !!mp.isConfigured,
       hasAccessToken: !!mp.accessToken,
@@ -48,7 +52,7 @@ export async function POST(request: NextRequest) {
   if (authError) return authError
 
   const body = await request.json()
-  const { accessToken, webhookSecret, mpOAuth, kripton } = body as {
+  const { accessToken, webhookSecret, mpOAuth, kripton, platformFees } = body as {
     accessToken?: string
     webhookSecret?: string
     mpOAuth?: {
@@ -60,6 +64,9 @@ export async function POST(request: NextRequest) {
     kripton?: {
       enabled?: boolean
       defaultCryptoNetworkId?: number | null
+    }
+    platformFees?: {
+      takeasygoCommissionPercent?: number
     }
   }
 
@@ -97,6 +104,12 @@ export async function POST(request: NextRequest) {
     }
     if (kripton.defaultCryptoNetworkId !== undefined) {
       update['kripton.defaultCryptoNetworkId'] = kripton.defaultCryptoNetworkId
+    }
+  }
+
+  if (platformFees) {
+    if (platformFees.takeasygoCommissionPercent !== undefined) {
+      update['platformFees.takeasygoCommissionPercent'] = platformFees.takeasygoCommissionPercent
     }
   }
 

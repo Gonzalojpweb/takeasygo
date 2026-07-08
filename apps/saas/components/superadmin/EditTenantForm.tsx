@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Trash2, Store, Globe, CreditCard, ShieldAlert, ArrowLeft, Loader2, Save, AlertTriangle, Mail, Pencil, X, Check, Tag } from 'lucide-react'
+import { Trash2, Store, Globe, CreditCard, ShieldAlert, ArrowLeft, Loader2, Save, AlertTriangle, Mail, Pencil, X, Check, Tag, Percent, Banknote } from 'lucide-react'
 import { cn, fmt } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
@@ -73,6 +73,8 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     promotionLabelAnnouncement: tenant.promotionLabels?.announcement ?? 'AVISO',
     promotionLabelLoyalty: tenant.promotionLabels?.loyalty ?? 'CLUB',
     commissionPercent: tenant.mpOAuth?.commissionPercent ?? '',
+    takeasygoCommissionOverride: tenant.takeasygoCommissionOverride ?? '',
+    transferEnabled: tenant.transfer?.enabled ?? false,
     // Mensajes del modal de Club
     loyaltyModalSubtitle: tenant.loyaltyMessaging?.modalSubtitle ?? 'Completá tus datos para unirte al club y comenzar a sumar puntos',
     loyaltySuccessTitle: tenant.loyaltyMessaging?.successTitle ?? '¡Registro exitoso!',
@@ -97,6 +99,8 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           business: { enabled: form.businessEnabled },
           sosMaxLimit: form.sosMaxLimit,
           commissionPercent: form.commissionPercent === '' ? null : Number(form.commissionPercent),
+          takeasygoCommissionOverride: form.takeasygoCommissionOverride === '' ? null : Number(form.takeasygoCommissionOverride),
+          transferEnabled: form.transferEnabled,
           promotionLabels: {
             sale: form.promotionLabelSale,
             info: form.promotionLabelInfo,
@@ -287,6 +291,49 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                   className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
                 />
               </div>
+            </div>
+
+            {/* ── TakeasyGO commission override ───────────────────── */}
+            <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem]">
+              <div className="flex items-center gap-3">
+                <Percent size={16} className="text-muted-foreground/50" />
+                <div>
+                  <span className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Comisión TakeasyGO</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">Override de la comisión global. Vacío = usar valor global.</p>
+                </div>
+              </div>
+              <div className="max-w-[140px]">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  value={form.takeasygoCommissionOverride}
+                  onChange={e => setForm(p => ({ ...p, takeasygoCommissionOverride: e.target.value }))}
+                  placeholder="Global"
+                  className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* ── Transferencia bancaria ────────────────────────────── */}
+            <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
+              <div className="flex items-center gap-3">
+                <Banknote size={16} className="text-muted-foreground/50" />
+                <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Transferencia bancaria</span>
+              </div>
+              <button type="button"
+                onClick={() => setForm(p => ({ ...p, transferEnabled: !p.transferEnabled }))}
+                className={cn(
+                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                  form.transferEnabled ? 'bg-emerald-500' : 'bg-muted-foreground/20'
+                )}
+              >
+                <span className={cn(
+                  'inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform',
+                  form.transferEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                )} />
+              </button>
             </div>
 
             {/* Estado del tenant + Features */}

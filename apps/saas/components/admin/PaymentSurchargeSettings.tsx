@@ -14,8 +14,9 @@ interface Props {
 }
 
 export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges }: Props) {
-  const [mpFee, setMpFee] = useState(initialSurcharges.mercadopago?.feePercent ?? 0)
-  const [krFee, setKrFee] = useState(initialSurcharges.kripton?.feePercent ?? 0)
+  const sc = initialSurcharges || { mercadopago: { feePercent: 0 }, kripton: { feePercent: 0 }, transfer: { feePercent: 0 } }
+  const [mpFee, setMpFee] = useState(sc.mercadopago?.feePercent ?? 0)
+  const [krFee, setKrFee] = useState(sc.kripton?.feePercent ?? 0)
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
