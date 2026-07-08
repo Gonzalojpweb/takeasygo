@@ -1,4 +1,5 @@
 {
+  "installCommand": "cd ../.. && pnpm install",
   "crons": [
     {
       "path": "/api/cron/activate-scheduled-orders",
