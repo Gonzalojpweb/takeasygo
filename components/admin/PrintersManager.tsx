@@ -29,6 +29,24 @@ interface PrinterData {
   lastStatus: PrinterStatus
   lastError: string
   lastPrintAt: string | null
+  printSettings?: {
+    kitchen: RolePrintSettings
+    bar: RolePrintSettings
+    cashier: RolePrintSettings
+  }
+}
+
+interface RolePrintSettings {
+  fontSize: 'normal' | 'large' | 'double' | 'triple'
+  lineSpacing: number
+  showDescriptions: boolean
+  showPrices: boolean
+  showCategory: boolean
+  showCustomerInfo: boolean
+  showOrderNotes: boolean
+  showTotal: boolean
+  headerTemplate?: string
+  footerTemplate?: string
 }
 
 interface Location {
@@ -64,6 +82,38 @@ const EMPTY_FORM = {
   port: 9100,
   roles: ['kitchen'] as PrinterRole[],
   paperWidth: 80 as 58 | 80,
+  printSettings: {
+    kitchen: {
+      fontSize: 'large' as const,
+      lineSpacing: 48,
+      showDescriptions: false,
+      showPrices: false,
+      showCategory: true,
+      showCustomerInfo: true,
+      showOrderNotes: true,
+      showTotal: false,
+    },
+    bar: {
+      fontSize: 'large' as const,
+      lineSpacing: 48,
+      showDescriptions: false,
+      showPrices: false,
+      showCategory: true,
+      showCustomerInfo: true,
+      showOrderNotes: true,
+      showTotal: false,
+    },
+    cashier: {
+      fontSize: 'normal' as const,
+      lineSpacing: 36,
+      showDescriptions: true,
+      showPrices: true,
+      showCategory: true,
+      showCustomerInfo: true,
+      showOrderNotes: true,
+      showTotal: true,
+    },
+  },
 }
 
 export default function PrintersManager({ tenantSlug, printers: initial, locations, plan }: Props) {
@@ -75,6 +125,8 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [showPrintSettings, setShowPrintSettings] = useState(false)
+  const [editingPrintSettings, setEditingPrintSettings] = useState<PrinterData | null>(null)
 
   function copyToClipboard(value: string, key: string) {
     navigator.clipboard.writeText(value).then(() => {
@@ -111,9 +163,52 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
       port: p.port,
       roles: p.roles,
       paperWidth: p.paperWidth,
+      printSettings: p.printSettings || EMPTY_FORM.printSettings,
     })
     setEditingId(p._id)
     setShowForm(true)
+  }
+
+  function openPrintSettings(p: PrinterData) {
+    setEditingPrintSettings(p)
+    setShowPrintSettings(true)
+  }
+
+  function updatePrintSettings(role: PrinterRole, key: keyof RolePrintSettings, value: any) {
+    setEditingPrintSettings(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        printSettings: {
+          ...prev.printSettings,
+          [role]: {
+            ...prev.printSettings![role],
+            [key]: value,
+          },
+        },
+      }
+    })
+  }
+
+  async function savePrintSettings() {
+    if (!editingPrintSettings) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/printers/${editingPrintSettings._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ printSettings: editingPrintSettings.printSettings }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Configuración de impresión actualizada')
+      setShowPrintSettings(false)
+      setEditingPrintSettings(null)
+      await fetchPrinters()
+    } catch {
+      toast.error('Error al guardar configuración de impresión')
+    } finally {
+      setLoading(false)
+    }
   }
 
   function toggleRole(role: PrinterRole) {
@@ -485,6 +580,14 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
                     <Button
                       variant="outline"
                       size="sm"
+                      className="h-8 px-3 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 rounded-lg gap-1"
+                      onClick={() => openPrintSettings(printer)}
+                    >
+                      Estilos
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="h-8 w-8 p-0 rounded-lg border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/40"
                       disabled={deletingId === printer._id}
                       onClick={() => handleDelete(printer._id)}
@@ -500,6 +603,145 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
             )
           })}
         </div>
+      )}
+
+      {/* Print Settings Modal */}
+      {showPrintSettings && editingPrintSettings && (
+        <Card className="border-2 border-primary/20 rounded-[2rem] shadow-xl bg-card animate-in fade-in slide-in-from-top-2 duration-300 fixed inset-4 z-50 overflow-auto">
+          <CardHeader className="p-6 border-b border-border/40 sticky top-0 bg-card z-10">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-bold">
+                Configuración de Estilos de Impresión - {editingPrintSettings.name}
+              </CardTitle>
+              <button onClick={() => setShowPrintSettings(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-8">
+            {(['kitchen', 'bar', 'cashier'] as PrinterRole[]).map(role => (
+              <div key={role} className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border/40">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                    {ROLE_LABELS[role]}
+                  </h3>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Tamaño de fuente */}
+                  <div>
+                    <label className={labelCls}>Tamaño de fuente</label>
+                    <select
+                      value={editingPrintSettings.printSettings?.[role]?.fontSize || 'normal'}
+                      onChange={e => updatePrintSettings(role, 'fontSize', e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="large">Grande</option>
+                      <option value="double">Doble</option>
+                      <option value="triple">Triple</option>
+                    </select>
+                  </div>
+
+                  {/* Espaciado de líneas */}
+                  <div>
+                    <label className={labelCls}>Espaciado de líneas (0-255)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="255"
+                      value={editingPrintSettings.printSettings?.[role]?.lineSpacing || 36}
+                      onChange={e => updatePrintSettings(role, 'lineSpacing', Number(e.target.value))}
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+
+                {/* Toggle switches */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { key: 'showDescriptions', label: 'Mostrar descripciones' },
+                    { key: 'showPrices', label: 'Mostrar precios' },
+                    { key: 'showCategory', label: 'Mostrar categorías' },
+                    { key: 'showCustomerInfo', label: 'Mostrar cliente' },
+                    { key: 'showOrderNotes', label: 'Mostrar notas' },
+                    { key: 'showTotal', label: 'Mostrar total' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => updatePrintSettings(role, key as keyof RolePrintSettings, !editingPrintSettings.printSettings?.[role]?.[key as keyof RolePrintSettings])}
+                      className={cn(
+                        'px-3 py-2 rounded-lg text-xs font-bold border-2 transition-all text-left',
+                        editingPrintSettings.printSettings?.[role]?.[key as keyof RolePrintSettings]
+                          ? 'bg-primary text-white border-primary shadow-md'
+                          : 'border-border/60 text-muted-foreground hover:border-primary/40'
+                      )}
+                    >
+                      {editingPrintSettings.printSettings?.[role]?.[key as keyof RolePrintSettings] ? '✓ ' : '✗ '}{label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Presets rápidos */}
+                <div className="flex gap-2 pt-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 self-center">
+                    Presets:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updatePrintSettings(role, 'fontSize', 'large')
+                      updatePrintSettings(role, 'lineSpacing', 48)
+                      updatePrintSettings(role, 'showDescriptions', false)
+                      updatePrintSettings(role, 'showPrices', false)
+                      updatePrintSettings(role, 'showCategory', true)
+                      updatePrintSettings(role, 'showCustomerInfo', true)
+                      updatePrintSettings(role, 'showOrderNotes', true)
+                      updatePrintSettings(role, 'showTotal', false)
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold border-2 border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    Cocina estándar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updatePrintSettings(role, 'fontSize', 'normal')
+                      updatePrintSettings(role, 'lineSpacing', 36)
+                      updatePrintSettings(role, 'showDescriptions', true)
+                      updatePrintSettings(role, 'showPrices', true)
+                      updatePrintSettings(role, 'showCategory', true)
+                      updatePrintSettings(role, 'showCustomerInfo', true)
+                      updatePrintSettings(role, 'showOrderNotes', true)
+                      updatePrintSettings(role, 'showTotal', true)
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold border-2 border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    Caja detallada
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <div className="flex gap-3 pt-4 border-t border-border/40">
+              <Button
+                onClick={savePrintSettings}
+                disabled={loading}
+                className="bg-primary text-white font-black uppercase tracking-widest px-8 h-11 rounded-xl shadow-lg shadow-primary/20 flex-1 sm:flex-none"
+              >
+                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Guardar cambios'}
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-11 rounded-xl"
+                onClick={() => setShowPrintSettings(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Agent instructions */}

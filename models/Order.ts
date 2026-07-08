@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
-export type OrderStatus = 'open' | 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'en_ruta' | 'arrived' | 'delivered' | 'cancelled'
+export type OrderStatus = 'open' | 'awaiting_payment' | 'awaiting_confirmation' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'en_ruta' | 'arrived' | 'delivered' | 'cancelled'
 export type OrderMode = 'takeaway' | 'dine-in' | 'business' | 'delivery'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 export type PaymentModeSnapshot = 'cash_mp' | 'deferred' | 'mixed'
@@ -106,6 +106,12 @@ export interface IOrder extends Document {
     kriptonExternalCode: string | null
     kriptonToken: string | null
     kriptonData: Record<string, any> | null
+    // ── Transferencia bancaria ─────────────────────────────────────────────
+    baseTotal: number              // Precio de carta antes de recargos
+    surchargePercent: number       // % de recargo aplicado
+    surchargeAmount: number        // Monto del recargo
+    platformFeeAmount: number      // Comisión TakeasyGO (1% invisible)
+    transferConfirmed: boolean     // true cuando admin confirma transfer
   }
   notes: string
   clientToken: string | null
@@ -253,7 +259,7 @@ const OrderSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['open', 'awaiting_payment', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered', 'cancelled'] as const,
+      enum: ['open', 'awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered', 'cancelled'] as const,
       default: 'awaiting_payment',
     },
     orderMode: {
@@ -327,6 +333,12 @@ const OrderSchema = new Schema(
       kriptonExternalCode: { type: String, default: null },
       kriptonToken: { type: String, default: null },
       kriptonData: { type: Schema.Types.Mixed, default: null },
+      // ── Transferencia bancaria ─────────────────────────────────────────
+      baseTotal: { type: Number, default: 0 },
+      surchargePercent: { type: Number, default: 0 },
+      surchargeAmount: { type: Number, default: 0 },
+      platformFeeAmount: { type: Number, default: 0 },
+      transferConfirmed: { type: Boolean, default: false },
     },
     notes: { type: String, default: '', trim: true },
     // Token del dispositivo consumer para enviar push cuando el pedido esté listo
