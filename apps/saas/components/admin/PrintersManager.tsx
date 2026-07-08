@@ -84,7 +84,7 @@ const EMPTY_FORM = {
   paperWidth: 80 as 58 | 80,
   printSettings: {
     kitchen: {
-      fontSize: 'large' as const,
+      fontSize: 'large',
       lineSpacing: 48,
       showDescriptions: false,
       showPrices: false,
@@ -94,7 +94,7 @@ const EMPTY_FORM = {
       showTotal: false,
     },
     bar: {
-      fontSize: 'large' as const,
+      fontSize: 'large',
       lineSpacing: 48,
       showDescriptions: false,
       showPrices: false,
@@ -104,7 +104,7 @@ const EMPTY_FORM = {
       showTotal: false,
     },
     cashier: {
-      fontSize: 'normal' as const,
+      fontSize: 'normal',
       lineSpacing: 36,
       showDescriptions: true,
       showPrices: true,
@@ -113,7 +113,7 @@ const EMPTY_FORM = {
       showOrderNotes: true,
       showTotal: true,
     },
-  },
+  } as Record<PrinterRole, RolePrintSettings>,
 }
 
 export default function PrintersManager({ tenantSlug, printers: initial, locations, plan }: Props) {
@@ -163,7 +163,7 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
       port: p.port,
       roles: p.roles,
       paperWidth: p.paperWidth,
-      printSettings: p.printSettings || EMPTY_FORM.printSettings,
+      printSettings: (p.printSettings ?? EMPTY_FORM.printSettings) as any,
     })
     setEditingId(p._id)
     setShowForm(true)
