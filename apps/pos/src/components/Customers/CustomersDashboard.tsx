@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import type { CustomerSearchResult, CustomerOrder } from "../../services/customers-api"
 import { getCustomerOrders, searchCustomers } from "../../services/customers-api"
 import { useAuth } from "../../hooks/useAuth"
+import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency, timeAgo } from "../../utils/format"
 import { CreateCustomerModal } from "./CreateCustomerModal"
 import { EditCustomerForm } from "./EditCustomerForm"
@@ -48,6 +49,8 @@ export function CustomersDashboard({ isPremium = true }: CustomersDashboardProps
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
+
+  const { setContextPanel, setActionBar } = useLayout()
 
   const loadOrders = useCallback(
     async (customerId: string) => {
@@ -138,6 +141,15 @@ export function CustomersDashboard({ isPremium = true }: CustomersDashboardProps
     []
   )
 
+  const handleClear = useCallback(() => {
+    setQuery("")
+    setResults([])
+    setSelectedCustomer(null)
+    setOrders([])
+    setError(null)
+    setStateView("idle")
+  }, [])
+
   const totalSpent = selectedCustomer?.totalSpent ?? 0
   const totalOrders = selectedCustomer?.totalOrders ?? 0
   const averageTicket = selectedCustomer
@@ -150,6 +162,157 @@ export function CustomersDashboard({ isPremium = true }: CustomersDashboardProps
     ? timeAgo(new Date(selectedCustomer.lastOrderAt))
     : "Sin datos"
 
+  // ==========================================================================
+  // Layout (Context Panel + Action Bar) per state
+  // ==========================================================================
+
+  useEffect(() => {
+    if (!selectedCustomer || stateView !== "detail") {
+      if (query.trim().length < 2) {
+        setContextPanel({
+          title: "Clientes",
+          subtitle: "Buscá un cliente para ver su perfil",
+          body: (
+            <div className="customer-empty-panel">
+              <div className="customer-empty-panel-title">Sin cliente seleccionado</div>
+              <div className="customer-empty-panel-text">
+                El perfil queda disponible cuando elegís una coincidencia en la búsqueda.
+              </div>
+              <div className="customer-empty-panel-note">
+                Ingresá al menos 2 caracteres para buscar.
+              </div>
+            </div>
+          ),
+        })
+      } else {
+        setContextPanel({
+          title: "Resultados",
+          subtitle: `${results.length} coincidencias`,
+          body: (
+            <div className="customer-empty-panel">
+              <div className="customer-empty-panel-title">Elegí un cliente</div>
+              <div className="customer-empty-panel-text">
+                Seleccioná un cliente de la lista para ver su perfil completo, historial y acciones.
+              </div>
+            </div>
+          ),
+        })
+      }
+      setActionBar({
+        left: (
+          <button className="btn btn-ghost" onClick={handleClear} disabled={query.trim().length === 0 && !selectedCustomer}>
+            Limpiar
+          </button>
+        ),
+        right: (
+          <button
+            className={`btn btn-primary btn-sm${!isPremium ? " feature-disabled" : ""}`}
+            disabled={!isPremium}
+            onClick={() => setShowCreateModal(true)}
+          >
+            Nuevo cliente
+          </button>
+        ),
+      })
+      return
+    }
+
+    setContextPanel({
+      title: selectedCustomer.name,
+      subtitle: [selectedCustomer.phone, selectedCustomer.email].filter(Boolean).join(" · "),
+      body: (
+        <>
+          <div className="customer-profile">
+            <div className="customer-profile-top">
+              <div className={`customer-segment ${selectedCustomer.segment ?? "none"}`}>
+                {customerSegmentLabel(selectedCustomer.segment)}
+              </div>
+            </div>
+
+            <div className="customer-kpi-grid">
+              <div className="customer-kpi">
+                <span className="customer-kpi-label">Pedidos</span>
+                <strong>{totalOrders}</strong>
+              </div>
+              <div className="customer-kpi">
+                <span className="customer-kpi-label">Gasto</span>
+                <strong>{formatCurrency(totalSpent)}</strong>
+              </div>
+              <div className="customer-kpi">
+                <span className="customer-kpi-label">Ticket</span>
+                <strong>{formatCurrency(averageTicket)}</strong>
+              </div>
+              <div className="customer-kpi">
+                <span className="customer-kpi-label">Última visita</span>
+                <strong>{lastOrderLabel}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="customer-section">
+            <div className="customer-section-title">Contacto</div>
+            <div className="customer-contact-card">
+              <div className="customer-contact-row">
+                <span>Teléfono</span>
+                <strong>{selectedCustomer.phone ?? "No informado"}</strong>
+              </div>
+              <div className="customer-contact-row">
+                <span>Email</span>
+                <strong>{selectedCustomer.email ?? "No informado"}</strong>
+              </div>
+              <div className="customer-contact-row">
+                <span>ID</span>
+                <strong>{selectedCustomer.customerId}</strong>
+              </div>
+              <div className="customer-contact-row">
+                <span>Segmento</span>
+                <strong>{customerSegmentLabel(selectedCustomer.segment)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="customer-section">
+            <div className="customer-section-title">Historial</div>
+            <Timeline orders={orders} loading={ordersLoading} />
+          </div>
+
+          <div className="customer-section">
+            <div className="customer-section-title">Acciones</div>
+            <div className="customer-action-stack">
+              <button
+                className={`btn btn-primary btn-sm${!isPremium ? " feature-disabled" : ""}`}
+                disabled={!isPremium}
+                onClick={() => setShowEditForm(true)}
+              >
+                Editar cliente
+              </button>
+              <button className="btn btn-ghost btn-sm" disabled title="Vincular a pedido, mesa o delivery (próximamente)">
+                Vincular a operación
+              </button>
+            </div>
+          </div>
+        </>
+      ),
+    })
+
+    setActionBar({
+      left: (
+        <button className="btn btn-ghost" onClick={handleClear}>
+          Limpiar
+        </button>
+      ),
+      right: (
+        <button
+          className={`btn btn-primary btn-sm${!isPremium ? " feature-disabled" : ""}`}
+          disabled={!isPremium}
+          onClick={() => setShowCreateModal(true)}
+        >
+          Nuevo cliente
+        </button>
+      ),
+    })
+  }, [stateView, selectedCustomer, query, results.length, totalOrders, totalSpent, averageTicket, lastOrderLabel, orders, ordersLoading, isPremium, setContextPanel, setActionBar, handleClear])
+
   return (
     <div className="workspace">
       <div className="workspace-header">
@@ -159,208 +322,90 @@ export function CustomersDashboard({ isPremium = true }: CustomersDashboardProps
             Identidad operacional, historial y contexto de atención
           </div>
         </div>
-        <div className="workspace-actions">
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => {
-              setQuery("")
-              setResults([])
-              setSelectedCustomer(null)
-              setOrders([])
-              setError(null)
-              setStateView("idle")
-            }}
-          >
-            Limpiar
-          </button>
-          <button
-            className={`btn btn-primary btn-sm${!isPremium ? " feature-disabled" : ""}`}
-            disabled={!isPremium}
-            onClick={() => setShowCreateModal(true)}
-          >
-            Nuevo cliente
-          </button>
+      </div>
+
+      <section className="customer-main">
+        <div className="customer-search-bar">
+          <input
+            className="customer-search-input"
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por nombre, teléfono, email, documento o ID"
+          />
+          <div className="customer-search-meta">
+            <span>{loading ? "Buscando..." : `${results.length} coincidencias`}</span>
+            <span>{stateView === "detail" ? "Detalle abierto" : "Borrador de búsqueda"}</span>
+          </div>
         </div>
-      </div>
 
-      <div
-        className="customer-workspace"
-        style={{ display: "grid", gridTemplateColumns: "1fr 360px", minHeight: 0, flex: 1 }}
-      >
-        <section className="customer-main">
-          <div className="customer-search-bar">
-            <input
-              className="customer-search-input"
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por nombre, telefono, email, documento o ID"
-            />
-            <div className="customer-search-meta">
-              <span>{loading ? "Buscando..." : `${results.length} coincidencias`}</span>
-              <span>{stateView === "detail" ? "Detalle abierto" : "Borrador de busqueda"}</span>
-            </div>
+        {error && (
+          <div className="customer-alert">
+            <div className="customer-alert-title">Búsqueda no disponible</div>
+            <div className="customer-alert-text">{error}</div>
           </div>
+        )}
 
-          {error && (
-            <div className="customer-alert">
-              <div className="customer-alert-title">Busqueda no disponible</div>
-              <div className="customer-alert-text">{error}</div>
+        <div className="customer-list">
+          {loading && (
+            <div className="loading-state">
+              <span className="spinner" />
+              Buscando clientes...
             </div>
           )}
 
-          <div className="customer-list">
-            {loading && (
-              <div className="loading-state">
-                <span className="spinner" />
-                Buscando clientes...
-              </div>
-            )}
-
-            {!loading && query.trim().length < 2 && (
-              <div className="empty-state">
-                <div className="empty-state-icon">👤</div>
-                <div className="empty-state-text">
-                  Busca un cliente para abrir su contexto operacional
-                </div>
-              </div>
-            )}
-
-            {!loading && query.trim().length >= 2 && results.length === 0 && !error && (
-              <div className="empty-state">
-                <div className="empty-state-icon">⌕</div>
-                <div className="empty-state-text">
-                  No hay coincidencias para "{query.trim()}"
-                </div>
-              </div>
-            )}
-
-            {!loading &&
-              results.map((customer) => {
-                const active = selectedCustomer?.customerId === customer.customerId
-                return (
-                  <button
-                    key={customer.customerId}
-                    className={`customer-result-card ${active ? "active" : ""}`}
-                    onClick={() => {
-                      setSelectedCustomer(customer)
-                      setStateView("detail")
-                    }}
-                  >
-                    <div className="customer-avatar">
-                      {customerInitials(customer.name) || "C"}
-                    </div>
-                    <div className="customer-result-main">
-                      <div className="customer-result-header">
-                        <div className="customer-result-name">{customer.name}</div>
-                        <span className={`customer-segment ${customer.segment ?? "none"}`}>
-                          {customerSegmentLabel(customer.segment)}
-                        </span>
-                      </div>
-                      <div className="customer-result-meta">
-                        <span>{customer.phone ?? customer.email ?? `#${customer.customerId.slice(0, 8)}`}</span>
-                        <span>{customer.totalOrders} pedidos</span>
-                        <span>{formatCurrency(customer.totalSpent)}</span>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-          </div>
-        </section>
-
-        <aside className="customer-context">
-          {!selectedCustomer ? (
-            <div className="customer-empty-panel">
-              <div className="customer-empty-panel-title">Sin cliente seleccionado</div>
-              <div className="customer-empty-panel-text">
-                El perfil queda disponible cuando eliges una coincidencia en la busqueda.
-              </div>
-              <div className="customer-empty-panel-note">
-                La creacion y el guardado definitivo siguen pendientes del backend.
+          {!loading && query.trim().length < 2 && (
+            <div className="empty-state">
+              <div className="empty-state-icon">👤</div>
+              <div className="empty-state-text">
+                Busca un cliente para abrir su contexto operacional
               </div>
             </div>
-          ) : (
-            <>
-              <div className="customer-profile">
-                <div className="customer-profile-top">
-                  <div>
-                    <div className="customer-profile-name">{selectedCustomer.name}</div>
-                    <div className="customer-profile-subtitle">
-                      {selectedCustomer.phone ?? "Sin telefono"} {selectedCustomer.email ? `· ${selectedCustomer.email}` : ""}
+          )}
+
+          {!loading && query.trim().length >= 2 && results.length === 0 && !error && (
+            <div className="empty-state">
+              <div className="empty-state-icon">⌕</div>
+              <div className="empty-state-text">
+                No hay coincidencias para "{query.trim()}"
+              </div>
+            </div>
+          )}
+
+          {!loading &&
+            results.map((customer) => {
+              const active = selectedCustomer?.customerId === customer.customerId
+              return (
+                <button
+                  key={customer.customerId}
+                  className={`customer-result-card ${active ? "active" : ""}`}
+                  onClick={() => {
+                    setSelectedCustomer(customer)
+                    setStateView("detail")
+                  }}
+                >
+                  <div className="customer-avatar">
+                    {customerInitials(customer.name) || "C"}
+                  </div>
+                  <div className="customer-result-main">
+                    <div className="customer-result-header">
+                      <div className="customer-result-name">{customer.name}</div>
+                      <span className={`customer-segment ${customer.segment ?? "none"}`}>
+                        {customerSegmentLabel(customer.segment)}
+                      </span>
+                    </div>
+                    <div className="customer-result-meta">
+                      <span>{customer.phone ?? customer.email ?? `#${customer.customerId.slice(0, 8)}`}</span>
+                      <span>{customer.totalOrders} pedidos</span>
+                      <span>{formatCurrency(customer.totalSpent)}</span>
                     </div>
                   </div>
-                  <div className={`customer-segment ${selectedCustomer.segment ?? "none"}`}>
-                    {customerSegmentLabel(selectedCustomer.segment)}
-                  </div>
-                </div>
+                </button>
+              )
+            })}
+        </div>
+      </section>
 
-                <div className="customer-kpi-grid">
-                  <div className="customer-kpi">
-                    <span className="customer-kpi-label">Pedidos</span>
-                    <strong>{totalOrders}</strong>
-                  </div>
-                  <div className="customer-kpi">
-                    <span className="customer-kpi-label">Gasto</span>
-                    <strong>{formatCurrency(totalSpent)}</strong>
-                  </div>
-                  <div className="customer-kpi">
-                    <span className="customer-kpi-label">Ticket</span>
-                    <strong>{formatCurrency(averageTicket)}</strong>
-                  </div>
-                  <div className="customer-kpi">
-                    <span className="customer-kpi-label">Ultima visita</span>
-                    <strong>{lastOrderLabel}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="customer-section">
-                <div className="customer-section-title">Contacto</div>
-                <div className="customer-contact-card">
-                  <div className="customer-contact-row">
-                    <span>Telefono</span>
-                    <strong>{selectedCustomer.phone ?? "No informado"}</strong>
-                  </div>
-                  <div className="customer-contact-row">
-                    <span>Email</span>
-                    <strong>{selectedCustomer.email ?? "No informado"}</strong>
-                  </div>
-                  <div className="customer-contact-row">
-                    <span>ID</span>
-                    <strong>{selectedCustomer.customerId}</strong>
-                  </div>
-                  <div className="customer-contact-row">
-                    <span>Segmento</span>
-                    <strong>{customerSegmentLabel(selectedCustomer.segment)}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="customer-section">
-                <div className="customer-section-title">Historial</div>
-                <Timeline orders={orders} loading={ordersLoading} />
-              </div>
-
-              <div className="customer-section">
-                <div className="customer-section-title">Acciones</div>
-                <div className="customer-action-stack">
-                  <button
-                    className={`btn btn-primary btn-sm${!isPremium ? " feature-disabled" : ""}`}
-                    disabled={!isPremium}
-                    onClick={() => setShowEditForm(true)}
-                  >
-                    Editar cliente
-                  </button>
-                  <button className="btn btn-ghost btn-sm" disabled title="Vincular a pedido, mesa o delivery (proximamente)">
-                    Vincular a operacion
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </aside>
-      </div>
       {showCreateModal && (
         <CreateCustomerModal
           onCreated={handleCreated}

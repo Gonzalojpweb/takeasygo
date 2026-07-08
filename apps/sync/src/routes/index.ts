@@ -12,6 +12,7 @@ import { menuRouter } from "./menu"
 import { syncRouter } from "./sync"
 import { pairingRouter } from "./pairing"
 import { customersRouter } from "./customers"
+import { ssoRouter } from "./sso"
 
 export function createRouter(
   io: SocketServer,
@@ -34,6 +35,7 @@ export function createRouter(
   router.use("/sync", syncRouter(io))
   router.use("/pairing", pairingRouter(io))
   router.use("/customers", customersRouter())
+  router.use("/auth", ssoRouter())
 
   return router
 }

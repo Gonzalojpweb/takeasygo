@@ -3,6 +3,7 @@ import type { Product, OrderItem, CustomerProfile, PaymentMethod } from "@takeas
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
 import { usePayments } from "../../hooks/usePayments"
+import { useOrders } from "../../hooks/useOrders"
 import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
@@ -26,11 +27,14 @@ export function CounterDashboard() {
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
+  const [diners, setDiners] = useState(1)
+  const [orderId, setOrderId] = useState<string | null>(null)
 
   const { setContextPanel, setActionBar } = useLayout()
-  const { tables } = useTables()
+  const { tables, closeTable } = useTables()
   const { products, categories } = useMenu()
   const { processPayment } = usePayments()
+  const { createOrder, deliverOrder } = useOrders()
 
   const selectedTable = useMemo(
     () => tables.find((t) => t.id === selectedTableId),
@@ -100,20 +104,40 @@ export function CounterDashboard() {
     setScene("productos")
   }, [configProduct])
 
-  const handlePay = useCallback(async (method: PaymentMethod) => {
+  const handlePay = useCallback(async (methods: PaymentMethod[]) => {
+    if (!selectedTableId) return
     try {
-      await processPayment("temp-order", cartTotal, "Pedido Counter", method)
+      const oid = orderId ?? (
+        await createOrder(
+          selectedTableId,
+          cart.map((item) => ({
+            productId: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.total,
+          }))
+        )
+      ).id
+      if (!orderId) setOrderId(oid)
+      for (const method of methods) {
+        await processPayment(oid, Math.round(cartTotal / methods.length), `Pedido M${selectedTable?.number}`, method)
+      }
+      await deliverOrder(oid)
+      await closeTable(selectedTableId)
       setScene("cierre")
     } catch {
       // Payment failed - stay on cobro scene
     }
-  }, [processPayment, cartTotal])
+  }, [processPayment, cartTotal, cart, selectedTableId, selectedTable, orderId, createOrder, deliverOrder, closeTable])
 
   const handleNewSale = useCallback(() => {
     setCart([])
     setCustomer(null)
     setSelectedTableId(null)
     setSelectedCategory(null)
+    setDiners(1)
+    setOrderId(null)
     setScene("salon")
   }, [])
 
@@ -201,7 +225,32 @@ export function CounterDashboard() {
         break
 
       case "cobro":
-        setContextPanel(null)
+        setContextPanel({
+          title: "Resumen de cuenta",
+          subtitle: `Mesa ${selectedTable?.number ?? "?"} — ${diners} comensal${diners > 1 ? "es" : ""}`,
+          body: (
+            <div style={{ padding: "var(--sp-2)" }}>
+              <div style={{ marginBottom: "var(--sp-3)" }}>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Total
+                </div>
+                <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
+                  {formatCurrency(cartTotal)}
+                </div>
+              </div>
+              {diners > 1 && (
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Por comensal
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>
+                    {formatCurrency(Math.round(cartTotal / diners))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ),
+        })
         setActionBar({
           left: (
             <button className="btn btn-ghost" onClick={() => setScene("revision")}>
@@ -400,9 +449,68 @@ export function CounterDashboard() {
                 Mesa {selectedTable?.number ?? "?"} — {formatCurrency(cartTotal)}
               </div>
             </div>
+            <div className="workspace-actions">
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)" }}>
+                <span className="text-sm text-muted">Comensales:</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setDiners(Math.max(1, diners - 1))}
+                  disabled={diners <= 1}
+                  style={{ width: 32, height: 32, padding: 0 }}
+                >
+                  −
+                </button>
+                <span style={{ fontWeight: 600, minWidth: 24, textAlign: "center" }}>{diners}</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setDiners(Math.min(20, diners + 1))}
+                  style={{ width: 32, height: 32, padding: 0 }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="p-6" style={{ maxWidth: 480, margin: "0 auto", width: "100%" }}>
-            <PaymentSelector total={cartTotal} onSelect={handlePay} />
+          <div className="p-6" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
+            {diners === 1 ? (
+              <PaymentSelector total={cartTotal} onSelect={(m) => handlePay([m])} />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+                <div className="card" style={{ padding: "var(--sp-4)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--sp-3)" }}>
+                    <span style={{ fontWeight: 600 }}>Total</span>
+                    <span style={{ fontWeight: 700, fontSize: "var(--font-size-lg)" }}>
+                      {formatCurrency(cartTotal)}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "var(--sp-3)", borderTop: "1px solid var(--border)" }}>
+                    <span className="text-sm text-muted">Por comensal</span>
+                    <span style={{ fontWeight: 600 }}>
+                      {formatCurrency(Math.round(cartTotal / diners))}
+                    </span>
+                  </div>
+                </div>
+                {Array.from({ length: diners }).map((_, i) => (
+                  <div key={i} className="card" style={{ padding: "var(--sp-4)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--sp-2)" }}>
+                      <span style={{ fontWeight: 600 }}>Comensal {i + 1}</span>
+                      <span style={{ fontWeight: 600 }}>
+                        {formatCurrency(Math.round(cartTotal / diners))}
+                      </span>
+                    </div>
+                    <PaymentSelector
+                      total={Math.round(cartTotal / diners)}
+                      onSelect={(method) => {
+                        const allMethods = Array.from({ length: diners }).map((_, j) =>
+                          j === i ? method : "cash"
+                        )
+                        handlePay(allMethods)
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -413,10 +521,13 @@ export function CounterDashboard() {
           <div className="text-center">
             <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
             <div className="workspace-title" style={{ marginBottom: 8 }}>
-              Pago procesado
+              Mesa cerrada
             </div>
-            <div className="workspace-subtitle" style={{ marginBottom: 24 }}>
+            <div className="workspace-subtitle" style={{ marginBottom: 8 }}>
               {formatCurrency(cartTotal)} — Mesa {selectedTable?.number ?? "?"}
+            </div>
+            <div className="text-sm text-muted" style={{ marginBottom: 24 }}>
+              {diners > 1 ? `${diners} comensales — ${formatCurrency(Math.round(cartTotal / diners))} c/u` : "1 comensal"}
             </div>
           </div>
         </div>

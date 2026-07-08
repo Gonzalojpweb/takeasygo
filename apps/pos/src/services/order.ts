@@ -1,5 +1,5 @@
 import type { Order, OrderItem, OrderStatus } from "@takeasygo/types"
-import { calculateOrderTotal, validateOrderItems } from "@takeasygo/business"
+import { calculateOrderTotal, validateOrderItems } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
 import { enqueue } from "./event-queue"
 

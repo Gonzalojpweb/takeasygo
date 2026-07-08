@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "./hooks/useAuth"
 import { LoginScreen } from "./components/LoginScreen"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
@@ -18,6 +18,7 @@ import {
 } from "./services/connectivity"
 import { flush } from "./services/event-queue"
 import { disconnectSocket } from "./services/socket-client"
+import { requestSsoToken } from "./services/sso"
 import "./styles/pos.css"
 
 type Context = "counter" | "customers" | "waiter" | "incoming" | "flota"
@@ -33,6 +34,17 @@ const NAV_ITEMS = [
 function App() {
   const { state, login, logout } = useAuth()
   const [activeContext, setActiveContext] = useState<Context>("counter")
+
+  const handleSso = useCallback(async () => {
+    if (state.status !== "authenticated" || !state.jwt) return
+    try {
+      const { ssoToken, jti } = await requestSsoToken(state.jwt.accessToken)
+      const saasUrl = import.meta.env.VITE_SAAS_URL ?? "http://localhost:3000"
+      window.open(`${saasUrl}/api/auth/sso?token=${ssoToken}&jti=${jti}`, "_blank")
+    } catch (err) {
+      console.error("[App] SSO failed:", err)
+    }
+  }, [state.status, state.jwt])
 
   useEffect(() => {
     if (state.status !== "authenticated" || !state.tenantId || !state.jwt) {
@@ -97,6 +109,7 @@ function App() {
           activeId={activeContext}
           onSelect={(id) => setActiveContext(id as Context)}
           onLogout={logout}
+          onSso={handleSso}
         />
 
         <main className="workspace">
