@@ -92,6 +92,8 @@ const EMPTY_FORM = {
       showCustomerInfo: true,
       showOrderNotes: true,
       showTotal: false,
+      headerTemplate: '',
+      footerTemplate: '',
     },
     bar: {
       fontSize: 'large',
@@ -102,6 +104,8 @@ const EMPTY_FORM = {
       showCustomerInfo: true,
       showOrderNotes: true,
       showTotal: false,
+      headerTemplate: '',
+      footerTemplate: '',
     },
     cashier: {
       fontSize: 'normal',
@@ -112,6 +116,8 @@ const EMPTY_FORM = {
       showCustomerInfo: true,
       showOrderNotes: true,
       showTotal: true,
+      headerTemplate: '',
+      footerTemplate: '',
     },
   } as Record<PrinterRole, RolePrintSettings>,
 }
@@ -180,13 +186,13 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
       return {
         ...prev,
         printSettings: {
-          ...prev.printSettings,
+          ...prev.printSettings!,
           [role]: {
             ...prev.printSettings![role],
             [key]: value,
           },
         },
-      }
+      } as PrinterData
     })
   }
 
@@ -683,6 +689,27 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
                   ))}
                 </div>
 
+                {/* Header/Footer templates */}
+                <div className="grid gap-2 mt-2">
+                  <label className={labelCls}>Plantilla de encabezado</label>
+                  <textarea
+                    value={editingPrintSettings.printSettings?.[role]?.headerTemplate || ''}
+                    onChange={e => updatePrintSettings(role, 'headerTemplate', e.target.value)}
+                    className={inputCls}
+                    rows={3}
+                    placeholder="HTML o texto para el encabezado"
+                  />
+                </div>
+                <div className="grid gap-2 mt-2">
+                  <label className={labelCls}>Plantilla de pie de página</label>
+                  <textarea
+                    value={editingPrintSettings.printSettings?.[role]?.footerTemplate || ''}
+                    onChange={e => updatePrintSettings(role, 'footerTemplate', e.target.value)}
+                    className={inputCls}
+                    rows={3}
+                    placeholder="HTML o texto para el pie de página"
+                  />
+                </div>
                 {/* Presets rápidos */}
                 <div className="flex gap-2 pt-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 self-center">

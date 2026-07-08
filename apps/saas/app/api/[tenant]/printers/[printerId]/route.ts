@@ -21,9 +21,12 @@ export async function PATCH(
     const body = await request.json()
     const { name, connectionType, ip, port, roles, paperWidth, isActive } = body
 
+    const updateData: any = { name, connectionType, ip, port, roles, paperWidth, isActive };
+    if (body.printSettings) updateData.printSettings = body.printSettings;
+
     const printer = await Printer.findOneAndUpdate(
       { _id: printerId, tenantId: tenant._id },
-      { $set: { name, connectionType, ip, port, roles, paperWidth, isActive } },
+      { $set: updateData },
       { new: true, runValidators: true }
     )
 
