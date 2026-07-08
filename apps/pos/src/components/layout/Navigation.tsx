@@ -10,9 +10,10 @@ interface NavigationProps {
   activeId: string
   onSelect: (id: string) => void
   onLogout: () => void
+  onSso?: () => void
 }
 
-export function Navigation({ items, activeId, onSelect, onLogout }: NavigationProps) {
+export function Navigation({ items, activeId, onSelect, onLogout, onSso }: NavigationProps) {
   return (
     <nav className="navigation">
       <div className="nav-label">Contextos</div>
@@ -32,6 +33,13 @@ export function Navigation({ items, activeId, onSelect, onLogout }: NavigationPr
       ))}
 
       <div className="nav-spacer" />
+
+      {onSso && (
+        <div className="nav-item" onClick={onSso}>
+          <div className="nav-item-icon">🔗</div>
+          <span>Ir al SaaS</span>
+        </div>
+      )}
 
       <div className="nav-item" onClick={onLogout}>
         <div className="nav-item-icon">🚪</div>

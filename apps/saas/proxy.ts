@@ -11,6 +11,7 @@ const EXCLUDED_PATHS = [
   '/_next',
   '/favicon',
   '/login',
+  '/sso-callback',
   '/seller',
   '/api/seller',
 ]
