@@ -1,6 +1,4 @@
 {
-  "buildCommand": "cd apps/saas && npx next build",
-  "installCommand": "pnpm install",
   "crons": [
     {
       "path": "/api/cron/activate-scheduled-orders",
