@@ -2,9 +2,9 @@
 
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 
-export default function SsoCallbackPage() {
+function SsoCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -49,5 +49,22 @@ export default function SsoCallbackPage() {
     }}>
       <p>Autenticando...</p>
     </div>
+  )
+}
+
+export default function SsoCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <p>Autenticando...</p>
+      </div>
+    }>
+      <SsoCallbackContent />
+    </Suspense>
   )
 }

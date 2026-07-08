@@ -21,7 +21,22 @@
         "POSTHOG_SERVER_KEY",
         "POSTHOG_PROJECT_ID",
         "API_URL",
-        "SSO_JWT_PUBLIC_KEY"
+        "SSO_JWT_PUBLIC_KEY",
+        "DELIVERY_SIMULATE_GPS",
+        "KRIPTON_API_URL",
+        "WHAPI_TOKEN",
+        "GOOGLE_WALLET_SERVICE_ACCOUNT_KEY",
+        "GOOGLE_WALLET_ISSUER_ID",
+        "WALLET_WEB_SERVICE_SECRET",
+        "CRON_SECRET",
+        "GOOGLE_CLIENT_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "AUTH_URL",
+        "CLOUDINARY_API_SECRET",
+        "AUTH_TRUST_HOST",
+        "ADMIN_EMAIL",
+        "VAPID_PUBLIC_KEY",
+        "VAPID_PRIVATE_KEY"
       ]
     },
     "dev": {

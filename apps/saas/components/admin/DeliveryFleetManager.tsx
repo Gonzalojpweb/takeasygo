@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import { Plus, X, Copy, Check, User, Phone, Link as LinkIcon, AlertTriangle } from 'lucide-react'
+import { Plus, X, Copy, Check, User, Phone, History, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Person {
@@ -207,12 +208,21 @@ export default function DeliveryFleetManager({ tenantSlug, initialPersons }: Pro
                   <span className="text-[10px] text-muted-foreground font-mono">
                     Prefix: {person.tokenPrefix}...
                   </span>
-                  <button
-                    onClick={() => handleDeactivate(person._id)}
-                    className="text-[10px] text-red-400 hover:text-red-600 font-medium transition-colors"
-                  >
-                    Desactivar
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/${tenantSlug}/admin/delivery/${person._id}`}
+                      className="text-[10px] text-primary hover:text-primary/80 font-medium transition-colors flex items-center gap-1"
+                    >
+                      <History size={10} />
+                      Historial
+                    </Link>
+                    <button
+                      onClick={() => handleDeactivate(person._id)}
+                      className="text-[10px] text-red-400 hover:text-red-600 font-medium transition-colors cursor-pointer"
+                    >
+                      Desactivar
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
