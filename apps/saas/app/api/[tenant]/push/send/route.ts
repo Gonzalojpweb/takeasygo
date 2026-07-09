@@ -75,7 +75,7 @@ export async function POST(
 
     await logPushNotification({
       tenantId,
-      sentBy: user._id.toString(),
+      sentBy: user.id,
       sentByRole: user.role === 'manager' ? 'manager' : 'admin',
       title,
       body: messageBody,
