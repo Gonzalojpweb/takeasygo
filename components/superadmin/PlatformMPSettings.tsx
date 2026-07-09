@@ -352,6 +352,18 @@ export default function PlatformMPSettings({
             </p>
           </div>
 
+          {error && (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+              <AlertCircle size={14} /> {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm">
+              <CheckCircle2 size={14} /> Credenciales guardadas correctamente
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading || (!oauthAppId && !oauthAppSecret && !oauthRedirectUri && oauthPlatformFee === 5)}
