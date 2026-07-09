@@ -177,6 +177,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
         { href: `${base}/go-plus`,     label: 'GO+',           icon: Zap,       roles: ['admin', 'manager'], feature: 'loyaltyClub' },
         { href: `${base}/wallet`,      label: 'Wallet',        icon: Smartphone,roles: ['admin', 'manager'], feature: 'loyaltyClub' },
         { href: `${base}/store`,       label: 'Tienda',        icon: Gift,      roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/notificaciones`, label: 'Notificaciones', icon: Bell, roles: ['admin', 'manager'] },
         ...(showCrm ? [{ href: `${base}/crm`, label: 'CRM', icon: Users, roles: ['admin', 'manager'] } as NavItem] : []),
       ],
     },
