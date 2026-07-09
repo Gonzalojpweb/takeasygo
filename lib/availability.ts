@@ -5,6 +5,7 @@ export type AvailabilitySlot = { days: number[]; timeStart: string; timeEnd: str
 /**
  * Returns true if the current time falls within any of the schedule slots.
  * If mode is 'always' or undefined, always returns true.
+ * Handles midnight wraparound (e.g. 20:00-02:00).
  */
 export function isAvailableNow(
   mode: 'always' | 'scheduled' | undefined,
@@ -23,6 +24,9 @@ export function isAvailableNow(
     const [endH, endM] = slot.timeEnd.split(':').map(Number)
     const startMinutes = startH * 60 + startM
     const endMinutes = endH * 60 + endM
+    if (endMinutes < startMinutes) {
+      return currentMinutes >= startMinutes || currentMinutes <= endMinutes
+    }
     return currentMinutes >= startMinutes && currentMinutes <= endMinutes
   })
 }
@@ -54,6 +58,11 @@ export function isServiceOpen(slots: ServiceSlot[] | undefined, timezone?: strin
     if (!slot.days.includes(day)) return false
     const [openH, openM] = slot.open.split(':').map(Number)
     const [closeH, closeM] = slot.close.split(':').map(Number)
-    return currentMinutes >= openH * 60 + openM && currentMinutes <= closeH * 60 + closeM
+    const openMin = openH * 60 + openM
+    const closeMin = closeH * 60 + closeM
+    if (closeMin < openMin) {
+      return currentMinutes >= openMin || currentMinutes <= closeMin
+    }
+    return currentMinutes >= openMin && currentMinutes <= closeMin
   })
 }
