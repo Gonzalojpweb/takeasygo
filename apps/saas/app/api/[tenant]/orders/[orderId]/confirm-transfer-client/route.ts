@@ -2,9 +2,11 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
+import { sendWhatsApp } from '@/lib/whatsapp'
+import { safeDecrypt } from '@/lib/crypto'
 
 export async function PATCH(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ tenant: string; orderId: string }> }
 ) {
   try {
@@ -31,6 +33,21 @@ export async function PATCH(
 
     order.status = 'awaiting_confirmation'
     await order.save()
+
+    // ── Notificar al restaurante via WhatsApp ───────────────────────
+    if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
+      const baseUrl = process.env.NEXT_PUBLIC_URL || request.nextUrl.origin
+      const customerName = safeDecrypt(order.customer?.name) || 'Cliente'
+      const amount = order.payment?.baseTotal || order.total || 0
+      const waMessage =
+`🔔 *${customerName}* reportó una transferencia de *$${amount.toLocaleString('es-AR')}* (pedido #${order.orderNumber}).
+
+Ingresá al panel para confirmar el pago:
+${baseUrl}/${tenantSlug}/admin/orders`
+
+      sendWhatsApp(tenant.notifications.whatsappPhone, waMessage)
+        .catch(e => console.error('[whapi] transfer notification error:', e))
+    }
 
     return NextResponse.json({ status: order.status })
   } catch (error) {

@@ -36,13 +36,13 @@ export async function GET(
       surchargePercent: number
     }> = []
 
-    if (mpEnabled) {
+    {
       const mpSurcharge = calculateFinalTotal(10000, 'mercadopago', tenant, platformConfig)
       methods.push({
         id: 'mercadopago',
         label: 'Mercado Pago',
         description: 'Tarjeta, efectivo, transferencia',
-        enabled: tenant.paymentMethodsVisibility?.mercadopago !== false,
+        enabled: mpEnabled && tenant.paymentMethodsVisibility?.mercadopago !== false,
         surchargePercent: mpSurcharge.surchargePercent,
       })
     }
@@ -72,8 +72,6 @@ export async function GET(
         alias: tenant.transfer.alias,
         cbu: tenant.transfer.cbu,
         cvu: tenant.transfer.cvu,
-        bankName: tenant.transfer.bankName,
-        holderName: tenant.transfer.holderName,
       } : null,
     })
   } catch (error) {

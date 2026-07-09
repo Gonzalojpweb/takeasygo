@@ -24,6 +24,10 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
   const resolvedSlug = useRef<string>('')
 
   const checkPromo = useCallback(async () => {
+    if (!tenantSlug) {
+      setLoading(false)
+      return
+    }
     let effectiveSource = source
     if (!effectiveSource && typeof window !== 'undefined') {
       const pathParts = window.location.pathname.split('/')

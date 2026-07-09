@@ -65,6 +65,7 @@ interface HistoryResponse {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  awaiting_confirmation: { label: 'Transferencia', icon: Clock, color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
   pending:   { label: 'Pendiente',  icon: Clock,        color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' },
   confirmed: { label: 'Confirmado', icon: CheckCircle2,  color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
   preparing: { label: 'Preparando', icon: ChefHat,       color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },

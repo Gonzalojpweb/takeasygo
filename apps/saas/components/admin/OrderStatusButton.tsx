@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 
 const NEXT_STATUS: Record<string, { label: string; value: string; color: string } | null> = {
   awaiting_payment: null, // Solo puede cambiar via webhook de Mercado Pago
+  awaiting_confirmation: { label: 'Confirmar transferencia', value: 'confirmed', color: 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700' },
   pending: { label: 'Confirmar', value: 'confirmed', color: 'bg-primary shadow-primary/20 hover:bg-primary/90' },
   confirmed: { label: 'Empezar Preparación', value: 'preparing', color: 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600' },
   preparing: { label: 'Marcar como Listo', value: 'ready', color: 'bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600' },

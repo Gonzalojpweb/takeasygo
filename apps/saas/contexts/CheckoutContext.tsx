@@ -102,7 +102,10 @@ export interface CheckoutState {
   activeLegalModal: 'terminos' | 'privacidad' | null
   redirectingToMp: boolean
   kriptonEnabled: boolean
-  selectedPaymentMethod: 'mercadopago' | 'kripton'
+  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer'
+  paymentSurcharges: Record<string, number>
+  transferEnabled: boolean
+  transferData: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null
   estimatedTimeInfo: EstimatedTimeInfo | null
   deliveryMode: boolean
   deliveryAddress: DeliveryAddress
@@ -136,7 +139,10 @@ type CheckoutAction =
   | { type: 'SET_LEGAL_MODAL'; modal: 'terminos' | 'privacidad' | null }
   | { type: 'SET_REDIRECTING'; redirecting: boolean }
   | { type: 'SET_KRIPTON_ENABLED'; enabled: boolean }
-  | { type: 'SET_PAYMENT_METHOD'; method: 'mercadopago' | 'kripton' }
+  | { type: 'SET_PAYMENT_METHOD'; method: 'mercadopago' | 'kripton' | 'transfer' }
+  | { type: 'SET_PAYMENT_SURCHARGES'; surcharges: Record<string, number> }
+  | { type: 'SET_TRANSFER_ENABLED'; enabled: boolean }
+  | { type: 'SET_TRANSFER_DATA'; data: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null }
   | { type: 'SET_ESTIMATED_TIME'; info: EstimatedTimeInfo | null }
   | { type: 'SET_DELIVERY_MODE'; delivery: boolean }
   | { type: 'SET_DELIVERY_ADDRESS'; address: Partial<DeliveryAddress> }
@@ -176,6 +182,9 @@ interface CheckoutContextValue {
   currentMode: string
   modeDelay: { enabled: boolean; extraMinutes: number; message: string } | undefined
   tenantName: string
+  baseTotal: number
+  activeSurchargePercent: number
+  transferData: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null
 }
 
 const CheckoutContext = createContext<CheckoutContextValue | null>(null)
@@ -202,6 +211,9 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_REDIRECTING': return { ...state, redirectingToMp: action.redirecting }
     case 'SET_KRIPTON_ENABLED': return { ...state, kriptonEnabled: action.enabled }
     case 'SET_PAYMENT_METHOD': return { ...state, selectedPaymentMethod: action.method }
+    case 'SET_PAYMENT_SURCHARGES': return { ...state, paymentSurcharges: action.surcharges }
+    case 'SET_TRANSFER_ENABLED': return { ...state, transferEnabled: action.enabled }
+    case 'SET_TRANSFER_DATA': return { ...state, transferData: action.data }
     case 'SET_ESTIMATED_TIME': return { ...state, estimatedTimeInfo: action.info }
     case 'SET_DELIVERY_MODE': return { ...state, deliveryMode: action.delivery }
     case 'SET_DELIVERY_ADDRESS': return { ...state, deliveryAddress: { ...state.deliveryAddress, ...action.address } }
@@ -248,6 +260,9 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     redirectingToMp: false,
     kriptonEnabled: false,
     selectedPaymentMethod: 'mercadopago',
+    paymentSurcharges: {},
+    transferEnabled: false,
+    transferData: null,
     estimatedTimeInfo: null,
     deliveryMode: mode === 'delivery',
     deliveryAddress: { street: '', number: '', apt: '', city: '' },
@@ -336,6 +351,32 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
         }
       })
       .catch(() => {})
+
+    // Fetch payment methods + surcharges + transfer data
+    fetch(`/api/${tenantSlug}/payment-methods`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.error) {
+          console.error('payment-methods API error:', data.error)
+          return
+        }
+        if (!data?.methods) {
+          console.error('payment-methods API: no methods in response', data)
+          return
+        }
+        const surcharges: Record<string, number> = {}
+        for (const m of data.methods) {
+          surcharges[m.id] = m.surchargePercent || 0
+        }
+        dispatch({ type: 'SET_PAYMENT_SURCHARGES', surcharges })
+
+        const trAvailable = data.methods.find((m: any) => m.id === 'transfer')?.enabled
+        if (trAvailable) {
+          dispatch({ type: 'SET_TRANSFER_ENABLED', enabled: true })
+          dispatch({ type: 'SET_TRANSFER_DATA', data: data.transfer })
+        }
+      })
+      .catch((err) => { console.error('payment-methods fetch error:', err) })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // QR promo from sessionStorage
@@ -484,7 +525,13 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     && !state.loyaltyMember?.hasAdvanceActive
 
   const deliveryCost = state.deliveryMode && state.deliveryQuote.withinRange ? state.deliveryQuote.cost : 0
-  const total = Math.max(0, subtotal - discountAmount) + deliveryCost
+  const baseTotal = Math.max(0, subtotal - discountAmount) + deliveryCost
+  const activeSurchargePercent = state.selectedPaymentMethod !== 'transfer'
+    ? (state.paymentSurcharges[state.selectedPaymentMethod] ?? 0)
+    : 0
+  const total = activeSurchargePercent > 0
+    ? Math.round(baseTotal * (1 + activeSurchargePercent / 100))
+    : baseTotal
 
   const increaseQty = useCallback((cartItemId: string) => {
     dispatch({ type: 'SET_CART', cart: stateRef.current.cart.map(i =>
@@ -536,12 +583,14 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
   const value: CheckoutContextValue = {
     state, dispatch, steps,
     increaseQty, decreaseQty, removeItem, addHintToCart,
-    subtotal, discountAmount, deliveryCost, total,
+    subtotal, discountAmount, deliveryCost, baseTotal, total,
     effectiveTime, delayEnabled, extraMinutes, delayMessage,
     qrEligibleSubtotal, selectedRewardItem,
     rewardNeedsAdvance, missingPoints, canUseSos, effectiveAdvanceLimit,
     currentMode, modeDelay,
     tenantName: state.tenantName,
+    activeSurchargePercent,
+    transferData: state.transferData,
   }
 
   return (
