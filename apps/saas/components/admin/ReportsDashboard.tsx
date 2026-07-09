@@ -48,6 +48,8 @@ interface Props {
         revenueByCategory: { category: string; revenue: number; quantity: number }[]
         dailyTrend: { day: number; revenue: number; orders: number }[]
         revenueByLocation: { locationName: string; revenue: number; orders: number }[]
+        // Ventas por método de pago
+        paymentMethodBreakdown: { method: string; orders: number; revenue: number }[]
         // Upselling analytics
         upsellRows: { name: string; source: string; adds: number; conversions: number; conversionRate: number; revenue: number }[]
         upsellTotalAdds: number
@@ -305,6 +307,54 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                         3: { halign: 'right', fontStyle: 'bold', textColor: [PR, PG, PB] },
                     },
                     margin: { left: 14, right: 14 },
+                })
+            }
+
+            // ── Payment method breakdown ──────────────────────────────────
+            const methodMap: Record<string, { orders: number; revenue: number }> = {}
+            const methodLabels: Record<string, string> = {
+                mercadopago: 'Mercado Pago',
+                kripton: 'Kripton',
+                transfer: 'Transferencia',
+            }
+            activeOrders.forEach(o => {
+                const m = o.payment?.method || 'desconocido'
+                if (!methodMap[m]) methodMap[m] = { orders: 0, revenue: 0 }
+                methodMap[m].orders++
+                methodMap[m].revenue += o.total
+            })
+            const methodEntries = Object.entries(methodMap).sort((a, b) => b[1].revenue - a[1].revenue)
+
+            if (methodEntries.length > 0) {
+                doc.addPage()
+                doc.setFillColor(30, 27, 75)
+                doc.rect(0, 0, pageW, 16, 'F')
+                doc.setTextColor(255, 255, 255)
+                doc.setFont('helvetica', 'bold')
+                doc.setFontSize(12)
+                doc.text('Ventas por Método de Pago', 14, 11)
+
+                autoTable(doc, {
+                    startY: 24,
+                    head: [['Método', 'Órdenes', 'Ingresos', '% del total']],
+                    body: methodEntries.map(([method, data]) => {
+                        const pct = totalRevenue > 0 ? Math.round((data.revenue / totalRevenue) * 100) : 0
+                        const label = methodLabels[method] || method
+                        return [label, data.orders, `$${fmt(data.revenue)}`, `${pct}%`]
+                    }),
+                    headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
+                    bodyStyles: { fontSize: 9 },
+                    alternateRowStyles: { fillColor: [245, 244, 255] },
+                    columnStyles: {
+                        0: { cellWidth: 'auto' },
+                        1: { halign: 'center', cellWidth: 30 },
+                        2: { halign: 'right', fontStyle: 'bold', textColor: [PR, PG, PB], cellWidth: 40 },
+                        3: { halign: 'center', cellWidth: 26 },
+                    },
+                    margin: { left: 14, right: 14 },
+                    showFoot: 'lastPage',
+                    foot: [['TOTAL', activeOrders.length, `$${fmt(totalRevenue)}`, '100%']],
+                    footStyles: { fillColor: [PR, PG, PB], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
                 })
             }
 
@@ -604,6 +654,28 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             </motion.div>
 
             )} {/* end plan === 'full' KPIs block */}
+
+            {/* ── Ventas por Método de Pago ─────────────────────────────── */}
+            {stats.paymentMethodBreakdown.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }}>
+                    <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+                        <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                                    <CreditCard size={24} strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold tracking-tight">Ventas por método de pago</CardTitle>
+                                    <p className="text-xs text-muted-foreground font-medium">Distribución de ingresos del mes actual</p>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-8">
+                            <PaymentMethodChart data={stats.paymentMethodBreakdown} />
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
 
             {/* ── Distribución Horaria ─────────────────────────────────────── */}
             {plan === 'full' && stats.hourlyDistribution.length > 0 && (
@@ -1082,6 +1154,66 @@ function LocationRevenueChart({ locations }: { locations: { locationName: string
                                 className={cn('h-full rounded-full transition-all duration-500', COLORS[i % COLORS.length])}
                                 style={{ width: `${barPct}%` }}
                             />
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
+const METHOD_LABELS: Record<string, string> = {
+    mercadopago: '💳 Mercado Pago',
+    kripton: '🪙 Kripton',
+    transfer: '🏦 Transferencia',
+}
+
+function PaymentMethodChart({ data }: { data: { method: string; orders: number; revenue: number }[] }) {
+    const totalRevenue = data.reduce((s, d) => s + d.revenue, 0)
+    const totalOrders = data.reduce((s, d) => s + d.orders, 0)
+    const maxRevenue = Math.max(...data.map(d => d.revenue), 1)
+    const COLORS = ['bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-emerald-500', 'bg-rose-500', 'bg-teal-500']
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div className="p-4 rounded-2xl bg-muted/30">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Total ingresos</p>
+                    <p className="text-2xl font-black tabular-nums text-foreground">${totalRevenue.toLocaleString('es-AR')}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-muted/30">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Total órdenes</p>
+                    <p className="text-2xl font-black tabular-nums text-foreground">{totalOrders}</p>
+                </div>
+            </div>
+            {data.map((d, i) => {
+                const pct = totalRevenue > 0 ? Math.round((d.revenue / totalRevenue) * 100) : 0
+                const barPct = Math.round((d.revenue / maxRevenue) * 100)
+                const label = METHOD_LABELS[d.method] || `🔹 ${d.method}`
+                const avgTicket = d.orders > 0 ? Math.round(d.revenue / d.orders) : 0
+                return (
+                    <div key={d.method}>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <div className={cn('w-2 h-2 rounded-full shrink-0', COLORS[i % COLORS.length])} />
+                                <span className="text-sm font-bold text-foreground truncate">{label}</span>
+                                <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest">{d.orders} ped.</span>
+                            </div>
+                            <div className="text-right shrink-0 ml-4">
+                                <span className="text-sm font-black tabular-nums text-foreground">${d.revenue.toLocaleString('es-AR')}</span>
+                                <span className="text-[10px] font-bold text-muted-foreground/60 ml-1.5">{pct}%</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                    className={cn('h-full rounded-full transition-all duration-500', COLORS[i % COLORS.length])}
+                                    style={{ width: `${barPct}%` }}
+                                />
+                            </div>
+                            <span className="text-[10px] font-bold text-muted-foreground/50 w-16 text-right shrink-0">
+                                ${avgTicket.toLocaleString('es-AR')} c/u
+                            </span>
                         </div>
                     </div>
                 )
