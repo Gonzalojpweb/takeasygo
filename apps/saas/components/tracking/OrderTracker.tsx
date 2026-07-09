@@ -77,12 +77,12 @@ interface Props {
   initialSurchargePercent?: number
   initialSurchargeAmount?: number
   initialTransferConfirmed?: boolean
+  initialCustomerName?: string
+  initialWhatsAppPhone?: string | null
   initialTransferData?: {
     alias: string | null
     cbu: string | null
     cvu: string | null
-    bankName: string | null
-    holderName: string | null
   } | null
 }
 
@@ -103,6 +103,34 @@ function formatScheduledDate(dateStr: string): string {
   const hours = date.getHours().toString().padStart(2, '0')
   const mins = date.getMinutes().toString().padStart(2, '0')
   return `${day} ${d} de ${month} a las ${hours}:${mins}`
+}
+
+function buildWhatsAppLink(phone: string, opts: {
+  customerName: string
+  orderNumber: string
+  amount: number
+  orderMode?: string
+  deliveryAddress?: { street: string; number: string; apt?: string; city: string }
+  trackingUrl: string
+}): string {
+  const { customerName, orderNumber, amount, orderMode, deliveryAddress, trackingUrl } = opts
+  const cleanPhone = phone.replace(/[^\d]/g, '')
+
+  const modeLabel = orderMode === 'delivery' ? '🚚 DELIVERY' : '🥡 TAKE AWAY'
+
+  let msg = `Hola soy ${customerName} y tengo el pedido #${orderNumber}.
+Te envío el comprobante de pago por $${amount.toLocaleString('es-AR')}.
+
+${modeLabel}`
+
+  if (orderMode === 'delivery' && deliveryAddress) {
+    const addr = deliveryAddress
+    msg += `\nDirección: ${addr.street} ${addr.number}${addr.apt ? `, ${addr.apt}` : ''}, ${addr.city}`
+  }
+
+  msg += `\n\nPodes hacer el seguimiento de tu pedido:\n${trackingUrl}`
+
+  return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
 }
 
 export default function OrderTracker({
@@ -136,6 +164,8 @@ export default function OrderTracker({
   initialSurchargePercent,
   initialSurchargeAmount,
   initialTransferConfirmed,
+  initialCustomerName = '',
+  initialWhatsAppPhone,
   initialTransferData,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
@@ -159,7 +189,19 @@ export default function OrderTracker({
   const [surchargeAmount, setSurchargeAmount] = useState(initialSurchargeAmount || 0)
   const [transferConfirmed, setTransferConfirmed] = useState(initialTransferConfirmed || false)
   const [transferData, setTransferData] = useState(initialTransferData || null)
+  const [whatsAppPhone] = useState(initialWhatsAppPhone || null)
   const [confirmTransferLoading, setConfirmTransferLoading] = useState(false)
+
+  const whatsAppLink = whatsAppPhone && paymentMethod === 'transfer'
+    ? buildWhatsAppLink(whatsAppPhone, {
+        customerName: initialCustomerName,
+        orderNumber,
+        amount: baseTotal || 0,
+        orderMode,
+        deliveryAddress,
+        trackingUrl: `${window.location.origin}/${tenantSlug}/tracking/${orderNumber}`,
+      })
+    : null
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const { play: playNotification } = useNotificationSound('/pop.mp3')
   const confettiRef = useRef<ConfettiRef>(null)
@@ -621,15 +663,28 @@ export default function OrderTracker({
             </div>
           )}
 
-          <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
-            <p className="text-xs text-amber-800 font-medium flex items-center gap-1">
+          <div className="rounded-xl bg-amber-50 border-2 border-amber-200 p-4 space-y-2">
+            <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
               <span>⚠️</span>
-              Transferí el monto exacto de <strong>${(baseTotal || 0).toLocaleString('es-AR')}</strong> y luego confirmá abajo.
+              Antes de continuar, seguí estos pasos:
             </p>
+            <div className="space-y-1.5 text-xs text-amber-800">
+              <p className="flex items-start gap-2">
+                <span className="font-bold bg-amber-200 text-amber-900 w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px]">1</span>
+                <span>Hacé la transferencia por <strong>${(baseTotal || 0).toLocaleString('es-AR')}</strong> desde tu banco usando el <strong>Alias</strong> o <strong>CBU</strong> de arriba.</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="font-bold bg-amber-200 text-amber-900 w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px]">2</span>
+                <span>Tocá el botón de abajo para enviarnos el comprobante por WhatsApp y confirmar el pago.</span>
+              </p>
+            </div>
           </div>
 
           <button
             onClick={async () => {
+              if (whatsAppLink) {
+                window.open(whatsAppLink, '_blank')
+              }
               setConfirmTransferLoading(true)
               try {
                 const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/confirm-transfer-client`, { method: 'PATCH' })
@@ -645,7 +700,7 @@ export default function OrderTracker({
               }
             }}
             disabled={confirmTransferLoading}
-            className="w-full py-4 rounded-2xl font-bold text-base text-white disabled:opacity-50 transition-all"
+            className="w-full py-4 rounded-2xl font-bold text-base text-white disabled:opacity-50 transition-all active:scale-[0.98]"
             style={{ backgroundColor: '#059669' }}
           >
             {confirmTransferLoading ? (
@@ -653,12 +708,12 @@ export default function OrderTracker({
                 <Loader2 size={16} className="animate-spin" /> Confirmando...
               </span>
             ) : (
-              '✅ YA TRANSFERÍ — Confirmar pago'
+              <span className="flex items-center justify-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Enviar comprobante y confirmar pago
+              </span>
             )}
           </button>
-          <p className="text-xs text-center text-zinc-500">
-            Solo confirmá después de haber realizado la transferencia por el monto exacto
-          </p>
         </div>
       )}
 

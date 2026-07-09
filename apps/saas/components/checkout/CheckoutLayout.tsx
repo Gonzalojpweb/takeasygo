@@ -39,8 +39,8 @@ export default function CheckoutLayout(props: Props) {
 
 function CheckoutLayoutInner() {
   const router = useRouter()
-  const { state, dispatch, steps, effectiveTime, delayEnabled, extraMinutes, delayMessage, selectedRewardItem, subtotal, discountAmount, deliveryCost, total, missingPoints, canUseSos, effectiveAdvanceLimit, tenantName } = useCheckout()
-  const { currentStep, activeOrderNumber, tenantSlug, deliveryMode, mode, loyaltyMember, loyaltyConfig, joinClub, walletEnabled, storeItems, selectedRewardItemId, rewardItemLoading, pointsLookupLoading, kriptonEnabled, selectedPaymentMethod, scheduleOrder, activeQrPromo, estimatedTimeInfo, deliveryQuote } = state
+  const { state, dispatch, steps, effectiveTime, delayEnabled, extraMinutes, delayMessage, selectedRewardItem, subtotal, discountAmount, deliveryCost, baseTotal, total, activeSurchargePercent, missingPoints, canUseSos, effectiveAdvanceLimit, tenantName, transferData } = useCheckout()
+  const { currentStep, activeOrderNumber, tenantSlug, deliveryMode, mode, loyaltyMember, loyaltyConfig, joinClub, walletEnabled, storeItems, selectedRewardItemId, rewardItemLoading, pointsLookupLoading, kriptonEnabled, transferEnabled, selectedPaymentMethod, scheduleOrder, activeQrPromo, estimatedTimeInfo, deliveryQuote } = state
 
   const [legalModal, setLegalModal] = useState<'terminos' | 'privacidad' | null>(null)
 
@@ -115,13 +115,17 @@ function CheckoutLayoutInner() {
           tenantName={tenantName}
           selectedPaymentMethod={selectedPaymentMethod}
           kriptonEnabled={kriptonEnabled}
+          transferEnabled={transferEnabled}
           subtotal={subtotal}
           discountAmount={discountAmount}
           activeQrPromo={activeQrPromo}
           selectedRewardItem={selectedRewardItem}
           deliveryQuote={deliveryQuote}
           deliveryCost={deliveryCost}
+          baseTotal={baseTotal}
           total={total}
+          activeSurchargePercent={activeSurchargePercent}
+          transferData={transferData}
           onPaymentMethodChange={(method) => dispatch({ type: 'SET_PAYMENT_METHOD', method })}
         />
       )
@@ -353,7 +357,7 @@ function LoyaltySection(props: {
   )
 }
 
-function PaymentMethodSelector({ selected, onChange }: { selected: string; onChange: (method: 'mercadopago' | 'kripton') => void }) {
+function PaymentMethodSelector({ selected, onChange, transferEnabled }: { selected: string; onChange: (method: 'mercadopago' | 'kripton' | 'transfer') => void; transferEnabled?: boolean }) {
   return (
     <div className="space-y-3">
       <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Método de pago</p>
@@ -372,6 +376,22 @@ function PaymentMethodSelector({ selected, onChange }: { selected: string; onCha
             <p className="text-[10px] text-zinc-500">Tarjeta, efectivo, transferencia</p>
           </div>
         </button>
+        {transferEnabled && (
+          <button
+            type="button"
+            onClick={() => onChange('transfer')}
+            className={cn(
+              'flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all',
+              selected === 'transfer' ? 'border-emerald-600 bg-emerald-600/5' : 'border-zinc-200 bg-white',
+            )}
+          >
+            <span className="text-2xl">🏦</span>
+            <div>
+              <p className="text-sm font-bold text-zinc-900">Transferencia</p>
+              <p className="text-[10px] text-zinc-500">Precio de carta</p>
+            </div>
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onChange('kripton')}
@@ -395,27 +415,33 @@ function PaymentConfirmation(props: {
   mode: 'takeaway' | 'delivery'
   deliveryMode: boolean
   tenantName: string
-  selectedPaymentMethod: 'mercadopago' | 'kripton'
+  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer'
   kriptonEnabled: boolean
+  transferEnabled: boolean
   subtotal: number
   discountAmount: number
   activeQrPromo: any
   selectedRewardItem: any
   deliveryQuote: any
   deliveryCost: number
+  baseTotal: number
   total: number
-  onPaymentMethodChange: (method: 'mercadopago' | 'kripton') => void
+  activeSurchargePercent: number
+  transferData: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null
+  onPaymentMethodChange: (method: 'mercadopago' | 'kripton' | 'transfer') => void
 }) {
   const {
     mode, deliveryMode, tenantName,
-    selectedPaymentMethod, kriptonEnabled,
+    selectedPaymentMethod, kriptonEnabled, transferEnabled,
     subtotal, discountAmount, activeQrPromo, selectedRewardItem,
-    deliveryQuote, deliveryCost, total,
+    deliveryQuote, deliveryCost, baseTotal, total,
+    activeSurchargePercent, transferData,
     onPaymentMethodChange,
   } = props
 
   const isDelivery = mode === 'delivery' || deliveryMode
   const restoName = tenantName || 'tu restaurante favorito'
+  const [copiedField, setCopiedField] = useState<string | null>(null)
 
   return (
     <div className="space-y-5">
@@ -423,7 +449,7 @@ function PaymentConfirmation(props: {
       {/* Payment method display */}
       <div className="rounded-2xl border-2 border-zinc-200 p-4">
         <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3">Método de pago</p>
-        {kriptonEnabled ? (
+        {kriptonEnabled || transferEnabled ? (
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -439,6 +465,22 @@ function PaymentConfirmation(props: {
                 <p className="text-[10px] text-zinc-500">Tarjeta, efectivo</p>
               </div>
             </button>
+            {transferEnabled && (
+              <button
+                type="button"
+                onClick={() => onPaymentMethodChange('transfer')}
+                className={cn(
+                  'flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all',
+                  selectedPaymentMethod === 'transfer' ? 'border-emerald-600 bg-emerald-600/5' : 'border-zinc-200 bg-white',
+                )}
+              >
+                <span className="text-2xl">🏦</span>
+                <div>
+                  <p className="text-sm font-bold text-zinc-900">Transferencia</p>
+                  <p className="text-[10px] text-zinc-500">Precio de carta</p>
+                </div>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onPaymentMethodChange('kripton')}
@@ -464,6 +506,91 @@ function PaymentConfirmation(props: {
           </div>
         )}
       </div>
+
+      {/* Surcharge info */}
+      {selectedPaymentMethod !== 'transfer' && activeSurchargePercent > 0 && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-start gap-2">
+          <span className="text-lg">💡</span>
+          <div className="text-xs text-amber-800">
+            <p className="font-semibold">
+              {selectedPaymentMethod === 'mercadopago' ? 'Mercado Pago' : 'Kripton'} · Precio con recargo
+            </p>
+            <p className="mt-0.5">
+              ${baseTotal.toLocaleString('es-AR')} + {activeSurchargePercent}% ={' '}
+              <strong>${total.toLocaleString('es-AR')}</strong>
+            </p>
+            <p className="mt-0.5 text-amber-600">
+              Incluye costos operativos del medio de pago.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer bank data */}
+      {selectedPaymentMethod === 'transfer' && transferData && (
+        <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🏦</span>
+            <p className="text-sm font-bold text-blue-900">Datos para transferir</p>
+          </div>
+          {transferData.alias && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Alias</p>
+              <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-blue-100">
+                <span className="text-sm font-mono font-bold text-zinc-900">{transferData.alias}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(transferData.alias!)
+                    setCopiedField('alias')
+                    setTimeout(() => setCopiedField(null), 2000)
+                  }}
+                  className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 hover:bg-blue-200 transition-colors"
+                >
+                  {copiedField === 'alias' ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+          {(transferData.cbu || transferData.cvu) && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                {transferData.cbu && transferData.cvu ? 'CBU / CVU' : transferData.cbu ? 'CBU' : 'CVU'}
+              </p>
+              <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-blue-100">
+                <span className="text-sm font-mono font-bold text-zinc-900">
+                  {transferData.cbu || transferData.cvu}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(transferData.cbu || transferData.cvu!)
+                    setCopiedField('cbu')
+                    setTimeout(() => setCopiedField(null), 2000)
+                  }}
+                  className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 hover:bg-blue-200 transition-colors"
+                >
+                  {copiedField === 'cbu' ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-200">
+            <p className="text-[11px] text-amber-800 font-medium flex items-center gap-1">
+              <span>⚠️</span>
+              Transferí el monto exacto de <strong>${total.toLocaleString('es-AR')}</strong> y luego confirmá el pago en la pantalla de seguimiento.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Price breakdown */}
       <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4 space-y-2">
@@ -495,10 +622,32 @@ function PaymentConfirmation(props: {
             <span>${deliveryQuote.cost.toLocaleString('es-AR')}</span>
           </div>
         )}
-        <div className="flex justify-between text-lg font-black text-zinc-900 pt-2 border-t border-zinc-200">
-          <span>Total</span>
-          <span>${total.toLocaleString('es-AR')}</span>
-        </div>
+        {selectedPaymentMethod === 'transfer' ? (
+          <div className="flex justify-between text-lg font-black text-emerald-700 pt-2 border-t border-zinc-200">
+            <span>Total (precio de carta)</span>
+            <span>${total.toLocaleString('es-AR')}</span>
+          </div>
+        ) : activeSurchargePercent > 0 ? (
+          <>
+            <div className="flex justify-between text-sm text-zinc-500 pt-2 border-t border-zinc-200">
+              <span>Precio de carta</span>
+              <span>${baseTotal.toLocaleString('es-AR')}</span>
+            </div>
+            <div className="flex justify-between text-sm text-amber-600 font-semibold">
+              <span>Recargo ({activeSurchargePercent}%)</span>
+              <span>+${(total - baseTotal).toLocaleString('es-AR')}</span>
+            </div>
+            <div className="flex justify-between text-lg font-black text-zinc-900">
+              <span>Total</span>
+              <span>${total.toLocaleString('es-AR')}</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex justify-between text-lg font-black text-zinc-900 pt-2 border-t border-zinc-200">
+            <span>Total</span>
+            <span>${total.toLocaleString('es-AR')}</span>
+          </div>
+        )}
       </div>
 
       {/* Post-payment flow */}

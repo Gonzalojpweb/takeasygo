@@ -6,13 +6,13 @@ import { useRouter } from 'next/navigation'
 import { captureCheckoutStarted, captureRewardAdvanceAccepted } from '@/lib/tia/events'
 
 export default function CheckoutPaymentFooter() {
-  const { state, dispatch, steps, total, subtotal, discountAmount, deliveryCost, selectedRewardItem, rewardNeedsAdvance, missingPoints, canUseSos, effectiveAdvanceLimit } = useCheckout()
+  const { state, dispatch, steps, baseTotal, total, subtotal, discountAmount, deliveryCost, selectedRewardItem, rewardNeedsAdvance, missingPoints, canUseSos, effectiveAdvanceLimit, transferData } = useCheckout()
   const router = useRouter()
   const {
     currentStep, cart, form, mode, deliveryMode, tenantSlug, locationId,
     scheduleOrder, scheduledPickupAt, deliveryAddress, deliveryQuote, deliveryConfirmed,
     activeQrPromo, joinClub, loyaltyConfig, selectedRewardItemId,
-    kriptonEnabled, selectedPaymentMethod, loading, redirectingToMp,
+    kriptonEnabled, transferEnabled, selectedPaymentMethod, loading, redirectingToMp,
   } = state
 
   const customerStepIndex = deliveryMode ? 2 : 1
@@ -64,6 +64,7 @@ export default function CheckoutPaymentFooter() {
 
     try {
       const orderBody: Record<string, any> = {
+        paymentMethod: selectedPaymentMethod,
         locationId,
         customer: {
           name: form.name,
@@ -141,7 +142,18 @@ export default function CheckoutPaymentFooter() {
       sessionStorage.removeItem('cart')
 
       // Create payment preference
-      if (kriptonEnabled && selectedPaymentMethod === 'kripton') {
+      if (selectedPaymentMethod === 'transfer') {
+        try {
+          localStorage.setItem('tgo-pending-order', JSON.stringify({
+            orderNumber: order.orderNumber,
+            tenantSlug,
+            orderId: order._id,
+            createdAt: Date.now(),
+          }))
+        } catch {}
+
+        router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
+      } else if (kriptonEnabled && selectedPaymentMethod === 'kripton') {
         const prefRes = await fetch(`/api/${tenantSlug}/payments/create-kripton-preference`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -194,14 +206,15 @@ export default function CheckoutPaymentFooter() {
   }
 
   const isCartEmpty = cart.length === 0
+  const methodLabel = selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'MercadoPago'
   const buttonText = isLastStep
     ? loading
       ? 'Procesando...'
       : scheduleOrder
         ? '📅 Programar y pagar'
         : deliveryMode
-          ? `🚚 Pago ${selectedPaymentMethod === 'kripton' ? 'Kripton' : 'MercadoPago'}`
-          : `💳 Pago ${selectedPaymentMethod === 'kripton' ? 'Kripton' : 'MercadoPago'}`
+          ? `🚚 Pago ${methodLabel}`
+          : `💳 Pago ${methodLabel}`
     : 'Continuar'
 
   return (
@@ -211,7 +224,7 @@ export default function CheckoutPaymentFooter() {
           {!isLastStep && (
             <div className="flex justify-between items-center mb-2 px-1">
               <span className="text-sm text-zinc-500">Total parcial</span>
-              <span className="text-lg font-black text-zinc-900">${total.toLocaleString('es-AR')}</span>
+              <span className="text-lg font-black text-zinc-900">${baseTotal.toLocaleString('es-AR')}</span>
             </div>
           )}
 
@@ -242,7 +255,7 @@ export default function CheckoutPaymentFooter() {
           <div className="text-center max-w-sm">
             <div className="w-12 h-12 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin mx-auto mb-6" />
             <h2 className="text-xl font-black text-zinc-900 mb-3">
-              Redirigiendo a {selectedPaymentMethod === 'kripton' ? 'Kripton' : 'Mercado Pago'}
+              Redirigiendo a {selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'Mercado Pago'}
             </h2>
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-left space-y-3">
               <p className="text-sm font-bold text-amber-800">⚠️ Importante:</p>

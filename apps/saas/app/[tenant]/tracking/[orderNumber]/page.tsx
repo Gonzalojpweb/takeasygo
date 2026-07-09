@@ -7,6 +7,7 @@ import LiveTrackingBadge from '@/components/tracking/LiveTrackingBadge'
 import TrackingAnalytics from '@/components/tracking/TrackingAnalytics'
 import { generateRatingToken } from '@/lib/rating-token'
 import { calculatePointsBreakdown } from '@/lib/loyalty'
+import { safeDecrypt } from '@/lib/crypto'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
@@ -150,12 +151,12 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           initialSurchargePercent={order.payment?.surchargePercent}
           initialSurchargeAmount={order.payment?.surchargeAmount}
           initialTransferConfirmed={order.payment?.transferConfirmed}
+          initialCustomerName={safeDecrypt(order.customer?.name) || ''}
+          initialWhatsAppPhone={tenant.notifications?.whatsappPhone ?? null}
           initialTransferData={order.payment?.method === 'transfer' && tenant.transfer?.enabled ? {
             alias: tenant.transfer.alias,
             cbu: tenant.transfer.cbu,
             cvu: tenant.transfer.cvu,
-            bankName: tenant.transfer.bankName,
-            holderName: tenant.transfer.holderName,
           } : null}
         />
 

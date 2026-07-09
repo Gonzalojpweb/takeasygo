@@ -9,7 +9,7 @@ export default function DeliveryAddressForm() {
 
   async function handleQuote() {
     if (!deliveryAddress.street.trim() || !deliveryAddress.number.trim() || !deliveryAddress.city.trim()) {
-      return toast.error('Completá calle, número y localidad')
+      return toast.error('Completá calle, número y barrio')
     }
     dispatch({ type: 'SET_DELIVERY_QUOTE', quote: { loading: true, error: null } })
     try {
@@ -68,7 +68,7 @@ export default function DeliveryAddressForm() {
       </div>
 
       <input
-        placeholder="Piso / Depto (opcional)"
+        placeholder="Piso, depto, casa o local"
         value={deliveryAddress.apt}
         onChange={e => dispatch({ type: 'SET_DELIVERY_ADDRESS', address: { apt: e.target.value } })}
         className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"
@@ -76,7 +76,7 @@ export default function DeliveryAddressForm() {
 
       <input
         required
-        placeholder="Localidad *"
+        placeholder="Barrio *"
         value={deliveryAddress.city}
         onChange={e => dispatch({ type: 'SET_DELIVERY_ADDRESS', address: { city: e.target.value } })}
         className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-zinc-400"

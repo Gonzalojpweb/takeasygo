@@ -22,6 +22,7 @@ interface Props {
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
   awaiting_payment: { label: 'Esperando pago', dot: 'bg-gray-400', badge: 'bg-gray-50 text-gray-600 border-gray-200' },
+  awaiting_confirmation: { label: 'Transferencia', dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
   pending:   { label: 'Pendiente',   dot: 'bg-amber-400',   badge: 'bg-amber-50 text-amber-700 border-amber-200' },
   confirmed: { label: 'Confirmado',  dot: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 border-blue-200' },
   preparing: { label: 'Preparando',  dot: 'bg-orange-400',  badge: 'bg-orange-50 text-orange-700 border-orange-200' },
@@ -36,6 +37,7 @@ const FILTER_TABS = [
   { value: 'all',       label: 'Todos' },
   { value: 'active',    label: 'Activos' },
   { value: 'pending',   label: 'Pendientes' },
+  { value: 'awaiting_confirmation', label: 'Transferencias' },
   { value: 'confirmed', label: 'Confirmados' },
   { value: 'preparing', label: 'Preparando' },
   { value: 'ready',     label: 'Listos' },
@@ -46,7 +48,7 @@ const FILTER_TABS = [
   { value: 'cancelled', label: 'Cancelados' },
 ]
 
-const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
+const ACTIVE_STATUSES = ['pending', 'awaiting_confirmation', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
 
 // Paleta de colores por categoría (se asigna por índice)
 const CATEGORY_COLORS = [

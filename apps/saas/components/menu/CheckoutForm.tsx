@@ -216,31 +216,40 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     fetch(`/api/${tenantSlug}/payment-methods`)
       .then(r => r.json())
       .then(data => {
-        if (data?.methods) {
-          const surcharges: Record<string, number> = {}
-          for (const m of data.methods) {
-            surcharges[m.id] = m.surchargePercent || 0
-          }
-          setPaymentSurcharges(surcharges)
+        if (data?.error) {
+          console.error('payment-methods API error:', data.error)
+          return
+        }
+        if (!data?.methods) {
+          console.error('payment-methods API: no methods in response', data)
+          return
+        }
+        const surcharges: Record<string, number> = {}
+        for (const m of data.methods) {
+          surcharges[m.id] = m.surchargePercent || 0
+        }
+        setPaymentSurcharges(surcharges)
 
-          const mpAvailable = data.methods.find((m: any) => m.id === 'mercadopago')?.enabled
-          const krAvailable = data.methods.find((m: any) => m.id === 'kripton')?.enabled
-          const trAvailable = data.methods.find((m: any) => m.id === 'transfer')?.enabled
+        const mpAvailable = data.methods.find((m: any) => m.id === 'mercadopago')?.enabled
+        const krAvailable = data.methods.find((m: any) => m.id === 'kripton')?.enabled
+        const trAvailable = data.methods.find((m: any) => m.id === 'transfer')?.enabled
 
-          if (!mpAvailable && krAvailable) {
-            setKriptonEnabled(true)
-            setSelectedPaymentMethod('kripton')
-          }
-          if (trAvailable) {
-            setTransferEnabled(true)
-            setTransferData(data.transfer)
-            if (!mpAvailable && !krAvailable) {
-              setSelectedPaymentMethod('transfer')
-            }
-          }
+        if (krAvailable) {
+          setKriptonEnabled(true)
+        }
+        if (trAvailable) {
+          setTransferEnabled(true)
+          setTransferData(data.transfer)
+        }
+        if (!mpAvailable && !krAvailable && trAvailable) {
+          setSelectedPaymentMethod('transfer')
+        } else if (!mpAvailable && krAvailable) {
+          setSelectedPaymentMethod('kripton')
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('payment-methods fetch error:', err)
+      })
   }, [])
   
   // Auto-fill from session and lookup loyalty by email
