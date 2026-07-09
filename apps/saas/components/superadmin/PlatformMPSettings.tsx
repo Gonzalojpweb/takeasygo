@@ -129,6 +129,30 @@ export default function PlatformMPSettings({
     }
   }
 
+  async function handleComisionSave(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setSuccess(false)
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/superadmin/platform-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platformFees: { takeasygoCommissionPercent },
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al guardar')
+      setSuccess(true)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="rounded-3xl border border-border/60 bg-card overflow-hidden">
       {/* Header */}
@@ -365,6 +389,18 @@ export default function PlatformMPSettings({
             </p>
           </div>
 
+          {error && (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+              <AlertCircle size={14} /> {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm">
+              <CheckCircle2 size={14} /> Credenciales guardadas correctamente
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading || (!oauthAppId && !oauthAppSecret && !oauthRedirectUri && oauthPlatformFee === 5)}
@@ -389,7 +425,7 @@ export default function PlatformMPSettings({
             </p>
           </div>
         </div>
-        <div className="px-6 py-4 space-y-3">
+        <form onSubmit={handleComisionSave} className="px-6 py-4 space-y-3">
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
@@ -416,7 +452,7 @@ export default function PlatformMPSettings({
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : 'Guardar comisión'}
           </button>
-        </div>
+        </form>
       </div>
 
       {/* Instrucciones webhook */}
