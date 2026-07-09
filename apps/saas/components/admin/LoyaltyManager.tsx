@@ -97,6 +97,10 @@ interface Stats {
     ordersFromMembers: number
     memberShare: number
   }
+  shares: {
+    thisWeek: number
+    thisMonth: number
+  }
 }
 
 interface Props {
@@ -547,7 +551,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
       </div>
 
       {stats && !statsLoading && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard
             icon={<Users size={20} className="text-primary" />}
             label="Total miembros"
@@ -571,6 +575,12 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
             label="Nuevos (30d)"
             value={stats.recentMembers.length}
             sub="por QR"
+          />
+          <StatCard
+            icon={<Camera size={20} className="text-purple-500" />}
+            label="Compartidos"
+            value={`${stats.shares.thisWeek} / ${stats.shares.thisMonth}`}
+            sub="esta semana / este mes"
           />
         </div>
       )}

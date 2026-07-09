@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Order from '@/models/Order'
+import ShareEvent from '@/models/ShareEvent'
 import { requireAuth } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
@@ -37,6 +38,9 @@ export async function GET(
     const dateFrom = new Date()
     dateFrom.setDate(dateFrom.getDate() - days)
 
+    const dateFrom7 = new Date()
+    dateFrom7.setDate(dateFrom7.getDate() - 7)
+
     const [
       totalMembers,
       activeMembers,
@@ -45,6 +49,8 @@ export async function GET(
       recentMembers,
       bySource,
       topSpenders,
+      sharesThisWeek,
+      sharesThisMonth,
     ] = await Promise.all([
       LoyaltyMember.countDocuments({ tenantId: tenant._id }),
       LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }),
@@ -64,6 +70,8 @@ export async function GET(
         .limit(5)
         .select('name phone cache.totalOrders cache.totalSpent')
         .lean<any[]>(),
+      ShareEvent.countDocuments({ tenantId: tenant._id, generatedAt: { $gte: dateFrom7 } }),
+      ShareEvent.countDocuments({ tenantId: tenant._id, generatedAt: { $gte: dateFrom } }),
     ])
 
     const membersWithMaskedPhone = recentMembers.map(m => ({
@@ -145,6 +153,10 @@ export async function GET(
         memberShare:  totalRevenue[0]?.total > 0
           ? Math.round((revenueFromMembers[0]?.total / totalRevenue[0].total) * 100)
           : 0,
+      },
+      shares: {
+        thisWeek: sharesThisWeek,
+        thisMonth: sharesThisMonth,
       },
     })
   } catch (error) {
