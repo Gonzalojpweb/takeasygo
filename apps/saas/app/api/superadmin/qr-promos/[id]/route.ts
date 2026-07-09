@@ -63,6 +63,9 @@ export async function PUT(
     if (body.checkoutDiscountLabel !== undefined) promo.checkoutDiscountLabel = body.checkoutDiscountLabel
     if (body.sourceTriggers !== undefined) promo.sourceTriggers = body.sourceTriggers
     if (body.targetTenants !== undefined) promo.targetTenants = body.targetTenants
+    if (body.code !== undefined) promo.code = body.code?.toLowerCase().trim() || undefined
+    if (body.maxUses !== undefined) promo.maxUses = body.maxUses
+    if (body.maxUsesPerConsumer !== undefined) promo.maxUsesPerConsumer = body.maxUsesPerConsumer
 
     await promo.save()
     return NextResponse.json({ promo })

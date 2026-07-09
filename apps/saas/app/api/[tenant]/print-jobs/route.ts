@@ -40,7 +40,7 @@ export async function GET(
       printed: false,
       status: { $in: ['confirmed', 'preparing', 'ready'] },
     })
-      .select('orderNumber items total customer notes status payment createdAt locationId orderTiming scheduledPickupAt scheduledStatus orderMode')
+      .select('orderNumber items total customer notes status payment createdAt locationId orderTiming scheduledPickupAt scheduledStatus orderMode promoSlug promoCode promoCreatedBy discountAmount')
       .lean()
 
     const printers = await Printer.find({

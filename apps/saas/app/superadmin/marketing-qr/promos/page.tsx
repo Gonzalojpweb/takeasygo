@@ -30,6 +30,11 @@ interface QrPromoItem {
   sourceTriggers: string[]
   targetTenants: string[]
   createdAt: string
+  code?: string | null
+  maxUses?: number | null
+  usedCount?: number
+  maxUsesPerConsumer?: number
+  createdBy?: string
 }
 
 interface TenantOption {
@@ -73,6 +78,15 @@ export default function GlobalQrPromosPage() {
   const [sourceTriggers, setSourceTriggers] = useState('qr')
   const [targetTenants, setTargetTenants] = useState<string[]>([])
   const [targetAll, setTargetAll] = useState(true)
+  const [code, setCode] = useState('')
+  const [maxUses, setMaxUses] = useState('')
+  const [maxUsesPerConsumer, setMaxUsesPerConsumer] = useState(1)
+
+  // Push modal
+  const [pushModalPromo, setPushModalPromo] = useState<QrPromoItem | null>(null)
+  const [pushTitle, setPushTitle] = useState('')
+  const [pushBody, setPushBody] = useState('')
+  const [pushLoading, setPushLoading] = useState(false)
 
   useEffect(() => {
     fetchPromos()
@@ -126,6 +140,9 @@ export default function GlobalQrPromosPage() {
       setSourceTriggers((promo.sourceTriggers || ['qr']).join(', '))
       setTargetTenants(promo.targetTenants || [])
       setTargetAll((promo.targetTenants || []).length === 0)
+      setCode(promo.code || '')
+      setMaxUses(promo.maxUses?.toString() || '')
+      setMaxUsesPerConsumer(promo.maxUsesPerConsumer ?? 1)
     } else {
       setEditingId(null)
       setSlug('')
@@ -149,6 +166,9 @@ export default function GlobalQrPromosPage() {
       setSourceTriggers('qr')
       setTargetTenants([])
       setTargetAll(true)
+      setCode('')
+      setMaxUses('')
+      setMaxUsesPerConsumer(1)
     }
     setIsModalOpen(true)
   }
@@ -168,6 +188,9 @@ export default function GlobalQrPromosPage() {
       loadingText, checkoutDiscountLabel,
       sourceTriggers: sourceTriggers.split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
       targetTenants: targetAll ? [] : targetTenants,
+      code: code.trim() || undefined,
+      maxUses: maxUses ? Number(maxUses) : undefined,
+      maxUsesPerConsumer,
     }
 
     const url = editingId ? `/api/superadmin/qr-promos/${editingId}` : '/api/superadmin/qr-promos'
@@ -245,15 +268,16 @@ export default function GlobalQrPromosPage() {
         {promos.length === 0 ? (
           <div className="p-12 text-center text-zinc-500">No hay QrPromos globales creadas.</div>
         ) : (
-          <table className="w-full text-sm text-left">
+              <table className="w-full text-sm text-left">
             <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase border-b border-zinc-200">
               <tr>
                 <th className="px-6 py-4 font-medium">Slug</th>
+                <th className="px-6 py-4 font-medium">Código</th>
                 <th className="px-6 py-4 font-medium">Tipo</th>
                 <th className="px-6 py-4 font-medium">Target</th>
                 <th className="px-6 py-4 font-medium">Estado</th>
                 <th className="px-6 py-4 font-medium">Programación</th>
-                <th className="px-6 py-4 font-medium">Creada</th>
+                <th className="px-6 py-4 font-medium">Usos</th>
                 <th className="px-6 py-4 font-medium text-right">Acciones</th>
               </tr>
             </thead>
@@ -265,6 +289,15 @@ export default function GlobalQrPromosPage() {
                 return (
                   <tr key={promo._id} className="hover:bg-zinc-50/50 transition">
                     <td className="px-6 py-4 font-mono text-sm font-medium">{promo.slug}</td>
+                    <td className="px-6 py-4">
+                      {promo.code ? (
+                        <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                          {promo.code.toUpperCase()}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-300 text-xs">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={cn('px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider', TYPE_LABELS[promo.type]?.color || 'bg-zinc-100 text-zinc-700')}>
                         {TYPE_LABELS[promo.type]?.label || promo.type}
@@ -296,8 +329,22 @@ export default function GlobalQrPromosPage() {
                     <td className="px-6 py-4 text-xs text-zinc-500 whitespace-nowrap">
                       {format(new Date(promo.createdAt), "d MMM, yyyy", { locale: es })}
                     </td>
+                    <td className="px-6 py-4 text-xs text-zinc-500">
+                      {promo.code ? (
+                        <span className="font-mono">
+                          {(promo.usedCount ?? 0)}{promo.maxUses ? ` / ${promo.maxUses}` : ''}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-300">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
+                        {promo.code && (
+                          <button onClick={() => { setPushModalPromo(promo); setPushTitle(`🎉 ${promo.discountPercentage}% OFF con código ${promo.code.toUpperCase()}`); setPushBody(`Usá el código ${promo.code.toUpperCase()} y obtené ${promo.discountPercentage}% OFF en tu próximo pedido. No te lo pierdas!`)}} className="p-2 text-zinc-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Enviar por Push">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                          </button>
+                        )}
                         <button onClick={() => openModal(promo)} className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition">
                           <Edit2 size={16} />
                         </button>
@@ -313,6 +360,75 @@ export default function GlobalQrPromosPage() {
           </table>
         )}
       </div>
+
+      {pushModalPromo && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-xl">
+            <div className="p-6 border-b border-zinc-100 flex justify-between items-center">
+              <h2 className="text-xl font-bold">Enviar código por Push</h2>
+              <button onClick={() => setPushModalPromo(null)} className="text-zinc-400 hover:text-zinc-600">✕</button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              if (!pushTitle.trim() || !pushBody.trim()) return
+              setPushLoading(true)
+              try {
+                const targetTenantsParam = pushModalPromo.targetTenants?.length
+                  ? pushModalPromo.targetTenants.join(',')
+                  : ''
+                const res = await fetch('/api/superadmin/push/broadcast', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    title: pushTitle.trim(),
+                    body: pushBody.trim(),
+                    targetTenantsSlugs: targetTenantsParam || undefined,
+                    targetType: 'consumers',
+                  }),
+                })
+                if (res.ok) {
+                  toast.success(`Notificación push enviada para código ${pushModalPromo.code?.toUpperCase()}`)
+                  setPushModalPromo(null)
+                } else {
+                  const data = await res.json()
+                  toast.error(data.error || 'Error al enviar push')
+                }
+              } catch {
+                toast.error('Error de red')
+              } finally {
+                setPushLoading(false)
+              }
+            }} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Título</label>
+                <input required type="text" value={pushTitle} onChange={e => setPushTitle(e.target.value)}
+                  className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Mensaje</label>
+                <textarea required rows={3} value={pushBody} onChange={e => setPushBody(e.target.value)}
+                  className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+              </div>
+              <div className="text-xs text-zinc-500 bg-zinc-50 rounded-xl p-3">
+                Se enviará a los consumidores con notificaciones activas de los tenants:{' '}
+                {pushModalPromo.targetTenants?.length
+                  ? `${pushModalPromo.targetTenants.length} tenant(s) seleccionados`
+                  : 'TODOS los tenants'}
+              </div>
+              <div className="flex justify-end gap-3 pt-2 border-t border-zinc-100">
+                <button type="button" onClick={() => setPushModalPromo(null)}
+                  className="px-5 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-xl transition">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={pushLoading}
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-green-700 hover:bg-green-800 rounded-xl transition disabled:opacity-50 flex items-center gap-2">
+                  {pushLoading ? 'Enviando...' : 'Enviar notificación'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -402,6 +518,30 @@ export default function GlobalQrPromosPage() {
                   <label className="block text-sm font-medium text-zinc-700 mb-1">URL de imagen</label>
                   <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
                     className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                </div>
+
+                <div className="col-span-2 border-t border-zinc-200 pt-4">
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">
+                    <Tag size={16} className="inline mr-1" />
+                    Código de descuento (opcional — para campañas push)
+                  </label>
+                  <p className="text-xs text-zinc-400 mb-2">Si se define, los consumidores podrán tipear este código en el checkout para obtener el descuento. Solo visible para promos cross-tenant.</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-1">
+                      <input type="text" value={code} onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+                        className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm font-mono font-bold focus:outline-none focus:border-zinc-400" placeholder="INVIERNO2024" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-500 mb-1">Usos máx.</label>
+                      <input type="number" min="0" value={maxUses} onChange={e => setMaxUses(e.target.value)}
+                        className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" placeholder="Sin límite" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-500 mb-1">Máx. por persona</label>
+                      <input type="number" min="1" value={maxUsesPerConsumer} onChange={e => setMaxUsesPerConsumer(Number(e.target.value))}
+                        className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="col-span-2">

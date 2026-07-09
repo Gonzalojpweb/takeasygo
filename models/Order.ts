@@ -89,6 +89,8 @@ export interface IOrder extends Document {
   discountAmount: number
   qrPromoApplied: boolean
   promoSlug: string | null
+  promoCode: string | null
+  promoCreatedBy: 'superadmin' | 'admin' | null
   total: number
   customer: {
     customerId?: string
@@ -306,6 +308,15 @@ const OrderSchema = new Schema(
     },
     promoSlug: {
       type: String,
+      default: null,
+    },
+    promoCode: {
+      type: String,
+      default: null,
+    },
+    promoCreatedBy: {
+      type: String,
+      enum: ['superadmin', 'admin', null],
       default: null,
     },
     total: {

@@ -87,6 +87,7 @@ export interface CheckoutState {
   }
   activeOrderNumber: string | null
   activeQrPromo: ActiveQrPromo | null
+  promoCode: string
   loyaltyMember: any | null
   walletEnabled: boolean
   pointsLookupLoading: boolean
@@ -154,6 +155,7 @@ type CheckoutAction =
   | { type: 'SET_WALLET_ENABLED'; enabled: boolean }
   | { type: 'SET_BUSINESS_INFO'; info: BusinessInfo | null }
   | { type: 'SET_ACTIVE_QR_PROMO'; promo: ActiveQrPromo | null }
+  | { type: 'SET_PROMO_CODE'; code: string }
   | { type: 'SET_TENANT_NAME'; name: string }
   | { type: 'SET_SERVICE_HOURS'; serviceHours: CheckoutState['serviceHours']; timezone?: string }
 
@@ -225,6 +227,7 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_WALLET_ENABLED': return { ...state, walletEnabled: action.enabled }
     case 'SET_BUSINESS_INFO': return { ...state, businessInfo: action.info }
     case 'SET_ACTIVE_QR_PROMO': return { ...state, activeQrPromo: action.promo }
+    case 'SET_PROMO_CODE': return { ...state, promoCode: action.code }
     case 'SET_TENANT_NAME': return { ...state, tenantName: action.name }
     case 'SET_SERVICE_HOURS': return { ...state, serviceHours: action.serviceHours, timezone: action.timezone ?? state.timezone }
     default: return state
@@ -244,6 +247,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     form: { name: '', phone: '', email: '', birthDate: '', notes: '', countryCode: '+54' },
     activeOrderNumber: null,
     activeQrPromo: null,
+    promoCode: '',
     loyaltyMember: null,
     walletEnabled: false,
     pointsLookupLoading: false,

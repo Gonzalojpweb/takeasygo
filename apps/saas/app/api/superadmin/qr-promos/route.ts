@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       badgeLabel, offLabel, takeawayWarningTitle, takeawayWarningText,
       loadingText, checkoutDiscountLabel, sourceTriggers,
       scheduledStart, scheduledEnd, targetTenants,
+      code, maxUses, maxUsesPerConsumer,
     } = body
 
     if (!slug?.trim()) {
@@ -85,6 +86,10 @@ export async function POST(request: NextRequest) {
       loadingText: loadingText ?? 'Procesando...',
       checkoutDiscountLabel: checkoutDiscountLabel ?? 'Descuento QR',
       sourceTriggers: Array.isArray(sourceTriggers) ? sourceTriggers : ['qr'],
+      code: body.code || undefined,
+      maxUses: body.maxUses ?? undefined,
+      maxUsesPerConsumer: body.maxUsesPerConsumer ?? 1,
+      createdBy: 'superadmin',
     })
 
     return NextResponse.json({ promo }, { status: 201 })

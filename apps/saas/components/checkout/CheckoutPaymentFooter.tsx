@@ -11,7 +11,7 @@ export default function CheckoutPaymentFooter() {
   const {
     currentStep, cart, form, mode, deliveryMode, tenantSlug, locationId,
     scheduleOrder, scheduledPickupAt, deliveryAddress, deliveryQuote, deliveryConfirmed,
-    activeQrPromo, joinClub, loyaltyConfig, selectedRewardItemId,
+    activeQrPromo, promoCode, joinClub, loyaltyConfig, selectedRewardItemId,
     kriptonEnabled, transferEnabled, selectedPaymentMethod, loading, redirectingToMp,
   } = state
 
@@ -79,6 +79,7 @@ export default function CheckoutPaymentFooter() {
         joinClub: joinClub && loyaltyConfig?.enabled,
         qrPromoApplied: !!activeQrPromo,
         promoSlug: activeQrPromo?.promoSlug ?? undefined,
+        promoCode: promoCode || undefined,
         ...(selectedRewardItemId && selectedRewardItem
           ? { rewardItems: [{ storeItemId: selectedRewardItemId }], loyaltyPointsRequired: selectedRewardItem.pointsCost }
           : {}),

@@ -23,6 +23,11 @@ export interface IQrPromo extends Document {
   loadingText: string
   checkoutDiscountLabel: string
   sourceTriggers: string[]
+  code?: string
+  maxUses?: number
+  usedCount: number
+  maxUsesPerConsumer: number
+  createdBy: 'superadmin' | 'admin'
   createdAt: Date
   updatedAt: Date
 }
@@ -70,6 +75,16 @@ const QrPromoSchema = new Schema<IQrPromo>(
     loadingText: { type: String, default: 'Procesando...' },
     checkoutDiscountLabel: { type: String, default: 'Descuento QR' },
     sourceTriggers: { type: [String], default: ['qr'] },
+    code: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      sparse: true,
+    },
+    maxUses: { type: Number },
+    usedCount: { type: Number, default: 0, min: 0 },
+    maxUsesPerConsumer: { type: Number, default: 1, min: 1 },
+    createdBy: { type: String, enum: ['superadmin', 'admin'], default: 'admin' },
   },
   {
     timestamps: true,
@@ -79,6 +94,8 @@ const QrPromoSchema = new Schema<IQrPromo>(
 QrPromoSchema.index({ tenantId: 1, slug: 1 }, { unique: true, sparse: true })
 QrPromoSchema.index({ tenantId: 1, isEnabled: 1 })
 QrPromoSchema.index({ tenantId: 1, sourceTriggers: 1 })
+QrPromoSchema.index({ code: 1 }, { unique: true, sparse: true })
+QrPromoSchema.index({ code: 1, isEnabled: 1 })
 QrPromoSchema.index({ scope: 1 })
 QrPromoSchema.index({ scope: 1, targetTenants: 1 })
 

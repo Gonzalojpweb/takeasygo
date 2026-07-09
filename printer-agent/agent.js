@@ -576,6 +576,17 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
         chunks.push(buf('\n\n'));
     });
 
+    // Promo de superadmin
+    if (order.promoCode && order.promoCreatedBy === 'superadmin') {
+        chunks.push(ESC_POS.ALIGN_CENTER, ESC_POS.BOLD_ON);
+        chunks.push(buf(`[PROMO SUPERADMIN: ${order.promoCode.toUpperCase()}]\n`));
+        chunks.push(ESC_POS.BOLD_OFF, ESC_POS.ALIGN_LEFT);
+    } else if (order.discountAmount > 0 && order.promoSlug) {
+        chunks.push(ESC_POS.ALIGN_CENTER);
+        chunks.push(buf(`[DESCUENTO PROMO: ${order.promoSlug.toUpperCase()}]\n`));
+        chunks.push(ESC_POS.ALIGN_LEFT);
+    }
+
     chunks.push(buf(`${lineStr}\n`));
     if (settings.showTotal && role === 'cashier') {
         chunks.push(ESC_POS.ALIGN_RIGHT, ESC_POS.BOLD_ON);
