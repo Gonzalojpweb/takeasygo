@@ -1,0 +1,250 @@
+'use client'
+
+import { useEffect, useState, useRef } from 'react'
+import confetti from 'canvas-confetti'
+import { Star, Sparkles, Heart, Download, Camera, Loader2 } from 'lucide-react'
+
+interface Props {
+  customerName: string
+  locationId: string
+  pointsEarnedFromOrder: number
+  loyaltyData: { name: string; points: number; tier: string } | null
+  tenantName: string
+  tenantSlug: string
+  orderNumber: string
+  orderId: string
+  orderMode: string
+  ratingToken: string | null
+  primaryColor: string
+  backgroundColor: string
+  clubName: string
+  hasRewardItems: boolean
+}
+
+export default function PostDeliveryCelebration({
+  customerName,
+  locationId,
+  pointsEarnedFromOrder,
+  loyaltyData,
+  tenantName,
+  tenantSlug,
+  orderNumber,
+  orderId,
+  ratingToken,
+  primaryColor,
+  backgroundColor,
+  clubName,
+  hasRewardItems,
+}: Props) {
+  const [ogImageUrl, setOgImageUrl] = useState<string | null>(null)
+  const [ogLoading, setOgLoading] = useState(false)
+  const [ogError, setOgError] = useState(false)
+  const [shared, setShared] = useState(false)
+  const celebRef = useRef(false)
+
+  // Subtle confetti on mount
+  useEffect(() => {
+    if (celebRef.current) return
+    celebRef.current = true
+    const end = Date.now() + 1000
+    let raf: number
+    const frame = () => {
+      confetti({
+        particleCount: 3,
+        angle: 90,
+        spread: 120,
+        origin: { x: 0.5, y: 0.3 },
+        colors: [primaryColor, '#facc15', '#34d399', '#f97316'],
+        gravity: 0.8,
+        scalar: 1.2,
+      })
+      if (Date.now() < end) {
+        raf = requestAnimationFrame(frame)
+      }
+    }
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+  }, [primaryColor])
+
+  // Generate OG image for sharing
+  async function handleShare() {
+    setOgLoading(true)
+    setOgError(false)
+    try {
+      const token = ratingToken
+      if (!token) {
+        setOgError(true)
+        return
+      }
+      const res = await fetch(
+        `/api/og/receipt?orderId=${orderId}&token=${token}&tenantSlug=${tenantSlug}`,
+        { cache: 'no-store' }
+      )
+      if (!res.ok) throw new Error('Error generating image')
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      setOgImageUrl(url)
+
+      // Try Web Share API first
+      if (navigator.share && navigator.canShare?.({ files: [new File([blob], 'pedido.png', { type: 'image/png' })] })) {
+        await navigator.share({
+          title: `Mi pedido en ${tenantName}`,
+          text: `${customerName} bancó a ${tenantName} hoy 🔥`,
+          files: [new File([blob], 'pedido.png', { type: 'image/png' })],
+        })
+        setShared(true)
+      }
+    } catch {
+      setOgError(true)
+    } finally {
+      setOgLoading(false)
+    }
+  }
+
+  async function handleDownload() {
+    try {
+      const token = ratingToken
+      if (!token) return
+      const res = await fetch(
+        `/api/og/receipt?orderId=${orderId}&token=${token}&tenantSlug=${tenantSlug}`,
+        { cache: 'no-store' }
+      )
+      if (!res.ok) throw new Error('Error')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `pedido-${orderNumber}.png`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {}
+  }
+
+  return (
+    <div className="mb-8 space-y-6">
+      {/* Celebration header */}
+      <div className="text-center space-y-2 py-4">
+        <div className="text-5xl animate-bounce">🍽️</div>
+        <p className="font-black text-2xl">
+          ¡Pedido completado{customerName ? `, ${customerName}` : ''}!
+        </p>
+        <p className="text-sm opacity-60">
+          Gracias por elegirnos. ¡Que lo disfrutes!
+        </p>
+      </div>
+
+      {/* Points earned (only for loyalty members) */}
+      {loyaltyData && pointsEarnedFromOrder > 0 && (
+        <div className="rounded-2xl p-4 border border-amber-200 bg-amber-50 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+            <Star size={18} className="text-amber-600 fill-amber-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-amber-800">
+              ¡Ganaste <span className="text-lg">{pointsEarnedFromOrder}</span> puntos!
+            </p>
+            <p className="text-xs text-amber-600">
+              Tenés {loyaltyData.points} puntos en tu {clubName}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Join club CTA (only for non-members) */}
+      {!loyaltyData && (
+        <a
+          href={`/${tenantSlug}/club/lookup`}
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold text-sm border-2"
+          style={{ borderColor: '#f59e0b', color: '#d97706' }}
+        >
+          <Sparkles size={16} />
+          Sumate al Club y acumulá puntos
+        </a>
+      )}
+
+      {/* Compartir button */}
+      <div className="space-y-3">
+        {ogImageUrl && (
+          <div className="rounded-xl overflow-hidden border">
+            <img src={ogImageUrl} alt="Tu pedido" className="w-full" />
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={handleShare}
+            disabled={ogLoading}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-opacity hover:opacity-80 disabled:opacity-50"
+            style={{ backgroundColor: primaryColor, color: backgroundColor }}
+          >
+            {ogLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : shared ? (
+              <Heart size={16} className="fill-current" />
+            ) : (
+              <Camera size={16} />
+            )}
+            {ogLoading ? 'Generando...' : shared ? '¡Compartido!' : 'Compartí en Instagram Stories'}
+          </button>
+
+          <button
+            onClick={handleDownload}
+            className="w-12 h-12 rounded-2xl flex items-center justify-center border-2"
+            style={{ borderColor: primaryColor + '40', color: primaryColor }}
+            title="Descargar imagen"
+          >
+            <Download size={18} />
+          </button>
+        </div>
+
+        {ogError && !ogImageUrl && (
+          <p className="text-xs text-center text-red-400">
+            No se pudo generar la imagen. Podés compartir el link de seguimiento.
+          </p>
+        )}
+
+        {shared && (
+          <p className="text-xs text-center text-emerald-600 flex items-center justify-center gap-1">
+            <Heart size={12} className="fill-emerald-600" /> ¡Gracias por compartir!
+          </p>
+        )}
+      </div>
+
+      {/* Rating + Back to menu */}
+      <div className="space-y-3 mt-6">
+        {ratingToken && (
+          <a
+            href={`/${tenantSlug}/rate/${orderNumber}?token=${ratingToken}`}
+            className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-base border-2 transition-opacity hover:opacity-80"
+            style={{ borderColor: primaryColor, color: primaryColor }}
+          >
+            ⭐ Calificá tu experiencia
+          </a>
+        )}
+
+        <a
+          href={`/${tenantSlug}/menu/${locationId}/takeaway`}
+          className="block w-full text-center py-4 rounded-2xl font-bold text-base"
+          style={{ backgroundColor: primaryColor, color: backgroundColor }}
+        >
+          Volver al menú
+        </a>
+      </div>
+
+      {/* Reward items */}
+      {hasRewardItems && (
+        <div className="text-center">
+          <a
+            href={`/app/profile/club/${tenantSlug}`}
+            className="text-sm font-medium inline-flex items-center gap-1"
+            style={{ color: primaryColor }}
+          >
+            <Star size={14} className="fill-current" />
+            Ver mis canjes
+          </a>
+        </div>
+      )}
+    </div>
+  )
+}
