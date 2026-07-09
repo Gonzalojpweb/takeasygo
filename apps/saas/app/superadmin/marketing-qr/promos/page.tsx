@@ -341,7 +341,7 @@ export default function GlobalQrPromosPage() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         {promo.code && (
-                          <button onClick={() => { setPushModalPromo(promo); setPushTitle(`🎉 ${promo.discountPercentage}% OFF con código ${promo.code.toUpperCase()}`); setPushBody(`Usá el código ${promo.code.toUpperCase()} y obtené ${promo.discountPercentage}% OFF en tu próximo pedido. No te lo pierdas!`)}} className="p-2 text-zinc-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Enviar por Push">
+                          <button onClick={() => { const c = promo.code?.toUpperCase() ?? ''; setPushModalPromo(promo); setPushTitle(`🎉 ${promo.discountPercentage}% OFF con código ${c}`); setPushBody(`Usá el código ${c} y obtené ${promo.discountPercentage}% OFF en tu próximo pedido. No te lo pierdas!`)}} className="p-2 text-zinc-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Enviar por Push">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
                           </button>
                         )}
