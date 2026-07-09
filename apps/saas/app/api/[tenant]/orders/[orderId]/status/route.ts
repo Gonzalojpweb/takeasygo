@@ -19,6 +19,7 @@ webpush.setVapidDetails(
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending:    ['confirmed', 'cancelled'],
+  awaiting_confirmation: ['confirmed', 'cancelled'],
   confirmed:  ['preparing', 'cancelled'],
   preparing:  ['ready', 'cancelled'],
   ready:      ['en_ruta', 'delivered'],

@@ -39,7 +39,11 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, 
   async function handleClick() {
     setLoading(true)
     try {
-      const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/status`, {
+      const isTransferConfirm = currentStatus === 'awaiting_confirmation'
+      const endpoint = isTransferConfirm
+        ? `/api/${tenantSlug}/orders/${orderId}/confirm-transfer-admin`
+        : `/api/${tenantSlug}/orders/${orderId}/status`
+      const res = await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: next!.value }),
