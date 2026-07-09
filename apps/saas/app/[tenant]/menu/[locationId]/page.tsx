@@ -7,6 +7,7 @@ import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import MenuWithExploreNav from '@/components/menu/MenuWithExploreNav'
 import WelcomeBackground from '@/components/menu/WelcomeBackground'
 import WelcomeLocationBar from '@/components/menu/WelcomeLocationBar'
+import ReturningCustomerBanner from '@/components/menu/ReturningCustomerBanner'
 
 export const revalidate = 300
 
@@ -351,6 +352,8 @@ export default async function MenuSelectorPage({ params }: Props) {
         <div aria-hidden className="mh-scrim" style={!hasHero ? { background: 'rgba(0,0,0,0.15)' } : undefined} />
 
         <WelcomeLocationBar tenantSlug={tenantSlug} location={location} />
+
+        <ReturningCustomerBanner tenantSlug={tenantSlug} />
 
         {/* ── Main content ── */}
         <div className="mh-content">

@@ -11,6 +11,7 @@ import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
 import { StatusNotificationCard } from './StatusNotificationCard'
 import PointsEarnedToast from '@/components/rewards/PointsEarnedToast'
+import PostDeliveryCelebration from './PostDeliveryCelebration'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 
 const STATUS_STEPS = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
@@ -752,6 +753,7 @@ export default function OrderTracker({
             backgroundColor={backgroundColor}
             textColor={textColor}
             onConfirmed={() => setStatus('delivered')}
+            customerName={initialCustomerName}
           />
         </div>
       )}
@@ -824,43 +826,24 @@ export default function OrderTracker({
         </div>
       )}
 
-      {/* CTAs cuando está entregado */}
+      {/* Post-delivery celebration */}
       {status === 'delivered' && (
-        <div className="mb-8 space-y-3">
-          {/* Calificación — solo si hay token */}
-          {ratingToken && (
-            <a
-              href={`/${tenantSlug}/rate/${orderNumber}?token=${ratingToken}`}
-              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-base border-2 transition-opacity hover:opacity-80"
-              style={{ borderColor: primaryColor, color: primaryColor }}>
-              ⭐ Calificá tu experiencia
-            </a>
-          )}
-          {orderMode === 'business' ? (
-            <a
-              href={`/${tenantSlug}/business/corp`}
-              className="block w-full text-center py-4 rounded-2xl font-bold text-base"
-              style={{ backgroundColor: primaryColor, color: backgroundColor }}>
-              Volver al portal corporativo
-            </a>
-          ) : (
-            <a
-              href={`/${tenantSlug}/menu/${locationId}/takeaway`}
-              className="block w-full text-center py-4 rounded-2xl font-bold text-base"
-              style={{ backgroundColor: primaryColor, color: backgroundColor }}>
-              Volver al menú
-            </a>
-          )}
-          {hasRewardItems && loyaltyData && (
-            <a
-              href={`/app/profile/club/${tenantSlug}`}
-              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-base border-2 transition-opacity hover:opacity-80"
-              style={{ borderColor: primaryColor, color: primaryColor }}>
-              <Star size={16} className="fill-current" />
-              Ver mis canjes
-            </a>
-          )}
-        </div>
+        <PostDeliveryCelebration
+          customerName={initialCustomerName}
+          pointsEarnedFromOrder={pointsEarnedFromOrder}
+          loyaltyData={loyaltyData}
+          tenantName={tenantName}
+          tenantSlug={tenantSlug}
+          orderNumber={orderNumber}
+          locationId={locationId}
+          orderId={orderId}
+          orderMode={orderMode ?? ''}
+          ratingToken={ratingToken}
+          primaryColor={primaryColor}
+          backgroundColor={backgroundColor}
+          clubName={clubName}
+          hasRewardItems={hasRewardItems}
+        />
       )}
       
       {/* Estrategia B: Share-to-Earn (UGC) */}

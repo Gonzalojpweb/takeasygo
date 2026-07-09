@@ -12,6 +12,7 @@ interface Props {
   backgroundColor: string
   textColor: string
   onConfirmed?: () => void
+  customerName?: string
 }
 
 export default function ConfirmPickupButton({
@@ -22,6 +23,7 @@ export default function ConfirmPickupButton({
   backgroundColor,
   textColor,
   onConfirmed,
+  customerName,
 }: Props) {
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
@@ -69,7 +71,11 @@ export default function ConfirmPickupButton({
         <div className="text-5xl animate-bounce">✅</div>
         <div>
           <p className="font-black text-xl mb-1">¡Pedido retirado!</p>
-          <p className="text-sm opacity-60">Gracias por tu compra. ¡Que lo disfrutes!</p>
+          <p className="text-sm opacity-60">
+            {customerName
+              ? `🎉 ¡Gracias ${customerName}, que lo disfrutes!`
+              : 'Gracias por tu compra. ¡Que lo disfrutes!'}
+          </p>
         </div>
         <a
           href={`/${tenantSlug}/menu/${locationId}/takeaway`}

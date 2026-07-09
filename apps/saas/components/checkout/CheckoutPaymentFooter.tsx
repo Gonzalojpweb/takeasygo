@@ -142,6 +142,17 @@ export default function CheckoutPaymentFooter() {
 
       sessionStorage.removeItem('cart')
 
+      // Save customer identity for personalization (cosmetic only, never source of truth)
+      try {
+        const prevRaw = localStorage.getItem(`tgo-customer-${tenantSlug}`)
+        const prev = prevRaw ? JSON.parse(prevRaw) : {}
+        localStorage.setItem(`tgo-customer-${tenantSlug}`, JSON.stringify({
+          name: form.name,
+          totalOrders: (prev.totalOrders || 0) + 1,
+          lastOrderAt: Date.now(),
+        }))
+      } catch {}
+
       // Create payment preference
       if (selectedPaymentMethod === 'transfer') {
         try {
