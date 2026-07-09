@@ -24,6 +24,7 @@ export interface PreCloseData {
   paymentApproved: number
   paymentPending: number
   paymentRejected: number
+  paymentMethodBreakdown: { method: string; orders: number; revenue: number }[]
 }
 
 export async function aggregateOrdersForRange(
@@ -84,6 +85,18 @@ export async function aggregateOrdersForRange(
   const paymentPending = active.filter(o => o.payment?.status === 'pending').length
   const paymentRejected = active.filter(o => o.payment?.status === 'rejected').length
 
+  // Payment method breakdown
+  const methodMap: Record<string, { orders: number; revenue: number }> = {}
+  for (const o of active) {
+    const m = o.payment?.method || 'desconocido'
+    if (!methodMap[m]) methodMap[m] = { orders: 0, revenue: 0 }
+    methodMap[m].orders++
+    methodMap[m].revenue += o.total
+  }
+  const paymentMethodBreakdown = Object.entries(methodMap)
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+    .map(([method, data]) => ({ method, ...data }))
+
   return {
     locationName,
     from: from.toISOString(),
@@ -108,6 +121,7 @@ export async function aggregateOrdersForRange(
     paymentApproved,
     paymentPending,
     paymentRejected,
+    paymentMethodBreakdown,
   }
 }
 
@@ -215,6 +229,28 @@ export function buildPreCloseBuffer(data: PreCloseData, columns: number = 32): s
   line('Aprobados', data.paymentApproved.toString())
   line('Pendientes', data.paymentPending.toString())
   line('Rechazados', data.paymentRejected.toString())
+
+  // ── Payment method breakdown ──────────────────────────────────────────
+  if (data.paymentMethodBreakdown.length > 0) {
+    chunks.push(buf(`\n${lineStr}\n`))
+    chunks.push(ESC_POS.ALIGN_CENTER, ESC_POS.BOLD_ON)
+    chunks.push(buf(`FORMA DE PAGO\n`))
+    chunks.push(ESC_POS.BOLD_OFF, ESC_POS.ALIGN_LEFT)
+
+    const methodLabels: Record<string, string> = {
+      mercadopago: 'Mercado Pago',
+      kripton: 'Kripton',
+      transfer: 'Transferencia',
+    }
+
+    for (const m of data.paymentMethodBreakdown) {
+      const label = methodLabels[m.method] || m.method
+      const value = `${m.orders}u  $${money(m.revenue)}`
+      const text = `  ${label}`
+      const dots = '.'.repeat(Math.max(1, columns - text.length - value.length))
+      chunks.push(buf(`${text}${dots}${value}\n`))
+    }
+  }
 
   chunks.push(buf(`\n${lineStr}\n`))
 

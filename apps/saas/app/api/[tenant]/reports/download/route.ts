@@ -22,6 +22,12 @@ const PAYMENT_LABELS: Record<string, string> = {
   cancelled: 'Cancelado',
 }
 
+const METHOD_LABELS: Record<string, string> = {
+  mercadopago: 'Mercado Pago',
+  kripton: 'Kripton',
+  transfer: 'Transferencia',
+}
+
 function fmt(n: number) {
   return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -104,6 +110,16 @@ export async function GET(
     })
     const topItems = Object.entries(itemMap)
       .sort((a, b) => b[1].quantity - a[1].quantity)
+
+    // Payment method breakdown
+    const methodMap: Record<string, { orders: number; revenue: number }> = {}
+    active.forEach(o => {
+      const m = o.payment?.method || 'desconocido'
+      if (!methodMap[m]) methodMap[m] = { orders: 0, revenue: 0 }
+      methodMap[m].orders++
+      methodMap[m].revenue += o.total
+    })
+    const methodEntries = Object.entries(methodMap).sort((a, b) => b[1].revenue - a[1].revenue)
 
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'TakeAsyGo'
@@ -293,6 +309,47 @@ export async function GET(
     totalRow.getCell('total').numFmt = '"$"#,##0.00'
     totalRow.getCell('total').font = { bold: true, color: { argb: PRIMARY } }
     totalRow.eachCell(cell => {
+      cell.border = { top: { style: 'medium', color: { argb: PRIMARY } } }
+    })
+
+    // ── Sheet 5: VENTAS POR MÉTODO DE PAGO ──────────────────────────────────────
+    const ws5 = workbook.addWorksheet('Método de pago')
+    ws5.columns = [
+      { header: 'Método', key: 'method', width: 22 },
+      { header: 'Órdenes', key: 'orders', width: 12 },
+      { header: 'Ingresos', key: 'revenue', width: 18 },
+      { header: '% del total', key: 'pct', width: 14 },
+    ]
+
+    ws5.getRow(1).eachCell(cell => styleHeader(cell))
+    ws5.getRow(1).height = 28
+
+    methodEntries.forEach(([method, data], i) => {
+      const pct = totalRevenue > 0 ? Math.round((data.revenue / totalRevenue) * 100) : 0
+      const label = METHOD_LABELS[method] || method
+      const row = ws5.addRow({ method: label, orders: data.orders, revenue: data.revenue, pct: `${pct}%` })
+      row.getCell('revenue').numFmt = '"$"#,##0.00'
+      row.height = 22
+      if (i % 2 === 0) {
+        row.eachCell(cell => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_ALT } }
+        })
+      }
+    })
+
+    // Totals row
+    const totalRow5 = ws5.addRow({
+      method: 'TOTAL',
+      orders: active.length,
+      revenue: totalRevenue,
+      pct: '100%',
+    })
+    totalRow5.getCell('method').font = { bold: true, color: { argb: PRIMARY } }
+    totalRow5.getCell('orders').font = { bold: true }
+    totalRow5.getCell('revenue').numFmt = '"$"#,##0.00'
+    totalRow5.getCell('revenue').font = { bold: true, color: { argb: PRIMARY } }
+    totalRow5.getCell('pct').font = { bold: true }
+    totalRow5.eachCell(cell => {
       cell.border = { top: { style: 'medium', color: { argb: PRIMARY } } }
     })
 

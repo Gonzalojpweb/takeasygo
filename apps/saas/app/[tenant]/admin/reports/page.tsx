@@ -71,6 +71,7 @@ export default async function ReportsPage() {
     locationRevenueData,
     upsellAddsData,
     upsellConversionsData,
+    paymentMethodData,
   ] = await Promise.all([
     // Revenue y count del mes actual (sin cancelados)
     Order.aggregate([
@@ -246,6 +247,16 @@ export default async function ReportsPage() {
       { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
       { $group: { _id: { name: '$items.name', source: '$items.addedFrom' }, conversions: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
     ]) : Promise.resolve([]),
+    // Ventas por método de pago — todos los planes
+    Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
+      { $group: {
+        _id: '$payment.method',
+        orders: { $sum: 1 },
+        revenue: { $sum: '$total' },
+      }},
+      { $sort: { revenue: -1 } },
+    ]),
   ])
 
   const thisMonth = ordersThisMonth[0] || { total: 0, count: 0 }
@@ -390,6 +401,12 @@ export default async function ReportsPage() {
     revenueByCategory,
     dailyTrend,
     revenueByLocation,
+    // Ventas por método de pago
+    paymentMethodBreakdown: (paymentMethodData as any[]).map(d => ({
+      method: (d._id as string) || 'desconocido',
+      orders: d.orders as number,
+      revenue: d.revenue as number,
+    })),
     // Upselling analytics
     upsellRows,
     upsellTotalAdds,
