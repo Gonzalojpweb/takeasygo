@@ -176,19 +176,23 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
   }
 
   function openPrintSettings(p: PrinterData) {
-    setEditingPrintSettings(p)
+    setEditingPrintSettings({
+      ...p,
+      printSettings: (p.printSettings ?? EMPTY_FORM.printSettings) as any,
+    })
     setShowPrintSettings(true)
   }
 
   function updatePrintSettings(role: PrinterRole, key: keyof RolePrintSettings, value: any) {
     setEditingPrintSettings(prev => {
       if (!prev) return prev
+      const base = prev.printSettings || EMPTY_FORM.printSettings
       return {
         ...prev,
         printSettings: {
-          ...prev.printSettings!,
+          ...base,
           [role]: {
-            ...prev.printSettings![role],
+            ...base[role],
             [key]: value,
           },
         },
