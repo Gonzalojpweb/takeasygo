@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const totalSubscriptions = await PushSubscription.countDocuments({})
     const totalLinked = await PushSubscription.countDocuments({
-      phoneHash: { $ne: null, $exists: true, $ne: '' },
+      phoneHash: { $exists: true, $nin: [null, ''] },
     })
     const totalUnlinked = await PushSubscription.countDocuments({
       $or: [
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         const subs = await PushSubscription.countDocuments({ tenantId: t._id })
         const linked = await PushSubscription.countDocuments({
           tenantId: t._id,
-          phoneHash: { $ne: null, $exists: true, $ne: '' },
+phoneHash: { $exists: true, $nin: [null, ''] },
         })
         return {
           _id: t._id,
