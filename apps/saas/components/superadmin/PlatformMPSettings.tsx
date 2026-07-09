@@ -53,6 +53,7 @@ export default function PlatformMPSettings({
   const [oauthRedirectUri, setOauthRedirectUri] = useState('')
   const [oauthPlatformFee, setOauthPlatformFee] = useState(5)
   const [showOAuthSecret, setShowOAuthSecret] = useState(false)
+  const [oauthAppIdError, setOauthAppIdError] = useState<string | null>(null)
   const [oauthIsConfigured, setOAuthIsConfigured] = useState(initialMpOAuth?.isConfigured ?? false)
   const [oauthAppIdHint, setOAuthAppIdHint]   = useState(initialMpOAuth?.appId ?? null)
   const [oauthAppSecretHint, setOAuthAppSecretHint] = useState(initialMpOAuth?.appSecretHint ?? null)
@@ -69,8 +70,15 @@ export default function PlatformMPSettings({
     if (!accessToken && !webhookSecret && !oauthAppId && !oauthAppSecret && !oauthRedirectUri) return
 
     setError(null)
+    setOauthAppIdError(null)
     setSuccess(false)
     setLoading(true)
+
+    if (oauthAppId && !/^\d+$/.test(oauthAppId)) {
+      setOauthAppIdError('El App ID de MercadoPago debe ser un número')
+      setLoading(false)
+      return
+    }
 
     try {
       const body: any = {}
@@ -289,10 +297,13 @@ export default function PlatformMPSettings({
             <input
               type="text"
               value={oauthAppId}
-              onChange={(e) => setOauthAppId(e.target.value)}
-              placeholder={oauthAppIdHint ?? 'APP_USR-...'}
+              onChange={(e) => { setOauthAppId(e.target.value); setOauthAppIdError(null) }}
+              placeholder={oauthAppIdHint ?? '1234567890'}
               className="w-full bg-muted/30 border border-border/60 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+            {oauthAppIdError && (
+              <p className="text-[11px] text-destructive mt-1">{oauthAppIdError}</p>
+            )}
           </div>
 
           {/* App Secret */}
