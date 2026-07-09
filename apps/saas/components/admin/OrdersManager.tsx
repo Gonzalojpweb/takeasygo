@@ -772,6 +772,16 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                           </span>
                         )
                       })()}
+                      {order.promoCreatedBy === 'superadmin' && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold border border-green-200 bg-green-50 text-green-700">
+                          🟢 SuperAdmin
+                        </span>
+                      )}
+                      {order.promoCode && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold border border-zinc-200 bg-zinc-50 text-zinc-600">
+                          {order.promoCode.toUpperCase()}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       {order.orderTiming === 'scheduled' && order.scheduledPickupAt ? (

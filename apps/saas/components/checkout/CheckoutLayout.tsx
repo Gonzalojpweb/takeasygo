@@ -79,6 +79,9 @@ function CheckoutLayoutInner() {
           {!deliveryMode && <TakeawayScheduleSection />}
           <CustomerInfoForm />
 
+          <PromoCodeInput />
+          {/* ^ Si se ingresa un código, se envía como body.promoCode al backend */}
+
           <LoyaltySection
             loyaltyMember={loyaltyMember}
             loyaltyConfig={loyaltyConfig}
@@ -709,6 +712,74 @@ function LegalLinks({ onOpen }: { onOpen: (modal: 'terminos' | 'privacidad') => 
       <button type="button" onClick={() => onOpen('privacidad')} className="text-xs text-zinc-400 hover:text-zinc-600 underline underline-offset-2 transition-colors">
         Política de Privacidad
       </button>
+    </div>
+  )
+}
+
+function PromoCodeInput() {
+  const { state, dispatch } = useCheckout()
+  const [open, setOpen] = useState(false)
+  const [input, setInput] = useState('')
+  const [error, setError] = useState('')
+
+  function handleApply() {
+    const code = input.trim().toUpperCase()
+    if (!code) return
+    setError('')
+    dispatch({ type: 'SET_PROMO_CODE', code })
+    setInput('')
+    setOpen(false)
+  }
+
+  return (
+    <div className="border-t border-zinc-100 pt-4">
+      {state.promoCode ? (
+        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 5L5 19M6.5 9a2.5 2.5 0 110-5 2.5 2.5 0 010 5zM17.5 20a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg>
+            <span className="text-sm font-bold text-indigo-700 font-mono">{state.promoCode}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'SET_PROMO_CODE', code: '' })}
+            className="text-xs text-indigo-500 hover:text-indigo-700 font-medium"
+          >
+            Quitar
+          </button>
+        </div>
+      ) : (
+        <div>
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            className="text-xs text-zinc-400 hover:text-zinc-600 font-medium flex items-center gap-1 transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 5L5 19M6.5 9a2.5 2.5 0 110-5 2.5 2.5 0 010 5zM17.5 20a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg>
+            Tengo un código de descuento
+          </button>
+          {open && (
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={e => { setInput(e.target.value.toUpperCase()); setError('') }}
+                onKeyDown={e => e.key === 'Enter' && handleApply()}
+                placeholder="INVIERNO2024"
+                className="flex-1 border border-zinc-200 rounded-xl px-4 py-3 text-sm font-mono font-bold focus:outline-none focus:border-indigo-400 uppercase"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={handleApply}
+                className="px-4 py-3 bg-zinc-900 text-white text-sm font-bold rounded-xl hover:bg-zinc-800 transition"
+              >
+                Aplicar
+              </button>
+            </div>
+          )}
+          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        </div>
+      )}
     </div>
   )
 }

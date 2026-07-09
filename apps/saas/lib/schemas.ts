@@ -66,6 +66,7 @@ export const createOrderSchema = z.object({
   scheduledPickupAt: z.string().datetime().optional(),
   qrPromoApplied: z.boolean().optional().default(false),
   promoSlug: z.string().optional().nullable(),
+  promoCode: z.string().optional().nullable(),
   rewardItems: z.array(rewardItemSchema).max(5).optional().default([]),
   loyaltyPointsRequired: z.number().int().min(0).optional().default(0),
   source: z.string().optional().nullable(),

@@ -31,6 +31,7 @@ import PlatformConfig from '@/models/PlatformConfig'
 import { calculateDeliveryCost } from '@/lib/geocode'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
+import { rateLimit } from '@/lib/rateLimit'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -212,6 +213,48 @@ export async function POST(
           })).sort({ createdAt: -1 }).lean()
         }
       }
+    }
+
+    // Resolver promoCode de superadmin (scope: 'global', lookup por code)
+    // Se resuelve antes que qrPromoApplied para que el código tenga prioridad
+    if (body.promoCode && !activeQrPromo) {
+      const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+      const { success } = await rateLimit(`promocode:${ip}`, 10, 60_000)
+      if (!success) {
+        return NextResponse.json({ error: 'Demasiados intentos. Esperá un minuto.' }, { status: 429 })
+      }
+
+      const now = new Date()
+      const promoByCode = await QrPromo.findOne({
+        code: body.promoCode.toLowerCase().trim(),
+        isEnabled: true,
+        scope: 'global',
+        $and: [
+          { $or: [{ scheduledStart: null }, { scheduledStart: { $lte: now } }] },
+          { $or: [{ scheduledEnd: null }, { scheduledEnd: { $gte: now } }] },
+          { $or: [{ targetTenants: { $size: 0 } }, { targetTenants: tenantId }] },
+        ],
+      }).lean()
+
+      if (!promoByCode) {
+        return NextResponse.json({ error: 'Código inválido' }, { status: 400 })
+      }
+
+      // Atomic check-and-increment: evita TOCTOU en maxUses
+      if (promoByCode.maxUses != null) {
+        const updated = await QrPromo.findOneAndUpdate(
+          { _id: promoByCode._id, $expr: { $lt: ['$usedCount', '$maxUses'] } },
+          { $inc: { usedCount: 1 } },
+          { new: true }
+        )
+        if (!updated) {
+          return NextResponse.json({ error: 'Código agotado' }, { status: 400 })
+        }
+        // Usar el doc actualizado para el resto del flujo
+        promoByCode.usedCount = updated.usedCount
+      }
+
+      activeQrPromo = promoByCode
     }
 
     const joinClub = body.joinClub === true
@@ -646,6 +689,23 @@ export async function POST(
     let discountAmount = 0
     let qrPromoApplied = false
 
+    // Validar maxUsesPerConsumer si se usó un código promocional
+    if (activeQrPromo?.code && body.customer.phone) {
+      const consumerUses = await Order.countDocuments({
+        promoSlug: activeQrPromo.slug,
+        'customer.phoneHash': hashPhone(body.customer.phone),
+        status: { $ne: 'cancelled' },
+        'payment.status': { $ne: 'cancelled' },
+      })
+      if (consumerUses >= (activeQrPromo.maxUsesPerConsumer ?? 1)) {
+        // Devolver el uso atómico si ya se incrementó
+        if (body.promoCode && activeQrPromo.maxUses != null) {
+          await QrPromo.updateOne({ _id: activeQrPromo._id }, { $inc: { usedCount: -1 } }).catch(() => {})
+        }
+        return NextResponse.json({ error: 'Ya usaste este código' }, { status: 400 })
+      }
+    }
+
     if (activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
       const qrEligibleSubtotal = resolvedItems
         .filter(item => item.itemType !== 'promotion')
@@ -897,7 +957,9 @@ export async function POST(
       scheduledPickupAt,
       scheduledStatus,
       source: body.source ?? null,
-      promoSlug: body.promoSlug ?? null,
+      promoSlug: activeQrPromo?.slug ?? body.promoSlug ?? null,
+      promoCode: activeQrPromo?.code ?? null,
+      promoCreatedBy: activeQrPromo?.createdBy ?? null,
       ...(isDeferredBusiness ? { statusTimestamps: { confirmedAt: new Date() } } : {}),
       ...(isBusinessOrder && body.corporateAccountId ? {
         corporateAccountId: body.corporateAccountId,
@@ -928,6 +990,14 @@ export async function POST(
       } catch (e) {
         console.error('[consumer] upsert error:', e)
       }
+    }
+
+    // Auto-backfill: vincular suscripción push al phoneHash del cliente
+    if (body.clientToken && encryptedCustomer.phoneHash) {
+      PushSubscription.updateOne(
+        { clientToken: body.clientToken },
+        { $set: { phoneHash: encryptedCustomer.phoneHash, tenantId: tenant._id } }
+      ).catch(() => {})
     }
 
     const customerName = body.customer?.name?.trim() || 'Cliente'
