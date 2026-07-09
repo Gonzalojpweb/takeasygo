@@ -114,6 +114,7 @@ export interface CheckoutState {
     delivery?: ServiceHoursSlot[]
   }
   timezone?: string
+  deliveryConfig?: { enabled?: boolean }
 }
 
 type CheckoutAction =
@@ -149,7 +150,7 @@ type CheckoutAction =
   | { type: 'SET_BUSINESS_INFO'; info: BusinessInfo | null }
   | { type: 'SET_ACTIVE_QR_PROMO'; promo: ActiveQrPromo | null }
   | { type: 'SET_TENANT_NAME'; name: string }
-  | { type: 'SET_SERVICE_HOURS'; serviceHours: CheckoutState['serviceHours']; timezone?: string }
+  | { type: 'SET_SERVICE_HOURS'; serviceHours: CheckoutState['serviceHours']; timezone?: string; deliveryConfig?: { enabled?: boolean } }
 
 interface CheckoutContextValue {
   state: CheckoutState
@@ -214,7 +215,7 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_BUSINESS_INFO': return { ...state, businessInfo: action.info }
     case 'SET_ACTIVE_QR_PROMO': return { ...state, activeQrPromo: action.promo }
     case 'SET_TENANT_NAME': return { ...state, tenantName: action.name }
-    case 'SET_SERVICE_HOURS': return { ...state, serviceHours: action.serviceHours, timezone: action.timezone ?? state.timezone }
+    case 'SET_SERVICE_HOURS': return { ...state, serviceHours: action.serviceHours, timezone: action.timezone ?? state.timezone, deliveryConfig: action.deliveryConfig ?? state.deliveryConfig }
     default: return state
   }
 }
@@ -255,6 +256,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     deliveryConfirmed: false,
     serviceHours: undefined,
     timezone: undefined,
+    deliveryConfig: undefined,
   }
 }
 
@@ -304,7 +306,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
         if (data.location) {
           dispatch({ type: 'SET_TENANT_NAME', name: data.tenantName || '' })
           dispatch({ type: 'SET_SCHEDULED_ORDERS_CONFIG', config: data.location.scheduledOrdersConfig || null })
-          dispatch({ type: 'SET_SERVICE_HOURS', serviceHours: data.location.serviceHours, timezone: data.location.timezone })
+          dispatch({ type: 'SET_SERVICE_HOURS', serviceHours: data.location.serviceHours, timezone: data.location.timezone, deliveryConfig: data.location.deliveryConfig })
           const settings = data.location.settings || {}
           dispatch({ type: 'SET_ESTIMATED_TIME', info: {
             baseTime: settings.estimatedPickupTime ?? 20,

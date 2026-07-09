@@ -1340,14 +1340,19 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                                   </div>
                                 </div>
                               ))}
-                              <button
-                                type="button"
-                                onClick={() => addServiceSlot(loc._id, svcType)}
-                                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors px-1 py-1"
-                              >
-                                <Plus size={13} strokeWidth={3} />
-                                Agregar franja
-                              </button>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => addServiceSlot(loc._id, svcType)}
+                                  className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors px-1 py-1"
+                                >
+                                  <Plus size={13} strokeWidth={3} />
+                                  Agregar franja
+                                </button>
+                                <span className="text-[9px] text-muted-foreground/50 italic">
+                                  ¿Dos turnos el mismo día? Agregá una franja por cada uno
+                                </span>
+                              </div>
                             </div>
                           ))}
 

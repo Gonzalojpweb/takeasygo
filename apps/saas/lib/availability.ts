@@ -5,6 +5,7 @@ export type AvailabilitySlot = { days: number[]; timeStart: string; timeEnd: str
 /**
  * Returns true if the current time falls within any of the schedule slots.
  * If mode is 'always' or undefined, always returns true.
+ * Handles midnight wraparound (e.g. 20:00-02:00).
  */
 export function isAvailableNow(
   mode: 'always' | 'scheduled' | undefined,
@@ -23,6 +24,9 @@ export function isAvailableNow(
     const [endH, endM] = slot.timeEnd.split(':').map(Number)
     const startMinutes = startH * 60 + startM
     const endMinutes = endH * 60 + endM
+    if (endMinutes < startMinutes) {
+      return currentMinutes >= startMinutes || currentMinutes <= endMinutes
+    }
     return currentMinutes >= startMinutes && currentMinutes <= endMinutes
   })
 }
@@ -33,6 +37,7 @@ export type ServiceSlot = { days: number[]; open: string; close: string }
  * Returns true if the service is open right now based on the given slots.
  * If no slots are configured, assumes always open.
  * If timezone is provided, uses the restaurant's timezone instead of the browser's local time.
+ * Handles midnight wraparound (e.g. 20:00-02:00).
  */
 export function isServiceOpen(slots: ServiceSlot[] | undefined, timezone?: string): boolean {
   if (!slots?.length) return true
@@ -54,6 +59,11 @@ export function isServiceOpen(slots: ServiceSlot[] | undefined, timezone?: strin
     if (!slot.days.includes(day)) return false
     const [openH, openM] = slot.open.split(':').map(Number)
     const [closeH, closeM] = slot.close.split(':').map(Number)
-    return currentMinutes >= openH * 60 + openM && currentMinutes <= closeH * 60 + closeM
+    const openMin = openH * 60 + openM
+    const closeMin = closeH * 60 + closeM
+    if (closeMin < openMin) {
+      return currentMinutes >= openMin || currentMinutes <= closeMin
+    }
+    return currentMinutes >= openMin && currentMinutes <= closeMin
   })
 }

@@ -225,7 +225,7 @@ settings: {
       showLogo: { type: Boolean, default: true },
     },
     cuisineTypes: { type: [String], default: [] },
-    timezone: { type: String, default: 'America/Argentina/Buenos_Aires' },
+    timezone: { type: String, required: true, default: 'America/Argentina/Buenos_Aires' },
     serviceHours: {
       takeaway: { type: [{ days: [Number], open: String, close: String }], default: [] },
       dineIn: { type: [{ days: [Number], open: String, close: String }], default: [] },

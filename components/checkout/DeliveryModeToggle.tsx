@@ -9,12 +9,20 @@ import { toast } from 'sonner'
 export default function DeliveryModeToggle() {
   const router = useRouter()
   const { state, dispatch } = useCheckout()
-  const { deliveryMode, tenantSlug, locationId, serviceHours, timezone } = state
+  const { deliveryMode, tenantSlug, locationId, serviceHours, timezone, deliveryConfig } = state
 
-  const deliveryAvailable = isServiceOpen(serviceHours?.delivery, timezone)
+  const deliveryEnabled = deliveryConfig?.enabled !== false
+  const deliveryBySchedule = isServiceOpen(serviceHours?.delivery, timezone)
+  const deliveryAvailable = deliveryEnabled && deliveryBySchedule
 
   const handleDeliveryClick = () => {
-    if (!deliveryAvailable) {
+    if (!deliveryEnabled) {
+      toast.error('Delivery no habilitado', {
+        description: 'El delivery no está habilitado para esta sede.',
+      })
+      return
+    }
+    if (!deliveryBySchedule) {
       toast.error('Fuera del horario de delivery', {
         description: 'El delivery no está disponible en este momento. Revisá los horarios de atención.',
       })
@@ -60,7 +68,12 @@ export default function DeliveryModeToggle() {
           🚚 Delivery
         </button>
       </div>
-      {!deliveryAvailable && serviceHours?.delivery && serviceHours.delivery.length > 0 && (
+      {!deliveryEnabled && (
+        <p className="text-[10px] text-red-400 font-medium mt-2">
+          🕐 Delivery no habilitado para esta sede
+        </p>
+      )}
+      {deliveryEnabled && !deliveryBySchedule && serviceHours?.delivery && serviceHours.delivery.length > 0 && (
         <p className="text-[10px] text-red-400 font-medium mt-2">
           🕐 No hay delivery disponible en este horario
         </p>

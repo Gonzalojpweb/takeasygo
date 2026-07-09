@@ -24,6 +24,7 @@ interface LocationInfo {
   }
   deliveryConfig?: { enabled?: boolean }
   geo?: { type: string; coordinates: [number, number] }
+  timezone?: string
 }
 
 interface Props {
@@ -100,9 +101,9 @@ export default function LocationSwitcher({ tenantSlug, locations, currentLocatio
         (modes.includes('dine-in') && loc.serviceHours.dineIn?.length))
     if (hasHours) {
       return (
-        (modes.includes('takeaway') && isServiceOpen(loc.serviceHours?.takeaway)) ||
-        (modes.includes('delivery') && isServiceOpen(loc.serviceHours?.delivery)) ||
-        (modes.includes('dine-in') && isServiceOpen(loc.serviceHours?.dineIn))
+        (modes.includes('takeaway') && isServiceOpen(loc.serviceHours?.takeaway, loc.timezone)) ||
+        (modes.includes('delivery') && isServiceOpen(loc.serviceHours?.delivery, loc.timezone)) ||
+        (modes.includes('dine-in') && isServiceOpen(loc.serviceHours?.dineIn, loc.timezone))
       )
     }
     return true
