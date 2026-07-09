@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     for (const tenant of tenants) {
       const subs = await PushSubscription.find({
         tenantId: tenant._id,
-        phoneHash: { $ne: null, $exists: true, $ne: '' },
+        phoneHash: { $exists: true, $nin: [null, ''] },
       }).lean()
 
       if (subs.length === 0) continue
