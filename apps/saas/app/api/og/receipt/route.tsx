@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
+import ShareEvent from '@/models/ShareEvent'
 import { verifyRatingToken } from '@/lib/rating-token'
 import { safeDecrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
@@ -32,6 +33,11 @@ export async function GET(request: NextRequest) {
     if (!order) {
       return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
     }
+
+    // Track share event (fire-and-forget, non-blocking)
+    ShareEvent.create({ tenantId: tenant._id, orderId: order._id, templateStyle: 'impacto' }).catch((err) => {
+      console.error('[ShareEvent] Failed to log share event:', err)
+    })
 
     const customerName = safeDecrypt(order.customer?.name) || 'Cliente'
     const items = (order.items || []).map((i: any) => ({
@@ -113,7 +119,10 @@ export async function GET(request: NextRequest) {
           {/* Footer */}
           <div style={{ marginTop: 32, textAlign: 'center' }}>
             <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
-              Pedido vía TakeasyGo · {tenantName}
+              Pedido vía TakeasyGO · {tenantName}
+            </p>
+            <p style={{ fontSize: 11, color: '#475569', marginTop: 12, letterSpacing: '0.05em' }}>
+              Parte de la Red TakeasyGO
             </p>
           </div>
         </div>
