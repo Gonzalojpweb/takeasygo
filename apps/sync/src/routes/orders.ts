@@ -40,7 +40,7 @@ export function ordersRouter(
         .limit(100)
         .toArray()
 
-      const result = docs.map((o) => ({
+      const result = docs.map((o: Record<string, any>) => ({
         id: o._id?.toString() ?? "",
         orderNumber: o.orderNumber ?? "",
         status: o.status ?? "pending",

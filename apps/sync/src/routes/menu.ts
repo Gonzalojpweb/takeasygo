@@ -1,12 +1,3 @@
-// ── TECH DEBT (GEMIN-2026-07-05) ─────────────────────────────────────────────
-// ERROR 1: Module '"@takeasygo/db"' has no exported member 'MenuModel'.
-// ERROR 2: Module '"@takeasygo/db"' has no exported member 'IMenuDocument'.
-// ERROR 3: Parameter 'o' implicitly has an 'any' type (line 96).
-// FIX: Create MenuModel + IMenuDocument in packages/db/src/models/menu.ts
-//      and export from packages/db/src/index.ts. Then type the `o` param.
-// ESTADO: Aprobado por Gemin, no bloquea fase customers. Backlog.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { Router } from "express"
 import { MenuModel, type IMenuDocument } from "@takeasygo/db"
 import mongoose from "mongoose"
@@ -102,7 +93,7 @@ function flattenMenu(doc: IMenuDocument): {
               type: g.type as "single" | "multiple" | undefined,
               required: g.required ?? false,
               maxSelections: g.type === "single" ? 1 : undefined,
-              options: g.options.map((o) => ({
+              options: g.options.map((o: { name: string; extraPrice?: number; subGroups?: Array<{ name: string; type?: string; required?: boolean; options: Array<{ name: string; extraPrice?: number; subGroups?: any[] }> }> }) => ({
                 name: o.name,
                 price: o.extraPrice ?? 0,
                 subGroups:

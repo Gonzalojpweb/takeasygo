@@ -1,4 +1,4 @@
-import { SyncOrderModel } from "@takeasygo/db"
+import { SyncOrderModel, type SyncOrderDocument } from "@takeasygo/db"
 
 export interface TranslatedOrder {
   tenantId: string
@@ -55,17 +55,17 @@ export async function getPendingOrders(
     status: "pending",
   }).sort({ createdAt: 1 })
 
-  return docs.map((doc) => ({
+  return docs.map((doc: SyncOrderDocument) => ({
     tenantId: doc.tenantId,
     source: doc.source as "takeasygo" | "pos",
     status: doc.status,
-    items: doc.items.map((item) => ({
+    items: doc.items.map((item: SyncOrderDocument['items'][number]) => ({
       productId: item.productId,
       name: item.name,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       total: item.total,
-      modifiers: item.modifiers?.map((m) => ({
+      modifiers: item.modifiers?.map((m: { name: string; price: number }) => ({
         name: m.name,
         price: m.price,
       })),
