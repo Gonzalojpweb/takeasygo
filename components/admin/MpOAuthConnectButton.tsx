@@ -13,6 +13,8 @@ export default function MpOAuthConnectButton({ tenantSlug, isConnected: initialC
   const [connected, setConnected] = useState(initialConnected)
   const [connecting, setConnecting] = useState(false)
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
   // Check URL params for OAuth result feedback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -23,11 +25,17 @@ export default function MpOAuthConnectButton({ tenantSlug, isConnected: initialC
       const url = new URL(window.location.href)
       url.searchParams.delete('mp_oauth')
       window.history.replaceState({}, '', url.toString())
+    } else if (result === 'error') {
+      setErrorMsg('No se pudo autorizar el Split de Pagos. Volvé a intentarlo.')
+      const url = new URL(window.location.href)
+      url.searchParams.delete('mp_oauth')
+      window.history.replaceState({}, '', url.toString())
     }
   }, [])
 
   const handleConnect = () => {
     setConnecting(true)
+    setErrorMsg(null)
     // Redirect to our connect endpoint which will redirect to MP OAuth
     window.location.href = `/api/${tenantSlug}/admin/mp-oauth/connect`
   }
@@ -75,8 +83,12 @@ export default function MpOAuthConnectButton({ tenantSlug, isConnected: initialC
         </div>
       </div>
 
+      {errorMsg && (
+        <p className="text-xs text-destructive font-medium">{errorMsg}</p>
+      )}
+
       <button
-        onClick={handleConnect}
+        onClick={() => { setErrorMsg(null); handleConnect() }}
         disabled={connecting}
         className="w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-[#009ee3] text-white font-bold text-sm shadow-md shadow-[#009ee3]/20 hover:bg-[#008ccc] active:scale-[0.98] transition-all disabled:opacity-60"
       >
