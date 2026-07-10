@@ -33,9 +33,7 @@ export default async function TrackingPage({ params, searchParams }: Props) {
   const pointsEarnedFromOrder = pointsBreakdown?.total ?? 0
 
   // NEXTAUTH_SECRET requerido para el token — si falta en env el token es null en lugar de crashear
-  const ratingToken = process.env.NEXTAUTH_SECRET
-    ? generateRatingToken(order._id.toString())
-    : null
+  const ratingToken = generateRatingToken(order._id.toString())
 
   // ─────────────────────────────────────────────────────────────────────────────
   // FASE RECONCILIACIÓN: Acreditar puntos de compra y descontar puntos de canje
