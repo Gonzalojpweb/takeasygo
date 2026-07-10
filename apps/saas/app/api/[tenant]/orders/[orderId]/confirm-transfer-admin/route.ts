@@ -4,6 +4,8 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { injectOrderToPOS } from '@/lib/pos/inject-order'
+import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
 
 export async function PATCH(
   request: NextRequest,
@@ -16,6 +18,20 @@ export async function PATCH(
     const tenant = await Tenant.findOne({ slug: tenantSlug })
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    }
+
+    // Aplicar defaults para tenants creados antes de pointsConfig
+    if (!tenant.pointsConfig) {
+      (tenant as any).pointsConfig = {
+        enabled: true,
+        mode: 'fixed_per_currency',
+        pointsPerCurrency: 0.1,
+        pointsPercentage: 10,
+        pointsPerOrder: 0,
+        minOrderForPoints: 0,
+        pointsRedemptionValue: 10,
+        redemptionEnabled: true,
+      }
     }
 
     const authError = await requireAuth(request, tenant._id.toString())
@@ -48,6 +64,23 @@ export async function PATCH(
     }
 
     await order.save()
+
+    // ── Lealtad: procesar deducción de rewards y acreditar puntos ──────
+    if (order.customer?.phoneHash) {
+      if (order.rewardItems && order.rewardItems.length > 0) {
+        await processRewardDeduction(order, tenant)
+      }
+      await addPointsFromOrder(order, tenant)
+    }
+
+    // ── Inyección POS (fire-and-forget) ──────────────────────────────
+    if (tenant.posIntegration?.enabled) {
+      setImmediate(() => {
+        injectOrderToPOS(order._id.toString(), tenant).catch(err =>
+          console.error('[POS inject] Error asíncrono en transferencia:', err)
+        )
+      })
+    }
 
     return NextResponse.json({
       status: order.status,
