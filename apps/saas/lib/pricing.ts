@@ -15,9 +15,7 @@ interface TenantFees {
     transfer?: { feePercent: number }
   }
   // Mercado Pago OAuth connection status
-  mpOAuth?: { isConnected?: boolean }
-  // Configured split percentage for platform commission (0-100)
-  paymentSplitPercentage?: number
+  mpOAuth?: { isConnected?: boolean; commissionPercent?: number | null }
 }
 
 interface PlatformFees {
@@ -30,7 +28,9 @@ export function calculateFinalTotal(
   baseTotal: number,
   paymentMethod: PaymentMethod,
   tenant: TenantFees,
-  platformConfig: PlatformFees
+  platformConfig: PlatformFees,
+  /** Optional override for the platform commission percent (e.g. from tenant.mpOAuth.commissionPercent or platformConfig.mpOAuth.platformFeePercent) */
+  overridePlatformFeePercent?: number
 ): PricingResult {
   if (paymentMethod === 'transfer') {
     return {
@@ -44,9 +44,11 @@ export function calculateFinalTotal(
 
   const tenantFeePercent = tenant.paymentSurcharges?.[paymentMethod]?.feePercent ?? 0
   // Apply platform commission only if MP OAuth is connected and split is configured
-  const platformFeePercent = (tenant.mpOAuth?.isConnected && tenant.paymentSplitPercentage != null)
-    ? tenant.paymentSplitPercentage
-    : (platformConfig.platformFees?.takeasygoCommissionPercent ?? 1)
+  const platformFeePercent = overridePlatformFeePercent ?? (
+    (tenant.mpOAuth?.isConnected && tenant.mpOAuth?.commissionPercent != null)
+      ? tenant.mpOAuth.commissionPercent!
+      : (platformConfig.platformFees?.takeasygoCommissionPercent ?? 1)
+  )
 
   const tenantFee = tenantFeePercent / 100
   const platformFee = platformFeePercent / 100

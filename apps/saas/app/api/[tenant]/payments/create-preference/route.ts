@@ -43,8 +43,8 @@ if (!success) {
 
     // Usar pricing engine: el order.total ya tiene el recargo incluido del checkout
     // Pero necesitamos calcular el marketplace_fee correcto sobre el total final
-    const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', tenant, platformConfig || {})
     const platformFeePercent = tenant.mpOAuth?.commissionPercent ?? platformConfig?.mpOAuth?.platformFeePercent ?? 5
+    const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', tenant, platformConfig || {}, platformFeePercent)
 
     // ── Determine which access token to use ───────────────────────────────────
     // If OAuth is connected, use the OAuth token (marketplace mode).
