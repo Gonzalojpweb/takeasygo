@@ -48,7 +48,7 @@ export interface POSOrderPayload {
   items: POSOrderItem[]
   notes?: string
   total: number
-  paymentMethod: 'mercadopago' | 'cash' | 'card'
+  paymentMethod: 'mercadopago' | 'cash' | 'card' | 'transfer'
   paymentStatus: 'approved' | 'pending'
 }
 
