@@ -9,6 +9,7 @@ const DAY_MAP: Record<string, number> = {
 function toLocal(date: Date, timezone: string): { y: number; M: number; d: number; h: number; m: number; s: number; wd: number } {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
+    hourCycle: 'h23',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
