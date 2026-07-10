@@ -275,6 +275,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     deliveryConfirmed: false,
     serviceHours: undefined,
     timezone: undefined,
+    deliveryConfig: undefined,
   }
 }
 
