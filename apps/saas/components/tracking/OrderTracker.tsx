@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
 import DeliveryCodeDisplay from './DeliveryCodeDisplay'
 import LiveTrackingBadge from './LiveTrackingBadge'
-import { Calendar, Star, Sparkles, Lock, Copy, Check, Banknote, Loader2 } from 'lucide-react'
-import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
+import { Calendar, Lock, Copy, Check, Banknote, Loader2 } from 'lucide-react'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
@@ -60,7 +59,6 @@ interface Props {
   } | null
   loyaltyPointsUsed?: number
   loyaltyDiscountAmount?: number
-  hasRewardItems?: boolean
   rewardAdvanceApplied?: boolean
   rewardAdvanceConsolidated?: boolean
   tenantName: string
@@ -152,7 +150,6 @@ export default function OrderTracker({
   loyaltyData = null,
   loyaltyPointsUsed = 0,
   loyaltyDiscountAmount = 0,
-  hasRewardItems = false,
   rewardAdvanceApplied = false,
   rewardAdvanceConsolidated = false,
   pointsEarnedFromOrder = 0,
@@ -830,19 +827,14 @@ export default function OrderTracker({
       {status === 'delivered' && (
         <PostDeliveryCelebration
           customerName={initialCustomerName}
-          pointsEarnedFromOrder={pointsEarnedFromOrder}
-          loyaltyData={loyaltyData}
           tenantName={tenantName}
           tenantSlug={tenantSlug}
           orderNumber={orderNumber}
           locationId={locationId}
           orderId={orderId}
-          orderMode={orderMode ?? ''}
           ratingToken={ratingToken}
           primaryColor={primaryColor}
           backgroundColor={backgroundColor}
-          clubName={clubName}
-          hasRewardItems={hasRewardItems}
         />
       )}
       
@@ -858,37 +850,6 @@ export default function OrderTracker({
         </div>
       )}
 
-
-      {/* SECCIÓN LOYALTY PARA INVITADOS/MIEMBROS */}
-      {loyaltyData && (
-        <div className="mt-12 pt-8 border-t border-zinc-100">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-              <Star size={16} className="text-amber-600 fill-amber-600" />
-            </div>
-            <h3 className="font-black text-lg">Tu Club de Puntos</h3>
-          </div>
-          
-          <div className="bg-white rounded-3xl p-6 border-2 border-amber-100 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-              <Sparkles size={80} className="text-amber-600" />
-            </div>
-            
-            <p className="text-sm text-zinc-600 mb-6 leading-relaxed">
-              ¡Hola <span className="font-bold text-zinc-900">{loyaltyData.name}</span>! Ya sos parte del club. 
-              Guardá tu tarjeta para no perder tus puntos y recibir beneficios.
-            </p>
-
-            <AddToWalletButtons
-              tenantSlug={tenantSlug}
-              memberId={loyaltyData.memberId}
-              publicId={loyaltyData.publicId}
-              points={loyaltyData.points}
-              tier={loyaltyData.tier}
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }
