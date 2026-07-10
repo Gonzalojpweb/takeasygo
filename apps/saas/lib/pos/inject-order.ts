@@ -132,7 +132,7 @@ function buildPOSPayload(order: any, tenant: ITenant): BuildResult {
       items,
       notes:         order.notes ?? '',
       total:         order.total,
-      paymentMethod: 'mercadopago',
+      paymentMethod: order.payment?.method === 'transfer' ? 'transfer' : 'mercadopago',
       paymentStatus: 'approved',
     },
     unmappedNames,

@@ -463,6 +463,12 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     chunks.push(ESC_POS.INIT, ESC_POS.CODE_PAGE, ESC_POS.ALIGN_CENTER);
     chunks.push(ESC_POS.LINE_SPACING(settings.lineSpacing));
 
+    // Encabezado personalizado (si está configurado)
+    if (settings.headerTemplate) {
+        chunks.push(buf(`${settings.headerTemplate}\n`));
+        chunks.push(buf(`${lineStr}\n`));
+    }
+
     if (role === 'cashier') {
         chunks.push(getFontSizeCommand(settings.fontSize), ESC_POS.BOLD_ON);
         chunks.push(buf(`${(order.location?.locationName?.toUpperCase()) || 'MI NEGOCIO'}\n`));
@@ -591,6 +597,12 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     if (settings.showTotal && role === 'cashier') {
         chunks.push(ESC_POS.ALIGN_RIGHT, ESC_POS.BOLD_ON);
         chunks.push(buf(`TOTAL: $${money(order.total)}\n`));
+    }
+
+    // Pie de página personalizado (si está configurado)
+    if (settings.footerTemplate) {
+        chunks.push(ESC_POS.ALIGN_CENTER);
+        chunks.push(buf(`${settings.footerTemplate}\n`));
     }
 
     chunks.push(buf('\n\n\n\n'), ESC_POS.CUT);
