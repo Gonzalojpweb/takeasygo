@@ -5,7 +5,7 @@ import { QUEUE_ORDER_CREATED } from "../queues/order-queue"
 
 export function registerWorkers(redisUrl: string, io: SocketServer): void {
   const connection = new Redis(redisUrl, { maxRetriesPerRequest: null }) as any;
-  connection.on("error", (err) => console.error("[worker/redis] error:", err.message));
+  connection.on("error", (err: Error) => console.error("[worker/redis] error:", err.message));
 
   new Worker(
     "orders",
