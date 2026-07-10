@@ -4,15 +4,10 @@ import Order from '@/models/Order'
 import ShareEvent from '@/models/ShareEvent'
 import { verifyRatingToken } from '@/lib/rating-token'
 import { safeDecrypt } from '@/lib/crypto'
-import { v2 as cloudinary } from 'cloudinary'
 import { NextRequest, NextResponse } from 'next/server'
 import { ImageResponse } from 'next/og'
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-})
+export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {
@@ -135,6 +130,13 @@ export async function GET(request: NextRequest) {
     const pngBuffer = Buffer.from(await imgRes.arrayBuffer())
 
     // Upload to Cloudinary
+    const { v2: cloudinary } = await import('cloudinary')
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    })
+
     const uploadResult = await new Promise<any>((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
