@@ -132,7 +132,6 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           loyaltyData={loyaltyData}
           loyaltyPointsUsed={order.loyaltyPointsUsed}
           loyaltyDiscountAmount={order.loyaltyDiscountAmount}
-          hasRewardItems={order.rewardItems?.length > 0}
           rewardAdvanceApplied={rewardAdvanceApplied}
           rewardAdvanceConsolidated={rewardAdvanceConsolidated}
           tenantName={tenant.name}
