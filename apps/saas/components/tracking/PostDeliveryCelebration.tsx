@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react'
 import confetti from 'canvas-confetti'
-import { Star, Sparkles, Heart, Download, Camera, Loader2 } from 'lucide-react'
+import { Star, Sparkles, Heart, Download, Camera, Loader2, Share2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Props {
   customerName: string
@@ -21,6 +22,13 @@ interface Props {
   hasRewardItems: boolean
 }
 
+function isMobileInstagramSupported(): boolean {
+  if (typeof window === 'undefined') return false
+  const ua = navigator.userAgent.toLowerCase()
+  const isMobile = /android|iphone|ipad|ipod/i.test(ua)
+  return isMobile
+}
+
 export default function PostDeliveryCelebration({
   customerName,
   locationId,
@@ -36,7 +44,7 @@ export default function PostDeliveryCelebration({
   clubName,
   hasRewardItems,
 }: Props) {
-  const [ogImageUrl, setOgImageUrl] = useState<string | null>(null)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [ogLoading, setOgLoading] = useState(false)
   const [ogError, setOgError] = useState(false)
   const [shared, setShared] = useState(false)
@@ -66,7 +74,7 @@ export default function PostDeliveryCelebration({
     return () => cancelAnimationFrame(raf)
   }, [primaryColor])
 
-  // Generate OG image for sharing
+  // Generate OG image and upload to Cloudinary for sharing
   async function handleShare() {
     setOgLoading(true)
     setOgError(false)
@@ -74,29 +82,75 @@ export default function PostDeliveryCelebration({
       const token = ratingToken
       if (!token) {
         setOgError(true)
+        toast.error('No se pudo generar la imagen para compartir')
         return
       }
+
+      // 1. Get the Cloudinary URL from our share endpoint
       const res = await fetch(
-        `/api/og/receipt?orderId=${orderId}&token=${token}&tenantSlug=${tenantSlug}`,
+        `/api/og/share?orderId=${orderId}&token=${token}&tenantSlug=${tenantSlug}`,
         { cache: 'no-store' }
       )
-      if (!res.ok) throw new Error('Error generating image')
+      if (!res.ok) throw new Error('Error generando imagen')
 
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      setOgImageUrl(url)
+      const data = await res.json()
+      const imageUrl = data.url as string
+      setShareUrl(imageUrl)
 
-      // Try Web Share API first
-      if (navigator.share && navigator.canShare?.({ files: [new File([blob], 'pedido.png', { type: 'image/png' })] })) {
-        await navigator.share({
-          title: `Mi pedido en ${tenantName}`,
-          text: `${customerName} bancó a ${tenantName} hoy 🔥`,
-          files: [new File([blob], 'pedido.png', { type: 'image/png' })],
-        })
-        setShared(true)
+      // 2. Try Web Share API first (native share sheet)
+      if (navigator.share) {
+        try {
+          const imgRes = await fetch(imageUrl)
+          const blob = await imgRes.blob()
+          const file = new File([blob], 'pedido.png', { type: 'image/png' })
+          if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({
+              title: `Mi pedido en ${tenantName}`,
+              text: `${customerName} bancó a ${tenantName} hoy 🔥`,
+              files: [file],
+            })
+            setShared(true)
+            return
+          }
+        } catch {
+          // User cancelled or share failed — fall through to Instagram scheme
+        }
       }
+
+      // 3. Try Instagram Stories URL scheme (mobile only)
+      if (isMobileInstagramSupported()) {
+        const encodedUrl = encodeURIComponent(imageUrl)
+        const iosUrl = `instagram-stories://share?background_image=${encodedUrl}`
+        const androidUrl = `intent://share#Intent;action=com.instagram.share.ADD_TO_STORY;S.background_image=${encodedUrl};end`
+
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+        const instagramUrl = isIOS ? iosUrl : androidUrl
+
+        // Try to open Instagram directly
+        const win = window.open(instagramUrl, '_blank')
+
+        // If the scheme didn't open Instagram (no app installed), navigator.share failing is OK
+        // We just show the image and let user download it
+        if (win) {
+          win.close() // Close blank tab that might have opened
+        }
+
+        setShared(true)
+        toast.success('Abrí Instagram y creá tu historia con la imagen')
+        return
+      }
+
+      // 4. Fallback: copy image URL to clipboard
+      try {
+        await navigator.clipboard.writeText(imageUrl)
+        toast.success('Link de la imagen copiado al portapapeles')
+      } catch {
+        toast.success('Imagen lista para compartir')
+      }
+      setShared(true)
     } catch {
       setOgError(true)
+      toast.error('No se pudo generar la imagen')
     } finally {
       setOgLoading(false)
     }
@@ -107,18 +161,18 @@ export default function PostDeliveryCelebration({
       const token = ratingToken
       if (!token) return
       const res = await fetch(
-        `/api/og/receipt?orderId=${orderId}&token=${token}&tenantSlug=${tenantSlug}`,
+        `/api/og/share?orderId=${orderId}&token=${token}&tenantSlug=${tenantSlug}`,
         { cache: 'no-store' }
       )
       if (!res.ok) throw new Error('Error')
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
+      const data = await res.json()
       const a = document.createElement('a')
-      a.href = url
+      a.href = data.url
       a.download = `pedido-${orderNumber}.png`
       a.click()
-      URL.revokeObjectURL(url)
-    } catch {}
+    } catch {
+      toast.error('No se pudo descargar la imagen')
+    }
   }
 
   return (
@@ -165,9 +219,9 @@ export default function PostDeliveryCelebration({
 
       {/* Compartir button */}
       <div className="space-y-3">
-        {ogImageUrl && (
+        {shareUrl && (
           <div className="rounded-xl overflow-hidden border">
-            <img src={ogImageUrl} alt="Tu pedido" className="w-full" />
+            <img src={shareUrl} alt="Tu pedido" className="w-full" />
           </div>
         )}
 
@@ -198,15 +252,21 @@ export default function PostDeliveryCelebration({
           </button>
         </div>
 
-        {ogError && !ogImageUrl && (
-          <p className="text-xs text-center text-red-400">
-            No se pudo generar la imagen. Podés compartir el link de seguimiento.
+        {shared && !shareUrl && (
+          <p className="text-xs text-center text-emerald-600 flex items-center justify-center gap-1">
+            <Heart size={12} className="fill-emerald-600" /> ¡Gracias por compartir!
           </p>
         )}
 
-        {shared && (
+        {shareUrl && shared && (
           <p className="text-xs text-center text-emerald-600 flex items-center justify-center gap-1">
-            <Heart size={12} className="fill-emerald-600" /> ¡Gracias por compartir!
+            <Share2 size={12} className="fill-emerald-600" /> Imagen lista. Abrí Instagram y creá tu historia.
+          </p>
+        )}
+
+        {ogError && !shareUrl && (
+          <p className="text-xs text-center text-red-400">
+            No se pudo generar la imagen. Podés compartir el link de seguimiento.
           </p>
         )}
       </div>
