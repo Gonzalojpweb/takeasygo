@@ -19,7 +19,7 @@ import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { auth } from '@/lib/auth'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
-import { getNowInTimezone } from '@/lib/restaurant-time'
+import { isServiceOpen } from '@/lib/availability'
 import { validateCheckoutRewards } from '@/lib/loyalty'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
@@ -232,26 +232,13 @@ export async function POST(
 
     // Validar horario de atención para pedidos inmediatos
     if (body.orderTiming !== 'scheduled' && (body.mode === 'takeaway' || body.mode === 'delivery')) {
-      const sh = location.serviceHours as { takeaway: { days: number[]; open: string; close: string }[]; delivery: { days: number[]; open: string; close: string }[] } | undefined
       const modeKey = body.mode === 'delivery' ? 'delivery' : 'takeaway'
-      const slots = sh?.[modeKey]
-      if (slots && slots.length > 0) {
-        const { day, minutes: cur } = getNowInTimezone(location.timezone || 'America/Argentina/Buenos_Aires')
-        const isOpen = slots.some(slot => {
-          if (!slot.days.includes(day)) return false
-          const [oh, om] = slot.open.split(':').map(Number)
-          const [ch, cm] = slot.close.split(':').map(Number)
-          const openMin = oh * 60 + om
-          const closeMin = ch * 60 + cm
-          return cur >= openMin && cur <= closeMin
-        })
-        if (!isOpen) {
-          const modeLabel = body.mode === 'delivery' ? 'delivery' : 'takeaway'
-          return NextResponse.json(
-            { error: `El local no está recibiendo pedidos de ${modeLabel} en este momento. Revisá los horarios de atención.` },
-            { status: 400 }
-          )
-        }
+      const slots = (location.serviceHours as any)?.[modeKey] as { days: number[]; open: string; close: string }[] | undefined
+      if (slots && slots.length > 0 && !isServiceOpen(slots, location.timezone)) {
+        return NextResponse.json(
+          { error: `El local no está recibiendo pedidos de ${modeKey} en este momento. Revisá los horarios de atención.` },
+          { status: 400 }
+        )
       }
     }
 
