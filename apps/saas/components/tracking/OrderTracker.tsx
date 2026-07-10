@@ -197,7 +197,9 @@ export default function OrderTracker({
         amount: baseTotal || 0,
         orderMode,
         deliveryAddress,
-        trackingUrl: `${window.location.origin}/${tenantSlug}/tracking/${orderNumber}`,
+        trackingUrl: typeof window !== 'undefined'
+          ? `${window.location.origin}/${tenantSlug}/tracking/${orderNumber}`
+          : '',
       })
     : null
   const [copiedField, setCopiedField] = useState<string | null>(null)
