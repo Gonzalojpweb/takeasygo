@@ -16,8 +16,8 @@ export const config = {
 
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
 
-  jwtPrivateKey: process.env.JWT_PRIVATE_KEY ?? readPem("keys.private.pem"),
-  jwtPublicKey: process.env.JWT_PUBLIC_KEY ?? readPem("keys.public.pem"),
+  jwtPrivateKey: (process.env.JWT_PRIVATE_KEY ?? readPem("keys.private.pem")).replace(/\\n/g, "\n"),
+  jwtPublicKey: (process.env.JWT_PUBLIC_KEY ?? readPem("keys.public.pem")).replace(/\\n/g, "\n"),
 
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
 
