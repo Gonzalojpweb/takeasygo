@@ -20,27 +20,7 @@ export interface KeyPair {
   privateKey: string
 }
 
-/**
- * Firma un JWT con RS256 usando la clave privada.
- * @param payload - Claims del JWT (sin iat/exp, se agregan automáticamente)
- * @param privateKey - Clave privada PEM
- * @param expiresInMs - Tiempo de vida en milisegundos (default: 30 min para hub)
- * @returns JWT string firmado
- */
-export function signJwt(
-  payload: Omit<JwtPayload, "iat" | "exp">,
-  privateKey: string,
-  expiresInMs: number = HUB_TOKEN_TTL_MS
-): string {
-  const now = Math.floor(Date.now() / 1000)
-  const exp = now + Math.floor(expiresInMs / 1000)
-
-  const header = { alg: "RS256", typ: "JWT" }
   const fullPayload: JwtPayload = { ...payload, iat: now, exp }
-
-  const encodedHeader = base64UrlEncode(JSON.stringify(header))
-  const encodedPayload = base64UrlEncode(JSON.stringify(fullPayload))
-  const dataToSign = `${encodedHeader}.${encodedPayload}`
 
   return jwt.sign(fullPayload, privateKey, { algorithm: "RS256" })
 }
@@ -58,24 +38,9 @@ export function verifyJwt(
   const parts = token.split(".")
   if (parts.length !== 3) return null
 
-  const [encodedHeader, encodedPayload, signature] = parts
-  const dataToVerify = `${encodedHeader}.${encodedPayload}`
-
   try {
-    const decoded = jwt.verify(token, publicKey, { algorithms: ["RS256"] }) as any
-    return decoded as any
-  } catch {
-    return null
-  }
-
-  try {
-    const payload: JwtPayload = JSON.parse(
-      Buffer.from(encodedPayload, "base64url").toString("utf-8")
-    )
-
-    if (payload.exp < Math.floor(Date.now() / 1000)) return null
-
-    return payload
+    const decoded = jwt.verify(token, publicKey, { algorithms: ["RS256"] }) as JwtPayload
+    return decoded
   } catch {
     return null
   }
@@ -111,14 +76,4 @@ export function isJwtExpiringSoon(
   return payload.exp - now < thresholdSeconds
 }
 
-// ============================================================================
-// Helpers
-// ============================================================================
 
-function base64UrlEncode(data: string): string {
-  return Buffer.from(data)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "")
-}
