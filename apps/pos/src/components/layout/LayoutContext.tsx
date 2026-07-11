@@ -18,6 +18,8 @@ interface LayoutContextValue {
   actionBar: ActionBarContent | null
   setContextPanel: (content: ContextPanelContent | null) => void
   setActionBar: (content: ActionBarContent | null) => void
+  sidebarCollapsed: boolean
+  toggleSidebar: () => void
 }
 
 const LayoutContext = createContext<LayoutContextValue>({
@@ -25,11 +27,14 @@ const LayoutContext = createContext<LayoutContextValue>({
   actionBar: null,
   setContextPanel: () => {},
   setActionBar: () => {},
+  sidebarCollapsed: false,
+  toggleSidebar: () => {},
 })
 
 export function LayoutProvider({ children }: { children: ReactNode }) {
   const [contextPanel, setContextPanelState] = useState<ContextPanelContent | null>(null)
   const [actionBar, setActionBarState] = useState<ActionBarContent | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const setContextPanel = useCallback((content: ContextPanelContent | null) => {
     setContextPanelState(content)
@@ -39,8 +44,12 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     setActionBarState(content)
   }, [])
 
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => !prev)
+  }, [])
+
   return (
-    <LayoutContext.Provider value={{ contextPanel, actionBar, setContextPanel, setActionBar }}>
+    <LayoutContext.Provider value={{ contextPanel, actionBar, setContextPanel, setActionBar, sidebarCollapsed, toggleSidebar }}>
       {children}
     </LayoutContext.Provider>
   )

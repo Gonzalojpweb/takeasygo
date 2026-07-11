@@ -12,7 +12,7 @@ import { Header } from "./components/layout/Header"
 import { Navigation } from "./components/layout/Navigation"
 import { ContextPanel } from "./components/layout/ContextPanel"
 import { ActionBar } from "./components/layout/ActionBar"
-import { LayoutProvider } from "./components/layout/LayoutContext"
+import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
 import {
   startConnectivityMonitoring,
   stopConnectivityMonitoring,
@@ -101,35 +101,60 @@ function App() {
   }
 
   const tenantName = state.tenantId ?? "Restaurante"
-  const userName = "Operador"
 
   return (
     <LayoutProvider>
-      <div className="ros-app">
-        <Header tenantName={tenantName} userName={userName} />
-
-        <Navigation
-          items={NAV_ITEMS}
-          activeId={activeContext}
-          onSelect={(id) => setActiveContext(id as Context)}
-          onLogout={logout}
-          onSso={handleSso}
-        />
-
-        <main className="workspace">
-          {activeContext === "counter" && <CounterDashboard />}
-          {activeContext === "customers" && <CustomersDashboard />}
-          {activeContext === "waiter" && <WaiterDashboard />}
-          {activeContext === "incoming" && <IncomingOrdersDashboard />}
-          {activeContext === "flota" && <FlotaDashboard />}
-          {activeContext === "caja" && <CashDashboard />}
-          {activeContext === "ventas" && <SalesDashboard />}
-        </main>
-
-        <ContextPanel />
-        <ActionBar />
-      </div>
+      <AppShell
+        tenantName={tenantName}
+        activeContext={activeContext}
+        setActiveContext={setActiveContext}
+        logout={logout}
+        handleSso={handleSso}
+      />
     </LayoutProvider>
+  )
+}
+
+function AppShell({
+  tenantName,
+  activeContext,
+  setActiveContext,
+  logout,
+  handleSso,
+}: {
+  tenantName: string
+  activeContext: Context
+  setActiveContext: (ctx: Context) => void
+  logout: () => void
+  handleSso: () => void
+}) {
+  const { sidebarCollapsed } = useLayout()
+
+  return (
+    <div className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+      <Header tenantName={tenantName} userName="Operador" />
+
+      <Navigation
+        items={NAV_ITEMS}
+        activeId={activeContext}
+        onSelect={(id) => setActiveContext(id as Context)}
+        onLogout={logout}
+        onSso={handleSso}
+      />
+
+      <main className="workspace">
+        {activeContext === "counter" && <CounterDashboard />}
+        {activeContext === "customers" && <CustomersDashboard />}
+        {activeContext === "waiter" && <WaiterDashboard />}
+        {activeContext === "incoming" && <IncomingOrdersDashboard />}
+        {activeContext === "flota" && <FlotaDashboard />}
+        {activeContext === "caja" && <CashDashboard />}
+        {activeContext === "ventas" && <SalesDashboard />}
+      </main>
+
+      <ContextPanel />
+      <ActionBar />
+    </div>
   )
 }
 
