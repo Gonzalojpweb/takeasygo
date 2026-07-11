@@ -8,6 +8,17 @@ function readPem(filename: string): string {
   return readFileSync(filepath, "utf-8").trim()
 }
 
+function validatePem(value: string, label: string): string {
+  if (!value.includes("-----BEGIN ") || !value.includes("-----END ")) {
+    throw new Error(
+      `${label} no es una clave PEM válida. ` +
+      `Debe contener -----BEGIN ... KEY----- y -----END ... KEY-----. ` +
+      `Valor actual (primeros 40 chars): "${value.slice(0, 40)}..."`
+    )
+  }
+  return value
+}
+
 export const config = {
   port: parseInt(process.env.SYNC_PORT ?? "3001", 10),
   env: process.env.NODE_ENV ?? "development",
@@ -16,8 +27,14 @@ export const config = {
 
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
 
-  jwtPrivateKey: (process.env.JWT_PRIVATE_KEY ?? readPem("keys.private.pem")).replace(/\\n/g, "\n"),
-  jwtPublicKey: (process.env.JWT_PUBLIC_KEY ?? readPem("keys.public.pem")).replace(/\\n/g, "\n"),
+  jwtPrivateKey: validatePem(
+    (process.env.JWT_PRIVATE_KEY ?? readPem("keys.private.pem")).replace(/\\n/g, "\n"),
+    "JWT_PRIVATE_KEY"
+  ),
+  jwtPublicKey: validatePem(
+    (process.env.JWT_PUBLIC_KEY ?? readPem("keys.public.pem")).replace(/\\n/g, "\n"),
+    "JWT_PUBLIC_KEY"
+  ),
 
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
 
