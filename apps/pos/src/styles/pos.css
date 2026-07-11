@@ -69,6 +69,7 @@
   /* Layout */
   --header-height: 64px;
   --nav-width: 200px;
+  --nav-width-collapsed: 64px;
   --context-panel-width: 340px;
   --action-bar-height: 72px;
 
@@ -125,13 +126,17 @@ input, select, textarea {
 .ros-app {
   display: grid;
   grid-template-rows: var(--header-height) 1fr var(--action-bar-height);
-  grid-template-columns: var(--nav-width) 1fr var(--context-panel-width);
+  grid-template-columns: auto 1fr var(--context-panel-width);
   grid-template-areas:
     "header  header   header"
     "nav     workspace context"
     "action  action   action";
   height: 100vh;
   width: 100vw;
+  transition: grid-template-columns var(--transition-normal);
+}
+.ros-app.sidebar-collapsed {
+  grid-template-columns: var(--nav-width-collapsed) 1fr var(--context-panel-width);
 }
 
 /* HEADER */
@@ -162,11 +167,41 @@ input, select, textarea {
   grid-area: nav;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: var(--sp-4) 0;
+  padding: var(--sp-3) 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  width: var(--nav-width);
+  transition: width var(--transition-normal);
 }
+.navigation.collapsed {
+  width: var(--nav-width-collapsed);
+}
+.navigation.collapsed .nav-label,
+.navigation.collapsed .nav-item span,
+.navigation.collapsed .nav-item-badge {
+  display: none;
+}
+.navigation.collapsed .nav-item {
+  justify-content: center;
+  padding: var(--sp-3) 0;
+}
+.nav-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin: 0 var(--sp-2) var(--sp-2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+  min-height: 44px;
+}
+.nav-toggle:hover { background: var(--surface-hover); color: var(--text-structure); }
+.navigation.collapsed .nav-toggle { justify-content: center; padding: var(--sp-3) 0; }
 .nav-label { padding: 0 var(--sp-4); margin-bottom: var(--sp-2); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 .nav-item {
   display: flex;
@@ -212,6 +247,10 @@ input, select, textarea {
 .workspace-title { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--text-structure); }
 .workspace-subtitle { font-size: var(--font-size-sm); color: var(--text-secondary); margin-top: 2px; }
 .workspace-actions { display: flex; align-items: center; gap: var(--sp-2); }
+.workspace-views { display: flex; gap: 0; padding: 0 var(--sp-6); background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.view-tab { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--text-secondary); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all var(--transition-fast); }
+.view-tab:hover { color: var(--text-structure); background: var(--surface-hover); }
+.view-tab.active { color: var(--primary-action); border-bottom-color: var(--primary-action); }
 
 /* CONTEXT PANEL */
 .context-panel {
