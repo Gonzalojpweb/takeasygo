@@ -1,4 +1,4 @@
-const SYNC_URL = "http://localhost:3001"
+const SYNC_URL = import.meta.env.VITE_SYNC_URL ?? "http://localhost:3001"
 
 const HEALTH_ENDPOINT = `${SYNC_URL}/api/v1/health`
 const INITIAL_BACKOFF_MS = 1000
