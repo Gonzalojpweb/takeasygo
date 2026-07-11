@@ -5,7 +5,7 @@ import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency, timeAgo, formatOrderStatus } from "../../utils/format"
 import { onSocketEvent, connectSocket } from "../../services/socket-client"
 
-const SYNC_URL = "http://localhost:3001"
+const SYNC_URL = import.meta.env.VITE_SYNC_URL ?? "http://localhost:3001"
 
 type Filter = "all" | "pending" | "confirmed" | "preparing" | "ready"
 
