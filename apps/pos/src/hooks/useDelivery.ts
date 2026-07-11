@@ -3,7 +3,7 @@ import { useAuth } from "./useAuth"
 import {
   fetchDeliveryPersons,
   fetchAvailableDeliveryOrders,
-  completeDelivery,
+  assignDeliveryPerson,
 } from "../services/delivery"
 import type { DeliveryPerson, DeliveryOrder } from "../services/delivery"
 
@@ -43,14 +43,14 @@ export function useDelivery() {
     load()
   }, [load])
 
-  const complete = useCallback(
-    async (orderId: string, confirmationCode: string) => {
+  const assign = useCallback(
+    async (orderId: string, personId: string) => {
       if (!jwt) throw new Error("Not authenticated")
-      await completeDelivery(orderId, confirmationCode, jwt)
+      await assignDeliveryPerson(orderId, personId, jwt)
       await load()
     },
     [jwt, load]
   )
 
-  return { persons, orders, loading, error, complete, refresh: load }
+  return { persons, orders, loading, error, assign, refresh: load }
 }

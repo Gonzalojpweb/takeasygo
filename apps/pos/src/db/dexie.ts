@@ -1,12 +1,9 @@
 import Dexie from "dexie"
-import type { OfflineEvent, Table, Order, KitchenCommand } from "@takeasygo/types"
+import type { OfflineEvent, Table, Order, KitchenCommand, CashRegister } from "@takeasygo/types"
 
 export interface TenantConfigRecord {
   tenantId: string
   tenantSalt: Uint8Array
-  // deviceSecret: generado aleatoriamente en el primer login.
-  // Se usa para firmar eventos offline (HMAC-SHA256).
-  // El Sync Layer valida esta firma después del pairing (ver Fase 4 — pairing QR).
   deviceSecret?: string
 }
 
@@ -29,6 +26,7 @@ export interface PairedSpokeRecord {
 export type TableRecord = Table
 export type OrderRecord = Order
 export type CommandRecord = KitchenCommand
+export type CashRegisterRecord = CashRegister
 
 export class PosDatabase extends Dexie {
   tenantConfig!: Dexie.Table<TenantConfigRecord, string>
@@ -38,6 +36,7 @@ export class PosDatabase extends Dexie {
   diningTable!: Dexie.Table<TableRecord, string>
   orders!: Dexie.Table<OrderRecord, string>
   commands!: Dexie.Table<CommandRecord, string>
+  cashRegister!: Dexie.Table<CashRegisterRecord, string>
 
   constructor() {
     super("TakeasyGoPOS")
@@ -64,6 +63,16 @@ export class PosDatabase extends Dexie {
       diningTable: "id, tenantId, status, section, number",
       orders: "id, tenantId, status, tableId, createdAt",
       commands: "id, tenantId, status, createdAt",
+    })
+    this.version(5).stores({
+      tenantConfig: "tenantId",
+      session: "tenantId",
+      pendingEvents: "++id, tenantId, status, timestamp",
+      pairedSpokes: "deviceId, tenantId, pairedAt",
+      diningTable: "id, tenantId, status, section, number",
+      orders: "id, tenantId, status, tableId, createdAt",
+      commands: "id, tenantId, status, createdAt",
+      cashRegister: "id, tenantId, status, openedAt",
     })
   }
 }
