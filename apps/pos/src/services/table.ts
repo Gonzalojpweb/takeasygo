@@ -8,7 +8,7 @@ import { enqueue } from "./event-queue"
 
 const VALID_TRANSITIONS: Record<TableStatus, TableStatus[]> = {
   free: ["occupied", "reserved"],
-  occupied: ["free", "closed"],
+  occupied: ["free", "closed", "reserved"],
   reserved: ["free", "occupied"],
   closed: [],
 }
