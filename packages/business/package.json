@@ -15,9 +15,11 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@takeasygo/types": "workspace:*"
+    "@takeasygo/types": "workspace:*",
+    "jsonwebtoken": "^9.0.0"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20"
   }
 }

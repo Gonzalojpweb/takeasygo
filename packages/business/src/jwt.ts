@@ -1,4 +1,4 @@
-import { createSign, createVerify, generateKeyPairSync } from "node:crypto"
+import * as jwt from "jsonwebtoken"
 import type { JwtPayload } from "@takeasygo/types"
 
 // ============================================================================
@@ -18,19 +18,6 @@ export const SPOKE_TOKEN_TTL_MS = 2 * 60 * 1000   // 2 minutos
 export interface KeyPair {
   publicKey: string
   privateKey: string
-}
-
-/**
- * Genera un par de claves RSA 2048-bit para JWT RS256.
- * Llamar solo una vez en setup inicial, NO en cada request.
- */
-export function generateKeyPair(): KeyPair {
-  const { publicKey, privateKey } = generateKeyPairSync("rsa", {
-    modulusLength: 2048,
-    publicKeyEncoding: { type: "spki", format: "pem" },
-    privateKeyEncoding: { type: "pkcs8", format: "pem" },
-  })
-  return { publicKey, privateKey }
 }
 
 /**
@@ -55,11 +42,7 @@ export function signJwt(
   const encodedPayload = base64UrlEncode(JSON.stringify(fullPayload))
   const dataToSign = `${encodedHeader}.${encodedPayload}`
 
-  const sign = createSign("RSA-SHA256")
-  sign.update(dataToSign)
-  const signature = sign.sign(privateKey, "base64url")
-
-  return `${dataToSign}.${signature}`
+  return jwt.sign(fullPayload, privateKey, { algorithm: "RS256" })
 }
 
 /**
@@ -78,11 +61,12 @@ export function verifyJwt(
   const [encodedHeader, encodedPayload, signature] = parts
   const dataToVerify = `${encodedHeader}.${encodedPayload}`
 
-  const verify = createVerify("RSA-SHA256")
-  verify.update(dataToVerify)
-
-  const isValid = verify.verify(publicKey, signature, "base64url")
-  if (!isValid) return null
+  try {
+    const decoded = jwt.verify(token, publicKey, { algorithms: ["RS256"] }) as any
+    return decoded as any
+  } catch {
+    return null
+  }
 
   try {
     const payload: JwtPayload = JSON.parse(

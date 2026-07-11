@@ -13,7 +13,7 @@
     "build": "turbo build",
     "build:saas": "turbo build --filter=@takeasygo/saas",
     "build:pos": "turbo build --filter=@takeasygo/pos",
-    "start": "turbo start",
+    "start": "NODE_OPTIONS=--openssl-legacy-provider node dist/index.js",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "clean": "turbo clean",
