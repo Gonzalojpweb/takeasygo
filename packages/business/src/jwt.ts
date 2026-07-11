@@ -20,6 +20,21 @@ export interface KeyPair {
   privateKey: string
 }
 
+/**
+ * Firma un JWT con RS256 usando la clave privada.
+ * @param payload - Claims del JWT (sin iat/exp, se agregan automáticamente)
+ * @param privateKey - Clave privada PEM
+ * @param expiresInMs - Tiempo de vida en milisegundos (default: 30 min para hub)
+ * @returns JWT string firmado
+ */
+export function signJwt(
+  payload: Omit<JwtPayload, "iat" | "exp">,
+  privateKey: string,
+  expiresInMs: number = HUB_TOKEN_TTL_MS
+): string {
+  const now = Math.floor(Date.now() / 1000)
+  const exp = now + Math.floor(expiresInMs / 1000)
+
   const fullPayload: JwtPayload = { ...payload, iat: now, exp }
 
   return jwt.sign(fullPayload, privateKey, { algorithm: "RS256" })
