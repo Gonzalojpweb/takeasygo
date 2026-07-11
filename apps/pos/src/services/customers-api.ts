@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // El ROS llama al Sync Layer, que busca en MongoDB y descifra vía /internal/decrypt.
 
-const SYNC_URL = import.meta.env.VITE_SYNC_URL ?? "http://localhost:3001"
+const SYNC_URL = import.meta.env.VITE_SYNC_URL;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

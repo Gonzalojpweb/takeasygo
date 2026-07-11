@@ -1,7 +1,7 @@
 import { io } from "socket.io-client"
 import type { Socket } from "socket.io-client"
 
-const SYNC_URL = import.meta.env.VITE_SYNC_URL ?? "http://localhost:3001"
+const SYNC_URL = import.meta.env.VITE_SYNC_URL;
 
 type SocketCallback = (data: unknown) => void
 

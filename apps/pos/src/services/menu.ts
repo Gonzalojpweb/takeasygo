@@ -1,6 +1,6 @@
 import type { Product, MenuCategory } from "@takeasygo/types"
 
-const SYNC_URL = import.meta.env.VITE_SYNC_URL ?? "http://localhost:3001"
+const SYNC_URL = import.meta.env.VITE_SYNC_URL;
 
 export interface MenuSnapshot {
   version: number
