@@ -10,6 +10,7 @@ import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { CustomerSearch } from "../shared/CustomerSearch"
 import { PaymentSelector } from "../shared/PaymentSelector"
+import { MesaCard } from "../shared/MesaCard"
 import { SalonSetup } from "./SalonSetup"
 import { formatCurrency } from "../../utils/format"
 
@@ -271,7 +272,38 @@ export function CounterDashboard() {
         break
 
       case "cierre":
-        setContextPanel(null)
+        setContextPanel({
+          title: "Mesa cerrada",
+          subtitle: `Mesa ${selectedTable?.number ?? "?"}`,
+          body: (
+            <div style={{ padding: "var(--sp-2)" }}>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
+                Total cobrado
+              </div>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--primary-action)" }}>
+                {formatCurrency(cartTotal)}
+              </div>
+              {customer && (
+                <div style={{ marginTop: "var(--sp-3)" }}>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Cliente
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
+                    {customer.name}
+                  </div>
+                </div>
+              )}
+              <div style={{ marginTop: "var(--sp-3)" }}>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Comensales
+                </div>
+                <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
+                  {diners}
+                </div>
+              </div>
+            </div>
+          ),
+        })
         setActionBar({
           center: (
             <button className="btn btn-primary" onClick={handleNewSale}>
@@ -281,7 +313,7 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, selectedTable, cart, cartTotal, customer, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale])
+  }, [scene, selectedTable, cart, cartTotal, customer, diners, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale])
 
   return (
     <>
@@ -349,20 +381,12 @@ export function CounterDashboard() {
                         {tables
                           .filter((t) => (t.section || "Sala Principal") === section)
                           .map((table) => (
-                            <div
+                            <MesaCard
                               key={table.id}
-                              className={`mesa ${table.status === "free" ? "libre" : table.status === "occupied" ? "ocupada" : "atencion"}`}
-                              onClick={() => handleSelectTable(table.id)}
-                            >
-                              <span className="mesa-number">{table.number}</span>
-                              <span className="mesa-info">
-                                {table.status === "free"
-                                  ? "Libre"
-                                  : table.status === "occupied"
-                                    ? "Ocupada"
-                                    : "Reservada"}
-                              </span>
-                            </div>
+                              table={table}
+                              variant="counter"
+                              onClick={handleSelectTable}
+                            />
                           ))}
                       </div>
                     </div>
