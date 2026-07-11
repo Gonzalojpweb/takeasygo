@@ -13,6 +13,7 @@ import { syncRouter } from "./sync"
 import { pairingRouter } from "./pairing"
 import { customersRouter } from "./customers"
 import { ssoRouter } from "./sso"
+import { internalRouter } from "./internal"
 
 export function createRouter(
   io: SocketServer,
@@ -26,6 +27,7 @@ export function createRouter(
   router.use("/health", healthRouter)
 
   router.use("/auth", authRouter)
+  router.use("/internal", internalRouter(io, orderQueue))
 
   router.use(authMiddleware)
   router.use(tenantMiddleware)

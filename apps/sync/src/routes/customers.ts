@@ -31,6 +31,10 @@ interface CustomerSearchResult {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
 function hashPhoneForSearch(phone: string): string {
   const digits = phone.replace(/\D/g, "")
   const normalized = digits.length >= 10 ? digits.slice(-10) : digits
@@ -121,7 +125,7 @@ export function customersRouter(): Router {
           const normalizedQ = normalizeForSearch(q)
           consumers = await ConsumerModel.find({
             tenantIds: tenantId,
-            nameSearchToken: { $regex: normalizedQ, $options: "i" },
+            nameSearchToken: { $regex: escapeRegex(normalizedQ), $options: "i" },
           })
             .limit(20)
             .lean()
