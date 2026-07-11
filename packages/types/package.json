@@ -2,9 +2,10 @@
   "name": "@takeasygo/types",
   "version": "0.1.0",
   "private": true,
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "types": "./src/index.ts",
   "scripts": {
+    "build": "tsc",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
