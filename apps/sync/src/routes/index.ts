@@ -14,6 +14,7 @@ import { pairingRouter } from "./pairing"
 import { customersRouter } from "./customers"
 import { ssoRouter } from "./sso"
 import { internalRouter } from "./internal"
+import { deliveryRouter } from "./delivery"
 
 export function createRouter(
   io: SocketServer,
@@ -38,6 +39,7 @@ export function createRouter(
   router.use("/pairing", pairingRouter(io))
   router.use("/customers", customersRouter())
   router.use("/auth", ssoRouter())
+  router.use("/delivery", deliveryRouter())
 
   return router
 }

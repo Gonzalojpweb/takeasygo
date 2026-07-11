@@ -6,6 +6,8 @@ import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
 import { IncomingOrdersDashboard } from "./components/IncomingOrders/IncomingOrdersDashboard"
 import { FlotaDashboard } from "./components/Flota/FlotaDashboard"
 import { CustomersDashboard } from "./components/Customers/CustomersDashboard"
+import { SalesDashboard } from "./components/Sales/SalesDashboard"
+import { CashDashboard } from "./components/Cash/CashDashboard"
 import { Header } from "./components/layout/Header"
 import { Navigation } from "./components/layout/Navigation"
 import { ContextPanel } from "./components/layout/ContextPanel"
@@ -21,7 +23,7 @@ import { disconnectSocket } from "./services/socket-client"
 import { requestSsoToken } from "./services/sso"
 import "./styles/pos.css"
 
-type Context = "counter" | "customers" | "waiter" | "incoming" | "flota"
+type Context = "counter" | "customers" | "waiter" | "incoming" | "flota" | "caja" | "ventas"
 
 const NAV_ITEMS = [
   { id: "counter", icon: "🧮", label: "Counter" },
@@ -29,6 +31,8 @@ const NAV_ITEMS = [
   { id: "waiter", icon: "🍽️", label: "Waiter" },
   { id: "incoming", icon: "📦", label: "Pedidos" },
   { id: "flota", icon: "🛵", label: "Flota" },
+  { id: "caja", icon: "💵", label: "Caja" },
+  { id: "ventas", icon: "📊", label: "Ventas" },
 ]
 
 function App() {
@@ -118,6 +122,8 @@ function App() {
           {activeContext === "waiter" && <WaiterDashboard />}
           {activeContext === "incoming" && <IncomingOrdersDashboard />}
           {activeContext === "flota" && <FlotaDashboard />}
+          {activeContext === "caja" && <CashDashboard />}
+          {activeContext === "ventas" && <SalesDashboard />}
         </main>
 
         <ContextPanel />

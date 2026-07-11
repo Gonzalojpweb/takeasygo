@@ -2,7 +2,6 @@ const SYNC_URL = import.meta.env.VITE_SYNC_URL;
 
 export interface DeliveryPerson {
   id: string
-  tenantId: string
   name: string
   phone?: string
   isAvailable: boolean
@@ -17,7 +16,6 @@ export interface DeliveryOrder {
   total: number
   address?: string
   customerName?: string
-  confirmationCode?: string
   createdAt: string
 }
 
@@ -41,10 +39,9 @@ export async function fetchAvailableDeliveryOrders(
   _tenantId: string,
   jwt: string
 ): Promise<DeliveryOrder[]> {
-  const res = await fetch(
-    `${SYNC_URL}/api/v1/orders?status=ready&orderMode=delivery`,
-    { headers: { Authorization: `Bearer ${jwt}` } }
-  )
+  const res = await fetch(`${SYNC_URL}/api/v1/delivery/orders`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  })
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Network error" }))
@@ -54,22 +51,22 @@ export async function fetchAvailableDeliveryOrders(
   return res.json()
 }
 
-export async function completeDelivery(
+export async function assignDeliveryPerson(
   orderId: string,
-  confirmationCode: string,
+  personId: string,
   jwt: string
 ): Promise<void> {
-  const res = await fetch(`${SYNC_URL}/api/v1/delivery/${orderId}/complete`, {
+  const res = await fetch(`${SYNC_URL}/api/v1/delivery/assign`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${jwt}`,
     },
-    body: JSON.stringify({ confirmationCode }),
+    body: JSON.stringify({ orderId, personId }),
   })
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Network error" }))
-    throw new Error(err.error ?? `Delivery complete failed (${res.status})`)
+    throw new Error(err.error ?? `Delivery assign failed (${res.status})`)
   }
 }

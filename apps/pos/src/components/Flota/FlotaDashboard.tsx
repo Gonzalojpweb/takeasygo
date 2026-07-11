@@ -1,32 +1,37 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useDelivery } from "../../hooks/useDelivery"
 import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"
-import type { DeliveryOrder } from "../../services/delivery"
+import type { DeliveryPerson } from "../../services/delivery"
 
-type Scene = "repartidores" | "ordenes" | "entrega" | "historial"
+type Scene = "repartidores" | "ordenes" | "historial" | "asignar"
 
 export function FlotaDashboard() {
   const [scene, setScene] = useState<Scene>("repartidores")
-  const [selectedOrder, setSelectedOrder] = useState<DeliveryOrder | null>(null)
-  const [handoffCode, setHandoffCode] = useState("")
+  const [selectedPerson, setSelectedPerson] = useState<DeliveryPerson | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
   const { setContextPanel, setActionBar } = useLayout()
-  const { persons, orders, loading, error, complete } = useDelivery()
+  const { persons, orders, loading, error, assign } = useDelivery()
 
-  const handleSelectOrder = (order: DeliveryOrder) => {
-    setSelectedOrder(order)
-    setScene("entrega")
+  const showToast = useCallback((message: string, type: string) => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 4000)
+  }, [])
+
+  const handleSelectPerson = (person: DeliveryPerson) => {
+    setSelectedPerson(person)
+    setScene("asignar")
   }
 
-  const handleCompleteDelivery = async () => {
-    if (!selectedOrder || !handoffCode) return
+  const handleAssign = async (orderId: string) => {
+    if (!selectedPerson) return
     try {
-      await complete(selectedOrder.id, handoffCode)
-      setSelectedOrder(null)
-      setHandoffCode("")
-      setScene("ordenes")
-    } catch {
-      // Error handled by useDelivery
+      await assign(orderId, selectedPerson.id)
+      showToast(`${selectedPerson.name} asignado al pedido`, "success")
+      setSelectedPerson(null)
+      setScene("repartidores")
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Error al asignar", "error")
     }
   }
 
@@ -92,42 +97,6 @@ export function FlotaDashboard() {
         setActionBar(null)
         break
 
-      case "entrega":
-        setContextPanel({
-          title: "Entrega activa",
-          subtitle: selectedOrder ? `Pedido #${selectedOrder.id.slice(0, 8)}` : "",
-          body: selectedOrder ? (
-            <div style={{ padding: "var(--sp-2)" }}>
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
-                Código de handoff
-              </div>
-              <div className="handoff-code" style={{ fontSize: 20, padding: "var(--sp-3) var(--sp-4)" }}>
-                {selectedOrder.confirmationCode ?? "----"}
-              </div>
-              <div style={{ marginTop: "var(--sp-3)", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
-                {selectedOrder.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
-              </div>
-            </div>
-          ) : null,
-        })
-        setActionBar({
-          left: (
-            <button className="btn btn-ghost" onClick={() => setScene("ordenes")}>
-              ← Volver
-            </button>
-          ),
-          right: (
-            <button
-              className="btn btn-success"
-              onClick={handleCompleteDelivery}
-              disabled={!handoffCode}
-            >
-              Completar entrega ✓
-            </button>
-          ),
-        })
-        break
-
       case "historial":
         setContextPanel({
           title: "Historial",
@@ -140,8 +109,51 @@ export function FlotaDashboard() {
         })
         setActionBar(null)
         break
+
+      case "asignar":
+        if (!selectedPerson) {
+          setScene("repartidores")
+          break
+        }
+        setContextPanel({
+          title: "Asignar repartidor",
+          subtitle: selectedPerson.name,
+          body: (
+            <div style={{ padding: "var(--sp-2)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Repartidor
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>
+                    {selectedPerson.name}
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: selectedPerson.isAvailable ? "var(--success)" : "var(--text-muted)" }}>
+                    {selectedPerson.isAvailable ? "● Disponible" : "○ Ocupado"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Órdenes disponibles
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
+                    {orders.length}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ),
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => { setScene("repartidores"); setSelectedPerson(null) }}>
+              ← Cancelar
+            </button>
+          ),
+        })
+        break
     }
-  }, [scene, selectedOrder, persons, orders, setContextPanel, setActionBar])
+  }, [scene, selectedPerson, persons, orders, setContextPanel, setActionBar])
 
   if (loading) {
     return (
@@ -213,16 +225,17 @@ export function FlotaDashboard() {
                     <div className="delivery-info">
                       <div className="delivery-name">{person.name}</div>
                       <div className="delivery-meta">
-                        {person.isAvailable ? "● Disponible" : "○ No disponible"}
-                        {person.phone && ` — ${person.phone}`}
+                        {person.isAvailable ? "● Disponible" : `○ ${person.currentOrderId ? "En delivery" : "No disponible"}`}
+                        {person.phone && person.isAvailable && ` — ${person.phone}`}
                       </div>
                     </div>
-                    <div className="feature-disabled" style={{ position: "relative" }}>
-                      <button className="btn btn-ghost btn-sm" disabled>
-                        Asignar
-                      </button>
-                      <span className="feature-disabled-tooltip">Próximamente</span>
-                    </div>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleSelectPerson(person)}
+                      disabled={!person.isAvailable}
+                    >
+                      Asignar
+                    </button>
                   </div>
                 ))}
               </div>
@@ -230,7 +243,7 @@ export function FlotaDashboard() {
           </div>
         )}
 
-        {/* Scene: Órdenes disponibles */}
+        {/* Scene: Órdenes disponibles (solo lectura) */}
         {scene === "ordenes" && (
           <div>
             {orders.length === 0 ? (
@@ -252,16 +265,13 @@ export function FlotaDashboard() {
                       <div className="order-card-items">
                         {order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
                       </div>
+                      {order.address && (
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", marginTop: 4 }}>
+                          📍 {order.address}
+                        </div>
+                      )}
                     </div>
                     <div className="order-card-total">{formatCurrency(order.total)}</div>
-                    <div className="order-card-actions">
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => handleSelectOrder(order)}
-                      >
-                        Entregar
-                      </button>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -269,46 +279,44 @@ export function FlotaDashboard() {
           </div>
         )}
 
-        {/* Scene: Entrega activa */}
-        {scene === "entrega" && selectedOrder && (
-          <div style={{ maxWidth: 480, margin: "0 auto" }}>
-            <div className="card text-center" style={{ padding: 48 }}>
-              <div style={{ marginBottom: 24 }}>
-                <div className="workspace-title" style={{ marginBottom: 8 }}>
-                  Código de handoff
-                </div>
-                <div className="text-muted text-sm">
-                  Entregá el pedido y compartí este código con el cliente
-                </div>
+        {/* Scene: Asignar repartidor */}
+        {scene === "asignar" && selectedPerson && (
+          <div>
+            <div className="card" style={{ marginBottom: "var(--sp-4)" }}>
+              <div className="card-header">
+                <span className="card-title">Asignar a {selectedPerson.name}</span>
               </div>
-
-              <div className="handoff-code" style={{ marginBottom: 24 }}>
-                {selectedOrder.confirmationCode ?? "----"}
-              </div>
-
-              <div className="divider" />
-
-              <div style={{ padding: "16px 0", textAlign: "left" }}>
-                <div className="text-sm text-muted" style={{ marginBottom: 4 }}>
-                  Pedido #{selectedOrder.id.slice(0, 8)}
+              {orders.length === 0 ? (
+                <div className="empty-state" style={{ padding: "var(--sp-8)" }}>
+                  <span className="empty-state-icon">📦</span>
+                  <span className="empty-state-text">No hay órdenes disponibles para asignar</span>
                 </div>
-                <div className="text-sm">
-                  {selectedOrder.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
+              ) : (
+                <div className="order-items">
+                  {orders.map((order) => (
+                    <div key={order.id} className="order-item-card">
+                      <div className="order-item-main">
+                        <div className="order-item-top">
+                          <span className="order-item-name">#{order.id.slice(0, 8)}</span>
+                          <span style={{ fontWeight: 700 }}>{formatCurrency(order.total)}</span>
+                        </div>
+                        <div className="order-item-modifiers">
+                          <span>{order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}</span>
+                          {order.address && <span style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>📍 {order.address}</span>}
+                        </div>
+                      </div>
+                      <div className="order-card-actions">
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleAssign(order.id)}
+                        >
+                          Asignar a {selectedPerson.name}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-
-              <div className="divider" />
-
-              <div style={{ padding: "16px 0" }}>
-                <input
-                  type="text"
-                  className="search-input"
-                  placeholder="Ingresá el código del cliente"
-                  value={handoffCode}
-                  onChange={(e) => setHandoffCode(e.target.value)}
-                  style={{ textAlign: "center", fontSize: 18, letterSpacing: "0.1em" }}
-                />
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -324,6 +332,15 @@ export function FlotaDashboard() {
           </div>
         )}
       </div>
+
+      {toast && (
+        <div className="toast-container">
+          <div className={`toast ${toast.type}`}>
+            <span className="toast-message">{toast.message}</span>
+            <button className="toast-close" onClick={() => setToast(null)}>✕</button>
+          </div>
+        </div>
+      )}
     </>
   )
 }
