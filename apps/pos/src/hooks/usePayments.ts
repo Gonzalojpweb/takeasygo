@@ -6,6 +6,7 @@ import { createMercadoPagoPreference } from "../services/payment"
 export function usePayments() {
   const { state } = useAuth()
   const jwt = state.status === "authenticated" ? state.jwt?.accessToken : undefined
+  const tenantId = state.status === "authenticated" ? state.tenantId : undefined
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +26,7 @@ export function usePayments() {
       try {
         if (method === "mercadopago") {
           const preference = await createMercadoPagoPreference(
-            { orderId, amount, description, tenantId: "" },
+            { orderId, amount, description, tenantId: tenantId ?? "" },
             jwt
           )
           window.open(preference.initPoint, "_blank")
@@ -41,7 +42,7 @@ export function usePayments() {
         setLoading(false)
       }
     },
-    [jwt]
+    [jwt, tenantId]
   )
 
   return { processPayment, loading, error }

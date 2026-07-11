@@ -13,15 +13,22 @@ export function connectSocket(jwt: string): Socket {
 
   socket = io(SYNC_URL, {
     auth: { token: jwt },
-    transports: ["websocket"],
+    transports: ["polling", "websocket"],
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     reconnectionAttempts: Infinity,
   })
 
+  function attachListeners() {
+    listeners.forEach((callbacks, event) => {
+      callbacks.forEach((cb) => socket!.on(event, cb))
+    })
+  }
+
   socket.on("connect", () => {
     console.log("[socket] connected")
+    attachListeners()
   })
 
   socket.on("disconnect", (reason: string) => {
@@ -32,9 +39,7 @@ export function connectSocket(jwt: string): Socket {
     console.error("[socket] connection error:", err.message)
   })
 
-  listeners.forEach((callbacks, event) => {
-    callbacks.forEach((cb) => socket!.on(event, cb))
-  })
+  attachListeners()
 
   return socket
 }
@@ -52,7 +57,7 @@ export function onSocketEvent(event: string, callback: SocketCallback): () => vo
   }
   listeners.get(event)!.add(callback)
 
-  if (socket?.connected) {
+  if (socket) {
     socket.on(event, callback)
   }
 

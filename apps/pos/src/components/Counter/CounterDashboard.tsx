@@ -28,13 +28,13 @@ export function CounterDashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
   const [diners, setDiners] = useState(1)
-  const [orderId, setOrderId] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
   const { setContextPanel, setActionBar } = useLayout()
-  const { tables, closeTable } = useTables()
+  const { tables, occupyTable } = useTables()
   const { products, categories } = useMenu()
   const { processPayment } = usePayments()
-  const { createOrder, deliverOrder } = useOrders()
+  const { createOrder } = useOrders()
 
   const selectedTable = useMemo(
     () => tables.find((t) => t.id === selectedTableId),
@@ -104,32 +104,38 @@ export function CounterDashboard() {
     setScene("productos")
   }, [configProduct])
 
+  const showErrorToast = useCallback((message: string) => {
+    setToast({ message, type: "error" })
+    setTimeout(() => setToast(null), 4000)
+  }, [])
+
   const handlePay = useCallback(async (methods: PaymentMethod[]) => {
     if (!selectedTableId) return
     try {
-      const oid = orderId ?? (
-        await createOrder(
-          selectedTableId,
-          cart.map((item) => ({
-            productId: item.productId,
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
-          }))
-        )
-      ).id
-      if (!orderId) setOrderId(oid)
-      for (const method of methods) {
-        await processPayment(oid, Math.round(cartTotal / methods.length), `Pedido M${selectedTable?.number}`, method)
+      const order = await createOrder(
+        selectedTableId,
+        cart.map((item) => ({
+          productId: item.productId,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          total: item.total,
+        }))
+      )
+      if (selectedTable?.status === "free") {
+        await occupyTable(selectedTableId, "counter", order.id)
       }
-      await deliverOrder(oid)
-      await closeTable(selectedTableId)
+
+      for (const method of methods) {
+        await processPayment(order.id, Math.round(cartTotal / methods.length), `Pedido M${selectedTable?.number}`, method)
+      }
+
       setScene("cierre")
-    } catch {
-      // Payment failed - stay on cobro scene
+    } catch (err) {
+      console.error("[Counter] Payment failed:", err)
+      showErrorToast("Error al procesar el pago. Intente nuevamente.")
     }
-  }, [processPayment, cartTotal, cart, selectedTableId, selectedTable, orderId, createOrder, deliverOrder, closeTable])
+  }, [processPayment, cartTotal, cart, selectedTableId, selectedTable, createOrder, occupyTable])
 
   const handleNewSale = useCallback(() => {
     setCart([])
@@ -137,7 +143,6 @@ export function CounterDashboard() {
     setSelectedTableId(null)
     setSelectedCategory(null)
     setDiners(1)
-    setOrderId(null)
     setScene("salon")
   }, [])
 
@@ -542,6 +547,17 @@ export function CounterDashboard() {
           }}
           onClose={() => setShowCustomerSearch(false)}
         />
+      )}
+
+      {toast && (
+        <div className="toast-container">
+          <div className={`toast ${toast.type}`}>
+            <span className="toast-message">{toast.message}</span>
+            <button className="toast-close" onClick={() => setToast(null)}>
+              ✕
+            </button>
+          </div>
+        </div>
       )}
     </>
   )

@@ -32,6 +32,7 @@ import { calculateDeliveryCost } from '@/lib/geocode'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
+import { pushOrderToSyncLayer } from '@/lib/sync-layer'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -1049,6 +1050,21 @@ export async function POST(
           console.warn('[push] Error notificando admin:', pushErr?.message)
         }
       }
+    }
+
+    // ── Bridge al Sync Layer (no blocking, logs y sigue) ──────────────
+    if (order.status === 'confirmed' || order.status === 'awaiting_payment') {
+      pushOrderToSyncLayer({
+        tenantId: tenant._id.toString(),
+        items: resolvedItems.map((i: any) => ({
+          name: i.name,
+          quantity: i.quantity,
+          unitPrice: i.price,
+          total: i.subtotal,
+        })),
+        total: pricing.finalTotal,
+        notes: order.notes || undefined,
+      })
     }
 
     return NextResponse.json({ order }, { status: 201 })
