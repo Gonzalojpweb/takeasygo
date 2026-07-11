@@ -24,7 +24,7 @@ export function MesaCard({ table, variant, onClick }: MesaCardProps) {
 
       {variant === "counter" && (
         <span className="mesa-info">
-          {isFree ? "Libre" : isOccupied ? "Ocupada" : "Reservada"}
+          {isFree ? "Libre" : isOccupied ? "Ocupada" : "⚠ Solicita cuenta"}
         </span>
       )}
 

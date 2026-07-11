@@ -204,11 +204,10 @@ export function IncomingOrdersDashboard() {
     [orders, selectedOrderId]
   )
 
-  const urgentCount = useMemo(
-    () => orders.filter((o) => {
-      const mins = (Date.now() - new Date(o.createdAt).getTime()) / 60000
-      return mins > 5
-    }).length,
+  const paidCount = useMemo(
+    () => orders.filter(
+      (o) => o.source === "takeasygo" && ["confirmed", "preparing", "ready", "delivered"].includes(o.status)
+    ).length,
     [orders]
   )
 
@@ -386,7 +385,7 @@ export function IncomingOrdersDashboard() {
         })
         break
     }
-  }, [scene, connected, orders.length, pendingCount, filter, selectedOrder, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleConfirmAllPaid, handleToggleItemStatus, handleTransform, handleRejectOrder])
+  }, [scene, connected, orders.length, pendingCount, paidCount, filter, selectedOrder, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleConfirmAllPaid, handleToggleItemStatus, handleTransform, handleRejectOrder])
 
   return (
     <>
@@ -408,7 +407,7 @@ export function IncomingOrdersDashboard() {
         <div className="workspace-actions">
           {scene === "queue" && (
             <>
-              <GatewayStats urgent={urgentCount} pendingPayment={pendingCount} paid={0} />
+              <GatewayStats urgent={0} pendingPayment={pendingCount} paid={paidCount} urgentDisabled />
               <AutoConfirmToggle />
               <SocketStatus connected={connected} />
             </>

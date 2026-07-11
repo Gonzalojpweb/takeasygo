@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import type { Product, OrderItem } from "@takeasygo/types"
 import { useTables } from "../../hooks/useTables"
+import { reserveTable } from "../../services/table"
 import { useMenu } from "../../hooks/useMenu"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { useLayout } from "../layout/LayoutContext"
@@ -115,10 +116,16 @@ export function WaiterDashboard() {
     setScene("mesa")
   }, [showToast])
 
-  const handleSendBill = useCallback(() => {
-    showToast("✓ Cuenta enviada a Counter", "success")
-    setScene("cierre")
-  }, [showToast])
+  const handleSendBill = useCallback(async () => {
+    if (!selectedTableId || !selectedTable) return
+    try {
+      await reserveTable(selectedTable.tenantId, selectedTableId)
+      showToast("✓ Cuenta enviada a Counter", "success")
+      setScene("cierre")
+    } catch {
+      showToast("Error al enviar cuenta", "error")
+    }
+  }, [selectedTableId, selectedTable, showToast])
 
   const handleNewSale = useCallback(() => {
     setCart([])
@@ -278,7 +285,7 @@ export function WaiterDashboard() {
           ),
           right: (
             <button className="btn btn-primary" onClick={handleSendBill}>
-              📤 Enviar a Counter
+              📤 Solicitar cuenta
             </button>
           ),
         })
@@ -477,7 +484,7 @@ export function WaiterDashboard() {
                   La cuenta será enviada a caja para cobro
                 </div>
                 <button className="btn btn-primary" onClick={handleSendBill}>
-                  📤 Enviar a Counter
+                  📤 Solicitar cuenta
                 </button>
               </div>
             </div>

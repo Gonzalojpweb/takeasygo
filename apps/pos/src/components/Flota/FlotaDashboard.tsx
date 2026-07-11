@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react"
 import { useDelivery } from "../../hooks/useDelivery"
+import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
+import { connectSocket } from "../../services/socket-client"
+import { SocketStatus } from "../IncomingOrders/SocketStatus"
 import { formatCurrency } from "../../utils/format"
 import type { DeliveryPerson } from "../../services/delivery"
 import { DeliveryPersonCard } from "./DeliveryPersonCard"
@@ -9,11 +12,23 @@ import { DeliveryAssignList } from "./DeliveryAssignList"
 type Scene = "repartidores" | "ordenes" | "historial" | "asignar"
 
 export function FlotaDashboard() {
+  const { state } = useAuth()
+  const jwt = state.status === "authenticated" ? state.jwt?.accessToken : undefined
+
   const [scene, setScene] = useState<Scene>("repartidores")
   const [selectedPerson, setSelectedPerson] = useState<DeliveryPerson | null>(null)
+  const [connected, setConnected] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
   const { setContextPanel, setActionBar } = useLayout()
   const { persons, orders, loading, error, assign } = useDelivery()
+
+  useEffect(() => {
+    if (!jwt) return
+    const socket = connectSocket(jwt)
+    socket.on("connect", () => setConnected(true))
+    socket.on("disconnect", () => setConnected(false))
+    return () => { socket.off("connect"); socket.off("disconnect") }
+  }, [jwt])
 
   const showToast = useCallback((message: string, type: string) => {
     setToast({ message, type })
@@ -208,6 +223,7 @@ export function FlotaDashboard() {
           >
             Historial
           </button>
+          <SocketStatus connected={connected} />
         </div>
       </div>
 
