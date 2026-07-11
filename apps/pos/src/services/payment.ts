@@ -37,7 +37,7 @@ export async function createMercadoPagoPreference(
 }
 
 export function isPaymentMethodAvailable(method: PaymentMethod): boolean {
-  const disabled: PaymentMethod[] = []
+  const disabled: PaymentMethod[] = ["usdt", "pix"]
   return !disabled.includes(method)
 }
 
@@ -48,10 +48,33 @@ export function formatPaymentMethod(method: PaymentMethod): {
 } {
   switch (method) {
     case "cash":
-      return { name: "Efectivo", icon: "💵", description: "Pago en efectivo" }
-    case "posnet":
-      return { name: "POSNET", icon: "💳", description: "Tarjeta débito/crédito" }
-    case "mercadopago":
-      return { name: "MercadoPago", icon: "📱", description: "QR MercadoPago" }
+      return { name: "Efectivo", icon: "💵", description: "Efectivo" }
+    case "debit":
+      return { name: "Débito", icon: "💳", description: "Tarjeta de débito" }
+    case "credit":
+      return { name: "Crédito", icon: "💳", description: "Tarjeta de crédito" }
+    case "pix":
+      return { name: "PIX", icon: "📱", description: "Pago digital" }
+    case "usdt":
+      return { name: "USDT", icon: "₮", description: "Cripto (próximamente)" }
+    case "mixed":
+      return { name: "Pago Mixto", icon: "⚖", description: "Dividir cuenta" }
+    default:
+      return { name: "Otro", icon: "💳", description: "" }
+  }
+}
+
+export function resolvePaymentMethod(method: PaymentMethod): "cash" | "posnet" | "mercadopago" {
+  switch (method) {
+    case "cash":
+      return "cash"
+    case "debit":
+    case "credit":
+    case "mixed":
+      return "posnet"
+    case "pix":
+      return "mercadopago"
+    default:
+      return "posnet"
   }
 }

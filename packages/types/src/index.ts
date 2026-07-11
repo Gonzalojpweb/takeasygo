@@ -310,7 +310,7 @@ export interface KitchenCommandItem {
 // 10. PAYMENT — Pagos
 // ============================================================================
 
-export type PaymentMethod = "cash" | "posnet" | "mercadopago"
+export type PaymentMethod = "cash" | "posnet" | "mercadopago" | "debit" | "credit" | "pix" | "usdt" | "mixed"
 
 export type PaymentStatus = "pending" | "completed" | "failed" | "refunded"
 

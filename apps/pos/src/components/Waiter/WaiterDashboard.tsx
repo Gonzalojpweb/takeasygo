@@ -8,6 +8,9 @@ import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { formatOrderStatus } from "../../utils/format"
+import { WaiterStats } from "./WaiterStats"
+import { WaiterSectorGrid } from "./WaiterSectorGrid"
+import { MesaDetailPanel } from "./MesaDetailPanel"
 
 type Scene = "turno" | "mesa" | "configurar" | "pedido" | "cocina" | "entrega" | "cuenta" | "cierre"
 
@@ -21,11 +24,12 @@ export function WaiterDashboard() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
   const { setContextPanel, setActionBar } = useLayout()
   const { tables } = useTables()
   const { products, categories } = useMenu()
-  const { pendingCommands } = useKitchenCommands()
+  const { commands, pendingCommands, startPreparing, markReady } = useKitchenCommands()
 
   const selectedTable = useMemo(
     () => tables.find((t) => t.id === selectedTableId),
@@ -41,6 +45,11 @@ export function WaiterDashboard() {
     () => tables.filter((t) => t.status === "occupied"),
     [tables]
   )
+
+  const showToast = useCallback((message: string, type: string) => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }, [])
 
   const handleSelectTable = useCallback((tableId: string) => {
     setSelectedTableId(tableId)
@@ -100,6 +109,17 @@ export function WaiterDashboard() {
     setScene("pedido")
   }, [configProduct])
 
+  const handleSendToKitchen = useCallback(() => {
+    showToast("✓ Pedido enviado a cocina", "success")
+    setCart([])
+    setScene("mesa")
+  }, [showToast])
+
+  const handleSendBill = useCallback(() => {
+    showToast("✓ Cuenta enviada a Counter", "success")
+    setScene("cierre")
+  }, [showToast])
+
   const handleNewSale = useCallback(() => {
     setCart([])
     setSelectedTableId(null)
@@ -107,10 +127,7 @@ export function WaiterDashboard() {
     setScene("turno")
   }, [])
 
-  // ==========================================================================
-  // Context Panel +ActionBar per scene
-  // ==========================================================================
-
+  // Context Panel + ActionBar per scene
   useEffect(() => {
     switch (scene) {
       case "turno":
@@ -140,18 +157,11 @@ export function WaiterDashboard() {
       case "mesa":
         setContextPanel({
           title: `Mesa ${selectedTable?.number ?? "?"}`,
-          subtitle: cart.length > 0 ? `${cart.length} items — $${cartTotal.toFixed(2)}` : "Sin pedidos activos",
+          subtitle: selectedTable?.section || "Salón",
           body: (
-            <OrderPanel
-              title={`Mesa ${selectedTable?.number ?? "?"}`}
-              items={[]}
-              total={0}
-              footerContent={
-                <div className="text-muted text-sm text-center" style={{ padding: 16 }}>
-                  Sin pedidos activos
-                </div>
-              }
-            />
+            <div style={{ padding: "var(--sp-2)", fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
+              Capacidad: {selectedTable?.capacity ?? 0} personas
+            </div>
           ),
         })
         setActionBar({
@@ -181,7 +191,7 @@ export function WaiterDashboard() {
               total={cartTotal}
               primaryAction={{
                 label: "Enviar a cocina",
-                onClick: () => setScene("cocina"),
+                onClick: handleSendToKitchen,
                 disabled: cart.length === 0,
               }}
             />
@@ -255,7 +265,7 @@ export function WaiterDashboard() {
             <div style={{ padding: "var(--sp-4)", textAlign: "center" }}>
               <div style={{ fontSize: 32, marginBottom: "var(--sp-2)" }}>📄</div>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
-                La cuenta fue enviada a caja
+                La cuenta será enviada a caja para su procesamiento
               </div>
             </div>
           ),
@@ -263,12 +273,12 @@ export function WaiterDashboard() {
         setActionBar({
           left: (
             <button className="btn btn-ghost" onClick={() => setScene("mesa")}>
-              ← Volver
+              ← Cancelar
             </button>
           ),
           right: (
-            <button className="btn btn-primary" onClick={handleNewSale}>
-              Cerrar mesa
+            <button className="btn btn-primary" onClick={handleSendBill}>
+              📤 Enviar a Counter
             </button>
           ),
         })
@@ -285,7 +295,7 @@ export function WaiterDashboard() {
         })
         break
     }
-  }, [scene, selectedTable, cart, cartTotal, occupiedTables, pendingCommands, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale])
+  }, [scene, selectedTable, cart, cartTotal, occupiedTables, pendingCommands, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleSendToKitchen, handleSendBill, handleNewSale])
 
   return (
     <>
@@ -307,53 +317,29 @@ export function WaiterDashboard() {
             </div>
           </div>
           <div className="salon-content">
-            {occupiedTables.length === 0 ? (
-              <div className="empty-state">
-                <span className="empty-state-icon">🪑</span>
-                <span className="empty-state-text">
-                  No tenés mesas asignadas
-                </span>
-              </div>
-            ) : (
-              <div className="sector-grid">
-                {occupiedTables.map((table) => (
-                  <div
-                    key={table.id}
-                    className="mesa ocupada"
-                    onClick={() => handleSelectTable(table.id)}
-                  >
-                    <span className="mesa-number">{table.number}</span>
-                    <span className="mesa-info">Ocupada</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <WaiterStats tables={tables} kitchenCommands={commands} />
+            <WaiterSectorGrid tables={tables} onSelectTable={handleSelectTable} />
           </div>
         </>
       )}
 
       {/* Scene: Mesa */}
-      {scene === "mesa" && (
+      {scene === "mesa" && selectedTable && (
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div className="workspace-header">
             <div>
-              <div className="workspace-title">Mesa {selectedTable?.number ?? "?"}</div>
-              <div className="workspace-subtitle">Acciones para esta mesa</div>
+              <div className="workspace-title">Mesa {selectedTable.number}</div>
+              <div className="workspace-subtitle">
+                {selectedTable.section || "Salón"}
+              </div>
             </div>
           </div>
-          <div className="p-6">
-            <div className="grid-3">
-              <button className="btn btn-primary btn-lg" style={{ width: "100%", height: 80 }} onClick={() => setScene("pedido")}>
-                📝 Tomar pedido
-              </button>
-              <button className="btn btn-ghost btn-lg" style={{ width: "100%", height: 80 }} onClick={() => setScene("cocina")}>
-                🍳 Cocina
-              </button>
-              <button className="btn btn-ghost btn-lg" style={{ width: "100%", height: 80 }} onClick={() => setScene("cuenta")}>
-                💰 Solicitar cuenta
-              </button>
-            </div>
-          </div>
+          <MesaDetailPanel
+            table={selectedTable}
+            onTomarPedido={() => setScene("pedido")}
+            onCocina={() => setScene("cocina")}
+            onCuenta={() => setScene("cuenta")}
+          />
         </div>
       )}
 
@@ -429,12 +415,12 @@ export function WaiterDashboard() {
                     </div>
                     <div className="mt-8" style={{ display: "flex", gap: 8 }}>
                       {cmd.status === "pending" && (
-                        <button className="btn btn-primary btn-sm" style={{ flex: 1 }}>
+                        <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => startPreparing(cmd.orderId)}>
                           Preparar
                         </button>
                       )}
                       {cmd.status === "preparing" && (
-                        <button className="btn btn-success btn-sm" style={{ flex: 1 }}>
+                        <button className="btn btn-success btn-sm" style={{ flex: 1 }} onClick={() => markReady(cmd.orderId)}>
                           Listo ✓
                         </button>
                       )}
@@ -474,7 +460,7 @@ export function WaiterDashboard() {
         <>
           <div className="workspace-header">
             <div>
-              <div className="workspace-title">Cuenta</div>
+              <div className="workspace-title">Solicitar cuenta</div>
               <div className="workspace-subtitle">
                 Mesa {selectedTable?.number ?? "?"}
               </div>
@@ -488,10 +474,10 @@ export function WaiterDashboard() {
                   Cuenta solicitada
                 </div>
                 <div className="text-muted text-sm" style={{ marginBottom: 24 }}>
-                  La cuenta fue enviada a caja
+                  La cuenta será enviada a caja para cobro
                 </div>
-                <button className="btn btn-primary" onClick={handleNewSale}>
-                  Cerrar mesa
+                <button className="btn btn-primary" onClick={handleSendBill}>
+                  📤 Enviar a Counter
                 </button>
               </div>
             </div>
@@ -505,13 +491,24 @@ export function WaiterDashboard() {
           <div className="text-center">
             <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
             <div className="workspace-title" style={{ marginBottom: 8 }}>
-              Mesa cerrada
+              Cuenta enviada a Counter
             </div>
             <div className="text-muted text-sm" style={{ marginBottom: 24 }}>
               Mesa {selectedTable?.number ?? "?"}
             </div>
             <button className="btn btn-primary" onClick={handleNewSale}>
               Volver al turno
+            </button>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="toast-container">
+          <div className={`toast ${toast.type}`}>
+            <span className="toast-message">{toast.message}</span>
+            <button className="toast-close" onClick={() => setToast(null)}>
+              ✕
             </button>
           </div>
         </div>

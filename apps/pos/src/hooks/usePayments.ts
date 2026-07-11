@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react"
 import type { PaymentMethod } from "@takeasygo/types"
 import { useAuth } from "./useAuth"
-import { createMercadoPagoPreference } from "../services/payment"
+import { createMercadoPagoPreference, resolvePaymentMethod } from "../services/payment"
 
 export function usePayments() {
   const { state } = useAuth()
@@ -24,16 +24,18 @@ export function usePayments() {
       setError(null)
 
       try {
-        if (method === "mercadopago") {
+        const resolved = resolvePaymentMethod(method)
+
+        if (resolved === "mercadopago") {
           const preference = await createMercadoPagoPreference(
             { orderId, amount, description, tenantId: tenantId ?? "" },
             jwt
           )
           window.open(preference.initPoint, "_blank")
-          return { method: "mercadopago", preferenceId: preference.preferenceId }
+          return { method: resolved, preferenceId: preference.preferenceId }
         }
 
-        return { method, status: "completed" }
+        return { method: resolved, status: "completed" }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Payment failed"
         setError(message)

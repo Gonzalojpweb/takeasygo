@@ -2,12 +2,33 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import type { Order } from "@takeasygo/types"
 import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
-import { formatCurrency, timeAgo, formatOrderStatus } from "../../utils/format"
+import { formatCurrency } from "../../utils/format"
 import { onSocketEvent, connectSocket } from "../../services/socket-client"
 import { createOrder } from "../../services/order"
+import { SocketStatus } from "./SocketStatus"
+import { GatewayStats } from "./GatewayStats"
+import { GatewayFilters } from "./GatewayFilters"
+import type { FilterOption } from "./GatewayFilters"
+import { AutoConfirmToggle } from "./AutoConfirmToggle"
+import { OrderCard } from "./OrderCard"
+import { OrderValidationPanel } from "./OrderValidationPanel"
+import { OrderTransformPanel } from "./OrderTransformPanel"
+
+// ============================================================================
+// REGLA DE DOMINIO — Gateway
+// ============================================================================
+// El Gateway NUNCA modifica un pedido.
+// Solo puede:
+//   ✅ Validar    — revisar items, marcar needs_attention
+//   ✅ Rechazar   — eliminar de la cola (no se transforma)
+//   ✅ Transformar — convertir a orden local POS
+// Prohibido:
+//   ❌ Editar productos, precios o cantidades
+//   ❌ Cambiar el estado del pedido en origen
+//   ❌ Modificar la orden después de transformada
+// ============================================================================
 
 type Scene = "queue" | "validation" | "transform"
-type Filter = "all" | "pending" | "confirmed" | "preparing" | "ready"
 
 interface ValidationItem {
   productId: string
@@ -15,7 +36,6 @@ interface ValidationItem {
   quantity: number
   unitPrice: number
   status: "valid" | "needs_attention"
-  notes?: string
 }
 
 const SYNC_URL = import.meta.env.VITE_SYNC_URL
@@ -28,7 +48,7 @@ export function IncomingOrdersDashboard() {
   const { setContextPanel, setActionBar } = useLayout()
   const [scene, setScene] = useState<Scene>("queue")
   const [orders, setOrders] = useState<Order[]>([])
-  const [filter, setFilter] = useState<Filter>("all")
+  const [filter, setFilter] = useState<FilterOption>("all")
   const [connected, setConnected] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [validationItems, setValidationItems] = useState<ValidationItem[]>([])
@@ -50,12 +70,12 @@ export function IncomingOrdersDashboard() {
     socket.on("disconnect", () => setConnected(false))
 
     const unsubCreated = onSocketEvent("order:created", (data: unknown) => {
-      const event = data as { orderId: string; items: unknown[]; total: number }
+      const event = data as { orderId: string; items: unknown[]; total: number; source?: string }
       setOrders((prev) => {
         const newOrder: Order = {
           id: event.orderId,
           tenantId: "",
-          source: "takeasygo",
+          source: (event.source as Order["source"]) || "takeasygo",
           status: "pending",
           items: event.items as Order["items"],
           total: event.total,
@@ -105,6 +125,13 @@ export function IncomingOrdersDashboard() {
       showToast("Error al confirmar", "error")
     }
   }, [jwt, showToast])
+
+  const handleRejectOrder = useCallback((orderId: string) => {
+    setOrders((prev) => prev.filter((o) => o.id !== orderId))
+    setSelectedOrderId(null)
+    setScene("queue")
+    showToast("Pedido rechazado", "info")
+  }, [showToast])
 
   const handleConfirmAllPaid = useCallback(() => {
     const pendingPaid = orders.filter((o) => o.status === "pending")
@@ -162,8 +189,9 @@ export function IncomingOrdersDashboard() {
   }, [orders, selectedOrderId, tenantId, showToast])
 
   const filteredOrders = useMemo(() => {
-    if (filter === "all") return orders
-    return orders.filter((o) => o.status === filter)
+    if (filter === "all" || filter === "delivery" || filter === "takeaway" || filter === "marketplace") return orders
+    if (filter === "pending_payment") return orders.filter((o) => o.status === "pending")
+    return orders
   }, [orders, filter])
 
   const pendingCount = useMemo(
@@ -176,6 +204,23 @@ export function IncomingOrdersDashboard() {
     [orders, selectedOrderId]
   )
 
+  const urgentCount = useMemo(
+    () => orders.filter((o) => {
+      const mins = (Date.now() - new Date(o.createdAt).getTime()) / 60000
+      return mins > 5
+    }).length,
+    [orders]
+  )
+
+  const filterCounts = useMemo(() => ({
+    all: orders.length,
+    delivery: 0,
+    takeaway: 0,
+    marketplace: 0,
+    pending_payment: pendingCount,
+  }), [orders.length, pendingCount])
+
+  // Context Panel + ActionBar per scene
   useEffect(() => {
     switch (scene) {
       case "queue":
@@ -271,11 +316,13 @@ export function IncomingOrdersDashboard() {
               ← Volver
             </button>
           ),
+          center: selectedOrder && (
+            <button className="btn btn-danger" onClick={() => handleRejectOrder(selectedOrder.id)}>
+              Rechazar pedido
+            </button>
+          ),
           right: (
-            <button
-              className="btn btn-primary"
-              onClick={() => setScene("transform")}
-            >
+            <button className="btn btn-primary" onClick={() => setScene("transform")}>
               Transformar a local
             </button>
           ),
@@ -339,21 +386,18 @@ export function IncomingOrdersDashboard() {
         })
         break
     }
-  }, [scene, connected, orders.length, pendingCount, filter, selectedOrder, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleConfirmAllPaid, handleToggleItemStatus, handleTransform])
-
-  const formatOrderItems = (items: Order["items"]) =>
-    items.map((i) => `${i.quantity}× ${i.name}`).join(", ")
+  }, [scene, connected, orders.length, pendingCount, filter, selectedOrder, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleConfirmAllPaid, handleToggleItemStatus, handleTransform, handleRejectOrder])
 
   return (
     <>
       <div className="workspace-header">
         <div>
           <div className="workspace-title">
-            {scene === "queue" ? "Bandeja de entrada" : scene === "validation" ? "Validar pedido" : "Transformar a local"}
+            {scene === "queue" ? "Pedidos Externos" : scene === "validation" ? "Validar pedido" : "Transformar a local"}
           </div>
           <div className="workspace-subtitle">
             {scene === "queue"
-              ? `Filtro: ${filter === "all" ? "Todos" : formatOrderStatus(filter)}`
+              ? "Solo pedidos del ecosistema — No incluye pedidos de salón"
               : scene === "validation" && selectedOrder
                 ? `#${selectedOrder.id.slice(0, 8)} — ${formatCurrency(selectedOrder.total)}`
                 : scene === "transform" && selectedOrder
@@ -363,22 +407,11 @@ export function IncomingOrdersDashboard() {
         </div>
         <div className="workspace-actions">
           {scene === "queue" && (
-            <div className="flex gap-2">
-              {(["all", "pending", "confirmed", "ready"] as Filter[]).map((f) => (
-                <button
-                  key={f}
-                  className={`category-tab ${filter === f ? "active" : ""}`}
-                  onClick={() => setFilter(f)}
-                >
-                  {f === "all" ? "Todos" : formatOrderStatus(f)}
-                  {f === "pending" && pendingCount > 0 && (
-                    <span className="nav-item-badge" style={{ marginLeft: 6 }}>
-                      {pendingCount}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+            <>
+              <GatewayStats urgent={urgentCount} pendingPayment={pendingCount} paid={0} />
+              <AutoConfirmToggle />
+              <SocketStatus connected={connected} />
+            </>
           )}
           {scene === "validation" && (
             <span className="status-badge">
@@ -392,134 +425,45 @@ export function IncomingOrdersDashboard() {
 
       <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {scene === "queue" && (
-          filteredOrders.length === 0 ? (
-            <div className="empty-state">
-              <span className="empty-state-icon">📦</span>
-              <span className="empty-state-text">
-                No hay pedidos {filter !== "all" ? formatOrderStatus(filter) : ""}
-              </span>
-            </div>
-          ) : (
-            <div className="orders-list">
-              {filteredOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="order-card"
-                  onClick={() => handleSelectOrder(order.id)}
-                  style={{ cursor: "pointer" }}
-                >
-                  <div className="order-card-main">
-                    <div className="order-card-header">
-                      <span className="order-card-id">#{order.id.slice(0, 8)}</span>
-                      <span className={`status-badge ${order.status}`}>
-                        {formatOrderStatus(order.status)}
-                      </span>
-                      <span className="order-card-time">{timeAgo(order.createdAt)}</span>
-                    </div>
-                    <div className="order-card-items">{formatOrderItems(order.items)}</div>
-                  </div>
-                  <div className="order-card-total">{formatCurrency(order.total)}</div>
-                  <div className="order-card-actions">
-                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--primary-action)" }}>
-                      Validar →
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
+          <>
+            <GatewayFilters active={filter} counts={filterCounts} onChange={setFilter} />
+            {filteredOrders.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon">📦</span>
+                <span className="empty-state-text">
+                  No hay pedidos externos pendientes
+                </span>
+              </div>
+            ) : (
+              <div className="orders-list">
+                {filteredOrders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onClick={handleSelectOrder}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {scene === "validation" && selectedOrder && (
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Items del pedido</span>
-              <span className="text-muted text-sm">Click para marcar necesidad de atención</span>
-            </div>
-            <div className="order-items">
-              {validationItems.map((item) => (
-                <div
-                  key={item.productId}
-                  className={`order-item-card ${item.status === "needs_attention" ? "dimmed" : ""}`}
-                  onClick={() => handleToggleItemStatus(item.productId)}
-                  style={{ cursor: "pointer", opacity: item.status === "needs_attention" ? 0.5 : 1 }}
-                >
-                  <div className="order-item-main">
-                    <div className="order-item-top">
-                      <span className="order-item-name">
-                        {item.status === "needs_attention" ? "⚠ " : "✓ "}{item.quantity}x {item.name}
-                      </span>
-                      <span style={{ fontWeight: 600 }}>
-                        {formatCurrency(item.unitPrice * item.quantity)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--sp-3)", borderTop: "2px solid var(--text-structure)", fontWeight: 700, fontSize: "var(--font-size-lg)" }}>
-              <span>Total</span>
-              <span>{formatCurrency(selectedOrder.total)}</span>
-            </div>
-          </div>
+          <OrderValidationPanel
+            order={selectedOrder}
+            items={validationItems}
+            onToggleItem={handleToggleItemStatus}
+          />
         )}
 
         {scene === "transform" && selectedOrder && (
-          <div style={{ maxWidth: 500, margin: "0 auto", padding: "var(--sp-8)" }}>
-            <div className="card" style={{ padding: "var(--sp-6)", textAlign: "center" }}>
-              {transformResult ? (
-                <div>
-                  <div style={{ fontSize: 64, marginBottom: "var(--sp-4)" }}>✅</div>
-                  <div className="workspace-title" style={{ marginBottom: "var(--sp-2)" }}>
-                    Pedido transformado
-                  </div>
-                  <div className="text-muted text-sm" style={{ marginBottom: "var(--sp-4)" }}>
-                    El pedido online ya está disponible como orden local en el sistema POS
-                  </div>
-                  <div style={{ padding: "var(--sp-3)", background: "var(--surface-hover)", borderRadius: "var(--radius)", marginBottom: "var(--sp-4)" }}>
-                    <div style={{ fontWeight: 600, marginBottom: "var(--sp-1)" }}>Orden local ID</div>
-                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
-                      {transformResult.localOrderId}
-                    </div>
-                  </div>
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => { setScene("queue"); setSelectedOrderId(null); setTransformResult(null) }}
-                  >
-                    Volver a bandeja
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ fontSize: 64, marginBottom: "var(--sp-4)" }}>🔄</div>
-                  <div className="workspace-title" style={{ marginBottom: "var(--sp-2)" }}>
-                    Transformar a orden local
-                  </div>
-                  <div className="text-muted text-sm" style={{ marginBottom: "var(--sp-4)" }}>
-                    Este pedido online será convertido en una orden local del POS y enviado a cocina
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-around", marginBottom: "var(--sp-4)" }}>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 24, fontWeight: 700 }}>{selectedOrder.items.length}</div>
-                      <div className="text-muted text-sm">Items</div>
-                    </div>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 24, fontWeight: 700 }}>{formatCurrency(selectedOrder.total)}</div>
-                      <div className="text-muted text-sm">Total</div>
-                    </div>
-                  </div>
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleTransform}
-                    disabled={transforming}
-                    style={{ width: "100%" }}
-                  >
-                    {transforming ? "Transformando..." : "Crear orden local en POS"}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          <OrderTransformPanel
+            order={selectedOrder}
+            transformResult={transformResult}
+            transforming={transforming}
+            onTransform={handleTransform}
+            onReturn={() => { setScene("queue"); setSelectedOrderId(null); setTransformResult(null) }}
+          />
         )}
       </div>
 

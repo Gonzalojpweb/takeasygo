@@ -6,6 +6,7 @@ export interface DeliveryPerson {
   phone?: string
   isAvailable: boolean
   currentOrderId?: string
+  vehicle?: string
 }
 
 export interface DeliveryOrder {

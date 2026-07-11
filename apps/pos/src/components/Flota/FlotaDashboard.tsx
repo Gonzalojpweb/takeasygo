@@ -3,6 +3,8 @@ import { useDelivery } from "../../hooks/useDelivery"
 import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"
 import type { DeliveryPerson } from "../../services/delivery"
+import { DeliveryPersonCard } from "./DeliveryPersonCard"
+import { DeliveryAssignList } from "./DeliveryAssignList"
 
 type Scene = "repartidores" | "ordenes" | "historial" | "asignar"
 
@@ -35,38 +37,38 @@ export function FlotaDashboard() {
     }
   }
 
-  // ==========================================================================
-  // Context Panel + ActionBar per scene
-  // ==========================================================================
+  const activeCount = persons.filter((p) => p.isAvailable).length
+  const assignedCount = persons.filter((p) => p.currentOrderId).length
 
+  // Context Panel + ActionBar per scene
   useEffect(() => {
     switch (scene) {
       case "repartidores":
         setContextPanel({
           title: "Flota",
-          subtitle: `${persons.length} repartidores — ${orders.length} órdenes disponibles`,
+          subtitle: `${persons.length} repartidores`,
           body: (
             <div style={{ padding: "var(--sp-2)" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
                 <div>
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Repartidores
+                    Conductores activos
                   </div>
                   <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
-                    {persons.length}
+                    {activeCount}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Disponibles
+                    Pedidos asignados
                   </div>
                   <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
-                    {persons.filter((p) => p.isAvailable).length}
+                    {assignedCount}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Órdenes pendientes
+                    Esperando asignación
                   </div>
                   <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
                     {orders.length}
@@ -131,6 +133,11 @@ export function FlotaDashboard() {
                   <div style={{ fontSize: "var(--font-size-sm)", color: selectedPerson.isAvailable ? "var(--success)" : "var(--text-muted)" }}>
                     {selectedPerson.isAvailable ? "● Disponible" : "○ Ocupado"}
                   </div>
+                  {selectedPerson.vehicle && (
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginTop: "var(--sp-1)" }}>
+                      🚗 {selectedPerson.vehicle}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -153,7 +160,7 @@ export function FlotaDashboard() {
         })
         break
     }
-  }, [scene, selectedPerson, persons, orders, setContextPanel, setActionBar])
+  }, [scene, selectedPerson, persons, orders, activeCount, assignedCount, setContextPanel, setActionBar])
 
   if (loading) {
     return (
@@ -175,7 +182,6 @@ export function FlotaDashboard() {
 
   return (
     <>
-      {/* Header */}
       <div className="workspace-header">
         <div>
           <div className="workspace-title">Flota</div>
@@ -205,9 +211,7 @@ export function FlotaDashboard() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-        {/* Scene: Repartidores */}
         {scene === "repartidores" && (
           <div>
             {persons.length === 0 ? (
@@ -218,32 +222,17 @@ export function FlotaDashboard() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {persons.map((person) => (
-                  <div key={person.id} className="delivery-card">
-                    <div className="delivery-avatar">
-                      {person.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="delivery-info">
-                      <div className="delivery-name">{person.name}</div>
-                      <div className="delivery-meta">
-                        {person.isAvailable ? "● Disponible" : `○ ${person.currentOrderId ? "En delivery" : "No disponible"}`}
-                        {person.phone && person.isAvailable && ` — ${person.phone}`}
-                      </div>
-                    </div>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleSelectPerson(person)}
-                      disabled={!person.isAvailable}
-                    >
-                      Asignar
-                    </button>
-                  </div>
+                  <DeliveryPersonCard
+                    key={person.id}
+                    person={person}
+                    onAssign={handleSelectPerson}
+                  />
                 ))}
               </div>
             )}
           </div>
         )}
 
-        {/* Scene: Órdenes disponibles (solo lectura) */}
         {scene === "ordenes" && (
           <div>
             {orders.length === 0 ? (
@@ -279,49 +268,14 @@ export function FlotaDashboard() {
           </div>
         )}
 
-        {/* Scene: Asignar repartidor */}
         {scene === "asignar" && selectedPerson && (
-          <div>
-            <div className="card" style={{ marginBottom: "var(--sp-4)" }}>
-              <div className="card-header">
-                <span className="card-title">Asignar a {selectedPerson.name}</span>
-              </div>
-              {orders.length === 0 ? (
-                <div className="empty-state" style={{ padding: "var(--sp-8)" }}>
-                  <span className="empty-state-icon">📦</span>
-                  <span className="empty-state-text">No hay órdenes disponibles para asignar</span>
-                </div>
-              ) : (
-                <div className="order-items">
-                  {orders.map((order) => (
-                    <div key={order.id} className="order-item-card">
-                      <div className="order-item-main">
-                        <div className="order-item-top">
-                          <span className="order-item-name">#{order.id.slice(0, 8)}</span>
-                          <span style={{ fontWeight: 700 }}>{formatCurrency(order.total)}</span>
-                        </div>
-                        <div className="order-item-modifiers">
-                          <span>{order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}</span>
-                          {order.address && <span style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>📍 {order.address}</span>}
-                        </div>
-                      </div>
-                      <div className="order-card-actions">
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => handleAssign(order.id)}
-                        >
-                          Asignar a {selectedPerson.name}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <DeliveryAssignList
+            orders={orders}
+            person={selectedPerson}
+            onAssign={handleAssign}
+          />
         )}
 
-        {/* Scene: Historial */}
         {scene === "historial" && (
           <div className="feature-disabled" style={{ position: "relative", textAlign: "center", padding: 48 }}>
             <div className="empty-state-icon" style={{ fontSize: 40 }}>📊</div>
