@@ -15,7 +15,7 @@ export {
 export { canPerformAction, PERMISSIONS } from "./authorization"
 export { validateEventSignature, createEventSignature } from "./sync-events"
 export {
-  generateKeyPair,
+
   signJwt,
   verifyJwt,
   decodeJwt,
