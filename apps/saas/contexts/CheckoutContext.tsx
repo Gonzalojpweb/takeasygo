@@ -103,7 +103,7 @@ export interface CheckoutState {
   activeLegalModal: 'terminos' | 'privacidad' | null
   redirectingToMp: boolean
   kriptonEnabled: boolean
-  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer'
+  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer' | null
   paymentSurcharges: Record<string, number>
   transferEnabled: boolean
   transferData: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null
@@ -141,7 +141,7 @@ type CheckoutAction =
   | { type: 'SET_LEGAL_MODAL'; modal: 'terminos' | 'privacidad' | null }
   | { type: 'SET_REDIRECTING'; redirecting: boolean }
   | { type: 'SET_KRIPTON_ENABLED'; enabled: boolean }
-  | { type: 'SET_PAYMENT_METHOD'; method: 'mercadopago' | 'kripton' | 'transfer' }
+  | { type: 'SET_PAYMENT_METHOD'; method: 'mercadopago' | 'kripton' | 'transfer' | null }
   | { type: 'SET_PAYMENT_SURCHARGES'; surcharges: Record<string, number> }
   | { type: 'SET_TRANSFER_ENABLED'; enabled: boolean }
   | { type: 'SET_TRANSFER_DATA'; data: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null }
@@ -264,7 +264,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     activeLegalModal: null,
     redirectingToMp: false,
     kriptonEnabled: false,
-    selectedPaymentMethod: 'mercadopago',
+    selectedPaymentMethod: null as any,
     paymentSurcharges: {},
     transferEnabled: false,
     transferData: null,
@@ -532,7 +532,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
 
   const deliveryCost = state.deliveryMode && state.deliveryQuote.withinRange ? state.deliveryQuote.cost : 0
   const baseTotal = Math.max(0, subtotal - discountAmount) + deliveryCost
-  const activeSurchargePercent = state.selectedPaymentMethod !== 'transfer'
+  const activeSurchargePercent = state.selectedPaymentMethod && state.selectedPaymentMethod !== 'transfer'
     ? (state.paymentSurcharges[state.selectedPaymentMethod] ?? 0)
     : 0
   const total = activeSurchargePercent > 0

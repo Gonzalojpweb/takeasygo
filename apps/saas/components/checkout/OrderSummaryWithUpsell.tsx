@@ -3,7 +3,7 @@
 import { useCheckout } from '@/contexts/CheckoutContext'
 
 export default function OrderSummaryWithUpsell() {
-  const { state, subtotal, total, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, selectedRewardItem } = useCheckout()
+  const { state, subtotal, baseTotal, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, selectedRewardItem } = useCheckout()
   const { cart, upsellHints, activeQrPromo, deliveryMode, deliveryQuote } = state
 
   if (cart.length === 0) {
@@ -119,7 +119,7 @@ export default function OrderSummaryWithUpsell() {
         )}
         <div className="flex justify-between text-lg font-black text-zinc-900 border-t border-zinc-200 pt-2">
           <span>Total</span>
-          <span>${total.toLocaleString('es-AR')}</span>
+          <span>${baseTotal.toLocaleString('es-AR')}</span>
         </div>
       </div>
 

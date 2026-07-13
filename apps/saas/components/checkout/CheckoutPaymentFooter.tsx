@@ -55,6 +55,7 @@ export default function CheckoutPaymentFooter() {
     if (joinClub && !form.email.trim()) return toast.error('El email es obligatorio para unirse al club')
     if (joinClub && form.email.trim() && !/^[^\s@]+@[^\s@]+$/.test(form.email.trim())) return toast.error('Formato de email inválido')
     if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
+    if (!selectedPaymentMethod) return toast.error('Seleccioná un método de pago')
 
     dispatch({ type: 'SET_LOADING', loading: true })
 
@@ -218,7 +219,7 @@ export default function CheckoutPaymentFooter() {
   }
 
   const isCartEmpty = cart.length === 0
-  const methodLabel = selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'MercadoPago'
+  const methodLabel = selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : selectedPaymentMethod === 'mercadopago' ? 'MercadoPago' : 'Pago'
   const buttonText = isLastStep
     ? loading
       ? 'Procesando...'

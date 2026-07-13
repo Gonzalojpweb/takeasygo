@@ -110,7 +110,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [transferEnabled, setTransferEnabled] = useState(false)
   const [transferData, setTransferData] = useState<{ alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null>(null)
   const [paymentSurcharges, setPaymentSurcharges] = useState<Record<string, number>>({})
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'mercadopago' | 'kripton' | 'transfer'>('mercadopago')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'mercadopago' | 'kripton' | 'transfer' | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
   // ── Estimated time + Delay announcement ──────────────────────────
@@ -406,10 +406,12 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
 
   const deliveryCost = deliveryMode && deliveryQuote.withinRange ? deliveryQuote.cost : 0
   const baseTotal = Math.max(0, subtotal - discountAmount) + deliveryCost
-  const activeSurchargePercent = paymentSurcharges[selectedPaymentMethod] ?? 0
-  const total = selectedPaymentMethod === 'transfer'
-    ? baseTotal
-    : Math.round(baseTotal * (1 + activeSurchargePercent / 100))
+  const activeSurchargePercent = selectedPaymentMethod && selectedPaymentMethod !== 'transfer'
+    ? (paymentSurcharges[selectedPaymentMethod] ?? 0)
+    : 0
+  const total = activeSurchargePercent > 0
+    ? Math.round(baseTotal * (1 + activeSurchargePercent / 100))
+    : baseTotal
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault()
@@ -418,6 +420,7 @@ async function handleSubmit(e: React.FormEvent) {
   if (joinClub && !form.email.trim()) return toast.error('El email es obligatorio para unirse al club')
   if (joinClub && form.email.trim() && !/^[^\s@]+@[^\s@]+$/.test(form.email.trim())) return toast.error('Formato de email inválido')
   if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
+  if (!selectedPaymentMethod) return toast.error('Seleccioná un método de pago')
   setLoading(true)
 
     captureCheckoutStarted({ total, itemsCount: cart.length, orderMode: mode })
@@ -737,7 +740,7 @@ async function handleSubmit(e: React.FormEvent) {
           {cart.length > 0 && (
             <div className="border-t border-zinc-200 mt-4 pt-3 flex justify-between font-bold">
               <span>Total</span>
-              <span>${total.toLocaleString('es-AR')}</span>
+              <span>${baseTotal.toLocaleString('es-AR')}</span>
             </div>
           )}
         </div>
