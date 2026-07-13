@@ -18,6 +18,7 @@ import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 import OnboardingChecklist from '@/components/admin/OnboardingChecklist'
 import RatingsWidget from '@/components/admin/RatingsWidget'
+import LikesWidget from '@/components/admin/LikesWidget'
 import Link from 'next/link'
 
 function PlanBanner({ plan, trialOrderCount, tenantSlug }: { plan: Plan; trialOrderCount?: number; tenantSlug: string }) {
@@ -399,6 +400,9 @@ export default async function AdminDashboard() {
 
       {/* Calificaciones */}
       <RatingsWidget tenantSlug={tenantSlug!} />
+
+      {/* Platos más likeados */}
+      <LikesWidget tenantSlug={tenantSlug!} />
 
       {/* Pedidos recientes */}
       <Card className="rounded-2xl border shadow-sm overflow-hidden">

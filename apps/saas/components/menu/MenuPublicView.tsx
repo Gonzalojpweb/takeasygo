@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
-  Award, Wallet, Tag,
+  Award, Wallet, Tag, Heart,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -26,6 +26,7 @@ import { captureMenuOpened, captureDishAdded } from '@/lib/tia/events'
 import { motion } from 'framer-motion'
 import LocationBar from '@/components/menu/LocationBar'
 import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
+import PromotionStories from '@/components/menu/PromotionStories'
 
 interface Props {
   tenant: any
@@ -188,6 +189,23 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   const [promoQtyValue, setPromoQtyValue] = useState(1)
 
+  const [likesOrderId, setLikesOrderId] = useState<string | null>(null)
+  const [likesToken, setLikesToken] = useState<string | null>(null)
+  const [likedItems, setLikedItems] = useState<Set<string>>(new Set())
+  const [likesLoading, setLikesLoading] = useState<Set<string>>(new Set())
+  const [showStories, setShowStories] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const sp = new URLSearchParams(window.location.search)
+    const oid = sp.get('likes')
+    const tok = sp.get('token')
+    if (oid && tok) {
+      setLikesOrderId(oid)
+      setLikesToken(tok)
+    }
+  }, [])
+
   // Detect company admin in business mode (block promos + store)
   useEffect(() => {
     if (mode === 'business' && !groupSessionToken) {
@@ -306,6 +324,33 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   useEffect(() => {
     if (cart.length === 0) upsellDismissedRef.current = false
   }, [cart.length])
+
+  async function handleLikeToggle(itemId: string) {
+    if (!likesOrderId || !likesToken) return
+    const loadingKey = itemId
+    if (likesLoading.has(loadingKey)) return
+    setLikesLoading(prev => new Set(prev).add(loadingKey))
+    const isLiked = likedItems.has(itemId)
+    try {
+      const res = await fetch(`/api/${tenant.slug}/menu/items/${itemId}/like`, {
+        method: isLiked ? 'DELETE' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: likesOrderId, token: likesToken }),
+      })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setLikedItems(prev => { const n = new Set(prev); if (data.liked) n.add(itemId); else n.delete(itemId); return n })
+      setMenuData((prev: any) => {
+        const cats = prev.categories.map((cat: any) => ({
+          ...cat, items: cat.items.map((it: any) =>
+            it._id === itemId ? { ...it, likesCount: data.likesCount } : it
+          ),
+        }))
+        return { ...prev, categories: cats }
+      })
+    } catch { toast.error('No se pudo actualizar el like') }
+    finally { setLikesLoading(prev => { const n = new Set(prev); n.delete(loadingKey); return n }) }
+  }
 
   const handleFlyToCart = useCallback((item: any, rect: DOMRect) => {
     const cartRect = cartBtnRef.current?.getBoundingClientRect()
@@ -728,7 +773,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               </button>
             </div>
             <span className="text-xs opacity-40">{mode === 'takeaway' ? t.takeaway : mode === 'business' ? 'Business' : t.dineIn}</span>
-            {totalItems > 0 && (
+            {totalItems > 0 && !likesOrderId && (
               <button
                 ref={cartBtnRef}
                 onClick={() => setShowCart(true)}
@@ -755,6 +800,21 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           className="border-t overflow-x-auto"
           style={{ borderColor: primary + '15', scrollbarWidth: 'none' }}>
           <div className="flex gap-5 px-4 py-3 min-w-max">
+            {promotions.length > 0 && !isAdminCorp && (
+              <button
+                onClick={() => setShowStories(true)}
+                className="flex flex-col items-center gap-1.5 flex-shrink-0 transition-opacity hover:opacity-80"
+                style={{ opacity: 0.85 }}>
+                <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center"
+                  style={{ border: `2.5px solid ${primary}`, backgroundColor: primary + '15' }}>
+                  <span className="text-xl">🎬</span>
+                </div>
+                <span className="text-xs font-medium text-center leading-tight"
+                  style={{ color: primary, maxWidth: '64px' }}>
+                  Promociones
+                </span>
+              </button>
+            )}
             {categories.map((cat: any) => {
               const isActive = activeCategory === cat._id
               return (
@@ -799,6 +859,14 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
       {/* ── Main menu content ── */}
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-10">
+
+        {likesOrderId && (
+          <div className="mb-6 p-4 rounded-2xl text-center" style={{ backgroundColor: primary + '12' }}>
+            <Heart size={20} className="inline-block mb-1" style={{ color: primary }} fill={primary} />
+            <p className="font-bold text-sm" style={{ color: primary }}>¡Dale like a tus platos favoritos!</p>
+            <p className="text-xs opacity-50 mt-0.5">Cada like ayuda a otros a descubrir los mejores platos</p>
+          </div>
+        )}
 
         {/* Promotions Section — hidden for company admin in business mode */}
         {promotions.length > 0 && !isAdminCorp && (
@@ -862,7 +930,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         ))}
                       </div>
                     </div>
-                    {isOperational ? (
+                    {likesOrderId ? (
+                      <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
+                    ) : isOperational ? (
                       <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={itemTotalQty(item._id)} primary={primary} bg={bg} onFlyToCart={handleFlyToCart} />
                     ) : (
                       <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
@@ -942,7 +1012,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                             <p className="font-bold text-sm" style={{ color: primary }}>
                               ${getItemPrice(item).toLocaleString('es-AR')}
                             </p>
-                            {isOperational ? (
+                            {likesOrderId ? (
+                              <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
+                            ) : isOperational ? (
                               <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
                             ) : (
                               <span className="text-[9px] font-bold opacity-30">CATÁLOGO</span>
@@ -984,7 +1056,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                           ))}
                         </div>
                       </div>
-                      {isOperational ? (
+                      {likesOrderId ? (
+                        <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
+                      ) : isOperational ? (
                         <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
                       ) : (
                         <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
@@ -1167,7 +1241,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       </footer>
 
       {/* ── Fixed bottom cart bar ── */}
-      {totalItems > 0 && !showCart && (
+      {totalItems > 0 && !showCart && !likesOrderId && (
         <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-2">
           <button
             onClick={goToCheckout}
@@ -1219,7 +1293,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       )}
 
       {/* ── Cart Drawer ── */}
-      {showCart && (
+      {showCart && !likesOrderId && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowCart(false)} />
           <div className="relative rounded-t-3xl p-6 max-h-[85dvh] overflow-y-auto" style={{ backgroundColor: bg }}>
@@ -1465,6 +1539,14 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         )
       })()}
 
+      {showStories && !isAdminCorp && (
+        <PromotionStories
+          promotions={[...featuredPromotions, ...regularPromotions].filter(p => p.imageUrl)}
+          onClose={() => setShowStories(false)}
+          primaryColor={primary}
+        />
+      )}
+
       {/* ── Geofence feedback ── */}
       <GeofenceFeedback tenantSlug={tenant.slug} />
 
@@ -1579,6 +1661,39 @@ function CartControl({
       className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0 transition-transform`}
       style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.3)' : 'scale(1)' }}>
       <Plus size={sz} />
+    </button>
+  )
+}
+
+/* ── Like button sub-component ── */
+function LikeButton({
+  itemId, likesCount, liked, loading, onToggle, primary,
+}: {
+  itemId: string
+  likesCount: number
+  liked: boolean
+  loading: boolean
+  onToggle: (itemId: string) => void
+  primary: string
+}) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onToggle(itemId) }}
+      disabled={loading}
+      className="flex items-center gap-1 flex-shrink-0 transition-transform active:scale-110 disabled:opacity-50"
+      title={liked ? 'Quitar like' : 'Dar like'}
+    >
+      <Heart
+        size={18}
+        className={loading ? 'animate-pulse' : ''}
+        style={{ color: liked ? '#ef4444' : primary + '60' }}
+        fill={liked ? '#ef4444' : 'transparent'}
+      />
+      {likesCount > 0 && (
+        <span className="text-xs font-bold" style={{ color: primary + '80' }}>
+          {likesCount}
+        </span>
+      )}
     </button>
   )
 }

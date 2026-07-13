@@ -233,11 +233,22 @@ export default function PostDeliveryCelebration({
         )}
       </div>
 
+      {/* Back to like */}
+      {ratingToken && (
+        <a
+          href={`/${tenantSlug}/menu/${locationId}/takeaway?likes=${orderId}&token=${ratingToken}`}
+          className="block w-full text-center py-4 rounded-2xl font-bold text-base"
+          style={{ backgroundColor: primaryColor, color: backgroundColor }}
+        >
+          ❤️ Volver y likear
+        </a>
+      )}
+
       {/* Back to menu */}
       <a
         href={`/${tenantSlug}/menu/${locationId}/takeaway`}
-        className="block w-full text-center py-4 rounded-2xl font-bold text-base"
-        style={{ backgroundColor: primaryColor, color: backgroundColor }}
+        className={`block w-full text-center py-4 rounded-2xl font-bold text-base ${ratingToken ? 'mt-2' : ''}`}
+        style={{ backgroundColor: primaryColor + '20', color: primaryColor }}
       >
         Volver al menú
       </a>
