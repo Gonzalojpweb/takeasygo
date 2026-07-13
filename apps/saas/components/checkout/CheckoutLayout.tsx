@@ -514,20 +514,22 @@ function PaymentConfirmation(props: {
                 </div>
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => onPaymentMethodChange('kripton')}
-              className={cn(
-                'flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all',
-                selectedPaymentMethod === 'kripton' ? 'border-purple-600 bg-purple-600/5' : 'border-zinc-200 bg-white',
-              )}
-            >
-              <span className="text-2xl">🪙</span>
-              <div>
-                <p className="text-sm font-bold text-zinc-900">Kripton</p>
-                <p className="text-[10px] text-zinc-500">USDT, BTC, ETH</p>
-              </div>
-            </button>
+            {kriptonEnabled && (
+              <button
+                type="button"
+                onClick={() => onPaymentMethodChange('kripton')}
+                className={cn(
+                  'flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all',
+                  selectedPaymentMethod === 'kripton' ? 'border-purple-600 bg-purple-600/5' : 'border-zinc-200 bg-white',
+                )}
+              >
+                <span className="text-2xl">🪙</span>
+                <div>
+                  <p className="text-sm font-bold text-zinc-900">Kripton</p>
+                  <p className="text-[10px] text-zinc-500">USDT, BTC, ETH</p>
+                </div>
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50">

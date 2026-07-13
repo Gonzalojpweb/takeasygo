@@ -42,7 +42,7 @@ if (!success) {
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
 
     // Calcular marketplace_fee consistente con orders/route.ts
-    const platformFeePercent = tenant.mpOAuth?.commissionPercent != null
+    const platformFeePercent = (tenant.mpOAuth?.isConnected && tenant.mpOAuth?.commissionPercent != null)
       ? tenant.mpOAuth.commissionPercent
       : (platformConfig?.platformFees?.takeasygoCommissionPercent ?? 1)
     const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', tenant, platformConfig || {}, platformFeePercent)
