@@ -60,6 +60,13 @@ function CheckoutLayoutInner() {
     } catch {}
   }, [tenantSlug])
 
+  // Auto-select MercadoPago when reaching the payment step
+  useEffect(() => {
+    if (currentStep === steps.length - 1 && !selectedPaymentMethod) {
+      dispatch({ type: 'SET_PAYMENT_METHOD', method: 'mercadopago' })
+    }
+  }, [currentStep, steps.length, selectedPaymentMethod, dispatch])
+
   if (activeOrderNumber) {
     return <ActiveOrderBlocker tenantSlug={tenantSlug} orderNumber={activeOrderNumber} onBack={() => dispatch({ type: 'SET_ACTIVE_ORDER', orderNumber: null })} />
   }
@@ -441,7 +448,7 @@ function PaymentConfirmation(props: {
   mode: 'takeaway' | 'delivery'
   deliveryMode: boolean
   tenantName: string
-  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer'
+  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer' | null
   kriptonEnabled: boolean
   transferEnabled: boolean
   subtotal: number

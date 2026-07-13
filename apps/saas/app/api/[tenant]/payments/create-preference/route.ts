@@ -41,9 +41,10 @@ if (!success) {
     // ── Get platform commission from PlatformConfig ────────────────────────────
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
 
-    // Usar pricing engine: el order.total ya tiene el recargo incluido del checkout
-    // Pero necesitamos calcular el marketplace_fee correcto sobre el total final
-    const platformFeePercent = tenant.mpOAuth?.commissionPercent ?? platformConfig?.mpOAuth?.platformFeePercent ?? 5
+    // Calcular marketplace_fee consistente con orders/route.ts
+    const platformFeePercent = tenant.mpOAuth?.commissionPercent != null
+      ? tenant.mpOAuth.commissionPercent
+      : (platformConfig?.platformFees?.takeasygoCommissionPercent ?? 1)
     const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', tenant, platformConfig || {}, platformFeePercent)
 
     // ── Determine which access token to use ───────────────────────────────────
@@ -138,6 +139,26 @@ if (!success) {
         unit_price: order.deliveryCost,
         currency_id: 'ARS',
       })
+    }
+
+    // ── Distribuir recargo proporcionalmente en cada item ──────────────
+    // order.total ya incluye el surcharge; asegurar que la suma de
+    // unit_price * quantity de TODOS los items = order.total
+    const itemsBaseTotal = mpItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
+    const surchargeRatio = itemsBaseTotal > 0 ? order.total / itemsBaseTotal : 1
+
+    if (surchargeRatio !== 1) {
+      let accumulated = 0
+      for (let i = 0; i < mpItems.length; i++) {
+        const mpItem = mpItems[i]
+        if (i === mpItems.length - 1) {
+          const remaining = order.total - accumulated
+          mpItem.unit_price = Math.max(1, Math.round(remaining / mpItem.quantity))
+        } else {
+          mpItem.unit_price = Math.max(1, Math.round(mpItem.unit_price * surchargeRatio))
+          accumulated += mpItem.unit_price * mpItem.quantity
+        }
+      }
     }
 
     const result = await preference.create({
