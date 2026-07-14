@@ -52,6 +52,16 @@ export async function POST(
               })
             }
           }
+          for (const subcategory of category.subcategories || []) {
+            for (const item of subcategory.items || []) {
+              if (itemIds.includes(item._id.toString())) {
+                menuItems.push({
+                  availabilityMode: item.availabilityMode,
+                  availabilitySchedule: item.availabilitySchedule,
+                })
+              }
+            }
+          }
         }
       }
     }

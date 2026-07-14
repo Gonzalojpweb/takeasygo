@@ -37,7 +37,8 @@ export async function PUT(
       locationId, 
       type, 
       orderedIds, 
-      categoryId 
+      categoryId,
+      subcategoryId 
     } = await request.json()
 
     if (!locationId || !type || !orderedIds || !Array.isArray(orderedIds)) {
@@ -104,8 +105,50 @@ export async function PUT(
 
       targetCategory.items = newItems
     } 
+    else if (type === 'subcategories') {
+      if (!categoryId) {
+        return NextResponse.json({ error: 'Falta categoryId para reordenar subcategorías' }, { status: 400 })
+      }
+      const category = menu.categories.id(categoryId)
+      if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
+
+      const subMap = new Map<string, any>()
+      for (const sub of category.subcategories || []) {
+        subMap.set(sub._id?.toString() ?? '', sub)
+      }
+      const newSubs: any[] = []
+      for (const id of orderedIds) {
+        const sub = subMap.get(id)
+        if (sub) {
+          sub.sortOrder = newSubs.length
+          newSubs.push(sub)
+        }
+      }
+      category.subcategories = newSubs
+    }
+    else if (type === 'subcategory_items') {
+      if (!categoryId || !subcategoryId) {
+        return NextResponse.json({ error: 'Faltan categoryId y subcategoryId' }, { status: 400 })
+      }
+      const category = menu.categories.id(categoryId)
+      if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
+
+      const subcategory = (category.subcategories || []).id(subcategoryId)
+      if (!subcategory) return NextResponse.json({ error: 'Subcategoría no encontrada' }, { status: 404 })
+
+      const itemMap = new Map<string, any>()
+      for (const item of subcategory.items) {
+        itemMap.set(item._id?.toString() ?? '', item)
+      }
+      const newItems: any[] = []
+      for (const id of orderedIds) {
+        const item = itemMap.get(id)
+        if (item) newItems.push(item)
+      }
+      subcategory.items = newItems
+    }
     else {
-      return NextResponse.json({ error: 'Tipo inválido. Use "categories" o "items"' }, { status: 400 })
+      return NextResponse.json({ error: 'Tipo inválido. Use "categories", "items", "subcategories" o "subcategory_items"' }, { status: 400 })
     }
 
     await menu.save()

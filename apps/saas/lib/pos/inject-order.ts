@@ -221,10 +221,28 @@ async function expandUnmappedPromotions(
             })
           }
         }
+        for (const subcat of cat.subcategories ?? []) {
+          for (const menuItem of subcat.items ?? []) {
+            const mid = menuItem._id?.toString?.() || menuItem._id
+            if (!seenItemIds.has(mid)) {
+              seenItemIds.add(mid)
+              resolved.push({
+                name: menuItem.name,
+                quantity: item.quantity,
+                unitPrice: 0,
+                categoryName: subcat.name,
+              })
+            }
+          }
+        }
       }
     }
 
-    for (const menuItem of menuCats.flatMap((c: any) => c.items ?? [])) {
+    const allMenuItems = menuCats.flatMap((c: any) => [
+      ...(c.items ?? []),
+      ...(c.subcategories ?? []).flatMap((s: any) => s.items ?? []),
+    ])
+    for (const menuItem of allMenuItems) {
       const mid = menuItem._id?.toString?.() || menuItem._id
       if (linkedItemIds.some((lid: any) => (lid?.toString?.() || lid) === mid) && !seenItemIds.has(mid)) {
         seenItemIds.add(mid)

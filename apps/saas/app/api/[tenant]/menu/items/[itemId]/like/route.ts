@@ -6,19 +6,27 @@ import ItemLike from '@/models/ItemLike'
 import { verifyRatingToken } from '@/lib/rating-token'
 import { NextRequest, NextResponse } from 'next/server'
 
+function findItemInMenu(menu: any, itemId: string): { cat: any; item: any } | null {
+  for (const cat of menu.categories) {
+    const directItem = cat.items.id(itemId)
+    if (directItem) return { cat, item: directItem }
+    for (const sub of cat.subcategories || []) {
+      const subItem = sub.items.id(itemId)
+      if (subItem) return { cat, item: subItem }
+    }
+  }
+  return null
+}
+
 async function getTenantAndItem(tenantSlug: string, itemId: string) {
   await connectDB()
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
   if (!tenant) return null
   const menu = await Menu.findOne({ tenantId: tenant._id, isActive: true })
   if (!menu) return null
-  const cat = menu.categories.find((c: any) =>
-    c.items.some((i: any) => i._id.toString() === itemId)
-  )
-  if (!cat) return null
-  const item = cat.items.id(itemId)
-  if (!item) return null
-  return { tenant, menu, item }
+  const found = findItemInMenu(menu, itemId)
+  if (!found) return null
+  return { tenant, menu, item: found.item }
 }
 
 export async function POST(
@@ -62,10 +70,11 @@ export async function POST(
 
     await ItemLike.create({ tenantId: tenant._id, menuItemId: itemId, orderId })
 
-    const cat = menu.categories.find((c: any) =>
-      c.items.some((i: any) => i._id.toString() === itemId)
-    )
-    const item = cat.items.id(itemId)
+    const found1 = findItemInMenu(menu, itemId)
+    if (!found1) {
+      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
+    }
+    const item = found1.item
     item.likesCount = (item.likesCount || 0) + 1
     menu.markModified('categories')
     await menu.save()
@@ -103,10 +112,11 @@ export async function DELETE(
       return NextResponse.json({ liked: false, likesCount: 0 })
     }
 
-    const cat = menu.categories.find((c: any) =>
-      c.items.some((i: any) => i._id.toString() === itemId)
-    )
-    const item = cat.items.id(itemId)
+    const found2 = findItemInMenu(menu, itemId)
+    if (!found2) {
+      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
+    }
+    const item = found2.item
     item.likesCount = Math.max(0, (item.likesCount || 0) - 1)
     menu.markModified('categories')
     await menu.save()

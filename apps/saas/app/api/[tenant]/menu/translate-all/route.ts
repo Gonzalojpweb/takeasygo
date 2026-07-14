@@ -61,6 +61,39 @@ export async function POST(
           )
         }
       }
+
+      for (const subcategory of category.subcategories || []) {
+        if (!subcategory.nameTranslations?.en && subcategory.name) {
+          tasks.push(
+            translateToEnglish(subcategory.name).then(en => {
+              subcategory.nameTranslations = { en }
+            })
+          )
+        }
+        if (!subcategory.descriptionTranslations?.en && subcategory.description) {
+          tasks.push(
+            translateToEnglish(subcategory.description).then(en => {
+              subcategory.descriptionTranslations = { en }
+            })
+          )
+        }
+        for (const item of subcategory.items) {
+          if (!item.nameTranslations?.en && item.name) {
+            tasks.push(
+              translateToEnglish(item.name).then(en => {
+                item.nameTranslations = { en }
+              })
+            )
+          }
+          if (!item.descriptionTranslations?.en && item.description) {
+            tasks.push(
+              translateToEnglish(item.description).then(en => {
+                item.descriptionTranslations = { en }
+              })
+            )
+          }
+        }
+      }
     }
 
     if (tasks.length > 0) {

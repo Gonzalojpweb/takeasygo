@@ -44,6 +44,12 @@ function hasMissingTranslations(categories: any[]): boolean {
     for (const item of cat.items ?? []) {
       if (!item.nameTranslations?.en) return true
     }
+    for (const sub of cat.subcategories ?? []) {
+      if (!sub.nameTranslations?.en) return true
+      for (const item of sub.items ?? []) {
+        if (!item.nameTranslations?.en) return true
+      }
+    }
   }
   return false
 }
@@ -166,7 +172,10 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
     })
 
   const featuredItems = categories
-    .flatMap((c: any) => c.items ?? [])
+    .flatMap((c: any) => [
+      ...(c.items ?? []),
+      ...(c.subcategories ?? []).flatMap((s: any) => s.items ?? [])
+    ])
     .filter((i: any) => i.isFeatured)
 
   const featuredPromotions = promotions.filter(p => p.isFeatured)
@@ -591,86 +600,236 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
       </div>
       {/* ── Menu sections ─────────────────────────────────── */}
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {categories.map((cat: any) => (
-          <section
-            key={cat._id}
-            ref={el => { sectionRefs.current[cat._id] = el }}
-            className="mb-12 scroll-mt-20">
-            <div className="text-center mb-8">
-              <h3 className="text-4xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
-                {tn(cat, 'name', locale)}
-              </h3>
-              <div className="flex items-center justify-center gap-3">
-                <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
-                <div className="w-1 h-1 rounded-full" style={{ backgroundColor: branding.primaryColor + '80' }} />
-                <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
+        {categories.map((cat: any) => {
+          const hasSubcategories = (cat.subcategories ?? []).length > 0
+          return (
+            <section
+              key={cat._id}
+              ref={el => { sectionRefs.current[cat._id] = el }}
+              className="mb-12 scroll-mt-20">
+              <div className="text-center mb-8">
+                <h3 className="text-4xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
+                  {tn(cat, 'name', locale)}
+                </h3>
+                <div className="flex items-center justify-center gap-3">
+                  <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
+                  <div className="w-1 h-1 rounded-full" style={{ backgroundColor: branding.primaryColor + '80' }} />
+                  <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
+                </div>
               </div>
-            </div>
 
-            <div className={isGrid ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
-              {(cat.items ?? [])
-                .filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
-                .map((item: any) => (
-                  <div
-                    key={item._id}
-                    className={cn(
-                      'rounded-xl border transition-all overflow-hidden',
-                      isGrid ? 'flex flex-col' : 'flex items-start gap-3',
-                    )}
-                    style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-                    onClick={() => item.imageUrl && setModalItem(item)}
-                  >
-                    {item.imageUrl ? (
-                      <div
-                        className={cn('relative', isGrid ? 'w-full h-28' : 'flex-shrink-0 w-[88px] h-[88px]')}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
-                      </div>
-                    ) : (
-                      <div
-                        className={cn(isGrid ? 'h-2 w-full' : 'flex-shrink-0 w-3 self-stretch')}
-                        style={{ backgroundColor: branding.primaryColor + '18' }}
-                      />
-                    )}
+              <div className={isGrid ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
+                {hasSubcategories ? (
+                  <>
+                    {(cat.items ?? [])
+                      .filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
+                      .length > 0 && (
+                      <>
+                        {(cat.items ?? [])
+                          .filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
+                          .map((item: any) => (
+                            <div
+                              key={item._id}
+                              className={cn(
+                                'rounded-xl border transition-all overflow-hidden',
+                                isGrid ? 'flex flex-col' : 'flex items-start gap-3',
+                              )}
+                              style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+                              onClick={() => item.imageUrl && setModalItem(item)}
+                            >
+                              {item.imageUrl ? (
+                                <div
+                                  className={cn('relative', isGrid ? 'w-full h-28' : 'flex-shrink-0 w-[88px] h-[88px]')}
+                                  style={{ cursor: 'pointer' }}
+                                >
+                                  <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
+                                </div>
+                              ) : (
+                                <div
+                                  className={cn(isGrid ? 'h-2 w-full' : 'flex-shrink-0 w-3 self-stretch')}
+                                  style={{ backgroundColor: branding.primaryColor + '18' }}
+                                />
+                              )}
 
-                    <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-bold text-md tracking-wide" style={{ color: text }}>
-                          {tn(item, 'name', locale)}
-                        </p>
-                        <p className="font-bold text-md flex-shrink-0" style={{ color: branding.primaryColor }}>
-                          ${(() => {
-                            const hasVariants = (item.variants ?? []).length > 0
-                            if (hasVariants) {
-                              const prices = item.variants.map((v: any) => v.price)
-                              return Math.min(...prices).toLocaleString('es-AR')
-                            }
-                            return item.price.toLocaleString('es-AR')
-                          })()}
-                        </p>
-                      </div>
-                      {item.description && (
-                        <p className={cn('leading-relaxed', isGrid ? 'text-xs mt-1 line-clamp-2' : 'text-md mt-1')} style={{ color: mutedText }}>
-                          {tn(item, 'description', locale)}
-                        </p>
-                      )}
-                      {item.tags?.length > 0 && (
-                        <div className="flex gap-1.5 mt-2 flex-wrap">
-                          {item.tags.map((tag: string) => (
-                            <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
-                              style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
-                              {tag}
-                            </span>
+                              <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="font-bold text-md tracking-wide" style={{ color: text }}>
+                                    {tn(item, 'name', locale)}
+                                  </p>
+                                  <p className="font-bold text-md flex-shrink-0" style={{ color: branding.primaryColor }}>
+                                    ${(() => {
+                                      const hasVariants = (item.variants ?? []).length > 0
+                                      if (hasVariants) {
+                                        const prices = item.variants.map((v: any) => v.price)
+                                        return Math.min(...prices).toLocaleString('es-AR')
+                                      }
+                                      return item.price.toLocaleString('es-AR')
+                                    })()}
+                                  </p>
+                                </div>
+                                {item.description && (
+                                  <p className={cn('leading-relaxed', isGrid ? 'text-xs mt-1 line-clamp-2' : 'text-md mt-1')} style={{ color: mutedText }}>
+                                    {tn(item, 'description', locale)}
+                                  </p>
+                                )}
+                                {item.tags?.length > 0 && (
+                                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                                    {item.tags.map((tag: string) => (
+                                      <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
+                                        style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           ))}
+                      </>
+                    )}
+
+                    {(cat.subcategories ?? [])
+                      .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+                      .map((sub: any) => {
+                        const subItems = (sub.items ?? []).filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
+                        if (subItems.length === 0) return null
+                        return (
+                          <div key={sub._id} className={isGrid ? 'col-span-2' : ''}>
+                            <div className="flex items-center gap-3 my-4">
+                              <div className="h-px flex-1" style={{ backgroundColor: branding.primaryColor + '25' }} />
+                              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: branding.primaryColor }}>
+                                {tn(sub, 'name', locale)}
+                              </span>
+                              <div className="h-px flex-1" style={{ backgroundColor: branding.primaryColor + '25' }} />
+                            </div>
+                            {subItems.map((item: any) => (
+                              <div
+                                key={item._id}
+                                className={cn(
+                                  'rounded-xl border transition-all overflow-hidden',
+                                  isGrid ? 'flex flex-col' : 'flex items-start gap-3',
+                                )}
+                                style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+                                onClick={() => item.imageUrl && setModalItem(item)}
+                              >
+                                {item.imageUrl ? (
+                                  <div
+                                    className={cn('relative', isGrid ? 'w-full h-28' : 'flex-shrink-0 w-[88px] h-[88px]')}
+                                    style={{ cursor: 'pointer' }}
+                                  >
+                                    <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
+                                  </div>
+                                ) : (
+                                  <div
+                                    className={cn(isGrid ? 'h-2 w-full' : 'flex-shrink-0 w-3 self-stretch')}
+                                    style={{ backgroundColor: branding.primaryColor + '18' }}
+                                  />
+                                )}
+
+                                <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="font-bold text-md tracking-wide" style={{ color: text }}>
+                                      {tn(item, 'name', locale)}
+                                    </p>
+                                    <p className="font-bold text-md flex-shrink-0" style={{ color: branding.primaryColor }}>
+                                      ${(() => {
+                                        const hasVariants = (item.variants ?? []).length > 0
+                                        if (hasVariants) {
+                                          const prices = item.variants.map((v: any) => v.price)
+                                          return Math.min(...prices).toLocaleString('es-AR')
+                                        }
+                                        return item.price.toLocaleString('es-AR')
+                                      })()}
+                                    </p>
+                                  </div>
+                                  {item.description && (
+                                    <p className={cn('leading-relaxed', isGrid ? 'text-xs mt-1 line-clamp-2' : 'text-md mt-1')} style={{ color: mutedText }}>
+                                      {tn(item, 'description', locale)}
+                                    </p>
+                                  )}
+                                  {item.tags?.length > 0 && (
+                                    <div className="flex gap-1.5 mt-2 flex-wrap">
+                                      {item.tags.map((tag: string) => (
+                                        <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
+                                          style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })}
+                  </>
+                ) : (
+                  (cat.items ?? [])
+                    .filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
+                    .map((item: any) => (
+                      <div
+                        key={item._id}
+                        className={cn(
+                          'rounded-xl border transition-all overflow-hidden',
+                          isGrid ? 'flex flex-col' : 'flex items-start gap-3',
+                        )}
+                        style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+                        onClick={() => item.imageUrl && setModalItem(item)}
+                      >
+                        {item.imageUrl ? (
+                          <div
+                            className={cn('relative', isGrid ? 'w-full h-28' : 'flex-shrink-0 w-[88px] h-[88px]')}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div
+                            className={cn(isGrid ? 'h-2 w-full' : 'flex-shrink-0 w-3 self-stretch')}
+                            style={{ backgroundColor: branding.primaryColor + '18' }}
+                          />
+                        )}
+
+                        <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-bold text-md tracking-wide" style={{ color: text }}>
+                              {tn(item, 'name', locale)}
+                            </p>
+                            <p className="font-bold text-md flex-shrink-0" style={{ color: branding.primaryColor }}>
+                              ${(() => {
+                                const hasVariants = (item.variants ?? []).length > 0
+                                if (hasVariants) {
+                                  const prices = item.variants.map((v: any) => v.price)
+                                  return Math.min(...prices).toLocaleString('es-AR')
+                                }
+                                return item.price.toLocaleString('es-AR')
+                              })()}
+                            </p>
+                          </div>
+                          {item.description && (
+                            <p className={cn('leading-relaxed', isGrid ? 'text-xs mt-1 line-clamp-2' : 'text-md mt-1')} style={{ color: mutedText }}>
+                              {tn(item, 'description', locale)}
+                            </p>
+                          )}
+                          {item.tags?.length > 0 && (
+                            <div className="flex gap-1.5 mt-2 flex-wrap">
+                              {item.tags.map((tag: string) => (
+                                <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
+                                  style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </section>
-        ))}
+                      </div>
+                    ))
+                )}
+              </div>
+            </section>
+          )
+        })}
       </main>
 
       {/* ── Platos Destacados ──────────────────────────────── */}
@@ -731,7 +890,10 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           locationName={location.name}
           primaryColor={branding.primaryColor}
           onAdd={(item) => {
-            const enriched = categories.flatMap((c: any) => c.items ?? []).find((i: any) => String(i._id) === item._id)
+            const enriched = categories.flatMap((c: any) => [
+              ...(c.items ?? []),
+              ...(c.subcategories ?? []).flatMap((s: any) => s.items ?? [])
+            ]).find((i: any) => String(i._id) === item._id)
             if (enriched) {
               setCustomizingItem(enriched)
             }

@@ -92,6 +92,11 @@ export async function GET(
             for (const item of cat.items ?? []) {
               addItem(item, cat.customizationGroups ?? [], cat.name)
             }
+            for (const sub of cat.subcategories ?? []) {
+              for (const item of sub.items ?? []) {
+                addItem(item, cat.customizationGroups ?? [], cat.name)
+              }
+            }
           }
         }
       }
@@ -105,6 +110,14 @@ export async function GET(
               addItem(item, cat.customizationGroups ?? [], cat.name)
             }
           }
+          for (const sub of cat.subcategories ?? []) {
+            for (const item of sub.items ?? []) {
+              const itemId = item._id?.toString?.() || item._id
+              if (promo.linkedItemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
+                addItem(item, cat.customizationGroups ?? [], cat.name)
+              }
+            }
+          }
         }
       }
 
@@ -116,7 +129,6 @@ export async function GET(
             (i: any) => (i._id?.toString?.() || i._id) === oldId
           )
           if (item) {
-            // Use original snapshot + override groups, or live data
             const snapshot = promo.linkedItemSnapshot
             addItem(
               {
@@ -133,6 +145,29 @@ export async function GET(
               cat.name
             )
             break
+          }
+          for (const sub of cat.subcategories ?? []) {
+            const subItem = (sub.items ?? []).find(
+              (i: any) => (i._id?.toString?.() || i._id) === oldId
+            )
+            if (subItem) {
+              const snapshot = promo.linkedItemSnapshot
+              addItem(
+                {
+                  _id: subItem._id,
+                  name: snapshot?.name || subItem.name,
+                  variants: snapshot?.variants ?? subItem.variants ?? [],
+                  customizationGroups: [
+                    ...(cat.customizationGroups ?? []),
+                    ...(snapshot?.customizationGroups ?? subItem.customizationGroups ?? []),
+                    ...(promo.overrideCustomizationGroups ?? []),
+                  ],
+                },
+                [],
+                cat.name
+              )
+              break
+            }
           }
         }
       }

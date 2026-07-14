@@ -27,7 +27,18 @@ export async function DELETE(
     const category = menu.categories.id(categoryId)
     if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
 
-    category.items.pull({ _id: itemId })
+    let removedFromSubcategory = false
+    for (const sub of category.subcategories || []) {
+      const idx = (sub.items || []).findIndex((i: any) => i._id.toString() === itemId)
+      if (idx !== -1) {
+        sub.items.splice(idx, 1)
+        removedFromSubcategory = true
+        break
+      }
+    }
+    if (!removedFromSubcategory) {
+      category.items.pull({ _id: itemId })
+    }
     await menu.save()
 
     logAudit({ tenantId: tenant._id.toString(), action: 'menu.item.deleted', entity: 'item', entityId: itemId, details: { categoryId, locationId }, request })
