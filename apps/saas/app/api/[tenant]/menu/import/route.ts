@@ -61,6 +61,17 @@ interface ImportCategory {
   availabilityMode?: 'always' | 'scheduled'
   availabilitySchedule?: ImportAvailabilitySlot[]
   items: ImportItem[]
+  subcategories?: ImportSubCategory[]
+}
+
+interface ImportSubCategory {
+  name: string
+  description?: string
+  imageUrl?: string
+  items: ImportItem[]
+  customizationGroups?: ImportGroup[]
+  availabilityMode?: 'always' | 'scheduled'
+  availabilitySchedule?: ImportAvailabilitySlot[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,6 +98,16 @@ function validatePayload(categories: unknown): categories is ImportCategory[] {
     for (const item of cat.items) {
       if (typeof item.name !== 'string' || !item.name.trim()) return false
       if (typeof item.price !== 'number' || item.price < 0) return false
+    }
+    if (cat.subcategories) {
+      for (const sub of cat.subcategories) {
+        if (typeof sub.name !== 'string' || !sub.name.trim()) return false
+        if (!Array.isArray(sub.items)) return false
+        for (const item of sub.items) {
+          if (typeof item.name !== 'string' || !item.name.trim()) return false
+          if (typeof item.price !== 'number' || item.price < 0) return false
+        }
+      }
     }
   }
   return true
@@ -160,6 +181,39 @@ export async function POST(
         availabilityMode: item.availabilityMode ?? 'always',
         availabilitySchedule: item.availabilityMode === 'scheduled' ? (item.availabilitySchedule ?? []) : [],
       })),
+      subcategories: cat.subcategories?.map((sub: ImportSubCategory, subIndex: number) => ({
+        name: sub.name.trim(),
+        description: sub.description?.trim() ?? '',
+        imageUrl: sub.imageUrl ?? '',
+        sortOrder: subIndex,
+        items: sub.items.map((item: ImportItem) => ({
+          name: item.name.trim(),
+          description: item.description?.trim() ?? '',
+          price: item.price,
+          takeawayPrice: item.takeawayPrice,
+          originalPrice: item.originalPrice,
+          takeawayOriginalPrice: item.takeawayOriginalPrice,
+          tags: Array.isArray(item.tags) ? item.tags.map((t: string) => t.trim()).filter(Boolean) : [],
+          isFeatured: item.isFeatured ?? false,
+          isAvailable: item.isAvailable ?? true,
+          imageUrl: item.imageUrl ?? '',
+          suggestWith: Array.isArray(item.suggestWith) ? item.suggestWith : [],
+          variants: (item.variants ?? []).map((v: ImportVariant) => ({
+            name: v.name,
+            price: v.price,
+            takeawayPrice: v.takeawayPrice,
+            originalPrice: v.originalPrice,
+            takeawayOriginalPrice: v.takeawayOriginalPrice,
+            nameTranslations: v.nameTranslations,
+          })),
+          customizationGroups: buildGroups(item.customizationGroups),
+          availabilityMode: item.availabilityMode ?? 'always',
+          availabilitySchedule: item.availabilityMode === 'scheduled' ? (item.availabilitySchedule ?? []) : [],
+        })),
+        customizationGroups: buildGroups(sub.customizationGroups),
+        availabilityMode: sub.availabilityMode ?? 'always',
+        availabilitySchedule: sub.availabilityMode === 'scheduled' ? (sub.availabilitySchedule ?? []) : [],
+      })) ?? [],
     }))
 
     if (mode === 'replace') {
@@ -175,7 +229,7 @@ export async function POST(
 
     await menu.save()
 
-    const totalItems = builtCategories.reduce((sum, cat) => sum + cat.items.length, 0)
+    const totalItems = builtCategories.reduce((sum, cat) => sum + cat.items.length + (cat.subcategories?.reduce((s: number, sub: any) => s + sub.items.length, 0) ?? 0), 0)
 
     return NextResponse.json({
       ok: true,

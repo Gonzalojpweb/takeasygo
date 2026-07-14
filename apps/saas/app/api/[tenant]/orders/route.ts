@@ -376,6 +376,29 @@ export async function POST(
           })
         }
       }
+      for (const subcategory of category.subcategories || []) {
+        for (const item of subcategory.items) {
+          let available = item.isAvailable
+          if (isTakeawayOrDelivery) {
+            available = available && item.isTakeawayAvailable !== false
+          }
+          if (isBusinessOrder) {
+            available = available && item.isBusinessAvailable && item.businessPrice != null
+          }
+          if (available && item._id) {
+            menuItemMap.set(item._id.toString(), {
+              ...item.toObject(),
+              categoryName: subcategory.name,
+              categoryCustomizationGroups: [
+                ...(category.customizationGroups || []),
+                ...(subcategory.customizationGroups || []),
+                ...(item.customizationGroups || []),
+              ],
+              printRole: subcategory.printRole || category.printRole || 'kitchen',
+            })
+          }
+        }
+      }
     }
 
     // Validar pedido programado si corresponde
@@ -474,6 +497,26 @@ export async function POST(
                     }
                   }
                 }
+                for (const subcat of cat.subcategories ?? []) {
+                  validationGroups.unshift(...(subcat.customizationGroups ?? []))
+                  for (const item of subcat.items ?? []) {
+                    const itemId = item._id?.toString?.() || item._id
+                    if (!seenItemIds.has(itemId)) {
+                      seenItemIds.add(itemId)
+                      validationGroups.unshift(...(item.customizationGroups ?? []))
+                      if ((item.variants ?? []).length > 0) {
+                        const variantFilter = (promotion.linkedItemVariantFilters ?? []).find(
+                          (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === itemId
+                        )
+                        const allowedNames = variantFilter?.variantNames ?? []
+                        const itemVariants = (item.variants ?? []).filter(
+                          (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
+                        )
+                        validationVariants.push(...itemVariants)
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -494,6 +537,25 @@ export async function POST(
                       (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
                     )
                     validationVariants.push(...itemVariants)
+                  }
+                }
+              }
+              for (const subcat of cat.subcategories ?? []) {
+                for (const item of subcat.items ?? []) {
+                  const itemId = item._id?.toString?.() || item._id
+                  if (!seenItemIds.has(itemId) && promotion.linkedItemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
+                    seenItemIds.add(itemId)
+                    validationGroups.unshift(...(item.customizationGroups ?? []))
+                    if ((item.variants ?? []).length > 0) {
+                      const variantFilter = (promotion.linkedItemVariantFilters ?? []).find(
+                        (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === itemId
+                      )
+                      const allowedNames = variantFilter?.variantNames ?? []
+                      const itemVariants = (item.variants ?? []).filter(
+                        (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
+                      )
+                      validationVariants.push(...itemVariants)
+                    }
                   }
                 }
               }

@@ -25,9 +25,14 @@ export function getSuggestions(
   insights: ICoOccurrencePair[] | null,
   maxSuggestions = 2,
 ): any[] {
-  const allItems: any[] = categories.flatMap((cat) =>
-    cat.isAvailable ? cat.items.filter((i: any) => i.isAvailable && i.isTakeawayAvailable !== false) : [],
-  )
+  const allItems: any[] = categories.flatMap((cat) => {
+    if (!cat.isAvailable) return []
+    const directItems = cat.items.filter((i: any) => i.isAvailable && i.isTakeawayAvailable !== false)
+    const subItems = (cat.subcategories ?? []).flatMap((sub: any) =>
+      (sub.items ?? []).filter((i: any) => i.isAvailable && i.isTakeawayAvailable !== false)
+    )
+    return [...directItems, ...subItems]
+  })
 
   if (allItems.length < 2) return []
 

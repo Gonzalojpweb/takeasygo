@@ -52,7 +52,13 @@ export async function getBestSellers(
 
   if (!menu) return []
 
-  const allItems = (menu.categories ?? []).flatMap((cat: Record<string, unknown>) => (cat.items ?? []) as Record<string, unknown>[])
+  const allItems: Record<string, unknown>[] = []
+  for (const cat of (menu.categories ?? []) as any[]) {
+    allItems.push(...(cat.items ?? []))
+    for (const sub of cat.subcategories ?? []) {
+      allItems.push(...(sub.items ?? []))
+    }
+  }
   const nameToItem = new Map<string, Record<string, unknown>>()
   for (const item of allItems) {
     nameToItem.set(item.name.toLowerCase().trim(), item)

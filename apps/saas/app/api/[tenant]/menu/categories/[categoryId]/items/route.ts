@@ -20,7 +20,7 @@ export async function POST(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { locationId, name, description, price, takeawayPrice, businessPrice, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants } = await request.json()
+    const { locationId, name, description, price, takeawayPrice, businessPrice, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, subcategoryId } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -33,7 +33,7 @@ export async function POST(
       description ? translateToEnglish(description) : Promise.resolve(''),
     ])
 
-    category.items.push({
+    const newItem = {
       name,
       description: description || '',
       price,
@@ -52,7 +52,15 @@ export async function POST(
       // Guardar precio original de lista al crear el item
       originalPrice: price,
       takeawayOriginalPrice: takeawayPrice || price,
-    } as any)
+    } as any
+
+    if (subcategoryId) {
+      const subcategory = category.subcategories?.id(subcategoryId)
+      if (!subcategory) return NextResponse.json({ error: 'Subcategoría no encontrada' }, { status: 404 })
+      subcategory.items.push(newItem)
+    } else {
+      category.items.push(newItem)
+    }
     menu.markModified('categories')
     await menu.save()
 
@@ -95,11 +103,22 @@ export async function PUT(
       return NextResponse.json({ error: 'Categoría no encontrada', categoryId, availableIds: ids }, { status: 404 })
     }
 
-    const item = category.items.id(itemId)
-    if (!item) {
+    function findItemInCategory(cat: any, id: string): { item: any; subcategory: any } | null {
+      const directItem = cat.items.id(id)
+      if (directItem) return { item: directItem, subcategory: null }
+      for (const sub of cat.subcategories || []) {
+        const subItem = sub.items.id(id)
+        if (subItem) return { item: subItem, subcategory: sub }
+      }
+      return null
+    }
+
+    const found = findItemInCategory(category, itemId)
+    if (!found) {
       const ids = category.items.map((i: any) => i._id.toString())
       return NextResponse.json({ error: 'Item no encontrado', itemId, availableIds: ids }, { status: 404 })
     }
+    const item = found.item
 
     if (name !== undefined) {
       item.name = name

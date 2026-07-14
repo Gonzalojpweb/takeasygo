@@ -146,6 +146,14 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [uploadingRegistryKey, setUploadingRegistryKey] = useState<string | null>(null)
   const registryFileRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const newRegistryFileRef = useRef<HTMLInputElement>(null)
+  const [expandedSubcategories, setExpandedSubcategories] = useState<Record<string, string[]>>({})
+  const [showAddSubcategory, setShowAddSubcategory] = useState<string | null>(null)
+  const [newSubcategoryName, setNewSubcategoryName] = useState('')
+  const [newSubcategoryDescription, setNewSubcategoryDescription] = useState('')
+  const [editingSubcategory, setEditingSubcategory] = useState<{ categoryId: string; subcategoryId: string } | null>(null)
+  const [editingSubcategoryName, setEditingSubcategoryName] = useState('')
+  const [editingSubcategoryDescription, setEditingSubcategoryDescription] = useState('')
+  const [showAddItemInSubcategory, setShowAddItemInSubcategory] = useState<string | null>(null)
 
   // Load optionImageRegistry from current menu
   useEffect(() => {
@@ -288,6 +296,70 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     setExpandedCategories(prev =>
       prev.includes(categoryId) ? prev.filter(id => id !== categoryId) : [...prev, categoryId]
     )
+  }
+
+  function toggleSubcategory(categoryId: string, subcategoryId: string) {
+    setExpandedSubcategories(prev => {
+      const current = prev[categoryId] || []
+      const exists = current.includes(subcategoryId)
+      return {
+        ...prev,
+        [categoryId]: exists ? current.filter(id => id !== subcategoryId) : [...current, subcategoryId],
+      }
+    })
+  }
+
+  function handleDragEndSubCategory(categoryId: string, event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setLocalCategories((cats) => {
+        const newCats = [...cats]
+        const catIndex = newCats.findIndex(c => c._id === categoryId)
+        if (catIndex > -1) {
+          const subcats = newCats[catIndex].subcategories || []
+          const oldIndex = subcats.findIndex((s: any) => s._id === active.id)
+          const newIndex = subcats.findIndex((s: any) => s._id === over.id)
+          const newSubcatsArray = arrayMove(subcats, oldIndex, newIndex)
+          newCats[catIndex] = { ...newCats[catIndex], subcategories: newSubcatsArray }
+
+          fetch(`/api/${tenantSlug}/menu/reorder`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ locationId: selectedLocation, type: 'subcategories', categoryId, orderedIds: newSubcatsArray.map((s: any) => s._id) })
+          }).then(res => { if(res.ok) router.refresh() })
+        }
+        return newCats
+      })
+    }
+  }
+
+  function handleDragEndSubcategoryItem(categoryId: string, subcategoryId: string, event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setLocalCategories((cats) => {
+        const newCats = [...cats]
+        const catIndex = newCats.findIndex(c => c._id === categoryId)
+        if (catIndex > -1) {
+          const subcats = [...(newCats[catIndex].subcategories || [])]
+          const subIndex = subcats.findIndex((s: any) => s._id === subcategoryId)
+          if (subIndex > -1) {
+            const items = subcats[subIndex].items || []
+            const oldIndex = items.findIndex((i: any) => i._id === active.id)
+            const newIndex = items.findIndex((i: any) => i._id === over.id)
+            const newItemsArray = arrayMove(items, oldIndex, newIndex)
+            subcats[subIndex] = { ...subcats[subIndex], items: newItemsArray }
+            newCats[catIndex] = { ...newCats[catIndex], subcategories: subcats }
+
+            fetch(`/api/${tenantSlug}/menu/reorder`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ locationId: selectedLocation, type: 'items', categoryId, subcategoryId, orderedIds: newItemsArray.map((i: any) => i._id) })
+            }).then(res => { if(res.ok) router.refresh() })
+          }
+        }
+        return newCats
+      })
+    }
   }
 
   function parseTags(raw: string): string[] {
@@ -558,8 +630,19 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       const category = localCategories.find(c => c._id === categoryId)
       if (!category) return
 
-      // Bucle SECUENCIAL para evitar conflictos de concurrencia en la DB (Error 500)
+      // Collect all items: direct category items + subcategory items
+      const allItemsToProcess: { item: any; subcategoryId?: string }[] = []
       for (const item of category.items) {
+        allItemsToProcess.push({ item })
+      }
+      for (const subcat of (category.subcategories || [])) {
+        for (const item of (subcat.items || [])) {
+          allItemsToProcess.push({ item, subcategoryId: subcat._id })
+        }
+      }
+
+      // Bucle SECUENCIAL para evitar conflictos de concurrencia en la DB (Error 500)
+      for (const { item } of allItemsToProcess) {
         const updateBody: any = {
           locationId: selectedLocation,
           itemId: item._id,
@@ -614,6 +697,69 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }
 
+  async function handleAddSubcategory(categoryId: string) {
+    if (!newSubcategoryName.trim()) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/subcategories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locationId: selectedLocation, name: newSubcategoryName, description: newSubcategoryDescription }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Subcategoría agregada')
+      setNewSubcategoryName('')
+      setNewSubcategoryDescription('')
+      setShowAddSubcategory(null)
+      setExpandedCategories(prev => prev.includes(categoryId) ? prev : [...prev, categoryId])
+      router.refresh()
+    } catch {
+      toast.error('Error al agregar subcategoría')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleEditSubcategory(categoryId: string, subcategoryId: string) {
+    if (!editingSubcategoryName.trim()) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/subcategories`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: selectedLocation,
+          subcategoryId,
+          name: editingSubcategoryName,
+          description: editingSubcategoryDescription,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Subcategoría actualizada')
+      setEditingSubcategory(null)
+      router.refresh()
+    } catch {
+      toast.error('Error al actualizar subcategoría')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDeleteSubcategory(categoryId: string, subcategoryId: string) {
+    if (!confirm('¿Eliminar esta subcategoría y todos sus items?')) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/subcategories?locationId=${selectedLocation}&subcategoryId=${subcategoryId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      toast.success('Subcategoría eliminada')
+      router.refresh()
+    } catch {
+      toast.error('Error al eliminar subcategoría')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleDeleteItem(categoryId: string, itemId: string) {
     if (!confirm('¿Eliminar este item?')) return
     setLoading(true)
@@ -658,7 +804,11 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
             {currentMenu?.categories?.length || 0} Categorías
           </Badge>
           <p className="text-muted-foreground text-sm font-medium tabular-nums">
-            {currentMenu?.categories?.reduce((acc: number, cat: any) => acc + cat.items.length, 0) || 0} Items totales
+            {currentMenu?.categories?.reduce((acc: number, cat: any) => {
+              const direct = cat.items?.length || 0
+              const sub = (cat.subcategories || []).reduce((s: number, sc: any) => s + (sc.items?.length || 0), 0)
+              return acc + direct + sub
+            }, 0) || 0} Items totales
           </p>
         </div>
 
@@ -791,7 +941,10 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 {category.name}
                               </h3>
                               <Badge variant="secondary" className="bg-muted px-2 font-bold tabular-nums text-[10px] uppercase tracking-wide opacity-70">
-                                {category.items.length} items
+                                {(() => {
+                                  const subcatItems = (category.subcategories || []).reduce((s: number, sc: any) => s + (sc.items?.length || 0), 0)
+                                  return category.items.length + subcatItems
+                                })()} items
                               </Badge>
                               {!category.isAvailable && (
                                 <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
@@ -1211,8 +1364,283 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               </div>
                             </div>
                           )}
+                          {/* ── Subcategories ── */}
+                          <div className="mb-6 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70">
+                                Subcategorías {((category.subcategories || []).length > 0) && `(${(category.subcategories || []).length})`}
+                              </h4>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-[10px] font-black text-primary hover:bg-primary/5 px-3 rounded-lg"
+                                onClick={(e) => { e.stopPropagation(); setShowAddSubcategory(category._id) }}
+                              >
+                                <Plus size={11} className="mr-1" strokeWidth={4} /> Agregar subcategoría
+                              </Button>
+                            </div>
+
+                              {/* Add subcategory form */}
+                              {showAddSubcategory === category._id && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  className="flex items-center gap-2 p-3 bg-white border-2 border-primary/30 rounded-2xl"
+                                >
+                                  <input
+                                    className="flex-1 bg-muted/30 border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-xl px-3 py-2 outline-none transition-all"
+                                    placeholder="Nombre de la subcategoría"
+                                    value={newSubcategoryName}
+                                    onChange={e => setNewSubcategoryName(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleAddSubcategory(category._id)}
+                                    autoFocus
+                                  />
+                                  <input
+                                    className="flex-1 bg-muted/30 border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-xl px-3 py-2 outline-none transition-all"
+                                    placeholder="Descripción (opcional)"
+                                    value={newSubcategoryDescription}
+                                    onChange={e => setNewSubcategoryDescription(e.target.value)}
+                                  />
+                                  <Button size="sm" className="rounded-xl font-bold h-9 px-4" onClick={() => handleAddSubcategory(category._id)} disabled={loading}>
+                                    Crear
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="rounded-xl h-9 px-3" onClick={() => { setShowAddSubcategory(null); setNewSubcategoryName(''); setNewSubcategoryDescription('') }}>
+                                    <X size={16} />
+                                  </Button>
+                                </motion.div>
+                              )}
+
+                              {/* Subcategory list */}
+                              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEndSubCategory(category._id, e)}>
+                                <SortableContext items={(category.subcategories || []).map((s: any) => s._id)} strategy={verticalListSortingStrategy}>
+                                  {(category.subcategories || [])
+                                    .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                                    .map((subcategory: any) => {
+                                      const isSubExpanded = (expandedSubcategories[category._id] || []).includes(subcategory._id)
+                                      return (
+                                        <SortableItemWrapper key={subcategory._id} id={subcategory._id} isEditing={false}>
+                                          <div className="border-2 border-border/40 rounded-2xl overflow-hidden transition-all hover:border-primary/30 mb-2">
+                                            <div
+                                              className="flex items-center justify-between p-3 bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors"
+                                              onClick={() => toggleSubcategory(category._id, subcategory._id)}
+                                            >
+                                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                {editingSubcategory?.categoryId === category._id && editingSubcategory?.subcategoryId === subcategory._id ? (
+                                                  <input
+                                                    className="bg-white border-2 border-primary text-foreground text-sm font-bold rounded-lg px-3 py-1 outline-none w-full max-w-xs"
+                                                    value={editingSubcategoryName}
+                                                    onChange={e => setEditingSubcategoryName(e.target.value)}
+                                                    onClick={e => e.stopPropagation()}
+                                                    onKeyDown={e => e.key === 'Enter' && handleEditSubcategory(category._id, subcategory._id)}
+                                                    autoFocus
+                                                  />
+                                                ) : (
+                                                  <>
+                                                    <span className="text-sm font-bold text-foreground">{subcategory.name}</span>
+                                                    <Badge variant="secondary" className="bg-muted px-2 font-bold tabular-nums text-[10px] uppercase tracking-wide opacity-70">
+                                                      {(subcategory.items || []).length} items
+                                                    </Badge>
+                                                  </>
+                                                )}
+                                              </div>
+                                              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                {editingSubcategory?.categoryId === category._id && editingSubcategory?.subcategoryId === subcategory._id ? (
+                                                  <>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-500 hover:bg-emerald-500/10 rounded-xl" onClick={() => handleEditSubcategory(category._id, subcategory._id)}>
+                                                      <Check size={16} strokeWidth={3} />
+                                                    </Button>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:bg-muted/50 rounded-xl" onClick={() => setEditingSubcategory(null)}>
+                                                      <X size={16} strokeWidth={3} />
+                                                    </Button>
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <Button
+                                                      size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
+                                                      onClick={() => {
+                                                        setEditingSubcategory({ categoryId: category._id, subcategoryId: subcategory._id })
+                                                        setEditingSubcategoryName(subcategory.name)
+                                                        setEditingSubcategoryDescription(subcategory.description || '')
+                                                        if (!isSubExpanded) toggleSubcategory(category._id, subcategory._id)
+                                                      }}
+                                                    >
+                                                      <Pencil size={14} />
+                                                    </Button>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl" onClick={() => handleDeleteSubcategory(category._id, subcategory._id)}>
+                                                      <Trash2 size={14} />
+                                                    </Button>
+                                                    <Button
+                                                      size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary rounded-xl"
+                                                      onClick={() => {
+                                                        setShowAddItemInSubcategory(subcategory._id)
+                                                        if (!isSubExpanded) toggleSubcategory(category._id, subcategory._id)
+                                                      }}
+                                                    >
+                                                      <Plus size={14} strokeWidth={3} />
+                                                    </Button>
+                                                    <div className={cn("h-8 w-8 flex items-center justify-center transition-transform", isSubExpanded && "rotate-180")}>
+                                                      <ChevronDown size={16} strokeWidth={3} className="text-muted-foreground" />
+                                                    </div>
+                                                  </>
+                                                )}
+                                              </div>
+                                            </div>
+
+                                            {isSubExpanded && (
+                                              <div className="p-3 pt-0 border-t border-border/40">
+                                                {/* Subcategory items with drag and drop */}
+                                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEndSubcategoryItem(category._id, subcategory._id, e)}>
+                                                  <SortableContext items={(subcategory.items || []).map((i: any) => i._id)} strategy={verticalListSortingStrategy}>
+                                                    {(subcategory.items || []).map((item: any) => (
+                                                      <SortableItemWrapper key={item._id} id={item._id} isEditing={editingItem === item._id}>
+                                                        <motion.div
+                                                          layout
+                                                          className={cn(
+                                                            "rounded-2xl transition-all border",
+                                                            editingItem === item._id ? "bg-white border-primary shadow-lg p-4 my-2" : "bg-card border-border/30 hover:border-primary/20 p-2 pl-3 my-1",
+                                                            !item.isAvailable && editingItem !== item._id && "opacity-50"
+                                                          )}
+                                                        >
+                                                          {editingItem === item._id ? (
+                                                            <ItemForm
+                                                              data={editingItemData}
+                                                              onChange={setEditingItemData}
+                                                              onSave={() => handleEditItem(category._id, item._id)}
+                                                              onCancel={() => setEditingItem(null)}
+                                                              loading={loading}
+                                                              mode="edit"
+                                                              tenantSlug={tenantSlug}
+                                                              allItems={(currentMenu?.categories || []).flatMap((c: any) => [
+                                                                ...c.items,
+                                                                ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])
+                                                              ]).filter((i: any) => i._id !== item._id)}
+                                                            />
+                                                          ) : (
+                                                            <div className="flex items-center justify-between gap-2">
+                                                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                                <GripVertical size={12} className="text-muted-foreground/30 cursor-grab active:cursor-grabbing flex-shrink-0" />
+                                                                <div className="flex-1 min-w-0">
+                                                                  <p className="text-sm font-bold text-foreground">{item.name}</p>
+                                                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                                    <span className="text-xs font-bold tabular-nums" style={{color: 'var(--primary)'}}>${item.price.toLocaleString('es-AR')}</span>
+                                                                    {item.takeawayPrice && item.takeawayPrice !== item.price && (
+                                                                      <span className="text-[10px] font-bold text-orange-600">TA ${item.takeawayPrice.toLocaleString('es-AR')}</span>
+                                                                    )}
+                                                                    {item.businessPrice != null && (
+                                                                      <span className="text-[10px] font-bold text-primary">Corp ${item.businessPrice.toLocaleString('es-AR')}</span>
+                                                                    )}
+                                                                  </div>
+                                                                </div>
+                                                              </div>
+                                                              <div className="flex items-center gap-1">
+                                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+                                                                  onClick={() => {
+                                                                    setEditingItem(item._id)
+                                                                    setEditingItemData({
+                                                                      name: item.name,
+                                                                      description: item.description || '',
+                                                                      price: item.price.toString(),
+                                                                      takeawayPrice: item.takeawayPrice?.toString() ?? '',
+                                                                      businessPrice: item.businessPrice?.toString() ?? '',
+                                                                      tags: (item.tags || []).join(', '),
+                                                                      isFeatured: item.isFeatured ?? false,
+                                                                      imageUrl: item.imageUrl || '',
+                                                                      isBusinessAvailable: item.isBusinessAvailable ?? false,
+                                                                      suggestWith: item.suggestWith ?? [],
+                                                                      customizationGroups: deserializeGroups(item.customizationGroups || []),
+                                                                      variants: deserializeVariants(item.variants || []),
+                                                                      availabilityMode: item.availabilityMode ?? 'always',
+                                                                      availabilitySchedule: item.availabilitySchedule ?? [],
+                                                                    })
+                                                                  }}>
+                                                                  <Pencil size={14} />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                                                                  onClick={() => handleDeleteItem(category._id, item._id)}>
+                                                                  <Trash2 size={14} />
+                                                                </Button>
+                                                              </div>
+                                                            </div>
+                                                          )}
+                                                        </motion.div>
+                                                      </SortableItemWrapper>
+                                                    ))}
+                                                  </SortableContext>
+                                                </DndContext>
+
+                                                {/* Add item to subcategory */}
+                                                {showAddItemInSubcategory === subcategory._id && (
+                                                  <div className="mt-2 p-4 bg-white border-2 border-primary/20 rounded-2xl">
+                                                    <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70 mb-3">
+                                                      Nuevo item en {subcategory.name}
+                                                    </h5>
+                                                    <ItemForm
+                                                      data={newItem}
+                                                      onChange={setNewItem}
+                                                      onSave={async () => {
+                                                        if (!newItem.name.trim() || !newItem.price) return
+                                                        setLoading(true)
+                                                        try {
+                                                          const res = await fetch(`/api/${tenantSlug}/menu/categories/${category._id}/items`, {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({
+                                                              locationId: selectedLocation,
+                                                              subcategoryId: subcategory._id,
+                                                              name: newItem.name,
+                                                              description: newItem.description,
+                                                              price: parseFloat(newItem.price),
+                                                              takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
+                                                              businessPrice: newItem.businessPrice !== '' ? parseFloat(newItem.businessPrice) : null,
+                                                              isBusinessAvailable: newItem.isBusinessAvailable,
+                                                              tags: parseTags(newItem.tags),
+                                                              isFeatured: newItem.isFeatured,
+                                                              imageUrl: newItem.imageUrl,
+                                                              suggestWith: newItem.suggestWith,
+                                                              customizationGroups: serializeGroups(newItem.customizationGroups),
+                                                              variants: serializeVariants(newItem.variants),
+                                                            }),
+                                                          })
+                                                          if (!res.ok) throw new Error()
+                                                          toast.success('Item agregado')
+                                                          setNewItem(EMPTY_ITEM)
+                                                          setShowAddItemInSubcategory(null)
+                                                          router.refresh()
+                                                        } catch {
+                                                          toast.error('Error al agregar item')
+                                                        } finally {
+                                                          setLoading(false)
+                                                        }
+                                                      }}
+                                                      onCancel={() => { setShowAddItemInSubcategory(null); setNewItem(EMPTY_ITEM) }}
+                                                      loading={loading}
+                                                      mode="add"
+                                                      tenantSlug={tenantSlug}
+                                                      allItems={(currentMenu?.categories || []).flatMap((c: any) => [
+                                                        ...c.items,
+                                                        ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])
+                                                      ])}
+                                                    />
+                                                  </div>
+                                                )}
+
+                                                {(subcategory.items || []).length === 0 && showAddItemInSubcategory !== subcategory._id && (
+                                                  <p className="text-[10px] text-muted-foreground/40 italic text-center py-3">
+                                                    Sin items. Agregá usando el botón +.
+                                                  </p>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </SortableItemWrapper>
+                                      )
+                                    })}
+                                </SortableContext>
+                              </DndContext>
+                            </div>
+
                           <div className="space-y-4 mb-8">
-                            {category.items.length === 0 && !showAddItem && (
+                            {category.items.length === 0 && !showAddItem && (category.subcategories || []).length === 0 && (
                               <div className="py-12 text-center bg-muted/20 border-2 border-dashed border-border/40 rounded-3xl">
                                 <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest opacity-60">No hay items en esta categoría</p>
                               </div>
@@ -1239,7 +1667,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                           loading={loading}
                                           mode="edit"
                                           tenantSlug={tenantSlug}
-                                          allItems={(currentMenu?.categories || []).flatMap((c: any) => c.items).filter((i: any) => i._id !== item._id)}
+                                          allItems={(currentMenu?.categories || []).flatMap((c: any) => [...c.items, ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])]).filter((i: any) => i._id !== item._id)}
                                         />
                                       ) : (
                                         <div className="flex items-center justify-between gap-4">
@@ -1458,7 +1886,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                     loading={loading}
                                     mode="add"
                                     tenantSlug={tenantSlug}
-                                    allItems={(currentMenu?.categories || []).flatMap((c: any) => c.items)}
+                                    allItems={(currentMenu?.categories || []).flatMap((c: any) => [...c.items, ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])])}
                                   />
                                 </motion.div>
                               ) : (

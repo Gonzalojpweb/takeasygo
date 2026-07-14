@@ -61,6 +61,19 @@ export interface IMenuItem {
   availabilitySchedule?: IAvailabilitySlot[]
 }
 
+export interface IMenuSubCategory {
+  _id?: mongoose.Types.ObjectId
+  name: string
+  description?: string
+  imageUrl?: string
+  sortOrder: number
+  items: IMenuItem[]
+  printRole?: 'kitchen' | 'bar' | 'both'
+  customizationGroups?: ICustomizationGroup[]
+  availabilityMode?: 'always' | 'scheduled'
+  availabilitySchedule?: IAvailabilitySlot[]
+}
+
 export interface IMenuCategory {
   _id?: mongoose.Types.ObjectId
   name: string
@@ -69,7 +82,8 @@ export interface IMenuCategory {
   isAvailable: boolean
   isBusinessAvailable: boolean
   sortOrder: number
-  items: IMenuItem[]
+  items: IMenuItem[]  // items directos (cuando no hay subcategorías)
+  subcategories?: IMenuSubCategory[]  // subcategorías opcionales
   printRole?: 'kitchen' | 'bar' | 'both'
   customizationGroups?: ICustomizationGroup[]   // grupos heredados por todos los items de la categoría
   nameTranslations?: { en: string }
@@ -210,6 +224,42 @@ const MenuItemSchema = new Schema<IMenuItem>({
   },
 })
 
+const MenuSubCategorySchema = new Schema<IMenuSubCategory>({
+  name: {
+    type: String,
+    required: [true, 'El nombre de la subcategoría es obligatorio'],
+    trim: true,
+  },
+  description: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  imageUrl: {
+    type: String,
+    default: '',
+  },
+  sortOrder: {
+    type: Number,
+    default: 0,
+  },
+  items: [MenuItemSchema],
+  printRole: {
+    type: String,
+    enum: ['kitchen', 'bar', 'both'],
+  },
+  customizationGroups: { type: [CustomizationGroupSchema], default: [] },
+  availabilityMode: { type: String, enum: ['always', 'scheduled'] },
+  availabilitySchedule: {
+    type: [{
+      days: [Number],
+      timeStart: String,
+      timeEnd: String,
+    }],
+    default: [],
+  },
+})
+
 const MenuCategorySchema = new Schema<IMenuCategory>({
   name: {
     type: String,
@@ -238,6 +288,7 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
     default: 0,
   },
   items: [MenuItemSchema],
+  subcategories: { type: [MenuSubCategorySchema], default: undefined },
   printRole: {
     type: String,
     enum: ['kitchen', 'bar', 'both'],

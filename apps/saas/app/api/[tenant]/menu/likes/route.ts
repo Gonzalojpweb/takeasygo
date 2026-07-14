@@ -31,18 +31,36 @@ export async function GET(
     }
 
     const items: { name: string; categoryName: string; likesCount: number; imageUrl: string; itemId: string }[] = []
+    const seenItemIds = new Set<string>()
 
     for (const menu of menus) {
       for (const cat of (menu as any).categories ?? []) {
         for (const item of cat.items ?? []) {
-          if ((item.likesCount ?? 0) > 0) {
+          const id = item._id?.toString()
+          if (id && !seenItemIds.has(id) && (item.likesCount ?? 0) > 0) {
+            seenItemIds.add(id)
             items.push({
               name: item.name,
               categoryName: cat.name,
               likesCount: item.likesCount ?? 0,
               imageUrl: item.imageUrl ?? '',
-              itemId: item._id.toString(),
+              itemId: id,
             })
+          }
+        }
+        for (const sub of cat.subcategories ?? []) {
+          for (const item of sub.items ?? []) {
+            const id = item._id?.toString()
+            if (id && !seenItemIds.has(id) && (item.likesCount ?? 0) > 0) {
+              seenItemIds.add(id)
+              items.push({
+                name: item.name,
+                categoryName: cat.name,
+                likesCount: item.likesCount ?? 0,
+                imageUrl: item.imageUrl ?? '',
+                itemId: id,
+              })
+            }
           }
         }
       }
