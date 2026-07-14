@@ -175,7 +175,7 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
               </button>
             ) : hasLoyalty ? (
               <Link
-                href={`/${tenantSlug}/club`}
+                href={`/${tenantSlug}/club/lookup`}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm border-2 border-white/50 text-white active:scale-[0.97] transition-transform"
               >
                 <Gift size={16} />
