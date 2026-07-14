@@ -1541,9 +1541,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
       {showStories && !isAdminCorp && (
         <PromotionStories
-          promotions={[...featuredPromotions, ...regularPromotions].filter(p => p.imageUrl)}
+          promotions={[...featuredPromotions, ...regularPromotions]}
           onClose={() => setShowStories(false)}
           primaryColor={primary}
+          onAddToCart={addPromotionToCart}
+          tenantSlug={tenant.slug}
         />
       )}
 

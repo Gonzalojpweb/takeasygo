@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X } from 'lucide-react'
+import { X, ShoppingCart, Gift } from 'lucide-react'
+import Link from 'next/link'
 
 interface StoryPromotion {
   _id: string
@@ -9,6 +10,8 @@ interface StoryPromotion {
   description?: string
   shortDescription?: string
   imageUrl?: string
+  price?: number
+  originalPrice?: number
   conditions?: string
   ctaText?: string
   ctaLink?: string
@@ -19,9 +22,15 @@ interface Props {
   promotions: StoryPromotion[]
   onClose: () => void
   primaryColor?: string
+  onAddToCart?: (promotion: any) => void
+  tenantSlug?: string
 }
 
-export default function PromotionStories({ promotions, onClose, primaryColor = '#000' }: Props) {
+function formatPrice(n: number): string {
+  return '$' + n.toLocaleString('es-AR')
+}
+
+export default function PromotionStories({ promotions, onClose, primaryColor = '#000', onAddToCart, tenantSlug }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [progress, setProgress] = useState(0)
   const [paused, setPaused] = useState(false)
@@ -83,9 +92,21 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
     setTouchStart(null)
   }
 
+  function handleAddToCart(e: React.MouseEvent) {
+    e.stopPropagation()
+    const promo = promotions[currentIndex]
+    if (onAddToCart && promo) {
+      onAddToCart(promo)
+      onClose()
+    }
+  }
+
   if (promotions.length === 0) return null
 
   const promo = promotions[currentIndex]
+  const hasSale = promo.type === 'sale' && (promo.price ?? 0) > 0
+  const hasLoyalty = promo.type === 'loyalty'
+  const hasAction = hasSale || hasLoyalty || promo.ctaText
 
   return (
     <div className="fixed inset-0 z-[200] bg-black flex flex-col">
@@ -111,7 +132,7 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
       </button>
 
       <div
-        className="flex-1 flex items-center justify-center relative select-none"
+        className="flex-1 flex items-center justify-center relative select-none overflow-hidden"
         onMouseDown={() => setPaused(true)}
         onMouseUp={() => setPaused(false)}
         onMouseLeave={() => setPaused(false)}
@@ -120,7 +141,7 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
         onClick={handleTap}
       >
         {promo.imageUrl ? (
-          <img src={promo.imageUrl} alt={promo.title} className="w-full h-full object-contain" draggable={false} />
+          <img src={promo.imageUrl} alt={promo.title} className="w-full h-full object-cover" draggable={false} />
         ) : (
           <div className="w-full h-full flex items-center justify-center p-8" style={{ backgroundColor: primaryColor }}>
             <div className="text-center max-w-md">
@@ -131,22 +152,47 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
           </div>
         )}
 
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 pt-12">
-          <p className="text-white font-bold text-lg">{promo.title}</p>
-          {promo.shortDescription && <p className="text-white/70 text-sm mt-1">{promo.shortDescription}</p>}
-          {promo.conditions && <p className="text-white/40 text-xs mt-2">{promo.conditions}</p>}
-          {promo.ctaText && (
-            <a
-              href={promo.ctaLink || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-3 px-6 py-2 rounded-full text-sm font-bold"
-              style={{ backgroundColor: primaryColor, color: 'white' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {promo.ctaText}
-            </a>
+        {/* Overlay gradient + content */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pt-16">
+          {hasSale && promo.originalPrice && promo.originalPrice > promo.price! && (
+            <p className="text-white/50 text-xs line-through mb-1">{formatPrice(promo.originalPrice)}</p>
           )}
+          <p className="text-white font-bold text-lg leading-tight">{promo.title}</p>
+          {promo.shortDescription && <p className="text-white/70 text-sm mt-1 leading-tight">{promo.shortDescription}</p>}
+          {promo.description && <p className="text-white/50 text-xs mt-1.5">{promo.description}</p>}
+          {promo.conditions && <p className="text-white/35 text-[10px] mt-2">{promo.conditions}</p>}
+
+          {/* Contextual action button */}
+          <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+            {hasSale ? (
+              <button
+                onClick={handleAddToCart}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm shadow-lg active:scale-[0.97] transition-transform"
+                style={{ backgroundColor: primaryColor, color: 'white' }}
+              >
+                <ShoppingCart size={16} />
+                Agregar al carrito &middot; {formatPrice(promo.price!)}
+              </button>
+            ) : hasLoyalty ? (
+              <Link
+                href={`/${tenantSlug}/club`}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm border-2 border-white/50 text-white active:scale-[0.97] transition-transform"
+              >
+                <Gift size={16} />
+                Unite al Club
+              </Link>
+            ) : promo.ctaText ? (
+              <a
+                href={promo.ctaLink || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm shadow-lg active:scale-[0.97] transition-transform"
+                style={{ backgroundColor: primaryColor, color: 'white' }}
+              >
+                {promo.ctaText}
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
 
