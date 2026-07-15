@@ -76,7 +76,7 @@ export async function POST(
         }
       }
       for (const subcategory of category.subcategories || []) {
-        if (!subcategory.isBusinessAvailable ?? category.isBusinessAvailable) continue
+        if (!(subcategory.isBusinessAvailable ?? category.isBusinessAvailable)) continue
         for (const item of subcategory.items || []) {
           if (item.isBusinessAvailable && item.businessPrice != null && item._id) {
             menuItemMap.set(item._id.toString(), { ...item, categoryName: subcategory.name })
