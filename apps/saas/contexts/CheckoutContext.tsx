@@ -300,7 +300,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
 
   // ── Initialization: load cart, settings, loyalty, kripton ──────
   useEffect(() => {
-    const saved = sessionStorage.getItem('cart')
+    const saved = sessionStorage.getItem(`cart_${tenantSlug}`)
     if (!saved) {
       router.back()
       return

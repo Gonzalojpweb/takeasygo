@@ -106,7 +106,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   const [cart, setCart] = useState<CartItem[]>(() => {
     if (typeof window === 'undefined') return []
     try {
-      const saved = sessionStorage.getItem('cart')
+      const saved = sessionStorage.getItem(`cart_${tenant.slug}`)
       if (saved) {
         const parsed = JSON.parse(saved)
         return parsed.map((item: any) => ({
@@ -344,7 +344,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   }
 
   function goToCheckout() {
-    sessionStorage.setItem('cart', JSON.stringify(cart))
+    sessionStorage.setItem(`cart_${tenant.slug}`, JSON.stringify(cart))
     sessionStorage.setItem('mode', 'dine-in')
     router.push(`/${tenant.slug}/menu/${location._id}/dine-in/checkout`)
   }
