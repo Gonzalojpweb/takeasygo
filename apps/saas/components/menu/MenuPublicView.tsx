@@ -120,7 +120,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [cart, setCart] = useState<CartItem[]>(() => {
     if (typeof window === 'undefined') return []
     try {
-      const saved = sessionStorage.getItem('cart')
+      const saved = sessionStorage.getItem(`cart_${tenant.slug}`)
       if (saved) {
         const parsed = JSON.parse(saved)
         return parsed.map((item: any) => ({
@@ -695,7 +695,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       return
     }
 
-    sessionStorage.setItem('cart', JSON.stringify(cart))
+    sessionStorage.setItem(`cart_${tenant.slug}`, JSON.stringify(cart))
     sessionStorage.setItem('mode', mode)
 
     if (mode === 'business') {

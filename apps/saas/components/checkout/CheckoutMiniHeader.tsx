@@ -17,7 +17,7 @@ export default function CheckoutMiniHeader() {
   const stepLabel = steps[state.currentStep] || ''
 
   function handleBackToMenu() {
-    sessionStorage.setItem('cart', JSON.stringify(cart))
+    sessionStorage.setItem(`cart_${tenantSlug}`, JSON.stringify(cart))
     router.push(`/${tenantSlug}/menu/${locationId}/${mode}`)
   }
 

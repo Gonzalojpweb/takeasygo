@@ -111,12 +111,12 @@ export default function LocationSwitcher({ tenantSlug, locations, currentLocatio
 
   const handleSelectLocation = (locId: string) => {
     if (locId === currentLocationId) { onClose(); return }
-    const cart = typeof window !== 'undefined' ? sessionStorage.getItem('cart') : null
+    const cart = typeof window !== 'undefined' ? sessionStorage.getItem(`cart_${tenantSlug}`) : null
     if (cart) { setConfirmTarget(locId) } else { doSwitch(locId) }
   }
 
   const doSwitch = (locId: string) => {
-    sessionStorage.removeItem('cart')
+    sessionStorage.removeItem(`cart_${tenantSlug}`)
     sessionStorage.removeItem('mode')
     onClose()
     router.push(`/${tenantSlug}/menu/${locId}`)
