@@ -52,7 +52,7 @@ export async function getBestSellers(
 
   if (!menu) return []
 
-  const allItems: Record<string, unknown>[] = []
+  const allItems: any[] = []
   for (const cat of (menu.categories ?? []) as any[]) {
     allItems.push(...(cat.items ?? []))
     for (const sub of cat.subcategories ?? []) {
