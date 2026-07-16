@@ -7,7 +7,7 @@ import DineInMenuView from '@/components/menu/DineInMenuView'
 import { getBestSellers } from '@/lib/tia/bestSellers'
 import type { Types } from 'mongoose'
 
-export const revalidate = 0
+export const revalidate = 300
 
 export async function generateStaticParams() {
   await connectDB()
