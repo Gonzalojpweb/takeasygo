@@ -1004,7 +1004,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               ref={el => { sectionRefs.current[category._id] = el }}
               className="mb-8 scroll-mt-44">
               <div className="mb-3 pb-2 border-b" style={{ borderColor: primary + '30' }}>
-                <h2 className="text-xs font-bold tracking-widest uppercase" style={{ color: primary }}>
+                <h2 className="text-sm font-bold tracking-widest uppercase" style={{ color: primary }}>
                   {tn(category, 'name', locale)}
                 </h2>
                 {tn(category, 'description', locale) && (
@@ -1127,8 +1127,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         })
                         if (subItems.length === 0) return null
                         return (
-                          <div key={subcategory._id} className={isGridForTakeaway ? 'col-span-2' : ''}>
-                            <div className="flex items-center gap-2 mb-2 mt-4">
+                          <div key={subcategory._id} className={isGridForTakeaway ? 'col-span-2 grid grid-cols-2 gap-3' : ''}>
+                            <div className={isGridForTakeaway ? 'col-span-full flex items-center gap-2 mb-2 mt-4' : 'flex items-center gap-2 mb-2 mt-4'}>
                               <div className="h-px flex-1" style={{ backgroundColor: primary + '15' }} />
                               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: primary + 'cc' }}>
                                 {tn(subcategory, 'name', locale)}
