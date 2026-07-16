@@ -22,30 +22,62 @@ export async function GET(
 
     const now = new Date()
 
-    const query: any = {
-      tenantId: tenant._id,
-      isActive: true,
+    const scheduleFilters = [
+      {
+        $or: [
+          { scheduledStart: null },
+          { scheduledStart: { $exists: false } },
+          { scheduledStart: { $lte: now } }
+        ]
+      },
+      {
+        $or: [
+          { scheduledEnd: null },
+          { scheduledEnd: { $exists: false } },
+          { scheduledEnd: { $gte: now } }
+        ]
+      }
+    ]
+
+    const locationFilter = {
       $or: [
         { locationId: null },
+        { locationId: { $exists: false } },
         { locationId }
-      ],
-      $and: [
-        {
-          $or: [
-            { scheduledStart: null },
-            { scheduledStart: { $lte: now } }
-          ]
-        },
-        {
-          $or: [
-            { scheduledEnd: null },
-            { scheduledEnd: { $gte: now } }
-          ]
-        }
       ]
     }
 
-    const promotions = await Promotion.find(query).sort({ sortOrder: 1, createdAt: -1 }).lean()
+    // Tenant-specific promotions
+    const tenantPromos: any = {
+      tenantId: tenant._id,
+      isActive: true,
+      ...locationFilter,
+      $and: scheduleFilters,
+    }
+
+    // Legacy promotions without scope field
+    const legacyPromos: any = {
+      scope: { $exists: false },
+      tenantId: tenant._id,
+      isActive: true,
+      ...locationFilter,
+      $and: scheduleFilters,
+    }
+
+    // Global promotions targeting this tenant (or all tenants)
+    const globalPromos: any = {
+      scope: 'global',
+      isActive: true,
+      $or: [
+        { targetTenants: tenant._id },
+        { targetTenants: { $size: 0 } },
+      ],
+      $and: scheduleFilters,
+    }
+
+    const promotions = await Promotion.find({
+      $or: [tenantPromos, legacyPromos, globalPromos],
+    }).sort({ sortOrder: 1, createdAt: -1 }).lean()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId }).lean()
     const menuCats = (menu as any)?.categories ?? []
@@ -177,8 +209,10 @@ export async function GET(
     })
 
     const filteredPromotions = promotionsWithLinked.filter((p: any) => {
-      if (p.visibility === 'both') return true
-      if (p.visibility === mode) return true
+      // Treat missing/undefined visibility as 'both' (visible everywhere)
+      const vis = p.visibility || 'both'
+      if (vis === 'both') return true
+      if (vis === mode) return true
       return false
     }).filter((p: any) => {
       if (!p.activeTimeStart || !p.activeTimeEnd) return true

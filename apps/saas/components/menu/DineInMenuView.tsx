@@ -587,6 +587,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
             <PromotionCarousel
               promotions={[...featuredPromotions, ...regularPromotions]}
               tenantSlug={tenant.slug}
+              onAdd={addPromotionToCart}
               primary={branding.primaryColor}
               bg={bg}
               textColor={text}
@@ -694,8 +695,8 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                         const subItems = (sub.items ?? []).filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
                         if (subItems.length === 0) return null
                         return (
-                          <div key={sub._id} className={isGrid ? 'col-span-2' : ''}>
-                            <div className="flex items-center gap-3 my-4">
+                          <div key={sub._id} className={isGrid ? 'col-span-2 grid grid-cols-2 gap-3' : ''}>
+                            <div className={isGrid ? 'col-span-full flex items-center gap-3 my-4' : 'flex items-center gap-3 my-4'}>
                               <div className="h-px flex-1" style={{ backgroundColor: branding.primaryColor + '25' }} />
                               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: branding.primaryColor }}>
                                 {tn(sub, 'name', locale)}
