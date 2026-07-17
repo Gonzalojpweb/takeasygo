@@ -7,7 +7,7 @@ import OrderInsights from './OrderInsights'
 
 interface OrderItem extends BoardItem {
   orderNumber: string
-  customer: { name: string; phone?: string; email?: string }
+  customer: { name: string; phone?: string; email?: string; phoneHash?: string }
   orderMode?: string
   total: number
   locationId?: string
