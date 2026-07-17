@@ -8,10 +8,10 @@ import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
-import { formatOrderStatus } from "../../utils/format"
 import { WaiterStats } from "./WaiterStats"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
 import { MesaDetailPanel } from "./MesaDetailPanel"
+import { WaiterContextPanel } from "./WaiterContextPanel"
 
 type Scene = "turno" | "mesa" | "configurar" | "pedido" | "cocina" | "entrega" | "cuenta" | "cierre"
 
@@ -26,6 +26,7 @@ export function WaiterDashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
+  const [deliveryChecked, setDeliveryChecked] = useState<Record<string, boolean>>({})
 
   const { setContextPanel, setActionBar } = useLayout()
   const { tables } = useTables()
@@ -43,8 +44,18 @@ export function WaiterDashboard() {
   )
 
   const occupiedTables = useMemo(
-    () => tables.filter((t) => t.status === "occupied"),
+    () => tables.filter((t) => t.status === "occupied" || t.status === "needs_attention"),
     [tables]
+  )
+
+  const mesaOrders = useMemo(
+    () => selectedTableId
+      ? pendingCommands.filter((c) => {
+          const table = tables.find((t) => t.id === selectedTableId)
+          return table && c.tableNumber === table.number
+        })
+      : [],
+    [pendingCommands, selectedTableId, tables]
   )
 
   const showToast = useCallback((message: string, type: string) => {
@@ -134,6 +145,15 @@ export function WaiterDashboard() {
     setScene("turno")
   }, [])
 
+  const handleToggleDelivery = useCallback((itemId: string) => {
+    setDeliveryChecked((prev) => ({ ...prev, [itemId]: !prev[itemId] }))
+  }, [])
+
+  const handleConfirmDelivery = useCallback(() => {
+    showToast("✓ Pedido entregado", "success")
+    setTimeout(() => setScene("cocina"), 1500)
+  }, [showToast])
+
   // Context Panel + ActionBar per scene
   useEffect(() => {
     switch (scene) {
@@ -166,9 +186,12 @@ export function WaiterDashboard() {
           title: `Mesa ${selectedTable?.number ?? "?"}`,
           subtitle: selectedTable?.section || "Salón",
           body: (
-            <div style={{ padding: "var(--sp-2)", fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
-              Capacidad: {selectedTable?.capacity ?? 0} personas
-            </div>
+            <WaiterContextPanel
+              selectedTable={selectedTable ?? null}
+              mesaOrders={mesaOrders}
+              onTomarPedido={() => setScene("pedido")}
+              onCuenta={() => setScene("cuenta")}
+            />
           ),
         })
         setActionBar({
@@ -213,10 +236,12 @@ export function WaiterDashboard() {
         })
         break
 
-      case "cocina":
+      case "cocina": {
+        const readyCommands = pendingCommands.filter((c) => c.status === "ready")
+        const preparingCommands = pendingCommands.filter((c) => c.status !== "ready")
         setContextPanel({
           title: "Cocina",
-          subtitle: `${pendingCommands.length} pedidos pendientes`,
+          subtitle: `${pendingCommands.length} pedidos activos`,
           body: (
             <div style={{ padding: "var(--sp-2)" }}>
               {pendingCommands.length === 0 ? (
@@ -224,14 +249,52 @@ export function WaiterDashboard() {
                   Todo al día ✓
                 </div>
               ) : (
-                pendingCommands.map((cmd) => (
-                  <div key={cmd.id} style={{ padding: "var(--sp-2) 0", borderBottom: "1px solid var(--border-light)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontWeight: 600, fontSize: "var(--font-size-sm)" }}>Mesa {cmd.tableNumber}</span>
-                      <span className={`status-badge ${cmd.status}`}>{formatOrderStatus(cmd.status)}</span>
+                <>
+                  {readyCommands.length > 0 && (
+                    <div style={{ marginBottom: "var(--sp-3)" }}>
+                      <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--success)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
+                        ✓ Listo para retirar
+                      </div>
+                      {readyCommands.map((cmd) => (
+                        <div key={cmd.id} style={{
+                          padding: "var(--sp-3)",
+                          background: "var(--surface-elevated)",
+                          border: "2px solid var(--success)",
+                          borderRadius: 8,
+                          marginBottom: "var(--sp-2)",
+                        }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                            <span style={{ fontWeight: 600, fontSize: "var(--font-size-sm)" }}>Mesa {cmd.tableNumber}</span>
+                            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>{cmd.time || 0} min</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))
+                  )}
+                  {preparingCommands.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
+                        🍳 En preparación
+                      </div>
+                      {preparingCommands.map((cmd) => (
+                        <div key={cmd.id} style={{
+                          padding: "var(--sp-3)",
+                          background: "var(--surface-elevated)",
+                          border: cmd.delayed ? "1px solid var(--danger)" : "1px solid var(--border-light)",
+                          borderRadius: 8,
+                          marginBottom: "var(--sp-2)",
+                        }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontWeight: 500, fontSize: "var(--font-size-sm)" }}>Mesa {cmd.tableNumber}</span>
+                            {cmd.delayed && (
+                              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--danger)", fontWeight: 600 }}>⚠ Demorado</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ),
@@ -244,25 +307,30 @@ export function WaiterDashboard() {
           ),
         })
         break
+      }
 
-      case "entrega":
+      case "entrega": {
+        const readyForDelivery = pendingCommands.find((c) => c.status === "ready")
         setContextPanel({
           title: "Entrega",
-          subtitle: `Mesa ${selectedTable?.number ?? "?"}`,
+          subtitle: readyForDelivery ? `Mesa ${readyForDelivery.tableNumber}` : "",
           body: (
             <div style={{ padding: "var(--sp-4)", color: "var(--text-muted)", fontSize: "var(--font-size-sm)", textAlign: "center" }}>
-              Pedidos listos para entregar
+              {readyForDelivery
+                ? `${readyForDelivery.items.length} items listos para entregar`
+                : "No hay pedidos listos para entregar"}
             </div>
           ),
         })
         setActionBar({
           left: (
-            <button className="btn btn-ghost" onClick={() => setScene("turno")}>
+            <button className="btn btn-ghost" onClick={() => setScene("cocina")}>
               ← Volver
             </button>
           ),
         })
         break
+      }
 
       case "cuenta":
         setContextPanel({
@@ -302,7 +370,7 @@ export function WaiterDashboard() {
         })
         break
     }
-  }, [scene, selectedTable, cart, cartTotal, occupiedTables, pendingCommands, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleSendToKitchen, handleSendBill, handleNewSale])
+  }, [scene, selectedTable, cart, cartTotal, occupiedTables, pendingCommands, mesaOrders, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleSendToKitchen, handleSendBill, handleNewSale])
 
   return (
     <>
@@ -388,9 +456,9 @@ export function WaiterDashboard() {
         <>
           <div className="workspace-header">
             <div>
-              <div className="workspace-title">Cocina</div>
+              <div className="workspace-title">Estado de cocina</div>
               <div className="workspace-subtitle">
-                {pendingCommands.length} pedidos pendientes
+                {pendingCommands.length} pedidos activos · Tus mesas
               </div>
             </div>
           </div>
@@ -403,64 +471,187 @@ export function WaiterDashboard() {
                 </span>
               </div>
             ) : (
-              <div className="grid-3">
-                {pendingCommands.map((cmd) => (
-                  <div key={cmd.id} className="command-card">
-                    <div className="command-card-header">
-                      <span className="command-table">Mesa {cmd.tableNumber}</span>
-                      <span className={`status-badge ${cmd.status}`}>
-                        {formatOrderStatus(cmd.status)}
-                      </span>
+              <>
+                {/* Ready to deliver */}
+                {pendingCommands.filter((c) => c.status === "ready").length > 0 && (
+                  <div style={{ marginBottom: "var(--sp-6)" }}>
+                    <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--success)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-3)", paddingLeft: "var(--sp-1)" }}>
+                      ✓ Listo para retirar
                     </div>
-                    <div className="command-items">
-                      {cmd.items.map((item, i) => (
-                        <div key={i} className="command-item">
-                          <span className="command-item-qty">{item.quantity}×</span>
-                          <span>{item.name}</span>
+                    <div className="grid-3">
+                      {pendingCommands.filter((c) => c.status === "ready").map((cmd) => (
+                        <div key={cmd.id} style={{
+                          background: "var(--surface)",
+                          border: "2px solid var(--success)",
+                          borderRadius: 10,
+                          padding: 16,
+                          marginBottom: 12,
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <div style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 8,
+                                background: "var(--success)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "white",
+                                fontWeight: 600,
+                              }}>{cmd.tableNumber}</div>
+                              <div><div style={{ fontWeight: 600 }}>Mesa {cmd.tableNumber}</div></div>
+                            </div>
+                            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{cmd.time || 0} min</span>
+                          </div>
+                          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
+                            {cmd.items.map((item) => `${item.quantity}× ${item.name}`).join(", ")}
+                          </div>
+                          <button className="btn btn-success btn-sm" style={{ width: "100%" }} onClick={() => setScene("entrega")}>
+                            🍽 Retirar y entregar
+                          </button>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-8" style={{ display: "flex", gap: 8 }}>
-                      {cmd.status === "pending" && (
-                        <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => startPreparing(cmd.orderId)}>
-                          Preparar
-                        </button>
-                      )}
-                      {cmd.status === "preparing" && (
-                        <button className="btn btn-success btn-sm" style={{ flex: 1 }} onClick={() => markReady(cmd.orderId)}>
-                          Listo ✓
-                        </button>
-                      )}
+                  </div>
+                )}
+
+                {/* Preparing */}
+                {pendingCommands.filter((c) => c.status !== "ready").length > 0 && (
+                  <div>
+                    <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-3)", paddingLeft: "var(--sp-1)" }}>
+                      🍳 En preparación
+                    </div>
+                    <div className="grid-3">
+                      {pendingCommands.filter((c) => c.status !== "ready").map((cmd) => (
+                        <div key={cmd.id} style={{
+                          background: "var(--surface)",
+                          border: cmd.delayed ? "2px solid var(--danger)" : "1px solid var(--border)",
+                          borderRadius: 10,
+                          padding: 16,
+                          marginBottom: 8,
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <div style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 8,
+                                background: cmd.delayed ? "var(--danger-light)" : "var(--warning-light)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: 600,
+                                color: cmd.delayed ? "var(--danger)" : "#B8860B",
+                              }}>{cmd.tableNumber}</div>
+                              <div>
+                                <div style={{ fontWeight: 500 }}>Mesa {cmd.tableNumber}</div>
+                                {cmd.delayed && (
+                                  <div style={{ fontSize: 13, color: "var(--danger)" }}>⚠ Demorado</div>
+                                )}
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 13, color: cmd.delayed ? "var(--danger)" : "var(--text-muted)", ...(cmd.delayed ? { fontWeight: 600 } : {}) }}>
+                              {cmd.time || 0} min
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                            {cmd.items.map((item) => `${item.quantity}× ${item.name}`).join(", ")}
+                          </div>
+                          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                            {cmd.status === "pending" && (
+                              <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => startPreparing(cmd.orderId)}>
+                                Preparar
+                              </button>
+                            )}
+                            {cmd.status === "preparing" && (
+                              <button className="btn btn-success btn-sm" style={{ flex: 1 }} onClick={() => markReady(cmd.orderId)}>
+                                Listo ✓
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         </>
       )}
 
       {/* Scene: Entrega */}
-      {scene === "entrega" && (
-        <>
-          <div className="workspace-header">
-            <div>
-              <div className="workspace-title">Entrega</div>
-              <div className="workspace-subtitle">
-                Mesa {selectedTable?.number ?? "?"} — Pedidos listos para entregar
+      {scene === "entrega" && (() => {
+        const readyCmd = pendingCommands.find((c) => c.status === "ready")
+        if (!readyCmd) {
+          return (
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center" }}>
+              <div className="empty-state">
+                <span className="empty-state-icon">🍽️</span>
+                <span className="empty-state-text">No hay pedidos listos para entregar</span>
               </div>
             </div>
-          </div>
-          <div className="p-6">
-            <div className="empty-state">
-              <span className="empty-state-icon">🍽️</span>
-              <span className="empty-state-text">
-                No hay pedidos listos para entregar
-              </span>
+          )
+        }
+        return (
+          <>
+            <div className="workspace-header">
+              <div>
+                <div className="workspace-title">Entregar pedido</div>
+                <div className="workspace-subtitle">Mesa {readyCmd.tableNumber} — {readyCmd.time || 0} min desde pedido</div>
+              </div>
+              <div className="workspace-actions">
+                <button className="btn btn-ghost btn-sm" onClick={() => setScene("cocina")}>
+                  ← Volver
+                </button>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+            <div className="p-6" style={{ maxWidth: 600, margin: "0 auto" }}>
+              <div style={{
+                background: "var(--surface)",
+                border: "2px solid var(--success)",
+                borderRadius: 10,
+                padding: 20,
+                marginBottom: 16,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <div style={{ fontSize: 16, fontWeight: 600 }}>🍽 Mesa {readyCmd.tableNumber}</div>
+                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{readyCmd.time || 0} min</span>
+                </div>
+                <div>
+                  {readyCmd.items.map((item, i) => (
+                    <label key={i} className="delivery-check" style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "6px 0",
+                      fontSize: 13,
+                      cursor: "pointer",
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={deliveryChecked[item.productId] ?? true}
+                        onChange={() => handleToggleDelivery(item.productId)}
+                        style={{ width: 16, height: 16, accentColor: "var(--primary-action)" }}
+                      />
+                      <span>{item.quantity}× {item.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setScene("cocina")}>
+                  ← Volver
+                </button>
+                <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleConfirmDelivery}>
+                  ✓ Marcar como entregado
+                </button>
+              </div>
+            </div>
+          </>
+        )
+      })()}
 
       {/* Scene: Cuenta */}
       {scene === "cuenta" && (
@@ -468,25 +659,62 @@ export function WaiterDashboard() {
           <div className="workspace-header">
             <div>
               <div className="workspace-title">Solicitar cuenta</div>
-              <div className="workspace-subtitle">
-                Mesa {selectedTable?.number ?? "?"}
-              </div>
+              <div className="workspace-subtitle">Mesa {selectedTable?.number ?? "?"}</div>
+            </div>
+            <div className="workspace-actions">
+              <button className="btn btn-ghost btn-sm" onClick={() => setScene("mesa")}>
+                ← Volver
+              </button>
             </div>
           </div>
-          <div className="p-6" style={{ maxWidth: 400, margin: "0 auto" }}>
-            <div className="card text-center">
-              <div style={{ padding: 32 }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
-                <div className="workspace-title" style={{ marginBottom: 8 }}>
-                  Cuenta solicitada
-                </div>
-                <div className="text-muted text-sm" style={{ marginBottom: 24 }}>
-                  La cuenta será enviada a caja para cobro
-                </div>
-                <button className="btn btn-primary" onClick={handleSendBill}>
-                  📤 Solicitar cuenta
-                </button>
+          <div className="p-6" style={{ maxWidth: 600, margin: "0 auto" }}>
+            <div style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: 20,
+              marginBottom: 16,
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Resumen del consumo</div>
+              <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: 12 }}>
+                {cart.length === 0 ? (
+                  <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 20 }}>
+                    Sin pedidos registrados
+                  </div>
+                ) : (
+                  cart.map((item, i) => (
+                    <div key={i} style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      padding: "4px 0",
+                      fontSize: 13,
+                    }}>
+                      <span>{item.quantity}× {item.name}</span>
+                      <span style={{ fontWeight: 500 }}>${item.total.toLocaleString("es-AR")}</span>
+                    </div>
+                  ))
+                )}
               </div>
+              <div style={{
+                borderTop: "2px solid var(--border)",
+                marginTop: 12,
+                paddingTop: 12,
+                display: "flex",
+                justifyContent: "space-between",
+              }}>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
+                <span style={{ fontSize: 20, fontWeight: 600, color: "var(--primary-action)" }}>
+                  ${cartTotal.toLocaleString("es-AR")}
+                </span>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setScene("mesa")}>
+                ← Cancelar
+              </button>
+              <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleSendBill}>
+                📤 Enviar a Counter para cobro
+              </button>
             </div>
           </div>
         </>
@@ -495,16 +723,14 @@ export function WaiterDashboard() {
       {/* Scene: Cierre */}
       {scene === "cierre" && (
         <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <div className="text-center">
+          <div style={{ maxWidth: 600, textAlign: "center", padding: "40px 20px" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-            <div className="workspace-title" style={{ marginBottom: 8 }}>
-              Cuenta enviada a Counter
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Operación finalizada</div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>
+              La mesa {selectedTable?.number ?? "?"} fue cerrada. El cobro se procesó en Counter.
             </div>
-            <div className="text-muted text-sm" style={{ marginBottom: 24 }}>
-              Mesa {selectedTable?.number ?? "?"}
-            </div>
-            <button className="btn btn-primary" onClick={handleNewSale}>
-              Volver al turno
+            <button className="btn btn-primary" onClick={handleNewSale} style={{ width: "100%" }}>
+              → Volver a mis mesas
             </button>
           </div>
         </div>
