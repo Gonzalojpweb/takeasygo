@@ -510,3 +510,15 @@ pre code.hljs {
   padding: 0 !important;
   background: transparent !important;
 }
+
+/* ── Admin Orders layout overrides ───────────────────────────────────── */
+main div:has(> div > .is-admin-orders-page) {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+main div:has(> .is-admin-orders-page) {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+}
