@@ -80,7 +80,7 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, 
       <Button
         size="sm"
         className={cn(
-          "text-white font-bold rounded-xl transition-all active:scale-95 shadow-md group",
+          "text-white font-bold rounded-xl transition-all active:scale-95 shadow-md group shrink-0",
           compact ? "px-3 h-8 text-xs" : "mt-3 px-6 h-10",
           next.color,
           posLocked && "opacity-40"

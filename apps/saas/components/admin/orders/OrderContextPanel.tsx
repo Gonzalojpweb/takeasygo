@@ -197,10 +197,10 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
                 toast.success('Reimprimiendo...')
               } catch { toast.error('Error al reimprimir') }
             }}
-            className="h-8 px-3 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0"
+            className="h-8 w-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center justify-center shrink-0"
+            title="Reimprimir pedido"
           >
-            <Printer size={12} />
-            <span className="hidden xl:inline">Reimprimir</span>
+            <Printer size={13} />
           </button>
         )}
         {waLink && (
@@ -208,11 +208,10 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="h-8 px-3 rounded-lg border border-border/60 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0"
+            className="h-8 w-8 rounded-lg border border-border/60 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 transition-all flex items-center justify-center shrink-0"
             title="Enviar WhatsApp al cliente"
           >
-            <MessageCircle size={12} />
-            <span className="hidden xl:inline">WhatsApp</span>
+            <MessageCircle size={13} />
           </a>
         )}
         <div className="flex-1 flex justify-end">

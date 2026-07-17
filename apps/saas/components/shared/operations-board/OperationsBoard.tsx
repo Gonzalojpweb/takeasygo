@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import BoardColumn from './BoardColumn'
@@ -32,6 +32,14 @@ export default function OperationsBoard<T extends BoardItem>({
   const [activeLocation, setActiveLocation] = useState('all')
   const [selectedItem, setSelectedItem] = useState<T | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
+
+  // Keep selectedItem in sync when items refresh (e.g. after router.refresh())
+  useEffect(() => {
+    if (selectedItem) {
+      const fresh = items.find(i => i._id === selectedItem._id)
+      if (fresh) setSelectedItem(fresh)
+    }
+  }, [items])
   const [cleanupLoading, setCleanupLoading] = useState(false)
 
   // Zoom

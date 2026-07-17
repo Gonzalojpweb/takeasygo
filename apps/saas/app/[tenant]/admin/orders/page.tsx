@@ -77,7 +77,7 @@ export default async function OrdersPage() {
   }))
 
   return (
-    <div className="flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500 is-admin-orders-page">
       <OrdersBoardWrapper
         orders={JSON.parse(JSON.stringify(decryptedOrders))}
         tenantSlug={tenantSlug || ''}
