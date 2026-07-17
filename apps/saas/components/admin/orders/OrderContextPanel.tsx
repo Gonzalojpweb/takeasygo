@@ -20,7 +20,7 @@ interface OrderItem {
   orderMode?: string
   customer: { name: string; phone?: string; email?: string }
   total: number
-  subtotal: number
+  subtotal?: number
   discountAmount?: number
   deliveryAddress?: { street: string; number: string; apt?: string; city?: string; coordinates?: { lat: number; lng: number } }
   deliveryCost?: number
