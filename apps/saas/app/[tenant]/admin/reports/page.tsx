@@ -376,7 +376,6 @@ export default async function ReportsPage() {
     revenue: thisMonth.total,
     netRevenue: thisMonth.baseTotal,
     surcharge: thisMonth.surcharge,
-    platformFee: thisMonth.platformFee,
     orders: thisMonth.count,
     avgTicket: thisMonth.count > 0 ? Math.round(thisMonth.total / thisMonth.count) : 0,
     avgTicketNet: thisMonth.count > 0 ? Math.round(thisMonth.baseTotal / thisMonth.count) : 0,
@@ -416,7 +415,6 @@ export default async function ReportsPage() {
       revenue: d.revenue as number,
       baseRevenue: (d.baseRevenue as number) || 0,
       surcharge: (d.surcharge as number) || 0,
-      platformFee: (d.platformFee as number) || 0,
     })),
     // Upselling analytics
     upsellRows,
