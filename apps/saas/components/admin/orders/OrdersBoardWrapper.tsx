@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import { OperationsBoard, type BoardColumnDef, type BoardItem } from '@/components/shared/operations-board'
 import OrderCard from './OrderCard'
 import OrderContextPanel from './OrderContextPanel'
 import OrderInsights from './OrderInsights'
+import DelayAnnouncementPopover from './DelayAnnouncementPopover'
 
 interface OrderItem extends BoardItem {
   orderNumber: string
@@ -43,6 +45,7 @@ interface Props {
 export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [], userAssignedLocations = [] }: Props) {
   const isAdmin = userAssignedLocations.length === 0
   const availableLocations = isAdmin ? locations : locations.filter(l => userAssignedLocations.includes(l._id))
+  const [selectedLocationId, setSelectedLocationId] = useState('all')
 
   const handleCleanup = async () => {
     const res = await fetch(`/api/${tenantSlug}/orders/cleanup-cancelled`, { method: 'POST' })
@@ -74,7 +77,15 @@ export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [],
       renderContextPanel={(props) => <OrderContextPanel {...props} />}
       renderInsights={(props) => <OrderInsights {...props} />}
       onCleanup={handleCleanup}
-      soundSrc="/sounds/new-order.mp3"
+      soundSrc="/LLAMADA.mp3"
+      onLocationChange={setSelectedLocationId}
+      toolbarActions={
+        <DelayAnnouncementPopover
+          tenantSlug={tenantSlug}
+          locations={availableLocations}
+          activeLocationId={selectedLocationId}
+        />
+      }
       getNewItemToast={(items) => ({
         title: items.length === 1 ? 'Nuevo pedido' : `${items.length} nuevos pedidos`,
         description: items.map(o => `#${o.orderNumber} · ${o.customer.name}`).join(' — '),

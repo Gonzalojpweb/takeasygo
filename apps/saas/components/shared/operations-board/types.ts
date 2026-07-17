@@ -73,6 +73,8 @@ export interface OperationsBoardProps<T extends BoardItem> {
   searchConfig?: BoardSearchConfig<T>
   /** Location filtering configuration */
   locationConfig?: BoardLocationConfig
+  /** Callback when the active location filter changes. Receives the location _id or 'all'. */
+  onLocationChange?: (locationId: string) => void
   /** Render function for each card in a column */
   renderCard: (props: BoardCardRenderProps<T>) => ReactNode
   /** Render function for the right-side context panel */

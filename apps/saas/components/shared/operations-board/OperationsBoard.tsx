@@ -26,12 +26,18 @@ export default function OperationsBoard<T extends BoardItem>({
   onCleanup,
   getNewItemToast,
   soundSrc,
+  onLocationChange,
 }: OperationsBoardProps<T>) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeLocation, setActiveLocation] = useState('all')
   const [selectedItem, setSelectedItem] = useState<T | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
+
+  const handleLocationChange = useCallback((loc: string) => {
+    setActiveLocation(loc)
+    onLocationChange?.(loc)
+  }, [onLocationChange])
 
   // Keep selectedItem in sync when items refresh (e.g. after router.refresh())
   useEffect(() => {
@@ -111,7 +117,7 @@ export default function OperationsBoard<T extends BoardItem>({
           onSearchChange={setSearchTerm}
           locations={locationConfig?.locations}
           activeLocation={activeLocation}
-          onLocationChange={locationConfig ? setActiveLocation : undefined}
+          onLocationChange={locationConfig ? handleLocationChange : undefined}
           soundEnabled={soundEnabled}
           onSoundToggle={() => setSoundEnabled(v => !v)}
           onRefresh={doRefreshWithTimestamp}
