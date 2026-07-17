@@ -10,6 +10,7 @@ export { default as BoardEmptyState } from './BoardEmptyState'
 // ─── Hooks ─────────────────────────────────────────────────
 export { useBoardAutoRefresh } from './useBoardAutoRefresh'
 export { useBoardNewItemDetector } from './useBoardNewItemDetector'
+export { useWorkspaceZoom } from './useWorkspaceZoom'
 
 // ─── Types ─────────────────────────────────────────────────
 export type {

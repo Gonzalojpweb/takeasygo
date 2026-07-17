@@ -15,6 +15,22 @@ import {
   Tag,
   Lock,
   ChevronRight,
+  ClipboardList,
+  Truck,
+  Printer,
+  Gift,
+  QrCode,
+  Zap,
+  Smartphone,
+  Bell,
+  Activity,
+  Shield,
+  BrainCircuit,
+  CreditCard,
+  Database,
+  BookOpen,
+  TrendingUp,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -51,7 +67,6 @@ interface NavGroup {
   items: NavItem[]
 }
 
-// Separator between groups
 function NavSeparator() {
   return <div className="w-full h-px bg-white/15" />
 }
@@ -104,41 +119,77 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
 
   const groups: NavGroup[] = [
     {
-      section: 'Operación',
+      section: 'Principal',
       items: [
         { href: base, label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'staff', 'cashier'] },
-        { href: `${base}/orders`, label: 'Pedidos', icon: ShoppingBag, roles: ['admin', 'manager', 'staff', 'cashier'], feature: 'orders', requiresTakeaway: true },
-        { href: `${base}/menu`, label: 'Menú', icon: UtensilsCrossed, roles: ['admin', 'manager'] },
-        { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations' },
       ],
     },
     {
-      section: 'Negocio',
+      section: 'Operaciones',
       items: [
-        { href: `${base}/crm`, label: 'Clientes', icon: Users, roles: ['admin', 'manager'] },
-        { href: `${base}/marketing-qr`, label: 'Marketing', icon: Tag, roles: ['admin', 'manager'] },
+        { href: `${base}/orders`, label: 'Pedidos', icon: ShoppingBag, roles: ['admin', 'manager', 'staff', 'cashier'], feature: 'orders', requiresTakeaway: true },
+        { href: `${base}/orders/history`, label: 'Historial', icon: ClipboardList, roles: ['admin', 'manager', 'cashier'], feature: 'orderHistory', requiresTakeaway: true },
+        { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations' },
+        { href: `${base}/printers`, label: 'Impresoras', icon: Printer, roles: ['admin', 'manager'], feature: 'printers', requiresTakeaway: true },
+        { href: `${base}/delivery`, label: 'Flota', icon: Truck, roles: ['admin', 'manager'], feature: 'delivery' },
+      ],
+    },
+    {
+      section: 'Catálogo',
+      items: [
+        { href: `${base}/menu`, label: 'Menú', icon: UtensilsCrossed, roles: ['admin', 'manager'] },
+      ],
+    },
+    ...(businessEnabled && canAccess(plan, 'business') ? [{
+      section: 'Business',
+      items: [
+        { href: `${base}/business/companies`, label: 'Empresas', icon: Building2, roles: ['admin'] },
+        { href: `${base}/business/orders`, label: 'Órdenes Corp', icon: ClipboardList, roles: ['admin', 'manager'] },
+      ],
+    }] : []),
+    {
+      section: 'Marketing',
+      items: [
+        { href: `${base}/promotions`, label: 'Promociones', icon: Tag, roles: ['admin', 'manager'] },
+        { href: `${base}/marketing-qr`, label: 'Marketing QR', icon: Gift, roles: ['admin', 'manager'] },
+        { href: `${base}/club`, label: 'Club', icon: QrCode, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/go-plus`, label: 'GO+', icon: Zap, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/wallet`, label: 'Wallet', icon: Smartphone, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/store`, label: 'Tienda', icon: Gift, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/notificaciones`, label: 'Notificaciones', icon: Bell, roles: ['admin', 'manager'] },
+        ...(crmEnabled ? [{ href: `${base}/crm`, label: 'CRM', icon: Users, roles: ['admin', 'manager'] }] : []),
       ],
     },
     {
       section: 'Inteligencia',
       items: [
-        { href: `${base}/analytics`, label: 'Analytics', icon: BarChart3, roles: ['admin', 'manager'] },
+        { href: `${base}/reports`, label: 'Reportes', icon: BarChart3, roles: ['admin', 'manager'], feature: 'reports', requiresTakeaway: true },
+        { href: `${base}/analytics`, label: 'Analytics', icon: TrendingUp, roles: ['admin', 'manager'] },
+        { href: `${base}/ico`, label: 'ICO', icon: Activity, roles: ['admin'], feature: 'ico', requiresTakeaway: true },
+        { href: `${base}/audit`, label: 'Auditoría', icon: Shield, roles: ['admin'], feature: 'audit' },
+        { href: `${base}/tia`, label: 'Inteligencia TIA', icon: BrainCircuit, roles: ['admin', 'manager'], feature: 'tia' },
+        { href: `${base}/cis`, label: 'Clientes Inteligentes', icon: Users, roles: ['admin', 'manager'], feature: 'cis' },
       ],
     },
     {
-      section: 'Sistema',
+      section: 'Configuración',
       items: [
-        { href: `${base}/users`, label: 'Usuarios', icon: Users, roles: ['admin'] },
+        { href: `${base}/users`, label: 'Usuarios', icon: Users, roles: ['admin'], feature: 'users' },
+        { href: `${base}/billing`, label: 'Facturación', icon: CreditCard, roles: ['admin'] },
         { href: `${base}/settings`, label: 'Configuración', icon: Settings, roles: ['admin'] },
+        { href: `${base}/settings/pos`, label: 'Integración POS', icon: Database, roles: ['admin'], feature: 'posIntegration' },
+      ],
+    },
+    {
+      section: 'Soporte',
+      items: [
+        { href: `${base}/ayuda`, label: 'Centro de Ayuda', icon: BookOpen, roles: ['admin', 'manager', 'staff', 'cashier'] },
+        { href: `${base}/updates`, label: 'Novedades', icon: Bell, roles: ['admin', 'manager'], badge: unreadAnnouncements },
       ],
     },
   ]
 
   const effectiveRole = userRole === 'superadmin' ? 'admin' : userRole
-
-  // Flatten all visible items for collapsed mode
-  const allVisibleItems = groups
-    .flatMap(group => group.items.filter(item => item.roles.includes(effectiveRole)))
 
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-200">

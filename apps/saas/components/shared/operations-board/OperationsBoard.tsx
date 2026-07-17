@@ -7,6 +7,7 @@ import BoardColumn from './BoardColumn'
 import BoardToolbar from './BoardToolbar'
 import { useBoardAutoRefresh } from './useBoardAutoRefresh'
 import { useBoardNewItemDetector } from './useBoardNewItemDetector'
+import { useWorkspaceZoom } from './useWorkspaceZoom'
 import { toast } from 'sonner'
 import type { BoardItem, OperationsBoardProps } from './types'
 
@@ -32,6 +33,9 @@ export default function OperationsBoard<T extends BoardItem>({
   const [selectedItem, setSelectedItem] = useState<T | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [cleanupLoading, setCleanupLoading] = useState(false)
+
+  // Zoom
+  const { zoom, zoomPercent, zoomIn, zoomOut, resetZoom, mounted } = useWorkspaceZoom()
 
   // Hooks
   const doRefresh = useCallback(() => { router.refresh() }, [router])
@@ -90,7 +94,7 @@ export default function OperationsBoard<T extends BoardItem>({
   const activeCount = activeStatuses.reduce((sum, s) => sum + (itemsByStatus[s]?.length || 0), 0)
 
   return (
-    <div className="flex h-[calc(100dvh-140px)] gap-0 relative">
+    <div className="flex h-full gap-0 relative">
       {/* Main board area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Toolbar */}
@@ -109,11 +113,18 @@ export default function OperationsBoard<T extends BoardItem>({
           onCleanup={onCleanup ? handleCleanup : undefined}
           cleanupLoading={cleanupLoading}
           extraActions={toolbarActions}
+          zoomPercent={mounted ? zoomPercent : undefined}
+          onZoomIn={mounted ? zoomIn : undefined}
+          onZoomOut={mounted ? zoomOut : undefined}
+          onZoomReset={mounted ? resetZoom : undefined}
         />
 
-        {/* Board columns */}
+        {/* Board columns — zoom affects column sizing only */}
         <div className="flex-1 overflow-x-auto overflow-y-hidden p-3 md:p-4">
-          <div className="flex gap-3 h-full md:gap-4">
+          <div
+            className="flex gap-3 h-full md:gap-4"
+            style={{ zoom: mounted ? zoom : 1 }}
+          >
             {columns.map(col => (
               <BoardColumn
                 key={col.status}
