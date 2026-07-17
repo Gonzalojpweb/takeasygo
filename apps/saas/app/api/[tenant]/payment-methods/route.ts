@@ -26,7 +26,7 @@ export async function GET(
     const platformKriptonEnabled = platformConfig?.kripton?.enabled ?? false
     const kriptonEnabled = platformKriptonEnabled && !!tenant.kripton?.isConfigured
     const transferEnabled = !!tenant.transfer?.enabled && !!tenant.transfer?.alias
-    const mpEnabled = tenant.mercadopago?.isConfigured && tenant.mpOAuth?.isConnected
+    const mpEnabled = !!tenant.mercadopago?.isConfigured
 
     const methods: Array<{
       id: string

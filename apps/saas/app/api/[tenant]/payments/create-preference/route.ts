@@ -41,17 +41,21 @@ if (!success) {
     // ── Get platform commission from PlatformConfig ────────────────────────────
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
 
+    // OAuth válido solo si: conectado, tiene token, y no expiró
+    // Si expiresAt es null (conexiones viejas) se trata como válido
+    const oauthValid = !!(tenant.mpOAuth?.isConnected && tenant.mpOAuth?.accessToken &&
+      (!tenant.mpOAuth?.expiresAt || new Date(tenant.mpOAuth.expiresAt) > new Date()))
+
     // Calcular marketplace_fee consistente con orders/route.ts
-    const platformFeePercent = (tenant.mpOAuth?.isConnected && tenant.mpOAuth?.commissionPercent != null)
+    const platformFeePercent = (oauthValid && tenant.mpOAuth?.commissionPercent != null)
       ? tenant.mpOAuth.commissionPercent
       : (platformConfig?.platformFees?.takeasygoCommissionPercent ?? 1)
     const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', tenant, platformConfig || {}, platformFeePercent)
 
-    // ── Determine which access token to use ───────────────────────────────────
-    // If OAuth is connected, use the OAuth token (marketplace mode).
-    // Otherwise fall back to the tenant's manually configured access token.
-    const useMarketplace = tenant.mpOAuth?.isConnected && tenant.mpOAuth?.accessToken
-    const rawToken = useMarketplace
+    // ── Usar token de OAuth si está vigente, sino el propio del tenant ────────
+    // Con OAuth: MP reconoce la transacción como marketplace y aplica split.
+    // Sin OAuth (o expirado): el pago completo va al restaurante.
+    const rawToken = oauthValid
       ? decrypt(tenant.mpOAuth.accessToken!)
       : decrypt(tenant.mercadopago.accessToken!)
 
@@ -61,8 +65,8 @@ if (!success) {
     const baseUrl = request.nextUrl.origin
 
     // ── Marketplace fee (platform commission) ─────────────────────────────────
-    // Usamos el monto calculado por el pricing engine (1% TakeasyGO)
-    const marketplaceFee = useMarketplace
+    // Solo se envía cuando OAuth está conectado y vigente
+    const marketplaceFee = oauthValid
       ? pricing.platformFeeAmount
       : undefined
 

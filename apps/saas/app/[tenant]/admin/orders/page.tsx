@@ -5,7 +5,7 @@ import Location from '@/models/Location'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import OrdersManager from '@/components/admin/OrdersManager'
+import OperationsBoard from '@/components/admin/orders/OperationsBoard'
 import type { Types } from 'mongoose'
 import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 import { Lock } from 'lucide-react'
@@ -47,13 +47,12 @@ export default async function OrdersPage() {
 
   const tenantId = tenant._id
 
-  const now = new Date()
-  const [orders, locations, load30m, load60m] = await Promise.all([
-    Order.find({ tenantId, deletedAt: null, status: { $ne: 'awaiting_payment' } }).sort({ createdAt: -1 }).limit(50).lean(),
-    Location.find({ tenantId }).lean(),
-    Order.countDocuments({ tenantId, deletedAt: null, status: { $nin: ['awaiting_payment', 'cancelled'] }, createdAt: { $gte: new Date(now.getTime() - 30 * 60 * 1000) } }),
-    Order.countDocuments({ tenantId, deletedAt: null, status: { $nin: ['awaiting_payment', 'cancelled'] }, createdAt: { $gte: new Date(now.getTime() - 60 * 60 * 1000) } }),
-  ])
+  const orders = await Order.find({ tenantId, deletedAt: null, status: { $ne: 'awaiting_payment' } })
+    .sort({ createdAt: -1 })
+    .limit(100)
+    .lean()
+
+  const locations = await Location.find({ tenantId }).lean()
 
   const locationMap = Object.fromEntries(
     locations.map((l: any) => [l._id.toString(), l.name])
@@ -66,35 +65,23 @@ export default async function OrdersPage() {
 
   const userAssignedLocations = session?.user?.assignedLocations ?? []
 
-  // Para plan trial: contar pedidos activos para mostrar banner de milestone
-  const trialOrderCount = tenant.plan === 'trial'
-    ? await Order.countDocuments({ tenantId, deletedAt: null, status: { $nin: ['cancelled'] } })
-    : undefined
-
   const decryptedOrders = orders.map((o: any) => ({
     ...o,
     customer: {
       ...o.customer,
-      name:  safeDecrypt(o.customer.name),
+      name: safeDecrypt(o.customer.name),
       phone: safeDecrypt(o.customer.phone),
       email: safeDecrypt(o.customer.email),
     },
+    locationName: locationMap[o.locationId?.toString()] || 'Sede',
   }))
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <div>
-        <h1 className="text-foreground text-4xl font-bold tracking-tight">Pedidos</h1>
-        <p className="text-muted-foreground mt-2 font-medium">Gestiona y haz seguimiento de todas las órdenes en tiempo real.</p>
-      </div>
-
-      <OrdersManager
+    <div className="h-[calc(100dvh-80px)] -m-4 md:-m-8 lg:-m-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <OperationsBoard
         orders={JSON.parse(JSON.stringify(decryptedOrders))}
         locationMap={locationMap}
         tenantSlug={tenantSlug || ''}
-        trialOrderCount={trialOrderCount}
-        load30m={load30m}
-        load60m={load60m}
         locations={serializedLocations}
         userAssignedLocations={userAssignedLocations}
       />
