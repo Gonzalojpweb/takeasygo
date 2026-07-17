@@ -112,21 +112,19 @@ export default function OperationsBoard<T extends BoardItem>({
         />
 
         {/* Board columns */}
-        <div className="flex-1 overflow-hidden p-3 md:p-4">
+        <div className="flex-1 overflow-x-auto overflow-y-hidden p-3 md:p-4">
           <div className="flex gap-3 h-full md:gap-4">
-            {columns
-              .filter(col => (itemsByStatus[col.status] || []).length > 0)
-              .map(col => (
-                <BoardColumn
-                  key={col.status}
-                  column={col}
-                  items={itemsByStatus[col.status] || []}
-                  selectedItemId={selectedItem?._id || null}
-                  newItemIds={newItemIds}
-                  onSelectItem={setSelectedItem}
-                  renderCard={renderCard}
-                />
-              ))}
+            {columns.map(col => (
+              <BoardColumn
+                key={col.status}
+                column={col}
+                items={itemsByStatus[col.status] || []}
+                selectedItemId={selectedItem?._id || null}
+                newItemIds={newItemIds}
+                onSelectItem={setSelectedItem}
+                renderCard={renderCard}
+              />
+            ))}
           </div>
         </div>
       </div>
