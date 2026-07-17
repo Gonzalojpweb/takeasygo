@@ -1,7 +1,7 @@
 'use client'
 
 import { type ReactNode } from 'react'
-import { Search, RefreshCw, Radio, Volume2, VolumeX, Trash2 } from 'lucide-react'
+import { Search, RefreshCw, Radio, Volume2, VolumeX, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface BoardToolbarProps {
@@ -20,6 +20,10 @@ interface BoardToolbarProps {
   onCleanup?: () => void | Promise<void>
   cleanupLoading?: boolean
   extraActions?: ReactNode
+  zoomPercent?: number
+  onZoomIn?: () => void
+  onZoomOut?: () => void
+  onZoomReset?: () => void
 }
 
 export default function BoardToolbar({
@@ -38,6 +42,10 @@ export default function BoardToolbar({
   onCleanup,
   cleanupLoading = false,
   extraActions,
+  zoomPercent,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
 }: BoardToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-border/50 md:px-4 md:py-3 md:gap-3">
@@ -111,6 +119,33 @@ export default function BoardToolbar({
             <Trash2 size={12} />
             <span className="text-[10px] font-semibold hidden lg:inline">Limpiar</span>
           </button>
+        )}
+
+        {/* Zoom controls */}
+        {zoomPercent !== undefined && onZoomOut && onZoomReset && onZoomIn && (
+          <div className="hidden md:flex items-center gap-0.5 border border-border/60 rounded-lg overflow-hidden">
+            <button
+              onClick={onZoomOut}
+              className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+              title="Alejar"
+            >
+              <ZoomOut size={12} />
+            </button>
+            <button
+              onClick={onZoomReset}
+              className="h-7 px-1.5 flex items-center justify-center text-[10px] font-bold tabular-nums text-muted-foreground hover:text-foreground hover:bg-muted transition-all min-w-[40px]"
+              title="Restablecer zoom"
+            >
+              {zoomPercent}%
+            </button>
+            <button
+              onClick={onZoomIn}
+              className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+              title="Acercar"
+            >
+              <ZoomIn size={12} />
+            </button>
+          </div>
         )}
 
         {/* Refresh */}

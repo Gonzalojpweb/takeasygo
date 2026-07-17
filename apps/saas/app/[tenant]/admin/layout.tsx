@@ -132,15 +132,16 @@ export default async function AdminLayout({
         </MobileNav>
 
         {/* Main Content */}
-        <main className="flex-1 min-h-0 overflow-y-auto bg-background" data-lenis-prevent>
+        <main className="flex-1 min-h-0 overflow-hidden bg-background flex flex-col" data-lenis-prevent>
           {tenantId && canAccess(plan, 'adminPushNotifications') && <AdminPushBanner tenantId={tenantId} />}
-          <div className="p-4 md:p-8 lg:p-10">
-            <div className="max-w-7xl mx-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 lg:p-10">
+            <div className="w-full">
               {children}
-              <div className="mt-10 pt-6 border-t border-border/40 flex justify-center">
-                <PoweredByTakeasy variant="light" label="network" />
-              </div>
             </div>
+          </div>
+          {/* Footer — stays at bottom, doesn't eat into board space */}
+          <div className="shrink-0 py-3 border-t border-border/40 flex justify-center">
+            <PoweredByTakeasy variant="light" label="network" />
           </div>
         </main>
       </div>
