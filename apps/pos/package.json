@@ -16,6 +16,7 @@
     "@takeasygo/ui": "workspace:*",
     "dexie": "^4",
     "dexie-react-hooks": "^4.4.0",
+    "lucide-react": "^0.575.0",
     "qrcode": "^1.5.4",
     "react": "^19",
     "react-dom": "^19",

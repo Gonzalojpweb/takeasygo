@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
+import type { ComponentType } from "react"
 import type { Product, OrderItem, CustomerProfile, PaymentMethod } from "@takeasygo/types"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
@@ -14,15 +15,22 @@ import { MesaCard } from "../shared/MesaCard"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
 import { formatCurrency } from "../../utils/format"
+import { UtensilsCrossed, Store, Package, Calendar } from "lucide-react"
 
 type CounterView = "salon" | "mostrador" | "entrantes" | "reservaciones"
 type Scene = "salon" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "reservaciones"
 
-const COUNTER_VIEWS = [
-  { id: "salon", label: "Salón", icon: "🍽️" },
-  { id: "mostrador", label: "Mostrador", icon: "💨" },
-  { id: "entrantes", label: "Pedidos Entrantes", icon: "📦" },
-  { id: "reservaciones", label: "Reservaciones", icon: "📅" },
+interface ViewDef {
+  id: string
+  label: string
+  icon: ComponentType<{ size?: number; className?: string }>
+}
+
+const COUNTER_VIEWS: ViewDef[] = [
+  { id: "salon", label: "Salón", icon: UtensilsCrossed },
+  { id: "mostrador", label: "Mostrador", icon: Store },
+  { id: "entrantes", label: "Pedidos Entrantes", icon: Package },
+  { id: "reservaciones", label: "Reservaciones", icon: Calendar },
 ]
 
 interface CartItem extends OrderItem {

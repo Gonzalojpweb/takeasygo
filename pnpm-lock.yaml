@@ -50,6 +50,9 @@ importers:
       dexie-react-hooks:
         specifier: ^4.4.0
         version: 4.4.0(dexie@4.4.4)(react@19.2.3)
+      lucide-react:
+        specifier: ^0.575.0
+        version: 0.575.0(react@19.2.3)
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4

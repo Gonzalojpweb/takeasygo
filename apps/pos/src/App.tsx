@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import type { ComponentType } from "react"
 import { useAuth } from "./hooks/useAuth"
 import { LoginScreen } from "./components/LoginScreen"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
@@ -15,6 +16,9 @@ import { ActionBar } from "./components/layout/ActionBar"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
 import { QuickAccessPanel } from "./components/shared/QuickAccessPanel"
 import {
+  LayoutGrid, Users, Utensils, ShoppingBag, Bike, Banknote, BarChart3,
+} from "lucide-react"
+import {
   startConnectivityMonitoring,
   stopConnectivityMonitoring,
   onReconnect,
@@ -25,14 +29,20 @@ import "./styles/pos.css"
 
 type Context = "counter" | "customers" | "waiter" | "incoming" | "flota" | "caja" | "ventas"
 
-const NAV_ITEMS = [
-  { id: "counter", icon: "🧮", label: "Counter" },
-  { id: "customers", icon: "👥", label: "Clientes" },
-  { id: "waiter", icon: "🍽️", label: "Waiter" },
-  { id: "incoming", icon: "📦", label: "Pedidos" },
-  { id: "flota", icon: "🛵", label: "Flota" },
-  { id: "caja", icon: "💵", label: "Caja" },
-  { id: "ventas", icon: "📊", label: "Ventas" },
+interface NavItem {
+  id: string
+  icon: ComponentType<{ size?: number; className?: string }>
+  label: string
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: "counter", icon: LayoutGrid, label: "Counter" },
+  { id: "customers", icon: Users, label: "Clientes" },
+  { id: "waiter", icon: Utensils, label: "Waiter" },
+  { id: "incoming", icon: ShoppingBag, label: "Pedidos" },
+  { id: "flota", icon: Bike, label: "Flota" },
+  { id: "caja", icon: Banknote, label: "Caja" },
+  { id: "ventas", icon: BarChart3, label: "Ventas" },
 ]
 
 function App() {

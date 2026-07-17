@@ -83,7 +83,7 @@ function NavLink({
     <Link href={item.href} className="group block">
       <div
         className={cn(
-          'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200',
+          'relative flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-lg text-[11px] transition-all duration-200 text-center',
           isActive
             ? 'bg-primary/10 text-primary font-medium'
             : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-white/5'
@@ -92,22 +92,21 @@ function NavLink({
         {isActive && (
           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
         )}
-        <Icon
-          size={18}
-          className={cn(
-            'transition-colors duration-200',
-            isActive ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/70'
+        <div className="relative">
+          <Icon
+            size={22}
+            className={cn(
+              'transition-colors duration-200',
+              isActive ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/70'
+            )}
+          />
+          {!!item.badge && item.badge > 0 && (
+            <span className="absolute -top-1.5 -right-2 bg-red-500/90 text-white text-[9px] font-semibold px-1 py-0 rounded-full leading-none">
+              {item.badge}
+            </span>
           )}
-        />
-        <span className="flex-1">{item.label}</span>
-        {!!item.badge && item.badge > 0 && (
-          <span className="shrink-0 bg-red-500/90 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-            {item.badge}
-          </span>
-        )}
-        {isActive && !item.badge && (
-          <ChevronRight size={14} className="text-primary/70" />
-        )}
+        </div>
+        <span className="leading-tight">{item.label}</span>
       </div>
     </Link>
   )
