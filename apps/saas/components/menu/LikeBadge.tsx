@@ -16,7 +16,7 @@ export default function LikeBadge({ count, variant = 'inline', className }: Like
   if (variant === 'overlay') {
     return (
       <div className={cn(
-        'absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 backdrop-blur-sm shadow-sm z-10',
+        'absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 backdrop-blur-sm shadow-sm z-10',
         className
       )}>
         <Heart size={11} className="text-red-500 fill-red-500" />
