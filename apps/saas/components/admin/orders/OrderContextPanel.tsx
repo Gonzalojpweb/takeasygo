@@ -390,15 +390,9 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
               {item.payment.surchargeAmount ? (
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-muted-foreground">
-                    Recargo{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
+                    Recargo MP{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
                   </span>
                   <span className="text-[10px] font-semibold text-amber-600 tabular-nums">+${item.payment.surchargeAmount.toLocaleString('es-AR')}</span>
-                </div>
-              ) : null}
-              {item.payment.platformFeeAmount ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">Comisión plataforma</span>
-                  <span className="text-[10px] font-semibold text-rose-500 tabular-nums">${item.payment.platformFeeAmount.toLocaleString('es-AR')}</span>
                 </div>
               ) : null}
               <div className="h-px bg-border/60 my-1" />

@@ -9,7 +9,6 @@ export interface PreCloseData {
   totalRevenue: number
   totalNetRevenue: number
   totalSurcharge: number
-  totalPlatformFee: number
   avgTicket: number
   avgTicketNet: number
   topItems: { name: string; quantity: number; revenue: number }[]
@@ -51,7 +50,6 @@ export async function aggregateOrdersForRange(
   const totalRevenue = active.reduce((s, o) => s + o.total, 0)
   const totalNetRevenue = active.reduce((s, o) => s + (o.payment?.baseTotal || o.total), 0)
   const totalSurcharge = active.reduce((s, o) => s + (o.payment?.surchargeAmount || 0), 0)
-  const totalPlatformFee = active.reduce((s, o) => s + (o.payment?.platformFeeAmount || 0), 0)
   const cancelledAmount = cancelled.reduce((s, o) => s + o.total, 0)
 
   const deliveryOrders = active.filter(o => o.orderMode === 'delivery')
@@ -113,7 +111,6 @@ export async function aggregateOrdersForRange(
     totalRevenue,
     totalNetRevenue,
     totalSurcharge,
-    totalPlatformFee,
     avgTicket: active.length > 0 ? Math.round(totalRevenue / active.length) : 0,
     avgTicketNet: active.length > 0 ? Math.round(totalNetRevenue / active.length) : 0,
     topItems,
@@ -227,9 +224,6 @@ export function buildPreCloseBuffer(data: PreCloseData, columns: number = 32): s
   line('Ingreso neto', `$${money(data.totalNetRevenue)}`)
   if (data.totalSurcharge > 0) {
     line('Recargos MP', `$${money(data.totalSurcharge)}`)
-  }
-  if (data.totalPlatformFee > 0) {
-    line('Comision TakeasyGO', `$${money(data.totalPlatformFee)}`)
   }
   line('Ticket promedio bruto', `$${money(data.avgTicket)}`)
   line('Ticket promedio neto', `$${money(data.avgTicketNet)}`)

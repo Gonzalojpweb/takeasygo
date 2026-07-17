@@ -20,7 +20,6 @@ interface Props {
         revenue: number
         netRevenue: number
         surcharge: number
-        platformFee: number
         orders: number
         avgTicket: number
         avgTicketNet: number
@@ -54,7 +53,7 @@ interface Props {
         dailyTrend: { day: number; revenue: number; orders: number }[]
         revenueByLocation: { locationName: string; revenue: number; orders: number }[]
         // Ventas por método de pago
-        paymentMethodBreakdown: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number; platformFee: number }[]
+        paymentMethodBreakdown: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number }[]
         // Upselling analytics
         upsellRows: { name: string; source: string; adds: number; conversions: number; conversionRate: number; revenue: number }[]
         upsellTotalAdds: number
@@ -1182,7 +1181,7 @@ const METHOD_LABELS: Record<string, string> = {
     transfer: '🏦 Transferencia',
 }
 
-function PaymentMethodChart({ data }: { data: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number; platformFee: number }[] }) {
+function PaymentMethodChart({ data }: { data: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number }[] }) {
     const totalRevenue = data.reduce((s, d) => s + d.revenue, 0)
     const totalBaseRevenue = data.reduce((s, d) => s + d.baseRevenue, 0)
     const totalSurcharge = data.reduce((s, d) => s + d.surcharge, 0)
@@ -1203,7 +1202,7 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
                 </div>
                 {totalSurcharge > 0 && (
                     <div className="p-4 rounded-2xl bg-muted/30">
-                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Recargos</p>
+                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Recargo MP</p>
                         <p className="text-2xl font-black tabular-nums text-amber-600">${totalSurcharge.toLocaleString('es-AR')}</p>
                     </div>
                 )}
