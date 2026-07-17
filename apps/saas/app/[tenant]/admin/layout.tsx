@@ -135,7 +135,7 @@ export default async function AdminLayout({
         <main className="flex-1 min-h-0 overflow-hidden bg-background flex flex-col" data-lenis-prevent>
           {tenantId && canAccess(plan, 'adminPushNotifications') && <AdminPushBanner tenantId={tenantId} />}
           <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 lg:p-10">
-            <div className="w-full">
+            <div className="w-full h-full">
               {children}
             </div>
           </div>
