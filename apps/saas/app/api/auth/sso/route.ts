@@ -14,12 +14,20 @@ const LOGIN_ERRORS = {
   sso_expired: '/login?error=sso_expired',
   sso_user_not_found: '/login?error=sso_user_not_found',
   sso_auth_failed: '/login?error=sso_auth_failed',
+  sso_forbidden_route: '/login?error=sso_forbidden_route',
+  sso_forbidden_tenant: '/login?error=sso_forbidden_tenant',
 } as const
 
+// POS roles → allowed SaaS routes (server-side guard)
+const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
+  admin:    ['/analytics', '/ico', '/tia', '/cis', '/crm'],
+  manager:  ['/analytics', '/ico', '/tia', '/cis', '/crm'],
+  cashier:  ['/crm'],
+  waiter:   [],
+}
+
 function redirectToLogin(req: NextRequest, errorKey: keyof typeof LOGIN_ERRORS) {
-  const callbackUrl = new URL(req.url).searchParams.get('callbackUrl') || '/admin'
   const url = new URL(LOGIN_ERRORS[errorKey], req.url)
-  url.searchParams.set('callbackUrl', callbackUrl)
   return NextResponse.redirect(url)
 }
 
@@ -27,8 +35,9 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const token = searchParams.get('token')
   const jti = searchParams.get('jti')
+  const callbackUrl = searchParams.get('callbackUrl')
 
-  if (!token || !jti) {
+  if (!token || !jti || !callbackUrl) {
     return redirectToLogin(req, 'sso_invalid_params')
   }
 
@@ -41,6 +50,26 @@ export async function GET(req: NextRequest) {
   const payload = verifyJwt(token, publicKey)
   if (!payload) {
     return redirectToLogin(req, 'sso_invalid_token')
+  }
+
+  // Server-side: validate tenantId matches
+  const user = await connectDB().then(() => User.findById(payload.sub))
+  if (!user) {
+    return redirectToLogin(req, 'sso_user_not_found')
+  }
+  if (user.tenantId?.toString() !== payload.tenantId) {
+    return redirectToLogin(req, 'sso_forbidden_tenant')
+  }
+
+  // Server-side: validate POS role has permission for the requested route
+  const posRole = payload.role as string
+  const allowedRoutes = ROLE_ALLOWED_ROUTES[posRole]
+  if (!allowedRoutes) {
+    return redirectToLogin(req, 'sso_forbidden_route')
+  }
+  const normalizedCallback = callbackUrl.startsWith('/') ? callbackUrl : `/${callbackUrl}`
+  if (!allowedRoutes.includes(normalizedCallback)) {
+    return redirectToLogin(req, 'sso_forbidden_route')
   }
 
   let redis: Redis
@@ -61,16 +90,19 @@ export async function GET(req: NextRequest) {
 
   await redis.del(redisKey).catch(() => {})
 
-  await connectDB()
-  const user = await User.findById(payload.sub)
-  if (!user) {
-    return redirectToLogin(req, 'sso_user_not_found')
-  }
-
   const authCode = randomUUID()
   await redis.set(`ssoAuth:${authCode}`, JSON.stringify({ email: user.email }), { ex: 30 })
 
-  const callbackUrl = searchParams.get('callbackUrl') || '/admin'
   const redirectUrl = new URL(`/sso-callback?code=${authCode}&callbackUrl=${encodeURIComponent(callbackUrl)}`, req.url)
-  return NextResponse.redirect(redirectUrl)
+  const response = NextResponse.redirect(redirectUrl)
+
+  // Set cookie to indicate this session originated from POS (8h TTL)
+  response.cookies.set('pos_origin', 'true', {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 28800, // 8 hours
+    path: '/',
+  })
+
+  return response
 }

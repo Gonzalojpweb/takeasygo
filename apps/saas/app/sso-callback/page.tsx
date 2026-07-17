@@ -11,10 +11,10 @@ function SsoCallbackContent() {
 
   useEffect(() => {
     const code = searchParams.get('code')
-    const callbackUrl = searchParams.get('callbackUrl') || '/admin'
+    const callbackUrl = searchParams.get('callbackUrl')
 
-    if (!code) {
-      setError('Missing auth code')
+    if (!code || !callbackUrl) {
+      setError('Missing auth code or callback URL')
       return
     }
 

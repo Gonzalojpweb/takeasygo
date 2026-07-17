@@ -8,6 +8,7 @@ import AdminPWAProvider from '@/components/admin/AdminPWAProvider'
 import AdminPushBanner from '@/components/admin/AdminPushBanner'
 import { SystemAnnouncementBanner } from '@/components/admin/SystemAnnouncementBanner'
 import MobileNav from '@/components/MobileNav'
+import PosReturnBarWrapper from '@/components/PosReturnBarWrapper'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
@@ -122,6 +123,8 @@ export default async function AdminLayout({
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      <PosReturnBarWrapper />
+
       {/* Desktop Sidebar — Fixed overlay, does not push workspace */}
       <DesktopSidebar {...sidebarProps} />
 
