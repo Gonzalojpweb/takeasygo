@@ -8,12 +8,13 @@ import { ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NEXT_STATUS: Record<string, { label: string; value: string; color: string } | null> = {
-  awaiting_payment: null, // Solo puede cambiar via webhook de Mercado Pago
+  awaiting_payment: null,
   awaiting_confirmation: { label: 'Confirmar transferencia', value: 'confirmed', color: 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700' },
   pending: { label: 'Confirmar', value: 'confirmed', color: 'bg-primary shadow-primary/20 hover:bg-primary/90' },
   confirmed: { label: 'Empezar Preparación', value: 'preparing', color: 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600' },
   preparing: { label: 'Marcar como Listo', value: 'ready', color: 'bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600' },
-  ready: { label: 'Entregado', value: 'delivered', color: 'bg-zinc-800 shadow-zinc-800/20 hover:bg-zinc-900 rounded-xl' },
+  ready: { label: 'Entregado', value: 'delivered', color: 'bg-zinc-800 shadow-zinc-800/20 hover:bg-zinc-900' },
+  ready_delivery: { label: 'Enviar', value: 'en_ruta', color: 'bg-sky-500 shadow-sky-500/20 hover:bg-sky-600' },
   en_ruta: { label: 'Marcar Llegado', value: 'arrived', color: 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600' },
   arrived: { label: 'Confirmar Entrega', value: 'delivered', color: 'bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600' },
   delivered: null,
@@ -24,15 +25,18 @@ interface Props {
   orderId: string
   currentStatus: string
   tenantSlug: string
+  orderMode?: string
   compact?: boolean
-  posSyncStatus?: string  // 'not_applicable' | 'pending' | 'synced' | 'failed'
+  posSyncStatus?: string
 }
 
-export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, compact, posSyncStatus }: Props) {
+export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, orderMode, compact, posSyncStatus }: Props) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const next = NEXT_STATUS[currentStatus]
   const posLocked = posSyncStatus === 'synced'
+
+  const statusKey = currentStatus === 'ready' && orderMode === 'delivery' ? 'ready_delivery' : currentStatus
+  const next = NEXT_STATUS[statusKey]
 
   if (!next) return null
 

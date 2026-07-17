@@ -947,6 +947,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                         orderId={order._id.toString()}
                         currentStatus={order.status}
                         tenantSlug={tenantSlug}
+                        orderMode={order.orderMode}
                         compact
                         posSyncStatus={order.posSync?.status}
                       />
