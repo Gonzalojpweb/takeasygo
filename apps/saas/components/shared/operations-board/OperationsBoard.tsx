@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
 import BoardColumn from './BoardColumn'
 import BoardToolbar from './BoardToolbar'
 import { useBoardAutoRefresh } from './useBoardAutoRefresh'
@@ -111,25 +112,30 @@ export default function OperationsBoard<T extends BoardItem>({
         />
 
         {/* Board columns */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-3 md:p-4">
+        <div className="flex-1 overflow-hidden p-3 md:p-4">
           <div className="flex gap-3 h-full md:gap-4">
-            {columns.map(col => (
-              <BoardColumn
-                key={col.status}
-                column={col}
-                items={itemsByStatus[col.status] || []}
-                selectedItemId={selectedItem?._id || null}
-                newItemIds={newItemIds}
-                onSelectItem={setSelectedItem}
-                renderCard={renderCard}
-              />
-            ))}
+            {columns
+              .filter(col => (itemsByStatus[col.status] || []).length > 0)
+              .map(col => (
+                <BoardColumn
+                  key={col.status}
+                  column={col}
+                  items={itemsByStatus[col.status] || []}
+                  selectedItemId={selectedItem?._id || null}
+                  newItemIds={newItemIds}
+                  onSelectItem={setSelectedItem}
+                  renderCard={renderCard}
+                />
+              ))}
           </div>
         </div>
       </div>
 
-      {/* Context Panel — Always visible on desktop */}
-      <div className="hidden lg:block w-[340px] shrink-0 h-full border-l border-border/50">
+      {/* Context Panel — Always visible on desktop, dynamic width */}
+      <div className={cn(
+        'hidden lg:block shrink-0 h-full border-l border-border/50 transition-all duration-200',
+        selectedItem ? 'w-[340px]' : 'w-[280px]'
+      )}>
         {selectedItem ? (
           renderContextPanel({
             item: selectedItem,

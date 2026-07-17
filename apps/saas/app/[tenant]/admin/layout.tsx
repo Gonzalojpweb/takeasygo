@@ -3,6 +3,7 @@ import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
+import DesktopSidebar from '@/components/admin/DesktopSidebar'
 import AdminPWAProvider from '@/components/admin/AdminPWAProvider'
 import AdminPushBanner from '@/components/admin/AdminPushBanner'
 import { SystemAnnouncementBanner } from '@/components/admin/SystemAnnouncementBanner'
@@ -122,19 +123,7 @@ export default async function AdminLayout({
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Desktop Sidebar — Fixed overlay, does not push workspace */}
-      <div className="group/sidebar hidden lg:block">
-        {/* Spacer — keeps 68px in the flex flow */}
-        <div className="w-[68px] h-full shrink-0" />
-        {/* Actual sidebar — fixed position, overlays content */}
-        <aside
-          className="fixed left-0 top-0 w-[68px] group-hover/sidebar:w-[288px] transition-all duration-200 ease-in-out h-full flex flex-col border-r border-border overflow-y-auto overflow-x-hidden z-40"
-          data-lenis-prevent
-        >
-          <AdminSidebar {...sidebarProps} />
-        </aside>
-        {/* Overlay — covers workspace when sidebar is expanded */}
-        <div className="fixed inset-0 bg-black/20 opacity-0 group-hover/sidebar:opacity-100 pointer-events-none group-hover/sidebar:pointer-events-auto z-30 transition-opacity duration-200" />
-      </div>
+      <DesktopSidebar {...sidebarProps} />
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative z-20">
         {/* Mobile Header */}
