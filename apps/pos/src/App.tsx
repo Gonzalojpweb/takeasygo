@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "./hooks/useAuth"
 import { LoginScreen } from "./components/LoginScreen"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
@@ -13,6 +13,7 @@ import { Navigation } from "./components/layout/Navigation"
 import { ContextPanel } from "./components/layout/ContextPanel"
 import { ActionBar } from "./components/layout/ActionBar"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
+import { QuickAccessPanel } from "./components/shared/QuickAccessPanel"
 import {
   startConnectivityMonitoring,
   stopConnectivityMonitoring,
@@ -20,7 +21,6 @@ import {
 } from "./services/connectivity"
 import { flush } from "./services/event-queue"
 import { disconnectSocket } from "./services/socket-client"
-import { requestSsoToken } from "./services/sso"
 import "./styles/pos.css"
 
 type Context = "counter" | "customers" | "waiter" | "incoming" | "flota" | "caja" | "ventas"
@@ -38,17 +38,7 @@ const NAV_ITEMS = [
 function App() {
   const { state, login, logout } = useAuth()
   const [activeContext, setActiveContext] = useState<Context>("counter")
-
-  const handleSso = useCallback(async () => {
-    if (state.status !== "authenticated" || !state.jwt) return
-    try {
-      const { ssoToken, jti } = await requestSsoToken(state.jwt.accessToken)
-      const saasUrl = import.meta.env.VITE_SAAS_URL ?? "http://localhost:3000"
-      window.open(`${saasUrl}/api/auth/sso?token=${ssoToken}&jti=${jti}`, "_blank")
-    } catch (err) {
-      console.error("[App] SSO failed:", err)
-    }
-  }, [state.status, state.jwt])
+  const [showQuickAccess, setShowQuickAccess] = useState(false)
 
   useEffect(() => {
     if (state.status !== "authenticated" || !state.tenantId || !state.jwt) {
@@ -109,7 +99,8 @@ function App() {
         activeContext={activeContext}
         setActiveContext={setActiveContext}
         logout={logout}
-        handleSso={handleSso}
+        showQuickAccess={showQuickAccess}
+        setShowQuickAccess={setShowQuickAccess}
       />
     </LayoutProvider>
   )
@@ -120,13 +111,15 @@ function AppShell({
   activeContext,
   setActiveContext,
   logout,
-  handleSso,
+  showQuickAccess,
+  setShowQuickAccess,
 }: {
   tenantName: string
   activeContext: Context
   setActiveContext: (ctx: Context) => void
   logout: () => void
-  handleSso: () => void
+  showQuickAccess: boolean
+  setShowQuickAccess: (show: boolean) => void
 }) {
   const { sidebarCollapsed } = useLayout()
 
@@ -139,7 +132,7 @@ function AppShell({
         activeId={activeContext}
         onSelect={(id) => setActiveContext(id as Context)}
         onLogout={logout}
-        onSso={handleSso}
+        onQuickAccess={() => setShowQuickAccess(!showQuickAccess)}
       />
 
       <main className="workspace">
@@ -154,6 +147,11 @@ function AppShell({
 
       <ContextPanel />
       <ActionBar />
+
+      <QuickAccessPanel
+        isOpen={showQuickAccess}
+        onClose={() => setShowQuickAccess(false)}
+      />
     </div>
   )
 }

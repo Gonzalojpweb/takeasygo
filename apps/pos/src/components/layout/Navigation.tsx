@@ -12,10 +12,10 @@ interface NavigationProps {
   activeId: string
   onSelect: (id: string) => void
   onLogout: () => void
-  onSso?: () => void
+  onQuickAccess?: () => void
 }
 
-export function Navigation({ items, activeId, onSelect, onLogout, onSso }: NavigationProps) {
+export function Navigation({ items, activeId, onSelect, onLogout, onQuickAccess }: NavigationProps) {
   const { sidebarCollapsed, toggleSidebar } = useLayout()
 
   return (
@@ -43,10 +43,10 @@ export function Navigation({ items, activeId, onSelect, onLogout, onSso }: Navig
 
       <div className="nav-spacer" />
 
-      {onSso && (
-        <div className="nav-item" onClick={onSso}>
-          <div className="nav-item-icon">🔗</div>
-          {!sidebarCollapsed && <span>Ir al SaaS</span>}
+      {onQuickAccess && (
+        <div className="nav-item" onClick={onQuickAccess}>
+          <div className="nav-item-icon">⚡</div>
+          {!sidebarCollapsed && <span>Accesos</span>}
         </div>
       )}
 
