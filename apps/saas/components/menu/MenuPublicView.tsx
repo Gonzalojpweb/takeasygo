@@ -27,6 +27,7 @@ import { motion } from 'framer-motion'
 import LocationBar from '@/components/menu/LocationBar'
 import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
 import PromotionStories from '@/components/menu/PromotionStories'
+import AppStoryViewer, { type AppStoryItem } from '@/components/menu/AppStoryViewer'
 
 interface Props {
   tenant: any
@@ -200,6 +201,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [likedItems, setLikedItems] = useState<Set<string>>(new Set())
   const [likesLoading, setLikesLoading] = useState<Set<string>>(new Set())
   const [showStories, setShowStories] = useState(false)
+  const [appStories, setAppStories] = useState<AppStoryItem[]>([])
+  const [showAppStories, setShowAppStories] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -229,6 +232,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       })
       .catch(() => setPromotionsLoading(false))
   }, [tenant.slug, location._id, mode])
+
+  useEffect(() => {
+    fetch('/api/app-stories')
+      .then(r => r.ok ? r.json() : { stories: [] })
+      .then(data => setAppStories(data.stories || []))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     captureMenuOpened(location._id)
@@ -830,6 +840,21 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           className="border-t overflow-x-auto"
           style={{ borderColor: primary + '15', scrollbarWidth: 'none' }}>
           <div className="flex gap-5 px-4 py-3 min-w-max">
+            {appStories.length > 0 && !isAdminCorp && (
+              <button
+                onClick={() => setShowAppStories(true)}
+                className="flex flex-col items-center gap-1.5 flex-shrink-0 transition-opacity hover:opacity-80"
+                style={{ opacity: 0.85 }}>
+                <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center"
+                  style={{ border: `2.5px solid ${primary}`, backgroundColor: primary + '15' }}>
+                  <span className="text-[10px] font-bold" style={{ color: primary }}>TGO</span>
+                </div>
+                <span className="text-xs font-medium text-center leading-tight"
+                  style={{ color: primary, maxWidth: '64px' }}>
+                  TGO APP
+                </span>
+              </button>
+            )}
             {promotions.length > 0 && !isAdminCorp && (
               <button
                 onClick={() => setShowStories(true)}
@@ -1792,6 +1817,14 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           primaryColor={primary}
           onAddToCart={addPromotionToCart}
           tenantSlug={tenant.slug}
+        />
+      )}
+
+      {showAppStories && !isAdminCorp && (
+        <AppStoryViewer
+          stories={appStories}
+          onClose={() => setShowAppStories(false)}
+          primaryColor={primary}
         />
       )}
 

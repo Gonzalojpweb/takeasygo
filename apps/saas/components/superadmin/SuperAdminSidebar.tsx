@@ -113,6 +113,7 @@ export default function SuperAdminSidebar() {
     {
       section: 'Marketing',
       items: [
+        { href: '/superadmin/app-stories', label: 'Stories de la App', icon: Smartphone },
         { href: '/superadmin/promotions', label: 'Promociones Globales', icon: Tag },
         { href: '/superadmin/store-items', label: 'Ofertas Globales', icon: ShoppingBag },
         { href: '/superadmin/club', label: 'Club Global', icon: Trophy },
