@@ -1682,3 +1682,70 @@ input, select, textarea {
   color: var(--text-muted);
   text-align: center;
 }
+
+/* ========================================
+   WAITER — Kitchen command cards (spec v3)
+   ======================================== */
+
+.kitchen-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface-elevated);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.kitchen-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.kitchen-dot.cocinando { background: var(--warning); }
+.kitchen-dot.listo { background: var(--success); }
+.kitchen-dot.demorado { background: var(--danger); }
+
+.delivery-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.delivery-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-action);
+}
+
+.detail-order {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.detail-order-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--surface-elevated);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.detail-order-items {
+  padding: 8px 12px;
+}
+
+.detail-order-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}

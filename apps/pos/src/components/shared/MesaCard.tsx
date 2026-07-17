@@ -11,9 +11,10 @@ interface MesaCardProps {
 export function MesaCard({ table, variant, onClick }: MesaCardProps) {
   const isFree = table.status === "free"
   const isOccupied = table.status === "occupied"
-  const isAttention = table.status === "reserved"
+  const isReserved = table.status === "reserved"
+  const isAttention = table.status === "needs_attention"
 
-  const statusClass = isFree ? "libre" : isOccupied ? "ocupada" : "atencion"
+  const statusClass = isFree ? "libre" : isOccupied ? "ocupada" : isAttention ? "atencion" : "atencion"
 
   return (
     <div
@@ -24,7 +25,7 @@ export function MesaCard({ table, variant, onClick }: MesaCardProps) {
 
       {variant === "counter" && (
         <span className="mesa-info">
-          {isFree ? "Libre" : isOccupied ? "Ocupada" : "⚠ Solicita cuenta"}
+          {isFree ? "Libre" : isOccupied ? "Ocupada" : isReserved ? "⚠ Solicita cuenta" : "⚠ Atención"}
         </span>
       )}
 
@@ -34,8 +35,11 @@ export function MesaCard({ table, variant, onClick }: MesaCardProps) {
           {isOccupied && (
             <>
               <span className="mesa-time">—</span>
-              <span className="mesa-info">Ocupada</span>
+              <span className="mesa-info">{table.needsBill ? "💵 Cuenta" : "Ocupada"}</span>
             </>
+          )}
+          {isReserved && (
+            <span className="mesa-info">Reservada</span>
           )}
           {isAttention && (
             <span className="mesa-info">⚠ Atención</span>

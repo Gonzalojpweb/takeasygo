@@ -13,17 +13,21 @@ export function MesaDetailPanel({
   onCocina,
   onCuenta,
 }: MesaDetailPanelProps) {
+  const statusLabel = table.status === "needs_attention" ? "⚠ Atención" :
+    table.status === "occupied" ? "Ocupada" :
+    table.status === "reserved" ? "Reservada" : "Libre"
+
   return (
     <div className="p-6">
       <div className="turno-stats" style={{ marginBottom: "var(--sp-4)" }}>
         <div className="turno-stat">
-          <div className="turno-stat-label">Capacidad</div>
+          <div className="turno-stat-label">Comensales</div>
           <div className="turno-stat-num">{table.capacity}</div>
         </div>
         <div className="turno-stat">
           <div className="turno-stat-label">Estado</div>
           <div className="turno-stat-num" style={{ fontSize: 14, textTransform: "capitalize" }}>
-            {table.status === "occupied" ? "Ocupada" : table.status === "free" ? "Libre" : "Reservada"}
+            {statusLabel}
           </div>
         </div>
         <div className="turno-stat">
@@ -39,6 +43,22 @@ export function MesaDetailPanel({
           </div>
         </div>
       </div>
+
+      {table.needsBill && (
+        <div style={{
+          padding: "var(--sp-3)",
+          background: "var(--attention-light)",
+          border: "1px solid var(--attention)",
+          borderRadius: 8,
+          marginBottom: "var(--sp-4)",
+          fontSize: "var(--font-size-sm)",
+          color: "#8A6100",
+          textAlign: "center",
+          fontWeight: 600,
+        }}>
+          💵 Solicita cuenta
+        </div>
+      )}
 
       <div className="quick-actions" style={{ display: "flex", gap: "var(--sp-3)" }}>
         <button

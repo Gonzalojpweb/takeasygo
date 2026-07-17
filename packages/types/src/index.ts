@@ -227,9 +227,10 @@ export interface Table {
   currentOrderId?: string
   serverId?: string
   section?: string
+  needsBill?: boolean
 }
 
-export type TableStatus = "free" | "occupied" | "reserved" | "closed"
+export type TableStatus = "free" | "occupied" | "reserved" | "closed" | "needs_attention"
 
 // ============================================================================
 // 9. ORDER — Órdenes
@@ -292,6 +293,8 @@ export interface KitchenCommand {
   startedAt?: Date
   completedAt?: Date
   notes?: string
+  delayed?: boolean
+  time?: number
   createdAt: Date
   updatedAt: Date
 }

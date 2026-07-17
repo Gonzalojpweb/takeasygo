@@ -8,8 +8,9 @@ import { enqueue } from "./event-queue"
 
 const VALID_TRANSITIONS: Record<TableStatus, TableStatus[]> = {
   free: ["occupied", "reserved"],
-  occupied: ["free", "closed", "reserved"],
+  occupied: ["free", "closed", "reserved", "needs_attention"],
   reserved: ["free", "occupied"],
+  needs_attention: ["occupied", "free", "reserved", "closed"],
   closed: [],
 }
 
@@ -176,6 +177,48 @@ export async function closeTable(
     tableId,
     previousStatus,
     newStatus: "closed",
+    number: table.number,
+  })
+}
+
+export async function markNeedsAttention(
+  tenantId: string,
+  tableId: string
+): Promise<void> {
+  const table = await db.diningTable.get(tableId)
+  if (!table) throw new Error(`[table] Table ${tableId} not found`)
+  if (table.tenantId !== tenantId) throw new Error("[table] Tenant mismatch")
+
+  validateTransition(table.status, "needs_attention")
+
+  const previousStatus = table.status
+
+  await db.diningTable.update(tableId, { status: "needs_attention" })
+
+  await enqueue(tenantId, "table.status_changed", {
+    tableId,
+    previousStatus,
+    newStatus: "needs_attention",
+    number: table.number,
+  })
+}
+
+export async function markNeedsBill(
+  tenantId: string,
+  tableId: string,
+  needsBill: boolean
+): Promise<void> {
+  const table = await db.diningTable.get(tableId)
+  if (!table) throw new Error(`[table] Table ${tableId} not found`)
+  if (table.tenantId !== tenantId) throw new Error("[table] Tenant mismatch")
+
+  await db.diningTable.update(tableId, { needsBill })
+
+  await enqueue(tenantId, "table.status_changed", {
+    tableId,
+    previousStatus: table.status,
+    newStatus: table.status,
+    needsBill,
     number: table.number,
   })
 }
