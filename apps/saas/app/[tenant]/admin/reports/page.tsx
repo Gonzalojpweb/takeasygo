@@ -76,12 +76,12 @@ export default async function ReportsPage() {
     // Revenue y count del mes actual (sin cancelados)
     Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
-      { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
+      { $group: { _id: null, total: { $sum: '$total' }, baseTotal: { $sum: '$payment.baseTotal' }, surcharge: { $sum: '$payment.surchargeAmount' }, platformFee: { $sum: '$payment.platformFeeAmount' }, count: { $sum: 1 } } }
     ]),
     // Mes anterior
     Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }, status: { $ne: 'cancelled' } } },
-      { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
+      { $group: { _id: null, total: { $sum: '$total' }, baseTotal: { $sum: '$payment.baseTotal' }, surcharge: { $sum: '$payment.surchargeAmount' }, platformFee: { $sum: '$payment.platformFeeAmount' }, count: { $sum: 1 } } }
     ]),
     // Top 5 ítems
     Order.aggregate([
@@ -254,13 +254,16 @@ export default async function ReportsPage() {
         _id: '$payment.method',
         orders: { $sum: 1 },
         revenue: { $sum: '$total' },
+        baseRevenue: { $sum: '$payment.baseTotal' },
+        surcharge: { $sum: '$payment.surchargeAmount' },
+        platformFee: { $sum: '$payment.platformFeeAmount' },
       }},
       { $sort: { revenue: -1 } },
     ]),
   ])
 
-  const thisMonth = ordersThisMonth[0] || { total: 0, count: 0 }
-  const lastMonth = ordersLastMonth[0] || { total: 0, count: 0 }
+  const thisMonth = ordersThisMonth[0] || { total: 0, baseTotal: 0, surcharge: 0, platformFee: 0, count: 0 }
+  const lastMonth = ordersLastMonth[0] || { total: 0, baseTotal: 0, surcharge: 0, platformFee: 0, count: 0 }
 
   const revenueGrowth = lastMonth.total > 0
     ? (((thisMonth.total - lastMonth.total) / lastMonth.total) * 100).toFixed(1)
@@ -371,10 +374,15 @@ export default async function ReportsPage() {
 
   const stats = {
     revenue: thisMonth.total,
+    netRevenue: thisMonth.baseTotal,
+    surcharge: thisMonth.surcharge,
+    platformFee: thisMonth.platformFee,
     orders: thisMonth.count,
     avgTicket: thisMonth.count > 0 ? Math.round(thisMonth.total / thisMonth.count) : 0,
+    avgTicketNet: thisMonth.count > 0 ? Math.round(thisMonth.baseTotal / thisMonth.count) : 0,
     growth: revenueGrowth,
     lastMonthRevenue: lastMonth.total,
+    lastMonthNetRevenue: lastMonth.baseTotal,
     lastMonthOrders: lastMonth.count,
     // Cancelación
     cancRate,
@@ -406,6 +414,9 @@ export default async function ReportsPage() {
       method: (d._id as string) || 'desconocido',
       orders: d.orders as number,
       revenue: d.revenue as number,
+      baseRevenue: (d.baseRevenue as number) || 0,
+      surcharge: (d.surcharge as number) || 0,
+      platformFee: (d.platformFee as number) || 0,
     })),
     // Upselling analytics
     upsellRows,

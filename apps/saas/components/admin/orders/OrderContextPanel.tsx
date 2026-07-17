@@ -28,7 +28,7 @@ interface OrderItem {
   items?: any[]
   notes?: string
   statusTimestamps?: Record<string, string>
-  payment?: { method?: string; status?: string; surchargeAmount?: number; baseTotal?: number; transferConfirmed?: boolean }
+  payment?: { method?: string; status?: string; surchargeAmount?: number; surchargePercent?: number; baseTotal?: number; platformFeeAmount?: number; transferConfirmed?: boolean }
   posSync?: { status?: string }
   orderTiming?: string
   scheduledPickupAt?: string
@@ -379,15 +379,44 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
               </span>
             )}
           </div>
-          {item.payment?.surchargeAmount ? (
-            <p className="text-[10px] text-muted-foreground">Recargo: +${item.payment.surchargeAmount.toLocaleString('es-AR')}</p>
-          ) : null}
-          <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/20">
-            <span className="text-xs font-bold text-primary">Total</span>
-            <span className="font-black text-lg text-primary tabular-nums">
-              ${item.total.toLocaleString('es-AR')}
-            </span>
-          </div>
+
+          {/* Pricing breakdown */}
+          {item.payment?.baseTotal != null && item.payment.baseTotal > 0 ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">Precio de carta</span>
+                <span className="text-[10px] font-semibold text-foreground tabular-nums">${item.payment.baseTotal.toLocaleString('es-AR')}</span>
+              </div>
+              {item.payment.surchargeAmount ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">
+                    Recargo{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
+                  </span>
+                  <span className="text-[10px] font-semibold text-amber-600 tabular-nums">+${item.payment.surchargeAmount.toLocaleString('es-AR')}</span>
+                </div>
+              ) : null}
+              {item.payment.platformFeeAmount ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">Comisión plataforma</span>
+                  <span className="text-[10px] font-semibold text-rose-500 tabular-nums">${item.payment.platformFeeAmount.toLocaleString('es-AR')}</span>
+                </div>
+              ) : null}
+              <div className="h-px bg-border/60 my-1" />
+              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-primary/5 border border-primary/20">
+                <span className="text-xs font-bold text-primary">Total cobrado</span>
+                <span className="font-black text-lg text-primary tabular-nums">
+                  ${item.total.toLocaleString('es-AR')}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/20">
+              <span className="text-xs font-bold text-primary">Total</span>
+              <span className="font-black text-lg text-primary tabular-nums">
+                ${item.total.toLocaleString('es-AR')}
+              </span>
+            </div>
+          )}
         </div>
       </Section>
 
