@@ -88,7 +88,11 @@ export async function GET(
     const active = orders.filter(o => o.status !== 'cancelled')
     const cancelled = orders.filter(o => o.status === 'cancelled')
     const totalRevenue = active.reduce((s, o) => s + o.total, 0)
+    const totalNetRevenue = active.reduce((s, o) => s + (o.payment?.baseTotal || o.total), 0)
+    const totalSurcharge = active.reduce((s, o) => s + (o.payment?.surchargeAmount || 0), 0)
+    const totalPlatformFee = active.reduce((s, o) => s + (o.payment?.platformFeeAmount || 0), 0)
     const avgTicket = active.length > 0 ? totalRevenue / active.length : 0
+    const avgTicketNet = active.length > 0 ? totalNetRevenue / active.length : 0
 
     // Daily breakdown
     const dailyMap: Record<string, { count: number; total: number }> = {}
@@ -112,12 +116,15 @@ export async function GET(
       .sort((a, b) => b[1].quantity - a[1].quantity)
 
     // Payment method breakdown
-    const methodMap: Record<string, { orders: number; revenue: number }> = {}
+    const methodMap: Record<string, { orders: number; revenue: number; baseRevenue: number; surcharge: number; platformFee: number }> = {}
     active.forEach(o => {
       const m = o.payment?.method || 'desconocido'
-      if (!methodMap[m]) methodMap[m] = { orders: 0, revenue: 0 }
+      if (!methodMap[m]) methodMap[m] = { orders: 0, revenue: 0, baseRevenue: 0, surcharge: 0, platformFee: 0 }
       methodMap[m].orders++
       methodMap[m].revenue += o.total
+      methodMap[m].baseRevenue += o.payment?.baseTotal || o.total
+      methodMap[m].surcharge += o.payment?.surchargeAmount || 0
+      methodMap[m].platformFee += o.payment?.platformFeeAmount || 0
     })
     const methodEntries = Object.entries(methodMap).sort((a, b) => b[1].revenue - a[1].revenue)
 
@@ -171,8 +178,12 @@ export async function GET(
       ['Total de órdenes (período)', orders.length],
       ['Órdenes activas', active.length],
       ['Órdenes canceladas', cancelled.length],
-      ['Ventas netas', totalRevenue],
-      ['Ticket promedio', avgTicket],
+      ['Ventas brutas (con recargos)', totalRevenue],
+      ['Ventas netas (real restaurante)', totalNetRevenue],
+      ['Total recargos MP', totalSurcharge],
+      ['Comisión TakeasyGO', totalPlatformFee],
+      ['Ticket promedio bruto', avgTicket],
+      ['Ticket promedio neto', avgTicketNet],
       ['Mes anterior (comparativo)', '—'],
     ]
 
@@ -183,7 +194,7 @@ export async function GET(
         row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_ALT } }
         row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_ALT } }
       }
-      if (typeof value === 'number' && (label as string).includes('$') || label === 'Ventas netas' || label === 'Ticket promedio') {
+      if (typeof value === 'number' && (label as string).includes('$') || label === 'Ventas brutas (con recargos)' || label === 'Ventas netas (real restaurante)' || label === 'Total recargos MP' || label === 'Comisión TakeasyGO' || label === 'Ticket promedio bruto' || label === 'Ticket promedio neto') {
         styleCurrency(row.getCell(2))
       }
       row.height = 22
@@ -200,6 +211,9 @@ export async function GET(
       { header: 'Email', key: 'email', width: 26 },
       { header: 'Items', key: 'items', width: 40 },
       { header: 'Subtotales', key: 'subtotals', width: 18 },
+      { header: 'Precio carta', key: 'baseTotal', width: 14 },
+      { header: 'Recargo', key: 'surcharge', width: 12 },
+      { header: 'Comisión', key: 'platformFee', width: 12 },
       { header: 'Total', key: 'total', width: 14 },
       { header: 'Estado', key: 'status', width: 16 },
       { header: 'Pago', key: 'payment', width: 14 },
@@ -224,6 +238,9 @@ export async function GET(
         email: order.customer.email || '—',
         items: itemsStr,
         subtotals: subtotalsStr,
+        baseTotal: order.payment?.baseTotal || order.total,
+        surcharge: order.payment?.surchargeAmount || 0,
+        platformFee: order.payment?.platformFeeAmount || 0,
         total: order.total,
         status: STATUS_LABELS[order.status] || order.status,
         payment: PAYMENT_LABELS[order.payment?.status] || order.payment?.status,
@@ -231,6 +248,9 @@ export async function GET(
       })
 
       row.getCell('total').numFmt = '"$"#,##0.00'
+      row.getCell('baseTotal').numFmt = '"$"#,##0.00'
+      row.getCell('surcharge').numFmt = '"$"#,##0.00'
+      row.getCell('platformFee').numFmt = '"$"#,##0.00'
       row.alignment = { vertical: 'top', wrapText: true }
       row.height = 36
 
@@ -246,7 +266,7 @@ export async function GET(
       }
     })
 
-    ws2.autoFilter = { from: 'A1', to: 'L1' }
+    ws2.autoFilter = { from: 'A1', to: 'O1' }
 
     // ── Sheet 3: ITEMS MÁS VENDIDOS ──────────────────────────────────────────
     const ws3 = workbook.addWorksheet('Items más vendidos')
@@ -317,7 +337,10 @@ export async function GET(
     ws5.columns = [
       { header: 'Método', key: 'method', width: 22 },
       { header: 'Órdenes', key: 'orders', width: 12 },
-      { header: 'Ingresos', key: 'revenue', width: 18 },
+      { header: 'Bruto', key: 'revenue', width: 18 },
+      { header: 'Neto', key: 'baseRevenue', width: 18 },
+      { header: 'Recargos', key: 'surcharge', width: 14 },
+      { header: 'Comisión', key: 'platformFee', width: 14 },
       { header: '% del total', key: 'pct', width: 14 },
     ]
 
@@ -327,8 +350,11 @@ export async function GET(
     methodEntries.forEach(([method, data], i) => {
       const pct = totalRevenue > 0 ? Math.round((data.revenue / totalRevenue) * 100) : 0
       const label = METHOD_LABELS[method] || method
-      const row = ws5.addRow({ method: label, orders: data.orders, revenue: data.revenue, pct: `${pct}%` })
+      const row = ws5.addRow({ method: label, orders: data.orders, revenue: data.revenue, baseRevenue: data.baseRevenue, surcharge: data.surcharge, platformFee: data.platformFee, pct: `${pct}%` })
       row.getCell('revenue').numFmt = '"$"#,##0.00'
+      row.getCell('baseRevenue').numFmt = '"$"#,##0.00'
+      row.getCell('surcharge').numFmt = '"$"#,##0.00'
+      row.getCell('platformFee').numFmt = '"$"#,##0.00'
       row.height = 22
       if (i % 2 === 0) {
         row.eachCell(cell => {
@@ -342,12 +368,21 @@ export async function GET(
       method: 'TOTAL',
       orders: active.length,
       revenue: totalRevenue,
+      baseRevenue: totalNetRevenue,
+      surcharge: totalSurcharge,
+      platformFee: totalPlatformFee,
       pct: '100%',
     })
     totalRow5.getCell('method').font = { bold: true, color: { argb: PRIMARY } }
     totalRow5.getCell('orders').font = { bold: true }
     totalRow5.getCell('revenue').numFmt = '"$"#,##0.00'
     totalRow5.getCell('revenue').font = { bold: true, color: { argb: PRIMARY } }
+    totalRow5.getCell('baseRevenue').numFmt = '"$"#,##0.00'
+    totalRow5.getCell('baseRevenue').font = { bold: true, color: { argb: PRIMARY } }
+    totalRow5.getCell('surcharge').numFmt = '"$"#,##0.00'
+    totalRow5.getCell('surcharge').font = { bold: true, color: { argb: PRIMARY } }
+    totalRow5.getCell('platformFee').numFmt = '"$"#,##0.00'
+    totalRow5.getCell('platformFee').font = { bold: true, color: { argb: PRIMARY } }
     totalRow5.getCell('pct').font = { bold: true }
     totalRow5.eachCell(cell => {
       cell.border = { top: { style: 'medium', color: { argb: PRIMARY } } }

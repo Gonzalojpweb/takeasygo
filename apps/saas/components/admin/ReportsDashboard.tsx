@@ -18,10 +18,15 @@ import UpsellAnalytics from '@/components/admin/UpsellAnalytics'
 interface Props {
     stats: {
         revenue: number
+        netRevenue: number
+        surcharge: number
+        platformFee: number
         orders: number
         avgTicket: number
+        avgTicketNet: number
         growth: string
         lastMonthRevenue: number
+        lastMonthNetRevenue: number
         lastMonthOrders: number
         // Cancelación
         cancRate: number
@@ -49,7 +54,7 @@ interface Props {
         dailyTrend: { day: number; revenue: number; orders: number }[]
         revenueByLocation: { locationName: string; revenue: number; orders: number }[]
         // Ventas por método de pago
-        paymentMethodBreakdown: { method: string; orders: number; revenue: number }[]
+        paymentMethodBreakdown: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number; platformFee: number }[]
         // Upselling analytics
         upsellRows: { name: string; source: string; adds: number; conversions: number; conversionRate: number; revenue: number }[]
         upsellTotalAdds: number
@@ -199,14 +204,20 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             const activeOrders = orders.filter(o => o.status !== 'cancelled')
             const cancelledOrders = orders.filter(o => o.status === 'cancelled')
             const totalRevenue = activeOrders.reduce((s, o) => s + o.total, 0)
+            const totalNetRevenue = activeOrders.reduce((s, o) => s + (o.payment?.baseTotal || o.total), 0)
+            const totalSurcharge = activeOrders.reduce((s, o) => s + (o.payment?.surchargeAmount || 0), 0)
             const avgTicket = activeOrders.length > 0 ? totalRevenue / activeOrders.length : 0
+            const avgTicketNet = activeOrders.length > 0 ? totalNetRevenue / activeOrders.length : 0
 
             const boxes = [
                 { label: 'Órdenes totales', value: orders.length.toString() },
                 { label: 'Órdenes activas', value: activeOrders.length.toString() },
                 { label: 'Canceladas', value: cancelledOrders.length.toString() },
-                { label: 'Ventas netas', value: `$${fmt(totalRevenue)}` },
-                { label: 'Ticket promedio', value: `$${fmt(avgTicket)}` },
+                { label: 'Ventas brutas', value: `$${fmt(totalRevenue)}` },
+                { label: 'Ventas netas', value: `$${fmt(totalNetRevenue)}` },
+                { label: 'Recargos', value: `$${fmt(totalSurcharge)}` },
+                { label: 'Ticket prom. bruto', value: `$${fmt(avgTicket)}` },
+                { label: 'Ticket prom. neto', value: `$${fmt(avgTicketNet)}` },
             ]
 
             const boxW = (pageW - 28) / boxes.length
@@ -235,7 +246,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
 
             autoTable(doc, {
                 startY: y,
-                head: [['#', 'N° Orden', 'Fecha', 'Cliente', 'Teléfono', 'Items', 'Total', 'Estado', 'Pago']],
+                head: [['#', 'N° Orden', 'Fecha', 'Cliente', 'Teléfono', 'Items', 'Precio carta', 'Recargo', 'Total', 'Estado', 'Pago']],
                 body: orders.map((o, i) => [
                     i + 1,
                     o.orderNumber,
@@ -243,12 +254,14 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                     o.customer?.name || '—',
                     o.customer?.phone || '—',
                     o.items.map((it: any) => `${it.quantity}x ${it.name}`).join(', '),
+                    `$${fmt(o.payment?.baseTotal || o.total)}`,
+                    o.payment?.surchargeAmount ? `+$${fmt(o.payment.surchargeAmount)}` : '—',
                     `$${fmt(o.total)}`,
                     STATUS_LABELS[o.status] || o.status,
                     PAYMENT_LABELS[o.payment?.status] || o.payment?.status || '—',
                 ]),
-                headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-                bodyStyles: { fontSize: 7.5, cellPadding: 2 },
+                headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+                bodyStyles: { fontSize: 7, cellPadding: 2 },
                 alternateRowStyles: { fillColor: [245, 244, 255] },
                 didParseCell(data) {
                     if (data.section === 'body') {
@@ -257,21 +270,22 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                             data.cell.styles.textColor = [160, 160, 160]
                             data.cell.styles.fontStyle = 'italic'
                         }
-                        if (data.column.index === 6) {
+                        if (data.column.index === 8) {
                             data.cell.styles.fontStyle = 'bold'
                             data.cell.styles.textColor = [PR, PG, PB]
                         }
                     }
                 },
-                columnStyles: {
-                    0: { cellWidth: 8 }, 1: { cellWidth: 22 }, 2: { cellWidth: 30 },
-                    3: { cellWidth: 30 }, 4: { cellWidth: 22 }, 5: { cellWidth: 'auto' },
-                    6: { cellWidth: 22 }, 7: { cellWidth: 22 }, 8: { cellWidth: 20 },
-                },
-                margin: { left: 14, right: 14 },
-                showFoot: 'lastPage',
-                foot: [['', '', '', '', '', 'TOTAL', `$${fmt(totalRevenue)}`, '', '']],
-                footStyles: { fillColor: [PR, PG, PB], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+                    columnStyles: {
+                        0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 26 },
+                        3: { cellWidth: 26 }, 4: { cellWidth: 20 }, 5: { cellWidth: 'auto' },
+                        6: { cellWidth: 20 }, 7: { cellWidth: 16 }, 8: { cellWidth: 20 },
+                        9: { cellWidth: 18 }, 10: { cellWidth: 16 },
+                    },
+                    margin: { left: 14, right: 14 },
+                    showFoot: 'lastPage',
+                    foot: [['', '', '', '', '', 'TOTAL', `$${fmt(totalNetRevenue)}`, '', `$${fmt(totalRevenue)}`, '', '']],
+                    footStyles: { fillColor: [PR, PG, PB], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
             })
 
             // ── Top items — nueva página ────────────────────────────────────
@@ -543,9 +557,9 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             {/* ── Primary Stats Grid ─────────────────────────────────────── */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    title="Ventas del Mes"
+                    title="Ventas Brutas"
                     value={`$${stats.revenue.toLocaleString('es-AR')}`}
-                    desc={`${isPositive ? '+' : ''}${stats.growth}% vs mes anterior`}
+                    desc={stats.netRevenue ? `Neto: $${stats.netRevenue.toLocaleString('es-AR')} · ${isPositive ? '+' : ''}${stats.growth}% vs mes anterior` : `${isPositive ? '+' : ''}${stats.growth}% vs mes anterior`}
                     icon={<DollarSign size={20} />}
                     trend={isPositive ? 'up' : 'down'}
                     color="bg-primary/10 text-primary"
@@ -562,7 +576,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 <StatCard
                     title="Ticket Promedio"
                     value={`$${stats.avgTicket.toLocaleString('es-AR')}`}
-                    desc="Basado en pedidos confirmados"
+                    desc={stats.avgTicketNet ? `Neto: $${stats.avgTicketNet.toLocaleString('es-AR')}` : 'Basado en pedidos confirmados'}
                     icon={<TrendingUp size={20} />}
                     color="bg-amber-500/10 text-amber-500"
                     index={2}
@@ -570,7 +584,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 <StatCard
                     title="Mes Anterior"
                     value={`$${stats.lastMonthRevenue.toLocaleString('es-AR')}`}
-                    desc={`${stats.lastMonthOrders} pedidos`}
+                    desc={stats.lastMonthNetRevenue ? `Neto: $${stats.lastMonthNetRevenue.toLocaleString('es-AR')} · ${stats.lastMonthOrders} pedidos` : `${stats.lastMonthOrders} pedidos`}
                     icon={<History size={20} />}
                     color="bg-purple-500/10 text-purple-500"
                     index={3}
@@ -1168,8 +1182,10 @@ const METHOD_LABELS: Record<string, string> = {
     transfer: '🏦 Transferencia',
 }
 
-function PaymentMethodChart({ data }: { data: { method: string; orders: number; revenue: number }[] }) {
+function PaymentMethodChart({ data }: { data: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number; platformFee: number }[] }) {
     const totalRevenue = data.reduce((s, d) => s + d.revenue, 0)
+    const totalBaseRevenue = data.reduce((s, d) => s + d.baseRevenue, 0)
+    const totalSurcharge = data.reduce((s, d) => s + d.surcharge, 0)
     const totalOrders = data.reduce((s, d) => s + d.orders, 0)
     const maxRevenue = Math.max(...data.map(d => d.revenue), 1)
     const COLORS = ['bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-emerald-500', 'bg-rose-500', 'bg-teal-500']
@@ -1178,9 +1194,19 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
         <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 rounded-2xl bg-muted/30">
-                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Total ingresos</p>
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Total bruto</p>
                     <p className="text-2xl font-black tabular-nums text-foreground">${totalRevenue.toLocaleString('es-AR')}</p>
                 </div>
+                <div className="p-4 rounded-2xl bg-muted/30">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Total neto</p>
+                    <p className="text-2xl font-black tabular-nums text-emerald-600">${totalBaseRevenue.toLocaleString('es-AR')}</p>
+                </div>
+                {totalSurcharge > 0 && (
+                    <div className="p-4 rounded-2xl bg-muted/30">
+                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Recargos</p>
+                        <p className="text-2xl font-black tabular-nums text-amber-600">${totalSurcharge.toLocaleString('es-AR')}</p>
+                    </div>
+                )}
                 <div className="p-4 rounded-2xl bg-muted/30">
                     <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Total órdenes</p>
                     <p className="text-2xl font-black tabular-nums text-foreground">{totalOrders}</p>
@@ -1201,6 +1227,9 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
                             </div>
                             <div className="text-right shrink-0 ml-4">
                                 <span className="text-sm font-black tabular-nums text-foreground">${d.revenue.toLocaleString('es-AR')}</span>
+                                {d.baseRevenue > 0 && d.baseRevenue !== d.revenue && (
+                                    <span className="text-[10px] font-bold text-emerald-600 ml-1.5">neto ${d.baseRevenue.toLocaleString('es-AR')}</span>
+                                )}
                                 <span className="text-[10px] font-bold text-muted-foreground/60 ml-1.5">{pct}%</span>
                             </div>
                         </div>

@@ -7,7 +7,11 @@ export interface PreCloseData {
   generatedAt: string
   totalOrders: number
   totalRevenue: number
+  totalNetRevenue: number
+  totalSurcharge: number
+  totalPlatformFee: number
   avgTicket: number
+  avgTicketNet: number
   topItems: { name: string; quantity: number; revenue: number }[]
   promoCount: number
   promoItemsSold: number
@@ -45,6 +49,9 @@ export async function aggregateOrdersForRange(
   const cancelled = allOrders.filter(o => o.status === 'cancelled')
 
   const totalRevenue = active.reduce((s, o) => s + o.total, 0)
+  const totalNetRevenue = active.reduce((s, o) => s + (o.payment?.baseTotal || o.total), 0)
+  const totalSurcharge = active.reduce((s, o) => s + (o.payment?.surchargeAmount || 0), 0)
+  const totalPlatformFee = active.reduce((s, o) => s + (o.payment?.platformFeeAmount || 0), 0)
   const cancelledAmount = cancelled.reduce((s, o) => s + o.total, 0)
 
   const deliveryOrders = active.filter(o => o.orderMode === 'delivery')
@@ -104,7 +111,11 @@ export async function aggregateOrdersForRange(
     generatedAt: new Date().toISOString(),
     totalOrders: active.length,
     totalRevenue,
+    totalNetRevenue,
+    totalSurcharge,
+    totalPlatformFee,
     avgTicket: active.length > 0 ? Math.round(totalRevenue / active.length) : 0,
+    avgTicketNet: active.length > 0 ? Math.round(totalNetRevenue / active.length) : 0,
     topItems,
     promoCount,
     promoItemsSold,
@@ -212,8 +223,16 @@ export function buildPreCloseBuffer(data: PreCloseData, columns: number = 32): s
   }
 
   line('Total ordenes', data.totalOrders.toString())
-  line('Ingreso total', `$${money(data.totalRevenue)}`)
-  line('Ticket promedio', `$${money(data.avgTicket)}`)
+  line('Ingreso bruto', `$${money(data.totalRevenue)}`)
+  line('Ingreso neto', `$${money(data.totalNetRevenue)}`)
+  if (data.totalSurcharge > 0) {
+    line('Recargos MP', `$${money(data.totalSurcharge)}`)
+  }
+  if (data.totalPlatformFee > 0) {
+    line('Comision TakeasyGO', `$${money(data.totalPlatformFee)}`)
+  }
+  line('Ticket promedio bruto', `$${money(data.avgTicket)}`)
+  line('Ticket promedio neto', `$${money(data.avgTicketNet)}`)
   line('Ordenes canceladas', data.cancelledCount.toString())
   if (data.cancelledCount > 0) {
     line('  Monto cancelado', `$${money(data.cancelledAmount)}`)
