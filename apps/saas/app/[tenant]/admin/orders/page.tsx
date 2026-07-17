@@ -5,7 +5,7 @@ import Location from '@/models/Location'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import OperationsBoard from '@/components/admin/orders/OperationsBoard'
+import OrdersBoardWrapper from '@/components/admin/orders/OrdersBoardWrapper'
 import type { Types } from 'mongoose'
 import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 import { Lock } from 'lucide-react'
@@ -78,9 +78,8 @@ export default async function OrdersPage() {
 
   return (
     <div className="h-[calc(100dvh-80px)] -m-4 md:-m-8 lg:-m-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <OperationsBoard
+      <OrdersBoardWrapper
         orders={JSON.parse(JSON.stringify(decryptedOrders))}
-        locationMap={locationMap}
         tenantSlug={tenantSlug || ''}
         locations={serializedLocations}
         userAssignedLocations={userAssignedLocations}
