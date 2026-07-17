@@ -83,7 +83,7 @@ function NavLink({
     <Link href={item.href} className="group block">
       <div
         className={cn(
-          'relative flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-lg text-[11px] transition-all duration-200 text-center',
+          'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200',
           isActive
             ? 'bg-primary/10 text-primary font-medium'
             : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-white/5'
@@ -92,21 +92,19 @@ function NavLink({
         {isActive && (
           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
         )}
-        <div className="relative">
-          <Icon
-            size={22}
-            className={cn(
-              'transition-colors duration-200',
-              isActive ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/70'
-            )}
-          />
-          {!!item.badge && item.badge > 0 && (
-            <span className="absolute -top-1.5 -right-2 bg-red-500/90 text-white text-[9px] font-semibold px-1 py-0 rounded-full leading-none">
-              {item.badge}
-            </span>
+        <Icon
+          size={18}
+          className={cn(
+            'transition-colors duration-200',
+            isActive ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/70'
           )}
-        </div>
-        <span className="leading-tight">{item.label}</span>
+        />
+        <span className="flex-1">{item.label}</span>
+        {!!item.badge && item.badge > 0 && (
+          <span className="shrink-0 bg-red-500/90 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+            {item.badge}
+          </span>
+        )}
       </div>
     </Link>
   )
@@ -204,14 +202,14 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
             </div>
           </div>
 
-          {/* Nav — Icons only with separators */}
-          <nav className="flex-1 px-2 py-2 overflow-y-auto min-h-0 flex flex-col items-center gap-3 no-scrollbar">
+          {/* Nav — Vertical: icon + text below */}
+          <nav className="flex-1 px-2 py-2 overflow-y-auto min-h-0 flex flex-col items-center gap-1 no-scrollbar">
             {groups.map((group, groupIdx) => {
               const visibleItems = group.items.filter(item => item.roles.includes(effectiveRole))
               if (visibleItems.length === 0) return null
 
               return (
-                <div key={group.section} className="flex flex-col items-center gap-3">
+                <div key={group.section} className="flex flex-col items-center gap-1 w-full">
                   {groupIdx > 0 && <NavSeparator />}
                   {visibleItems.map((item) => {
                     const Icon = item.icon
@@ -226,10 +224,13 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
                       return (
                         <div
                           key={item.href}
-                          className="w-10 h-10 flex items-center justify-center rounded-lg opacity-30 cursor-not-allowed"
+                          className="flex flex-col items-center justify-center gap-1 w-full px-1 py-2 rounded-lg opacity-30 cursor-not-allowed"
                           title={item.label}
                         >
-                          <Icon size={18} className="text-sidebar-foreground/50" />
+                          <Icon size={20} className="text-sidebar-foreground/50" />
+                          <span className="text-[9px] text-sidebar-foreground/50 leading-tight text-center truncate w-full">
+                            {item.label}
+                          </span>
                         </div>
                       )
                     }
@@ -239,7 +240,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
                         key={item.href}
                         href={item.href}
                         className={cn(
-                          'w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200 relative',
+                          'flex flex-col items-center justify-center gap-1 w-full px-1 py-2 rounded-lg transition-all duration-200 relative text-center',
                           isActive
                             ? 'bg-primary/15 text-primary'
                             : 'text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-white/5'
@@ -249,7 +250,15 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
                         {isActive && (
                           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
                         )}
-                        <Icon size={18} />
+                        <Icon size={20} />
+                        <span className="text-[9px] leading-tight truncate w-full">
+                          {item.label}
+                        </span>
+                        {!!item.badge && item.badge > 0 && (
+                          <span className="absolute top-1 right-1 bg-red-500/90 text-white text-[8px] font-semibold px-1 py-0 rounded-full leading-none">
+                            {item.badge}
+                          </span>
+                        )}
                       </Link>
                     )
                   })}
