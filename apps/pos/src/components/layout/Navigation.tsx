@@ -1,8 +1,10 @@
+import type { ComponentType } from "react"
+import { Zap, LogOut } from "lucide-react"
 import { useLayout } from "./LayoutContext"
 
 interface NavigationItem {
   id: string
-  icon: string
+  icon: ComponentType<{ size?: number; className?: string }>
   label: string
   badge?: number
 }
@@ -27,31 +29,40 @@ export function Navigation({ items, activeId, onSelect, onLogout, onQuickAccess 
 
       <div className="nav-label">Contextos</div>
 
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className={`nav-item ${activeId === item.id ? "active" : ""}`}
-          onClick={() => onSelect(item.id)}
-        >
-          <div className="nav-item-icon">{item.icon}</div>
-          {!sidebarCollapsed && <span>{item.label}</span>}
-          {!sidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
-            <span className="nav-item-badge">{item.badge}</span>
-          )}
-        </div>
-      ))}
+      {items.map((item) => {
+        const Icon = item.icon
+        return (
+          <div
+            key={item.id}
+            className={`nav-item ${activeId === item.id ? "active" : ""}`}
+            onClick={() => onSelect(item.id)}
+          >
+            <div className="nav-item-icon">
+              <Icon size={26} className="nav-item-svg" />
+            </div>
+            {!sidebarCollapsed && <span>{item.label}</span>}
+            {!sidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
+              <span className="nav-item-badge">{item.badge}</span>
+            )}
+          </div>
+        )
+      })}
 
       <div className="nav-spacer" />
 
       {onQuickAccess && (
         <div className="nav-item" onClick={onQuickAccess}>
-          <div className="nav-item-icon">⚡</div>
+          <div className="nav-item-icon">
+            <Zap size={26} className="nav-item-svg" />
+          </div>
           {!sidebarCollapsed && <span>Accesos</span>}
         </div>
       )}
 
       <div className="nav-item" onClick={onLogout}>
-        <div className="nav-item-icon">🚪</div>
+        <div className="nav-item-icon">
+          <LogOut size={26} className="nav-item-svg" />
+        </div>
         {!sidebarCollapsed && <span>Salir</span>}
       </div>
     </nav>
