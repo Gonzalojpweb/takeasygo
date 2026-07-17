@@ -11,26 +11,10 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  Printer,
-  ClipboardList,
-  Shield,
-  Activity,
-  Lock,
   CalendarDays,
-  CreditCard,
-  BookOpen,
-  QrCode,
   Tag,
-  Gift,
-  Database,
-  TrendingUp,
-  Bell,
+  Lock,
   ChevronRight,
-  Zap,
-  Smartphone,
-  Building2,
-  BrainCircuit,
-  Truck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -43,6 +27,7 @@ interface Props {
   userRole: string
   userName: string
   plan: Plan
+  isExpanded?: boolean
   dineInOnly?: boolean
   unreadAnnouncements?: number
   businessEnabled?: boolean
@@ -66,27 +51,9 @@ interface NavGroup {
   items: NavItem[]
 }
 
-function LockedNavItem({
-  label,
-  icon: Icon,
-  requiredPlan,
-  reason = 'plan',
-}: {
-  label: string
-  icon: React.ElementType
-  requiredPlan?: Plan
-  reason?: 'plan' | 'mode'
-}) {
-  return (
-    <div className="flex items-center gap-3 px-3 py-2 rounded-lg opacity-40 cursor-not-allowed select-none">
-      <Icon size={18} className="text-sidebar-foreground/50" />
-      <span className="text-sm text-sidebar-foreground/60">{label}</span>
-      <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-white/5 text-sidebar-foreground/40">
-        <Lock size={10} />
-        {reason === 'mode' ? 'Takeaway' : (requiredPlan ? PLAN_LABELS[requiredPlan] : '')}
-      </span>
-    </div>
-  )
+// Separator between groups
+function NavSeparator() {
+  return <div className="w-full h-px bg-white/15" />
 }
 
 function NavLink({
@@ -131,81 +98,38 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, dineInOnly = false, unreadAnnouncements = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [] }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [] }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
 
-  const showBusiness = businessEnabled && canAccess(plan, 'business')
-  const showCrm = crmEnabled && canAccess(plan, 'crm')
-
   const groups: NavGroup[] = [
     {
-      section: 'Principal',
+      section: 'Operación',
       items: [
         { href: base, label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'staff', 'cashier'] },
-      ],
-    },
-    {
-      section: 'Operaciones',
-      items: [
         { href: `${base}/orders`, label: 'Pedidos', icon: ShoppingBag, roles: ['admin', 'manager', 'staff', 'cashier'], feature: 'orders', requiresTakeaway: true },
-        { href: `${base}/orders/history`, label: 'Historial', icon: ClipboardList, roles: ['admin', 'manager', 'cashier'], feature: 'orderHistory', requiresTakeaway: true },
-        { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations' },
-        { href: `${base}/printers`, label: 'Impresoras', icon: Printer, roles: ['admin', 'manager'], feature: 'printers', requiresTakeaway: true },
-        { href: `${base}/delivery`, label: 'Flota', icon: Truck, roles: ['admin', 'manager'], feature: 'delivery' },
-      ],
-    },
-    {
-      section: 'Catálogo',
-      items: [
         { href: `${base}/menu`, label: 'Menú', icon: UtensilsCrossed, roles: ['admin', 'manager'] },
+        { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations' },
       ],
     },
-    ...(showBusiness ? [{
-      section: 'Business',
-      items: [
-        { href: `${base}/business/companies`, label: 'Empresas', icon: Building2, roles: ['admin'] },
-        { href: `${base}/business/orders`, label: 'Órdenes Corp', icon: ClipboardList, roles: ['admin', 'manager'] },
-      ],
-    } as NavGroup] : []),
     {
-      section: 'Marketing',
+      section: 'Negocio',
       items: [
-        { href: `${base}/promotions`,  label: 'Promociones',  icon: Tag,       roles: ['admin', 'manager'] },
-        { href: `${base}/marketing-qr`, label: 'Marketing QR', icon: Gift,      roles: ['admin', 'manager'] },
-        { href: `${base}/club`,        label: 'Club',          icon: QrCode,    roles: ['admin', 'manager'], feature: 'loyaltyClub' },
-        { href: `${base}/go-plus`,     label: 'GO+',           icon: Zap,       roles: ['admin', 'manager'], feature: 'loyaltyClub' },
-        { href: `${base}/wallet`,      label: 'Wallet',        icon: Smartphone,roles: ['admin', 'manager'], feature: 'loyaltyClub' },
-        { href: `${base}/store`,       label: 'Tienda',        icon: Gift,      roles: ['admin', 'manager'], feature: 'loyaltyClub' },
-        { href: `${base}/notificaciones`, label: 'Notificaciones', icon: Bell, roles: ['admin', 'manager'] },
-        ...(showCrm ? [{ href: `${base}/crm`, label: 'CRM', icon: Users, roles: ['admin', 'manager'] } as NavItem] : []),
+        { href: `${base}/crm`, label: 'Clientes', icon: Users, roles: ['admin', 'manager'] },
+        { href: `${base}/marketing-qr`, label: 'Marketing', icon: Tag, roles: ['admin', 'manager'] },
       ],
     },
     {
       section: 'Inteligencia',
       items: [
-        { href: `${base}/reports`, label: 'Reportes', icon: BarChart3, roles: ['admin', 'manager'], feature: 'reports', requiresTakeaway: true },
-        { href: `${base}/analytics`, label: 'Analytics', icon: TrendingUp, roles: ['admin', 'manager'] },
-        { href: `${base}/ico`, label: 'ICO', icon: Activity, roles: ['admin'], feature: 'ico', requiresTakeaway: true },
-        { href: `${base}/audit`, label: 'Auditoría', icon: Shield, roles: ['admin'], feature: 'audit' },
-        { href: `${base}/tia`, label: 'Inteligencia TIA', icon: BrainCircuit, roles: ['admin', 'manager'], feature: 'tia' },
-        { href: `${base}/cis`, label: 'Inteligencia Clientes', icon: Users, roles: ['admin', 'manager'], feature: 'cis' },
+        { href: `${base}/analytics`, label: 'Analytics', icon: BarChart3, roles: ['admin', 'manager'] },
       ],
     },
     {
-      section: 'Configuración',
+      section: 'Sistema',
       items: [
-        { href: `${base}/users`, label: 'Usuarios', icon: Users, roles: ['admin'], feature: 'users' },
-        { href: `${base}/billing`, label: 'Facturación', icon: CreditCard, roles: ['admin'] },
+        { href: `${base}/users`, label: 'Usuarios', icon: Users, roles: ['admin'] },
         { href: `${base}/settings`, label: 'Configuración', icon: Settings, roles: ['admin'] },
-        { href: `${base}/settings/pos`, label: 'Integración POS', icon: Database, roles: ['admin'], feature: 'posIntegration' },
-      ],
-    },
-    {
-      section: 'Soporte',
-      items: [
-        { href: `${base}/ayuda`, label: 'Centro de Ayuda', icon: BookOpen, roles: ['admin', 'manager', 'staff', 'cashier'] },
-        { href: `${base}/updates`, label: 'Novedades', icon: Bell, roles: ['admin', 'manager'], badge: unreadAnnouncements },
       ],
     },
   ]
@@ -219,198 +143,221 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, din
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground transition-all duration-200">
       {/* ============================================
-          COLLAPSED MODE — Shown by default (68px)
+          COLLAPSED MODE — Shown when !isExpanded (68px)
           ============================================ */}
-      <div className="flex flex-col h-full group-hover/sidebar:hidden">
-        {/* Logo — Minimal */}
-        <div className="px-2 pt-4 pb-2 flex justify-center">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-            <span className="text-white font-bold text-base">T</span>
+      {!isExpanded && (
+        <div className="flex flex-col h-full">
+          {/* Logo — Minimal dot */}
+          <div className="px-2 pt-4 pb-3 flex justify-center">
+            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
+              <span className="text-white font-bold text-base">T</span>
+            </div>
           </div>
-        </div>
 
-        {/* Nav — Icons only */}
-        <nav className="flex-1 px-2 py-2 overflow-y-auto min-h-0 flex flex-col items-center gap-1">
-          {allVisibleItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href
+          {/* Nav — Icons only with separators */}
+          <nav className="flex-1 px-2 py-2 overflow-y-auto min-h-0 flex flex-col items-center gap-3 no-scrollbar">
+            {groups.map((group, groupIdx) => {
+              const visibleItems = group.items.filter(item => item.roles.includes(effectiveRole))
+              if (visibleItems.length === 0) return null
 
-            const isModeLocked = dineInOnly && !!item.requiresTakeaway
-            const isPlanLocked = !isModeLocked && item.feature
-              ? (item.feature === 'ico' && plan === 'trial') ? false : !canAccess(plan, item.feature)
-              : false
-
-            if (isModeLocked || (isPlanLocked && item.feature)) {
               return (
-                <div
-                  key={item.href}
-                  className="w-10 h-10 flex items-center justify-center rounded-lg opacity-30 cursor-not-allowed"
-                  title={item.label}
-                >
-                  <Icon size={18} className="text-sidebar-foreground/50" />
-                </div>
-              )
-            }
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200 relative',
-                  isActive
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-white/5'
-                )}
-                title={item.label}
-              >
-                {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
-                )}
-                <Icon size={18} />
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* User — Minimal */}
-        <div className="px-2 pb-4 flex justify-center">
-          <div className="relative">
-            <Avatar className="h-9 w-9 border border-sidebar-border/50">
-              <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
-                {userName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute -bottom-1 -right-1 text-sidebar-foreground/30 hover:text-destructive h-5 w-5 rounded-full bg-sidebar border border-sidebar-border/50"
-              onClick={() => signOut({ callbackUrl: '/login' })}
-              title="Cerrar sesión"
-            >
-              <LogOut size={10} />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* ============================================
-          EXPANDED MODE — Shown on hover (288px)
-          ============================================ */}
-      <div className="hidden group-hover/sidebar:flex flex-col h-full">
-        {/* Logo — Full */}
-        <div className="px-5 pt-5 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-white font-bold text-sm">T</span>
-            </div>
-            <div>
-              <h1 className="text-white font-semibold text-base leading-none tracking-tight">TakeasyGo</h1>
-              <p className="text-sidebar-foreground/40 text-[10px] font-medium mt-0.5">{tenantSlug}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Nav — Full */}
-        <nav className="flex-1 px-3 overflow-y-auto min-h-0 space-y-1 h-full max-h-[calc(100dvh-200px)]">
-          {groups.map((group) => {
-            const visibleItems = group.items.filter(item => item.roles.includes(effectiveRole))
-            if (visibleItems.length === 0) return null
-
-            return (
-              <div key={group.section} className="pb-2">
-                <p className="px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
-                  {group.section}
-                </p>
-                <div className="space-y-0.5">
+                <div key={group.section} className="flex flex-col items-center gap-3">
+                  {groupIdx > 0 && <NavSeparator />}
                   {visibleItems.map((item) => {
                     const Icon = item.icon
+                    const isActive = pathname === item.href
 
                     const isModeLocked = dineInOnly && !!item.requiresTakeaway
                     const isPlanLocked = !isModeLocked && item.feature
                       ? (item.feature === 'ico' && plan === 'trial') ? false : !canAccess(plan, item.feature)
                       : false
 
-                    if (isModeLocked) {
+                    if (isModeLocked || (isPlanLocked && item.feature)) {
                       return (
-                        <LockedNavItem
+                        <div
                           key={item.href}
-                          label={item.label}
-                          icon={Icon}
-                          reason="mode"
-                        />
+                          className="w-10 h-10 flex items-center justify-center rounded-lg opacity-30 cursor-not-allowed"
+                          title={item.label}
+                        >
+                          <Icon size={18} className="text-sidebar-foreground/50" />
+                        </div>
                       )
                     }
-
-                    if (isPlanLocked && item.feature) {
-                      return (
-                        <LockedNavItem
-                          key={item.href}
-                          label={item.label}
-                          icon={Icon}
-                          requiredPlan={requiredPlanFor(item.feature)}
-                          reason="plan"
-                        />
-                      )
-                    }
-
-                    const isActive = pathname === item.href
 
                     return (
-                      <NavLink key={item.href} item={item} isActive={isActive} />
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          'w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200 relative',
+                          isActive
+                            ? 'bg-primary/15 text-primary'
+                            : 'text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-white/5'
+                        )}
+                        title={item.label}
+                      >
+                        {isActive && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
+                        )}
+                        <Icon size={18} />
+                      </Link>
                     )
                   })}
                 </div>
-              </div>
-            )
-          })}
-        </nav>
+              )
+            })}
+          </nav>
 
-        {/* Locations */}
-        {locations.length > 0 && (
-          <div className="px-4 py-3 border-t border-sidebar-border/30">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30 mb-2">
-              {userRole === 'admin' || userRole === 'superadmin' ? 'Todas las sedes' : 'Mis sedes'}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {locations
-                .filter(l => userRole === 'admin' || userRole === 'superadmin' || assignedLocations.includes(l._id))
-                .map(l => (
-                  <span
-                    key={l._id}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 text-sidebar-foreground/70 text-[10px] font-semibold border border-sidebar-border/20"
-                  >
-                    <Building2 size={10} className="opacity-60" />
-                    {l.name}
-                  </span>
-                ))}
+          {/* User — Minimal */}
+          <div className="px-2 pb-4 flex justify-center">
+            <div className="relative">
+              <Avatar className="h-9 w-9 border border-sidebar-border/50">
+                <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
+                  {userName.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute -bottom-1 -right-1 text-sidebar-foreground/30 hover:text-destructive h-5 w-5 rounded-full bg-sidebar border border-sidebar-border/50"
+                onClick={() => signOut({ callbackUrl: '/login' })}
+                title="Cerrar sesión"
+              >
+                <LogOut size={10} />
+              </Button>
             </div>
-          </div>
-        )}
-
-        {/* User — Full */}
-        <div className="p-3 border-t border-sidebar-border/30">
-          <div className="flex items-center gap-3 p-2 rounded-xl bg-white/[0.03]">
-            <Avatar className="h-9 w-9 border border-sidebar-border/50">
-              <AvatarFallback className="bg-primary/20 text-primary text-[11px] font-bold">
-                {userName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sidebar-foreground text-sm font-medium truncate leading-none">{userName}</p>
-              <p className="text-sidebar-foreground/40 text-[10px] capitalize mt-1 leading-none">{userRole}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-sidebar-foreground/30 hover:text-destructive hover:bg-destructive/10 h-8 w-8 rounded-lg transition-colors"
-              onClick={() => signOut({ callbackUrl: '/login' })}
-            >
-              <LogOut size={16} />
-            </Button>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* ============================================
+          EXPANDED MODE — Shown when isExpanded (288px)
+          ============================================ */}
+      {isExpanded && (
+        <div className="flex flex-col h-full">
+          {/* Logo — Full */}
+          <div className="px-5 pt-5 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-white font-bold text-sm">T</span>
+              </div>
+              <div>
+                <h1 className="text-white font-semibold text-base leading-none tracking-tight">TakeasyGO</h1>
+                <p className="text-sidebar-foreground/40 text-[10px] font-medium mt-0.5">{tenantSlug}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Nav — Full with groups and separators */}
+          <nav className="flex-1 px-3 overflow-y-auto min-h-0 max-h-[calc(100dvh-200px)] no-scrollbar">
+            {groups.map((group, groupIdx) => {
+              const visibleItems = group.items.filter(item => item.roles.includes(effectiveRole))
+              if (visibleItems.length === 0) return null
+
+              return (
+                <div key={group.section}>
+                  {groupIdx > 0 && <NavSeparator />}
+                  <p className="px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30">
+                    {group.section}
+                  </p>
+                  <div className="space-y-0.5">
+                    {visibleItems.map((item) => {
+                      const Icon = item.icon
+
+                      const isModeLocked = dineInOnly && !!item.requiresTakeaway
+                      const isPlanLocked = !isModeLocked && item.feature
+                        ? (item.feature === 'ico' && plan === 'trial') ? false : !canAccess(plan, item.feature)
+                        : false
+
+                      if (isModeLocked) {
+                        return (
+                          <div
+                            key={item.href}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg opacity-40 cursor-not-allowed select-none"
+                          >
+                            <Icon size={18} className="text-sidebar-foreground/50" />
+                            <span className="text-sm text-sidebar-foreground/60">{item.label}</span>
+                            <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-white/5 text-sidebar-foreground/40">
+                              <Lock size={10} />
+                              Takeaway
+                            </span>
+                          </div>
+                        )
+                      }
+
+                      if (isPlanLocked && item.feature) {
+                        return (
+                          <div
+                            key={item.href}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg opacity-40 cursor-not-allowed select-none"
+                          >
+                            <Icon size={18} className="text-sidebar-foreground/50" />
+                            <span className="text-sm text-sidebar-foreground/60">{item.label}</span>
+                            <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-white/5 text-sidebar-foreground/40">
+                              <Lock size={10} />
+                              {requiredPlanFor(item.feature) ? PLAN_LABELS[requiredPlanFor(item.feature)] : ''}
+                            </span>
+                          </div>
+                        )
+                      }
+
+                      const isActive = pathname === item.href
+
+                      return (
+                        <NavLink key={item.href} item={item} isActive={isActive} />
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </nav>
+
+          {/* Locations */}
+          {locations.length > 0 && (
+            <div className="px-4 py-3 border-t border-sidebar-border/30">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30 mb-2">
+                {userRole === 'admin' || userRole === 'superadmin' ? 'Todas las sedes' : 'Mis sedes'}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {locations
+                  .filter(l => userRole === 'admin' || userRole === 'superadmin' || assignedLocations.includes(l._id))
+                  .map(l => (
+                    <span
+                      key={l._id}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 text-sidebar-foreground/70 text-[10px] font-semibold border border-sidebar-border/20"
+                    >
+                      {l.name}
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* User — Full */}
+          <div className="p-3 border-t border-sidebar-border/30">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-white/[0.03]">
+              <Avatar className="h-9 w-9 border border-sidebar-border/50">
+                <AvatarFallback className="bg-primary/20 text-primary text-[11px] font-bold">
+                  {userName.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sidebar-foreground text-sm font-medium truncate leading-none">{userName}</p>
+                <p className="text-sidebar-foreground/40 text-[10px] capitalize mt-1 leading-none">{userRole}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-sidebar-foreground/30 hover:text-destructive hover:bg-destructive/10 h-8 w-8 rounded-lg transition-colors"
+                onClick={() => signOut({ callbackUrl: '/login' })}
+              >
+                <LogOut size={16} />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
