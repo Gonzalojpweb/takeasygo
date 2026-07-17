@@ -19,6 +19,7 @@ import StoreCarousel from '@/components/menu/StoreCarousel'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import BestSellersSection from '@/components/menu/BestSellersSection'
+import LikeBadge from '@/components/menu/LikeBadge'
 import { getSuggestions } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
@@ -983,6 +984,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                             {tag}
                           </span>
                         ))}
+                        <LikeBadge count={item.likesCount ?? 0} variant="inline" />
                       </div>
                     </div>
                     {likesOrderId ? (
@@ -1064,12 +1066,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
                             if (isGridForTakeaway) {
                               return (
-                                <div key={item._id} className="border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+                                <div key={item._id} className="relative border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
                                   style={{ borderColor: primary + '20', borderRadius: borderStyle }}
                                   onClick={() => openCustomizationModal(item, catGroups)}>
                                   {item.imageUrl && (
                                     <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-28 object-cover" />
                                   )}
+                                  <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
                                   <div className="p-3">
                                     <div className="flex items-center gap-1.5 mb-1">
                                       {veg
@@ -1126,6 +1129,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                         {tag}
                                       </span>
                                     ))}
+                                    <LikeBadge count={item.likesCount ?? 0} variant="inline" />
                                   </div>
                                 </div>
                                 {likesOrderId ? (
@@ -1168,12 +1172,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
                               if (isGridForTakeaway) {
                                 return (
-                                  <div key={item._id} className="border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+                                  <div key={item._id} className="relative border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
                                     style={{ borderColor: primary + '20', borderRadius: borderStyle }}
                                     onClick={() => openCustomizationModal(item, catGroups)}>
                                     {item.imageUrl && (
                                       <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-28 object-cover" />
                                     )}
+                                    <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
                                     <div className="p-3">
                                       <div className="flex items-center gap-1.5 mb-1">
                                         {veg
@@ -1230,6 +1235,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                           {tag}
                                         </span>
                                       ))}
+                                      <LikeBadge count={item.likesCount ?? 0} variant="inline" />
                                     </div>
                                   </div>
                                   {likesOrderId ? (
@@ -1261,12 +1267,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
                       if (isGridForTakeaway) {
                         return (
-                          <div key={item._id} className="border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+                          <div key={item._id} className="relative border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
                             style={{ borderColor: primary + '20', borderRadius: borderStyle }}
                             onClick={() => openCustomizationModal(item, catGroups)}>
                             {item.imageUrl && (
                               <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-28 object-cover" />
                             )}
+                            <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
                             <div className="p-3">
                               <div className="flex items-center gap-1.5 mb-1">
                                 {veg
@@ -1323,6 +1330,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                   {tag}
                                 </span>
                               ))}
+                              <LikeBadge count={item.likesCount ?? 0} variant="inline" />
                             </div>
                           </div>
                           {likesOrderId ? (
