@@ -17,7 +17,7 @@ interface OrderItem {
   createdAt: string
   orderNumber: string
   orderMode?: string
-  customer: { name: string; phone?: string; email?: string }
+  customer: { name: string; phone?: string; email?: string; phoneHash?: string }
   total: number
   subtotal?: number
   discountAmount?: number
