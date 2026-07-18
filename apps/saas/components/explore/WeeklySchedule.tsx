@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import type { ServiceSlot } from '@/app/api/explore/nearby/route'
 import { formatWeeklySchedule } from '@/lib/service-hours'
@@ -19,7 +19,15 @@ export default function WeeklySchedule({ serviceHours }: Props) {
     <div>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#8a7f7a] mt-1"
+        className="flex items-center gap-1.5"
+        style={{
+          color: 'var(--tgo-text-muted)',
+          fontSize: 'var(--tgo-type-caption)',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: 'var(--tgo-tracking-wider)',
+          marginTop: 4,
+        }}
       >
         {expanded ? 'Ocultar horarios' : 'Ver horarios'}
         {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -27,17 +35,21 @@ export default function WeeklySchedule({ serviceHours }: Props) {
 
       {expanded && (
         <div className="mt-2 space-y-1">
-          {schedule.map(item => (
+          {schedule.map((item) => (
             <div
               key={item.day}
-              className={`flex justify-between items-center px-3 py-1.5 rounded-lg text-xs ${
-                item.isToday
-                  ? 'bg-[#10b981]/10 text-[#10b981] font-bold'
-                  : 'text-[#8a7f7a]'
-              }`}
+              className="flex justify-between items-center"
+              style={{
+                padding: '6px 12px',
+                borderRadius: 'var(--tgo-radius-sm)',
+                fontSize: 'var(--tgo-type-caption)',
+                backgroundColor: item.isToday ? 'var(--tgo-state-success-soft)' : 'transparent',
+                color: item.isToday ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)',
+                fontWeight: item.isToday ? 700 : 400,
+              }}
             >
               <span>{item.day}</span>
-              <span className={item.hours === 'Cerrado' ? 'text-[#ef4444]/60' : ''}>
+              <span style={{ color: item.hours === 'Cerrado' ? 'var(--tgo-state-danger)' : 'inherit', opacity: item.hours === 'Cerrado' ? 0.6 : 1 }}>
                 {item.hours}
               </span>
             </div>
