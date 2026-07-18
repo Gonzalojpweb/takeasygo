@@ -40,8 +40,8 @@ export function Navigation({ items, activeId, onSelect, onLogout, onQuickAccess 
             <div className="nav-item-icon">
               <Icon size={26} className="nav-item-svg" />
             </div>
-            {!sidebarCollapsed && <span>{item.label}</span>}
-            {!sidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
+            <span>{item.label}</span>
+            {item.badge !== undefined && item.badge > 0 && (
               <span className="nav-item-badge">{item.badge}</span>
             )}
           </div>
@@ -55,7 +55,7 @@ export function Navigation({ items, activeId, onSelect, onLogout, onQuickAccess 
           <div className="nav-item-icon">
             <Zap size={26} className="nav-item-svg" />
           </div>
-          {!sidebarCollapsed && <span>Accesos</span>}
+          <span>Accesos</span>
         </div>
       )}
 
@@ -63,7 +63,7 @@ export function Navigation({ items, activeId, onSelect, onLogout, onQuickAccess 
         <div className="nav-item-icon">
           <LogOut size={26} className="nav-item-svg" />
         </div>
-        {!sidebarCollapsed && <span>Salir</span>}
+        <span>Salir</span>
       </div>
     </nav>
   )
