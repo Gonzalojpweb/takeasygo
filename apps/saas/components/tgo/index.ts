@@ -5,7 +5,7 @@
 // No son componentes de negocio — son las piezas atómicas.
 //
 // shadcn cubre: Button, Input, Badge, Avatar, Card, Dialog, Sheet, Skeleton, etc.
-// TGO agrega: Chip, EmptyState, HorizontalScroller, Section, SearchBar, MapPin
+// TGO agrega: Chip, EmptyState, HorizontalScroller, Section, SearchBar
 //
 // Para componentes de negocio (RestaurantCard, ExperienceCard, etc.)
 // van en components/explore/tgo-business/
@@ -20,5 +20,3 @@ export { default as HorizontalScroller } from './HorizontalScroller'
 export { default as Section } from './Section'
 
 export { default as SearchBar } from './SearchBar'
-
-export { default as MapPin } from './MapPin'
