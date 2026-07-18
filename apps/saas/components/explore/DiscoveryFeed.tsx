@@ -42,26 +42,17 @@ function getGreeting(): { period: string; emoji: string } {
 function GreetingModule({ userName }: { userName?: string }) {
   const { period, emoji } = getGreeting()
   return (
-    <div style={{ paddingInline: 'var(--tgo-page-padding)', paddingTop: 'var(--tgo-space-6)' }}>
+    <div style={{ paddingInline: 'var(--tgo-page-padding)', paddingTop: 'var(--tgo-space-5)', paddingBottom: 'var(--tgo-space-1)' }}>
       <h1
         style={{
           color: 'var(--tgo-text-primary)',
-          fontSize: 'var(--tgo-type-hero)',
+          fontSize: 'var(--tgo-type-title)',
           fontWeight: 700,
           letterSpacing: 'var(--tgo-tracking-tight)',
         }}
       >
         {period} {userName ?? ''}
       </h1>
-      <p
-        className="mt-1"
-        style={{
-          color: 'var(--tgo-text-muted)',
-          fontSize: 'var(--tgo-type-body-sm)',
-        }}
-      >
-        ¿Qué se te antoja hoy?
-      </p>
     </div>
   )
 }
@@ -83,23 +74,41 @@ function QuickFiltersModule({
   onFilterChange: (q: string | null) => void
 }) {
   return (
-    <div
-      className="flex gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none"
-      style={{ paddingInline: 'var(--tgo-page-padding)' }}
-    >
-      {QUICK_FILTERS.map((f) => (
-        <Chip
-          key={f.query}
-          variant={activeFilter === f.query ? 'active' : 'default'}
-          size="pill"
-          icon={<span>{f.icon}</span>}
-          onClick={() =>
-            onFilterChange(activeFilter === f.query ? null : f.query)
-          }
-        >
-          {f.label}
-        </Chip>
-      ))}
+    <div className="relative">
+      {/* Left fade */}
+      <div
+        className="absolute left-0 top-0 bottom-0 z-10 pointer-events-none"
+        style={{
+          width: 16,
+          background: 'linear-gradient(to right, var(--tgo-surface-0) 0%, transparent 100%)',
+        }}
+      />
+      {/* Right fade */}
+      <div
+        className="absolute right-0 top-0 bottom-0 z-10 pointer-events-none"
+        style={{
+          width: 16,
+          background: 'linear-gradient(to left, var(--tgo-surface-0) 0%, transparent 100%)',
+        }}
+      />
+      <div
+        className="flex gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none"
+        style={{ paddingInline: 'var(--tgo-page-padding)' }}
+      >
+        {QUICK_FILTERS.map((f) => (
+          <Chip
+            key={f.query}
+            variant={activeFilter === f.query ? 'active' : 'default'}
+            size="pill"
+            icon={<span>{f.icon}</span>}
+            onClick={() =>
+              onFilterChange(activeFilter === f.query ? null : f.query)
+            }
+          >
+            {f.label}
+          </Chip>
+        ))}
+      </div>
     </div>
   )
 }
@@ -408,7 +417,7 @@ export default function DiscoveryFeed({
       <GreetingModule userName={userName} />
 
       {/* 2. SearchBar */}
-      <div className="mt-4" style={{ paddingInline: 'var(--tgo-page-padding)' }}>
+      <div className="mt-3" style={{ paddingInline: 'var(--tgo-page-padding)' }}>
         <SearchBar showLocation={false} />
       </div>
 
@@ -420,23 +429,12 @@ export default function DiscoveryFeed({
         />
       </div>
 
-      {/* 4. OpenNow */}
-      <Section
-        title="Abiertos ahora"
-        subtitle="Dónde podés ir ahora"
-        href="/explore?open=true"
-      >
-        <OpenNowModule
-          restaurants={openNow}
-          onNavigate={handleNavigate}
-        />
-      </Section>
-
-      {/* 5. Nearby */}
+      {/* 4. Nearby (principal — lista compacta) */}
       <Section
         title="Cerca tuyo"
         subtitle="Descubrimientos en tu zona"
         href="/explore"
+        verticalPadding="var(--tgo-space-5)"
       >
         <NearbyModule
           restaurants={nearbyTenants}
@@ -444,33 +442,24 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 6. Experiences */}
+      {/* 5. OpenNow (scroll horizontal) */}
       <Section
-        title="Beneficios"
-        subtitle="Lo que tenés como miembro"
-        href="/promociones"
+        title="Abiertos ahora"
+        subtitle="Dónde podés ir ahora"
+        verticalPadding="var(--tgo-space-4)"
       >
-        <ExperiencesModule experiences={promotions} />
+        <OpenNowModule
+          restaurants={openNow}
+          onNavigate={handleNavigate}
+        />
       </Section>
 
-      {/* 7. Trending */}
-      {nearbyTenants.length > 0 && (
-        <Section
-          title="Lo más pedido"
-          subtitle="Los favoritos de tu zona"
-        >
-          <TrendingModule
-            restaurants={nearbyTenants.slice(0, 6)}
-            onNavigate={handleNavigate}
-          />
-        </Section>
-      )}
-
-      {/* 8. Categories */}
+      {/* 6. Categories (grid) */}
       {categories.length > 0 && (
         <Section
           title="Tipos de comida"
           subtitle="Explorá por categoría"
+          verticalPadding="var(--tgo-space-4)"
         >
           <CategoriesModule
             categories={categories}
@@ -479,49 +468,60 @@ export default function DiscoveryFeed({
         </Section>
       )}
 
+      {/* 7. Experiences */}
+      {promotions.length > 0 && (
+        <Section
+          title="Beneficios"
+          subtitle="Lo que tenés como miembro"
+          href="/promociones"
+          verticalPadding="var(--tgo-space-4)"
+        >
+          <ExperiencesModule experiences={promotions} />
+        </Section>
+      )}
+
       {/* B2B CTA */}
       {onOpenLeadModal && (
         <section
-          className="py-8"
+          className="py-6"
           style={{ paddingInline: 'var(--tgo-page-padding)' }}
         >
           <div
-            className="p-8 text-center"
+            className="p-6 text-center"
             style={{
-              borderRadius: 'var(--tgo-radius-2xl)',
-              backgroundColor: 'var(--tgo-text-primary)',
+              borderRadius: 'var(--tgo-radius-xl)',
+              backgroundColor: 'var(--tgo-surface-1)',
+              border: '1px solid var(--tgo-border)',
             }}
           >
-            <div className="space-y-2">
-              <h3
-                style={{
-                  color: 'var(--tgo-text-inverse)',
-                  fontSize: 'var(--tgo-type-title)',
-                  fontWeight: 700,
-                }}
-              >
-                ¿Tenés un restaurante?
-              </h3>
-              <p
-                style={{
-                  color: 'var(--tgo-text-muted)',
-                  fontSize: 'var(--tgo-type-body-sm)',
-                  lineHeight: 1.5,
-                }}
-              >
-                Sumate a la plataforma que potencia locales sin comisiones
-                abusivas.
-              </p>
-            </div>
+            <h3
+              style={{
+                color: 'var(--tgo-text-primary)',
+                fontSize: 'var(--tgo-type-body)',
+                fontWeight: 700,
+              }}
+            >
+              ¿Tenés un restaurante?
+            </h3>
+            <p
+              className="mt-1"
+              style={{
+                color: 'var(--tgo-text-muted)',
+                fontSize: 'var(--tgo-type-body-sm)',
+                lineHeight: 1.5,
+              }}
+            >
+              Sumate a la plataforma que potencia locales sin comisiones abusivas.
+            </p>
             <button
               onClick={onOpenLeadModal}
-              className="w-full mt-4"
+              className="mt-3"
               style={{
-                padding: '14px 24px',
+                padding: '10px 20px',
                 borderRadius: 'var(--tgo-radius-md)',
                 backgroundColor: 'var(--tgo-state-interactive)',
                 color: 'var(--tgo-text-inverse)',
-                fontSize: 'var(--tgo-type-body-sm)',
+                fontSize: 'var(--tgo-type-caption)',
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: 'var(--tgo-tracking-wider)',
