@@ -74,41 +74,24 @@ function QuickFiltersModule({
   onFilterChange: (q: string | null) => void
 }) {
   return (
-    <div className="relative">
-      {/* Left fade */}
-      <div
-        className="absolute left-0 top-0 bottom-0 z-10 pointer-events-none"
-        style={{
-          width: 16,
-          background: 'linear-gradient(to right, var(--tgo-surface-0) 0%, transparent 100%)',
-        }}
-      />
-      {/* Right fade */}
-      <div
-        className="absolute right-0 top-0 bottom-0 z-10 pointer-events-none"
-        style={{
-          width: 16,
-          background: 'linear-gradient(to left, var(--tgo-surface-0) 0%, transparent 100%)',
-        }}
-      />
-      <div
-        className="flex gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none"
-        style={{ paddingInline: 'var(--tgo-page-padding)' }}
-      >
-        {QUICK_FILTERS.map((f) => (
-          <Chip
-            key={f.query}
-            variant={activeFilter === f.query ? 'active' : 'default'}
-            size="pill"
-            icon={<span>{f.icon}</span>}
-            onClick={() =>
-              onFilterChange(activeFilter === f.query ? null : f.query)
-            }
-          >
-            {f.label}
-          </Chip>
-        ))}
-      </div>
+    <div
+      className="flex gap-2 justify-center"
+      style={{ paddingInline: 'var(--tgo-page-padding)' }}
+    >
+      {QUICK_FILTERS.map((f) => (
+        <Chip
+          key={f.query}
+          variant={activeFilter === f.query ? 'active' : 'default'}
+          size="sm"
+          icon={<span>{f.icon}</span>}
+          onClick={() =>
+            onFilterChange(activeFilter === f.query ? null : f.query)
+          }
+          style={{ fontSize: 11, padding: '0 10px', height: 28 }}
+        >
+          {f.label}
+        </Chip>
+      ))}
     </div>
   )
 }
@@ -388,6 +371,27 @@ export default function DiscoveryFeed({
     [nearbyTenants]
   )
 
+  // QuickFilter: filter nearbyTenants based on active filter
+  const filteredNearby = useMemo(() => {
+    if (!activeFilter) return nearbyTenants
+    switch (activeFilter) {
+      case 'abiertos':
+        return nearbyTenants.filter((r) => r.isOpenNow === true || r.isOpenNow === null)
+      case 'delivery':
+        return nearbyTenants.filter((r) =>
+          r.type === 'listed' || (r.orderModes && r.orderModes.includes('delivery'))
+        )
+      case 'cercanos':
+        return [...nearbyTenants].sort((a, b) => a.distanceM - b.distanceM)
+      case 'beneficios':
+        return nearbyTenants.filter((r) =>
+          r.loyaltyInfo?.hasClub || r.loyaltyInfo?.hasActivePromo
+        )
+      default:
+        return nearbyTenants
+    }
+  }, [nearbyTenants, activeFilter])
+
   if (loading && !data) {
     return (
       <div className="h-full" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
@@ -431,13 +435,22 @@ export default function DiscoveryFeed({
 
       {/* 4. Nearby (principal — lista compacta) */}
       <Section
-        title="Cerca tuyo"
-        subtitle="Descubrimientos en tu zona"
+        title={
+          activeFilter === 'abiertos' ? 'Abiertos ahora' :
+          activeFilter === 'delivery' ? 'Con delivery' :
+          activeFilter === 'beneficios' ? 'Con beneficios' :
+          'Cerca tuyo'
+        }
+        subtitle={
+          activeFilter
+            ? `${filteredNearby.length} resultado${filteredNearby.length !== 1 ? 's' : ''}`
+            : 'Descubrimientos en tu zona'
+        }
         href="/explore"
         verticalPadding="var(--tgo-space-5)"
       >
         <NearbyModule
-          restaurants={nearbyTenants}
+          restaurants={filteredNearby}
           onNavigate={handleNavigate}
         />
       </Section>
