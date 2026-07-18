@@ -289,6 +289,161 @@ html.lenis body {
   color: white;
 }
 
+/* ── TGO Spatial UI Design Tokens ─────────────────────────────────────── */
+/* TOF-DES-001 — Foundation del Design System */
+/* Namespace: --tgo-* | Selector: [data-design="spatial"] */
+/* NO modificar. NO extender sin revisión del equipo. */
+
+[data-design="spatial"] {
+  /* ── Brand Layer (Identidad) ─────────────────────────────────────── */
+  --tgo-brand-primary: #F74211;
+  --tgo-brand-primary-soft: rgba(247, 66, 17, 0.08);
+  --tgo-brand-primary-hover: #E03A0F;
+
+  /* ── Surface Layer (Superficies y Elevaciones) ───────────────────── */
+  --tgo-surface-0: #FFFFFF;
+  --tgo-surface-1: #FAFAF8;
+  --tgo-surface-2: #F5F3F0;
+  --tgo-surface-3: #EDEAE6;
+
+  --tgo-surface-card: #FFFFFF;
+  --tgo-surface-sheet: #FFFFFF;
+  --tgo-surface-dialog: #FFFFFF;
+  --tgo-surface-overlay: rgba(26, 26, 26, 0.48);
+  --tgo-surface-search: #FFFFFF;
+
+  /* ── Elevation Layer (Sombras por función) ───────────────────────── */
+  --tgo-elevation-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --tgo-elevation-floating: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.03);
+  --tgo-elevation-dialog: 0 12px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --tgo-elevation-overlay: 0 0 0 100vmax rgba(26, 26, 26, 0.48);
+
+  /* ── Typography Layer (Por roles) ────────────────────────────────── */
+  --tgo-font-display: 'Inter', system-ui, sans-serif;
+  --tgo-font-body: 'Inter', system-ui, sans-serif;
+  --tgo-font-mono: 'JetBrains Mono', monospace;
+
+  --tgo-type-display: 700 2.5rem/1.1 var(--tgo-font-display);
+  --tgo-type-hero: 700 2rem/1.15 var(--tgo-font-display);
+  --tgo-type-section: 700 1.5rem/1.2 var(--tgo-font-display);
+  --tgo-type-title: 600 1.25rem/1.3 var(--tgo-font-body);
+  --tgo-type-subtitle: 600 1.125rem/1.35 var(--tgo-font-body);
+  --tgo-type-body: 400 1rem/1.5 var(--tgo-font-body);
+  --tgo-type-body-sm: 400 0.875rem/1.45 var(--tgo-font-body);
+  --tgo-type-caption: 400 0.75rem/1.4 var(--tgo-font-body);
+  --tgo-type-label: 600 0.6875rem/1.3 var(--tgo-font-body);
+  --tgo-type-tag: 700 0.625rem/1.2 var(--tgo-font-body);
+  --tgo-type-metric: 700 2rem/1 var(--tgo-font-display);
+
+  --tgo-tracking-tight: -0.02em;
+  --tgo-tracking-normal: 0;
+  --tgo-tracking-wide: 0.04em;
+  --tgo-tracking-wider: 0.08em;
+  --tgo-tracking-widest: 0.12em;
+
+  /* ── Text Layer ──────────────────────────────────────────────────── */
+  --tgo-text-primary: #1A1A1A;
+  --tgo-text-secondary: #6B6560;
+  --tgo-text-muted: #A09A95;
+  --tgo-text-inverse: #FFFFFF;
+  --tgo-text-brand: #F74211;
+  --tgo-text-interactive: #065D63;
+
+  /* ── Functional Layer (Estados) ──────────────────────────────────── */
+  --tgo-state-interactive: #065D63;
+  --tgo-state-interactive-hover: #055257;
+  --tgo-state-interactive-soft: rgba(6, 93, 99, 0.08);
+
+  --tgo-state-success: #16A34A;
+  --tgo-state-success-soft: rgba(22, 163, 74, 0.08);
+
+  --tgo-state-warning: #F4B42D;
+  --tgo-state-warning-soft: rgba(244, 180, 45, 0.08);
+
+  --tgo-state-danger: #D94A3D;
+  --tgo-state-danger-soft: rgba(217, 74, 61, 0.08);
+
+  --tgo-state-info: #3B82F6;
+  --tgo-state-info-soft: rgba(59, 130, 246, 0.08);
+
+  --tgo-state-highlight: #F4B42D;
+  --tgo-state-highlight-soft: rgba(244, 180, 45, 0.08);
+
+  /* ── Border Layer ────────────────────────────────────────────────── */
+  --tgo-border: #E8E4E0;
+  --tgo-border-active: #D0CAC4;
+  --tgo-border-focus: #065D63;
+  --tgo-border-brand: #F74211;
+
+  /* ── Radius Layer ────────────────────────────────────────────────── */
+  --tgo-radius-none: 0;
+  --tgo-radius-sm: 8px;
+  --tgo-radius-md: 12px;
+  --tgo-radius-lg: 16px;
+  --tgo-radius-xl: 20px;
+  --tgo-radius-2xl: 24px;
+  --tgo-radius-pill: 9999px;
+
+  /* ── Spacing Layer ───────────────────────────────────────────────── */
+  --tgo-space-1: 4px;
+  --tgo-space-2: 8px;
+  --tgo-space-3: 12px;
+  --tgo-space-4: 16px;
+  --tgo-space-5: 20px;
+  --tgo-space-6: 24px;
+  --tgo-space-8: 32px;
+  --tgo-space-10: 40px;
+  --tgo-space-12: 48px;
+  --tgo-space-16: 64px;
+  --tgo-space-20: 80px;
+
+  /* Contextuales — parte del ADN de la app */
+  --tgo-safe-top: env(safe-area-inset-top, 0px);
+  --tgo-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tgo-safe-left: env(safe-area-inset-left, 0px);
+  --tgo-safe-right: env(safe-area-inset-right, 0px);
+
+  --tgo-nav-height: 64px;
+  --tgo-bottom-nav-height: 72px;
+  --tgo-header-height: 56px;
+  --tgo-content-max-width: 480px;
+  --tgo-section-gap: 32px;
+  --tgo-card-padding: 16px;
+  --tgo-page-padding: 20px;
+
+  /* ── Motion Layer (Duraciones + Curvas) ──────────────────────────── */
+  --tgo-duration-instant: 0ms;
+  --tgo-duration-fast: 180ms;
+  --tgo-duration-base: 200ms;
+  --tgo-duration-slow: 220ms;
+  --tgo-duration-slower: 300ms;
+
+  --tgo-ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --tgo-ease-emphasized: cubic-bezier(0.4, 0, 0.2, 1);
+  --tgo-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --tgo-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --tgo-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Opacity Layer ───────────────────────────────────────────────── */
+  --tgo-opacity-full: 1;
+  --tgo-opacity-high: 0.88;
+  --tgo-opacity-medium: 0.64;
+  --tgo-opacity-low: 0.32;
+  --tgo-opacity-disabled: 0.16;
+  --tgo-opacity-hidden: 0;
+
+  /* ── Z-Index Layer ───────────────────────────────────────────────── */
+  --tgo-z-base: 0;
+  --tgo-z-above: 10;
+  --tgo-z-nav: 100;
+  --tgo-z-header: 200;
+  --tgo-z-sheet: 300;
+  --tgo-z-dialog: 400;
+  --tgo-z-overlay: 500;
+  --tgo-z-toast: 600;
+  --tgo-z-tooltip: 700;
+}
+
 /* Glass card with blur */
 .glass-card {
   background: var(--c-surface-glass);
