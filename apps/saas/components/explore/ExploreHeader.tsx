@@ -293,13 +293,13 @@ export default function ExploreHeader({
         {/* Cuisine chips */}
         {allCuisines.length > 0 && (
           <div
-            className="flex gap-2 overflow-x-auto scrollbar-none pb-1"
+            className="flex gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none pb-1"
             style={{ scrollbarWidth: 'none' }}
           >
             {allCuisines.map((cuisine) => (
               <Chip
                 key={cuisine}
-                variant={activeCuisine === cuisine ? 'active' : 'default'}
+                variant={activeCuisine === cuisine ? 'active' : 'suggestion'}
                 size="pill"
                 onClick={() =>
                   setActiveCuisine(

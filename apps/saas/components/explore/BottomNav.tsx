@@ -32,6 +32,7 @@ export default function BottomNav() {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-[1000] pb-[safe-area-inset-bottom] h-[calc(64px+env(safe-area-inset-bottom,0px))]"
+      aria-label="Navegación principal"
       style={{
         backgroundColor: 'var(--tgo-surface-0)',
         borderTop: '1px solid var(--tgo-border)',
@@ -49,6 +50,7 @@ export default function BottomNav() {
               <div key={tab.id} className="relative w-16 h-full flex flex-col items-center justify-center -top-3">
                 <button
                   onClick={() => router.push(tab.href)}
+                  aria-label={tab.label}
                   className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300"
                   style={{
                     backgroundColor: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-2)',
@@ -60,7 +62,7 @@ export default function BottomNav() {
                   <Icon size={20} strokeWidth={isActive ? 3 : 2} />
                 </button>
                 <span
-                  className="text-[9px] font-black uppercase mt-1 transition-colors"
+                  className="text-[10px] font-black uppercase mt-1 transition-colors"
                   style={{ color: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-text-muted)' }}
                 >
                   {tab.label}
@@ -82,7 +84,7 @@ export default function BottomNav() {
                 <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
               </div>
               <span
-                className="text-[9px] font-bold tracking-tight transition-colors"
+                className="text-[10px] font-bold tracking-tight transition-colors"
                 style={{ color: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-text-muted)' }}
               >
                 {tab.label}
