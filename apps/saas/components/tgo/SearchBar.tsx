@@ -286,7 +286,7 @@ export default function SearchBar({
             boxShadow: 'var(--tgo-elevation-dialog)',
             border: '1px solid var(--tgo-border)',
             zIndex: 'var(--tgo-z-sheet)',
-            maxHeight: '60vh',
+            maxHeight: '40vh',
             overflowY: 'auto',
           }}
         >
@@ -371,48 +371,26 @@ export default function SearchBar({
             </div>
           )}
 
-          {/* ── State 2: Typing suggestions ──────────────────────── */}
+          {/* ── State 2: Typing — search action ─────────────────── */}
           {showSuggestions && (
             <div className="p-4">
-              <p
-                className="mb-2"
+              <button
+                onClick={() => handleSuggestionClick(query)}
+                className="flex items-center gap-3 w-full px-3 py-3 rounded-lg text-left transition-colors"
                 style={{
-                  color: 'var(--tgo-text-muted)',
-                  fontSize: 'var(--tgo-type-caption)',
-                  textTransform: 'uppercase',
-                  letterSpacing: 'var(--tgo-tracking-wider)',
-                  fontWeight: 600,
+                  backgroundColor: 'var(--tgo-surface-1)',
+                  border: '1px solid var(--tgo-border)',
                 }}
               >
-                Descubrí
-              </p>
-              <div className="flex flex-col gap-1">
-                {/* Suggestion items — these are search predictions */}
-                {[`${query} cerca tuyo`, `${query} abiertos`, `${query} más pedidos`].map(
-                  (s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleSuggestionClick(s)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-[var(--tgo-surface-1)] transition-colors"
-                    >
-                      <SearchIcon
-                        size={16}
-                        style={{
-                          color: 'var(--tgo-text-muted)',
-                        }}
-                      />
-                      <span
-                        style={{
-                          color: 'var(--tgo-text-primary)',
-                          fontSize: 'var(--tgo-type-body-sm)',
-                        }}
-                      >
-                        {s}
-                      </span>
-                    </button>
-                  )
-                )}
-              </div>
+                <SearchIcon size={16} style={{ color: 'var(--tgo-state-interactive)' }} />
+                <span
+                  className="truncate"
+                  style={{ color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 500, maxWidth: 260 }}
+                >
+                  Buscar &ldquo;{query}&rdquo;
+                </span>
+                <ArrowRight size={14} className="ml-auto shrink-0" style={{ color: 'var(--tgo-text-muted)' }} />
+              </button>
             </div>
           )}
 

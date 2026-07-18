@@ -87,7 +87,7 @@ function HeroLayout({
   return (
     <div
       onClick={onNavigate}
-      className="relative shrink-0 w-[280px] h-[200px] overflow-hidden cursor-pointer group active:scale-[0.98]"
+      className="relative shrink-0 w-[260px] h-[180px] overflow-hidden cursor-pointer group active:scale-[0.98]"
       style={{
         borderRadius: 'var(--tgo-radius-lg)',
         transition: `transform var(--tgo-duration-base) var(--tgo-ease-standard)`,
@@ -115,53 +115,41 @@ function HeroLayout({
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(to top, rgba(26,26,26,0.72) 0%, rgba(26,26,26,0.16) 50%, transparent 100%)',
+            'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.40) 40%, rgba(0,0,0,0.08) 70%, transparent 100%)',
         }}
       />
 
-      {/* Status badge */}
-      <div className="absolute top-3 left-3">
-        <span
-          className="inline-flex items-center gap-1 px-2 py-0.5"
-          style={{
-            borderRadius: 'var(--tgo-radius-pill)',
-            fontSize: 'var(--tgo-type-tag)',
-            fontWeight: 700,
-            letterSpacing: 'var(--tgo-tracking-wider)',
-            textTransform: 'uppercase',
-            color: isNetwork
-              ? r.isOperational === false
+      {/* Top badges — max 2 */}
+      <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
+        {isNetwork && (
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5"
+            style={{
+              borderRadius: 'var(--tgo-radius-pill)',
+              fontSize: 'var(--tgo-type-tag)',
+              fontWeight: 700,
+              letterSpacing: 'var(--tgo-tracking-wider)',
+              textTransform: 'uppercase',
+              color: r.isOperational === false
                 ? 'var(--tgo-state-warning)'
-                : 'var(--tgo-state-success)'
-              : 'var(--tgo-text-muted)',
-            backgroundColor: isNetwork
-              ? r.isOperational === false
+                : 'var(--tgo-state-success)',
+              backgroundColor: r.isOperational === false
                 ? 'var(--tgo-state-warning-soft)'
-                : 'var(--tgo-state-success-soft)'
-              : 'var(--tgo-surface-2)',
-          }}
-        >
-          <StatusDot isOpen={isNetwork ? r.isOperational !== false : null} />
-          {isNetwork
-            ? r.isOperational === false
-              ? 'Próximamente'
-              : 'Red TGO'
-            : r.status === 'converted'
-              ? 'Cliente'
-              : 'Directorio'}
-        </span>
-      </div>
-
-      {/* Distance */}
-      <div className="absolute top-3 right-3">
+                : 'var(--tgo-state-success-soft)',
+            }}
+          >
+            {r.isOperational === false ? 'Próximamente' : 'Red TGO'}
+          </span>
+        )}
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5"
           style={{
             borderRadius: 'var(--tgo-radius-pill)',
             fontSize: 'var(--tgo-type-caption)',
             fontWeight: 600,
-            color: 'var(--tgo-text-inverse)',
-            backgroundColor: 'rgba(26,26,26,0.48)',
+            color: '#fff',
+            backgroundColor: 'rgba(0,0,0,0.48)',
+            marginLeft: 'auto',
           }}
         >
           <MapPin size={10} />
@@ -169,14 +157,15 @@ function HeroLayout({
         </span>
       </div>
 
-      {/* Bottom info */}
+      {/* Bottom info — clean hierarchy */}
       <div className="absolute bottom-0 left-0 right-0 p-4">
         <h3
           className="leading-tight mb-1"
           style={{
-            color: 'var(--tgo-text-inverse)',
+            color: '#fff',
             fontSize: 'var(--tgo-type-title)',
             fontWeight: 700,
+            textShadow: '0 1px 4px rgba(0,0,0,0.4)',
           }}
         >
           {r.name}
@@ -186,44 +175,39 @@ function HeroLayout({
             <span
               className="flex items-center gap-1"
               style={{
-                color: 'rgba(255,255,255,0.6)',
+                color: 'rgba(255,255,255,0.85)',
                 fontSize: 'var(--tgo-type-caption)',
+                fontWeight: 500,
               }}
             >
-              <Utensils size={10} />
               {r.cuisineTypes.slice(0, 2).join(' · ')}
             </span>
           )}
-          {isNetwork &&
-            r.isOperational !== false &&
-            r.estimatedPickupTime && (
-              <span
-                className="flex items-center gap-1"
-                style={{
-                  color: 'var(--tgo-state-success)',
-                  fontSize: 'var(--tgo-type-caption)',
-                  fontWeight: 600,
-                }}
-              >
-                <Clock size={10} />~{r.estimatedPickupTime} min
-              </span>
-            )}
-          <StatusText isOpen={isNetwork ? r.isOperational !== false : null} />
-          {r.averageRating != null &&
-            r.ratingCount != null &&
-            r.ratingCount > 0 && (
-              <span
-                className="flex items-center gap-0.5"
-                style={{
-                  color: 'var(--tgo-state-warning)',
-                  fontSize: 'var(--tgo-type-caption)',
-                  fontWeight: 700,
-                }}
-              >
-                <Star size={10} className="fill-current" />
-                {r.averageRating.toFixed(1)}
-              </span>
-            )}
+          {isNetwork && r.isOperational !== false && r.estimatedPickupTime && (
+            <span
+              className="flex items-center gap-1"
+              style={{
+                color: 'var(--tgo-state-success)',
+                fontSize: 'var(--tgo-type-caption)',
+                fontWeight: 600,
+              }}
+            >
+              <Clock size={10} />~{r.estimatedPickupTime} min
+            </span>
+          )}
+          {r.averageRating != null && r.ratingCount != null && r.ratingCount > 0 && (
+            <span
+              className="flex items-center gap-0.5"
+              style={{
+                color: 'var(--tgo-state-warning)',
+                fontSize: 'var(--tgo-type-caption)',
+                fontWeight: 700,
+              }}
+            >
+              <Star size={10} className="fill-current" />
+              {r.averageRating.toFixed(1)}
+            </span>
+          )}
         </div>
 
         {r.loyaltyInfo &&
@@ -236,8 +220,8 @@ function HeroLayout({
                     borderRadius: 'var(--tgo-radius-pill)',
                     fontSize: 10,
                     fontWeight: 700,
-                    color: 'var(--tgo-state-success)',
-                    backgroundColor: 'var(--tgo-state-success-soft)',
+                    color: '#fff',
+                    backgroundColor: 'var(--tgo-state-success)',
                   }}
                 >
                   Club
@@ -250,8 +234,8 @@ function HeroLayout({
                     borderRadius: 'var(--tgo-radius-pill)',
                     fontSize: 10,
                     fontWeight: 700,
-                    color: 'var(--tgo-state-warning)',
-                    backgroundColor: 'var(--tgo-state-warning-soft)',
+                    color: '#fff',
+                    backgroundColor: 'var(--tgo-state-warning)',
                   }}
                 >
                   Promo

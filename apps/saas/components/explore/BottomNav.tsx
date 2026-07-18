@@ -47,22 +47,22 @@ export default function BottomNav() {
 
           if (tab.isCenter) {
             return (
-              <div key={tab.id} className="relative w-16 h-full flex flex-col items-center justify-center -top-3">
+              <div key={tab.id} className="relative w-16 h-full flex flex-col items-center justify-center">
                 <button
                   onClick={() => router.push(tab.href)}
                   aria-label={tab.label}
-                  className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300"
+                  className="w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-300"
                   style={{
-                    backgroundColor: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-2)',
-                    color: 'var(--tgo-text-on-interactive)',
-                    transform: isActive ? 'scale(1.1)' : undefined,
-                    boxShadow: isActive ? '0 4px 16px var(--tgo-state-interactive-soft)' : undefined,
+                    backgroundColor: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-1)',
+                    color: isActive ? 'var(--tgo-text-on-interactive)' : 'var(--tgo-text-muted)',
+                    transform: isActive ? 'scale(1.05)' : undefined,
+                    boxShadow: isActive ? '0 4px 16px var(--tgo-state-interactive-soft)' : '0 2px 8px rgba(0,0,0,0.08)',
                   }}
                 >
-                  <Icon size={20} strokeWidth={isActive ? 3 : 2} />
+                  <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 </button>
                 <span
-                  className="text-[10px] font-black uppercase mt-1 transition-colors"
+                  className="text-[10px] font-black uppercase mt-0.5 transition-colors"
                   style={{ color: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-text-muted)' }}
                 >
                   {tab.label}
