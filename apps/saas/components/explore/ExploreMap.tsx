@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
 import 'leaflet/dist/leaflet.css'
-import { ShoppingBag, MapPin, X, Clock, Phone, ExternalLink } from 'lucide-react'
+import { ShoppingBag, MapPinIcon, X, Clock, Phone, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 
 interface Props {
@@ -92,37 +92,52 @@ function HoverCard({ r, pos, containerW, containerH }: {
       className="absolute z-[1000] pointer-events-none"
       style={{ left, top, width: cardW }}
     >
-      <div className="glass-card-elevated rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className={`h-1.5 w-full ${isNetwork ? 'bg-[#10b981]' : 'bg-[#a78bfa]'}`} />
+      <div
+        className="rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        style={{
+          backgroundColor: 'var(--tgo-surface-1)',
+          border: '1px solid var(--tgo-border)',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.2)',
+        }}
+      >
+        <div
+          className="h-1.5 w-full"
+          style={{ backgroundColor: isNetwork ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)' }}
+        />
         <div className="p-4 space-y-2">
           <div className="flex items-center gap-2">
-            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isNetwork ? 'bg-[#10b981]/20 text-[#10b981]' : 'bg-white/10 text-[#8a7f7a]'
-              }`}>
+            <span
+              className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: isNetwork ? 'var(--tgo-state-success-soft)' : 'var(--tgo-surface-2)',
+                color: isNetwork ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)',
+              }}
+            >
               {isNetwork ? 'Red' : (r.status === 'converted' ? 'Cliente' : 'Directorio')}
             </span>
-            <span className="text-[#8a7f7a] text-[10px] ml-auto">{distLabel(r.distanceM)}</span>
+            <span style={{ color: 'var(--tgo-text-muted)' }} className="text-[10px] ml-auto">{distLabel(r.distanceM)}</span>
           </div>
-          <p className="font-bold text-[#f7f4f2] text-sm leading-tight">{r.name}</p>
-          <p className="text-[#5a524d] text-[11px] truncate">{r.address}</p>
+          <p className="font-bold text-sm leading-tight" style={{ color: 'var(--tgo-text-primary)' }}>{r.name}</p>
+          <p className="text-[11px] truncate" style={{ color: 'var(--tgo-text-muted)' }}>{r.address}</p>
           {isNetwork && r.estimatedPickupTime && (
-            <p className="text-[#10b981] text-[11px] font-semibold flex items-center gap-1">
+            <p className="text-[11px] font-semibold flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
               <Clock size={10} /> ~{r.estimatedPickupTime} min
             </p>
           )}
           {r.isOpenNow === true && (
-            <p className="text-[#10b981] text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+            <p className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--tgo-state-success)' }} />
               Abierto ahora
             </p>
           )}
           {r.isOpenNow === false && (
-            <p className="text-[#ef4444] text-[10px] font-bold uppercase tracking-wider">
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--tgo-state-danger)' }}>
               Cerrado ahora
             </p>
           )}
           {isNetwork && r.isOperational === false && (
-            <p className="text-[#f59e0b] text-[10px] font-bold uppercase tracking-wider">
-              ✨ Catálogo / Próximamente
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--tgo-state-warning)' }}>
+              Catálogo / Próximamente
             </p>
           )}
         </div>
@@ -142,49 +157,64 @@ function BottomSheet({ r, onClose, onNavigate }: {
 
   return (
     <>
-      <div className="absolute inset-0 z-[900] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 z-[900]" style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
       <div className="absolute bottom-[84px] left-0 right-0 z-[1100] animate-slide-up px-4">
-        <div className="glass-card-elevated rounded-[24px] border border-white/10 shadow-2xl overflow-hidden">
+        <div
+          className="rounded-[24px] shadow-2xl overflow-hidden"
+          style={{
+            backgroundColor: 'var(--tgo-surface-1)',
+            border: '1px solid var(--tgo-border)',
+          }}
+        >
           <div className="flex justify-center pt-3 pb-2" onClick={onClose}>
-            <div className="w-12 h-1.5 rounded-full bg-white/10" />
+            <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'var(--tgo-border)' }} />
           </div>
 
           <div className="px-6 pt-2 pb-8 space-y-4">
             <div className="flex items-start gap-4">
               {isNetwork && r.logoUrl && (
-                <div className="shrink-0 w-16 h-16 rounded-2xl overflow-hidden border border-white/10">
+                <div
+                  className="shrink-0 w-16 h-16 rounded-2xl overflow-hidden"
+                  style={{ border: '1px solid var(--tgo-border)' }}
+                >
                   <img src={r.logoUrl} alt="" className="w-full h-full object-cover" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    isNetwork 
-                      ? (r.isOperational === false ? 'bg-[#f59e0b]/20 text-[#f59e0b]' : 'bg-[#10b981]/20 text-[#10b981]')
-                      : 'bg-white/10 text-[#8a7f7a]'
-                    }`}>
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: isNetwork
+                        ? (r.isOperational === false ? 'var(--tgo-state-warning-soft)' : 'var(--tgo-state-success-soft)')
+                        : 'var(--tgo-surface-2)',
+                      color: isNetwork
+                        ? (r.isOperational === false ? 'var(--tgo-state-warning)' : 'var(--tgo-state-success)')
+                        : 'var(--tgo-text-muted)',
+                    }}
+                  >
                     {isNetwork 
-                      ? (r.isOperational === false ? '● Catálogo' : '● En Red') 
-                      : (r.status === 'converted' ? '● Cliente' : '○ Directorio')}
+                      ? (r.isOperational === false ? 'Catálogo' : 'En Red') 
+                      : (r.status === 'converted' ? 'Cliente' : 'Directorio')}
                   </span>
-                  <span className="text-[#8a7f7a] text-xs">{distLabel(r.distanceM)}</span>
+                  <span className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>{distLabel(r.distanceM)}</span>
                 </div>
-                <h3 className="font-bold text-[#f7f4f2] text-xl leading-tight truncate">{r.name}</h3>
-                <p className="text-[#5a524d] text-sm mt-0.5 truncate">{r.address}</p>
+                <h3 className="font-bold text-xl leading-tight truncate" style={{ color: 'var(--tgo-text-primary)' }}>{r.name}</h3>
+                <p className="text-sm mt-0.5 truncate" style={{ color: 'var(--tgo-text-muted)' }}>{r.address}</p>
                 {r.isOpenNow === true && (
-                  <p className="text-[#10b981] text-[10px] font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+                  <p className="text-[10px] font-bold uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--tgo-state-success)' }} />
                     Abierto ahora
                   </p>
                 )}
                 {r.isOpenNow === false && (
-                  <p className="text-[#ef4444] text-[10px] font-bold uppercase tracking-wider mt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider mt-1" style={{ color: 'var(--tgo-state-danger)' }}>
                     Cerrado ahora
                   </p>
                 )}
                 {isNetwork && r.isOperational === false && (
-                   <p className="text-[#f59e0b] text-[10px] font-black uppercase tracking-widest mt-1 animate-pulse">
-                     Próximamente takeaway
+                   <p className="text-[10px] font-black uppercase tracking-widest mt-1 animate-pulse" style={{ color: 'var(--tgo-state-warning)' }}>
+                     Proximamente takeaway
                    </p>
                 )}
               </div>
@@ -195,19 +225,16 @@ function BottomSheet({ r, onClose, onNavigate }: {
                 <button
                   onClick={onNavigate}
                   className="col-span-2 flex items-center justify-center gap-2.5 py-4 rounded-2xl text-white font-bold transition-transform active:scale-95"
-                  style={{ 
-                    background: r.isOperational === false 
-                      ? 'linear-gradient(135deg, #444, #222)' 
-                      : 'linear-gradient(135deg, #f14722, #e03e1d)', 
-                    boxShadow: r.isOperational === false
-                      ? 'none'
-                      : '0 4px 16px rgba(241,71,34,0.3)' 
+                  style={{
+                    backgroundColor: r.isOperational === false ? 'var(--tgo-surface-3)' : 'var(--tgo-state-interactive)',
+                    color: r.isOperational === false ? 'var(--tgo-text-muted)' : 'var(--tgo-text-on-interactive)',
+                    boxShadow: r.isOperational === false ? 'none' : '0 4px 16px var(--tgo-state-interactive-soft)',
                   }}
                 >
                   {r.isOperational === false ? (
-                    <>Ver carta (Próximamente)</>
+                    <>Ver carta (Proximamente)</>
                   ) : (
-                    <><ShoppingBag size={18} /> Ver menú y pedir</>
+                    <><ShoppingBag size={18} /> Ver menu y pedir</>
                   )}
                 </button>
               ) : (
@@ -215,16 +242,26 @@ function BottomSheet({ r, onClose, onNavigate }: {
                   {r.phone && (
                     <a
                       href={`tel:${r.phone}`}
-                      className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-white/5 text-white font-bold border border-white/10 active:scale-95"
+                      className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold active:scale-95"
+                      style={{
+                        backgroundColor: 'var(--tgo-surface-2)',
+                        color: 'var(--tgo-text-primary)',
+                        border: '1px solid var(--tgo-border)',
+                      }}
                     >
                       <Phone size={16} /> Llamar
                     </a>
                   )}
                   <button
                     onClick={onNavigate}
-                    className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-white/5 text-white font-bold border border-white/10 active:scale-95"
+                    className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--tgo-surface-2)',
+                      color: 'var(--tgo-text-primary)',
+                      border: '1px solid var(--tgo-border)',
+                    }}
                   >
-                    <MapPin size={16} /> Detalle
+                    <MapPinIcon size={16} /> Detalle
                   </button>
                 </>
               )}
@@ -347,7 +384,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
   }, [userLat, userLng, restaurants, onSelect, isTouch, showCard, hideCard])
 
   return (
-    <div className="relative w-full h-full consumer-dark">
+    <div className="relative w-full h-full" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
       <div ref={containerRef} className="w-full h-full" />
 
       {/* Hover card — desktop */}
@@ -373,11 +410,23 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-[500]">
         <button
           onClick={() => mapRef.current?.zoomIn()}
-          className="w-10 h-10 rounded-xl glass-card flex items-center justify-center text-white font-bold active:scale-95"
+          className="w-10 h-10 rounded-xl flex items-center justify-center font-bold active:scale-95"
+          style={{
+            backgroundColor: 'var(--tgo-surface-1)',
+            color: 'var(--tgo-text-primary)',
+            border: '1px solid var(--tgo-border)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          }}
         >+</button>
         <button
           onClick={() => mapRef.current?.zoomOut()}
-          className="w-10 h-10 rounded-xl glass-card flex items-center justify-center text-white font-bold active:scale-95"
+          className="w-10 h-10 rounded-xl flex items-center justify-center font-bold active:scale-95"
+          style={{
+            backgroundColor: 'var(--tgo-surface-1)',
+            color: 'var(--tgo-text-primary)',
+            border: '1px solid var(--tgo-border)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          }}
         >-</button>
       </div>
     </div>

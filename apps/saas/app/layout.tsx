@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning data-design="spatial">
       <body className={geist.className}>
         <AuthProvider>
           <LocationProvider>

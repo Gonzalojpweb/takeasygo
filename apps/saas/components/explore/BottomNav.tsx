@@ -30,7 +30,14 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[1000] bg-[#fafafa]/95 backdrop-blur-xl border-t border-zinc-200/50 pb-[safe-area-inset-bottom] h-[calc(64px+env(safe-area-inset-bottom,0px))]">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-[1000] pb-[safe-area-inset-bottom] h-[calc(64px+env(safe-area-inset-bottom,0px))]"
+      style={{
+        backgroundColor: 'var(--tgo-surface-0)',
+        borderTop: '1px solid var(--tgo-border)',
+        backdropFilter: 'blur(16px)',
+      }}
+    >
       <div className="max-w-lg mx-auto h-14 flex items-center justify-around px-2 relative">
         
         {TABS.map((tab) => {
@@ -42,17 +49,20 @@ export default function BottomNav() {
               <div key={tab.id} className="relative w-16 h-full flex flex-col items-center justify-center -top-3">
                 <button
                   onClick={() => router.push(tab.href)}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
-                    isActive 
-                      ? 'bg-[#f54500] text-white scale-110 shadow-[#f54500]/40' 
-                      : 'bg-zinc-900 text-white hover:bg-zinc-800'
-                  }`}
+                  className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300"
+                  style={{
+                    backgroundColor: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-2)',
+                    color: 'var(--tgo-text-on-interactive)',
+                    transform: isActive ? 'scale(1.1)' : undefined,
+                    boxShadow: isActive ? '0 4px 16px var(--tgo-state-interactive-soft)' : undefined,
+                  }}
                 >
                   <Icon size={20} strokeWidth={isActive ? 3 : 2} />
                 </button>
-                <span className={`text-[9px] font-black uppercase mt-1 transition-colors ${
-                  isActive ? 'text-[#f54500]' : 'text-zinc-500'
-                }`}>
+                <span
+                  className="text-[9px] font-black uppercase mt-1 transition-colors"
+                  style={{ color: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-text-muted)' }}
+                >
                   {tab.label}
                 </span>
               </div>
@@ -65,14 +75,16 @@ export default function BottomNav() {
               href={tab.href}
               className="flex flex-col items-center justify-center gap-0.5 w-14 h-full transition-all active:scale-90"
             >
-              <div className={`relative flex items-center justify-center transition-colors ${
-                isActive ? 'text-[#f54500]' : 'text-zinc-400'
-              }`}>
+              <div
+                className="relative flex items-center justify-center transition-colors"
+                style={{ color: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-text-muted)' }}
+              >
                 <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
               </div>
-              <span className={`text-[9px] font-bold tracking-tight transition-colors ${
-                isActive ? 'text-[#f54500]' : 'text-zinc-400'
-              }`}>
+              <span
+                className="text-[9px] font-bold tracking-tight transition-colors"
+                style={{ color: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-text-muted)' }}
+              >
                 {tab.label}
               </span>
             </Link>
