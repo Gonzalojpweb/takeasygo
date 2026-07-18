@@ -10,7 +10,7 @@
 // Para componentes de negocio (RestaurantCard, ExperienceCard, etc.)
 // van en components/explore/tgo-business/
 
-export { Chip, chipVariants } from './Chip'
+export { Chip } from './Chip'
 export type { ChipProps } from './Chip'
 
 export { default as EmptyState } from './EmptyState'
