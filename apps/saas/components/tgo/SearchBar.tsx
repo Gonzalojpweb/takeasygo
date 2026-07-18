@@ -30,7 +30,7 @@ import {
 // Principio: Jamás mostrar vacío. Sin escribir una letra,
 // el usuario ya debería ver caminos para descubrir.
 
-import Chip from './Chip'
+import { Chip } from './Chip'
 
 // ── Sugerencias por defecto ──────────────────────────────────────────────────
 // Siempre visibles. Nunca vacío.
