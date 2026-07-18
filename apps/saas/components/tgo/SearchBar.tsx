@@ -229,6 +229,9 @@ export default function SearchBar({
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
+          aria-label={placeholder}
+          role="searchbox"
+          autoComplete="off"
           className="flex-1 bg-transparent outline-none min-w-0"
           style={{
             color: 'var(--tgo-text-primary)',

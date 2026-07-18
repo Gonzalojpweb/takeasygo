@@ -84,7 +84,7 @@ function QuickFiltersModule({
 }) {
   return (
     <div
-      className="flex gap-2 overflow-x-auto scrollbar-none"
+      className="flex gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none"
       style={{ paddingInline: 'var(--tgo-page-padding)' }}
     >
       {QUICK_FILTERS.map((f) => (
@@ -275,6 +275,20 @@ const CATEGORY_CONFIG: Record<
   Mexicana: { icon: '🌮', color: '#E03A0E', bg: 'rgba(224, 58, 14, 0.08)' },
   Italiana: { icon: '🍝', color: '#D94A3D', bg: 'rgba(217, 74, 61, 0.08)' },
   Café: { icon: '☕', color: '#065D63', bg: 'rgba(6, 93, 99, 0.08)' },
+  Parrilla: { icon: '🥩', color: '#C2410C', bg: 'rgba(194, 65, 12, 0.08)' },
+  Japonesa: { icon: '🍱', color: '#DC2626', bg: 'rgba(220, 38, 38, 0.08)' },
+  China: { icon: '🥡', color: '#B91C1C', bg: 'rgba(185, 28, 28, 0.08)' },
+  India: { icon: '🍛', color: '#D97706', bg: 'rgba(217, 119, 6, 0.08)' },
+  Arabe: { icon: '🧆', color: '#92400E', bg: 'rgba(146, 64, 14, 0.08)' },
+  Peruana: { icon: '🥘', color: '#DC2626', bg: 'rgba(220, 38, 38, 0.08)' },
+  Vegana: { icon: '🌱', color: '#15803D', bg: 'rgba(21, 128, 61, 0.08)' },
+  Postres: { icon: '🍰', color: '#DB2777', bg: 'rgba(219, 39, 119, 0.08)' },
+  Cervecería: { icon: '🍺', color: '#CA8A04', bg: 'rgba(202, 138, 4, 0.08)' },
+  Bagels: { icon: '🥯', color: '#A16207', bg: 'rgba(161, 98, 7, 0.08)' },
+  Empanadas: { icon: '🥟', color: '#C2410C', bg: 'rgba(194, 65, 12, 0.08)' },
+  Milanesas: { icon: '🍳', color: '#B45309', bg: 'rgba(180, 83, 9, 0.08)' },
+  Mariscos: { icon: '🦐', color: '#0891B2', bg: 'rgba(8, 145, 178, 0.08)' },
+  Heladería: { icon: '🍦', color: '#E11D48', bg: 'rgba(225, 29, 72, 0.08)' },
 }
 
 function CategoriesModule({
@@ -292,7 +306,7 @@ function CategoriesModule({
       {categories.slice(0, 8).map((cat) => {
         const config = CATEGORY_CONFIG[cat] ?? {
           icon: '🍽',
-          color: 'var(--tgo-text-muted)',
+          color: 'var(--tgo-text-secondary)',
           bg: 'var(--tgo-surface-2)',
         }
         return (
@@ -367,7 +381,7 @@ export default function DiscoveryFeed({
 
   if (loading && !data) {
     return (
-      <div className="h-full bg-white">
+      <div className="h-full" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
         <div className="p-6 space-y-6">
           <div className="h-10 w-48 bg-[var(--tgo-surface-2)] rounded-lg animate-pulse" />
           <div className="h-12 bg-[var(--tgo-surface-2)] rounded-full animate-pulse" />
@@ -431,15 +445,13 @@ export default function DiscoveryFeed({
       </Section>
 
       {/* 6. Experiences */}
-      {promotions.length > 0 && (
-        <Section
-          title="Beneficios"
-          subtitle="Lo que tenés como miembro"
-          href="/promociones"
-        >
-          <ExperiencesModule experiences={promotions} />
-        </Section>
-      )}
+      <Section
+        title="Beneficios"
+        subtitle="Lo que tenés como miembro"
+        href="/promociones"
+      >
+        <ExperiencesModule experiences={promotions} />
+      </Section>
 
       {/* 7. Trending */}
       {nearbyTenants.length > 0 && (
