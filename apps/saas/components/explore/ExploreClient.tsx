@@ -4,14 +4,15 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
-import RestaurantCard, { FeaturedCard } from './RestaurantCard'
+import { RestaurantCard } from '@/components/tgo-business'
+import { Section } from '@/components/tgo'
+import { HorizontalScroller } from '@/components/tgo'
+import { EmptyState } from '@/components/tgo'
 import ExploreHeader from './ExploreHeader'
 import BottomNav from './BottomNav'
 import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
 import { GpsLoading, FetchOverlay } from './ExploreLoadingSkeleton'
-import { MapPin } from 'lucide-react'
-import { BlurFade } from '@/components/ui/blur-fade'
 import SelfReportModal from '@/components/consumer/SelfReportModal'
 import LoadingScreen from './LoadingScreen'
 import OnboardingCarousel from './OnboardingCarousel'
@@ -268,8 +269,37 @@ function ExploreClientInner() {
   const featuredRestaurants = filtered.filter(r => r.type === 'network').slice(0, 7)
   const listRestaurants = filtered
 
+  // ── Infinite scroll ───────────────────────────────────────────────────
+  const ITEMS_PER_PAGE = 10
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+  const visibleListRestaurants = listRestaurants.slice(0, visibleCount)
+  const hasMore = visibleCount < listRestaurants.length
+
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasMore) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + ITEMS_PER_PAGE)
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(loadMoreRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, listRestaurants.length])
+
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(ITEMS_PER_PAGE)
+  }, [activeCuisine, openNowOnly, searchQuery])
+
   return (
-    <div className="flex flex-col h-full bg-[#fafafa] overflow-hidden">
+    <div
+      className="flex flex-col h-full overflow-hidden"
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+    >
       <AnimatePresence mode="wait">
         {showSplash && <LoadingScreen key="splash" />}
         {showOnboarding && <OnboardingCarousel key="onboarding" onComplete={handleOnboardingComplete} />}
@@ -280,9 +310,33 @@ function ExploreClientInner() {
         <InstallBanner />
         <PushSubscriber />
         {gpsLoading && !gpsResolved && view !== 'orders' && (
-          <div className="flex items-center justify-center gap-2 py-1.5 bg-primary/5 border-b border-primary/10">
-            <div className="w-2 h-2 rounded-full bg-primary animate-ping" />
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Localizando...</span>
+          <div
+            className="flex items-center justify-center gap-2 py-1.5"
+            style={{
+              backgroundColor: 'var(--tgo-state-interactive-soft)',
+              borderBottom: '1px solid var(--tgo-border)',
+            }}
+          >
+            <div
+              className="animate-ping"
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 'var(--tgo-radius-pill)',
+                backgroundColor: 'var(--tgo-state-interactive)',
+              }}
+            />
+            <span
+              style={{
+                color: 'var(--tgo-state-interactive)',
+                fontSize: 10,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: 'var(--tgo-tracking-widest)',
+              }}
+            >
+              Localizando...
+            </span>
           </div>
         )}
 
@@ -327,105 +381,149 @@ function ExploreClientInner() {
                   setShowLeadModal(true)
                 }}
               />
-              <div className="h-full overflow-y-auto pb-24">
+              <div className="h-full overflow-y-auto pb-24" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
               {filtered.length === 0 ? (
-                /* Empty state */
-                <div className="flex flex-col items-center justify-center h-full gap-4 px-6 py-20">
-                  <div className="w-20 h-20 rounded-full bg-[var(--c-surface)] flex items-center justify-center">
-                    <MapPin size={32} className="text-[#5a524d]" />
-                  </div>
-                  {activeFilters > 0 ? (
-                    <>
-                      <p className="text-[#f7f4f2] text-sm font-semibold">Sin resultados</p>
-                      <p className="text-[#5a524d] text-xs text-center max-w-[240px]">
-                        Probá cambiando los filtros o ampliando el radio de búsqueda
-                      </p>
-                      <button
-                        onClick={() => { setActiveCuisine(null); setOpenNowOnly(false); setSearchQuery('') }}
-                        className="text-xs text-[#f14722] font-semibold underline underline-offset-2 cursor-pointer"
-                      >
-                        Limpiar filtros
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-[#f7f4f2] text-sm font-semibold">Sin restaurantes en este radio</p>
-                      <p className="text-[#5a524d] text-xs text-center max-w-[240px]">
-                        Probá ampliar el radio de búsqueda para encontrar opciones cerca
-                      </p>
-                    </>
-                  )}
-                </div>
+                <EmptyState
+                  icon={<span style={{ fontSize: 28 }}>📍</span>}
+                  title={activeFilters > 0 ? 'Sin resultados' : 'Sin restaurantes en este radio'}
+                  subtitle={
+                    activeFilters > 0
+                      ? 'Probá cambiando los filtros o ampliando el radio de búsqueda'
+                      : 'Probá ampliar el radio de búsqueda para encontrar opciones cerca'
+                  }
+                  action={
+                    activeFilters > 0
+                      ? {
+                          label: 'Limpiar filtros',
+                          onClick: () => {
+                            setActiveCuisine(null)
+                            setOpenNowOnly(false)
+                            setSearchQuery('')
+                          },
+                        }
+                      : undefined
+                  }
+                  variant="search"
+                />
               ) : (
                 <div className="space-y-6 pt-2">
 
                   {/* ── Featured (network restaurants) horizontal scroll ── */}
                   {featuredRestaurants.length > 0 && (
-                    <section>
-                      <div className="px-4 mb-2">
-                        <h2 className="text-[#f7f4f2] text-sm font-bold">
-                          Recomendados para vos
-                        </h2>
-                        <p className="text-[#5a524d] text-[10px]">
-                          Opciones que tienen sentido ahora mismo
-                        </p>
-                      </div>
-                      <div className="flex gap-3 px-4 overflow-x-auto no-scrollbar snap-scroll-x pb-2">
+                    <Section
+                      title="Recomendados para vos"
+                      subtitle="Opciones que tienen sentido ahora mismo"
+                    >
+                      <HorizontalScroller>
                         {featuredRestaurants.map((r, i) => (
-                          <BlurFade key={r.id} delay={i * 0.08} inView>
-                            <FeaturedCard
-                              restaurant={r}
-                              index={i}
-                              onNavigate={() => {
-                                 setTenantSlug(r.id)
-                                 router.push(`/app/${r.id}?type=${r.type}`)
-                               }}
-                             />
-                           </BlurFade>
-                         ))}
-                       </div>
-                     </section>
-                   )}
-
-                   {/* ── All restaurants (compact list) ── */}
-                   <section className="px-4">
-                     <div className="mb-3">
-                       <h2 className="text-[#f7f4f2] text-sm font-bold">
-                         {featuredRestaurants.length > 0 ? 'Todas las opciones' : 'Opciones cercanas'}
-                       </h2>
-                     </div>
-                     <div className="space-y-2">
-                       {listRestaurants.map((r, i) => (
-                         <BlurFade key={r.id} delay={Math.min(i * 0.05, 0.4)} inView>
-                           <RestaurantCard
-                             restaurant={r}
-                             onNavigate={() => {
-                               setTenantSlug(r.id)
-                               router.push(`/app/${r.id}?type=${r.type}`)
-                             }}
+                          <RestaurantCard
+                            key={r.id}
+                            restaurant={r}
+                            layout="hero"
+                            index={i}
+                            onNavigate={() => {
+                              setTenantSlug(r.id)
+                              router.push(`/app/${r.id}?type=${r.type}`)
+                            }}
                           />
-                        </BlurFade>
+                        ))}
+                      </HorizontalScroller>
+                    </Section>
+                  )}
+
+                  {/* ── All restaurants (compact list) ── */}
+                  <Section
+                    title={
+                      featuredRestaurants.length > 0
+                        ? 'Todas las opciones'
+                        : 'Opciones cercanas'
+                    }
+                    subtitle={`${listRestaurants.length} locales encontrados`}
+                  >
+                    <div
+                      className="flex flex-col gap-3"
+                      style={{ paddingInline: 'var(--tgo-page-padding)' }}
+                    >
+                      {visibleListRestaurants.map((r) => (
+                        <RestaurantCard
+                          key={r.id}
+                          restaurant={r}
+                          layout="list"
+                          onNavigate={() => {
+                            setTenantSlug(r.id)
+                            router.push(`/app/${r.id}?type=${r.type}`)
+                          }}
+                        />
                       ))}
                     </div>
-                  </section>
+
+                    {/* Infinite scroll trigger */}
+                    {hasMore && (
+                      <div
+                        ref={loadMoreRef}
+                        className="flex items-center justify-center py-4"
+                      >
+                        <div
+                          className="animate-spin"
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: 'var(--tgo-radius-pill)',
+                            border: '2px solid var(--tgo-border)',
+                            borderTopColor: 'var(--tgo-state-interactive)',
+                          }}
+                        />
+                      </div>
+                    )}
+                  </Section>
 
                   {/* Footer B2B CTA */}
-                  <section className="px-4 pb-12 pt-4">
-                    <div className="glass-card rounded-2xl p-6 text-center space-y-3">
-                      <p className="text-[#f7f4f2] text-sm font-bold">¿Tu restaurante no está en el mapa?</p>
-                      <p className="text-[#5a524d] text-[11px] leading-relaxed">
-                        Sumanos a TGO y empezá a recibir pedidos sin comisiones ridículas.
+                  <section style={{ paddingInline: 'var(--tgo-page-padding)', paddingBottom: 48, paddingTop: 16 }}>
+                    <div
+                      className="text-center"
+                      style={{
+                        padding: 'var(--tgo-space-6)',
+                        borderRadius: 'var(--tgo-radius-xl)',
+                        backgroundColor: 'var(--tgo-surface-1)',
+                        border: '1px solid var(--tgo-border)',
+                      }}
+                    >
+                      <p
+                        style={{
+                          color: 'var(--tgo-text-primary)',
+                          fontSize: 'var(--tgo-type-body-sm)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        ¿Tu restaurante no está en el mapa?
+                      </p>
+                      <p
+                        className="mt-1"
+                        style={{
+                          color: 'var(--tgo-text-muted)',
+                          fontSize: 'var(--tgo-type-caption)',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        Sumanos a TGO y empezá a recibir pedidos sin comisiones
+                        ridículas.
                       </p>
                       <button
                         onClick={() => setShowLeadModal(true)}
-                        className="text-[#10b981] text-[11px] font-bold uppercase tracking-widest hover:text-[#10b981]/80 transition-colors cursor-pointer"
+                        className="mt-3"
+                        style={{
+                          color: 'var(--tgo-state-interactive)',
+                          fontSize: 'var(--tgo-type-caption)',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: 'var(--tgo-tracking-widest)',
+                        }}
                       >
                         Registrar mi restaurante →
                       </button>
                     </div>
                   </section>
 
-                  {/* Bottom padding for nav */}
                   <div className="h-8" />
                 </div>
               )}
@@ -451,9 +549,29 @@ function ExploreClientInner() {
                   onSelect={handleMapSelect}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-3 bg-[#fafafa]">
-                  <div className="w-8 h-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
-                  <p className="text-slate-400 text-[10px] font-bold">Localizando posición en el mapa...</p>
+                <div
+                  className="flex flex-col items-center justify-center h-full gap-3"
+                  style={{ backgroundColor: 'var(--tgo-surface-1)' }}
+                >
+                  <div
+                    className="animate-spin"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 'var(--tgo-radius-pill)',
+                      border: '2px solid var(--tgo-border)',
+                      borderTopColor: 'var(--tgo-state-interactive)',
+                    }}
+                  />
+                  <p
+                    style={{
+                      color: 'var(--tgo-text-muted)',
+                      fontSize: 10,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Localizando posición en el mapa...
+                  </p>
                 </div>
               )}
             </div>
