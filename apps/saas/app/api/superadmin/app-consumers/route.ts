@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       },
       {} as Record<string, number>
     )
-    const topZone = Object.entries(zoneCounts).sort(([, a]: [string, number], [, b]: [string, number]) => b - a)[0]
+    const topZone = (Object.entries(zoneCounts) as [string, number][]).sort(([, a], [, b]) => b - a)[0]
 
     return NextResponse.json({
       consumers,
