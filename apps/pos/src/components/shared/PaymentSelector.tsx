@@ -12,7 +12,7 @@ export function PaymentSelector({ total, onSelect }: PaymentSelectorProps) {
     <div className="flex flex-col gap-6">
       <div className="text-center">
         <div className="text-muted text-sm">Total a pagar</div>
-        <div style={{ fontSize: 32, fontWeight: 700, color: "var(--primary-action)" }}>
+        <div style={{ fontSize: 32, fontWeight: 700, color: "var(--brand-orange)" }}>
           {formatCurrency(total)}
         </div>
       </div>

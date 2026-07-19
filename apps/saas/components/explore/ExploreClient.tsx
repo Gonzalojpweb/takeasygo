@@ -15,7 +15,7 @@ import PushSubscriber from './PushSubscriber'
 import { GpsLoading, FetchOverlay } from './ExploreLoadingSkeleton'
 import SelfReportModal from '@/components/consumer/SelfReportModal'
 import LoadingScreen from './LoadingScreen'
-import OnboardingCarousel from './OnboardingCarousel'
+import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '@/contexts/TenantContext'
 import { Button } from '@/components/ui/button'
@@ -127,43 +127,67 @@ function ExploreClientInner() {
   const [gpsLoading, setGpsLoading] = useState(false)
   const [gpsResolved, setGpsResolved] = useState(!!readGpsCache())
 
-  // ── Splash cache: solo mostrar una vez por sesión ───────────────────────
+  // ── Splash + Onboarding Logic (dynamic duration) ──────────────────────
   const SPLASH_CACHE_KEY = 'tgo_splash_shown'
+  const ONBOARDING_CACHE_KEY = 'takeasy_onboarding_seen'
   const [showSplash, setShowSplash] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [splashReady, setSplashReady] = useState(false)
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(true) // Default true for SSR
 
   useEffect(() => {
     sidRef.current = getOrCreateSessionId()
   }, [])
 
-  // Ocultar splash al hidratar si ya se vio en esta sesión
+  // Check onboarding status client-side only (avoids hydration mismatch)
+  useEffect(() => {
+    const seen = localStorage.getItem(ONBOARDING_CACHE_KEY) === 'true'
+    setHasSeenOnboarding(seen)
+  }, [])
+
+  // Dynamic splash: wait for data + minimum 600ms
   useEffect(() => {
     if (sessionStorage.getItem(SPLASH_CACHE_KEY)) {
       setShowSplash(false)
+      setSplashReady(true)
+      return
     }
-  }, [])
 
-  // ── Session/Onboarding Logic ────────────────────────────────────
-  useEffect(() => {
-    if (!showSplash) return
-    const timer = setTimeout(() => {
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 600))
+    const dataLoad = Promise.allSettled([
+      fetch('/api/auth/session').then(() => {}).catch(() => {}),
+      fetch('/api/explore/nearby?lat=-34.6037&lng=-58.3816&radius=2000').then(() => {}).catch(() => {}),
+      new Promise<void>((resolve) => {
+        if ('geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            () => resolve(),
+            () => resolve(),
+            { timeout: 2000, maximumAge: 300000 }
+          )
+        } else {
+          resolve()
+        }
+      }),
+    ])
+
+    Promise.all([minDelay, dataLoad]).then(() => {
       setShowSplash(false)
       sessionStorage.setItem(SPLASH_CACHE_KEY, 'true')
-      
-      // After splash, check if we need to show onboarding
-      const hasSeenOnboarding = localStorage.getItem('takeasy_onboarding_seen')
-      if (!hasSeenOnboarding) {
-        setShowOnboarding(true)
-      }
-    }, 1200)
-    
-    return () => clearTimeout(timer)
-  }, [showSplash])
+      setSplashReady(true)
+    })
+  }, [])
 
-  const handleOnboardingComplete = () => {
-    localStorage.setItem('takeasy_onboarding_seen', 'true')
+  // After splash ends + client hydrated, show onboarding if needed
+  useEffect(() => {
+    if (splashReady && !hasSeenOnboarding) {
+      setShowOnboarding(true)
+    }
+  }, [splashReady, hasSeenOnboarding])
+
+  const handleOnboardingComplete = useCallback(() => {
+    localStorage.setItem(ONBOARDING_CACHE_KEY, 'true')
     setShowOnboarding(false)
-  }
+  }, [])
 
   // ── Sync View with URL + track view changes ──────────────────────
   useEffect(() => {
@@ -302,7 +326,7 @@ function ExploreClientInner() {
     >
       <AnimatePresence mode="wait">
         {showSplash && <LoadingScreen key="splash" />}
-        {showOnboarding && <OnboardingCarousel key="onboarding" onComplete={handleOnboardingComplete} />}
+        {showOnboarding && <OnboardingFlow key="onboarding" onComplete={handleOnboardingComplete} />}
       </AnimatePresence>
 
       <div className={`flex flex-col h-full transition-opacity duration-1000 ${showSplash || showOnboarding ? 'opacity-0' : 'opacity-100'}`}>

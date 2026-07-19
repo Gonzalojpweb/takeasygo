@@ -241,7 +241,7 @@ export function IncomingOrdersDashboard() {
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     Pendientes
                   </div>
-                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: pendingCount > 0 ? "var(--warning)" : "var(--text-structure)" }}>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: pendingCount > 0 ? "var(--warning)" : "var(--text-primary)" }}>
                     {pendingCount}
                   </div>
                 </div>
@@ -281,7 +281,7 @@ export function IncomingOrdersDashboard() {
                     justifyContent: "space-between",
                     alignItems: "center",
                     padding: "var(--sp-1) 0",
-                    borderBottom: "1px solid var(--border-light)",
+                    borderBottom: "1px solid var(--border)",
                     cursor: "pointer",
                     opacity: item.status === "needs_attention" ? 0.6 : 1,
                     textDecoration: item.status === "needs_attention" ? "line-through" : "none",
@@ -302,7 +302,7 @@ export function IncomingOrdersDashboard() {
                   ⚠ {needsAttention} item(s) requieren atención. Hacé clic para alternar estado.
                 </div>
               )}
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "var(--sp-2)", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-structure)", fontWeight: 700 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "var(--sp-2)", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>
                 <span>Total</span>
                 <span>{formatCurrency(selectedOrder.total)}</span>
               </div>

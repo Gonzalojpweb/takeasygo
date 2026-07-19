@@ -304,7 +304,7 @@ export function CounterDashboard() {
             </button>
           ),
           center: (
-            <span style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, color: "var(--primary-action)" }}>
+            <span style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
               {formatCurrency(cartTotal)}
             </span>
           ),
@@ -333,7 +333,7 @@ export function CounterDashboard() {
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
                 Total cobrado
               </div>
-              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--primary-action)" }}>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
                 {formatCurrency(cartTotal)}
               </div>
               {customer && (

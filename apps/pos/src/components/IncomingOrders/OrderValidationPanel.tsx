@@ -50,7 +50,7 @@ export function OrderValidationPanel({ order, items, onToggleItem }: OrderValida
           ⚠ {needsAttention} item(s) requieren atención
         </div>
       )}
-      <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--sp-3)", borderTop: "2px solid var(--text-structure)", fontWeight: 700, fontSize: "var(--font-size-lg)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--sp-3)", borderTop: "2px solid var(--text-primary)", fontWeight: 700, fontSize: "var(--font-size-lg)" }}>
         <span>Total</span>
         <span>{formatCurrency(order.total)}</span>
       </div>

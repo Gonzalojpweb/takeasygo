@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { useTenant } from '@/contexts/TenantContext'
 import { useLocation } from './LocationContext'
 
@@ -331,11 +332,27 @@ export default function DiscoveryFeed({
 }: DiscoveryFeedProps) {
   const { currentAddress } = useLocation()
   const { setTenantSlug } = useTenant()
+  const { data: session } = useSession()
   const router = useRouter()
 
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [preferredCuisines, setPreferredCuisines] = useState<string[]>([])
+
+  // Fetch user preferences for personalization
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetch('/api/user/preferences')
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.exists && json.preferences?.cuisinePreferences) {
+            setPreferredCuisines(json.preferences.cuisinePreferences)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [session])
 
   useEffect(() => {
     if (currentAddress) fetchHomeData()
@@ -363,7 +380,19 @@ export default function DiscoveryFeed({
 
   const nearbyTenants: NearbyRestaurant[] = data?.nearbyTenants ?? []
   const promotions: any[] = data?.promotions ?? []
-  const categories: string[] = data?.categories ?? []
+  const rawCategories: string[] = data?.categories ?? []
+
+  // Sort categories: preferred cuisines first, then alphabetical
+  const categories = useMemo(() => {
+    if (preferredCuisines.length === 0) return rawCategories
+    const preferred = preferredCuisines.filter((c) =>
+      rawCategories.some((rc) => rc.toLowerCase().includes(c.toLowerCase()))
+    )
+    const rest = rawCategories.filter(
+      (rc) => !preferred.some((p) => rc.toLowerCase().includes(p.toLowerCase()))
+    )
+    return [...preferred, ...rest]
+  }, [rawCategories, preferredCuisines])
 
   // For now, use nearbyTenants for all modules (real impl would have separate APIs)
   const openNow = useMemo(
@@ -418,7 +447,7 @@ export default function DiscoveryFeed({
       style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       {/* 1. Greeting */}
-      <GreetingModule userName={userName} />
+      <GreetingModule userName={userName || session?.user?.name?.split(' ')[0] || ''} />
 
       {/* 2. SearchBar */}
       <div className="mt-3" style={{ paddingInline: 'var(--tgo-page-padding)' }}>

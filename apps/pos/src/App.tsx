@@ -89,7 +89,7 @@ function App() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "var(--surface-elevated)",
+        backgroundColor: "var(--surface-secondary)",
         fontFamily: "var(--font-family)",
       }}>
         <div className="loading-state">

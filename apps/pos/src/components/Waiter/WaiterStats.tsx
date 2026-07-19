@@ -16,8 +16,8 @@ export function WaiterStats({ tables, kitchenCommands }: WaiterStatsProps) {
         <div className="turno-stat-num">{total}</div>
         <div className="turno-stat-label">Mesas</div>
       </div>
-      <div className="turno-stat" style={{ borderColor: "var(--danger)" }}>
-        <div className="turno-stat-num" style={{ color: "var(--danger)" }}>
+      <div className="turno-stat" style={{ borderColor: "var(--error)" }}>
+        <div className="turno-stat-num" style={{ color: "var(--error)" }}>
           {attention}
         </div>
         <div className="turno-stat-label">Atención</div>

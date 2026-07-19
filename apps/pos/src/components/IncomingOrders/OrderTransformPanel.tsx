@@ -28,7 +28,7 @@ export function OrderTransformPanel({
             <div className="text-muted text-sm" style={{ marginBottom: "var(--sp-4)" }}>
               El pedido online ya está disponible como orden local en el sistema POS
             </div>
-            <div style={{ padding: "var(--sp-3)", background: "var(--surface-hover)", borderRadius: "var(--radius)", marginBottom: "var(--sp-4)" }}>
+            <div style={{ padding: "var(--sp-3)", background: "var(--surface-secondary)", borderRadius: "var(--radius)", marginBottom: "var(--sp-4)" }}>
               <div style={{ fontWeight: 600, marginBottom: "var(--sp-1)" }}>Orden local ID</div>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
                 {transformResult.localOrderId}

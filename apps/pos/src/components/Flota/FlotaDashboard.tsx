@@ -69,7 +69,7 @@ export function FlotaDashboard() {
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     Conductores activos
                   </div>
-                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
                     {activeCount}
                   </div>
                 </div>
@@ -77,7 +77,7 @@ export function FlotaDashboard() {
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     Pedidos asignados
                   </div>
-                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
                     {assignedCount}
                   </div>
                 </div>
@@ -85,7 +85,7 @@ export function FlotaDashboard() {
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     Esperando asignación
                   </div>
-                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
                     {orders.length}
                   </div>
                 </div>
@@ -105,7 +105,7 @@ export function FlotaDashboard() {
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 Órdenes
               </div>
-              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
                 {orders.length}
               </div>
             </div>

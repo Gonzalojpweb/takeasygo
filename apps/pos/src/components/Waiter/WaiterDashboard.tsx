@@ -166,13 +166,13 @@ export function WaiterDashboard() {
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
                 Pedidos pendientes
               </div>
-              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
                 {pendingCommands.length}
               </div>
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", marginTop: "var(--sp-4)" }}>
                 Mesas activas
               </div>
-              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
                 {occupiedTables.length}
               </div>
             </div>
@@ -258,7 +258,7 @@ export function WaiterDashboard() {
                       {readyCommands.map((cmd) => (
                         <div key={cmd.id} style={{
                           padding: "var(--sp-3)",
-                          background: "var(--surface-elevated)",
+                          background: "var(--surface-secondary)",
                           border: "2px solid var(--success)",
                           borderRadius: 8,
                           marginBottom: "var(--sp-2)",
@@ -279,15 +279,15 @@ export function WaiterDashboard() {
                       {preparingCommands.map((cmd) => (
                         <div key={cmd.id} style={{
                           padding: "var(--sp-3)",
-                          background: "var(--surface-elevated)",
-                          border: cmd.delayed ? "1px solid var(--danger)" : "1px solid var(--border-light)",
+                          background: "var(--surface-secondary)",
+                          border: cmd.delayed ? "1px solid var(--error)" : "1px solid var(--border)",
                           borderRadius: 8,
                           marginBottom: "var(--sp-2)",
                         }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <span style={{ fontWeight: 500, fontSize: "var(--font-size-sm)" }}>Mesa {cmd.tableNumber}</span>
                             {cmd.delayed && (
-                              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--danger)", fontWeight: 600 }}>⚠ Demorado</span>
+                              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--error)", fontWeight: 600 }}>⚠ Demorado</span>
                             )}
                           </div>
                         </div>
@@ -526,7 +526,7 @@ export function WaiterDashboard() {
                       {pendingCommands.filter((c) => c.status !== "ready").map((cmd) => (
                         <div key={cmd.id} style={{
                           background: "var(--surface)",
-                          border: cmd.delayed ? "2px solid var(--danger)" : "1px solid var(--border)",
+                          border: cmd.delayed ? "2px solid var(--error)" : "1px solid var(--border)",
                           borderRadius: 10,
                           padding: 16,
                           marginBottom: 8,
@@ -537,21 +537,21 @@ export function WaiterDashboard() {
                                 width: 36,
                                 height: 36,
                                 borderRadius: 8,
-                                background: cmd.delayed ? "var(--danger-light)" : "var(--warning-light)",
+                                background: cmd.delayed ? "var(--error-light)" : "var(--warning-light)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 fontWeight: 600,
-                                color: cmd.delayed ? "var(--danger)" : "#B8860B",
+                                color: cmd.delayed ? "var(--error)" : "#B8860B",
                               }}>{cmd.tableNumber}</div>
                               <div>
                                 <div style={{ fontWeight: 500 }}>Mesa {cmd.tableNumber}</div>
                                 {cmd.delayed && (
-                                  <div style={{ fontSize: 13, color: "var(--danger)" }}>⚠ Demorado</div>
+                                  <div style={{ fontSize: 13, color: "var(--error)" }}>⚠ Demorado</div>
                                 )}
                               </div>
                             </div>
-                            <span style={{ fontSize: 13, color: cmd.delayed ? "var(--danger)" : "var(--text-muted)", ...(cmd.delayed ? { fontWeight: 600 } : {}) }}>
+                            <span style={{ fontSize: 13, color: cmd.delayed ? "var(--error)" : "var(--text-muted)", ...(cmd.delayed ? { fontWeight: 600 } : {}) }}>
                               {cmd.time || 0} min
                             </span>
                           </div>
@@ -633,7 +633,7 @@ export function WaiterDashboard() {
                         type="checkbox"
                         checked={deliveryChecked[item.productId] ?? true}
                         onChange={() => handleToggleDelivery(item.productId)}
-                        style={{ width: 16, height: 16, accentColor: "var(--primary-action)" }}
+                        style={{ width: 16, height: 16, accentColor: "var(--brand-orange)" }}
                       />
                       <span>{item.quantity}× {item.name}</span>
                     </label>
@@ -676,7 +676,7 @@ export function WaiterDashboard() {
               marginBottom: 16,
             }}>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Resumen del consumo</div>
-              <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: 12 }}>
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
                 {cart.length === 0 ? (
                   <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 20 }}>
                     Sin pedidos registrados
@@ -703,7 +703,7 @@ export function WaiterDashboard() {
                 justifyContent: "space-between",
               }}>
                 <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
-                <span style={{ fontSize: 20, fontWeight: 600, color: "var(--primary-action)" }}>
+                <span style={{ fontSize: 20, fontWeight: 600, color: "var(--brand-orange)" }}>
                   ${cartTotal.toLocaleString("es-AR")}
                 </span>
               </div>
