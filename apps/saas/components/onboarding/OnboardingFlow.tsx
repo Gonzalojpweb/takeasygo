@@ -78,6 +78,20 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       .finally(() => setIsSubmitting(false))
   }, [session, status])
 
+  // ── Auto-advance from auth → greeting if user is now authenticated ─────
+  // This handles the case where Google/Email sign-in caused a page redirect.
+  // After reload, OnboardingFlow restores to 'auth' step, but the user
+  // is already authenticated. We detect this and skip to 'greeting'.
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    if (currentStep !== 'auth') return
+    // Small delay to let the session propagate
+    const timer = setTimeout(() => {
+      setCurrentStep('greeting')
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [status, currentStep])
+
   // ── Seed LocationContext with onboarding zone ──────────────────────────
   useEffect(() => {
     if (data.zone && data.zone !== 'ubicacion_actual') {

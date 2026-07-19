@@ -24,7 +24,7 @@ const securityHeaders = [
       "frame-src https://www.mercadopago.com https://www.mercadopago.com.ar",
       "object-src 'none'",
       "base-uri 'self'",
-      "form-action 'self'",
+      "form-action 'self' https://accounts.google.com",
     ].join('; '),
   },
 ]
