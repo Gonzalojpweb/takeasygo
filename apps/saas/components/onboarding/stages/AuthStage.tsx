@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight, ArrowLeft, Mail } from 'lucide-react'
+import { ChevronRight, ArrowLeft, Mail, CheckCircle2 } from 'lucide-react'
 
 interface AuthStageProps {
   userName: string
@@ -12,22 +12,23 @@ interface AuthStageProps {
 
 export default function AuthStage({ userName, onComplete, onPersistData }: AuthStageProps) {
   const [showEmailInput, setShowEmailInput] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [sentEmail, setSentEmail] = useState('')
   const [email, setEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (showEmailInput) {
+    if (showEmailInput && !emailSent) {
       const timer = setTimeout(() => inputRef.current?.focus(), 300)
       return () => clearTimeout(timer)
     }
-  }, [showEmailInput])
+  }, [showEmailInput, emailSent])
 
   const handleGoogle = async () => {
     onPersistData()
     const { signIn } = await import('next-auth/react')
-    // signIn with callbackUrl does a full page redirect — onComplete() is never reached
     await signIn('google', { callbackUrl: '/app' })
   }
 
@@ -41,10 +42,20 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
     onPersistData()
     try {
       const { signIn } = await import('next-auth/react')
-      await signIn('email', { email: email.trim(), callbackUrl: '/app' })
-      // If redirect happens, this line is never reached
-      // If no redirect, advance to next step
-      onComplete()
+      const result = await signIn('email', {
+        email: email.trim(),
+        callbackUrl: '/app',
+        redirect: false,
+      })
+      if (result?.error) {
+        setError('Error al enviar. Intentá de nuevo.')
+        setSending(false)
+      } else {
+        // Email sent successfully — show confirmation screen
+        setSentEmail(email.trim())
+        setEmailSent(true)
+        setSending(false)
+      }
     } catch {
       setError('Error al enviar. Intentá de nuevo.')
       setSending(false)
@@ -52,7 +63,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
   }
 
   const handleEmailKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && email.trim()) {
+    if (e.key === 'Enter' && email.trim() && !sending) {
       handleEmailSubmit()
     }
   }
@@ -68,6 +79,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
     >
       <AnimatePresence mode="wait">
         {!showEmailInput ? (
+          /* ── Main auth screen ─────────────────────────────── */
           <motion.div
             key="auth-main"
             initial={{ opacity: 0, y: 20 }}
@@ -177,7 +189,96 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               </motion.button>
             </div>
           </motion.div>
+        ) : emailSent ? (
+          /* ── Email sent confirmation ─────────────────────── */
+          <motion.div
+            key="email-sent"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col items-center w-full"
+          >
+            {/* Check icon */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.1, duration: 0.5, type: 'spring', bounce: 0.4 }}
+              className="mb-8"
+            >
+              <CheckCircle2 size={64} color="#16A34A" strokeWidth={1.5} />
+            </motion.div>
+
+            {/* Title */}
+            <motion.h2
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="text-2xl font-bold tracking-tight mb-3 text-center"
+              style={{ color: '#F7F4F2' }}
+            >
+              Revisá tu email.
+            </motion.h2>
+
+            {/* Subtitle */}
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="text-sm text-center mb-3 leading-relaxed max-w-[280px]"
+              style={{ color: '#A09A95' }}
+            >
+              Te enviamos un link mágico para entrar sin contraseña.
+            </motion.p>
+
+            {/* Sent to */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+              className="text-sm font-medium text-center mb-10"
+              style={{ color: '#F74211' }}
+            >
+              {sentEmail}
+            </motion.p>
+
+            {/* Instructions */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+              className="w-full max-w-[300px] p-4 rounded-2xl mb-8"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <p className="text-xs text-center leading-relaxed" style={{ color: '#6B6560' }}>
+                Abrí el email en tu celular o computadora y hacé clic en el link. Vas a volver automáticamente a la app.
+              </p>
+            </motion.div>
+
+            {/* Back to try again */}
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.4 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                setEmailSent(false)
+                setShowEmailInput(false)
+                setEmail('')
+                setSentEmail('')
+              }}
+              className="flex items-center gap-1 text-sm font-medium"
+              style={{ color: '#6B6560' }}
+            >
+              <ArrowLeft size={14} />
+              Usar otro email
+            </motion.button>
+          </motion.div>
         ) : (
+          /* ── Email input screen ──────────────────────────── */
           <motion.div
             key="email-input"
             initial={{ opacity: 0, y: 20 }}
