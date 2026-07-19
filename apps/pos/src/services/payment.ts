@@ -37,7 +37,8 @@ export async function createMercadoPagoPreference(
 }
 
 export function isPaymentMethodAvailable(method: PaymentMethod): boolean {
-  const disabled: PaymentMethod[] = ["usdt", "pix"]
+  // Todos disponibles en v1 — kripton se habilita cuando la integración esté lista
+  const disabled: PaymentMethod[] = []
   return !disabled.includes(method)
 }
 
@@ -49,32 +50,30 @@ export function formatPaymentMethod(method: PaymentMethod): {
   switch (method) {
     case "cash":
       return { name: "Efectivo", icon: "💵", description: "Efectivo" }
-    case "debit":
-      return { name: "Débito", icon: "💳", description: "Tarjeta de débito" }
-    case "credit":
-      return { name: "Crédito", icon: "💳", description: "Tarjeta de crédito" }
-    case "pix":
-      return { name: "PIX", icon: "📱", description: "Pago digital" }
-    case "usdt":
-      return { name: "USDT", icon: "₮", description: "Cripto (próximamente)" }
-    case "mixed":
-      return { name: "Pago Mixto", icon: "⚖", description: "Dividir cuenta" }
+    case "mercadopago":
+      return { name: "MercadoPago", icon: "💳", description: "MP Point / QR" }
+    case "posnet_debit":
+      return { name: "POSNET Débito", icon: "💳", description: "Tarjeta de débito" }
+    case "posnet_credit":
+      return { name: "POSNET Crédito", icon: "💳", description: "Tarjeta de crédito" }
+    case "kripton":
+      return { name: "Kripton", icon: "🪙", description: "Criptomoneda" }
+    case "transfer":
+      return { name: "Transferencia", icon: "🏦", description: "Transferencia bancaria" }
     default:
       return { name: "Otro", icon: "💳", description: "" }
   }
 }
 
-export function resolvePaymentMethod(method: PaymentMethod): "cash" | "posnet" | "mercadopago" {
+/**
+ * Resuelve el tipo de pago para el POS interno.
+ * cash → efectivo directo, todo lo demás → terminal/cobro externo.
+ */
+export function resolvePaymentMethod(method: PaymentMethod): "cash" | "terminal" {
   switch (method) {
     case "cash":
       return "cash"
-    case "debit":
-    case "credit":
-    case "mixed":
-      return "posnet"
-    case "pix":
-      return "mercadopago"
     default:
-      return "posnet"
+      return "terminal"
   }
 }

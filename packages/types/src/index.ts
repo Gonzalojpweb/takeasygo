@@ -313,7 +313,32 @@ export interface KitchenCommandItem {
 // 10. PAYMENT — Pagos
 // ============================================================================
 
-export type PaymentMethod = "cash" | "posnet" | "mercadopago" | "debit" | "credit" | "pix" | "usdt" | "mixed"
+/**
+ * Métodos de pago soportados por el POS.
+ *
+ * Decisión: Consenso v1 §1 — Unificación del enum.
+ * - "posnet_debit" / "posnet_credit": POSNET con débito/crédito separados.
+ * - "kripton": criptomoneda (integración en curso).
+ * - "transfer": transferencia bancaria.
+ * - Se eliminan valores ambiguos del enum anterior: "posnet", "debit", "credit", "pix", "usdt", "mixed".
+ *
+ * Referencia: CheckoutLayout.tsx usa 'mercadopago' | 'kripton' | 'transfer'.
+ * El POS agrega efectivo y POSNET que son medios de pago presenciales.
+ */
+export type PaymentMethod = "cash" | "mercadopago" | "posnet_debit" | "posnet_credit" | "kripton" | "transfer"
+
+/**
+ * Canal por el cual llegó la venta.
+ * Decisión: Consenso v1 §1 — Separar canal de método de pago.
+ *
+ * - "counter": venta presencial en mostrador/salón.
+ * - "takeasygo": venta externa vía TakeasyGO (delivery, takeaway, dine-in app).
+ *
+ * Mapeo: orderMode del SaaS → CashChannel.
+ *   'dine-in' | 'business' → 'counter'
+ *   'takeaway' | 'delivery' → 'takeasygo'
+ */
+export type CashChannel = "counter" | "takeasygo"
 
 export type PaymentStatus = "pending" | "completed" | "failed" | "refunded"
 
@@ -365,6 +390,34 @@ export interface CashRegister {
   difference?: number
   movements: CashMovement[]
   status: CashRegisterStatus
+  /**
+   * Canal default para routing de pedidos TakeasyGO.
+   * Decisión: Consenso v1 §2.3 — Multi-caja routing.
+   *
+   * - null: esta caja acepta todos los canales (restaurante con una sola caja).
+   * - 'counter': solo recibe ventas presenciales.
+   * - 'takeasygo': solo recibe ventas de TakeasyGO.
+   *
+   * Si hay dos cajas abiertas, cada una tiene un defaultForChannel distinto.
+   * Si un pedido no tiene caja target, va a pendingMovements.
+   */
+  defaultForChannel: CashChannel | null
+  /**
+   * Snapshot inmutable del cierre.
+   * Decisión: Consenso v1 §3 — Z como snapshot inmutable.
+   *
+   * Se genera UNA VEZ al cerrar la caja. Nunca se recalcula.
+   * PDF, impresión y vista web leen de este objeto.
+   */
+  zReport?: ZReport
+  /**
+   * Token de alta entropía para compartir el Z Report por link.
+   * Decisión: Consenso v1 §4 — Vista web compartible.
+   *
+   * UUID v4 (128 bits de entropía). Válido por 30 días.
+   * La URL es: {SYNC_URL}/api/v1/z-report/{shareToken}
+   */
+  shareToken?: string
 }
 
 export interface CashMovement {
@@ -375,6 +428,19 @@ export interface CashMovement {
   userId: string
   timestamp: Date
   relatedOrderId?: string
+  /**
+   * Canal de la venta.
+   * Decisión: Consenso v1 §1 — Separar canal de método de pago.
+   */
+  channel: CashChannel
+  /**
+   * Método de pago utilizado.
+   * Decisión: Consenso v1 §1 — Dos campos independientes.
+   *
+   * Regla de negocio: expectedAmount (arqueo de efectivo) suma
+   * SOLO movimientos con paymentMethod === 'cash', sin importar channel.
+   */
+  paymentMethod: PaymentMethod
 }
 
 export type CashMovementType =
@@ -384,6 +450,71 @@ export type CashMovementType =
   | "deposit"
   | "sale"
   | "refund"
+
+// ============================================================================
+// 11b. Z REPORT — Snapshot inmutable de cierre
+// ============================================================================
+// Decisión: Consenso v1 §3 — El Z se genera UNA VEZ al cerrar y nunca se recalcula.
+// Fuente: generateZReport() en apps/pos/src/services/z-report.ts
+
+/**
+ * Resumen de movimientos por canal.
+ * Usado dentro de ZReport para el desglose counter vs takeasygo.
+ */
+export interface ZChannelSummary {
+  sales: number
+  income: number
+  expenses: number
+  refunds: number
+  movementCount: number
+}
+
+/**
+ * Reporte de cierre Z — snapshot inmutable.
+ *
+ * Se persiste en CashRegister.zReport al momento del cierre.
+ * PDF, impresión térmica y vista web leen EXCLUSIVAMENTE de este objeto.
+ * Nunca se recalcula después de generado.
+ *
+ * Estructura:
+ * - Totales generales (inicial, esperado, final, diferencia)
+ * - Desglose por canal (counter vs takeasygo)
+ * - Desglose por método de pago (cash, mercadopago, posnet_debit, etc.)
+ * - Resumen de movimientos (ingresos, egresos, ventas, reembolsos)
+ * - Metadata (quién cerró, cuándo se generó)
+ */
+export interface ZReport {
+  registerId: string
+  tenantId: string
+  closedAt: Date
+  closedBy: string
+
+  // ── Totales generales ────────────────────────────────────────────
+  initialAmount: number
+  finalAmount: number
+  expectedAmount: number
+  difference: number
+
+  // ── Desglose por canal ───────────────────────────────────────────
+  byChannel: {
+    counter: ZChannelSummary
+    takeasygo: ZChannelSummary
+  }
+
+  // ── Desglose por método de pago ──────────────────────────────────
+  // Key: PaymentMethod, Value: total de montos de ese método
+  byPaymentMethod: Record<PaymentMethod, number>
+
+  // ── Movimientos ──────────────────────────────────────────────────
+  totalMovements: number
+  incomeTotal: number
+  expenseTotal: number
+  salesTotal: number
+  refundTotal: number
+
+  // ── Metadata ─────────────────────────────────────────────────────
+  generatedAt: Date
+}
 
 // ============================================================================
 // 12. FISCAL — AFIP / Facturación
