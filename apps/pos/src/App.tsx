@@ -24,7 +24,10 @@ import {
   onReconnect,
 } from "./services/connectivity"
 import { flush } from "./services/event-queue"
-import { disconnectSocket } from "./services/socket-client"
+import { disconnectSocket, onSocketEvent } from "./services/socket-client"
+import { handleTakeasyGOSale } from "./services/sync-cash"
+import type { TakeasyGOSalePayload } from "./services/sync-cash"
+import { acknowledgeCashSale, fetchFailedCashSaleEvents } from "./services/sync-api"
 import "./styles/pos.css"
 
 type Context = "counter" | "customers" | "waiter" | "incoming" | "flota" | "caja" | "ventas"
@@ -57,15 +60,51 @@ function App() {
 
     startConnectivityMonitoring()
 
+    const unsubCashSale = onSocketEvent("cash_sale", (data: unknown) => {
+      const payload = data as TakeasyGOSalePayload
+      handleTakeasyGOSale(payload)
+        .then((result) => {
+          // ── ACK al Sync Layer (fire-and-forget) ─────────────────────
+          // Si el ACK falla (POS se cae justo después de procesar), el
+          // evento queda en "pending" y BullMQ reintenta. La idempotencia
+          // en handleTakeasyGOSale absorbe el reproceso sin duplicar.
+          // No es necesario reintentar el ACK — el reproceso es seguro.
+          if (payload.eventId && state.jwt) {
+            acknowledgeCashSale(payload.eventId, state.jwt.accessToken)
+          }
+          if (result.status !== "duplicate") {
+            console.log(`[App] cash_sale ${result.status}:`, payload.orderId)
+          }
+        })
+        .catch((err) => {
+          console.error("[App] cash_sale processing failed:", err)
+        })
+    })
+
     const unsubscribe = onReconnect(async () => {
       console.log("[App] reconnect detected, flushing events...")
       const result = await flush(state.tenantId!, state.jwt!.accessToken)
       if (result.synced > 0) {
         console.log(`[App] flushed ${result.synced} events`)
       }
+
+      // ── Fetch eventos fallidos del Sync Layer ──────────────────────
+      // Cuando el Hub reconecta, busca eventos que el Sync Layer no
+      // pudo entregar (status: "failed") y los muestra en Pendientes
+      // para que el manager los asigne manualmente.
+      const failedEvents = await fetchFailedCashSaleEvents(
+        state.tenantId!,
+        state.jwt!.accessToken
+      )
+      if (failedEvents.length > 0) {
+        console.warn(`[App] ${failedEvents.length} failed cash sale events found`)
+        // TODO: exponer failedEvents al CashDashboard para que el manager
+        // los vea en la escena "Pendientes" y pueda reintentar o asignar.
+      }
     })
 
     return () => {
+      unsubCashSale()
       unsubscribe()
       stopConnectivityMonitoring()
       disconnectSocket()
