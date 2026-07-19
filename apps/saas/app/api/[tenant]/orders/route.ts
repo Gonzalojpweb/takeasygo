@@ -1119,6 +1119,7 @@ export async function POST(
       pushOrderToSyncLayer({
         tenantId: tenant._id.toString(),
         items: resolvedItems.map((i: any) => ({
+          productId: i.menuItemId?.toString() ?? undefined,
           name: i.name,
           quantity: i.quantity,
           unitPrice: i.price,
