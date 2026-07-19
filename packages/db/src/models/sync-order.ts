@@ -6,7 +6,7 @@ export interface SyncOrderDocument extends Document {
   status: string
   tableId?: string
   items: Array<{
-    productId: string
+    productId?: string
     name: string
     quantity: number
     unitPrice: number
@@ -41,7 +41,7 @@ export const SyncOrderSchema = new Schema<SyncOrderDocument>(
     tableId: { type: String },
     items: [
       {
-        productId: { type: String, required: true },
+        productId: { type: String },
         name: { type: String, required: true },
         quantity: { type: Number, required: true },
         unitPrice: { type: Number, required: true },

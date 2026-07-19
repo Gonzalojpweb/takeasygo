@@ -5,7 +5,7 @@ export interface TranslatedOrder {
   source: "takeasygo" | "pos"
   status: string
   items: Array<{
-    productId: string
+    productId?: string
     name: string
     quantity: number
     unitPrice: number
