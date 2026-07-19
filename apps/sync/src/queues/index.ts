@@ -1,8 +1,10 @@
 import { Queue as BullQueue } from "bullmq"
 import Redis from "ioredis"
+import type { CashSaleJobData } from "./cash-sale-queue"
 
 export interface QueueServer {
   orderQueue: BullQueue
+  cashSaleQueue: BullQueue<CashSaleJobData>
 }
 
 export function createQueueServer(redisUrl: string): QueueServer {
@@ -22,5 +24,21 @@ export function createQueueServer(redisUrl: string): QueueServer {
     },
   })
 
-  return { orderQueue }
+  const cashSaleConnection = new Redis(redisUrl, { maxRetriesPerRequest: null })
+  cashSaleConnection.on("error", (err) => console.error("[queue/cash-sale/redis] error:", err.message))
+
+  const cashSaleQueue = new BullQueue<CashSaleJobData>("cash_sale", {
+    connection: cashSaleConnection as any,
+    defaultJobOptions: {
+      attempts: 10,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
+      removeOnComplete: 200,
+      removeOnFail: 100,
+    },
+  })
+
+  return { orderQueue, cashSaleQueue }
 }
