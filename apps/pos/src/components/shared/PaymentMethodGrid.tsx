@@ -3,11 +3,11 @@ import { isPaymentMethodAvailable, formatPaymentMethod } from "../../services/pa
 
 const ALL_METHODS: PaymentMethod[] = [
   "cash",
-  "debit",
-  "credit",
-  "pix",
-  "usdt",
-  "mixed",
+  "mercadopago",
+  "posnet_debit",
+  "posnet_credit",
+  "kripton",
+  "transfer",
 ]
 
 interface PaymentMethodGridProps {

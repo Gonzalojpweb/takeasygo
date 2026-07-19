@@ -1,5 +1,5 @@
 import Dexie from "dexie"
-import type { OfflineEvent, Table, Order, KitchenCommand, CashRegister } from "@takeasygo/types"
+import type { OfflineEvent, Table, Order, KitchenCommand, CashRegister, CashMovementType, CashChannel, PaymentMethod } from "@takeasygo/types"
 
 export interface TenantConfigRecord {
   tenantId: string
@@ -28,6 +28,28 @@ export type OrderRecord = Order
 export type CommandRecord = KitchenCommand
 export type CashRegisterRecord = CashRegister
 
+/**
+ * Movimiento huérfano — llegó cuando no había caja abierta.
+ * Decisión: Consenso v1 §2.2 — Tabla separada (no embebida en CashRegister).
+ *
+ * Se reasigna a la próxima caja que se abra, o manualmente por el manager.
+ * Fuente: sync-cash.ts → handleTakeasyGOSale()
+ */
+export interface PendingMovementRecord {
+  id: string
+  tenantId: string
+  type: CashMovementType
+  amount: number
+  reason: string
+  userId: string
+  timestamp: Date
+  relatedOrderId?: string
+  channel: CashChannel
+  paymentMethod: PaymentMethod
+  source: 'takeasygo_sync' | 'manual'
+  createdAt: Date
+}
+
 export class PosDatabase extends Dexie {
   tenantConfig!: Dexie.Table<TenantConfigRecord, string>
   session!: Dexie.Table<SessionRecord, string>
@@ -37,6 +59,7 @@ export class PosDatabase extends Dexie {
   orders!: Dexie.Table<OrderRecord, string>
   commands!: Dexie.Table<CommandRecord, string>
   cashRegister!: Dexie.Table<CashRegisterRecord, string>
+  pendingMovements!: Dexie.Table<PendingMovementRecord, string>
 
   constructor() {
     super("TakeasyGoPOS")
@@ -73,6 +96,17 @@ export class PosDatabase extends Dexie {
       orders: "id, tenantId, status, tableId, createdAt",
       commands: "id, tenantId, status, createdAt",
       cashRegister: "id, tenantId, status, openedAt",
+    })
+    this.version(6).stores({
+      tenantConfig: "tenantId",
+      session: "tenantId",
+      pendingEvents: "++id, tenantId, status, timestamp",
+      pairedSpokes: "deviceId, tenantId, pairedAt",
+      diningTable: "id, tenantId, status, section, number",
+      orders: "id, tenantId, status, tableId, createdAt",
+      commands: "id, tenantId, status, createdAt",
+      cashRegister: "id, tenantId, status, openedAt",
+      pendingMovements: "id, tenantId, relatedOrderId, createdAt",
     })
   }
 }
