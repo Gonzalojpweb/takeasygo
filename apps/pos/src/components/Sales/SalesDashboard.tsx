@@ -69,7 +69,7 @@ export function SalesDashboard() {
           body: (
             <div style={{ padding: "var(--sp-2)" }}>
               {order.items.map((item, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "var(--sp-1) 0", borderBottom: "1px solid var(--border-light)" }}>
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "var(--sp-1) 0", borderBottom: "1px solid var(--border)" }}>
                   <div>
                     <span style={{ fontSize: "var(--font-size-sm)" }}>{item.quantity}x {item.name}</span>
                     {item.modifiers?.map((m, j) => (
@@ -81,7 +81,7 @@ export function SalesDashboard() {
                   <span style={{ fontWeight: 600, fontSize: "var(--font-size-sm)" }}>{formatCurrency(item.total)}</span>
                 </div>
               ))}
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "var(--sp-2)", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-structure)", fontWeight: 700, fontSize: "var(--font-size-lg)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "var(--sp-2)", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700, fontSize: "var(--font-size-lg)" }}>
                 <span>Total</span>
                 <span>{formatCurrency(order.total)}</span>
               </div>
@@ -183,7 +183,7 @@ export function SalesDashboard() {
                   <div className="order-card-header">
                     <span className="order-card-id">Mesa {order.tableId ?? "—"}</span>
                     <span className="status-badge" style={{
-                      background: order.status === "delivered" ? "var(--success-bg, #e6f7e6)" : "var(--surface-hover)",
+                      background: order.status === "delivered" ? "var(--success-bg, #e6f7e6)" : "var(--surface-secondary)",
                       color: order.status === "delivered" ? "var(--success)" : "var(--text-secondary)",
                     }}>
                       {formatOrderStatus(order.status)}

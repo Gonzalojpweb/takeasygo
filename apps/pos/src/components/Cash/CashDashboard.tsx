@@ -162,7 +162,7 @@ export function CashDashboard() {
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                       Saldo esperado
                     </div>
-                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-structure)" }}>
+                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
                       {formatCurrency(currentBalance)}
                     </div>
                   </div>
@@ -186,7 +186,7 @@ export function CashDashboard() {
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                       Egresos
                     </div>
-                    <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--danger)" }}>
+                    <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--error)" }}>
                       -{formatCurrency(totalExpense)}
                     </div>
                   </div>
@@ -200,12 +200,12 @@ export function CashDashboard() {
                       </div>
                     ) : (
                       activeRegister.movements.slice(-10).reverse().map((m: CashMovement) => (
-                        <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--sp-1) 0", borderBottom: "1px solid var(--border-light)" }}>
+                        <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--sp-1) 0", borderBottom: "1px solid var(--border)" }}>
                           <div>
                             <span style={{ fontSize: "var(--font-size-sm)" }}>{MOVEMENT_TYPE_ICONS[m.type] ?? "•"} {MOVEMENT_TYPE_LABELS[m.type] ?? m.type}</span>
                             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>{m.reason}</div>
                           </div>
-                          <span style={{ fontWeight: 600, color: m.type === "expense" || m.type === "withdrawal" || m.type === "refund" ? "var(--danger)" : "var(--success)" }}>
+                          <span style={{ fontWeight: 600, color: m.type === "expense" || m.type === "withdrawal" || m.type === "refund" ? "var(--error)" : "var(--success)" }}>
                             {m.type === "expense" || m.type === "withdrawal" || m.type === "refund" ? "-" : "+"}{formatCurrency(m.amount)}
                           </span>
                         </div>
@@ -354,7 +354,7 @@ export function CashDashboard() {
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
                   Saldo esperado
                 </div>
-                <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--primary-action)" }}>
+                <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
                   {formatCurrency(currentBalance)}
                 </div>
               </div>
@@ -439,7 +439,7 @@ export function CashDashboard() {
                   </div>
                   <div className="card" style={{ textAlign: "center", padding: "var(--sp-3)", flex: 1, marginLeft: "var(--sp-2)" }}>
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>Total</div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: "var(--danger)" }}>{formatCurrency(totalExpenses)}</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "var(--error)" }}>{formatCurrency(totalExpenses)}</div>
                   </div>
                 </div>
               </div>
@@ -520,7 +520,7 @@ export function CashDashboard() {
                           </span>
                           <span style={{
                             fontWeight: 700,
-                            color: ["expense", "withdrawal", "refund"].includes(m.type) ? "var(--danger)" : "var(--success)",
+                            color: ["expense", "withdrawal", "refund"].includes(m.type) ? "var(--error)" : "var(--success)",
                           }}>
                             {["expense", "withdrawal", "refund"].includes(m.type) ? "-" : "+"}{formatCurrency(m.amount)}
                           </span>
@@ -606,7 +606,7 @@ export function CashDashboard() {
                   fontSize: "var(--font-size-lg)",
                   fontWeight: 700,
                   marginBottom: "var(--sp-4)",
-                  color: parseFloat(finalAmount) >= currentBalance ? "var(--success)" : "var(--danger)",
+                  color: parseFloat(finalAmount) >= currentBalance ? "var(--success)" : "var(--error)",
                 }}>
                   Diferencia: {formatCurrency(parseFloat(finalAmount) - currentBalance)}
                 </div>
@@ -636,7 +636,7 @@ export function CashDashboard() {
                     <div className="order-card-main">
                       <div className="order-card-header">
                         <span className="order-card-id">Cierre #{reg.id.slice(0, 8)}</span>
-                        <span className="status-badge" style={{ background: "var(--surface-hover)", color: "var(--text-secondary)" }}>
+                        <span className="status-badge" style={{ background: "var(--surface-secondary)", color: "var(--text-secondary)" }}>
                           {reg.closedAt ? timeAgo(reg.closedAt) : ""}
                         </span>
                       </div>
@@ -678,7 +678,7 @@ export function CashDashboard() {
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--sp-2) var(--sp-3)", borderBottom: "2px solid var(--border)", fontWeight: 700 }}>
                       <span>Total gastos</span>
-                      <span style={{ color: "var(--danger)" }}>{formatCurrency(totalExpenses)}</span>
+                      <span style={{ color: "var(--error)" }}>{formatCurrency(totalExpenses)}</span>
                     </div>
                     <div className="order-items">
                       {[...expenses].reverse().map((m) => (
@@ -686,7 +686,7 @@ export function CashDashboard() {
                           <div className="order-item-main">
                             <div className="order-item-top">
                               <span className="order-item-name">📤 {m.reason}</span>
-                              <span style={{ fontWeight: 700, color: "var(--danger)" }}>
+                              <span style={{ fontWeight: 700, color: "var(--error)" }}>
                                 -{formatCurrency(m.amount)}
                               </span>
                             </div>

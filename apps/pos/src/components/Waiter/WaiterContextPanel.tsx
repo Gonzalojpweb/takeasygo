@@ -37,7 +37,7 @@ export function WaiterContextPanel({
           width: 32,
           height: 32,
           borderRadius: 8,
-          background: "var(--primary-action)",
+          background: "var(--brand-orange)",
           color: "white",
           display: "flex",
           alignItems: "center",
@@ -76,17 +76,17 @@ export function WaiterContextPanel({
           {mesaOrders.map((cmd) => (
             <div key={cmd.id} style={{
               padding: "var(--sp-2)",
-              background: "var(--surface-elevated)",
+              background: "var(--surface-secondary)",
               borderRadius: 6,
               marginBottom: "var(--sp-2)",
-              border: cmd.delayed ? "1px solid var(--danger)" : "1px solid var(--border-light)",
+              border: cmd.delayed ? "1px solid var(--error)" : "1px solid var(--border)",
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ fontWeight: 600, fontSize: "var(--font-size-sm)" }}>Pedido #{cmd.id.slice(-4)}</span>
                 <span className={`status-badge ${cmd.status}`}>{formatOrderStatus(cmd.status)}</span>
               </div>
               {cmd.delayed && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--danger)", fontWeight: 600 }}>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--error)", fontWeight: 600 }}>
                   ⚠ Demorado ({cmd.time || 0} min)
                 </div>
               )}

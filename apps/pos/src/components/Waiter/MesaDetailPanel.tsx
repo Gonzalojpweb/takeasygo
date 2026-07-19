@@ -47,8 +47,8 @@ export function MesaDetailPanel({
       {table.needsBill && (
         <div style={{
           padding: "var(--sp-3)",
-          background: "var(--attention-light)",
-          border: "1px solid var(--attention)",
+          background: "var(--warning-light)",
+          border: "1px solid var(--warning)",
           borderRadius: 8,
           marginBottom: "var(--sp-4)",
           fontSize: "var(--font-size-sm)",
