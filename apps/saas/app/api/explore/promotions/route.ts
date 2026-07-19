@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
     const tenantNameMap = new Map(tenants.map(t => [t._id.toString(), t.name]))
     const tenantLogoMap = new Map(tenants.map(t => [t._id.toString(), t.branding?.logoUrl || '']))
 
+    const now = new Date()
     const promotionsRaw = await Promotion.find({
       $or: [
         { scope: 'tenant', tenantId: { $in: activeTenantIds } },
@@ -55,7 +56,23 @@ export async function GET(request: NextRequest) {
           ],
         },
       ],
-      isActive: true
+      isActive: true,
+      $and: [
+        {
+          $or: [
+            { scheduledStart: { $exists: false } },
+            { scheduledStart: null },
+            { scheduledStart: { $lte: now } },
+          ],
+        },
+        {
+          $or: [
+            { scheduledEnd: { $exists: false } },
+            { scheduledEnd: null },
+            { scheduledEnd: { $gte: now } },
+          ],
+        },
+      ],
     }).sort({ isFeatured: -1, sortOrder: 1 }).lean()
 
     const promotions = promotionsRaw.flatMap(p => {

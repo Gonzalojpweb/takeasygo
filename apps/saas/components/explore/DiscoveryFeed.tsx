@@ -510,17 +510,15 @@ export default function DiscoveryFeed({
         </Section>
       )}
 
-      {/* 7. Experiences */}
-      {promotions.length > 0 && (
-        <Section
-          title="Beneficios"
-          subtitle="Lo que tenés como miembro"
-          href="/promociones"
-          verticalPadding="var(--tgo-space-4)"
-        >
-          <ExperiencesModule experiences={promotions} />
-        </Section>
-      )}
+      {/* 7. Experiences / Beneficios */}
+      <Section
+        title="Beneficios"
+        subtitle={promotions.length > 0 ? 'Lo que tenés como miembro' : 'Próximamente'}
+        href="/app/promociones"
+        verticalPadding="var(--tgo-space-4)"
+      >
+        <ExperiencesModule experiences={promotions} />
+      </Section>
 
       {/* B2B CTA */}
       {onOpenLeadModal && (
