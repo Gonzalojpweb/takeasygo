@@ -22,7 +22,7 @@ export function SalesDashboard() {
   const loading = orders === undefined
 
   const completedOrders = useMemo(
-    () => (orders ?? []).filter((o) => o.status === "delivered" || o.status === "ready" || o.status === "confirmed"),
+    () => (orders ?? []).filter((o) => o.status !== "cancelled"),
     [orders]
   )
 

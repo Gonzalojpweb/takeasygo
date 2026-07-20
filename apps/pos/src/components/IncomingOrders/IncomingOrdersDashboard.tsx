@@ -126,13 +126,18 @@ export function IncomingOrdersDashboard() {
 
     const unsubCancelled = onSocketEvent("order:cancelled", (data: unknown) => {
       const event = data as { orderId: string; reason?: string }
-      setOrders((prev) => prev.filter((o) => o.id !== event.orderId))
-      showToast(
-        event.reason === "offline_timeout"
-          ? "Pedido expirado (timeout)"
-          : "Pedido cancelado",
-        "info"
-      )
+      setOrders((prev) => {
+        const existed = prev.some((o) => o.id === event.orderId)
+        if (existed) {
+          showToast(
+            event.reason === "offline_timeout"
+              ? "Pedido expirado (timeout)"
+              : "Pedido cancelado",
+            "info"
+          )
+        }
+        return prev.filter((o) => o.id !== event.orderId)
+      })
     })
 
     // Allow App.tsx to trigger a refresh on reconnect
