@@ -119,3 +119,37 @@ export async function retryCashSaleEvent(
     return false
   }
 }
+
+// ============================================================================
+// Pending Orders — Fetch órdenes pendientes del SyncLayer (reconnect recovery)
+// ============================================================================
+
+export interface PendingSyncOrder {
+  orderId: string
+  tenantId: string
+  source: string
+  status: string
+  items: Array<{ name: string; quantity: number; unitPrice: number; total: number }>
+  total: number
+  createdAt: string
+}
+
+export async function fetchPendingOrders(
+  tenantId: string,
+  jwt: string
+): Promise<PendingSyncOrder[]> {
+  try {
+    const res = await fetch(
+      `${SYNC_URL}/api/v1/internal/orders?tenantId=${tenantId}&status=pending`,
+      {
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+        },
+      }
+    )
+    if (!res.ok) return []
+    return await res.json()
+  } catch {
+    return []
+  }
+}

@@ -3,7 +3,7 @@ import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
 import { config } from "../config"
 import { createTranslatedOrder, updateOrderStatus } from "../services/order-translator"
-import { enqueueOrderCreated } from "../queues/order-queue"
+import { enqueueOrderCreated, removePendingOrder } from "../queues/order-queue"
 
 function internalAuth(req: any, res: any, next: any) {
   const header = req.headers.authorization ?? ""
@@ -50,7 +50,7 @@ export function internalRouter(
         tenantId: data.tenantId,
         orderId,
         timestamp: new Date().toISOString(),
-        offlineTimeoutMs: 3 * 60 * 1000,
+        offlineTimeoutMs: 10 * 60 * 1000,
       })
 
       res.status(201).json({ orderId })
@@ -76,6 +76,8 @@ export function internalRouter(
         return
       }
 
+      await removePendingOrder(orderQueue, orderId)
+
       io.to(`tenant:${tenantId}`).emit("order:confirmed", {
         orderId,
         tenantId,
@@ -85,6 +87,39 @@ export function internalRouter(
       res.json({ status: "confirmed" })
     } catch (err) {
       console.error("[internal/orders] confirm error:", err)
+      res.status(500).json({ error: "Internal server error" })
+    }
+  })
+
+  router.get("/orders", async (req, res) => {
+    try {
+      const { tenantId, status } = req.query as { tenantId?: string; status?: string }
+      if (!tenantId) {
+        res.status(400).json({ error: "tenantId required" })
+        return
+      }
+
+      const filter: Record<string, any> = { tenantId }
+      if (status) {
+        filter.status = { $in: status.split(",") }
+      }
+
+      const { SyncOrderModel } = await import("@takeasygo/db")
+      const docs = await SyncOrderModel.find(filter).sort({ createdAt: -1 }).limit(50).lean()
+
+      const orders = docs.map((doc: any) => ({
+        orderId: doc._id.toString(),
+        tenantId: doc.tenantId,
+        source: doc.source,
+        status: doc.status,
+        items: doc.items,
+        total: doc.total,
+        createdAt: doc.createdAt,
+      }))
+
+      res.json(orders)
+    } catch (err) {
+      console.error("[internal/orders] list error:", err)
       res.status(500).json({ error: "Internal server error" })
     }
   })
