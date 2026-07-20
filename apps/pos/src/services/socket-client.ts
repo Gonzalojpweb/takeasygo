@@ -6,10 +6,20 @@ const SYNC_URL = import.meta.env.VITE_SYNC_URL;
 type SocketCallback = (data: unknown) => void
 
 let socket: Socket | null = null
+let currentJwt: string | null = null
 let listeners: Map<string, Set<SocketCallback>> = new Map()
+let registeredOnSocket: Map<string, Set<SocketCallback>> = new Map()
 
 export function connectSocket(jwt: string): Socket {
-  if (socket?.connected) return socket
+  if (socket && socket.connected && currentJwt === jwt) return socket
+
+  if (socket) {
+    socket.removeAllListeners()
+    socket.disconnect()
+  }
+
+  currentJwt = jwt
+  registeredOnSocket.clear()
 
   socket = io(SYNC_URL, {
     auth: { token: jwt },
@@ -22,12 +32,20 @@ export function connectSocket(jwt: string): Socket {
 
   function attachListeners() {
     listeners.forEach((callbacks, event) => {
-      callbacks.forEach((cb) => socket!.on(event, cb))
+      const registered = registeredOnSocket.get(event) ?? new Set()
+      callbacks.forEach((cb) => {
+        if (!registered.has(cb)) {
+          socket!.on(event, cb)
+          registered.add(cb)
+        }
+      })
+      registeredOnSocket.set(event, registered)
     })
   }
 
   socket.on("connect", () => {
     console.log("[socket] connected")
+    registeredOnSocket.clear()
     attachListeners()
   })
 
@@ -46,8 +64,11 @@ export function connectSocket(jwt: string): Socket {
 
 export function disconnectSocket(): void {
   if (socket) {
+    socket.removeAllListeners()
     socket.disconnect()
     socket = null
+    currentJwt = null
+    registeredOnSocket.clear()
   }
 }
 
@@ -57,13 +78,21 @@ export function onSocketEvent(event: string, callback: SocketCallback): () => vo
   }
   listeners.get(event)!.add(callback)
 
-  if (socket) {
-    socket.on(event, callback)
+  if (socket?.connected) {
+    const registered = registeredOnSocket.get(event) ?? new Set()
+    if (!registered.has(callback)) {
+      socket.on(event, callback)
+      registered.add(callback)
+      registeredOnSocket.set(event, registered)
+    }
   }
 
   return () => {
     listeners.get(event)?.delete(callback)
-    socket?.off(event, callback)
+    if (socket) {
+      socket.off(event, callback)
+      registeredOnSocket.get(event)?.delete(callback)
+    }
   }
 }
 

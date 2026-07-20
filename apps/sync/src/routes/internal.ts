@@ -26,7 +26,7 @@ export function internalRouter(
     try {
       const data = req.body
 
-      const { id: orderId } = await createTranslatedOrder({
+      const { id: orderId, duplicate } = await createTranslatedOrder({
         tenantId: data.tenantId,
         source: "takeasygo",
         status: "pending",
@@ -35,7 +35,13 @@ export function internalRouter(
         menuVersion: data.menuVersion ?? 1,
         customerId: data.customerId,
         notes: data.notes,
+        externalOrderId: data.externalOrderId,
       })
+
+      if (duplicate) {
+        res.status(200).json({ orderId, duplicate: true })
+        return
+      }
 
       io.to(`tenant:${data.tenantId}`).emit("order:created", {
         orderId,

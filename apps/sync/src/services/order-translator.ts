@@ -21,7 +21,18 @@ export interface TranslatedOrder {
 
 export async function createTranslatedOrder(
   data: TranslatedOrder
-): Promise<{ id: string }> {
+): Promise<{ id: string; duplicate?: boolean }> {
+  if (data.externalOrderId) {
+    const existing = await SyncOrderModel.findOne({
+      tenantId: data.tenantId,
+      externalOrderId: data.externalOrderId,
+    }).lean()
+
+    if (existing) {
+      return { id: (existing as any)._id.toString(), duplicate: true }
+    }
+  }
+
   const doc = await SyncOrderModel.create({
     tenantId: data.tenantId,
     source: data.source,

@@ -70,7 +70,7 @@ export function IncomingOrdersDashboard() {
     socket.on("connect", () => setConnected(true))
     socket.on("disconnect", () => setConnected(false))
 
-    // Fetch pending orders on mount (catch orders missed while offline)
+    // Fetch active orders on mount (catch orders missed while offline)
     fetchPendingOrders(tenantId, jwt).then((pending) => {
       if (pending.length > 0) {
         setOrders((prev) => {
@@ -81,11 +81,11 @@ export function IncomingOrdersDashboard() {
               id: o.orderId,
               tenantId: o.tenantId,
               source: (o.source as Order["source"]) || "takeasygo",
-              status: o.status as Order["status"],
+              status: (o.status as Order["status"]) || "pending",
               items: o.items as Order["items"],
               total: o.total,
               menuVersion: 1,
-              createdAt: new Date(o.createdAt),
+              createdAt: new Date(),
               updatedAt: new Date(),
             }))
           return [...newOrders, ...prev]
@@ -152,11 +152,11 @@ export function IncomingOrdersDashboard() {
               id: o.orderId,
               tenantId: o.tenantId,
               source: (o.source as Order["source"]) || "takeasygo",
-              status: o.status as Order["status"],
+              status: (o.status as Order["status"]) || "pending",
               items: o.items as Order["items"],
               total: o.total,
               menuVersion: 1,
-              createdAt: new Date(o.createdAt),
+              createdAt: new Date(),
               updatedAt: new Date(),
             }))
           return [...newOrders, ...prev]
