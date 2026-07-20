@@ -6,6 +6,7 @@ import {
   createTranslatedOrder,
   updateOrderStatus,
 } from "../services/order-translator"
+import { SyncOrderModel } from "@takeasygo/db"
 import { enqueueOrderCreated, removePendingOrder } from "../queues/order-queue"
 import { validate, orderCreateSchema } from "../middleware/validation"
 
@@ -55,6 +56,29 @@ export function ordersRouter(
       res.json(result)
     } catch (err) {
       console.error("[orders] list error:", err)
+      res.status(500).json({ error: "Internal server error" })
+    }
+  })
+
+  // GET /orders/pending — fetch pending orders for reconnect recovery (JWT auth)
+  router.get("/pending", async (req, res) => {
+    try {
+      const auth = req.auth!
+      const docs = await SyncOrderModel.find({
+        tenantId: auth.tenantId,
+        status: "pending",
+      }).sort({ createdAt: 1 }).lean()
+
+      res.json(docs.map((doc: any) => ({
+        orderId: doc._id.toString(),
+        tenantId: doc.tenantId,
+        source: doc.source,
+        status: doc.status,
+        items: doc.items,
+        total: doc.total,
+      })))
+    } catch (err) {
+      console.error("[orders] pending list error:", err)
       res.status(500).json({ error: "Internal server error" })
     }
   })

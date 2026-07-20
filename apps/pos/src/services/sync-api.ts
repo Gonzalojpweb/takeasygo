@@ -135,12 +135,12 @@ export interface PendingSyncOrder {
 }
 
 export async function fetchPendingOrders(
-  tenantId: string,
+  _tenantId: string,
   jwt: string
 ): Promise<PendingSyncOrder[]> {
   try {
     const res = await fetch(
-      `${SYNC_URL}/api/v1/internal/orders?tenantId=${tenantId}&status=pending`,
+      `${SYNC_URL}/api/v1/orders/pending`,
       {
         headers: {
           Authorization: `Bearer ${jwt}`,
