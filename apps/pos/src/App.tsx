@@ -88,6 +88,9 @@ function App() {
         console.log(`[App] flushed ${result.synced} events`)
       }
 
+      // ── Refresh incoming orders (catch orders missed while offline) ──
+      window.dispatchEvent(new Event("pos:refresh-incoming"))
+
       // ── Fetch eventos fallidos del Sync Layer ──────────────────────
       // Cuando el Hub reconecta, busca eventos que el Sync Layer no
       // pudo entregar (status: "failed") y los muestra en Pendientes

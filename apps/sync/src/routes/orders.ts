@@ -6,7 +6,7 @@ import {
   createTranslatedOrder,
   updateOrderStatus,
 } from "../services/order-translator"
-import { enqueueOrderCreated } from "../queues/order-queue"
+import { enqueueOrderCreated, removePendingOrder } from "../queues/order-queue"
 import { validate, orderCreateSchema } from "../middleware/validation"
 
 export function ordersRouter(
@@ -88,7 +88,7 @@ export function ordersRouter(
         tenantId: auth.tenantId,
         orderId,
         timestamp: new Date().toISOString(),
-        offlineTimeoutMs: 3 * 60 * 1000,
+        offlineTimeoutMs: 10 * 60 * 1000,
       })
 
       res.status(201).json({ orderId })
@@ -108,6 +108,8 @@ export function ordersRouter(
         res.status(404).json({ error: "Order not found" })
         return
       }
+
+      await removePendingOrder(orderQueue, orderId)
 
       io.to(`tenant:${auth.tenantId}`).emit("order:confirmed", {
         orderId,

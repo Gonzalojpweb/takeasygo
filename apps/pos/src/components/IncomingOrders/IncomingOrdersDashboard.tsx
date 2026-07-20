@@ -5,6 +5,7 @@ import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"
 import { onSocketEvent, connectSocket } from "../../services/socket-client"
 import { createOrder } from "../../services/order"
+import { fetchPendingOrders } from "../../services/sync-api"
 import { SocketStatus } from "./SocketStatus"
 import { GatewayStats } from "./GatewayStats"
 import { GatewayFilters } from "./GatewayFilters"
@@ -62,16 +63,40 @@ export function IncomingOrdersDashboard() {
   }, [])
 
   useEffect(() => {
-    if (!jwt) return
+    if (!jwt || !tenantId) return
 
     const socket = connectSocket(jwt)
 
     socket.on("connect", () => setConnected(true))
     socket.on("disconnect", () => setConnected(false))
 
+    // Fetch pending orders on mount (catch orders missed while offline)
+    fetchPendingOrders(tenantId, jwt).then((pending) => {
+      if (pending.length > 0) {
+        setOrders((prev) => {
+          const existingIds = new Set(prev.map((o) => o.id))
+          const newOrders = pending
+            .filter((o) => !existingIds.has(o.orderId))
+            .map((o) => ({
+              id: o.orderId,
+              tenantId: o.tenantId,
+              source: (o.source as Order["source"]) || "takeasygo",
+              status: o.status as Order["status"],
+              items: o.items as Order["items"],
+              total: o.total,
+              menuVersion: 1,
+              createdAt: new Date(o.createdAt),
+              updatedAt: new Date(),
+            }))
+          return [...newOrders, ...prev]
+        })
+      }
+    }).catch(() => {})
+
     const unsubCreated = onSocketEvent("order:created", (data: unknown) => {
       const event = data as { orderId: string; items: unknown[]; total: number; source?: string }
       setOrders((prev) => {
+        if (prev.some((o) => o.id === event.orderId)) return prev
         const newOrder: Order = {
           id: event.orderId,
           tenantId: "",
@@ -99,11 +124,49 @@ export function IncomingOrdersDashboard() {
       )
     })
 
+    const unsubCancelled = onSocketEvent("order:cancelled", (data: unknown) => {
+      const event = data as { orderId: string; reason?: string }
+      setOrders((prev) => prev.filter((o) => o.id !== event.orderId))
+      showToast(
+        event.reason === "offline_timeout"
+          ? "Pedido expirado (timeout)"
+          : "Pedido cancelado",
+        "info"
+      )
+    })
+
+    // Allow App.tsx to trigger a refresh on reconnect
+    const handleRefresh = () => {
+      if (!tenantId || !jwt) return
+      fetchPendingOrders(tenantId, jwt).then((pending) => {
+        setOrders((prev) => {
+          const existingIds = new Set(prev.map((o) => o.id))
+          const newOrders = pending
+            .filter((o) => !existingIds.has(o.orderId))
+            .map((o) => ({
+              id: o.orderId,
+              tenantId: o.tenantId,
+              source: (o.source as Order["source"]) || "takeasygo",
+              status: o.status as Order["status"],
+              items: o.items as Order["items"],
+              total: o.total,
+              menuVersion: 1,
+              createdAt: new Date(o.createdAt),
+              updatedAt: new Date(),
+            }))
+          return [...newOrders, ...prev]
+        })
+      }).catch(() => {})
+    }
+    window.addEventListener("pos:refresh-incoming", handleRefresh)
+
     return () => {
       unsubCreated()
       unsubConfirmed()
+      unsubCancelled()
+      window.removeEventListener("pos:refresh-incoming", handleRefresh)
     }
-  }, [jwt, showToast])
+  }, [jwt, tenantId, showToast])
 
   const handleConfirmOrder = useCallback(async (orderId: string) => {
     try {
