@@ -1118,6 +1118,7 @@ export async function POST(
     if (order.status === 'confirmed' || order.status === 'awaiting_payment') {
       pushOrderToSyncLayer({
         tenantId: tenant._id.toString(),
+        externalOrderId: order._id.toString(),
         items: resolvedItems.map((i: any) => ({
           productId: i.menuItemId?.toString() ?? undefined,
           name: i.name,

@@ -53,6 +53,34 @@ export interface AuthContextValue {
   logout: () => Promise<void>
 }
 
+const SESSION_CACHE_KEY = "takeasygo_session"
+
+function cacheSession(data: authApi.LoginResponse, tenantId: string) {
+  try {
+    sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ ...data, tenantId }))
+  } catch {}
+}
+
+function getCachedSession(): (authApi.LoginResponse & { tenantId: string }) | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_CACHE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (!data.accessToken || !data.expiresAt) return null
+    if (Date.now() >= data.expiresAt) {
+      sessionStorage.removeItem(SESSION_CACHE_KEY)
+      return null
+    }
+    return data
+  } catch {
+    return null
+  }
+}
+
+function clearCachedSession() {
+  try { sessionStorage.removeItem(SESSION_CACHE_KEY) } catch {}
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -62,12 +90,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function restore() {
       try {
+        // 1. Check sessionStorage cache (survives page refresh)
+        const cached = getCachedSession()
+        if (cached) {
+          setState({ status: "authenticated", tenantId: cached.tenantId, jwt: cached })
+          return
+        }
+
+        // 2. Check Dexie (encrypted, requires PIN to decrypt)
         const sessions = await db.session.toArray()
         if (sessions.length === 0) {
           setState({ status: "login" })
           return
         }
-        // Use the most recent session
         const session = sessions[0]
         const config = await db.tenantConfig.get(session.tenantId)
         if (!config) {
@@ -125,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await db.session.put({ tenantId, encryptedJwt: encrypted })
 
           setState({ status: "authenticated", tenantId, jwt: result })
+          cacheSession(result, tenantId)
         } else {
           const { email, password } = credentials as {
             email: string
@@ -156,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await db.session.put({ tenantId, encryptedJwt: encrypted })
 
           setState({ status: "authenticated", tenantId, jwt: result })
+          cacheSession(result, tenantId)
         }
       } catch (err) {
         const message =
@@ -167,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
+    clearCachedSession()
     const sessions = await db.session.toArray()
     for (const s of sessions) {
       await db.session.delete(s.tenantId)

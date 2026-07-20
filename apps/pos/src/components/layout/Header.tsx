@@ -41,6 +41,14 @@ export function Header({ tenantName, userName }: HeaderProps) {
         </div>
       </div>
       <div className="header-right">
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => window.location.reload()}
+          title="Refrescar POS"
+          style={{ fontSize: "var(--font-size-xs)", padding: "4px 8px" }}
+        >
+          ↻ Refrescar
+        </button>
         <div className="sync-status">
           <div className="sync-dot" />
           <span>Sincronizado</span>

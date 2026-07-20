@@ -60,14 +60,14 @@ export function ordersRouter(
     }
   })
 
-  // GET /orders/pending — fetch pending orders for reconnect recovery (JWT auth)
+  // GET /orders/pending — fetch active orders for reconnect recovery (JWT auth)
   router.get("/pending", async (req, res) => {
     try {
       const auth = req.auth!
       const docs = await SyncOrderModel.find({
         tenantId: auth.tenantId,
-        status: "pending",
-      }).sort({ createdAt: 1 }).lean()
+        status: { $in: ["pending", "confirmed", "preparing"] },
+      }).sort({ createdAt: -1 }).limit(50).lean()
 
       res.json(docs.map((doc: any) => ({
         orderId: doc._id.toString(),
