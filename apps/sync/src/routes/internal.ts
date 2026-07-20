@@ -2,7 +2,7 @@ import { Router } from "express"
 import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
 import { config } from "../config"
-import { createTranslatedOrder } from "../services/order-translator"
+import { createTranslatedOrder, updateOrderStatus } from "../services/order-translator"
 import { enqueueOrderCreated } from "../queues/order-queue"
 
 function internalAuth(req: any, res: any, next: any) {
@@ -56,6 +56,35 @@ export function internalRouter(
       res.status(201).json({ orderId })
     } catch (err) {
       console.error("[internal/orders] create error:", err)
+      res.status(500).json({ error: "Internal server error" })
+    }
+  })
+
+  router.patch("/orders/:orderId/confirm", async (req, res) => {
+    try {
+      const { orderId } = req.params
+      const { tenantId } = req.body
+
+      if (!tenantId) {
+        res.status(400).json({ error: "tenantId required" })
+        return
+      }
+
+      const updated = await updateOrderStatus(orderId, tenantId, "confirmed")
+      if (!updated) {
+        res.status(404).json({ error: "Order not found" })
+        return
+      }
+
+      io.to(`tenant:${tenantId}`).emit("order:confirmed", {
+        orderId,
+        tenantId,
+        timestamp: new Date().toISOString(),
+      })
+
+      res.json({ status: "confirmed" })
+    } catch (err) {
+      console.error("[internal/orders] confirm error:", err)
       res.status(500).json({ error: "Internal server error" })
     }
   })
