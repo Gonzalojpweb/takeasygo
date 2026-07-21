@@ -22,7 +22,12 @@ export function SalesDashboard() {
   const loading = orders === undefined
 
   const completedOrders = useMemo(
-    () => (orders ?? []).filter((o) => o.status !== "cancelled"),
+    () => (orders ?? []).filter((o) => {
+      if (o.status === "cancelled") return false
+      // Excluir pedidos externos que aún no confirmaron pago
+      if (o.source === "external" && o.externalStatus === "awaiting_payment") return false
+      return true
+    }),
     [orders]
   )
 
@@ -181,7 +186,23 @@ export function SalesDashboard() {
               >
                 <div className="order-card-main">
                   <div className="order-card-header">
-                    <span className="order-card-id">Mesa {order.tableId ?? "—"}</span>
+                    <span className="order-card-id">
+                      Mesa {order.tableId ?? "—"}
+                      {order.source === "external" && (
+                        <span style={{
+                          marginLeft: 6,
+                          fontSize: "var(--font-size-xs)",
+                          padding: "1px 6px",
+                          borderRadius: 4,
+                          background: "var(--info-bg, #e3f2fd)",
+                          color: "var(--info, #1976d2)",
+                          fontWeight: 600,
+                          verticalAlign: "middle",
+                        }}>
+                          Externo
+                        </span>
+                      )}
+                    </span>
                     <span className="status-badge" style={{
                       background: order.status === "delivered" ? "var(--success-bg, #e6f7e6)" : "var(--surface-secondary)",
                       color: order.status === "delivered" ? "var(--success)" : "var(--text-secondary)",
