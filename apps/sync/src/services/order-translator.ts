@@ -56,13 +56,6 @@ export async function createTranslatedOrder(
  *   - POS/jwt-auth callers pass the SyncLayer _id
  *   - SaaS internal callers pass the SaaS order _id (stored as externalOrderId)
  */
-function buildOrderLookup(orderId: string, tenantId: string) {
-  return {
-    tenantId,
-    $or: [{ _id: orderId }, { externalOrderId: orderId }],
-  }
-}
-
 export async function updateOrderStatus(
   orderId: string,
   tenantId: string,
