@@ -17,6 +17,7 @@ export interface TranslatedOrder {
   externalOrderId?: string
   customerId?: string
   notes?: string
+  paymentMethod?: string
 }
 
 export async function createTranslatedOrder(
@@ -41,6 +42,7 @@ export async function createTranslatedOrder(
     total: data.total,
     menuVersion: data.menuVersion,
     externalOrderId: data.externalOrderId ?? undefined,
+    paymentMethod: data.paymentMethod ?? undefined,
   })
 
   return { id: doc._id.toString() }

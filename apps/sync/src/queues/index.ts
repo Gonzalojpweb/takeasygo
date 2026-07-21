@@ -1,10 +1,12 @@
 import { Queue as BullQueue } from "bullmq"
 import Redis from "ioredis"
 import type { CashSaleJobData } from "./cash-sale-queue"
+import type { ConfirmForwardJobData } from "./order-confirm-forward-queue"
 
 export interface QueueServer {
   orderQueue: BullQueue
   cashSaleQueue: BullQueue<CashSaleJobData>
+  confirmForwardQueue: BullQueue<ConfirmForwardJobData>
 }
 
 export function createQueueServer(redisUrl: string): QueueServer {
@@ -40,5 +42,21 @@ export function createQueueServer(redisUrl: string): QueueServer {
     },
   })
 
-  return { orderQueue, cashSaleQueue }
+  const confirmForwardConnection = new Redis(redisUrl, { maxRetriesPerRequest: null })
+  confirmForwardConnection.on("error", (err) => console.error("[queue/confirm-forward/redis] error:", err.message))
+
+  const confirmForwardQueue = new BullQueue<ConfirmForwardJobData>("order_confirm_forward", {
+    connection: confirmForwardConnection as any,
+    defaultJobOptions: {
+      attempts: 5,
+      backoff: {
+        type: "exponential",
+        delay: 2000,
+      },
+      removeOnComplete: 100,
+      removeOnFail: 50,
+    },
+  })
+
+  return { orderQueue, cashSaleQueue, confirmForwardQueue }
 }

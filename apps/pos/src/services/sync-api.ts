@@ -129,6 +129,7 @@ export interface PendingSyncOrder {
   tenantId: string
   source: string
   status: string
+  paymentMethod?: string
   items: Array<{ name: string; quantity: number; unitPrice: number; total: number }>
   total: number
   createdAt: string
@@ -151,5 +152,29 @@ export async function fetchPendingOrders(
     return await res.json()
   } catch {
     return []
+  }
+}
+
+// ============================================================================
+// Confirm Transfer Payment — POS confirms a transfer order
+// ============================================================================
+
+export async function confirmTransferPayment(
+  orderId: string,
+  tenantId: string,
+  jwt: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${SYNC_URL}/api/v1/internal/orders/${orderId}/confirm`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({ tenantId }),
+    })
+    return res.ok
+  } catch {
+    return false
   }
 }

@@ -5,7 +5,7 @@ import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"
 import { onSocketEvent, connectSocket } from "../../services/socket-client"
 import { createOrder } from "../../services/order"
-import { fetchPendingOrders } from "../../services/sync-api"
+import { fetchPendingOrders, confirmTransferPayment } from "../../services/sync-api"
 import { SocketStatus } from "./SocketStatus"
 import { GatewayStats } from "./GatewayStats"
 import { GatewayFilters } from "./GatewayFilters"
@@ -82,6 +82,8 @@ export function IncomingOrdersDashboard() {
               tenantId: o.tenantId,
               source: (o.source as Order["source"]) || "takeasygo",
               status: (o.status as Order["status"]) || "pending",
+              paymentMethod: o.paymentMethod as Order["paymentMethod"],
+              externalStatus: o.status as Order["externalStatus"],
               items: o.items as Order["items"],
               total: o.total,
               menuVersion: 1,
@@ -94,7 +96,7 @@ export function IncomingOrdersDashboard() {
     }).catch(() => {})
 
     const unsubCreated = onSocketEvent("order:created", (data: unknown) => {
-      const event = data as { orderId: string; items: unknown[]; total: number; source?: string }
+      const event = data as { orderId: string; items: unknown[]; total: number; source?: string; paymentMethod?: string }
       setOrders((prev) => {
         if (prev.some((o) => o.id === event.orderId)) return prev
         const newOrder: Order = {
@@ -102,6 +104,8 @@ export function IncomingOrdersDashboard() {
           tenantId: "",
           source: (event.source as Order["source"]) || "takeasygo",
           status: "pending",
+          paymentMethod: event.paymentMethod as Order["paymentMethod"],
+          externalStatus: "awaiting_payment",
           items: event.items as Order["items"],
           total: event.total,
           menuVersion: 1,
@@ -118,10 +122,23 @@ export function IncomingOrdersDashboard() {
       setOrders((prev) =>
         prev.map((o) =>
           o.id === event.orderId
-            ? { ...o, status: "confirmed" as const, updatedAt: new Date() }
+            ? { ...o, status: "confirmed" as const, externalStatus: "confirmed" as const, updatedAt: new Date() }
             : o
         )
       )
+    })
+
+    const unsubStatusUpdated = onSocketEvent("order:status_updated", (data: unknown) => {
+      const event = data as { orderId: string; externalStatus: string }
+      setOrders((prev) => {
+        const orderExists = prev.some((o) => o.id === event.orderId)
+        if (!orderExists) return prev
+        return prev.map((o) =>
+          o.id === event.orderId
+            ? { ...o, externalStatus: event.externalStatus as Order["externalStatus"], updatedAt: new Date() }
+            : o
+        )
+      })
     })
 
     const unsubCancelled = onSocketEvent("order:cancelled", (data: unknown) => {
@@ -153,6 +170,8 @@ export function IncomingOrdersDashboard() {
               tenantId: o.tenantId,
               source: (o.source as Order["source"]) || "takeasygo",
               status: (o.status as Order["status"]) || "pending",
+              paymentMethod: o.paymentMethod as Order["paymentMethod"],
+              externalStatus: o.status as Order["externalStatus"],
               items: o.items as Order["items"],
               total: o.total,
               menuVersion: 1,
@@ -168,6 +187,7 @@ export function IncomingOrdersDashboard() {
     return () => {
       unsubCreated()
       unsubConfirmed()
+      unsubStatusUpdated()
       unsubCancelled()
       window.removeEventListener("pos:refresh-incoming", handleRefresh)
     }
@@ -184,7 +204,7 @@ export function IncomingOrdersDashboard() {
       setOrders((prev) =>
         prev.map((o) =>
           o.id === orderId
-            ? { ...o, status: "confirmed" as const, updatedAt: new Date() }
+            ? { ...o, status: "confirmed" as const, externalStatus: "confirmed" as const, updatedAt: new Date() }
             : o
         )
       )
@@ -193,6 +213,23 @@ export function IncomingOrdersDashboard() {
       showToast("Error al confirmar", "error")
     }
   }, [jwt, showToast])
+
+  const handleConfirmTransfer = useCallback(async (orderId: string) => {
+    if (!tenantId || !jwt) return
+    const ok = await confirmTransferPayment(orderId, tenantId, jwt)
+    if (ok) {
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? { ...o, status: "confirmed" as const, externalStatus: "confirmed" as const, updatedAt: new Date() }
+            : o
+        )
+      )
+      showToast("Pago confirmado y pedido integrado", "success")
+    } else {
+      showToast("Error al confirmar pago", "error")
+    }
+  }, [tenantId, jwt, showToast])
 
   const handleRejectOrder = useCallback((orderId: string) => {
     setOrders((prev) => prev.filter((o) => o.id !== orderId))
@@ -263,7 +300,7 @@ export function IncomingOrdersDashboard() {
   }, [orders, filter])
 
   const pendingCount = useMemo(
-    () => orders.filter((o) => o.status === "pending").length,
+    () => orders.filter((o) => o.status === "pending" || o.externalStatus === "awaiting_payment").length,
     [orders]
   )
 
@@ -508,6 +545,7 @@ export function IncomingOrdersDashboard() {
                     key={order.id}
                     order={order}
                     onClick={handleSelectOrder}
+                    onConfirmTransfer={handleConfirmTransfer}
                   />
                 ))}
               </div>

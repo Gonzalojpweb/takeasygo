@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
+import { confirmOrderPayment } from '@/lib/sync-layer'
 
 export async function PATCH(
   request: NextRequest,
@@ -81,6 +82,13 @@ export async function PATCH(
         )
       })
     }
+
+    // ── SyncLayer: confirmar orden + notificar venta ──────────
+    setImmediate(() => {
+      confirmOrderPayment(order, tenant).catch(err =>
+        console.error('[sync-layer] confirmOrderPayment error (transfer):', err)
+      )
+    })
 
     return NextResponse.json({
       status: order.status,

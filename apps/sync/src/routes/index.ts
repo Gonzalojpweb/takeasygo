@@ -19,11 +19,13 @@ import { cashSaleRouter } from "./cash-sale"
 import { zReportViewRouter } from "./z-report-view"
 import { zReportUploadRouter } from "./z-report-upload"
 import type { CashSaleJobData } from "../queues/cash-sale-queue"
+import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queue"
 
 export function createRouter(
   io: SocketServer,
   orderQueue: BullQueue,
-  cashSaleQueue: BullQueue<CashSaleJobData>
+  cashSaleQueue: BullQueue<CashSaleJobData>,
+  confirmForwardQueue: BullQueue<ConfirmForwardJobData>
 ): Router {
   const router = Router()
 
@@ -33,7 +35,7 @@ export function createRouter(
   router.use("/health", healthRouter)
 
   router.use("/auth", authRouter)
-  router.use("/internal", internalRouter(io, orderQueue))
+  router.use("/internal", internalRouter(io, orderQueue, confirmForwardQueue))
   router.use("/cash-sale", cashSaleRouter(io, cashSaleQueue))
 
   // Z Report view — token-based auth, no JWT required (mounted before authMiddleware)
@@ -42,9 +44,9 @@ export function createRouter(
   router.use(authMiddleware)
   router.use(tenantMiddleware)
 
-  router.use("/orders", ordersRouter(io, orderQueue))
+  router.use("/orders", ordersRouter(io, orderQueue, confirmForwardQueue))
   router.use("/menu", menuRouter())
-  router.use("/sync", syncRouter(io))
+  router.use("/sync", syncRouter(io, confirmForwardQueue))
   router.use("/pairing", pairingRouter(io))
   router.use("/customers", customersRouter())
   router.use("/auth", ssoRouter())
