@@ -30,11 +30,11 @@ async function main(): Promise<void> {
 
   const io = createSocketServer(httpServer, redisUrl)
 
-  const { orderQueue, cashSaleQueue } = createQueueServer(redisUrl)
+  const { orderQueue, cashSaleQueue, confirmForwardQueue } = createQueueServer(redisUrl)
 
   registerWorkers(redisUrl, io)
 
-  app.use("/api/v1", createRouter(io, orderQueue, cashSaleQueue))
+  app.use("/api/v1", createRouter(io, orderQueue, cashSaleQueue, confirmForwardQueue))
 
   httpServer.listen(config.port, () => {
     console.log(`[sync] Server running on port ${config.port}`)

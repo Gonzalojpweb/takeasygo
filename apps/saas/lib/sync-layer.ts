@@ -1,3 +1,5 @@
+import mongoose from 'mongoose'
+
 const SYNC_LAYER_URL = process.env.SYNC_LAYER_URL ?? ""
 const SYNC_LAYER_SECRET = process.env.SYNC_LAYER_SECRET ?? ""
 
@@ -8,6 +10,7 @@ interface SyncOrderPayload {
   total: number
   notes?: string
   menuVersion?: number
+  paymentMethod?: string
 }
 
 export async function pushOrderToSyncLayer(payload: SyncOrderPayload): Promise<void> {
@@ -41,29 +44,44 @@ export async function pushOrderToSyncLayer(payload: SyncOrderPayload): Promise<v
 export async function confirmOrderInSyncLayer(
   orderId: string,
   tenantId: string
-): Promise<void> {
-  if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) return
+): Promise<boolean> {
+  if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) return false
 
-  try {
-    const res = await fetch(`${SYNC_LAYER_URL}/api/v1/internal/orders/${orderId}/confirm`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SYNC_LAYER_SECRET}`,
-      },
-      body: JSON.stringify({ tenantId }),
-    })
+  const MAX_RETRIES = 3
+  const DELAYS_MS = [2000, 4000, 8000]
 
-    if (!res.ok) {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(`${SYNC_LAYER_URL}/api/v1/internal/orders/${orderId}/confirm`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SYNC_LAYER_SECRET}`,
+        },
+        body: JSON.stringify({ tenantId }),
+      })
+
+      if (res.ok) {
+        console.log(`[sync-layer] order ${orderId} confirmed in sync layer`)
+        return true
+      }
+
       const text = await res.text().catch(() => "unknown")
-      console.error(`[sync-layer] confirm failed (${res.status}): ${text}`)
-      return
+      console.warn(`[sync-layer] confirm attempt ${attempt}/${MAX_RETRIES} failed (${res.status}): ${text}`)
+    } catch (err) {
+      console.warn(`[sync-layer] confirm attempt ${attempt}/${MAX_RETRIES} error:`, err)
     }
 
-    console.log(`[sync-layer] order ${orderId} confirmed in sync layer`)
-  } catch (err) {
-    console.error("[sync-layer] confirm error:", err)
+    if (attempt < MAX_RETRIES) {
+      await new Promise((r) => setTimeout(r, DELAYS_MS[attempt - 1]))
+    }
   }
+
+  console.error(
+    `[sync-layer] confirm ABORTED — SyncLayer unreachable after ${MAX_RETRIES} retries`,
+    { orderId, tenantId }
+  )
+  return false
 }
 
 interface CashSalePayload {
@@ -97,5 +115,129 @@ export async function notifyCashSale(payload: CashSalePayload): Promise<void> {
     console.log(`[sync-layer] cash-sale notified for order ${payload.orderId}`)
   } catch (err) {
     console.error("[sync-layer] cash-sale notify error:", err)
+  }
+}
+
+// ============================================================================
+// confirmOrderPayment — Shared confirmation function (Fase 0)
+// ============================================================================
+// Single entry point for all 3 confirmation paths:
+//   1. MP webhook → confirmOrderPayment()
+//   2. Admin transfer confirm → confirmOrderPayment()
+//   3. POS transfer confirm → SyncLayer → SaaS confirm-internal → confirmOrderPayment()
+//
+// Calls: confirmOrderInSyncLayer + notifyCashSale + captureOrderCompleted
+// Idempotent: confirmOrderInSyncLayer is idempotent, notifyCashSale deduplicates
+//             via (orderId, tenantId) compound unique index.
+// ============================================================================
+
+interface ConfirmableOrder {
+  _id: mongoose.Types.ObjectId
+  tenantId: mongoose.Types.ObjectId
+  total: number
+  items: Array<{
+    name: string
+    quantity: number
+    price: number
+    subtotal: number
+    categoryName?: string
+  }>
+  payment?: { method?: string }
+  customer?: { phoneHash?: string }
+}
+
+interface ConfirmableTenant {
+  _id: mongoose.Types.ObjectId
+}
+
+export async function confirmOrderPayment(
+  order: ConfirmableOrder,
+  tenant: ConfirmableTenant
+): Promise<void> {
+  if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) return
+
+  const orderId = order._id.toString()
+  const tenantId = tenant._id.toString()
+
+  // 1. Confirm in SyncLayer — ABORT on failure (no cash sale, no CIS)
+  const confirmed = await confirmOrderInSyncLayer(orderId, tenantId)
+  if (!confirmed) {
+    console.error(
+      `[confirmOrderPayment] ABORTED — SyncLayer unreachable after retries. ` +
+      `Nothing registered in cash or CIS. Caller can retry.`,
+      { orderId, tenantId, paymentMethod: order.payment?.method }
+    )
+    return
+  }
+
+  // 2. Notify cash sale (deduplicates via unique index)
+  await notifyCashSale({
+    orderId,
+    tenantId,
+    total: order.total,
+    items: order.items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.price,
+      total: item.subtotal,
+    })),
+    paymentMethod: order.payment?.method ?? 'mercadopago',
+    channel: 'online',
+  })
+
+  // 3. CIS order_completed event (fire-and-forget)
+  if (order.customer?.phoneHash) {
+    try {
+      const { captureOrderCompleted } = await import('@/lib/cis/events')
+      await captureOrderCompleted(
+        order.customer.phoneHash,
+        tenant._id,
+        order._id,
+        order.total,
+        order.items.map((item) => ({
+          name: item.name,
+          category: item.categoryName,
+        }))
+      )
+    } catch (err) {
+      console.error('[sync-layer] CIS captureOrderCompleted error:', err)
+    }
+  }
+}
+
+// ============================================================================
+// updateOrderStatusInSaaS — Forward POS status changes to SaaS
+// ============================================================================
+// Called by the SyncLayer when the POS reports a status change (preparing, ready,
+// delivered). Updates the SaaS Order model so the admin panel reflects the
+// current state.
+// ============================================================================
+
+export async function updateOrderStatusInSaaS(
+  orderId: string,
+  tenantId: string,
+  status: string
+): Promise<void> {
+  if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) return
+
+  try {
+    const res = await fetch(`${SYNC_LAYER_URL}/api/v1/internal/orders/${orderId}/status`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SYNC_LAYER_SECRET}`,
+      },
+      body: JSON.stringify({ tenantId, status }),
+    })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "unknown")
+      console.error(`[sync-layer] status update failed (${res.status}): ${text}`)
+      return
+    }
+
+    console.log(`[sync-layer] order ${orderId} status updated to ${status}`)
+  } catch (err) {
+    console.error("[sync-layer] status update error:", err)
   }
 }

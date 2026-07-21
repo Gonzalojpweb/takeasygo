@@ -1,8 +1,20 @@
 import { Worker } from "bullmq"
 import Redis from "ioredis"
+import mongoose from "mongoose"
 import type { Server as SocketServer } from "socket.io"
 import { QUEUE_ORDER_CREATED } from "../queues/order-queue"
 import { CashSaleEventModel } from "@takeasygo/db"
+import { config } from "../config"
+
+async function getSaaSslug(tenantId: string): Promise<string | null> {
+  try {
+    const db = mongoose.connection.db!
+    const tenant = await db.collection("tenants").findOne({ _id: new mongoose.Types.ObjectId(tenantId) })
+    return tenant?.slug ?? null
+  } catch {
+    return null
+  }
+}
 
 export function registerWorkers(redisUrl: string, io: SocketServer): void {
   const connection = new Redis(redisUrl, { maxRetriesPerRequest: null }) as any;
@@ -102,6 +114,55 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
       status: "failed",
       lastError: err.message,
     })
+  })
+
+  // ── Confirm forward worker — SyncLayer → SaaS ────────────────────
+  const confirmForwardConnection = new Redis(redisUrl, { maxRetriesPerRequest: null }) as any
+  confirmForwardConnection.on("error", (err: Error) => console.error("[worker/confirm-forward/redis] error:", err.message))
+
+  const confirmForwardWorker = new Worker(
+    "order_confirm_forward",
+    async (job) => {
+      const { tenantId, orderId, externalOrderId } = job.data
+
+      console.log(`[worker/confirm-forward] forwarding confirm for order ${orderId} (external: ${externalOrderId}, tenant: ${tenantId})`)
+
+      const saasTenantSlug = await getSaaSslug(tenantId)
+      if (!saasTenantSlug) {
+        console.error(`[worker/confirm-forward] tenant slug not found for ${tenantId}`)
+        return { status: "tenant_not_found" }
+      }
+
+      const res = await fetch(`${config.saasBaseUrl}/api/v1/${saasTenantSlug}/orders/${externalOrderId}/confirm-internal`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.internalApiSecret}`,
+        },
+        body: JSON.stringify({ tenantId }),
+      })
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "unknown")
+        throw new Error(`SaaS forward failed (${res.status}): ${text}`)
+      }
+
+      console.log(`[worker/confirm-forward] successfully forwarded confirm for ${orderId}`)
+      return { status: "forwarded", orderId }
+    },
+    {
+      connection: confirmForwardConnection,
+      concurrency: 5,
+    }
+  )
+
+  confirmForwardWorker.on("failed", async (job, err) => {
+    if (!job) return
+    const { orderId, tenantId } = job.data
+    console.error(
+      `[worker/confirm-forward] exhausted retries for ${orderId} (${tenantId}):`,
+      err.message
+    )
   })
 
   console.log("[worker] BullMQ workers registered")

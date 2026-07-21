@@ -108,6 +108,17 @@ export class PosDatabase extends Dexie {
       cashRegister: "id, tenantId, status, openedAt",
       pendingMovements: "id, tenantId, relatedOrderId, createdAt",
     })
+    this.version(7).stores({
+      tenantConfig: "tenantId",
+      session: "tenantId",
+      pendingEvents: "++id, tenantId, status, timestamp",
+      pairedSpokes: "deviceId, tenantId, pairedAt",
+      diningTable: "id, tenantId, status, section, number",
+      orders: "id, tenantId, status, tableId, createdAt, externalOrderId",
+      commands: "id, tenantId, status, createdAt",
+      cashRegister: "id, tenantId, status, openedAt",
+      pendingMovements: "id, tenantId, relatedOrderId, createdAt",
+    })
   }
 }
 

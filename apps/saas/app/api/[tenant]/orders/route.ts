@@ -1128,6 +1128,7 @@ export async function POST(
         })),
         total: pricing.finalTotal,
         notes: order.notes || undefined,
+        paymentMethod: order.payment?.method ?? 'mercadopago',
       })
     }
 

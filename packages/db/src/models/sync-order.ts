@@ -16,6 +16,7 @@ export interface SyncOrderDocument extends Document {
   total: number
   menuVersion: number
   externalOrderId?: string
+  paymentMethod?: string
   createdAt: Date
   updatedAt: Date
   syncedAt?: Date
@@ -57,6 +58,7 @@ export const SyncOrderSchema = new Schema<SyncOrderDocument>(
     total: { type: Number, required: true },
     menuVersion: { type: Number, required: true },
     externalOrderId: { type: String },
+    paymentMethod: { type: String },
     syncedAt: { type: Date },
   },
   { timestamps: true }
@@ -64,6 +66,7 @@ export const SyncOrderSchema = new Schema<SyncOrderDocument>(
 
 SyncOrderSchema.index({ tenantId: 1, createdAt: -1 })
 SyncOrderSchema.index({ tenantId: 1, status: 1 })
+SyncOrderSchema.index({ tenantId: 1, externalOrderId: 1 }, { unique: true, sparse: true })
 
 export const SyncOrderModel = mongoose.model<SyncOrderDocument>(
   "SyncOrder",

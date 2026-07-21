@@ -11,7 +11,7 @@ import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
-import { confirmOrderInSyncLayer, notifyCashSale } from '@/lib/sync-layer'
+import { confirmOrderPayment } from '@/lib/sync-layer'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
@@ -202,23 +202,8 @@ export async function POST(
 
               // ── SyncLayer: confirmar orden + notificar venta ──────────
               setImmediate(() => {
-                confirmOrderInSyncLayer(order._id.toString(), tenant._id.toString()).catch(err =>
-                  console.error('[sync-layer] confirm error:', err)
-                )
-                notifyCashSale({
-                  orderId: order._id.toString(),
-                  tenantId: tenant._id.toString(),
-                  total: order.total,
-                  items: order.items.map((item: any) => ({
-                    name: item.name,
-                    quantity: item.quantity,
-                    unitPrice: item.price,
-                    total: item.subtotal,
-                  })),
-                  paymentMethod: order.payment?.method ?? 'mercadopago',
-                  channel: 'online',
-                }).catch(err =>
-                  console.error('[sync-layer] cash-sale error:', err)
+                confirmOrderPayment(order, tenant).catch(err =>
+                  console.error('[sync-layer] confirmOrderPayment error:', err)
                 )
               })
             } else if (['rejected', 'cancelled'].includes(paymentData.status!)) {

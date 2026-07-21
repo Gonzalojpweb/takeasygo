@@ -261,6 +261,18 @@ export interface Order {
   createdAt: Date
   updatedAt: Date
   syncedAt?: Date
+  /** ID del pedido en el SaaS (external reference) */
+  externalOrderId?: string
+  /** Estado del pedido en el SyncLayer/SaaS */
+  externalStatus?: 'awaiting_payment' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
+  /** Método de pago del pedido externo */
+  paymentMethod?: PaymentMethod
+  /** Origen del pago: pos_charged = cobrado en POS, external_prepaid = pagado online */
+  paymentSource?: 'pos_charged' | 'external_prepaid'
+  /** Timestamp de integración al POS */
+  integratedAt?: Date
+  /** Quién integró el pedido al POS */
+  integratedBy?: string
 }
 
 export interface OrderItem {
@@ -277,6 +289,21 @@ export interface OrderItem {
 export interface OrderItemModifier {
   name: string
   price: number
+}
+
+// ============================================================================
+// 9a. SYNC ORDER — Pedido sincronizado desde el SaaS
+// ============================================================================
+
+export interface SyncOrder {
+  tenantId: string
+  externalOrderId: string
+  source: 'takeasygo' | 'pos'
+  status: 'pending' | 'confirmed' | 'preparing' | 'cancelled'
+  paymentMethod?: string
+  items: OrderItem[]
+  total: number
+  createdAt: Date
 }
 
 // ============================================================================
@@ -724,6 +751,7 @@ export type SocketEvent =
   | "order:created"
   | "order:updated"
   | "order:confirmed"
+  | "order:status_updated"
   | "order:cancelled"
   | "order:preparing"
   | "order:ready"

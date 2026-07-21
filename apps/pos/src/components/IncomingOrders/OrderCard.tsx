@@ -1,9 +1,10 @@
-import type { Order } from "@takeasygo/types"
+import type { Order, PaymentMethod } from "@takeasygo/types"
 import { formatCurrency, timeAgo } from "../../utils/format"
 
 interface OrderCardProps {
   order: Order
   onClick: (orderId: string) => void
+  onConfirmTransfer?: (orderId: string) => void
 }
 
 function getSourceMeta(source: string): { icon: string; label: string; className: string } {
@@ -23,6 +24,24 @@ function getSourceMeta(source: string): { icon: string; label: string; className
   }
 }
 
+function getPaymentMeta(paymentMethod?: PaymentMethod): { icon: string; label: string; className: string } {
+  switch (paymentMethod) {
+    case "mercadopago":
+      return { icon: "💙", label: "MP", className: "mercadopago" }
+    case "kripton":
+      return { icon: "₿", label: "Kripton", className: "kripton" }
+    case "transfer":
+      return { icon: "🏦", label: "Transferencia", className: "transfer" }
+    case "cash":
+      return { icon: "💵", label: "Efectivo", className: "cash" }
+    case "posnet_debit":
+    case "posnet_credit":
+      return { icon: "💳", label: "POSNET", className: "posnet" }
+    default:
+      return { icon: "❓", label: "Otro", className: "other" }
+  }
+}
+
 function getTimeAgoMinutes(createdAt: Date): number {
   const now = Date.now()
   const created = new Date(createdAt).getTime()
@@ -33,16 +52,21 @@ function formatOrderItems(items: Order["items"]) {
   return items.map((i) => `${i.quantity}× ${i.name}`).join(", ")
 }
 
-export function OrderCard({ order, onClick }: OrderCardProps) {
+export function OrderCard({ order, onClick, onConfirmTransfer }: OrderCardProps) {
   const source = getSourceMeta(order.source || "takeasygo")
+  const payment = getPaymentMeta(order.paymentMethod)
   const minutes = getTimeAgoMinutes(order.createdAt)
   const isUrgent = minutes > 5
 
+  const isTransferPending = order.paymentMethod === "transfer" && order.externalStatus === "awaiting_payment"
+  const isMPPending = (order.paymentMethod === "mercadopago" || order.paymentMethod === "kripton") && order.externalStatus === "awaiting_payment"
+  const isConfirmed = order.externalStatus === "confirmed" || order.status === "confirmed"
+
   return (
     <div
-      className={`order-card ${isUrgent ? "urgent" : ""}`}
+      className={`order-card ${isUrgent ? "urgent" : ""} ${isMPPending ? "mp-pending" : ""} ${isTransferPending ? "transfer-pending" : ""}`}
       onClick={() => onClick(order.id)}
-      style={{ cursor: "pointer" }}
+      style={{ cursor: "pointer", opacity: isMPPending ? 0.6 : 1 }}
     >
       <div className="order-card-left">
         <div className="order-card-header">
@@ -55,13 +79,45 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
             </div>
             <div className="order-card-meta">
               <span>{source.label}</span>
+              <span className={`order-card-payment ${payment.className}`}>
+                {payment.icon} {payment.label}
+              </span>
             </div>
           </div>
-          <span className={`status-badge ${order.status}`}>
-            {order.status}
-          </span>
+          {isMPPending && (
+            <span className="status-badge awaiting-payment">
+              Esperando pago
+            </span>
+          )}
+          {isTransferPending && (
+            <span className="status-badge transfer-pending">
+              Transferencia pendiente
+            </span>
+          )}
+          {isConfirmed && (
+            <span className={`status-badge ${order.status}`}>
+              {order.status}
+            </span>
+          )}
         </div>
         <div className="order-card-items">{formatOrderItems(order.items)}</div>
+        {isTransferPending && (
+          <div className="order-card-hint" style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", marginTop: "var(--sp-1)" }}>
+            Revisá el comprobante en WhatsApp antes de confirmar
+          </div>
+        )}
+        {isTransferPending && onConfirmTransfer && (
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ marginTop: "var(--sp-2)" }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onConfirmTransfer(order.id)
+            }}
+          >
+            Confirmar pago
+          </button>
+        )}
       </div>
       <div className="order-card-right">
         <span className={`order-card-time ${isUrgent ? "urgent" : ""}`}>

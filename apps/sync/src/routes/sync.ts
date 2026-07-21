@@ -1,12 +1,19 @@
 import { Router } from "express"
+import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
-import { getPendingOrders } from "../services/order-translator"
+import { getPendingOrders, updateOrderStatus } from "../services/order-translator"
 import { getTenantConflicts } from "../services/conflict-resolver"
 import { validateEvent } from "../services/event-validator"
 import { validate, syncReplaySchema } from "../middleware/validation"
 import { getDeviceSecret } from "./pairing"
+import { SyncOrderModel } from "@takeasygo/db"
+import { enqueueConfirmForward } from "../queues/order-confirm-forward-queue"
+import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queue"
 
-export function syncRouter(io: SocketServer): Router {
+export function syncRouter(
+  io: SocketServer,
+  confirmForwardQueue?: BullQueue<ConfirmForwardJobData>
+): Router {
   const router = Router()
 
   router.post("/replay", validate(syncReplaySchema), async (req, res) => {
@@ -31,6 +38,49 @@ export function syncRouter(io: SocketServer): Router {
             eventsFallidos,
           })
           return
+        }
+      }
+
+      // Process order status events and forward to SaaS
+      for (const event of events) {
+        if (event.type?.startsWith("order.") && event.payload?.orderId) {
+          const statusMap: Record<string, string> = {
+            "order.preparing": "preparing",
+            "order.ready": "ready",
+            "order.delivered": "delivered",
+            "order.cancelled": "cancelled",
+          }
+          const newStatus = statusMap[event.type]
+          if (newStatus) {
+            const updated = await updateOrderStatus(
+              event.payload.orderId,
+              auth.tenantId,
+              newStatus
+            )
+            if (updated) {
+              io.to(`tenant:${auth.tenantId}`).emit("order:status_updated", {
+                orderId: event.payload.orderId,
+                tenantId: auth.tenantId,
+                externalStatus: newStatus,
+                timestamp: new Date().toISOString(),
+              })
+
+              // Forward to SaaS via outbox
+              if (confirmForwardQueue) {
+                const syncOrder = await SyncOrderModel.findOne({
+                  _id: event.payload.orderId,
+                  tenantId: auth.tenantId,
+                }).lean()
+                if (syncOrder?.externalOrderId) {
+                  await enqueueConfirmForward(confirmForwardQueue, {
+                    tenantId: auth.tenantId,
+                    orderId: event.payload.orderId,
+                    externalOrderId: syncOrder.externalOrderId,
+                  })
+                }
+              }
+            }
+          }
         }
       }
 

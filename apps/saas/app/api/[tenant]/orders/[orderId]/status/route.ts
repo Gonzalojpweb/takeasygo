@@ -40,6 +40,14 @@ const STATUS_TIMESTAMP: Record<string, keyof import('@/models/Order').IStatusTim
   cancelled: 'cancelledAt',
 }
 
+/** Check if request uses internal secret auth (SyncLayer → SaaS) */
+function isInternalAuth(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization') ?? ''
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+  const expectedSecret = process.env.SYNC_LAYER_SECRET ?? ''
+  return !!expectedSecret && token === expectedSecret
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string; orderId: string }> }
@@ -53,8 +61,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    // Support both JWT auth (admin) and internal secret auth (SyncLayer)
+    if (!isInternalAuth(request)) {
       const authError = await requireAuth(request, tenant._id.toString())
-    if (authError) return authError
+      if (authError) return authError
+    }
 
     const { status } = await request.json()
 

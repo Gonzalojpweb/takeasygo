@@ -8,11 +8,14 @@ import {
 } from "../services/order-translator"
 import { SyncOrderModel } from "@takeasygo/db"
 import { enqueueOrderCreated, removePendingOrder } from "../queues/order-queue"
+import { enqueueConfirmForward } from "../queues/order-confirm-forward-queue"
+import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queue"
 import { validate, orderCreateSchema } from "../middleware/validation"
 
 export function ordersRouter(
   io: SocketServer,
-  orderQueue: BullQueue
+  orderQueue: BullQueue,
+  confirmForwardQueue: BullQueue<ConfirmForwardJobData>
 ): Router {
   const router = Router()
 
@@ -74,6 +77,7 @@ export function ordersRouter(
         tenantId: doc.tenantId,
         source: doc.source,
         status: doc.status,
+        paymentMethod: doc.paymentMethod,
         items: doc.items,
         total: doc.total,
       })))
@@ -97,6 +101,7 @@ export function ordersRouter(
         menuVersion: data.menuVersion ?? 1,
         customerId: data.customerId,
         notes: data.notes,
+        paymentMethod: data.paymentMethod,
       })
 
       io.to(`tenant:${auth.tenantId}`).emit("order:created", {
@@ -104,15 +109,21 @@ export function ordersRouter(
         tenantId: auth.tenantId,
         items: data.items,
         total: data.total,
+        paymentMethod: data.paymentMethod,
         timestamp: new Date().toISOString(),
       })
+
+      // Conditional timeout: transfer → 24h, MP/kripton → 10 min
+      const timeoutMs = data.paymentMethod === 'transfer'
+        ? 24 * 60 * 60 * 1000
+        : 10 * 60 * 1000
 
       await enqueueOrderCreated(orderQueue, {
         eventId: orderId,
         tenantId: auth.tenantId,
         orderId,
         timestamp: new Date().toISOString(),
-        offlineTimeoutMs: 10 * 60 * 1000,
+        offlineTimeoutMs: timeoutMs,
       })
 
       res.status(201).json({ orderId })
@@ -140,6 +151,24 @@ export function ordersRouter(
         tenantId: auth.tenantId,
         timestamp: new Date().toISOString(),
       })
+
+      // Also emit order:status_updated for POS UI
+      io.to(`tenant:${auth.tenantId}`).emit("order:status_updated", {
+        orderId,
+        tenantId: auth.tenantId,
+        externalStatus: "confirmed",
+        timestamp: new Date().toISOString(),
+      })
+
+      // Forward confirm to SaaS via outbox (BullMQ retry)
+      const syncOrder = await SyncOrderModel.findOne({ _id: orderId, tenantId: auth.tenantId }).lean()
+      if (syncOrder?.externalOrderId) {
+        await enqueueConfirmForward(confirmForwardQueue, {
+          tenantId: auth.tenantId,
+          orderId,
+          externalOrderId: syncOrder.externalOrderId,
+        })
+      }
 
       res.json({ status: "confirmed" })
     } catch (err) {
