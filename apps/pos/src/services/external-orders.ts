@@ -206,7 +206,7 @@ export async function transformExternalOrder(
     items,
     total,
     notes: notes ?? existing.notes,
-    status: "pending",
+    status: "confirmed",
     integratedAt: now,
     integratedBy: params.serverId ?? "cashier",
     updatedAt: now,

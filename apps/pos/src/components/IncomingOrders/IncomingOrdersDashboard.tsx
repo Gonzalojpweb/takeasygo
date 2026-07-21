@@ -49,6 +49,10 @@ interface ValidationItem {
   status: "valid" | "needs_attention"
 }
 
+// ── Audio para notificaciones de nuevos pedidos ─────────────────────────
+const NEW_ORDER_AUDIO = new Audio("/LLAMADA.mp3")
+NEW_ORDER_AUDIO.volume = 0.5
+
 const SYNC_URL = import.meta.env.VITE_SYNC_URL
 
 export function IncomingOrdersDashboard() {
@@ -59,6 +63,7 @@ export function IncomingOrdersDashboard() {
   const { setContextPanel, setActionBar } = useLayout()
   const [scene, setScene] = useState<Scene>("queue")
   const [filter, setFilter] = useState<FilterOption>("all")
+  const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(new Set())
   const [connected, setConnected] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [validationItems, setValidationItems] = useState<ValidationItem[]>([])
@@ -93,6 +98,19 @@ export function IncomingOrdersDashboard() {
   ) ?? []
 
   const orders = allOrders
+
+  // ── Detectar nuevos pedidos y reproducir audio ───────────────────────
+  useEffect(() => {
+    const newOrders = orders.filter((o) => !seenOrderIds.has(o.id))
+    if (newOrders.length > 0) {
+      NEW_ORDER_AUDIO.play().catch((err) => console.error("Error playing audio:", err))
+      setSeenOrderIds((prev) => {
+        const updated = new Set(prev)
+        newOrders.forEach((o) => updated.add(o.id))
+        return updated
+      })
+    }
+  }, [orders, seenOrderIds])
 
   // ── Callbacks ────────────────────────────────────────────────────
 
