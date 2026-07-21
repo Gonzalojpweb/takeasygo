@@ -9,6 +9,7 @@ import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
 import { addPointsFromOrder } from '@/lib/loyalty'
+import { notifySyncLayerStatus } from '@/lib/sync-layer'
 import webpush from 'web-push'
 
 webpush.setVapidDetails(
@@ -142,6 +143,14 @@ export async function PATCH(
     }
 
     await order.save()
+
+    // ── Notify SyncLayer of status change (so POS receives order:status_updated)
+    // skipForward: true prevents SyncLayer from forwarding back to SaaS (avoids loop)
+    if (order.externalOrderId) {
+      notifySyncLayerStatus(tenantSlug, orderId, status).catch((err) =>
+        console.error('[status] SyncLayer notify error (non-blocking):', err)
+      )
+    }
 
     // ── Push notification al cliente cuando el pedido está listo ──────────────
     if (status === 'ready' && (order as any).clientToken) {

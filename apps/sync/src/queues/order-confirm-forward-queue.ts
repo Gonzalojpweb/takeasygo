@@ -6,6 +6,7 @@ export interface ConfirmForwardJobData {
   tenantId: string
   orderId: string
   externalOrderId: string
+  status?: string
 }
 
 export async function enqueueConfirmForward(

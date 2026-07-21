@@ -8,10 +8,10 @@ import { enqueue } from "./event-queue"
 // ============================================================================
 
 const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending: ["confirmed", "cancelled"],
+  pending: ["confirmed", "preparing", "cancelled"],
   confirmed: ["preparing", "cancelled"],
-  preparing: ["ready"],
-  ready: ["delivered"],
+  preparing: ["ready", "cancelled"],
+  ready: ["delivered", "cancelled"],
   delivered: [],
   cancelled: [],
   requires_manual_attention: ["confirmed", "preparing", "ready", "delivered", "cancelled"],
@@ -209,6 +209,50 @@ export async function confirmOrder(
     tableId: order.tableId,
     items: order.items,
     total: order.total,
+  })
+}
+
+export async function prepareOrder(
+  tenantId: string,
+  orderId: string
+): Promise<void> {
+  const order = await db.orders.get(orderId)
+  if (!order) throw new Error(`[order] Order ${orderId} not found`)
+  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
+
+  validateOrderTransition(order.status, "preparing")
+
+  await db.orders.update(orderId, {
+    status: "preparing",
+    updatedAt: new Date(),
+  })
+
+  await enqueue(tenantId, "order.preparing", {
+    orderId,
+    tableId: order.tableId,
+    source: order.source,
+  })
+}
+
+export async function markReady(
+  tenantId: string,
+  orderId: string
+): Promise<void> {
+  const order = await db.orders.get(orderId)
+  if (!order) throw new Error(`[order] Order ${orderId} not found`)
+  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
+
+  validateOrderTransition(order.status, "ready")
+
+  await db.orders.update(orderId, {
+    status: "ready",
+    updatedAt: new Date(),
+  })
+
+  await enqueue(tenantId, "order.ready", {
+    orderId,
+    tableId: order.tableId,
+    source: order.source,
   })
 }
 

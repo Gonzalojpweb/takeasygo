@@ -395,4 +395,106 @@ describe("updateExternalOrderStatus", () => {
     expect(mockPendingStatusUpdates[0].type).toBe("status_update")
     expect(mockPendingStatusUpdates[0].externalStatus).toBe("confirmed")
   })
+
+  it("mirrors delivered externalStatus to local status — removes from IncomingOrders filter", async () => {
+    // Delivery order, cashier advanced to 'ready' via POS button
+    await persistExternalOrder(BASE_ORDER)
+    mockOrders[0].status = "ready"
+    mockOrders[0].source = "delivery"
+
+    // SaaS delivery driver marks as delivered
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "delivered")
+
+    // Both local status AND externalStatus should be "delivered"
+    expect(mockOrders[0].status).toBe("delivered")
+    expect(mockOrders[0].externalStatus).toBe("delivered")
+
+    // This order would now fail the IncomingOrdersDashboard filter (status !== 'delivered')
+    const passesFilter = mockOrders[0].status !== "delivered"
+    expect(passesFilter).toBe(false)
+  })
+
+  it("mirrors cancelled externalStatus to local status — pre-integration cancel", async () => {
+    // Order arrived from TakeasyGO, is in awaiting_payment, NOT yet integrated
+    await persistExternalOrder(BASE_ORDER)
+    expect(mockOrders[0].status).toBe("pending")
+    expect(mockOrders[0].externalStatus).toBe("awaiting_payment")
+
+    // Admin cancels from SaaS panel
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "cancelled")
+
+    // Both local status AND externalStatus should be "cancelled"
+    expect(mockOrders[0].status).toBe("cancelled")
+    expect(mockOrders[0].externalStatus).toBe("cancelled")
+
+    // This order would now fail the IncomingOrdersDashboard filter (status !== 'cancelled')
+    const passesFilter = mockOrders[0].status !== "cancelled"
+    expect(passesFilter).toBe(false)
+  })
+
+  it("does NOT mirror intermediate statuses to local status", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    mockOrders[0].status = "preparing"
+
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "en_ruta")
+
+    // externalStatus updated, but local status should NOT change
+    expect(mockOrders[0].externalStatus).toBe("en_ruta")
+    expect(mockOrders[0].status).toBe("preparing")
+  })
+
+  // ── Monotonía: stale event guard ─────────────────────────────────
+
+  it("rejects stale event — preparing cannot overwrite ready in externalStatus", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    // SaaS progressed to ready
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "ready")
+    expect(mockOrders[0].externalStatus).toBe("ready")
+
+    // Late retry of preparing arrives (stale)
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "preparing")
+
+    // Should NOT overwrite — ready is ahead of preparing
+    expect(mockOrders[0].externalStatus).toBe("ready")
+  })
+
+  it("rejects stale event — confirmed cannot overwrite ready in externalStatus", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "ready")
+
+    // Late confirmed arrives
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "confirmed")
+
+    expect(mockOrders[0].externalStatus).toBe("ready")
+  })
+
+  it("accepts forward event — confirmed → preparing (monotonic advance)", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "confirmed")
+    expect(mockOrders[0].externalStatus).toBe("confirmed")
+
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "preparing")
+    expect(mockOrders[0].externalStatus).toBe("preparing")
+  })
+
+  it("terminal state always applies — delivered overwrites any externalStatus", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "ready")
+    expect(mockOrders[0].externalStatus).toBe("ready")
+
+    // delivered is terminal — always applies regardless of order
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "delivered")
+    expect(mockOrders[0].externalStatus).toBe("delivered")
+    expect(mockOrders[0].status).toBe("delivered")
+  })
+
+  it("terminal state always applies — cancelled overwrites any externalStatus", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "ready")
+
+    // cancelled is terminal — always applies
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "cancelled")
+    expect(mockOrders[0].externalStatus).toBe("cancelled")
+    expect(mockOrders[0].status).toBe("cancelled")
+  })
 })

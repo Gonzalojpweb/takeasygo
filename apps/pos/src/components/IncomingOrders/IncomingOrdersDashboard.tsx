@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
+import { useLiveQuery } from "dexie-react-hooks"
 import type { Order } from "@takeasygo/types"
 import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"
-import { onSocketEvent, connectSocket } from "../../services/socket-client"
-import { fetchPendingOrders, confirmTransferPayment } from "../../services/sync-api"
+import { connectSocket } from "../../services/socket-client"
+import { confirmTransferPayment } from "../../services/sync-api"
+import { prepareOrder, markReady, deliverOrder } from "../../services/order"
 import {
-  persistExternalOrder,
   transformExternalOrder,
   updateExternalOrderStatus,
   cancelExternalOrder,
 } from "../../services/external-orders"
-import { playOrderNotification } from "../../services/notification-sound"
+import { db } from "../../db/dexie"
 import { SocketStatus } from "./SocketStatus"
 import { GatewayStats } from "./GatewayStats"
 import { GatewayFilters } from "./GatewayFilters"
@@ -33,6 +34,11 @@ import { OrderTransformPanel } from "./OrderTransformPanel"
 //   ❌ Editar productos, precios o cantidades
 //   ❌ Cambiar el estado del pedido en origen
 //   ❌ Modificar la orden después de transformada
+//
+// FUENTE DE VERDAD: db.orders (Dexie).
+// Los listeners de socket (order:created, order:status_updated, order:cancelled)
+// viven en App.tsx (root level) y persisten a Dexie. Este componente LEE de
+// Dexie vía useLiveQuery — no mantiene estado local para pedidos.
 // ============================================================================
 
 type Scene = "queue" | "validation" | "transform"
@@ -54,7 +60,6 @@ export function IncomingOrdersDashboard() {
 
   const { setContextPanel, setActionBar } = useLayout()
   const [scene, setScene] = useState<Scene>("queue")
-  const [orders, setOrders] = useState<Order[]>([])
   const [filter, setFilter] = useState<FilterOption>("all")
   const [connected, setConnected] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -68,185 +73,30 @@ export function IncomingOrdersDashboard() {
     setTimeout(() => setToast(null), 4000)
   }, [])
 
+  // ── Socket connection status (for UI indicator only) ──────────────
   useEffect(() => {
-    if (!jwt || !tenantId) return
-
+    if (!jwt) return
     const socket = connectSocket(jwt)
-
     socket.on("connect", () => setConnected(true))
     socket.on("disconnect", () => setConnected(false))
+  }, [jwt])
 
-    // Fetch active orders on mount (catch orders missed while offline)
-    fetchPendingOrders(tenantId, jwt).then((pending) => {
-      if (pending.length > 0) {
-        // Persist each external order to Dexie (one record per order)
-        pending.forEach((o) => {
-          persistExternalOrder({
-            orderId: o.orderId,
-            tenantId: o.tenantId,
-            source: "external",
-            status: (o.status as Order["status"]) ?? "pending",
-            externalStatus: (o.status as Order["externalStatus"]) ?? "awaiting_payment",
-            paymentMethod: o.paymentMethod as Order["paymentMethod"],
-            items: o.items as Order["items"],
-            total: o.total,
-          }).catch(() => {})
-        })
+  // ── READ from Dexie — source of truth ─────────────────────────────
+  // Filter: external orders only, not cancelled, not yet integrated
+  const allOrders = useLiveQuery(
+    () => (tenantId
+      ? db.orders
+          .where("tenantId")
+          .equals(tenantId)
+          .and((o) => o.source === "external" && o.status !== "cancelled" && o.status !== "delivered")
+          .toArray()
+      : []),
+    [tenantId]
+  ) ?? []
 
-        setOrders((prev) => {
-          const existingIds = new Set(prev.map((o) => o.id))
-          const newOrders = pending
-            .filter((o) => !existingIds.has(o.orderId))
-            .map((o) => ({
-              id: o.orderId,
-              tenantId: o.tenantId,
-              source: (o.source as Order["source"]) || "external",
-              status: (o.status as Order["status"]) || "pending",
-              paymentMethod: o.paymentMethod as Order["paymentMethod"],
-              externalStatus: o.status as Order["externalStatus"],
-              items: o.items as Order["items"],
-              total: o.total,
-              menuVersion: 1,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            }))
-          return [...newOrders, ...prev]
-        })
-      }
-    }).catch(() => {})
+  const orders = allOrders
 
-    const unsubCreated = onSocketEvent("order:created", (data: unknown) => {
-      const event = data as { orderId: string; items: unknown[]; total: number; source?: string; paymentMethod?: string }
-      const orderSource = (event.source as Order["source"]) || "external"
-
-      // Persist to Dexie (one record per order)
-      persistExternalOrder({
-        orderId: event.orderId,
-        tenantId: tenantId!,
-        source: orderSource,
-        status: "pending",
-        externalStatus: "awaiting_payment",
-        paymentMethod: event.paymentMethod as Order["paymentMethod"],
-        items: event.items as Order["items"],
-        total: event.total,
-      }).catch(() => {})
-
-      setOrders((prev) => {
-        if (prev.some((o) => o.id === event.orderId)) return prev
-        const newOrder: Order = {
-          id: event.orderId,
-          tenantId: tenantId ?? "",
-          source: orderSource,
-          status: "pending",
-          paymentMethod: event.paymentMethod as Order["paymentMethod"],
-          externalStatus: "awaiting_payment",
-          items: event.items as Order["items"],
-          total: event.total,
-          menuVersion: 1,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-        return [newOrder, ...prev]
-      })
-      playOrderNotification()
-      showToast("Nuevo pedido recibido", "info")
-    })
-
-    const unsubConfirmed = onSocketEvent("order:confirmed", (data: unknown) => {
-      const event = data as { orderId: string }
-      // Persist status change to Dexie
-      updateExternalOrderStatus(event.orderId, tenantId!, "confirmed").catch(() => {})
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === event.orderId
-            ? { ...o, status: "confirmed" as const, externalStatus: "confirmed" as const, updatedAt: new Date() }
-            : o
-        )
-      )
-    })
-
-    const unsubStatusUpdated = onSocketEvent("order:status_updated", (data: unknown) => {
-      const event = data as { orderId: string; externalStatus: string }
-      // Persist status change to Dexie
-      updateExternalOrderStatus(event.orderId, tenantId!, event.externalStatus as Order["externalStatus"]).catch(() => {})
-      setOrders((prev) => {
-        const orderExists = prev.some((o) => o.id === event.orderId)
-        if (!orderExists) return prev
-        return prev.map((o) =>
-          o.id === event.orderId
-            ? { ...o, externalStatus: event.externalStatus as Order["externalStatus"], updatedAt: new Date() }
-            : o
-        )
-      })
-    })
-
-    const unsubCancelled = onSocketEvent("order:cancelled", (data: unknown) => {
-      const event = data as { orderId: string; reason?: string }
-      // Persist cancellation to Dexie
-      cancelExternalOrder(event.orderId, tenantId!, event.reason).catch(() => {})
-      setOrders((prev) => {
-        const existed = prev.some((o) => o.id === event.orderId)
-        if (existed) {
-          showToast(
-            event.reason === "offline_timeout"
-              ? "Pedido expirado (timeout)"
-              : "Pedido cancelado",
-            "info"
-          )
-        }
-        return prev.filter((o) => o.id !== event.orderId)
-      })
-    })
-
-    // Allow App.tsx to trigger a refresh on reconnect
-    const handleRefresh = () => {
-      if (!tenantId || !jwt) return
-      fetchPendingOrders(tenantId, jwt).then((pending) => {
-        // Persist each external order to Dexie
-        pending.forEach((o) => {
-          persistExternalOrder({
-            orderId: o.orderId,
-            tenantId: o.tenantId,
-            source: "external",
-            status: (o.status as Order["status"]) ?? "pending",
-            externalStatus: (o.status as Order["externalStatus"]) ?? "awaiting_payment",
-            paymentMethod: o.paymentMethod as Order["paymentMethod"],
-            items: o.items as Order["items"],
-            total: o.total,
-          }).catch(() => {})
-        })
-
-        setOrders((prev) => {
-          const existingIds = new Set(prev.map((o) => o.id))
-          const newOrders = pending
-            .filter((o) => !existingIds.has(o.orderId))
-            .map((o) => ({
-              id: o.orderId,
-              tenantId: o.tenantId,
-              source: (o.source as Order["source"]) || "external",
-              status: (o.status as Order["status"]) || "pending",
-              paymentMethod: o.paymentMethod as Order["paymentMethod"],
-              externalStatus: o.status as Order["externalStatus"],
-              items: o.items as Order["items"],
-              total: o.total,
-              menuVersion: 1,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            }))
-          return [...newOrders, ...prev]
-        })
-      }).catch(() => {})
-    }
-    window.addEventListener("pos:refresh-incoming", handleRefresh)
-
-    return () => {
-      unsubCreated()
-      unsubConfirmed()
-      unsubStatusUpdated()
-      unsubCancelled()
-      window.removeEventListener("pos:refresh-incoming", handleRefresh)
-    }
-  }, [jwt, tenantId, showToast])
+  // ── Callbacks ────────────────────────────────────────────────────
 
   const handleConfirmOrder = useCallback(async (orderId: string) => {
     try {
@@ -255,18 +105,10 @@ export function IncomingOrdersDashboard() {
         headers: { Authorization: `Bearer ${jwt}` },
       })
       if (!res.ok) throw new Error(`Confirm failed (${res.status})`)
-
-      // Persist status change to Dexie
+      // Dexie auto-updates via useLiveQuery when updateExternalOrderStatus writes
       if (tenantId) {
         updateExternalOrderStatus(orderId, tenantId, "confirmed").catch(() => {})
       }
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId
-            ? { ...o, status: "confirmed" as const, externalStatus: "confirmed" as const, updatedAt: new Date() }
-            : o
-        )
-      )
       showToast("Pedido confirmado en origen", "success")
     } catch {
       showToast("Error al confirmar", "error")
@@ -277,32 +119,56 @@ export function IncomingOrdersDashboard() {
     if (!tenantId || !jwt) return
     const ok = await confirmTransferPayment(orderId, tenantId, jwt)
     if (ok) {
-      // Persist status change to Dexie
       updateExternalOrderStatus(orderId, tenantId, "confirmed").catch(() => {})
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId
-            ? { ...o, status: "confirmed" as const, externalStatus: "confirmed" as const, updatedAt: new Date() }
-            : o
-        )
-      )
       showToast("Pago confirmado y pedido integrado", "success")
     } else {
       showToast("Error al confirmar pago", "error")
     }
   }, [tenantId, jwt, showToast])
 
-  const handleRejectOrder = useCallback((orderId: string) => {
-    setOrders((prev) => prev.filter((o) => o.id !== orderId))
+  const handleRejectOrder = useCallback(async (orderId: string) => {
+    if (tenantId) {
+      await cancelExternalOrder(orderId, tenantId, "rejected_by_cashier").catch(() => {})
+    }
     setSelectedOrderId(null)
     setScene("queue")
     showToast("Pedido rechazado", "info")
-  }, [showToast])
+  }, [tenantId, showToast])
 
   const handleConfirmAllPaid = useCallback(() => {
-    const pendingPaid = orders.filter((o) => o.status === "pending")
+    const pendingPaid = orders.filter((o) => !o.integratedAt && o.status === "pending")
     pendingPaid.forEach((o) => handleConfirmOrder(o.id))
   }, [orders, handleConfirmOrder])
+
+  const handlePrepare = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await prepareOrder(tenantId, orderId)
+      showToast("Pedido en preparación", "success")
+    } catch {
+      showToast("Error al iniciar preparación", "error")
+    }
+  }, [tenantId, showToast])
+
+  const handleMarkReady = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await markReady(tenantId, orderId)
+      showToast("Pedido listo", "success")
+    } catch {
+      showToast("Error al marcar listo", "error")
+    }
+  }, [tenantId, showToast])
+
+  const handleDeliver = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await deliverOrder(tenantId, orderId)
+      showToast("Pedido entregado", "success")
+    } catch {
+      showToast("Error al entregar", "error")
+    }
+  }, [tenantId, showToast])
 
   const handleSelectOrder = useCallback((orderId: string) => {
     const order = orders.find((o) => o.id === orderId)
@@ -354,6 +220,8 @@ export function IncomingOrdersDashboard() {
     }
   }, [orders, selectedOrderId, tenantId, showToast])
 
+  // ── Derived state ────────────────────────────────────────────────
+
   const filteredOrders = useMemo(() => {
     if (filter === "all" || filter === "delivery" || filter === "takeaway" || filter === "marketplace") return orders
     if (filter === "pending_payment") return orders.filter((o) => o.status === "pending")
@@ -361,7 +229,7 @@ export function IncomingOrdersDashboard() {
   }, [orders, filter])
 
   const pendingCount = useMemo(
-    () => orders.filter((o) => o.status === "pending" || o.externalStatus === "awaiting_payment").length,
+    () => orders.filter((o) => !o.integratedAt && (o.status === "pending" || o.externalStatus === "awaiting_payment")).length,
     [orders]
   )
 
@@ -372,7 +240,7 @@ export function IncomingOrdersDashboard() {
 
   const paidCount = useMemo(
     () => orders.filter(
-      (o) => o.source === "takeasygo" && ["confirmed", "preparing", "ready", "delivered"].includes(o.status)
+      (o) => o.source === "external" && ["confirmed", "preparing", "ready", "delivered"].includes(o.status)
     ).length,
     [orders]
   )
@@ -385,7 +253,8 @@ export function IncomingOrdersDashboard() {
     pending_payment: pendingCount,
   }), [orders.length, pendingCount])
 
-  // Context Panel + ActionBar per scene
+  // ── Context Panel + ActionBar per scene ──────────────────────────
+
   useEffect(() => {
     switch (scene) {
       case "queue":
@@ -607,6 +476,9 @@ export function IncomingOrdersDashboard() {
                     order={order}
                     onClick={handleSelectOrder}
                     onConfirmTransfer={handleConfirmTransfer}
+                    onPrepare={handlePrepare}
+                    onMarkReady={handleMarkReady}
+                    onDeliver={handleDeliver}
                   />
                 ))}
               </div>

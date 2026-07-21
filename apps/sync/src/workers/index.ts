@@ -123,9 +123,7 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
   const confirmForwardWorker = new Worker(
     "order_confirm_forward",
     async (job) => {
-      const { tenantId, orderId, externalOrderId } = job.data
-
-      console.log(`[worker/confirm-forward] forwarding confirm for order ${orderId} (external: ${externalOrderId}, tenant: ${tenantId})`)
+      const { tenantId, orderId, externalOrderId, status } = job.data
 
       const saasTenantSlug = await getSaaSslug(tenantId)
       if (!saasTenantSlug) {
@@ -133,13 +131,27 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
         return { status: "tenant_not_found" }
       }
 
-      const res = await fetch(`${config.saasBaseUrl}/api/v1/${saasTenantSlug}/orders/${externalOrderId}/confirm-internal`, {
-        method: "POST",
+      // Route to the correct SaaS endpoint based on status:
+      // - confirmed → /confirm-internal (payment confirmation flow)
+      // - preparing/ready/delivered/cancelled → /status (status update flow)
+      const isStatusUpdate = status && status !== "confirmed"
+      const endpoint = isStatusUpdate
+        ? `${config.saasBaseUrl}/api/v1/${saasTenantSlug}/orders/${externalOrderId}/status`
+        : `${config.saasBaseUrl}/api/v1/${saasTenantSlug}/orders/${externalOrderId}/confirm-internal`
+
+      const body = isStatusUpdate
+        ? JSON.stringify({ status })
+        : JSON.stringify({ tenantId })
+
+      console.log(`[worker/confirm-forward] forwarding ${isStatusUpdate ? `status→${status}` : "confirm"} for order ${orderId} (external: ${externalOrderId}, tenant: ${tenantId})`)
+
+      const res = await fetch(endpoint, {
+        method: isStatusUpdate ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${config.internalApiSecret}`,
         },
-        body: JSON.stringify({ tenantId }),
+        body,
       })
 
       if (!res.ok) {
@@ -147,7 +159,7 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
         throw new Error(`SaaS forward failed (${res.status}): ${text}`)
       }
 
-      console.log(`[worker/confirm-forward] successfully forwarded confirm for ${orderId}`)
+      console.log(`[worker/confirm-forward] successfully forwarded ${isStatusUpdate ? `status→${status}` : "confirm"} for ${orderId}`)
       return { status: "forwarded", orderId }
     },
     {

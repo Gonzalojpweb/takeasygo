@@ -1,10 +1,13 @@
-import type { Order, PaymentMethod } from "@takeasygo/types"
+import type { Order, OrderStatus, PaymentMethod } from "@takeasygo/types"
 import { formatCurrency, timeAgo } from "../../utils/format"
 
 interface OrderCardProps {
   order: Order
   onClick: (orderId: string) => void
   onConfirmTransfer?: (orderId: string) => void
+  onPrepare?: (orderId: string) => void
+  onMarkReady?: (orderId: string) => void
+  onDeliver?: (orderId: string) => void
 }
 
 function getSourceMeta(source: string): { icon: string; label: string; className: string } {
@@ -52,7 +55,7 @@ function formatOrderItems(items: Order["items"]) {
   return items.map((i) => `${i.quantity}× ${i.name}`).join(", ")
 }
 
-export function OrderCard({ order, onClick, onConfirmTransfer }: OrderCardProps) {
+export function OrderCard({ order, onClick, onConfirmTransfer, onPrepare, onMarkReady, onDeliver }: OrderCardProps) {
   const source = getSourceMeta(order.source || "takeasygo")
   const payment = getPaymentMeta(order.paymentMethod)
   const minutes = getTimeAgoMinutes(order.createdAt)
@@ -62,11 +65,64 @@ export function OrderCard({ order, onClick, onConfirmTransfer }: OrderCardProps)
   const isMPPending = (order.paymentMethod === "mercadopago" || order.paymentMethod === "kripton") && order.externalStatus === "awaiting_payment"
   const isConfirmed = order.externalStatus === "confirmed" || order.status === "confirmed"
 
+  const isIntegrated = !!order.integratedAt
+  const isDelivery = order.source === "delivery"
+
+  function getNextStatusLabel(status: OrderStatus): string | null {
+    switch (status) {
+      case "pending":
+      case "confirmed":
+        return "Iniciar Preparación"
+      case "preparing":
+        return "Marcar Listo"
+      case "ready":
+        return isDelivery ? "Listo para delivery" : "Entregado"
+      default:
+        return null
+    }
+  }
+
+  function getNextAction(status: OrderStatus): (() => void) | null {
+    if (!isIntegrated) return null
+    switch (status) {
+      case "pending":
+      case "confirmed":
+        return onPrepare ? () => onPrepare(order.id) : null
+      case "preparing":
+        return onMarkReady ? () => onMarkReady(order.id) : null
+      case "ready":
+        return isDelivery ? null : (onDeliver ? () => onDeliver(order.id) : null)
+      default:
+        return null
+    }
+  }
+
+  function getStatusBadgeColor(status: OrderStatus): string {
+    switch (status) {
+      case "pending": return "var(--text-muted)"
+      case "confirmed": return "var(--info)"
+      case "preparing": return "var(--warning)"
+      case "ready": return "var(--success)"
+      case "delivered": return "var(--text-muted)"
+      case "cancelled": return "var(--danger)"
+      default: return "var(--text-muted)"
+    }
+  }
+
+  const nextAction = getNextAction(order.status)
+  const nextLabel = getNextStatusLabel(order.status)
+
+  const handleClick = () => {
+    if (!isIntegrated) {
+      onClick(order.id)
+    }
+  }
+
   return (
     <div
       className={`order-card ${isUrgent ? "urgent" : ""} ${isMPPending ? "mp-pending" : ""} ${isTransferPending ? "transfer-pending" : ""}`}
-      onClick={() => onClick(order.id)}
-      style={{ cursor: "pointer", opacity: isMPPending ? 0.6 : 1 }}
+      onClick={handleClick}
+      style={{ cursor: isIntegrated ? "default" : "pointer", opacity: isMPPending ? 0.6 : 1 }}
     >
       <div className="order-card-left">
         <div className="order-card-header">
@@ -82,6 +138,21 @@ export function OrderCard({ order, onClick, onConfirmTransfer }: OrderCardProps)
               <span className={`order-card-payment ${payment.className}`}>
                 {payment.icon} {payment.label}
               </span>
+              {isIntegrated && (
+                <span style={{
+                  fontSize: "var(--font-size-xs)",
+                  color: getStatusBadgeColor(order.status),
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}>
+                  {order.status === "pending" && "Integrado"}
+                  {order.status === "confirmed" && "Confirmado"}
+                  {order.status === "preparing" && "En preparación"}
+                  {order.status === "ready" && (isDelivery ? "Listo para delivery" : "Listo")}
+                  {order.status === "delivered" && "Entregado"}
+                </span>
+              )}
             </div>
           </div>
           {isMPPending && (
@@ -94,7 +165,7 @@ export function OrderCard({ order, onClick, onConfirmTransfer }: OrderCardProps)
               Transferencia pendiente
             </span>
           )}
-          {isConfirmed && (
+          {isConfirmed && !isIntegrated && (
             <span className={`status-badge ${order.status}`}>
               {order.status}
             </span>
@@ -117,6 +188,23 @@ export function OrderCard({ order, onClick, onConfirmTransfer }: OrderCardProps)
           >
             Confirmar pago
           </button>
+        )}
+        {isIntegrated && nextAction && (
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ marginTop: "var(--sp-2)" }}
+            onClick={(e) => {
+              e.stopPropagation()
+              nextAction()
+            }}
+          >
+            {nextLabel}
+          </button>
+        )}
+        {isIntegrated && isDelivery && order.status === "ready" && (
+          <div style={{ marginTop: "var(--sp-2)", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
+            El estado se actualizará desde el panel de administración
+          </div>
         )}
       </div>
       <div className="order-card-right">

@@ -220,10 +220,40 @@ export async function updateExternalOrderStatus(
   const existing = await db.orders.get(orderId)
 
   if (existing) {
-    await db.orders.update(orderId, {
+    // ── Monotonía: no sobrescribir externalStatus con un estado más viejo ──
+    // Si llega un reintento tardío (ej: "preparing" cuando ya tenemos "ready"),
+    // lo descartamos. Solo aplica dentro de la serie externalStatus — no mezcla
+    // con status local (que lo mueve el cajero desde el POS).
+    const STATUS_ORDER: Record<string, number> = {
+      awaiting_payment: 0,
+      confirmed: 1,
+      preparing: 2,
+      ready: 3,
+      delivered: 4,
+      cancelled: 5,
+    }
+    const currentOrder = STATUS_ORDER[existing.externalStatus ?? "awaiting_payment"] ?? 0
+    const newOrder = STATUS_ORDER[externalStatus ?? ""] ?? 0
+    if (newOrder < currentOrder) {
+      // Evento stale — no sobreescribir externalStatus más avanzado
+      return
+    }
+
+    const changes: { externalStatus: Order["externalStatus"]; updatedAt: Date; status?: Order["status"] } = {
       externalStatus,
       updatedAt: new Date(),
-    })
+    }
+
+    // Mirror terminal SaaS statuses to local POS status
+    // Siempre se aplica (sin guard de monotonía) porque son estados terminales
+    // que el SaaS puede forzar desde cualquier punto del ciclo.
+    if (externalStatus === "delivered") {
+      changes.status = "delivered"
+    } else if (externalStatus === "cancelled") {
+      changes.status = "cancelled"
+    }
+
+    await db.orders.update(orderId, changes)
     return
   }
 
