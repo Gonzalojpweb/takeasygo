@@ -24,8 +24,9 @@ export function SalesDashboard() {
   const completedOrders = useMemo(
     () => (orders ?? []).filter((o) => {
       if (o.status === "cancelled") return false
-      // Excluir pedidos externos que aún no confirmaron pago
-      if (o.source === "external" && o.externalStatus === "awaiting_payment") return false
+      // Excluir pedidos externos que aún no fueron integrados por el cajero.
+      // Solo aparecen en Ventas después de que el cajero los integra desde Pedidos.
+      if (o.source === "external" && !o.integratedAt) return false
       return true
     }),
     [orders]

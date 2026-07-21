@@ -206,16 +206,19 @@ export async function confirmOrderPayment(
 }
 
 // ============================================================================
-// updateOrderStatusInSaaS — Forward POS status changes to SaaS
+// notifySyncLayerStatus — Notify SyncLayer of SaaS-initiated status changes
 // ============================================================================
-// Called by the SyncLayer when the POS reports a status change (preparing, ready,
-// delivered). Updates the SaaS Order model so the admin panel reflects the
-// current state.
+// When the SaaS updates an order's status (via admin panel, delivery app,
+// etc.), this function notifies the SyncLayer so it can:
+//   1. Update its own DB
+//   2. Emit order:status_updated to connected POS instances
+// Uses skipForward: true to prevent the SyncLayer from forwarding back to SaaS
+// (which would create an infinite loop: SaaS → SyncLayer → SaaS).
 // ============================================================================
 
-export async function updateOrderStatusInSaaS(
+export async function notifySyncLayerStatus(
+  tenantSlug: string,
   orderId: string,
-  tenantId: string,
   status: string
 ): Promise<void> {
   if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) return
@@ -227,17 +230,17 @@ export async function updateOrderStatusInSaaS(
         "Content-Type": "application/json",
         Authorization: `Bearer ${SYNC_LAYER_SECRET}`,
       },
-      body: JSON.stringify({ tenantId, status }),
+      body: JSON.stringify({ tenantId: tenantSlug, status, skipForward: true }),
     })
 
     if (!res.ok) {
       const text = await res.text().catch(() => "unknown")
-      console.error(`[sync-layer] status update failed (${res.status}): ${text}`)
+      console.error(`[sync-layer] notify status failed (${res.status}): ${text}`)
       return
     }
 
-    console.log(`[sync-layer] order ${orderId} status updated to ${status}`)
+    console.log(`[sync-layer] order ${orderId} status ${status} notified to SyncLayer`)
   } catch (err) {
-    console.error("[sync-layer] status update error:", err)
+    console.error("[sync-layer] notify status error:", err)
   }
 }

@@ -127,10 +127,11 @@ export function internalRouter(
   })
 
   // POST /orders/:orderId/status — POS reports status change, SyncLayer forwards to SaaS
+  // skipForward: when true (SaaS-initiated), update DB + emit socket but skip forward queue
   router.post("/orders/:orderId/status", async (req, res) => {
     try {
       const { orderId } = req.params
-      const { tenantId, status } = req.body
+      const { tenantId, status, skipForward } = req.body
 
       if (!tenantId || !status) {
         res.status(400).json({ error: "tenantId and status required" })
@@ -150,14 +151,17 @@ export function internalRouter(
         timestamp: new Date().toISOString(),
       })
 
-      // Forward to SaaS via outbox
-      const syncOrder = await SyncOrderModel.findOne({ _id: orderId, tenantId }).lean()
-      if (syncOrder?.externalOrderId) {
-        await enqueueConfirmForward(confirmForwardQueue, {
-          tenantId,
-          orderId,
-          externalOrderId: syncOrder.externalOrderId,
-        })
+      // Forward to SaaS via outbox (skip when called from SaaS to avoid loop)
+      if (!skipForward) {
+        const syncOrder = await SyncOrderModel.findOne({ _id: orderId, tenantId }).lean()
+        if (syncOrder?.externalOrderId) {
+          await enqueueConfirmForward(confirmForwardQueue, {
+            tenantId,
+            orderId,
+            externalOrderId: syncOrder.externalOrderId,
+            status,
+          })
+        }
       }
 
       res.json({ status })

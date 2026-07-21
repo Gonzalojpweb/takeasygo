@@ -27,7 +27,19 @@ import { flush } from "./services/event-queue"
 import { disconnectSocket, onSocketEvent } from "./services/socket-client"
 import { handleTakeasyGOSale } from "./services/sync-cash"
 import type { TakeasyGOSalePayload } from "./services/sync-cash"
-import { acknowledgeCashSale, fetchFailedCashSaleEvents } from "./services/sync-api"
+import {
+  acknowledgeCashSale,
+  fetchFailedCashSaleEvents,
+  fetchPendingOrders,
+} from "./services/sync-api"
+import {
+  persistExternalOrder,
+  updateExternalOrderStatus,
+  cancelExternalOrder,
+  cleanupPendingStatusUpdates,
+} from "./services/external-orders"
+import { playOrderNotification } from "./services/notification-sound"
+import type { Order } from "@takeasygo/types"
 import "./styles/pos.css"
 
 type Context = "counter" | "customers" | "waiter" | "incoming" | "flota" | "caja" | "ventas"
@@ -64,11 +76,6 @@ function App() {
       const payload = data as TakeasyGOSalePayload
       handleTakeasyGOSale(payload)
         .then((result) => {
-          // ── ACK al Sync Layer (fire-and-forget) ─────────────────────
-          // Si el ACK falla (POS se cae justo después de procesar), el
-          // evento queda en "pending" y BullMQ reintenta. La idempotencia
-          // en handleTakeasyGOSale absorbe el reproceso sin duplicar.
-          // No es necesario reintentar el ACK — el reproceso es seguro.
           if (payload.eventId && state.jwt) {
             acknowledgeCashSale(payload.eventId, state.jwt.accessToken)
           }
@@ -81,6 +88,80 @@ function App() {
         })
     })
 
+    // ── External order socket listeners (root level — always active) ──
+    // These MUST be in App.tsx, not in IncomingOrdersDashboard, because
+    // IncomingOrdersDashboard is unmounted when the user is on any other view.
+    // If these listeners lived only in IncomingOrdersDashboard, orders and
+    // status updates would be silently lost when the user is on Counter, Caja, etc.
+
+    // Cleanup pending status updates from previous sessions (TTL 24h)
+    cleanupPendingStatusUpdates().catch(() => {})
+
+    // Fetch pending orders from SyncLayer on connect/reconnect
+    fetchPendingOrders(state.tenantId!, state.jwt!.accessToken).then((pending) => {
+      if (pending.length > 0) {
+        pending.forEach((o) => {
+          persistExternalOrder({
+            orderId: o.orderId,
+            tenantId: o.tenantId,
+            source: "external",
+            status: (o.status as Order["status"]) ?? "pending",
+            externalStatus: (o.status as Order["externalStatus"]) ?? "awaiting_payment",
+            paymentMethod: o.paymentMethod as Order["paymentMethod"],
+            items: o.items as Order["items"],
+            total: o.total,
+          }).catch(() => {})
+        })
+        console.log(`[App] persisted ${pending.length} pending orders from SyncLayer`)
+      }
+    }).catch(() => {})
+
+    const unsubOrderCreated = onSocketEvent("order:created", (data: unknown) => {
+      const event = data as { orderId: string; items: unknown[]; total: number; source?: string; paymentMethod?: string }
+      const orderSource = (event.source as Order["source"]) || "external"
+
+      persistExternalOrder({
+        orderId: event.orderId,
+        tenantId: state.tenantId!,
+        source: orderSource,
+        status: "pending",
+        externalStatus: "awaiting_payment",
+        paymentMethod: event.paymentMethod as Order["paymentMethod"],
+        items: event.items as Order["items"],
+        total: event.total,
+      }).then(() => {
+        console.log(`[App] order:created persisted: ${event.orderId}`)
+      }).catch((err) => {
+        console.error("[App] order:created persist failed:", err)
+      })
+
+      playOrderNotification()
+    })
+
+    const unsubOrderConfirmed = onSocketEvent("order:confirmed", (data: unknown) => {
+      const event = data as { orderId: string }
+      updateExternalOrderStatus(event.orderId, state.tenantId!, "confirmed")
+        .then(() => {
+          console.log(`[App] order:confirmed persisted: ${event.orderId}`)
+        })
+        .catch(() => {})
+    })
+
+    const unsubOrderStatusUpdated = onSocketEvent("order:status_updated", (data: unknown) => {
+      const event = data as { orderId: string; externalStatus: string }
+      updateExternalOrderStatus(event.orderId, state.tenantId!, event.externalStatus as Order["externalStatus"])
+        .catch(() => {})
+    })
+
+    const unsubOrderCancelled = onSocketEvent("order:cancelled", (data: unknown) => {
+      const event = data as { orderId: string; reason?: string }
+      cancelExternalOrder(event.orderId, state.tenantId!, event.reason)
+        .then(() => {
+          console.log(`[App] order:cancelled persisted: ${event.orderId}`)
+        })
+        .catch(() => {})
+    })
+
     const unsubscribe = onReconnect(async () => {
       console.log("[App] reconnect detected, flushing events...")
       const result = await flush(state.tenantId!, state.jwt!.accessToken)
@@ -88,8 +169,24 @@ function App() {
         console.log(`[App] flushed ${result.synced} events`)
       }
 
-      // ── Refresh incoming orders (catch orders missed while offline) ──
-      window.dispatchEvent(new Event("pos:refresh-incoming"))
+      // ── Fetch pending orders from SyncLayer on reconnect ──
+      fetchPendingOrders(state.tenantId!, state.jwt!.accessToken).then((pending) => {
+        if (pending.length > 0) {
+          pending.forEach((o) => {
+            persistExternalOrder({
+              orderId: o.orderId,
+              tenantId: o.tenantId,
+              source: "external",
+              status: (o.status as Order["status"]) ?? "pending",
+              externalStatus: (o.status as Order["externalStatus"]) ?? "awaiting_payment",
+              paymentMethod: o.paymentMethod as Order["paymentMethod"],
+              items: o.items as Order["items"],
+              total: o.total,
+            }).catch(() => {})
+          })
+          console.log(`[App] reconnected: persisted ${pending.length} pending orders`)
+        }
+      }).catch(() => {})
 
       // ── Fetch eventos fallidos del Sync Layer ──────────────────────
       // Cuando el Hub reconecta, busca eventos que el Sync Layer no
@@ -108,6 +205,10 @@ function App() {
 
     return () => {
       unsubCashSale()
+      unsubOrderCreated()
+      unsubOrderConfirmed()
+      unsubOrderStatusUpdated()
+      unsubOrderCancelled()
       unsubscribe()
       stopConnectivityMonitoring()
       disconnectSocket()

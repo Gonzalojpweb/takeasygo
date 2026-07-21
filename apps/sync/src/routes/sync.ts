@@ -76,6 +76,7 @@ export function syncRouter(
                     tenantId: auth.tenantId,
                     orderId: event.payload.orderId,
                     externalOrderId: syncOrder.externalOrderId,
+                    status: newStatus,
                   })
                 }
               }
