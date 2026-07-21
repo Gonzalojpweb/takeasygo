@@ -165,7 +165,7 @@ export async function confirmTransferPayment(
   jwt: string
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${SYNC_URL}/api/v1/internal/orders/${orderId}/confirm`, {
+    const res = await fetch(`${SYNC_URL}/api/v1/orders/${orderId}/confirm`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",

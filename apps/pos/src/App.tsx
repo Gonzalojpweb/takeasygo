@@ -24,7 +24,7 @@ import {
   onReconnect,
 } from "./services/connectivity"
 import { flush } from "./services/event-queue"
-import { disconnectSocket, onSocketEvent } from "./services/socket-client"
+import { connectSocket, disconnectSocket, onSocketEvent } from "./services/socket-client"
 import { handleTakeasyGOSale } from "./services/sync-cash"
 import type { TakeasyGOSalePayload } from "./services/sync-cash"
 import {
@@ -71,6 +71,13 @@ function App() {
     }
 
     startConnectivityMonitoring()
+
+    // ── Connect socket at root level (CRITICAL) ──
+    // Previously, connectSocket() was only called in child components
+    // (IncomingOrdersDashboard, FlotaDashboard). This meant the socket
+    // never connected if the user was on Counter/Caja/Ventas — all
+    // order:created events were lost silently.
+    connectSocket(state.jwt.accessToken)
 
     const unsubCashSale = onSocketEvent("cash_sale", (data: unknown) => {
       const payload = data as TakeasyGOSalePayload

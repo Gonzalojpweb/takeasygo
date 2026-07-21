@@ -48,13 +48,27 @@ export async function createTranslatedOrder(
   return { id: doc._id.toString() }
 }
 
+/**
+ * Build a MongoDB query that matches either by _id (SyncLayer's own ID)
+ * or by externalOrderId (the SaaS order _id). This is necessary because
+ * different callers pass different ID types:
+ *   - POS/jwt-auth callers pass the SyncLayer _id
+ *   - SaaS internal callers pass the SaaS order _id (stored as externalOrderId)
+ */
+function buildOrderLookup(orderId: string, tenantId: string) {
+  return {
+    tenantId,
+    $or: [{ _id: orderId }, { externalOrderId: orderId }],
+  }
+}
+
 export async function updateOrderStatus(
   orderId: string,
   tenantId: string,
   status: string
 ): Promise<boolean> {
   const result = await SyncOrderModel.updateOne(
-    { _id: orderId, tenantId },
+    buildOrderLookup(orderId, tenantId),
     { $set: { status, syncedAt: new Date() } }
   )
   return result.modifiedCount > 0

@@ -68,8 +68,8 @@ export function syncRouter(
               // Forward to SaaS via outbox
               if (confirmForwardQueue) {
                 const syncOrder = await SyncOrderModel.findOne({
-                  _id: event.payload.orderId,
                   tenantId: auth.tenantId,
+                  $or: [{ _id: event.payload.orderId }, { externalOrderId: event.payload.orderId }],
                 }).lean()
                 if (syncOrder?.externalOrderId) {
                   await enqueueConfirmForward(confirmForwardQueue, {
