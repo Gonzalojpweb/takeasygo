@@ -64,12 +64,16 @@ export function ordersRouter(
   })
 
   // GET /orders/pending — fetch active orders for reconnect recovery (JWT auth)
+  // Includes delivered (last 24h) so POS can reconcile status changes that
+  // happened while offline (e.g., delivery driver marked delivered in SaaS).
   router.get("/pending", async (req, res) => {
     try {
       const auth = req.auth!
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
       const docs = await SyncOrderModel.find({
         tenantId: auth.tenantId,
-        status: { $in: ["pending", "confirmed", "preparing"] },
+        status: { $in: ["pending", "confirmed", "preparing", "ready", "delivered"] },
+        updatedAt: { $gte: cutoff },
       }).sort({ createdAt: -1 }).limit(50).lean()
 
       res.json(docs.map((doc: any) => ({

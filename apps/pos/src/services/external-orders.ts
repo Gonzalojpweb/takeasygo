@@ -32,6 +32,21 @@ import { db } from "../db/dexie"
 
 const PENDING_TTL_MS = 24 * 60 * 60 * 1000 // 24 horas
 
+// Monotonía: orden de estados para prevenir stale events.
+// Si el nuevo estado es anterior al actual, se descarta.
+const STATUS_ORDER: Record<string, number> = {
+  awaiting_payment: 0,
+  confirmed: 1,
+  preparing: 2,
+  ready: 3,
+  delivered: 4,
+  cancelled: 5,
+}
+
+function isForwardStatus(current: string | undefined, next: string): boolean {
+  return (STATUS_ORDER[next] ?? 0) >= (STATUS_ORDER[current ?? "awaiting_payment"] ?? 0)
+}
+
 interface PersistExternalOrderParams {
   /** ID del pedido en el SyncLayer/SaaS — usa como Dexie id */
   orderId: string
@@ -88,10 +103,13 @@ export async function persistExternalOrder(
 
   if (existing) {
     // Idempotencia: actualizar solo campos que cambiaron
-    // Nota: externalStatus NO se pisa con el default — solo se actualiza
-    // si se provee explícitamente (para no revertir un confirmed → awaiting_payment)
+    // Monotonía: externalStatus no retrocede (previene stale events de reconexión)
+    const safeExternalStatus = (externalStatus !== undefined && isForwardStatus(existing.externalStatus, externalStatus))
+      ? externalStatus
+      : existing.externalStatus
+
     await db.orders.update(orderId, {
-      ...(externalStatus !== undefined && { externalStatus }),
+      externalStatus: safeExternalStatus,
       status: existing.status === "pending" && status !== "pending" ? status : existing.status,
       paymentMethod: paymentMethod ?? existing.paymentMethod,
       updatedAt: new Date(),
@@ -220,22 +238,8 @@ export async function updateExternalOrderStatus(
   const existing = await db.orders.get(orderId)
 
   if (existing) {
-    // ── Monotonía: no sobrescribir externalStatus con un estado más viejo ──
-    // Si llega un reintento tardío (ej: "preparing" cuando ya tenemos "ready"),
-    // lo descartamos. Solo aplica dentro de la serie externalStatus — no mezcla
-    // con status local (que lo mueve el cajero desde el POS).
-    const STATUS_ORDER: Record<string, number> = {
-      awaiting_payment: 0,
-      confirmed: 1,
-      preparing: 2,
-      ready: 3,
-      delivered: 4,
-      cancelled: 5,
-    }
-    const currentOrder = STATUS_ORDER[existing.externalStatus ?? "awaiting_payment"] ?? 0
-    const newOrder = STATUS_ORDER[externalStatus ?? ""] ?? 0
-    if (newOrder < currentOrder) {
-      // Evento stale — no sobreescribir externalStatus más avanzado
+    // Monotonía: no sobrescribir externalStatus con un estado más viejo
+    if (!isForwardStatus(existing.externalStatus, externalStatus)) {
       return
     }
 
