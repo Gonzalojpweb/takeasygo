@@ -1,11 +1,13 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import type { ComponentType } from "react"
-import type { Product, OrderItem, CustomerProfile, PaymentMethod } from "@takeasygo/types"
+import type { Product, OrderItem, CustomerProfile, PaymentMethod, Order } from "@takeasygo/types"
+import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
 import { usePayments } from "../../hooks/usePayments"
 import { useOrders } from "../../hooks/useOrders"
 import { useLayout } from "../layout/LayoutContext"
+import { useAuth } from "../../hooks/useAuth"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
@@ -14,7 +16,9 @@ import { PaymentSelector } from "../shared/PaymentSelector"
 import { MesaCard } from "../shared/MesaCard"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
-import { formatCurrency } from "../../utils/format"
+import { formatCurrency, timeAgo } from "../../utils/format"
+import { prepareOrder, markReady, deliverOrder, setEnRuta, setArrived } from "../../services/order"
+import { db } from "../../db/dexie"
 import { UtensilsCrossed, Store, Package, Calendar } from "lucide-react"
 
 type CounterView = "salon" | "mostrador" | "entrantes" | "reservaciones"
@@ -38,6 +42,9 @@ interface CartItem extends OrderItem {
 }
 
 export function CounterDashboard() {
+  const { state } = useAuth()
+  const tenantId = state.status === "authenticated" ? state.tenantId : undefined
+  
   const [scene, setScene] = useState<Scene>("salon")
   const [view, setView] = useState<CounterView>("salon")
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
@@ -54,6 +61,68 @@ export function CounterDashboard() {
   const { products, categories } = useMenu()
   const { processPayment } = usePayments()
   const { createOrder } = useOrders()
+
+  // ── Pedidos externos integrados para kanban ─────────────────────────
+  const externalOrders = useLiveQuery(
+    () => (tenantId
+      ? db.orders
+          .where("tenantId")
+          .equals(tenantId)
+          .and((o) => o.source === "external" && o.integratedAt && o.status !== "delivered" && o.status !== "cancelled")
+          .toArray()
+      : []),
+    [tenantId]
+  ) ?? []
+
+  const handlePrepareExternal = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await prepareOrder(tenantId, orderId)
+      showToast("Pedido en preparación", "success")
+    } catch {
+      showToast("Error al iniciar preparación", "error")
+    }
+  }, [tenantId])
+
+  const handleMarkReadyExternal = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await markReady(tenantId, orderId)
+      showToast("Pedido listo", "success")
+    } catch {
+      showToast("Error al marcar listo", "error")
+    }
+  }, [tenantId])
+
+  const handleDeliverExternal = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await deliverOrder(tenantId, orderId)
+      showToast("Pedido entregado", "success")
+    } catch {
+      showToast("Error al entregar", "error")
+    }
+  }, [tenantId])
+
+  const handleSetEnRutaExternal = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await setEnRuta(tenantId, orderId)
+      showToast("Pedido en ruta", "success")
+    } catch {
+      showToast("Error al marcar en ruta", "error")
+    }
+  }, [tenantId])
+
+  const handleSetArrivedExternal = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await setArrived(tenantId, orderId)
+      showToast("Pedido llegó", "success")
+    } catch {
+      showToast("Error al marcar llegó", "error")
+    }
+  }, [tenantId])
 
   const selectedTable = useMemo(
     () => tables.find((t) => t.id === selectedTableId),
@@ -312,12 +381,58 @@ export function CounterDashboard() {
         break
 
       case "entrantes":
+        const pendingCount = externalOrders.filter((o) => o.status === "pending").length
+        const preparingCount = externalOrders.filter((o) => o.status === "preparing").length
+        const readyCount = externalOrders.filter((o) => o.status === "ready").length
+        const enRutaCount = externalOrders.filter((o) => o.status === "en_ruta").length
+        const arrivedCount = externalOrders.filter((o) => o.status === "arrived").length
         setContextPanel({
           title: "Pedidos Entrantes",
           subtitle: "Órdenes del ecosistema transformadas",
           body: (
-            <div style={{ padding: "var(--sp-2)", color: "var(--text-muted)", fontSize: "var(--font-size-sm)", textAlign: "center" }}>
-              Órdenes externas procesadas por el Gateway
+            <div style={{ padding: "var(--sp-2)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Pendientes
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
+                    {pendingCount}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    En preparación
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--warning)" }}>
+                    {preparingCount}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Listos
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--success)" }}>
+                    {readyCount}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    En ruta
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--info)" }}>
+                    {enRutaCount}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Llegaron
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
+                    {arrivedCount}
+                  </div>
+                </div>
+              </div>
             </div>
           ),
         })
@@ -680,11 +795,181 @@ export function CounterDashboard() {
               <div className="workspace-subtitle">Órdenes del ecosistema transformadas</div>
             </div>
           </div>
-          <div className="p-6">
-            <div className="empty-state">
-              <span className="empty-state-icon">📦</span>
-              <span className="empty-state-text">No hay pedidos entrantes</span>
-            </div>
+          <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            {externalOrders.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon">📦</span>
+                <span className="empty-state-text">No hay pedidos entrantes</span>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "var(--sp-3)", height: "100%" }}>
+                {/* Columna: Pendientes */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                  <div style={{ 
+                    padding: "var(--sp-2)", 
+                    background: "var(--surface-secondary)", 
+                    borderRadius: "var(--radius)",
+                    fontWeight: 600,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span>Pendientes</span>
+                    <span style={{ 
+                      background: "var(--warning-bg, #fff3cd)", 
+                      color: "var(--warning)", 
+                      padding: "2px 8px", 
+                      borderRadius: 12, 
+                      fontSize: "var(--font-size-xs)" 
+                    }}>
+                      {externalOrders.filter((o) => o.status === "pending").length}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {externalOrders.filter((o) => o.status === "pending").map((order) => (
+                      <ExternalOrderCard
+                        key={order.id}
+                        order={order}
+                        onPrepare={handlePrepareExternal}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Columna: Preparando */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                  <div style={{ 
+                    padding: "var(--sp-2)", 
+                    background: "var(--surface-secondary)", 
+                    borderRadius: "var(--radius)",
+                    fontWeight: 600,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span>Preparando</span>
+                    <span style={{ 
+                      background: "var(--info-bg, #e3f2fd)", 
+                      color: "var(--info)", 
+                      padding: "2px 8px", 
+                      borderRadius: 12, 
+                      fontSize: "var(--font-size-xs)" 
+                    }}>
+                      {externalOrders.filter((o) => o.status === "preparing").length}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {externalOrders.filter((o) => o.status === "preparing").map((order) => (
+                      <ExternalOrderCard
+                        key={order.id}
+                        order={order}
+                        onMarkReady={handleMarkReadyExternal}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Columna: Listos */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                  <div style={{ 
+                    padding: "var(--sp-2)", 
+                    background: "var(--surface-secondary)", 
+                    borderRadius: "var(--radius)",
+                    fontWeight: 600,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span>Listos</span>
+                    <span style={{ 
+                      background: "var(--success-bg, #e6f7e6)", 
+                      color: "var(--success)", 
+                      padding: "2px 8px", 
+                      borderRadius: 12, 
+                      fontSize: "var(--font-size-xs)" 
+                    }}>
+                      {externalOrders.filter((o) => o.status === "ready").length}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {externalOrders.filter((o) => o.status === "ready").map((order) => (
+                      <ExternalOrderCard
+                        key={order.id}
+                        order={order}
+                        onSetEnRuta={handleSetEnRutaExternal}
+                        onDeliver={handleDeliverExternal}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Columna: En Ruta */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                  <div style={{ 
+                    padding: "var(--sp-2)", 
+                    background: "var(--surface-secondary)", 
+                    borderRadius: "var(--radius)",
+                    fontWeight: 600,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span>En Ruta</span>
+                    <span style={{ 
+                      background: "var(--info-bg, #e3f2fd)", 
+                      color: "var(--info)", 
+                      padding: "2px 8px", 
+                      borderRadius: 12, 
+                      fontSize: "var(--font-size-xs)" 
+                    }}>
+                      {externalOrders.filter((o) => o.status === "en_ruta").length}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {externalOrders.filter((o) => o.status === "en_ruta").map((order) => (
+                      <ExternalOrderCard
+                        key={order.id}
+                        order={order}
+                        onSetArrived={handleSetArrivedExternal}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Columna: Llegaron */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                  <div style={{ 
+                    padding: "var(--sp-2)", 
+                    background: "var(--surface-secondary)", 
+                    borderRadius: "var(--radius)",
+                    fontWeight: 600,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span>Llegaron</span>
+                    <span style={{ 
+                      background: "var(--brand-orange-bg, #fff3e0)", 
+                      color: "var(--brand-orange)", 
+                      padding: "2px 8px", 
+                      borderRadius: 12, 
+                      fontSize: "var(--font-size-xs)" 
+                    }}>
+                      {externalOrders.filter((o) => o.status === "arrived").length}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {externalOrders.filter((o) => o.status === "arrived").map((order) => (
+                      <ExternalOrderCard
+                        key={order.id}
+                        order={order}
+                        onDeliver={handleDeliverExternal}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -717,5 +1002,104 @@ export function CounterDashboard() {
         </div>
       )}
     </>
+  )
+}
+
+// ============================================================================
+// ExternalOrderCard - Componente para pedidos externos en el kanban
+// ============================================================================
+
+interface ExternalOrderCardProps {
+  order: Order
+  onPrepare?: (orderId: string) => void
+  onMarkReady?: (orderId: string) => void
+  onSetEnRuta?: (orderId: string) => void
+  onSetArrived?: (orderId: string) => void
+  onDeliver?: (orderId: string) => void
+}
+
+function ExternalOrderCard({ order, onPrepare, onMarkReady, onSetEnRuta, onSetArrived, onDeliver }: ExternalOrderCardProps) {
+  const isDelivery = order.source === "delivery"
+  const minutes = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)
+  const isUrgent = minutes > 5
+
+  function getNextAction() {
+    switch (order.status) {
+      case "pending":
+        return { label: "Iniciar Preparación", action: onPrepare }
+      case "preparing":
+        return { label: "Marcar Listo", action: onMarkReady }
+      case "ready":
+        if (isDelivery) {
+          return { label: "En Ruta", action: onSetEnRuta }
+        }
+        return { label: "Entregado", action: onDeliver }
+      case "en_ruta":
+        return { label: "Llegó", action: onSetArrived }
+      case "arrived":
+        return { label: "Entregado", action: onDeliver }
+      default:
+        return { label: null, action: null }
+    }
+  }
+
+  const nextAction = getNextAction()
+
+  return (
+    <div className={`order-card ${isUrgent ? "urgent" : ""}`} style={{ cursor: "default" }}>
+      <div className="order-card-left">
+        <div className="order-card-header">
+          <div className={`order-card-source ${isDelivery ? "delivery" : "pickup"}`}>
+            {isDelivery ? "🚚" : "🥡"}
+          </div>
+          <div>
+            <div className="order-card-title">
+              #{order.id.slice(0, 8)}
+            </div>
+            <div className="order-card-meta">
+              <span>{isDelivery ? "Delivery" : "Take Away"}</span>
+              <span className={`order-card-payment ${order.paymentMethod === "mercadopago" ? "mercadopago" : "other"}`}>
+                💙 MP
+              </span>
+              <span style={{
+                fontSize: "var(--font-size-xs)",
+                color: order.status === "pending" ? "var(--text-muted)" :
+                       order.status === "preparing" ? "var(--warning)" :
+                       order.status === "ready" ? "var(--success)" :
+                       order.status === "en_ruta" ? "var(--info)" :
+                       order.status === "arrived" ? "var(--brand-orange)" : "var(--text-muted)",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}>
+                {order.status === "pending" && "Pendiente"}
+                {order.status === "preparing" && "Preparando"}
+                {order.status === "ready" && "Listo"}
+                {order.status === "en_ruta" && "En Ruta"}
+                {order.status === "arrived" && "Llegó"}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="order-card-items">
+          {order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
+        </div>
+        {nextAction.action && (
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ marginTop: "var(--sp-2)" }}
+            onClick={() => nextAction.action?.(order.id)}
+          >
+            {nextAction.label}
+          </button>
+        )}
+      </div>
+      <div className="order-card-right">
+        <span className={`order-card-time ${isUrgent ? "urgent" : ""}`}>
+          {isUrgent ? `⚠ ${minutes} min` : timeAgo(order.createdAt)}
+        </span>
+        <span className="order-card-total">{formatCurrency(order.total)}</span>
+      </div>
+    </div>
   )
 }

@@ -1,3 +1,4 @@
+import mongoose from "mongoose"
 import { Router } from "express"
 import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
@@ -67,9 +68,13 @@ export function syncRouter(
 
               // Forward to SaaS via outbox
               if (confirmForwardQueue) {
+                const isObjectId = mongoose.Types.ObjectId.isValid(event.payload.orderId)
                 const syncOrder = await SyncOrderModel.findOne({
                   tenantId: auth.tenantId,
-                  $or: [{ _id: event.payload.orderId }, { externalOrderId: event.payload.orderId }],
+                  $or: [
+                    ...(isObjectId ? [{ _id: event.payload.orderId }] : []),
+                    { externalOrderId: event.payload.orderId },
+                  ],
                 }).lean()
                 if (syncOrder?.externalOrderId) {
                   await enqueueConfirmForward(confirmForwardQueue, {

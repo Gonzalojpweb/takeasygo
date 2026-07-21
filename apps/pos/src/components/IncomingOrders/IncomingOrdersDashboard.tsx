@@ -5,7 +5,6 @@ import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"
 import { connectSocket } from "../../services/socket-client"
 import { confirmTransferPayment } from "../../services/sync-api"
-import { prepareOrder, markReady, deliverOrder } from "../../services/order"
 import {
   transformExternalOrder,
   updateExternalOrderStatus,
@@ -81,13 +80,13 @@ export function IncomingOrdersDashboard() {
   }, [jwt])
 
   // ── READ from Dexie — source of truth ─────────────────────────────
-  // Filter: external orders only, not cancelled, not yet integrated
+  // Filter: external orders only, not cancelled, NOT YET INTEGRATED (Gateway only)
   const allOrders = useLiveQuery(
     () => (tenantId
       ? db.orders
           .where("tenantId")
           .equals(tenantId)
-          .and((o) => o.source === "external" && o.status !== "cancelled" && o.status !== "delivered")
+          .and((o) => o.source === "external" && !o.integratedAt && o.status !== "cancelled" && o.status !== "delivered")
           .toArray()
       : []),
     [tenantId]
@@ -138,36 +137,6 @@ export function IncomingOrdersDashboard() {
     const pendingPaid = orders.filter((o) => !o.integratedAt && o.status === "pending")
     pendingPaid.forEach((o) => handleConfirmOrder(o.id))
   }, [orders, handleConfirmOrder])
-
-  const handlePrepare = useCallback(async (orderId: string) => {
-    if (!tenantId) return
-    try {
-      await prepareOrder(tenantId, orderId)
-      showToast("Pedido en preparación", "success")
-    } catch {
-      showToast("Error al iniciar preparación", "error")
-    }
-  }, [tenantId, showToast])
-
-  const handleMarkReady = useCallback(async (orderId: string) => {
-    if (!tenantId) return
-    try {
-      await markReady(tenantId, orderId)
-      showToast("Pedido listo", "success")
-    } catch {
-      showToast("Error al marcar listo", "error")
-    }
-  }, [tenantId, showToast])
-
-  const handleDeliver = useCallback(async (orderId: string) => {
-    if (!tenantId) return
-    try {
-      await deliverOrder(tenantId, orderId)
-      showToast("Pedido entregado", "success")
-    } catch {
-      showToast("Error al entregar", "error")
-    }
-  }, [tenantId, showToast])
 
   const handleSelectOrder = useCallback((orderId: string) => {
     const order = orders.find((o) => o.id === orderId)
@@ -475,9 +444,6 @@ export function IncomingOrdersDashboard() {
                     order={order}
                     onClick={handleSelectOrder}
                     onConfirmTransfer={handleConfirmTransfer}
-                    onPrepare={handlePrepare}
-                    onMarkReady={handleMarkReady}
-                    onDeliver={handleDeliver}
                   />
                 ))}
               </div>

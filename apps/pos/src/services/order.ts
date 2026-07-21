@@ -11,10 +11,12 @@ const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending: ["confirmed", "preparing", "cancelled"],
   confirmed: ["preparing", "cancelled"],
   preparing: ["ready", "cancelled"],
-  ready: ["delivered", "cancelled"],
+  ready: ["en_ruta", "delivered", "cancelled"],
+  en_ruta: ["arrived", "cancelled"],
+  arrived: ["delivered", "cancelled"],
   delivered: [],
   cancelled: [],
-  requires_manual_attention: ["confirmed", "preparing", "ready", "delivered", "cancelled"],
+  requires_manual_attention: ["confirmed", "preparing", "ready", "en_ruta", "arrived", "delivered", "cancelled"],
 }
 
 function validateOrderTransition(from: OrderStatus, to: OrderStatus): void {
@@ -321,6 +323,50 @@ export async function deliverOrder(
     orderId,
     tableId: order.tableId,
     total: order.total,
+  })
+}
+
+export async function setEnRuta(
+  tenantId: string,
+  orderId: string
+): Promise<void> {
+  const order = await db.orders.get(orderId)
+  if (!order) throw new Error(`[order] Order ${orderId} not found`)
+  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
+
+  validateOrderTransition(order.status, "en_ruta")
+
+  await db.orders.update(orderId, {
+    status: "en_ruta",
+    updatedAt: new Date(),
+  })
+
+  await enqueue(tenantId, "order.en_ruta", {
+    orderId,
+    tableId: order.tableId,
+    source: order.source,
+  })
+}
+
+export async function setArrived(
+  tenantId: string,
+  orderId: string
+): Promise<void> {
+  const order = await db.orders.get(orderId)
+  if (!order) throw new Error(`[order] Order ${orderId} not found`)
+  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
+
+  validateOrderTransition(order.status, "arrived")
+
+  await db.orders.update(orderId, {
+    status: "arrived",
+    updatedAt: new Date(),
+  })
+
+  await enqueue(tenantId, "order.arrived", {
+    orderId,
+    tableId: order.tableId,
+    source: order.source,
   })
 }
 
