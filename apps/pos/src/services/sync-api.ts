@@ -178,3 +178,29 @@ export async function confirmTransferPayment(
     return false
   }
 }
+
+// ============================================================================
+// Notify Status to SyncLayer — Push inmediato de cambios de status POS→SaaS
+// ============================================================================
+// Llamado después de cada cambio de status en POS para que el SyncLayer
+// emita order:status_updated al SaaS. Fire-and-forget (no bloquea UI).
+
+export async function notifyStatusToSyncLayer(
+  orderId: string,
+  status: string,
+  jwt: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${SYNC_URL}/api/v1/orders/${orderId}/status`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({ status }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}

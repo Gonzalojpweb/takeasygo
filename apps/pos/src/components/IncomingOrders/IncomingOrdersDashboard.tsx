@@ -462,6 +462,7 @@ export function IncomingOrdersDashboard() {
                     order={order}
                     onClick={handleSelectOrder}
                     onConfirmTransfer={handleConfirmTransfer}
+                    showLifecycleButtons={false}
                   />
                 ))}
               </div>

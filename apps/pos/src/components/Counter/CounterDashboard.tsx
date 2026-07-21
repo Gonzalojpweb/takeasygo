@@ -83,32 +83,32 @@ export function CounterDashboard() {
   const handlePrepareExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await prepareOrder(tenantId, orderId)
+      await prepareOrder(tenantId, orderId, state.jwt?.accessToken)
       showToast("Pedido en preparación", "success")
     } catch {
       showToast("Error al iniciar preparación", "error")
     }
-  }, [tenantId])
+  }, [tenantId, state.jwt?.accessToken])
 
   const handleMarkReadyExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await markReady(tenantId, orderId)
+      await markReady(tenantId, orderId, state.jwt?.accessToken)
       showToast("Pedido listo", "success")
     } catch {
       showToast("Error al marcar listo", "error")
     }
-  }, [tenantId])
+  }, [tenantId, state.jwt?.accessToken])
 
   const handleDeliverExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await deliverOrder(tenantId, orderId)
+      await deliverOrder(tenantId, orderId, state.jwt?.accessToken)
       showToast("Pedido entregado", "success")
     } catch {
       showToast("Error al entregar", "error")
     }
-  }, [tenantId])
+  }, [tenantId, state.jwt?.accessToken])
 
   const handleSetEnRutaExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
