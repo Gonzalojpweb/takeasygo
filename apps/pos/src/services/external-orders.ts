@@ -235,6 +235,7 @@ export async function updateExternalOrderStatus(
   tenantId: string,
   externalStatus: Order["externalStatus"]
 ): Promise<void> {
+  if (!externalStatus) return
   const existing = await db.orders.get(orderId)
 
   if (existing) {

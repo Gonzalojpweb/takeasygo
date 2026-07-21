@@ -452,10 +452,10 @@ describe("updateExternalOrderStatus", () => {
     await persistExternalOrder(BASE_ORDER)
     mockOrders[0].status = "preparing"
 
-    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "en_ruta")
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "ready" as any)
 
     // externalStatus updated, but local status should NOT change
-    expect(mockOrders[0].externalStatus).toBe("en_ruta")
+    expect(mockOrders[0].externalStatus).toBe("ready")
     expect(mockOrders[0].status).toBe("preparing")
   })
 
