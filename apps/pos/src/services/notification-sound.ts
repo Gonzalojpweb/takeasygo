@@ -1,7 +1,7 @@
 // ============================================================================
 // Notification Sound — Reproduce un sonido al recibir un pedido nuevo
 // ============================================================================
-// Usa el archivo POP.mp3 que ya existe en /public.
+// Usa el archivo LLAMADA.mp3 que ya existe en /public.
 // El Audio context se crea bajo demanda (requiere interacción del usuario
 // en móviles antes de poder reproducir audio).
 // ============================================================================
@@ -10,7 +10,7 @@ let audioElement: HTMLAudioElement | null = null
 
 function getAudio(): HTMLAudioElement {
   if (!audioElement) {
-    audioElement = new Audio("/POP.mp3")
+    audioElement = new Audio("/LLAMADA.mp3")
     audioElement.volume = 0.7
   }
   return audioElement

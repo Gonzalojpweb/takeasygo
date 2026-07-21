@@ -68,7 +68,13 @@ export function CounterDashboard() {
       ? db.orders
           .where("tenantId")
           .equals(tenantId)
-          .and((o) => o.source === "external" && o.integratedAt && o.status !== "delivered" && o.status !== "cancelled")
+          .and((o) => 
+            o.source === "external" && 
+            o.integratedAt && 
+            o.status !== "delivered" && 
+            o.status !== "cancelled" &&
+            (o.status === "confirmed" || o.status === "preparing" || o.status === "ready" || o.status === "en_ruta" || o.status === "arrived")
+          )
           .toArray()
       : []),
     [tenantId]

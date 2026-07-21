@@ -24,8 +24,9 @@ export function SalesDashboard() {
   const completedOrders = useMemo(
     () => (orders ?? []).filter((o) => {
       if (o.status === "cancelled") return false
+      // Solo pedidos entregados aparecen en Ventas para reporte de ventas
+      if (o.status !== "delivered") return false
       // Excluir pedidos externos que aún no fueron integrados por el cajero.
-      // Solo aparecen en Ventas después de que el cajero los integra desde Pedidos.
       if (o.source === "external" && !o.integratedAt) return false
       return true
     }),
