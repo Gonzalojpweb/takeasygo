@@ -136,8 +136,8 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
       // - preparing/ready/delivered/cancelled → /status (status update flow)
       const isStatusUpdate = status && status !== "confirmed"
       const endpoint = isStatusUpdate
-        ? `${config.saasBaseUrl}/api/v1/${saasTenantSlug}/orders/${externalOrderId}/status`
-        : `${config.saasBaseUrl}/api/v1/${saasTenantSlug}/orders/${externalOrderId}/confirm-internal`
+        ? `${config.saasBaseUrl}/api/${saasTenantSlug}/orders/${externalOrderId}/status`
+        : `${config.saasBaseUrl}/api/${saasTenantSlug}/orders/${externalOrderId}/confirm-internal`
 
       const body = isStatusUpdate
         ? JSON.stringify({ status })
