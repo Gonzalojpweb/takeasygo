@@ -4,8 +4,14 @@ import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"
 import { onSocketEvent, connectSocket } from "../../services/socket-client"
-import { createOrder } from "../../services/order"
 import { fetchPendingOrders, confirmTransferPayment } from "../../services/sync-api"
+import {
+  persistExternalOrder,
+  transformExternalOrder,
+  updateExternalOrderStatus,
+  cancelExternalOrder,
+} from "../../services/external-orders"
+import { playOrderNotification } from "../../services/notification-sound"
 import { SocketStatus } from "./SocketStatus"
 import { GatewayStats } from "./GatewayStats"
 import { GatewayFilters } from "./GatewayFilters"
@@ -73,6 +79,20 @@ export function IncomingOrdersDashboard() {
     // Fetch active orders on mount (catch orders missed while offline)
     fetchPendingOrders(tenantId, jwt).then((pending) => {
       if (pending.length > 0) {
+        // Persist each external order to Dexie (one record per order)
+        pending.forEach((o) => {
+          persistExternalOrder({
+            orderId: o.orderId,
+            tenantId: o.tenantId,
+            source: "external",
+            status: (o.status as Order["status"]) ?? "pending",
+            externalStatus: (o.status as Order["externalStatus"]) ?? "awaiting_payment",
+            paymentMethod: o.paymentMethod as Order["paymentMethod"],
+            items: o.items as Order["items"],
+            total: o.total,
+          }).catch(() => {})
+        })
+
         setOrders((prev) => {
           const existingIds = new Set(prev.map((o) => o.id))
           const newOrders = pending
@@ -80,7 +100,7 @@ export function IncomingOrdersDashboard() {
             .map((o) => ({
               id: o.orderId,
               tenantId: o.tenantId,
-              source: (o.source as Order["source"]) || "takeasygo",
+              source: (o.source as Order["source"]) || "external",
               status: (o.status as Order["status"]) || "pending",
               paymentMethod: o.paymentMethod as Order["paymentMethod"],
               externalStatus: o.status as Order["externalStatus"],
@@ -97,12 +117,26 @@ export function IncomingOrdersDashboard() {
 
     const unsubCreated = onSocketEvent("order:created", (data: unknown) => {
       const event = data as { orderId: string; items: unknown[]; total: number; source?: string; paymentMethod?: string }
+      const orderSource = (event.source as Order["source"]) || "external"
+
+      // Persist to Dexie (one record per order)
+      persistExternalOrder({
+        orderId: event.orderId,
+        tenantId: tenantId!,
+        source: orderSource,
+        status: "pending",
+        externalStatus: "awaiting_payment",
+        paymentMethod: event.paymentMethod as Order["paymentMethod"],
+        items: event.items as Order["items"],
+        total: event.total,
+      }).catch(() => {})
+
       setOrders((prev) => {
         if (prev.some((o) => o.id === event.orderId)) return prev
         const newOrder: Order = {
           id: event.orderId,
-          tenantId: "",
-          source: (event.source as Order["source"]) || "takeasygo",
+          tenantId: tenantId ?? "",
+          source: orderSource,
           status: "pending",
           paymentMethod: event.paymentMethod as Order["paymentMethod"],
           externalStatus: "awaiting_payment",
@@ -114,11 +148,14 @@ export function IncomingOrdersDashboard() {
         }
         return [newOrder, ...prev]
       })
+      playOrderNotification()
       showToast("Nuevo pedido recibido", "info")
     })
 
     const unsubConfirmed = onSocketEvent("order:confirmed", (data: unknown) => {
       const event = data as { orderId: string }
+      // Persist status change to Dexie
+      updateExternalOrderStatus(event.orderId, tenantId!, "confirmed").catch(() => {})
       setOrders((prev) =>
         prev.map((o) =>
           o.id === event.orderId
@@ -130,6 +167,8 @@ export function IncomingOrdersDashboard() {
 
     const unsubStatusUpdated = onSocketEvent("order:status_updated", (data: unknown) => {
       const event = data as { orderId: string; externalStatus: string }
+      // Persist status change to Dexie
+      updateExternalOrderStatus(event.orderId, tenantId!, event.externalStatus as Order["externalStatus"]).catch(() => {})
       setOrders((prev) => {
         const orderExists = prev.some((o) => o.id === event.orderId)
         if (!orderExists) return prev
@@ -143,6 +182,8 @@ export function IncomingOrdersDashboard() {
 
     const unsubCancelled = onSocketEvent("order:cancelled", (data: unknown) => {
       const event = data as { orderId: string; reason?: string }
+      // Persist cancellation to Dexie
+      cancelExternalOrder(event.orderId, tenantId!, event.reason).catch(() => {})
       setOrders((prev) => {
         const existed = prev.some((o) => o.id === event.orderId)
         if (existed) {
@@ -161,6 +202,20 @@ export function IncomingOrdersDashboard() {
     const handleRefresh = () => {
       if (!tenantId || !jwt) return
       fetchPendingOrders(tenantId, jwt).then((pending) => {
+        // Persist each external order to Dexie
+        pending.forEach((o) => {
+          persistExternalOrder({
+            orderId: o.orderId,
+            tenantId: o.tenantId,
+            source: "external",
+            status: (o.status as Order["status"]) ?? "pending",
+            externalStatus: (o.status as Order["externalStatus"]) ?? "awaiting_payment",
+            paymentMethod: o.paymentMethod as Order["paymentMethod"],
+            items: o.items as Order["items"],
+            total: o.total,
+          }).catch(() => {})
+        })
+
         setOrders((prev) => {
           const existingIds = new Set(prev.map((o) => o.id))
           const newOrders = pending
@@ -168,7 +223,7 @@ export function IncomingOrdersDashboard() {
             .map((o) => ({
               id: o.orderId,
               tenantId: o.tenantId,
-              source: (o.source as Order["source"]) || "takeasygo",
+              source: (o.source as Order["source"]) || "external",
               status: (o.status as Order["status"]) || "pending",
               paymentMethod: o.paymentMethod as Order["paymentMethod"],
               externalStatus: o.status as Order["externalStatus"],
@@ -201,6 +256,10 @@ export function IncomingOrdersDashboard() {
       })
       if (!res.ok) throw new Error(`Confirm failed (${res.status})`)
 
+      // Persist status change to Dexie
+      if (tenantId) {
+        updateExternalOrderStatus(orderId, tenantId, "confirmed").catch(() => {})
+      }
       setOrders((prev) =>
         prev.map((o) =>
           o.id === orderId
@@ -212,12 +271,14 @@ export function IncomingOrdersDashboard() {
     } catch {
       showToast("Error al confirmar", "error")
     }
-  }, [jwt, showToast])
+  }, [jwt, tenantId, showToast])
 
   const handleConfirmTransfer = useCallback(async (orderId: string) => {
     if (!tenantId || !jwt) return
     const ok = await confirmTransferPayment(orderId, tenantId, jwt)
     if (ok) {
+      // Persist status change to Dexie
+      updateExternalOrderStatus(orderId, tenantId, "confirmed").catch(() => {})
       setOrders((prev) =>
         prev.map((o) =>
           o.id === orderId
@@ -277,14 +338,14 @@ export function IncomingOrdersDashboard() {
 
     setTransforming(true)
     try {
-      const order_ = await createOrder(
+      const updated = await transformExternalOrder({
+        orderId: order.id,
         tenantId,
-        `IN-${order.id.slice(0, 8)}`,
-        order.items,
-        order.notes ?? `Pedido online #${order.id.slice(0, 8)}`,
-        undefined
-      )
-      setTransformResult({ localOrderId: order_.id })
+        items: order.items,
+        total: order.total,
+        notes: order.notes ?? `Pedido online #${order.id.slice(0, 8)}`,
+      })
+      setTransformResult({ localOrderId: updated.id })
       showToast("Pedido transformado a orden local", "success")
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Error al transformar", "error")

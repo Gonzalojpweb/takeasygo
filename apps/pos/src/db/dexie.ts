@@ -50,6 +50,29 @@ export interface PendingMovementRecord {
   createdAt: Date
 }
 
+/**
+ * Status update pendiente — llegó antes que order:created.
+ *
+ * Cuando un evento (confirmed, cancelled, etc.) llega antes de que el pedido
+ * se persista en Dexie, se guarda acá. persistExternalOrder() lo aplica y
+ * borra al crear el registro. Last-write-wins: PK = orderId (upsert).
+ *
+ * Decisión: Cristóbal, 21 jul 2026 — Opción B del bug de out-of-order.
+ * TTL: 24h. Limpieza al iniciar la app.
+ */
+export interface PendingStatusUpdateRecord {
+  /** PK = orderId (upsert: segundo evento sobreescribe al primero) */
+  orderId: string
+  tenantId: string
+  /** Tipo de evento pendiente */
+  type: "status_update" | "cancel"
+  /** externalStatus a aplicar (para status_update) */
+  externalStatus?: Order["externalStatus"]
+  /** Reason de cancelación (para cancel) */
+  cancelReason?: string
+  createdAt: Date
+}
+
 export class PosDatabase extends Dexie {
   tenantConfig!: Dexie.Table<TenantConfigRecord, string>
   session!: Dexie.Table<SessionRecord, string>
@@ -60,6 +83,7 @@ export class PosDatabase extends Dexie {
   commands!: Dexie.Table<CommandRecord, string>
   cashRegister!: Dexie.Table<CashRegisterRecord, string>
   pendingMovements!: Dexie.Table<PendingMovementRecord, string>
+  pendingStatusUpdates!: Dexie.Table<PendingStatusUpdateRecord, string>
 
   constructor() {
     super("TakeasyGoPOS")
@@ -118,6 +142,32 @@ export class PosDatabase extends Dexie {
       commands: "id, tenantId, status, createdAt",
       cashRegister: "id, tenantId, status, openedAt",
       pendingMovements: "id, tenantId, relatedOrderId, createdAt",
+    })
+    this.version(8).stores({
+      tenantConfig: "tenantId",
+      session: "tenantId",
+      pendingEvents: "++id, tenantId, status, timestamp",
+      pairedSpokes: "deviceId, tenantId, pairedAt",
+      diningTable: "id, tenantId, status, section, number",
+      // externalOrderId removed — redundant with primary key `id` (which IS the externalOrderId for external orders).
+      // Idempotency is guaranteed by db.orders.get(orderId) before insert in persistExternalOrder().
+      orders: "id, tenantId, status, tableId, createdAt, source, externalStatus",
+      commands: "id, tenantId, status, createdAt",
+      cashRegister: "id, tenantId, status, openedAt",
+      pendingMovements: "id, tenantId, relatedOrderId, createdAt",
+    })
+    this.version(9).stores({
+      tenantConfig: "tenantId",
+      session: "tenantId",
+      pendingEvents: "++id, tenantId, status, timestamp",
+      pairedSpokes: "deviceId, tenantId, pairedAt",
+      diningTable: "id, tenantId, status, section, number",
+      orders: "id, tenantId, status, tableId, createdAt, source, externalStatus",
+      commands: "id, tenantId, status, createdAt",
+      cashRegister: "id, tenantId, status, openedAt",
+      pendingMovements: "id, tenantId, relatedOrderId, createdAt",
+      // PK = orderId → upsert (segundo evento sobreescribe al primero)
+      pendingStatusUpdates: "orderId, tenantId, createdAt",
     })
   }
 }
