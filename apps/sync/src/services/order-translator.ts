@@ -1,3 +1,4 @@
+import mongoose from "mongoose"
 import { SyncOrderModel, type SyncOrderDocument } from "@takeasygo/db"
 
 export interface TranslatedOrder {
@@ -67,8 +68,16 @@ export async function updateOrderStatus(
   tenantId: string,
   status: string
 ): Promise<boolean> {
+  const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
+  const filter: any = {
+    tenantId,
+    $or: [
+      ...(isObjectId ? [{ _id: orderId }] : []),
+      { externalOrderId: orderId },
+    ],
+  }
   const result = await SyncOrderModel.updateOne(
-    buildOrderLookup(orderId, tenantId),
+    filter,
     { $set: { status, syncedAt: new Date() } }
   )
   return result.modifiedCount > 0

@@ -165,10 +165,13 @@ export function ordersRouter(
       })
 
       // Forward confirm to SaaS via outbox (BullMQ retry)
-      // Lookup by _id OR externalOrderId (SaaS may pass its own order ID)
+      const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
       const syncOrder = await SyncOrderModel.findOne({
         tenantId: auth.tenantId,
-        $or: [{ _id: orderId }, { externalOrderId: orderId }],
+        $or: [
+          ...(isObjectId ? [{ _id: orderId }] : []),
+          { externalOrderId: orderId },
+        ],
       }).lean()
       if (syncOrder?.externalOrderId) {
         await enqueueConfirmForward(confirmForwardQueue, {
