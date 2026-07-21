@@ -8,6 +8,7 @@ interface OrderCardProps {
   onPrepare?: (orderId: string) => void
   onMarkReady?: (orderId: string) => void
   onDeliver?: (orderId: string) => void
+  showLifecycleButtons?: boolean
 }
 
 function getSourceMeta(source: string): { icon: string; label: string; className: string } {
@@ -55,7 +56,7 @@ function formatOrderItems(items: Order["items"]) {
   return items.map((i) => `${i.quantity}× ${i.name}`).join(", ")
 }
 
-export function OrderCard({ order, onClick, onConfirmTransfer, onPrepare, onMarkReady, onDeliver }: OrderCardProps) {
+export function OrderCard({ order, onClick, onConfirmTransfer, onPrepare, onMarkReady, onDeliver, showLifecycleButtons = true }: OrderCardProps) {
   const source = getSourceMeta(order.source || "takeasygo")
   const payment = getPaymentMeta(order.paymentMethod)
   const minutes = getTimeAgoMinutes(order.createdAt)
@@ -83,7 +84,7 @@ export function OrderCard({ order, onClick, onConfirmTransfer, onPrepare, onMark
   }
 
   function getNextAction(status: OrderStatus): (() => void) | null {
-    if (!isIntegrated) return null
+    if (!isIntegrated || !showLifecycleButtons) return null
     switch (status) {
       case "pending":
       case "confirmed":

@@ -3,18 +3,18 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
-import { confirmOrderPayment } from '@/lib/sync-layer'
+import { confirmOrderPaymentCore } from '@/lib/sync-layer'
 
 /**
  * POST /{tenant}/orders/{orderId}/confirm-internal
  *
- * Internal endpoint called by the SyncLayer when the POS confirms a transfer.
+ * Internal endpoint called by the SyncLayer worker when confirming an order.
  * Auth: Bearer token = SYNC_LAYER_SECRET (internal API secret, not JWT).
  *
- * This runs confirmOrderPayment() which handles:
- *   1. confirmOrderInSyncLayer (idempotent)
- *   2. notifyCashSale (cash movement)
- *   3. captureOrderCompleted (CIS events)
+ * Uses confirmOrderPaymentCore() which skips confirmOrderInSyncLayer
+ * (already done by the SyncLayer) and goes directly to:
+ *   1. notifyCashSale (cash movement)
+ *   2. captureOrderCompleted (CIS events)
  */
 export async function POST(
   request: NextRequest,
@@ -47,8 +47,8 @@ export async function POST(
       return NextResponse.json({ error: 'El pedido ya fue procesado' }, { status: 400 })
     }
 
-    // Run the shared confirmation function
-    await confirmOrderPayment(order, tenant)
+    // Core confirmation: notifyCashSale + captureOrderCompleted (no SyncLayer roundtrip)
+    await confirmOrderPaymentCore(order, tenant)
 
     return NextResponse.json({ status: 'confirmed' })
   } catch (error) {

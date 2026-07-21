@@ -147,7 +147,7 @@ export async function PATCH(
     // ── Notify SyncLayer of status change (so POS receives order:status_updated)
     // skipForward: true prevents SyncLayer from forwarding back to SaaS (avoids loop)
     if (order.externalOrderId) {
-      notifySyncLayerStatus(tenantSlug, orderId, status).catch((err) =>
+      notifySyncLayerStatus(tenant._id.toString(), orderId, status).catch((err) =>
         console.error('[status] SyncLayer notify error (non-blocking):', err)
       )
     }

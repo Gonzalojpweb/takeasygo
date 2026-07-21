@@ -170,7 +170,25 @@ export async function confirmOrderPayment(
     return
   }
 
-  // 2. Notify cash sale (deduplicates via unique index)
+  // 2. Notify cash sale + CIS
+  await confirmOrderPaymentCore(order, tenant)
+}
+
+// ============================================================================
+// confirmOrderPaymentCore — Core confirmation without SyncLayer call
+// ============================================================================
+// Used by /confirm-internal when SyncLayer already confirmed the order.
+// Skips confirmOrderInSyncLayer (already done) and goes directly to
+// notifyCashSale + captureOrderCompleted.
+
+export async function confirmOrderPaymentCore(
+  order: ConfirmableOrder,
+  tenant: ConfirmableTenant
+): Promise<void> {
+  const orderId = order._id.toString()
+  const tenantId = tenant._id.toString()
+
+  // 1. Notify cash sale (deduplicates via unique index)
   await notifyCashSale({
     orderId,
     tenantId,
@@ -185,7 +203,7 @@ export async function confirmOrderPayment(
     channel: 'online',
   })
 
-  // 3. CIS order_completed event (fire-and-forget)
+  // 2. CIS order_completed event (fire-and-forget)
   if (order.customer?.phoneHash) {
     try {
       const { captureOrderCompleted } = await import('@/lib/cis/events')
@@ -217,7 +235,7 @@ export async function confirmOrderPayment(
 // ============================================================================
 
 export async function notifySyncLayerStatus(
-  tenantSlug: string,
+  tenantId: string,
   orderId: string,
   status: string
 ): Promise<void> {
@@ -230,7 +248,7 @@ export async function notifySyncLayerStatus(
         "Content-Type": "application/json",
         Authorization: `Bearer ${SYNC_LAYER_SECRET}`,
       },
-      body: JSON.stringify({ tenantId: tenantSlug, status, skipForward: true }),
+      body: JSON.stringify({ tenantId, status, skipForward: true }),
     })
 
     if (!res.ok) {

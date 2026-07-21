@@ -2,6 +2,7 @@ import type { Order, OrderItem, OrderStatus } from "@takeasygo/types"
 import { calculateOrderTotal, validateOrderItems } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
 import { enqueue } from "./event-queue"
+import { notifyStatusToSyncLayer } from "./sync-api"
 
 // ============================================================================
 // Transitions permitidas — selladas por Gemini
@@ -216,7 +217,8 @@ export async function confirmOrder(
 
 export async function prepareOrder(
   tenantId: string,
-  orderId: string
+  orderId: string,
+  jwt?: string
 ): Promise<void> {
   const order = await db.orders.get(orderId)
   if (!order) throw new Error(`[order] Order ${orderId} not found`)
@@ -234,11 +236,16 @@ export async function prepareOrder(
     tableId: order.tableId,
     source: order.source,
   })
+
+  if (jwt) {
+    notifyStatusToSyncLayer(orderId, "preparing", jwt).catch(() => {})
+  }
 }
 
 export async function markReady(
   tenantId: string,
-  orderId: string
+  orderId: string,
+  jwt?: string
 ): Promise<void> {
   const order = await db.orders.get(orderId)
   if (!order) throw new Error(`[order] Order ${orderId} not found`)
@@ -256,11 +263,16 @@ export async function markReady(
     tableId: order.tableId,
     source: order.source,
   })
+
+  if (jwt) {
+    notifyStatusToSyncLayer(orderId, "ready", jwt).catch(() => {})
+  }
 }
 
 export async function cancelOrder(
   tenantId: string,
-  orderId: string
+  orderId: string,
+  jwt?: string
 ): Promise<void> {
   const order = await db.orders.get(orderId)
   if (!order) throw new Error(`[order] Order ${orderId} not found`)
@@ -290,11 +302,16 @@ export async function cancelOrder(
     tableId: order.tableId,
     previousStatus: order.status,
   })
+
+  if (jwt) {
+    notifyStatusToSyncLayer(orderId, "cancelled", jwt).catch(() => {})
+  }
 }
 
 export async function deliverOrder(
   tenantId: string,
-  orderId: string
+  orderId: string,
+  jwt?: string
 ): Promise<void> {
   const order = await db.orders.get(orderId)
   if (!order) throw new Error(`[order] Order ${orderId} not found`)
@@ -324,6 +341,10 @@ export async function deliverOrder(
     tableId: order.tableId,
     total: order.total,
   })
+
+  if (jwt) {
+    notifyStatusToSyncLayer(orderId, "delivered", jwt).catch(() => {})
+  }
 }
 
 export async function setEnRuta(
