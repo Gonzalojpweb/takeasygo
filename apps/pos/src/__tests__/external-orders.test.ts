@@ -189,6 +189,22 @@ describe("persistExternalOrder", () => {
 
     expect(transactionCalled).toBe(true)
   })
+
+  it("does NOT revert externalStatus backward (monotony guard on re-persist)", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    // Advance externalStatus via socket
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "ready")
+    expect(mockOrders[0].externalStatus).toBe("ready")
+
+    // Re-persist with stale confirmed status (simulates reconnect with old SyncLayer data)
+    await persistExternalOrder({
+      ...BASE_ORDER,
+      externalStatus: "confirmed",
+    })
+
+    // Should NOT revert — ready is ahead of confirmed
+    expect(mockOrders[0].externalStatus).toBe("ready")
+  })
 })
 
 // ============================================================================

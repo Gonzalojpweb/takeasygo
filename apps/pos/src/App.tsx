@@ -112,6 +112,17 @@ function App() {
             total: o.total,
           }).catch(() => {})
         })
+
+        // Reconcile: mirror terminal SaaS statuses to local status for existing records
+        // This handles the case where POS was offline when delivery was completed
+        // (e.g., delivery driver marked delivered in SaaS while POS was disconnected).
+        // updateExternalOrderStatus has a monotony guard — stale events are discarded.
+        pending.forEach((o) => {
+          if (o.status === "delivered" || o.status === "cancelled") {
+            updateExternalOrderStatus(o.orderId, o.tenantId, o.status as Order["externalStatus"]).catch(() => {})
+          }
+        })
+
         console.log(`[App] persisted ${pending.length} pending orders from SyncLayer`)
       }
     }).catch(() => {})
@@ -184,6 +195,14 @@ function App() {
               total: o.total,
             }).catch(() => {})
           })
+
+          // Reconcile terminal SaaS statuses (delivery completed while offline)
+          pending.forEach((o) => {
+            if (o.status === "delivered" || o.status === "cancelled") {
+              updateExternalOrderStatus(o.orderId, o.tenantId, o.status as Order["externalStatus"]).catch(() => {})
+            }
+          })
+
           console.log(`[App] reconnected: persisted ${pending.length} pending orders`)
         }
       }).catch(() => {})
