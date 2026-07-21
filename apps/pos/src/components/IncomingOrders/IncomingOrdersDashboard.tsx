@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
-import type { Order } from "@takeasygo/types"
 import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
 import { formatCurrency } from "../../utils/format"

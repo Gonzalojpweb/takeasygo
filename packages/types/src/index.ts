@@ -236,7 +236,7 @@ export type TableStatus = "free" | "occupied" | "reserved" | "closed" | "needs_a
 // 9. ORDER — Órdenes
 // ============================================================================
 
-export type OrderSource = "takeasygo" | "pos" | "external"
+export type OrderSource = "takeasygo" | "pos" | "external" | "delivery" | "takeaway"
 
 export type OrderStatus =
   | "pending"
