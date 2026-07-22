@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Tag, Plus, Percent, Info, Megaphone, Heart, ExternalLink, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { capturePromotionViewed, capturePromotionClicked, capturePromotionApplied } from '@/lib/tia/events'
-import PromotionLoyaltyModal from './PromotionLoyaltyModal'
+import ClubOnboardingModal from '../club/ClubOnboardingModal'
 
 // Helper function to check if a hex color is light
 function isLightColor(color?: string) {
@@ -298,7 +298,7 @@ export function PromotionCard({
         </div>
 
         {tenantSlug && (
-          <PromotionLoyaltyModal
+          <ClubOnboardingModal
             tenantSlug={tenantSlug}
             promotionId={promotion._id}
             title={promotion.title}
@@ -452,7 +452,7 @@ export function PromotionCard({
       </div>
 
       {tenantSlug && (
-        <PromotionLoyaltyModal
+        <ClubOnboardingModal
           tenantSlug={tenantSlug}
           promotionId={promotion._id}
           title={promotion.title}
