@@ -155,7 +155,9 @@ input, select, textarea {
 .header-divider { width: 1px; height: 20px; background: var(--border); }
 .header-right { display: flex; align-items: center; gap: var(--sp-4); }
 .sync-status { display: flex; align-items: center; gap: var(--sp-1); font-size: var(--font-size-xs); color: var(--success); padding: var(--sp-1) var(--sp-2); background: var(--success-light); border-radius: 4px; }
+.sync-status.disconnected { color: var(--danger); background: var(--danger-light, #fee2e2); }
 .sync-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; }
+.sync-status.disconnected .sync-dot { background: var(--danger); }
 .header-clock { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--text-primary); }
 .header-avatar { width: 32px; height: 32px; background: var(--brand-orange); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
 
