@@ -36,7 +36,9 @@
         "AUTH_TRUST_HOST",
         "ADMIN_EMAIL",
         "VAPID_PUBLIC_KEY",
-        "VAPID_PRIVATE_KEY"
+        "VAPID_PRIVATE_KEY",
+        "VITE_SYNC_URL",
+        "VITE_SAAS_URL"
       ]
     },
     "dev": {
