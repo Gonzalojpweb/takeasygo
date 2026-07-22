@@ -437,9 +437,9 @@ html.lenis body {
   --tgo-z-above: 10;
   --tgo-z-nav: 100;
   --tgo-z-header: 200;
-  --tgo-z-sheet: 300;
+  --tgo-z-sheet: 500;
   --tgo-z-dialog: 400;
-  --tgo-z-overlay: 500;
+  --tgo-z-overlay: 300;
   --tgo-z-toast: 600;
   --tgo-z-tooltip: 700;
 }
