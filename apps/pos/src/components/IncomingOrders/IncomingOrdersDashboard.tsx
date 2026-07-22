@@ -80,8 +80,15 @@ export function IncomingOrdersDashboard() {
   useEffect(() => {
     if (!jwt) return
     const socket = connectSocket(jwt)
-    socket.on("connect", () => setConnected(true))
-    socket.on("disconnect", () => setConnected(false))
+    setConnected(socket.connected)
+    const onConnect = () => setConnected(true)
+    const onDisconnect = () => setConnected(false)
+    socket.on("connect", onConnect)
+    socket.on("disconnect", onDisconnect)
+    return () => {
+      socket.off("connect", onConnect)
+      socket.off("disconnect", onDisconnect)
+    }
   }, [jwt])
 
   // ── READ from Dexie — source of truth ─────────────────────────────

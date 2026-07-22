@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { getSocket } from "../../services/socket-client"
 
 interface HeaderProps {
   tenantName: string
@@ -7,10 +8,25 @@ interface HeaderProps {
 
 export function Header({ tenantName, userName }: HeaderProps) {
   const [time, setTime] = useState(new Date())
+  const [connected, setConnected] = useState(() => getSocket()?.connected ?? false)
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 30000)
     return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+    setConnected(socket.connected)
+    const onConnect = () => setConnected(true)
+    const onDisconnect = () => setConnected(false)
+    socket.on("connect", onConnect)
+    socket.on("disconnect", onDisconnect)
+    return () => {
+      socket.off("connect", onConnect)
+      socket.off("disconnect", onDisconnect)
+    }
   }, [])
 
   const initials = userName
@@ -49,9 +65,9 @@ export function Header({ tenantName, userName }: HeaderProps) {
         >
           ↻ Refrescar
         </button>
-        <div className="sync-status">
+        <div className={`sync-status ${connected ? "" : "disconnected"}`}>
           <div className="sync-dot" />
-          <span>Sincronizado</span>
+          <span>{connected ? "Sincronizado" : "Sin conexión"}</span>
         </div>
         <div className="header-avatar" title={userName}>
           {initials}

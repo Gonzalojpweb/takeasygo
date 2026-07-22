@@ -25,9 +25,15 @@ export function FlotaDashboard() {
   useEffect(() => {
     if (!jwt) return
     const socket = connectSocket(jwt)
-    socket.on("connect", () => setConnected(true))
-    socket.on("disconnect", () => setConnected(false))
-    return () => { socket.off("connect"); socket.off("disconnect") }
+    setConnected(socket.connected)
+    const onConnect = () => setConnected(true)
+    const onDisconnect = () => setConnected(false)
+    socket.on("connect", onConnect)
+    socket.on("disconnect", onDisconnect)
+    return () => {
+      socket.off("connect", onConnect)
+      socket.off("disconnect", onDisconnect)
+    }
   }, [jwt])
 
   const showToast = useCallback((message: string, type: string) => {
