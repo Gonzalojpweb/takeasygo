@@ -96,6 +96,7 @@ export function CounterDashboard() {
   const [transforming, setTransforming] = useState(false)
   const [connected, setConnected] = useState(false)
   const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(new Set())
+  const [selectedKanbanOrderId, setSelectedKanbanOrderId] = useState<string | null>(null)
 
   const showToast = useCallback((message: string, type: string) => {
     setToast({ message, type })
@@ -356,6 +357,7 @@ export function CounterDashboard() {
     setEntrantesSubView("gateway")
     setGatewayScene("queue")
     setSelectedOrderId(null)
+    setSelectedKanbanOrderId(null)
     const defaults: Record<string, Scene> = {
       salon: "salon",
       mostrador: "mostrador_rapido",
@@ -799,62 +801,139 @@ export function CounterDashboard() {
           }
         } else {
           // Kanban context panel
-          const pendingCount = kanbanOrders.filter((o) => o.status === "confirmed").length
-          const preparingCount = kanbanOrders.filter((o) => o.status === "preparing").length
-          const readyCount = kanbanOrders.filter((o) => o.status === "ready").length
-          const enRutaCount = kanbanOrders.filter((o) => o.status === "en_ruta").length
-          const arrivedCount = kanbanOrders.filter((o) => o.status === "arrived").length
-          setContextPanel({
-            title: "Pedidos Entrantes",
-            subtitle: "Órdenes del ecosistema en operación",
-            body: (
-              <div style={{ padding: "var(--sp-2)" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Por preparar
+          const selectedKanbanOrder = selectedKanbanOrderId ? kanbanOrders.find((o) => o.id === selectedKanbanOrderId) : null
+
+          if (selectedKanbanOrder) {
+            // Detail view for selected order
+            const nextStatus: Record<string, { label: string; handler: () => void } | null> = {
+              confirmed: { label: "Iniciar Preparación", handler: () => handlePrepareExternal(selectedKanbanOrder.id) },
+              preparing: { label: "Marcar Listo", handler: () => handleMarkReadyExternal(selectedKanbanOrder.id) },
+              ready: selectedKanbanOrder.source === "delivery"
+                ? { label: "En Ruta", handler: () => handleSetEnRutaExternal(selectedKanbanOrder.id) }
+                : { label: "Entregado", handler: () => handleDeliverExternal(selectedKanbanOrder.id) },
+              en_ruta: { label: "Llegó", handler: () => handleSetArrivedExternal(selectedKanbanOrder.id) },
+              arrived: { label: "Entregado", handler: () => handleDeliverExternal(selectedKanbanOrder.id) },
+            }
+            const next = nextStatus[selectedKanbanOrder.status] ?? null
+
+            setContextPanel({
+              title: `Pedido #${selectedKanbanOrder.id.slice(0, 8)}`,
+              subtitle: selectedKanbanOrder.source === "delivery" ? "Delivery" : "Take Away",
+              body: (
+                <div style={{ padding: "var(--sp-2)" }}>
+                  <div style={{ marginBottom: "var(--sp-3)" }}>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
+                      Estado
                     </div>
-                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
-                      {pendingCount}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      En preparación
-                    </div>
-                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--warning)" }}>
-                      {preparingCount}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Listos
-                    </div>
-                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--success)" }}>
-                      {readyCount}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      En ruta
-                    </div>
-                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--info)" }}>
-                      {enRutaCount}
+                    <div style={{
+                      fontSize: "var(--font-size-sm)", fontWeight: 600,
+                      color: selectedKanbanOrder.status === "confirmed" ? "var(--text-primary)" :
+                             selectedKanbanOrder.status === "preparing" ? "var(--warning)" :
+                             selectedKanbanOrder.status === "ready" ? "var(--success)" :
+                             selectedKanbanOrder.status === "en_ruta" ? "var(--info)" :
+                             selectedKanbanOrder.status === "arrived" ? "var(--brand-orange)" : "var(--text-muted)",
+                    }}>
+                      {selectedKanbanOrder.status === "confirmed" && "Por preparar"}
+                      {selectedKanbanOrder.status === "preparing" && "Preparando"}
+                      {selectedKanbanOrder.status === "ready" && "Listo"}
+                      {selectedKanbanOrder.status === "en_ruta" && "En Ruta"}
+                      {selectedKanbanOrder.status === "arrived" && "Llegó"}
                     </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Llegaron
+                  <div style={{ marginBottom: "var(--sp-3)" }}>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
+                      Items ({selectedKanbanOrder.items.length})
                     </div>
-                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
-                      {arrivedCount}
+                    {selectedKanbanOrder.items.map((item, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "var(--sp-1) 0", borderBottom: "1px solid var(--border)", fontSize: "var(--font-size-sm)" }}>
+                        <span>{item.quantity}× {item.name}</span>
+                        <span style={{ fontWeight: 600 }}>{formatCurrency(item.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>
+                    <span>Total</span>
+                    <span>{formatCurrency(selectedKanbanOrder.total)}</span>
+                  </div>
+                  <div style={{ marginTop: "var(--sp-2)", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
+                    {selectedKanbanOrder.paymentMethod === "mercadopago" ? "💙 MercadoPago" :
+                     selectedKanbanOrder.paymentMethod === "transfer" ? "🏦 Transferencia" :
+                     selectedKanbanOrder.paymentMethod}
+                  </div>
+                </div>
+              ),
+            })
+            setActionBar({
+              left: (
+                <button className="btn btn-ghost" onClick={() => setSelectedKanbanOrderId(null)}>
+                  ← Volver
+                </button>
+              ),
+              right: next ? (
+                <button className="btn btn-primary" onClick={next.handler}>
+                  {next.label}
+                </button>
+              ) : undefined,
+            })
+          } else {
+            // Summary counts
+            const pendingCount = kanbanOrders.filter((o) => o.status === "confirmed").length
+            const preparingCount = kanbanOrders.filter((o) => o.status === "preparing").length
+            const readyCount = kanbanOrders.filter((o) => o.status === "ready").length
+            const enRutaCount = kanbanOrders.filter((o) => o.status === "en_ruta").length
+            const arrivedCount = kanbanOrders.filter((o) => o.status === "arrived").length
+            setContextPanel({
+              title: "Pedidos Entrantes",
+              subtitle: "Órdenes del ecosistema en operación",
+              body: (
+                <div style={{ padding: "var(--sp-2)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+                    <div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        Por preparar
+                      </div>
+                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
+                        {pendingCount}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        En preparación
+                      </div>
+                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--warning)" }}>
+                        {preparingCount}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        Listos
+                      </div>
+                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--success)" }}>
+                        {readyCount}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        En ruta
+                      </div>
+                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--info)" }}>
+                        {enRutaCount}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        Llegaron
+                      </div>
+                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
+                        {arrivedCount}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ),
-          })
-          setActionBar(null)
+              ),
+            })
+            setActionBar(null)
+          }
         }
         break
 
@@ -900,7 +979,7 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, view, selectedTable, cart, cartTotal, customer, diners, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform])
+  }, [scene, view, selectedTable, cart, cartTotal, customer, diners, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
 
   // ============================================================================
   // RENDER
@@ -1393,6 +1472,7 @@ export function CounterDashboard() {
                           <KanbanOrderCard
                             key={order.id}
                             order={order}
+                            onClick={setSelectedKanbanOrderId}
                             onPrepare={handlePrepareExternal}
                           />
                         ))}
@@ -1426,6 +1506,7 @@ export function CounterDashboard() {
                           <KanbanOrderCard
                             key={order.id}
                             order={order}
+                            onClick={setSelectedKanbanOrderId}
                             onMarkReady={handleMarkReadyExternal}
                           />
                         ))}
@@ -1459,6 +1540,7 @@ export function CounterDashboard() {
                           <KanbanOrderCard
                             key={order.id}
                             order={order}
+                            onClick={setSelectedKanbanOrderId}
                             onSetEnRuta={handleSetEnRutaExternal}
                             onDeliver={handleDeliverExternal}
                           />
@@ -1493,6 +1575,7 @@ export function CounterDashboard() {
                           <KanbanOrderCard
                             key={order.id}
                             order={order}
+                            onClick={setSelectedKanbanOrderId}
                             onSetArrived={handleSetArrivedExternal}
                           />
                         ))}
@@ -1526,6 +1609,7 @@ export function CounterDashboard() {
                           <KanbanOrderCard
                             key={order.id}
                             order={order}
+                            onClick={setSelectedKanbanOrderId}
                             onDeliver={handleDeliverExternal}
                           />
                         ))}
@@ -1576,6 +1660,7 @@ export function CounterDashboard() {
 
 interface KanbanOrderCardProps {
   order: Order
+  onClick?: (orderId: string) => void
   onPrepare?: (orderId: string) => void
   onMarkReady?: (orderId: string) => void
   onSetEnRuta?: (orderId: string) => void
@@ -1583,7 +1668,7 @@ interface KanbanOrderCardProps {
   onDeliver?: (orderId: string) => void
 }
 
-function KanbanOrderCard({ order, onPrepare, onMarkReady, onSetEnRuta, onSetArrived, onDeliver }: KanbanOrderCardProps) {
+function KanbanOrderCard({ order, onClick, onPrepare, onMarkReady, onSetEnRuta, onSetArrived, onDeliver }: KanbanOrderCardProps) {
   const isDelivery = order.source === "delivery"
   const minutes = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)
   const isUrgent = minutes > 5
@@ -1591,6 +1676,7 @@ function KanbanOrderCard({ order, onPrepare, onMarkReady, onSetEnRuta, onSetArri
   function getNextAction() {
     switch (order.status) {
       case "pending":
+      case "confirmed":
         return { label: "Iniciar Preparación", action: onPrepare }
       case "preparing":
         return { label: "Marcar Listo", action: onMarkReady }
@@ -1611,7 +1697,11 @@ function KanbanOrderCard({ order, onPrepare, onMarkReady, onSetEnRuta, onSetArri
   const nextAction = getNextAction()
 
   return (
-    <div className={`order-card ${isUrgent ? "urgent" : ""}`} style={{ cursor: "default" }}>
+    <div
+      className={`order-card ${isUrgent ? "urgent" : ""}`}
+      style={{ cursor: "pointer" }}
+      onClick={() => onClick?.(order.id)}
+    >
       <div className="order-card-left">
         <div className="order-card-header">
           <div className={`order-card-source ${isDelivery ? "delivery" : "pickup"}`}>
@@ -1628,7 +1718,7 @@ function KanbanOrderCard({ order, onPrepare, onMarkReady, onSetEnRuta, onSetArri
               </span>
               <span style={{
                 fontSize: "var(--font-size-xs)",
-                color: order.status === "pending" ? "var(--text-muted)" :
+                color: order.status === "pending" || order.status === "confirmed" ? "var(--text-muted)" :
                        order.status === "preparing" ? "var(--warning)" :
                        order.status === "ready" ? "var(--success)" :
                        order.status === "en_ruta" ? "var(--info)" :
@@ -1637,7 +1727,7 @@ function KanbanOrderCard({ order, onPrepare, onMarkReady, onSetEnRuta, onSetArri
                 textTransform: "uppercase",
                 letterSpacing: "0.5px",
               }}>
-                {order.status === "pending" && "Pendiente"}
+                {(order.status === "pending" || order.status === "confirmed") && "Por preparar"}
                 {order.status === "preparing" && "Preparando"}
                 {order.status === "ready" && "Listo"}
                 {order.status === "en_ruta" && "En Ruta"}
