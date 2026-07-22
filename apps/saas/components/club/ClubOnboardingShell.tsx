@@ -25,23 +25,22 @@ export default function ClubOnboardingShell({
 }: ClubOnboardingShellProps) {
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — clicks here close the modal */}
       <div
         className="fixed inset-0"
         style={{
-          backgroundColor: 'var(--tgo-surface-overlay, rgba(26, 26, 26, 0.48))',
+          backgroundColor: 'rgba(0, 0, 0, 0.48)',
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',
-          zIndex: 'var(--tgo-z-overlay, 500)',
         }}
         onClick={onClose}
       />
 
-      {/* Sheet */}
+      {/* Sheet — clicks here do NOT close the modal */}
       <div
         className="fixed inset-x-0 bottom-0 flex flex-col"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          zIndex: 'var(--tgo-z-sheet, 300)',
           maxHeight: '92vh',
           borderTopLeftRadius: 'var(--tgo-radius-2xl, 24px)',
           borderTopRightRadius: 'var(--tgo-radius-2xl, 24px)',
