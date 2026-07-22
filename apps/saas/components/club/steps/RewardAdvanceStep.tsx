@@ -42,7 +42,7 @@ export default function RewardAdvanceStep({ accentColor, onNext }: RewardAdvance
         className="text-lg font-semibold text-center mb-2"
         style={{ color: accentColor, fontFamily: 'var(--tgo-type-subtitle)' }}
       >
-        Reward Advance te presta los puntos.
+        TGO te adelanta los puntos con Reward Advance.
       </motion.p>
 
       <motion.p
