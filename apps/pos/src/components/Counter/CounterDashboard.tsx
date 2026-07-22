@@ -56,6 +56,11 @@ export function CounterDashboard() {
   const [diners, setDiners] = useState(1)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
+  const showToast = useCallback((message: string, type: string) => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }, [])
+
   const { setContextPanel, setActionBar } = useLayout()
   const { tables, occupyTable } = useTables()
   const { products, categories } = useMenu()
@@ -70,7 +75,7 @@ export function CounterDashboard() {
           .equals(tenantId)
           .and((o) => 
             o.source === "external" && 
-            o.integratedAt && 
+            !!o.integratedAt && 
             o.status !== "delivered" && 
             o.status !== "cancelled" &&
             (o.status === "confirmed" || o.status === "preparing" || o.status === "ready" || o.status === "en_ruta" || o.status === "arrived")
