@@ -21,7 +21,7 @@ import { prepareOrder, markReady, deliverOrder, setEnRuta, setArrived } from "..
 import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
 import { UtensilsCrossed, Store, Package, Calendar } from "lucide-react"
-import { confirmTransferPayment } from "../../services/sync-api"
+import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
 import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus } from "../../services/external-orders"
 import { OrderCard } from "../IncomingOrders/OrderCard"
 import { OrderValidationPanel } from "../IncomingOrders/OrderValidationPanel"
@@ -257,6 +257,12 @@ export function CounterDashboard() {
       })
       setTransformResult({ localOrderId: updated.id })
       showToast("Pedido transformado a orden local", "success")
+
+      // Notificar al SyncLayer que el pedido pasó a "confirmed"
+      if (jwt) {
+        notifyStatusToSyncLayer(order.id, "confirmed", jwt).catch(() => {})
+      }
+
       // Auto-switch to kanban after short delay
       setTimeout(() => setEntrantesSubView("kanban"), 1500)
     } catch (err) {
@@ -264,7 +270,7 @@ export function CounterDashboard() {
     } finally {
       setTransforming(false)
     }
-  }, [gatewayOrders, selectedOrderId, tenantId, showToast])
+  }, [gatewayOrders, selectedOrderId, tenantId, jwt, showToast])
 
   const handleGatewayBack = useCallback(() => {
     setGatewayScene("queue")
@@ -793,7 +799,7 @@ export function CounterDashboard() {
           }
         } else {
           // Kanban context panel
-          const pendingCount = kanbanOrders.filter((o) => o.status === "pending").length
+          const pendingCount = kanbanOrders.filter((o) => o.status === "confirmed").length
           const preparingCount = kanbanOrders.filter((o) => o.status === "preparing").length
           const readyCount = kanbanOrders.filter((o) => o.status === "ready").length
           const enRutaCount = kanbanOrders.filter((o) => o.status === "en_ruta").length
@@ -806,7 +812,7 @@ export function CounterDashboard() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
                   <div>
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Pendientes
+                      Por preparar
                     </div>
                     <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
                       {pendingCount}
@@ -1219,6 +1225,9 @@ export function CounterDashboard() {
               onClick={() => setEntrantesSubView("gateway")}
               style={{ position: "relative" }}
             >
+              {gatewayOrders.length > 0 && (
+                <span className="pulse-dot" />
+              )}
               Recibir
               {gatewayOrders.length > 0 && (
                 <span style={{
@@ -1357,7 +1366,7 @@ export function CounterDashboard() {
                   </div>
                 ) : (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "var(--sp-3)", height: "100%" }}>
-                    {/* Columna: Pendientes */}
+                    {/* Columna: Por preparar (confirmed) */}
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
                       <div style={{
                         padding: "var(--sp-2)",
@@ -1368,7 +1377,7 @@ export function CounterDashboard() {
                         justifyContent: "space-between",
                         alignItems: "center"
                       }}>
-                        <span>Pendientes</span>
+                        <span>Por preparar</span>
                         <span style={{
                           background: "var(--warning-bg, #fff3cd)",
                           color: "var(--warning)",
@@ -1376,11 +1385,11 @@ export function CounterDashboard() {
                           borderRadius: 12,
                           fontSize: "var(--font-size-xs)"
                         }}>
-                          {kanbanOrders.filter((o) => o.status === "pending").length}
+                          {kanbanOrders.filter((o) => o.status === "confirmed").length}
                         </span>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                        {kanbanOrders.filter((o) => o.status === "pending").map((order) => (
+                        {kanbanOrders.filter((o) => o.status === "confirmed").map((order) => (
                           <KanbanOrderCard
                             key={order.id}
                             order={order}
