@@ -19,10 +19,23 @@ import { SalonSetup } from "./SalonSetup"
 import { formatCurrency, timeAgo } from "../../utils/format"
 import { prepareOrder, markReady, deliverOrder, setEnRuta, setArrived } from "../../services/order"
 import { db } from "../../db/dexie"
+import { connectSocket } from "../../services/socket-client"
 import { UtensilsCrossed, Store, Package, Calendar } from "lucide-react"
+import { confirmTransferPayment } from "../../services/sync-api"
+import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus } from "../../services/external-orders"
+import { OrderCard } from "../IncomingOrders/OrderCard"
+import { OrderValidationPanel } from "../IncomingOrders/OrderValidationPanel"
+import { OrderTransformPanel } from "../IncomingOrders/OrderTransformPanel"
+import { GatewayStats } from "../IncomingOrders/GatewayStats"
+import { GatewayFilters } from "../IncomingOrders/GatewayFilters"
+import { AutoConfirmToggle } from "../IncomingOrders/AutoConfirmToggle"
+import { SocketStatus } from "../IncomingOrders/SocketStatus"
+import type { FilterOption } from "../IncomingOrders/GatewayFilters"
 
 type CounterView = "salon" | "mostrador" | "entrantes" | "reservaciones"
 type Scene = "salon" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "reservaciones"
+type EntrantesSubView = "gateway" | "kanban"
+type GatewayScene = "queue" | "validation" | "transform"
 
 interface ViewDef {
   id: string
@@ -41,10 +54,27 @@ interface CartItem extends OrderItem {
   product: Product
 }
 
+interface ValidationItem {
+  productId: string
+  name: string
+  quantity: number
+  unitPrice: number
+  status: "valid" | "needs_attention"
+}
+
+// ============================================================================
+// Audio para notificaciones de nuevos pedidos
+// ============================================================================
+const NEW_ORDER_AUDIO = new Audio("/LLAMADA.mp3")
+NEW_ORDER_AUDIO.volume = 0.5
+
+const SYNC_URL = import.meta.env.VITE_SYNC_URL
+
 export function CounterDashboard() {
   const { state } = useAuth()
   const tenantId = state.status === "authenticated" ? state.tenantId : undefined
-  
+  const jwt = state.status === "authenticated" ? state.jwt?.accessToken : undefined
+
   const [scene, setScene] = useState<Scene>("salon")
   const [view, setView] = useState<CounterView>("salon")
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
@@ -55,6 +85,17 @@ export function CounterDashboard() {
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
   const [diners, setDiners] = useState(1)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
+
+  // ── Gateway state ─────────────────────────────────────────────────
+  const [entrantesSubView, setEntrantesSubView] = useState<EntrantesSubView>("gateway")
+  const [gatewayScene, setGatewayScene] = useState<GatewayScene>("queue")
+  const [gatewayFilter, setGatewayFilter] = useState<FilterOption>("all")
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [validationItems, setValidationItems] = useState<ValidationItem[]>([])
+  const [transformResult, setTransformResult] = useState<{ localOrderId: string } | null>(null)
+  const [transforming, setTransforming] = useState(false)
+  const [connected, setConnected] = useState(false)
+  const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(new Set())
 
   const showToast = useCallback((message: string, type: string) => {
     setToast({ message, type })
@@ -67,16 +108,47 @@ export function CounterDashboard() {
   const { processPayment } = usePayments()
   const { createOrder } = useOrders()
 
-  // ── Pedidos externos integrados para kanban ─────────────────────────
-  const externalOrders = useLiveQuery(
+  // ── Socket connection status ──────────────────────────────────────
+  useEffect(() => {
+    if (!jwt) return
+    const socket = connectSocket(jwt)
+    setConnected(socket.connected)
+    const onConnect = () => setConnected(true)
+    const onDisconnect = () => setConnected(false)
+    socket.on("connect", onConnect)
+    socket.on("disconnect", onDisconnect)
+    return () => {
+      socket.off("connect", onConnect)
+      socket.off("disconnect", onDisconnect)
+    }
+  }, [jwt])
+
+  // ============================================================================
+  // QUERIES
+  // ============================================================================
+
+  // ── Gateway: pedidos NO integrados (cola de entrada) ──────────────
+  const gatewayOrders = useLiveQuery(
     () => (tenantId
       ? db.orders
           .where("tenantId")
           .equals(tenantId)
-          .and((o) => 
-            o.source === "external" && 
-            !!o.integratedAt && 
-            o.status !== "delivered" && 
+          .and((o) => o.source === "external" && !o.integratedAt && o.status !== "cancelled" && o.status !== "delivered")
+          .toArray()
+      : []),
+    [tenantId]
+  ) ?? []
+
+  // ── Kanban: pedidos integrados en operación ──────────────────────
+  const kanbanOrders = useLiveQuery(
+    () => (tenantId
+      ? db.orders
+          .where("tenantId")
+          .equals(tenantId)
+          .and((o) =>
+            o.source === "external" &&
+            !!o.integratedAt &&
+            o.status !== "delivered" &&
             o.status !== "cancelled" &&
             (o.status === "confirmed" || o.status === "preparing" || o.status === "ready" || o.status === "en_ruta" || o.status === "arrived")
           )
@@ -84,6 +156,125 @@ export function CounterDashboard() {
       : []),
     [tenantId]
   ) ?? []
+
+  // ── Detectar nuevos pedidos y reproducir audio ───────────────────
+  useEffect(() => {
+    const newOrders = gatewayOrders.filter((o) => !seenOrderIds.has(o.id))
+    if (newOrders.length > 0) {
+      NEW_ORDER_AUDIO.play().catch((err) => console.error("Error playing audio:", err))
+      setSeenOrderIds((prev) => {
+        const updated = new Set(prev)
+        newOrders.forEach((o) => updated.add(o.id))
+        return updated
+      })
+    }
+  }, [gatewayOrders, seenOrderIds])
+
+  // ============================================================================
+  // GATEWAY HANDLERS
+  // ============================================================================
+
+  const handleConfirmOrder = useCallback(async (orderId: string) => {
+    try {
+      const res = await fetch(`${SYNC_URL}/api/v1/orders/${orderId}/confirm`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${jwt}` },
+      })
+      if (!res.ok) throw new Error(`Confirm failed (${res.status})`)
+      if (tenantId) {
+        updateExternalOrderStatus(orderId, tenantId, "confirmed").catch(() => {})
+      }
+      showToast("Pedido confirmado en origen", "success")
+    } catch {
+      showToast("Error al confirmar", "error")
+    }
+  }, [jwt, tenantId, showToast])
+
+  const handleConfirmTransfer = useCallback(async (orderId: string) => {
+    if (!tenantId || !jwt) return
+    const ok = await confirmTransferPayment(orderId, tenantId, jwt)
+    if (ok) {
+      updateExternalOrderStatus(orderId, tenantId, "confirmed").catch(() => {})
+      showToast("Pago confirmado y pedido integrado", "success")
+    } else {
+      showToast("Error al confirmar pago", "error")
+    }
+  }, [tenantId, jwt, showToast])
+
+  const handleRejectOrder = useCallback(async (orderId: string) => {
+    if (tenantId) {
+      await cancelExternalOrder(orderId, tenantId, "rejected_by_cashier").catch(() => {})
+    }
+    setSelectedOrderId(null)
+    setGatewayScene("queue")
+    showToast("Pedido rechazado", "info")
+  }, [tenantId, showToast])
+
+  const handleConfirmAllPaid = useCallback(() => {
+    const pendingPaid = gatewayOrders.filter((o) => o.status === "pending")
+    pendingPaid.forEach((o) => handleConfirmOrder(o.id))
+  }, [gatewayOrders, handleConfirmOrder])
+
+  const handleSelectOrder = useCallback((orderId: string) => {
+    const order = gatewayOrders.find((o) => o.id === orderId)
+    if (!order) return
+    setSelectedOrderId(orderId)
+    setValidationItems(
+      order.items.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        status: "valid" as const,
+      }))
+    )
+    setTransformResult(null)
+    setGatewayScene("validation")
+  }, [gatewayOrders])
+
+  const handleToggleItemStatus = useCallback((productId: string) => {
+    setValidationItems((prev) =>
+      prev.map((item) =>
+        item.productId === productId
+          ? { ...item, status: item.status === "valid" ? "needs_attention" as const : "valid" as const }
+          : item
+      )
+    )
+  }, [])
+
+  const handleTransform = useCallback(async () => {
+    const order = gatewayOrders.find((o) => o.id === selectedOrderId)
+    if (!order || !tenantId) return
+
+    setTransforming(true)
+    try {
+      const updated = await transformExternalOrder({
+        orderId: order.id,
+        tenantId,
+        items: order.items,
+        total: order.total,
+        notes: order.notes ?? `Pedido online #${order.id.slice(0, 8)}`,
+      })
+      setTransformResult({ localOrderId: updated.id })
+      showToast("Pedido transformado a orden local", "success")
+      // Auto-switch to kanban after short delay
+      setTimeout(() => setEntrantesSubView("kanban"), 1500)
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Error al transformar", "error")
+    } finally {
+      setTransforming(false)
+    }
+  }, [gatewayOrders, selectedOrderId, tenantId, showToast])
+
+  const handleGatewayBack = useCallback(() => {
+    setGatewayScene("queue")
+    setSelectedOrderId(null)
+    setTransformResult(null)
+  }, [])
+
+  // ============================================================================
+  // KANBAN HANDLERS (existing)
+  // ============================================================================
 
   const handlePrepareExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
@@ -135,6 +326,10 @@ export function CounterDashboard() {
     }
   }, [tenantId])
 
+  // ============================================================================
+  // CART + TABLE HANDLERS (existing)
+  // ============================================================================
+
   const selectedTable = useMemo(
     () => tables.find((t) => t.id === selectedTableId),
     [tables, selectedTableId]
@@ -152,6 +347,9 @@ export function CounterDashboard() {
     setSelectedTableId(null)
     setSelectedCategory(null)
     setDiners(1)
+    setEntrantesSubView("gateway")
+    setGatewayScene("queue")
+    setSelectedOrderId(null)
     const defaults: Record<string, Scene> = {
       salon: "salon",
       mostrador: "mostrador_rapido",
@@ -267,9 +465,44 @@ export function CounterDashboard() {
     setScene(defaults[view] ?? "salon")
   }, [view])
 
-  // ==========================================================================
-  // Context Panel + ActionBar per scene
-  // ==========================================================================
+  // ============================================================================
+  // DERIVED STATE
+  // ============================================================================
+
+  const filteredGatewayOrders = useMemo(() => {
+    if (gatewayFilter === "all" || gatewayFilter === "delivery" || gatewayFilter === "takeaway" || gatewayFilter === "marketplace") return gatewayOrders
+    if (gatewayFilter === "pending_payment") return gatewayOrders.filter((o) => o.status === "pending")
+    return gatewayOrders
+  }, [gatewayOrders, gatewayFilter])
+
+  const gatewayPendingCount = useMemo(
+    () => gatewayOrders.filter((o) => o.status === "pending" || o.externalStatus === "awaiting_payment").length,
+    [gatewayOrders]
+  )
+
+  const gatewayPaidCount = useMemo(
+    () => gatewayOrders.filter(
+      (o) => o.source === "external" && ["confirmed", "preparing", "ready", "delivered"].includes(o.status)
+    ).length,
+    [gatewayOrders]
+  )
+
+  const gatewayFilterCounts = useMemo(() => ({
+    all: gatewayOrders.length,
+    delivery: 0,
+    takeaway: 0,
+    marketplace: 0,
+    pending_payment: gatewayPendingCount,
+  }), [gatewayOrders.length, gatewayPendingCount])
+
+  const selectedOrder = useMemo(
+    () => gatewayOrders.find((o) => o.id === selectedOrderId),
+    [gatewayOrders, selectedOrderId]
+  )
+
+  // ============================================================================
+  // CONTEXT PANEL + ACTION BAR PER SCENE
+  // ============================================================================
 
   useEffect(() => {
     switch (scene) {
@@ -392,62 +625,231 @@ export function CounterDashboard() {
         break
 
       case "entrantes":
-        const pendingCount = externalOrders.filter((o) => o.status === "pending").length
-        const preparingCount = externalOrders.filter((o) => o.status === "preparing").length
-        const readyCount = externalOrders.filter((o) => o.status === "ready").length
-        const enRutaCount = externalOrders.filter((o) => o.status === "en_ruta").length
-        const arrivedCount = externalOrders.filter((o) => o.status === "arrived").length
-        setContextPanel({
-          title: "Pedidos Entrantes",
-          subtitle: "Órdenes del ecosistema transformadas",
-          body: (
-            <div style={{ padding: "var(--sp-2)" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Pendientes
+        if (entrantesSubView === "gateway") {
+          // Gateway context panel
+          switch (gatewayScene) {
+            case "queue":
+              setContextPanel({
+                title: "Bandeja de entrada",
+                subtitle: connected ? "● Conectado" : "○ Desconectado — offline",
+                body: (
+                  <div style={{ padding: "var(--sp-2)" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+                      <div>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          En cola
+                        </div>
+                        <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
+                          {gatewayOrders.length}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          Pendientes
+                        </div>
+                        <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: gatewayPendingCount > 0 ? "var(--warning)" : "var(--text-primary)" }}>
+                          {gatewayPendingCount}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
-                    {pendingCount}
+                ),
+              })
+              setActionBar({
+                right: gatewayPendingCount > 0 ? (
+                  <button className="btn btn-primary btn-sm" onClick={handleConfirmAllPaid}>
+                    Confirmar todos
+                  </button>
+                ) : undefined,
+              })
+              break
+
+            case "validation":
+              if (!selectedOrder) {
+                handleGatewayBack()
+                break
+              }
+              const needsAttention = validationItems.filter((v) => v.status === "needs_attention").length
+              setContextPanel({
+                title: "Validar pedido",
+                subtitle: `#${selectedOrder.id.slice(0, 8)} — ${formatCurrency(selectedOrder.total)}`,
+                body: (
+                  <div style={{ padding: "var(--sp-2)" }}>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
+                      Items ({selectedOrder.items.length})
+                    </div>
+                    {validationItems.map((item) => (
+                      <div
+                        key={item.productId}
+                        onClick={() => handleToggleItemStatus(item.productId)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "var(--sp-1) 0",
+                          borderBottom: "1px solid var(--border)",
+                          cursor: "pointer",
+                          opacity: item.status === "needs_attention" ? 0.6 : 1,
+                          textDecoration: item.status === "needs_attention" ? "line-through" : "none",
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontSize: "var(--font-size-sm)" }}>
+                            {item.status === "needs_attention" ? "⚠" : "✓"} {item.quantity}x {item.name}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
+                          {formatCurrency(item.unitPrice * item.quantity)}
+                        </span>
+                      </div>
+                    ))}
+                    {needsAttention > 0 && (
+                      <div style={{ marginTop: "var(--sp-2)", padding: "var(--sp-2)", background: "var(--warning-bg, #fff3cd)", borderRadius: "var(--radius)", fontSize: "var(--font-size-sm)" }}>
+                        ⚠ {needsAttention} item(s) requieren atención. Hacé clic para alternar estado.
+                      </div>
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "var(--sp-2)", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>
+                      <span>Total</span>
+                      <span>{formatCurrency(selectedOrder.total)}</span>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    En preparación
+                ),
+              })
+              setActionBar({
+                left: (
+                  <button className="btn btn-ghost" onClick={handleGatewayBack}>
+                    ← Volver
+                  </button>
+                ),
+                center: selectedOrder && (
+                  <button className="btn btn-danger" onClick={() => handleRejectOrder(selectedOrder.id)}>
+                    Rechazar pedido
+                  </button>
+                ),
+                right: (
+                  <button className="btn btn-primary" onClick={() => setGatewayScene("transform")}>
+                    Transformar a local
+                  </button>
+                ),
+              })
+              break
+
+            case "transform":
+              setContextPanel({
+                title: transformResult ? "Transformación completa" : "Procesando...",
+                subtitle: selectedOrder ? `#${selectedOrder.id.slice(0, 8)}` : "",
+                body: (
+                  <div style={{ padding: "var(--sp-3)", textAlign: "center" }}>
+                    {transformResult ? (
+                      <div>
+                        <div style={{ fontSize: 48, marginBottom: "var(--sp-3)" }}>✅</div>
+                        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: "var(--sp-2)" }}>
+                          Pedido transformado
+                        </div>
+                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
+                          Orden local: {transformResult.localOrderId.slice(0, 12)}...
+                        </div>
+                        <div style={{ marginTop: "var(--sp-2)", fontSize: "var(--font-size-sm)" }}>
+                          Enviado a cocina automáticamente
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: 48, marginBottom: "var(--sp-3)" }}>🔄</div>
+                        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: "var(--sp-2)" }}>
+                          {transforming ? "Transformando..." : "Listo para transformar"}
+                        </div>
+                        {selectedOrder && (
+                          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: "var(--sp-3)" }}>
+                            {selectedOrder.items.length} items — {formatCurrency(selectedOrder.total)}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--warning)" }}>
-                    {preparingCount}
+                ),
+              })
+              setActionBar({
+                left: transformResult ? (
+                  <button className="btn btn-ghost" onClick={handleGatewayBack}>
+                    ← Volver a bandeja
+                  </button>
+                ) : (
+                  <button className="btn btn-ghost" onClick={() => setGatewayScene("validation")}>
+                    ← Volver a validación
+                  </button>
+                ),
+                right: !transformResult ? (
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleTransform}
+                    disabled={transforming}
+                  >
+                    {transforming ? "Transformando..." : "Crear orden local"}
+                  </button>
+                ) : undefined,
+              })
+              break
+          }
+        } else {
+          // Kanban context panel
+          const pendingCount = kanbanOrders.filter((o) => o.status === "pending").length
+          const preparingCount = kanbanOrders.filter((o) => o.status === "preparing").length
+          const readyCount = kanbanOrders.filter((o) => o.status === "ready").length
+          const enRutaCount = kanbanOrders.filter((o) => o.status === "en_ruta").length
+          const arrivedCount = kanbanOrders.filter((o) => o.status === "arrived").length
+          setContextPanel({
+            title: "Pedidos Entrantes",
+            subtitle: "Órdenes del ecosistema en operación",
+            body: (
+              <div style={{ padding: "var(--sp-2)" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+                  <div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      Pendientes
+                    </div>
+                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
+                      {pendingCount}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Listos
+                  <div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      En preparación
+                    </div>
+                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--warning)" }}>
+                      {preparingCount}
+                    </div>
                   </div>
-                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--success)" }}>
-                    {readyCount}
+                  <div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      Listos
+                    </div>
+                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--success)" }}>
+                      {readyCount}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    En ruta
+                  <div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      En ruta
+                    </div>
+                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--info)" }}>
+                      {enRutaCount}
+                    </div>
                   </div>
-                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--info)" }}>
-                    {enRutaCount}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Llegaron
-                  </div>
-                  <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
-                    {arrivedCount}
+                  <div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      Llegaron
+                    </div>
+                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
+                      {arrivedCount}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ),
-        })
-        setActionBar(null)
+            ),
+          })
+          setActionBar(null)
+        }
         break
 
       case "cierre":
@@ -492,7 +894,11 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, view, selectedTable, cart, cartTotal, customer, diners, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale])
+  }, [scene, view, selectedTable, cart, cartTotal, customer, diners, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform])
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
     <>
@@ -796,192 +1202,331 @@ export function CounterDashboard() {
       )}
 
       {/* ================================================ */}
-      {/* VIEW: ENTRANTES */}
+      {/* VIEW: ENTRANTES (Gateway + Kanban) */}
       {/* ================================================ */}
       {view === "entrantes" && (
         <>
-          <div className="workspace-header">
-            <div>
-              <div className="workspace-title">Pedidos Entrantes</div>
-              <div className="workspace-subtitle">Órdenes del ecosistema transformadas</div>
-            </div>
+          {/* Sub-tabs: Recibir / Operar */}
+          <div style={{
+            display: "flex",
+            gap: "var(--sp-2)",
+            padding: "var(--sp-3) var(--sp-4)",
+            borderBottom: "1px solid var(--border)",
+            background: "var(--surface-primary)",
+          }}>
+            <button
+              className={`btn btn-sm ${entrantesSubView === "gateway" ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setEntrantesSubView("gateway")}
+              style={{ position: "relative" }}
+            >
+              Recibir
+              {gatewayOrders.length > 0 && (
+                <span style={{
+                  marginLeft: "var(--sp-1)",
+                  background: entrantesSubView === "gateway" ? "rgba(255,255,255,0.3)" : "var(--warning)",
+                  color: entrantesSubView === "gateway" ? "white" : "white",
+                  padding: "1px 6px",
+                  borderRadius: 10,
+                  fontSize: "var(--font-size-xs)",
+                  fontWeight: 700,
+                }}>
+                  {gatewayOrders.length}
+                </span>
+              )}
+            </button>
+            <button
+              className={`btn btn-sm ${entrantesSubView === "kanban" ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setEntrantesSubView("kanban")}
+              style={{ position: "relative" }}
+            >
+              Operar
+              {kanbanOrders.length > 0 && (
+                <span style={{
+                  marginLeft: "var(--sp-1)",
+                  background: entrantesSubView === "kanban" ? "rgba(255,255,255,0.3)" : "var(--info)",
+                  color: entrantesSubView === "kanban" ? "white" : "white",
+                  padding: "1px 6px",
+                  borderRadius: 10,
+                  fontSize: "var(--font-size-xs)",
+                  fontWeight: 700,
+                }}>
+                  {kanbanOrders.length}
+                </span>
+              )}
+            </button>
           </div>
-          <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {externalOrders.length === 0 ? (
-              <div className="empty-state">
-                <span className="empty-state-icon">📦</span>
-                <span className="empty-state-text">No hay pedidos entrantes</span>
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "var(--sp-3)", height: "100%" }}>
-                {/* Columna: Pendientes */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div style={{ 
-                    padding: "var(--sp-2)", 
-                    background: "var(--surface-secondary)", 
-                    borderRadius: "var(--radius)",
-                    fontWeight: 600,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <span>Pendientes</span>
-                    <span style={{ 
-                      background: "var(--warning-bg, #fff3cd)", 
-                      color: "var(--warning)", 
-                      padding: "2px 8px", 
-                      borderRadius: 12, 
-                      fontSize: "var(--font-size-xs)" 
-                    }}>
-                      {externalOrders.filter((o) => o.status === "pending").length}
-                    </span>
+
+          {/* ── GATEWAY: Cola de pedidos del SaaS ── */}
+          {entrantesSubView === "gateway" && (
+            <>
+              <div className="workspace-header">
+                <div>
+                  <div className="workspace-title">
+                    {gatewayScene === "queue" ? "Pedidos Externos" : gatewayScene === "validation" ? "Validar pedido" : "Transformar a local"}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {externalOrders.filter((o) => o.status === "pending").map((order) => (
-                      <ExternalOrderCard
-                        key={order.id}
-                        order={order}
-                        onPrepare={handlePrepareExternal}
-                      />
-                    ))}
+                  <div className="workspace-subtitle">
+                    {gatewayScene === "queue"
+                      ? "Pedidos del ecosistema TakeasyGO — Recibir → Validar → Transformar"
+                      : gatewayScene === "validation" && selectedOrder
+                        ? `#${selectedOrder.id.slice(0, 8)} — ${formatCurrency(selectedOrder.total)}`
+                        : gatewayScene === "transform" && selectedOrder
+                          ? `#${selectedOrder.id.slice(0, 8)}`
+                          : ""}
                   </div>
                 </div>
-
-                {/* Columna: Preparando */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div style={{ 
-                    padding: "var(--sp-2)", 
-                    background: "var(--surface-secondary)", 
-                    borderRadius: "var(--radius)",
-                    fontWeight: 600,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <span>Preparando</span>
-                    <span style={{ 
-                      background: "var(--info-bg, #e3f2fd)", 
-                      color: "var(--info)", 
-                      padding: "2px 8px", 
-                      borderRadius: 12, 
-                      fontSize: "var(--font-size-xs)" 
-                    }}>
-                      {externalOrders.filter((o) => o.status === "preparing").length}
+                <div className="workspace-actions">
+                  {gatewayScene === "queue" && (
+                    <>
+                      <GatewayStats urgent={0} pendingPayment={gatewayPendingCount} paid={gatewayPaidCount} urgentDisabled />
+                      <AutoConfirmToggle />
+                      <SocketStatus connected={connected} />
+                    </>
+                  )}
+                  {gatewayScene === "validation" && (
+                    <span className="status-badge">
+                      {validationItems.filter((v) => v.status === "needs_attention").length > 0
+                        ? `${validationItems.filter((v) => v.status === "needs_attention").length} pendiente(s)`
+                        : "Todos OK"}
                     </span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {externalOrders.filter((o) => o.status === "preparing").map((order) => (
-                      <ExternalOrderCard
-                        key={order.id}
-                        order={order}
-                        onMarkReady={handleMarkReadyExternal}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Columna: Listos */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div style={{ 
-                    padding: "var(--sp-2)", 
-                    background: "var(--surface-secondary)", 
-                    borderRadius: "var(--radius)",
-                    fontWeight: 600,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <span>Listos</span>
-                    <span style={{ 
-                      background: "var(--success-bg, #e6f7e6)", 
-                      color: "var(--success)", 
-                      padding: "2px 8px", 
-                      borderRadius: 12, 
-                      fontSize: "var(--font-size-xs)" 
-                    }}>
-                      {externalOrders.filter((o) => o.status === "ready").length}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {externalOrders.filter((o) => o.status === "ready").map((order) => (
-                      <ExternalOrderCard
-                        key={order.id}
-                        order={order}
-                        onSetEnRuta={handleSetEnRutaExternal}
-                        onDeliver={handleDeliverExternal}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Columna: En Ruta */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div style={{ 
-                    padding: "var(--sp-2)", 
-                    background: "var(--surface-secondary)", 
-                    borderRadius: "var(--radius)",
-                    fontWeight: 600,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <span>En Ruta</span>
-                    <span style={{ 
-                      background: "var(--info-bg, #e3f2fd)", 
-                      color: "var(--info)", 
-                      padding: "2px 8px", 
-                      borderRadius: 12, 
-                      fontSize: "var(--font-size-xs)" 
-                    }}>
-                      {externalOrders.filter((o) => o.status === "en_ruta").length}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {externalOrders.filter((o) => o.status === "en_ruta").map((order) => (
-                      <ExternalOrderCard
-                        key={order.id}
-                        order={order}
-                        onSetArrived={handleSetArrivedExternal}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Columna: Llegaron */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div style={{ 
-                    padding: "var(--sp-2)", 
-                    background: "var(--surface-secondary)", 
-                    borderRadius: "var(--radius)",
-                    fontWeight: 600,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <span>Llegaron</span>
-                    <span style={{ 
-                      background: "var(--brand-orange-bg, #fff3e0)", 
-                      color: "var(--brand-orange)", 
-                      padding: "2px 8px", 
-                      borderRadius: 12, 
-                      fontSize: "var(--font-size-xs)" 
-                    }}>
-                      {externalOrders.filter((o) => o.status === "arrived").length}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {externalOrders.filter((o) => o.status === "arrived").map((order) => (
-                      <ExternalOrderCard
-                        key={order.id}
-                        order={order}
-                        onDeliver={handleDeliverExternal}
-                      />
-                    ))}
-                  </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
+
+              <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                {gatewayScene === "queue" && (
+                  <>
+                    <GatewayFilters active={gatewayFilter} counts={gatewayFilterCounts} onChange={setGatewayFilter} />
+                    {filteredGatewayOrders.length === 0 ? (
+                      <div className="empty-state">
+                        <span className="empty-state-icon">📦</span>
+                        <span className="empty-state-text">
+                          No hay pedidos externos pendientes
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="orders-list">
+                        {filteredGatewayOrders.map((order) => (
+                          <OrderCard
+                            key={order.id}
+                            order={order}
+                            onClick={handleSelectOrder}
+                            onConfirmTransfer={handleConfirmTransfer}
+                            showLifecycleButtons={false}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {gatewayScene === "validation" && selectedOrder && (
+                  <OrderValidationPanel
+                    order={selectedOrder}
+                    items={validationItems}
+                    onToggleItem={handleToggleItemStatus}
+                  />
+                )}
+
+                {gatewayScene === "transform" && selectedOrder && (
+                  <OrderTransformPanel
+                    order={selectedOrder}
+                    transformResult={transformResult}
+                    transforming={transforming}
+                    onTransform={handleTransform}
+                    onReturn={handleGatewayBack}
+                  />
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ── KANBAN: Pedidos integrados en operación ── */}
+          {entrantesSubView === "kanban" && (
+            <>
+              <div className="workspace-header">
+                <div>
+                  <div className="workspace-title">Pedidos Entrantes</div>
+                  <div className="workspace-subtitle">Órdenes del ecosistema en operación</div>
+                </div>
+              </div>
+              <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                {kanbanOrders.length === 0 ? (
+                  <div className="empty-state">
+                    <span className="empty-state-icon">📦</span>
+                    <span className="empty-state-text">No hay pedidos en operación</span>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "var(--sp-3)", height: "100%" }}>
+                    {/* Columna: Pendientes */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                      <div style={{
+                        padding: "var(--sp-2)",
+                        background: "var(--surface-secondary)",
+                        borderRadius: "var(--radius)",
+                        fontWeight: 600,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <span>Pendientes</span>
+                        <span style={{
+                          background: "var(--warning-bg, #fff3cd)",
+                          color: "var(--warning)",
+                          padding: "2px 8px",
+                          borderRadius: 12,
+                          fontSize: "var(--font-size-xs)"
+                        }}>
+                          {kanbanOrders.filter((o) => o.status === "pending").length}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                        {kanbanOrders.filter((o) => o.status === "pending").map((order) => (
+                          <KanbanOrderCard
+                            key={order.id}
+                            order={order}
+                            onPrepare={handlePrepareExternal}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Columna: Preparando */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                      <div style={{
+                        padding: "var(--sp-2)",
+                        background: "var(--surface-secondary)",
+                        borderRadius: "var(--radius)",
+                        fontWeight: 600,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <span>Preparando</span>
+                        <span style={{
+                          background: "var(--info-bg, #e3f2fd)",
+                          color: "var(--info)",
+                          padding: "2px 8px",
+                          borderRadius: 12,
+                          fontSize: "var(--font-size-xs)"
+                        }}>
+                          {kanbanOrders.filter((o) => o.status === "preparing").length}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                        {kanbanOrders.filter((o) => o.status === "preparing").map((order) => (
+                          <KanbanOrderCard
+                            key={order.id}
+                            order={order}
+                            onMarkReady={handleMarkReadyExternal}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Columna: Listos */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                      <div style={{
+                        padding: "var(--sp-2)",
+                        background: "var(--surface-secondary)",
+                        borderRadius: "var(--radius)",
+                        fontWeight: 600,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <span>Listos</span>
+                        <span style={{
+                          background: "var(--success-bg, #e6f7e6)",
+                          color: "var(--success)",
+                          padding: "2px 8px",
+                          borderRadius: 12,
+                          fontSize: "var(--font-size-xs)"
+                        }}>
+                          {kanbanOrders.filter((o) => o.status === "ready").length}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                        {kanbanOrders.filter((o) => o.status === "ready").map((order) => (
+                          <KanbanOrderCard
+                            key={order.id}
+                            order={order}
+                            onSetEnRuta={handleSetEnRutaExternal}
+                            onDeliver={handleDeliverExternal}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Columna: En Ruta */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                      <div style={{
+                        padding: "var(--sp-2)",
+                        background: "var(--surface-secondary)",
+                        borderRadius: "var(--radius)",
+                        fontWeight: 600,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <span>En Ruta</span>
+                        <span style={{
+                          background: "var(--info-bg, #e3f2fd)",
+                          color: "var(--info)",
+                          padding: "2px 8px",
+                          borderRadius: 12,
+                          fontSize: "var(--font-size-xs)"
+                        }}>
+                          {kanbanOrders.filter((o) => o.status === "en_ruta").length}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                        {kanbanOrders.filter((o) => o.status === "en_ruta").map((order) => (
+                          <KanbanOrderCard
+                            key={order.id}
+                            order={order}
+                            onSetArrived={handleSetArrivedExternal}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Columna: Llegaron */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                      <div style={{
+                        padding: "var(--sp-2)",
+                        background: "var(--surface-secondary)",
+                        borderRadius: "var(--radius)",
+                        fontWeight: 600,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <span>Llegaron</span>
+                        <span style={{
+                          background: "var(--brand-orange-bg, #fff3e0)",
+                          color: "var(--brand-orange)",
+                          padding: "2px 8px",
+                          borderRadius: 12,
+                          fontSize: "var(--font-size-xs)"
+                        }}>
+                          {kanbanOrders.filter((o) => o.status === "arrived").length}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                        {kanbanOrders.filter((o) => o.status === "arrived").map((order) => (
+                          <KanbanOrderCard
+                            key={order.id}
+                            order={order}
+                            onDeliver={handleDeliverExternal}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -1017,10 +1562,10 @@ export function CounterDashboard() {
 }
 
 // ============================================================================
-// ExternalOrderCard - Componente para pedidos externos en el kanban
+// KanbanOrderCard - Componente para pedidos en el kanban de operación
 // ============================================================================
 
-interface ExternalOrderCardProps {
+interface KanbanOrderCardProps {
   order: Order
   onPrepare?: (orderId: string) => void
   onMarkReady?: (orderId: string) => void
@@ -1029,7 +1574,7 @@ interface ExternalOrderCardProps {
   onDeliver?: (orderId: string) => void
 }
 
-function ExternalOrderCard({ order, onPrepare, onMarkReady, onSetEnRuta, onSetArrived, onDeliver }: ExternalOrderCardProps) {
+function KanbanOrderCard({ order, onPrepare, onMarkReady, onSetEnRuta, onSetArrived, onDeliver }: KanbanOrderCardProps) {
   const isDelivery = order.source === "delivery"
   const minutes = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)
   const isUrgent = minutes > 5
