@@ -153,3 +153,11 @@ export function captureRewardAdvanceConsolidated(advanceId: string, consolidated
     consolidated_amount: consolidatedAmount,
   })
 }
+
+// ── Home / Social ─────────────────────────────────────────────────────────────
+
+export function captureHomeShared(method: 'native' | 'clipboard') {
+  posthog.capture('home.shared', {
+    share_method: method,
+  })
+}
