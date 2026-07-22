@@ -6,21 +6,22 @@
 // No es un dashboard. Es una historia.
 // Cada sección responde una pregunta distinta del usuario.
 //
-// Modulos: Greeting → Search → QuickFilters → OpenNow → Nearby →
-//          Experiences → Trending → NewInNetwork → RecentlyVisited →
-//          ForTonight → Categories
+// Modulos: HomeHeader → BrandBlock → QuickFilters → Categories →
+//          OpenNow → Nearby → Experiences
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTenant } from '@/contexts/TenantContext'
 import { useLocation } from './LocationContext'
+import { Share2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { captureHomeShared } from '@/lib/tia/events'
 
 // TGO Primitives
 import { Section } from '@/components/tgo'
 import { HorizontalScroller } from '@/components/tgo'
 import { Chip } from '@/components/tgo'
-import { SearchBar } from '@/components/tgo'
 import { EmptyState } from '@/components/tgo'
 
 // TGO Business
@@ -28,35 +29,11 @@ import { RestaurantCard } from '@/components/tgo-business'
 import { ExperienceCard } from '@/components/tgo-business'
 import { CategoryCard } from '@/components/tgo-business'
 
+// Components
+import HomeHeader from './HomeHeader'
+
 // Types
 import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
-
-// ── Greeting ─────────────────────────────────────────────────────────────────
-
-function getGreeting(): { period: string; emoji: string } {
-  const hour = new Date().getHours()
-  if (hour >= 6 && hour < 12) return { period: 'Buenos días', emoji: '☀️' }
-  if (hour >= 12 && hour < 19) return { period: 'Buenas tardes', emoji: '🌤' }
-  return { period: 'Buenas noches', emoji: '🌙' }
-}
-
-function GreetingModule({ userName }: { userName?: string }) {
-  const { period, emoji } = getGreeting()
-  return (
-    <div style={{ paddingInline: 'var(--tgo-page-padding)', paddingTop: 'var(--tgo-space-5)', paddingBottom: 'var(--tgo-space-1)' }}>
-      <h1
-        style={{
-          color: 'var(--tgo-text-primary)',
-          fontSize: 'var(--tgo-type-title)',
-          fontWeight: 700,
-          letterSpacing: 'var(--tgo-tracking-tight)',
-        }}
-      >
-        {period} {userName ?? ''}
-      </h1>
-    </div>
-  )
-}
 
 // ── QuickFilters ─────────────────────────────────────────────────────────────
 
@@ -282,37 +259,93 @@ const CATEGORY_CONFIG: Record<
   Milanesas: { icon: '🍳', color: '#B45309', bg: 'rgba(180, 83, 9, 0.08)' },
   Mariscos: { icon: '🦐', color: '#0891B2', bg: 'rgba(8, 145, 178, 0.08)' },
   Heladería: { icon: '🍦', color: '#E11D48', bg: 'rgba(225, 29, 72, 0.08)' },
+  Pollo: { icon: '🍗', color: '#EA580C', bg: 'rgba(234, 88, 12, 0.08)' },
+  Sandwich: { icon: '🥪', color: '#92400E', bg: 'rgba(146, 64, 14, 0.08)' },
+  Rostisería: { icon: '🍗', color: '#EA580C', bg: 'rgba(234, 88, 12, 0.08)' },
+  Pastelería: { icon: '🥐', color: '#DB2777', bg: 'rgba(219, 39, 119, 0.08)' },
+  Saludable: { icon: '🥗', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.08)' },
+  Cafetería: { icon: '☕', color: '#065D63', bg: 'rgba(6, 93, 99, 0.08)' },
+  Helados: { icon: '🍦', color: '#E11D48', bg: 'rgba(225, 29, 72, 0.08)' },
+  'Comida Casera': { icon: '🍲', color: '#92400E', bg: 'rgba(146, 64, 14, 0.08)' },
 }
 
 function CategoriesModule({
   categories,
+  showAll,
+  onToggleShowAll,
   onSelect,
 }: {
   categories: string[]
+  showAll: boolean
+  onToggleShowAll: () => void
   onSelect: (name: string) => void
 }) {
+  const visible = showAll ? categories.slice(0, 12) : categories.slice(0, 8)
+  const hasMore = categories.length > 8
+
   return (
-    <div
-      className="grid grid-cols-4 gap-4"
-      style={{ paddingInline: 'var(--tgo-page-padding)' }}
-    >
-      {categories.slice(0, 8).map((cat) => {
-        const config = CATEGORY_CONFIG[cat] ?? {
-          icon: '🍽',
-          color: 'var(--tgo-text-secondary)',
-          bg: 'var(--tgo-surface-2)',
-        }
-        return (
-          <CategoryCard
-            key={cat}
-            name={cat}
-            icon={config.icon}
-            color={config.color}
-            bg={config.bg}
-            onClick={() => onSelect(cat)}
-          />
-        )
-      })}
+    <div>
+      <div
+        className="grid grid-cols-4 gap-4"
+        style={{ paddingInline: 'var(--tgo-page-padding)' }}
+      >
+        {visible.map((cat) => {
+          const config = CATEGORY_CONFIG[cat] ?? {
+            icon: '🍽',
+            color: 'var(--tgo-text-secondary)',
+            bg: 'var(--tgo-surface-2)',
+          }
+          return (
+            <CategoryCard
+              key={cat}
+              name={cat}
+              icon={config.icon}
+              color={config.color}
+              bg={config.bg}
+              onClick={() => onSelect(cat)}
+            />
+          )
+        })}
+      </div>
+      {hasMore && (
+        <button
+          onClick={onToggleShowAll}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            margin: '16px var(--tgo-page-padding) 0',
+            padding: '10px',
+            borderRadius: 'var(--tgo-radius-lg)',
+            border: '1px dashed var(--tgo-border)',
+            background: 'transparent',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            color: 'var(--tgo-state-interactive)',
+            cursor: 'pointer',
+            width: 'calc(100% - 40px)',
+          }}
+        >
+          {showAll ? 'Ver menos' : 'Ver más categorías'}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              transform: showAll ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s',
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
@@ -339,7 +372,27 @@ export default function DiscoveryFeed({
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [preferredCuisines, setPreferredCuisines] = useState<string[]>([])
+  const [showAllCategories, setShowAllCategories] = useState(false)
 
+  const handleShare = useCallback(async () => {
+    const shareData = {
+      title: 'TGO',
+      text: 'Descubrí restaurantes cerca tuyo con beneficios exclusivos',
+      url: 'https://tgo.app',
+    }
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+        captureHomeShared('native')
+      } else {
+        await navigator.clipboard.writeText(shareData.url)
+        captureHomeShared('clipboard')
+        toast('Link copiado')
+      }
+    } catch {
+      // Usuario canceló el share
+    }
+  }, [])
   // Fetch user preferences for personalization
   useEffect(() => {
     if (session?.user?.id) {
@@ -446,45 +499,101 @@ export default function DiscoveryFeed({
       className="h-full overflow-y-auto no-scrollbar pb-32"
       style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
-      {/* 1. Greeting */}
-      <GreetingModule userName={userName || session?.user?.name?.split(' ')[0] || ''} />
+      {/* 1. Personalized Header */}
+      <HomeHeader
+        userName={userName || session?.user?.name?.split(' ')[0] || ''}
+        userAvatar={session?.user?.image}
+      />
 
-      {/* 2. SearchBar */}
-      <div className="mt-3" style={{ paddingInline: 'var(--tgo-page-padding)' }}>
-        <SearchBar showLocation={false} />
+      {/* 2. Brand Block */}
+      <div
+        style={{
+          padding: '4px var(--tgo-page-padding) 16px',
+          textAlign: 'center',
+        }}
+      >
+        <a
+          href="https://instagram.com/tgo.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            color: 'var(--tgo-text-muted)',
+            textDecoration: 'none',
+            marginBottom: 10,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+          </svg>
+          Seguinos en @tgo.app
+        </a>
+
+        <p
+          style={{
+            fontSize: '0.6875rem',
+            lineHeight: 1.6,
+            color: 'var(--tgo-text-muted)',
+            maxWidth: 300,
+            margin: '0 auto 10px',
+          }}
+        >
+          TGO conecta personas y comercios cercanos.
+          Creemos en una ciudad donde todo lo importante
+          sucede cerca de vos.
+        </p>
+
+        <button
+          onClick={handleShare}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: 'var(--tgo-state-interactive)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '4px 0',
+          }}
+        >
+          <Share2 size={14} />
+          Compartí con tus amigos
+        </button>
       </div>
 
       {/* 3. QuickFilters */}
-      <div className="mt-3">
+      <div>
         <QuickFiltersModule
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
         />
       </div>
 
-      {/* 4. Nearby (principal — lista compacta) */}
-      <Section
-        title={
-          activeFilter === 'abiertos' ? 'Abiertos ahora' :
-          activeFilter === 'delivery' ? 'Con delivery' :
-          activeFilter === 'beneficios' ? 'Con beneficios' :
-          'Cerca tuyo'
-        }
-        subtitle={
-          activeFilter
-            ? `${filteredNearby.length} resultado${filteredNearby.length !== 1 ? 's' : ''}`
-            : 'Descubrimientos en tu zona'
-        }
-        href="/explore"
-        verticalPadding="var(--tgo-space-5)"
-      >
-        <NearbyModule
-          restaurants={filteredNearby}
-          onNavigate={handleNavigate}
-        />
-      </Section>
+      {/* 4. Explorar Categorías */}
+      {categories.length > 0 && (
+        <Section
+          title="Explorar Categorías"
+          subtitle="Descubrí por tipo de comida"
+          verticalPadding="var(--tgo-space-5)"
+        >
+          <CategoriesModule
+            categories={categories}
+            showAll={showAllCategories}
+            onToggleShowAll={() => setShowAllCategories(!showAllCategories)}
+            onSelect={(name) => onCategorySelect?.(name)}
+          />
+        </Section>
+      )}
 
-      {/* 5. OpenNow (scroll horizontal) */}
+      {/* 5. Abiertos ahora */}
       <Section
         title="Abiertos ahora"
         subtitle="Dónde podés ir ahora"
@@ -496,21 +605,20 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 6. Categories (grid) */}
-      {categories.length > 0 && (
-        <Section
-          title="Tipos de comida"
-          subtitle="Explorá por categoría"
-          verticalPadding="var(--tgo-space-4)"
-        >
-          <CategoriesModule
-            categories={categories}
-            onSelect={(name) => onCategorySelect?.(name)}
-          />
-        </Section>
-      )}
+      {/* 6. Cerca tuyo */}
+      <Section
+        title="Cerca tuyo"
+        subtitle="Descubrimientos en tu zona"
+        href="/explore"
+        verticalPadding="var(--tgo-space-4)"
+      >
+        <NearbyModule
+          restaurants={filteredNearby}
+          onNavigate={handleNavigate}
+        />
+      </Section>
 
-      {/* 7. Experiences / Beneficios */}
+      {/* 7. Beneficios */}
       <Section
         title="Beneficios"
         subtitle={promotions.length > 0 ? 'Lo que tenés como miembro' : 'Próximamente'}
