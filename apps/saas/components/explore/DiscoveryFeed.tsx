@@ -153,12 +153,41 @@ function NearbyModule({
 
 // ── Experiences ──────────────────────────────────────────────────────────────
 
+function mapPromotionType(type: string): 'promo' | 'club' | 'cashback' | 'qr' | 'event' {
+  switch (type) {
+    case 'loyalty': return 'club'
+    case 'sale': return 'promo'
+    case 'info': return 'promo'
+    case 'announcement': return 'event'
+    default: return 'promo'
+  }
+}
+
+function toExperience(raw: any) {
+  const isRedemption = raw.pointsCost != null
+  return {
+    _id: raw._id?.toString?.() ?? raw._id ?? String(Math.random()),
+    title: raw.title || raw.name || '',
+    description: raw.description || raw.shortDescription || '',
+    imageUrl: raw.imageUrl || '',
+    price: raw.price ?? undefined,
+    originalPrice: raw.originalPrice ?? undefined,
+    tenantId: raw.tenantId?.toString?.() ?? raw.tenantId ?? '',
+    tenantSlug: raw.tenantSlug || '',
+    tenantLogo: raw.tenantLogo || '',
+    tenantName: raw.tenantName || '',
+    type: isRedemption ? 'cashback' as const : mapPromotionType(raw.type || 'sale'),
+  }
+}
+
 function ExperiencesModule({
   experiences,
 }: {
   experiences: any[]
 }) {
-  if (experiences.length === 0) {
+  const mapped = experiences.map(toExperience).filter((e) => e.tenantSlug && e.title)
+
+  if (mapped.length === 0) {
     return (
       <EmptyState
         icon={<span style={{ fontSize: 24 }}>🎁</span>}
@@ -172,7 +201,7 @@ function ExperiencesModule({
 
   return (
     <HorizontalScroller>
-      {experiences.slice(0, 5).map((e) => (
+      {mapped.slice(0, 5).map((e) => (
         <ExperienceCard key={e._id} experience={e} />
       ))}
     </HorizontalScroller>
@@ -269,6 +298,15 @@ const CATEGORY_CONFIG: Record<
   'Comida Casera': { icon: '🍲', color: '#92400E', bg: 'rgba(146, 64, 14, 0.08)' },
 }
 
+function getCategoryConfig(name: string) {
+  const key = Object.keys(CATEGORY_CONFIG).find(
+    (k) => k.toLowerCase() === name.toLowerCase()
+  )
+  return key
+    ? CATEGORY_CONFIG[key]
+    : { icon: '🍽', color: 'var(--tgo-text-secondary)', bg: 'var(--tgo-surface-2)' }
+}
+
 function CategoriesModule({
   categories,
   showAll,
@@ -290,11 +328,7 @@ function CategoriesModule({
         style={{ paddingInline: 'var(--tgo-page-padding)' }}
       >
         {visible.map((cat) => {
-          const config = CATEGORY_CONFIG[cat] ?? {
-            icon: '🍽',
-            color: 'var(--tgo-text-secondary)',
-            bg: 'var(--tgo-surface-2)',
-          }
+          const config = getCategoryConfig(cat)
           return (
             <CategoryCard
               key={cat}
@@ -378,7 +412,7 @@ export default function DiscoveryFeed({
     const shareData = {
       title: 'TGO',
       text: 'Descubrí restaurantes cerca tuyo con beneficios exclusivos',
-      url: 'https://tgo.app',
+      url: 'https://takeasygo.com/apps',
     }
     try {
       if (navigator.share) {
@@ -433,6 +467,11 @@ export default function DiscoveryFeed({
 
   const nearbyTenants: NearbyRestaurant[] = data?.nearbyTenants ?? []
   const promotions: any[] = data?.promotions ?? []
+  const redemptions: any[] = data?.redemptions ?? []
+  const allExperiences = useMemo(
+    () => [...promotions, ...redemptions],
+    [promotions, redemptions]
+  )
   const rawCategories: string[] = data?.categories ?? []
 
   // Sort categories: preferred cuisines first, then alphabetical
@@ -621,11 +660,11 @@ export default function DiscoveryFeed({
       {/* 7. Beneficios */}
       <Section
         title="Beneficios"
-        subtitle={promotions.length > 0 ? 'Lo que tenés como miembro' : 'Próximamente'}
+        subtitle={allExperiences.length > 0 ? 'Lo que tenés como miembro' : 'Próximamente'}
         href="/app/promociones"
         verticalPadding="var(--tgo-space-4)"
       >
-        <ExperiencesModule experiences={promotions} />
+        <ExperiencesModule experiences={allExperiences} />
       </Section>
 
       {/* B2B CTA */}
