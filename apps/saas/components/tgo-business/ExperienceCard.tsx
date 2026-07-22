@@ -102,9 +102,9 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
       style={{
         borderRadius: 'var(--tgo-radius-lg)',
         overflow: 'hidden',
-        backgroundColor: 'var(--tgo-surface-card)',
+        backgroundColor: 'var(--tgo-surface-1)',
         boxShadow: 'var(--tgo-elevation-card)',
-        border: '1px solid var(--tgo-border)',
+        border: '1px solid var(--tgo-border-active)',
         transition: `all var(--tgo-duration-base) var(--tgo-ease-standard)`,
       }}
       onMouseEnter={(e) => {
@@ -124,12 +124,16 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
           />
         ) : (
           <div
-            className="absolute inset-0"
+            className="absolute inset-0 flex items-center justify-center"
             style={{
               background:
-                'linear-gradient(135deg, var(--tgo-surface-2) 0%, var(--tgo-surface-3) 100%)',
+                'linear-gradient(135deg, #F74211 0%, #F4B42D 50%, #16A34A 100%)',
             }}
-          />
+          >
+            <span style={{ fontSize: 48, opacity: 0.3 }}>
+              {e.type === 'club' ? '⭐' : e.type === 'cashback' ? '💰' : '🎁'}
+            </span>
+          </div>
         )}
 
         {/* Gradient overlay */}
