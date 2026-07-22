@@ -76,11 +76,11 @@ export default function HorizontalScroller({
       >
         {Array.isArray(children)
           ? children.map((child, i) => (
-              <div key={i} style={{ scrollSnapAlign: 'start' }}>
+              <div key={i} style={{ scrollSnapAlign: 'start', flexShrink: 0 }}>
                 {child}
               </div>
             ))
-          : <div style={{ scrollSnapAlign: 'start' }}>{children}</div>}
+          : <div style={{ scrollSnapAlign: 'start', flexShrink: 0 }}>{children}</div>}
       </div>
     </div>
   )

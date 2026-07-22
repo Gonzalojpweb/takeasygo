@@ -474,16 +474,21 @@ export default function DiscoveryFeed({
   )
   const rawCategories: string[] = data?.categories ?? []
 
-  // Sort categories: preferred cuisines first, then alphabetical
+  // Always show ALL CATEGORY_CONFIG entries
+  // DB categories first (prioritized by proximity), then the rest alphabetically
   const categories = useMemo(() => {
-    if (preferredCuisines.length === 0) return rawCategories
-    const preferred = preferredCuisines.filter((c) =>
-      rawCategories.some((rc) => rc.toLowerCase().includes(c.toLowerCase()))
-    )
-    const rest = rawCategories.filter(
-      (rc) => !preferred.some((p) => rc.toLowerCase().includes(p.toLowerCase()))
-    )
-    return [...preferred, ...rest]
+    const allConfigKeys = Object.keys(CATEGORY_CONFIG)
+    const dbLower = rawCategories.map((c) => c.toLowerCase())
+    const inDb = allConfigKeys.filter((k) => dbLower.includes(k.toLowerCase()))
+    const notInDb = allConfigKeys.filter((k) => !dbLower.includes(k.toLowerCase()))
+    const preferred = preferredCuisines.length > 0
+      ? inDb.sort((a, b) => {
+          const ai = preferredCuisines.findIndex((p) => a.toLowerCase().includes(p.toLowerCase()))
+          const bi = preferredCuisines.findIndex((p) => b.toLowerCase().includes(p.toLowerCase()))
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+        })
+      : inDb
+    return [...preferred, ...notInDb]
   }, [rawCategories, preferredCuisines])
 
   // For now, use nearbyTenants for all modules (real impl would have separate APIs)
