@@ -98,7 +98,7 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
   return (
     <Link
       href={href}
-      className="block shrink-0 w-[88%] max-w-[300px] snap-start group active:scale-[0.985]"
+      className="block shrink-0 w-[280px] snap-start group active:scale-[0.985]"
       style={{
         borderRadius: 'var(--tgo-radius-lg)',
         overflow: 'hidden',
