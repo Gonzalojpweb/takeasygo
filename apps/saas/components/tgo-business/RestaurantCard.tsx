@@ -28,11 +28,6 @@ import {
   getOpportunityLabel,
 } from '@/lib/restaurant-card-helpers'
 
-function distLabel(m: number | null) {
-  if (m === null) return ''
-  return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`
-}
-
 function walkingMinutes(distanceM: number | null): number | null {
   if (distanceM === null) return null
   return Math.max(1, Math.round(distanceM / 80))
@@ -458,7 +453,7 @@ function ListLayout({
         </div>
 
         {/* Operational signal — inline */}
-        {r.isOpenNow && r.isOperational !== false && (
+        {r.isOpenNow === true && r.isOperational !== false && (
           <div className="mt-1">
             <OperationalSignalBox r={r} />
           </div>
@@ -557,12 +552,12 @@ function ListLayout({
         ) : (
           <span
             style={{
-              color: r.isOpenNow ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)',
+              color: r.isOpenNow === true ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)',
               fontSize: 'var(--tgo-type-caption)',
               fontWeight: 600,
             }}
           >
-            {r.isOpenNow ? 'Abierto' : 'Cerrado'}
+            {r.isOpenNow === true ? 'Abierto' : r.isOpenNow === false ? 'Cerrado' : ''}
           </span>
         )}
       </div>

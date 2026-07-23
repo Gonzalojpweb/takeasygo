@@ -329,8 +329,8 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
       })
       L.marker([userLat, userLng], { icon: userIcon }).addTo(map)
 
-      // Restaurant markers
-      restaurants.forEach(r => {
+      // Restaurant markers (skip those without coordinates)
+      restaurants.filter(r => r.lat !== null && r.lng !== null).forEach(r => {
         const isNetwork = r.type === 'network'
         const isOperational = r.isOperational ?? true
         const isClosed = r.isOpenNow === false
@@ -346,11 +346,11 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
           iconSize: isNetwork ? [40, 48] : [28, 36],
         })
 
-        const marker = L.marker([r.lat, r.lng], { icon }).addTo(map)
+        const marker = L.marker([r.lat!, r.lng!], { icon }).addTo(map)
 
         if (!isTouch) {
           marker.on('mouseover', () => {
-            const point = map.latLngToContainerPoint([r.lat, r.lng])
+            const point = map.latLngToContainerPoint([r.lat!, r.lng!])
             showCard(r, { x: point.x, y: point.y })
           })
           marker.on('mouseout', hideCard)

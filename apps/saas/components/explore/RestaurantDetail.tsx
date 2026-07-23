@@ -77,7 +77,6 @@ interface Props { restaurant: RestaurantCardData }
 export default function RestaurantDetail({ restaurant: r }: Props) {
   const router = useRouter()
   const isNetwork = r.type === 'network'
-  const hasCoords = typeof r.lat === 'number' && typeof r.lng === 'number'
   const [isFavorite, setIsFavorite] = useState(false)
 
   return (
@@ -143,7 +142,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
           {r.isOpenNow === false && (
             <Chip variant="danger" size="sm">Cerrado</Chip>
           )}
-          {r.distanceM > 0 && (
+          {r.distanceM != null && r.distanceM > 0 && (
             <span style={{ color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-body-sm)' }}>{distLabel(r.distanceM)}</span>
           )}
         </div>
@@ -185,7 +184,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
         </div>
 
         {/* Mini map */}
-        {hasCoords && (
+        {typeof r.lat === 'number' && typeof r.lng === 'number' && (
           <div className="relative" style={{ marginBottom: 'var(--tgo-space-4)' }}>
             <MiniMap lat={r.lat} lng={r.lng} />
             <a href={`https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-3 right-3 flex items-center gap-1.5" style={{ padding: '8px 12px', borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'rgba(26,26,26,0.64)', backdropFilter: 'blur(12px)', color: 'var(--tgo-text-inverse)', fontSize: 'var(--tgo-type-caption)', fontWeight: 600 }}>

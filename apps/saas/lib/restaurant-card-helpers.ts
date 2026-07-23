@@ -32,7 +32,7 @@ export type OperationalSignal = {
  * If capacityScore data arrives in the future, the UI is ready to display it.
  */
 export function getOperationalStatus(r: RestaurantCardData): OperationalSignal | null {
-  if (!r.isOpenNow) return null
+  if (r.isOpenNow !== true) return null
 
   // Capacity-based signals (when data exists)
   if (r.capacityScore !== null && r.capacityScore !== undefined) {
