@@ -1,3 +1,5 @@
+import type { ServiceSlot } from '@/app/api/explore/nearby/route'
+
 /**
  * Unified type for RestaurantCard across Home, Explore, Search, and Map views.
  *
@@ -33,6 +35,10 @@ export interface RestaurantCardData {
   capacityScore?: number | null
   isNew?: boolean
   createdAt?: string | null
+  // Detail page fields (optional, only populated by nearby endpoint)
+  serviceHours?: { takeaway: ServiceSlot[] }
+  openingHours?: string
+  externalMenuUrl?: string
   loyaltyInfo?: {
     hasClub: boolean
     clubName?: string | null

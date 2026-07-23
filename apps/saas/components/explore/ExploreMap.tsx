@@ -13,7 +13,8 @@ interface Props {
   onSelect: (r: RestaurantCardData) => void
 }
 
-function distLabel(m: number) {
+function distLabel(m: number | null) {
+  if (m === null) return ''
   return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`
 }
 
@@ -113,7 +114,7 @@ function HoverCard({ r, pos, containerW, containerH }: {
                 color: isNetwork ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)',
               }}
             >
-              {isNetwork ? 'Red' : (r.status === 'converted' ? 'Cliente' : 'Directorio')}
+              {isNetwork ? 'Red' : 'Directorio'}
             </span>
             <span style={{ color: 'var(--tgo-text-muted)' }} className="text-[10px] ml-auto">{distLabel(r.distanceM)}</span>
           </div>
@@ -195,7 +196,7 @@ function BottomSheet({ r, onClose, onNavigate }: {
                   >
                     {isNetwork 
                       ? (r.isOperational === false ? 'Catálogo' : 'En Red') 
-                      : (r.status === 'converted' ? 'Cliente' : 'Directorio')}
+                      : 'Directorio'}
                   </span>
                   <span className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>{distLabel(r.distanceM)}</span>
                 </div>
