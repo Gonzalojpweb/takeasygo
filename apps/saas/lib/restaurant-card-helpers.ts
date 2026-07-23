@@ -85,7 +85,7 @@ export function getOperationalStatus(r: RestaurantCardData): OperationalSignal |
 // ── Proximity ─────────────────────────────────────────────────────────────────
 
 export type ProximitySignal = {
-  icon: ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }>
   label: string
 }
 
@@ -123,7 +123,7 @@ export function getProximityLabel(distanceM: number | null, walkingMinutes?: num
 // ── Opportunity / Benefit ─────────────────────────────────────────────────────
 
 export type OpportunitySignal = {
-  icon: ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }>
   label: string
 }
 
