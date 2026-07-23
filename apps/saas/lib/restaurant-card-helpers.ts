@@ -19,7 +19,7 @@ import type { ComponentType } from 'react'
 // ── Operational Status ────────────────────────────────────────────────────────
 
 export type OperationalSignal = {
-  icon: ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }>
   label: string
   variant: 'active' | 'calm' | 'new' | 'closing' | 'preparing' | 'benefit' | 'lowDemand'
 }
