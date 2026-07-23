@@ -33,7 +33,7 @@ import HomeHeader from './HomeHeader'
 
 // Types
 import type { RestaurantCardData } from '@/types/restaurant-card'
-import { Clock, Bike, MapPin, Tag } from 'lucide-react'
+import { Clock, Bike, MapPin } from 'lucide-react'
 
 // ── QuickFilters ─────────────────────────────────────────────────────────────
 
@@ -86,45 +86,6 @@ function QuickFiltersModule({
         )
       })}
     </div>
-  )
-}
-
-// ── OpenNow ──────────────────────────────────────────────────────────────────
-
-function OpenNowModule({
-  restaurants,
-  onNavigate,
-}: {
-  restaurants: RestaurantCardData[]
-  onNavigate: (r: RestaurantCardData) => void
-}) {
-  const open = restaurants.filter(
-    (r) => r.isOpenNow === true || r.isOpenNow === null
-  )
-
-  if (open.length === 0) {
-    return (
-      <EmptyState
-        icon={<span style={{ fontSize: 24 }}>😴</span>}
-        title="Todos cerraron"
-        subtitle="Mañana hay más. ¿Querés ver el horario?"
-        variant="search"
-      />
-    )
-  }
-
-  return (
-    <HorizontalScroller>
-      {open.slice(0, 8).map((r, i) => (
-        <RestaurantCard
-          key={r.id}
-          restaurant={r}
-          layout="hero"
-          onNavigate={() => onNavigate(r)}
-          index={i}
-        />
-      ))}
-    </HorizontalScroller>
   )
 }
 
