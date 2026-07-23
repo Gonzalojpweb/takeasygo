@@ -48,24 +48,24 @@ async function fetchRestaurant(id: string, type: string): Promise<RestaurantCard
     if (!loc) return null
     return {
       id: loc._id.toString(),
-      type: 'network',
+      type: 'network' as const,
       name: loc.tenant?.name ?? loc.name,
+      slug: loc.tenant?.slug,
       address: loc.address,
-      lat: loc.geo?.coordinates?.[1],
-      lng: loc.geo?.coordinates?.[0],
+      lat: loc.geo?.coordinates?.[1] ?? null,
+      lng: loc.geo?.coordinates?.[0] ?? null,
       distanceM: 0,
       phone: loc.phone ?? '',
       cuisineTypes: loc.cuisineTypes ?? [],
-      openingHours: '',
+      heroImage: loc.tenant?.branding?.logoUrl ?? '',
       isOpenNow: checkIsOpenNow(loc.serviceHours),
-      serviceHours: loc.serviceHours,
-      tenantSlug: loc.tenant?.slug,
-      tenantName: loc.tenant?.name,
-      logoUrl: loc.tenant?.branding?.logoUrl ?? '',
-      primaryColor: loc.tenant?.branding?.primaryColor || '#f74211',
+      isOperational: true,
       acceptsOrders: loc.settings?.acceptsOrders ?? true,
       estimatedPickupTime: loc.settings?.estimatedPickupTime ?? 20,
       orderModes: loc.settings?.orderModes ?? ['takeaway'],
+      tenantSlug: loc.tenant?.slug,
+      logoUrl: loc.tenant?.branding?.logoUrl ?? '',
+      primaryColor: loc.tenant?.branding?.primaryColor || '#f74211',
     }
   }
 
@@ -77,18 +77,20 @@ async function fetchRestaurant(id: string, type: string): Promise<RestaurantCard
 
   return {
     id: entry._id.toString(),
-    type: 'listed',
+    type: 'listed' as const,
     name: entry.name,
     address: entry.address,
-    lat: entry.geo?.coordinates?.[1],
-    lng: entry.geo?.coordinates?.[0],
+    lat: entry.geo?.coordinates?.[1] ?? null,
+    lng: entry.geo?.coordinates?.[0] ?? null,
     distanceM: 0,
     phone: entry.phone ?? '',
     cuisineTypes: entry.cuisineTypes ?? [],
-    openingHours: entry.openingHours ?? '',
+    heroImage: '',
     isOpenNow: null,
-    externalMenuUrl: entry.externalMenuUrl ?? '',
-    status: entry.status,
+    isOperational: true,
+    acceptsOrders: true,
+    estimatedPickupTime: 20,
+    orderModes: ['takeaway'],
   }
 }
 
