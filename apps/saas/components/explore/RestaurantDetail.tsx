@@ -26,7 +26,8 @@ function trackEvent(payload: Record<string, any>) {
   }).catch(() => {})
 }
 
-function distLabel(m: number) {
+function distLabel(m: number | null) {
+  if (m === null) return ''
   return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`
 }
 

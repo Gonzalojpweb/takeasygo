@@ -66,6 +66,7 @@ async function fetchRestaurant(id: string, type: string): Promise<RestaurantCard
       tenantSlug: loc.tenant?.slug,
       logoUrl: loc.tenant?.branding?.logoUrl ?? '',
       primaryColor: loc.tenant?.branding?.primaryColor || '#f74211',
+      serviceHours: loc.serviceHours,
     }
   }
 

@@ -5,7 +5,8 @@ import { MapPin, Clock, Utensils, ExternalLink, Phone, Star } from 'lucide-react
 import Link from 'next/link'
 import { BorderBeam } from '@/components/ui/border-beam'
 
-function distLabel(m: number) {
+function distLabel(m: number | null) {
+  if (m === null) return ''
   return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`
 }
 
@@ -70,7 +71,7 @@ export function FeaturedCard({
         }`}>
           {isNetwork 
             ? (r.isOperational === false ? '✨ Catálogo' : '● Red TGO') 
-            : (r.status === 'converted' ? '✨ Cliente' : '○ Directorio')}
+            : '○ Directorio'}
         </span>
         <span className="text-[10px] font-semibold text-white/70 bg-black/30 backdrop-blur-md px-2 py-0.5 rounded-full">
           {distLabel(r.distanceM)}

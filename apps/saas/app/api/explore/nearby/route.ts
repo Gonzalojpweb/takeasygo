@@ -80,6 +80,9 @@ function toRestaurantCardData(r: NearbyRestaurant): RestaurantCardData {
     orderModes: r.orderModes ?? ['takeaway'],
     averageRating: r.averageRating,
     ratingCount: r.ratingCount,
+    serviceHours: r.serviceHours,
+    openingHours: r.openingHours,
+    externalMenuUrl: r.externalMenuUrl,
     loyaltyInfo: r.loyaltyInfo ? {
       ...r.loyaltyInfo,
       promoTypes: r.loyaltyInfo.promoTypes ?? [],
