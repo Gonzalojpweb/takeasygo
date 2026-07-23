@@ -585,7 +585,7 @@ export default function DiscoveryFeed({
           r.type === 'listed' || (r.orderModes && r.orderModes.includes('delivery'))
         )
       case 'cercanos':
-        return [...nearbyTenants].sort((a, b) => a.distanceM - b.distanceM)
+        return [...nearbyTenants].sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity))
       case 'beneficios':
         return nearbyTenants.filter((r) =>
           r.loyaltyInfo?.hasClub || r.loyaltyInfo?.hasActivePromo
