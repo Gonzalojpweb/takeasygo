@@ -216,9 +216,19 @@ export async function GET(request: NextRequest) {
         const [endH, endM] = p.activeTimeEnd.split(':').map(Number)
         const startMinutes = startH * 60 + startM
         const endMinutes = endH * 60 + endM
-        if (nowMinutes < startMinutes || nowMinutes > endMinutes) {
-          filteredByTimeWindow++
-          return // promo fuera de la franja horaria
+
+        // Handle windows that cross midnight (e.g. 23:51 → 01:51 stored as 23:51 → 25:51)
+        if (endMinutes > 1440) {
+          const effectiveEnd = endMinutes - 1440
+          if (nowMinutes < startMinutes && nowMinutes > effectiveEnd) {
+            filteredByTimeWindow++
+            return
+          }
+        } else {
+          if (nowMinutes < startMinutes || nowMinutes > endMinutes) {
+            filteredByTimeWindow++
+            return
+          }
         }
       }
 
