@@ -393,7 +393,7 @@ function NewInNetworkModule({
   if (newRestaurants.length === 0) return null
 
   return (
-    <HorizontalScroller gap={12}>
+    <HorizontalScroller gap="12px">
       {newRestaurants.slice(0, 6).map((r, i) => (
         <RestaurantCard
           key={r.id}
@@ -452,7 +452,7 @@ function TimeBasedModule({
           {timeInfo.label}
         </span>
       </div>
-      <HorizontalScroller gap={12}>
+      <HorizontalScroller gap="12px">
         {matching.slice(0, 6).map((r, i) => (
           <RestaurantCard
             key={r.id}
