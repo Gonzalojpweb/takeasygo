@@ -5,8 +5,45 @@ import Promotion from '@/models/Promotion'
 import StoreItem from '@/models/StoreItem'
 import { NextRequest, NextResponse } from 'next/server'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
+import { checkIsOpenNow } from '@/lib/service-hours'
+import { getNowInTimezone } from '@/lib/restaurant-time'
 
 const SEARCH_RADIUS_M = 20000 // 20 km
+
+// ── Tipo del response público (consistente con nearby) ────────────────────────
+
+export interface HomeNearbyTenant {
+  id: string
+  type: 'network'
+  name: string
+  slug: string
+  tenantSlug: string
+  address: string
+  lat: number | null
+  lng: number | null
+  distanceM: number | null
+  phone: string
+  cuisineTypes: string[]
+  openingHours: string
+  isOpenNow: boolean | null
+  logoUrl?: string
+  heroImage: string
+  primaryColor?: string
+  acceptsOrders: boolean
+  estimatedPickupTime: number
+  orderModes: string[]
+  isOperational: boolean
+  // Nuevos campos para Sprint 3
+  capacityScore: number | null
+  isNew: boolean
+  createdAt: string | null
+  loyaltyInfo?: {
+    hasClub: boolean
+    clubName?: string
+    hasActivePromo: boolean
+    promoTypes: string[]
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,7 +69,25 @@ export async function GET(request: NextRequest) {
           query: { isActive: true, networkVisible: true },
         },
       },
-      { $limit: 30 }
+      { $limit: 30 },
+      {
+        $project: {
+          _id: 1,
+          tenantId: 1,
+          name: 1,
+          address: 1,
+          phone: 1,
+          cuisineTypes: 1,
+          distanceM: 1,
+          geo: 1,
+          serviceHours: 1,
+          timezone: 1,
+          createdAt: 1,
+          'settings.acceptsOrders': 1,
+          'settings.estimatedPickupTime': 1,
+          'settings.orderModes': 1,
+        },
+      },
     ])
 
     const tenantIds = nearbyLocations.map(loc => loc.tenantId)
@@ -41,7 +96,7 @@ export async function GET(request: NextRequest) {
     const tenants = await Tenant.find({
       _id: { $in: tenantIds },
       status: 'active'
-    }).select('name slug branding qrPromo loyalty pointsConfig').lean()
+    }).select('name slug branding qrPromo loyalty pointsConfig cachedScores isOperational createdAt').lean()
 
     const activeTenantIds = tenants.map(t => t._id)
 
@@ -125,7 +180,65 @@ export async function GET(request: NextRequest) {
     })
     const categories = Array.from(categoriesSet).slice(0, 12)
 
-    // 6. Estructurar campañas de Marketing QR activas
+    // 6. Mapa de promos por tenant (para loyaltyInfo)
+    //    Incluir filtro de franja horaria (activeTimeStart/End) con timezone real
+
+    // 6a. Mapa de tenantId → timezone (desde nearbyLocations)
+    const tenantTimezoneMap = new Map<string, string>()
+    nearbyLocations.forEach(loc => {
+      if (loc.tenantId && loc.timezone) {
+        tenantTimezoneMap.set(loc.tenantId.toString(), loc.timezone)
+      }
+    })
+
+    // 6b. Construir promosByTenantMap con filtro de franja horaria
+    const DEFAULT_TZ = 'America/Argentina/Buenos_Aires'
+    const promosByTenantMap = new Map<string, string[]>()
+    let tzFallbackCount = 0
+    let tzMatchCount = 0
+    let filteredByTimeWindow = 0
+
+    promotions.forEach(p => {
+      const tid = p.tenantId?.toString()
+      if (!tid) return
+
+      // Filtro de franja horaria: si activeTimeStart/End existen,
+      // verificar que la hora actual del restaurante esté dentro
+      if (p.activeTimeStart && p.activeTimeEnd) {
+        const tz = tenantTimezoneMap.get(tid)
+        if (tz) {
+          tzMatchCount++
+        } else {
+          tzFallbackCount++
+        }
+        const { minutes: nowMinutes } = getNowInTimezone(tz || DEFAULT_TZ)
+        const [startH, startM] = p.activeTimeStart.split(':').map(Number)
+        const [endH, endM] = p.activeTimeEnd.split(':').map(Number)
+        const startMinutes = startH * 60 + startM
+        const endMinutes = endH * 60 + endM
+        if (nowMinutes < startMinutes || nowMinutes > endMinutes) {
+          filteredByTimeWindow++
+          return // promo fuera de la franja horaria
+        }
+      }
+
+      const types = promosByTenantMap.get(tid) || []
+      if (!types.includes(p.type)) types.push(p.type)
+      promosByTenantMap.set(tid, types)
+    })
+
+    // TODO: Temporal — eliminar después de validar en producción
+    if (promotions.some(p => p.activeTimeStart || p.activeTimeEnd)) {
+      console.log('[home/timezone-validation]', {
+        totalPromosWithTimeWindow: promotions.filter(p => p.activeTimeStart || p.activeTimeEnd).length,
+        tzMatchCount,
+        tzFallbackCount,
+        filteredByTimeWindow,
+        promosByTenantMapSize: promosByTenantMap.size,
+      })
+    }
+
+    // 7. Estructurar campañas de Marketing QR activas
     const marketingCampaigns = tenants
       .filter(t => t.qrPromo?.isEnabled)
       .map(t => ({
@@ -136,10 +249,34 @@ export async function GET(request: NextRequest) {
       }))
       .slice(0, 8)
 
-    // 7. Enriquecer los resultados de Locales (Network)
+    // 8. Enriquecer los resultados de Locales (Network)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
     const featuredTenants = tenants.map(t => {
       const loc = nearbyLocations.find(l => l.tenantId.toString() === t._id.toString())
       if (!loc) return null
+
+      // isOpenNow: calcular desde serviceHours
+      const tz = loc.timezone || 'America/Argentina/Buenos_Aires'
+      const isOpenNow = checkIsOpenNow(loc.serviceHours, 'takeaway', tz)
+        ?? checkIsOpenNow(loc.serviceHours, 'dineIn', tz)
+        ?? checkIsOpenNow(loc.serviceHours, 'delivery', tz)
+        ?? null
+
+      // capacityScore: desde cachedScores del tenant
+      const capacityScore = t.cachedScores?.capacityScore ?? null
+
+      // loyaltyInfo: club + promos activas
+      const hasClub = t.loyalty?.enabled === true
+      const tenantIdStr = t._id.toString()
+      const promoTypes = promosByTenantMap.get(tenantIdStr)
+      const hasActivePromo = !!promoTypes && promoTypes.length > 0
+
+      // isNew: creado en los últimos 30 días (usar Tenant.createdAt, no Location)
+      const createdAt = t.createdAt ? new Date(t.createdAt) : null
+      const isNew = createdAt ? createdAt >= thirtyDaysAgo : false
+
       return {
         id: loc._id.toString(),
         type: 'network',
@@ -153,14 +290,25 @@ export async function GET(request: NextRequest) {
         phone: loc.phone ?? '',
         cuisineTypes: loc.cuisineTypes || [],
         openingHours: '',
-        isOpenNow: null,
+        isOpenNow,
         logoUrl: t.branding?.logoUrl,
         heroImage: t.branding?.logoUrl ?? '',
         primaryColor: t.branding?.primaryColor,
         acceptsOrders: loc.settings?.acceptsOrders ?? true,
         estimatedPickupTime: loc.settings?.estimatedPickupTime ?? 20,
         orderModes: loc.settings?.orderModes ?? ['takeaway'],
-        isOperational: true,
+        isOperational: t.isOperational ?? true,
+        capacityScore,
+        isNew,
+        createdAt: createdAt?.toISOString() ?? null,
+        ...(hasClub || hasActivePromo ? {
+          loyaltyInfo: {
+            hasClub,
+            clubName: t.loyalty?.clubName,
+            hasActivePromo,
+            promoTypes: promoTypes || [],
+          },
+        } : {}),
       }
     }).filter(Boolean)
       .sort((a, b) => ((a as any).distanceM || 99999) - ((b as any).distanceM || 99999)) as any[]
