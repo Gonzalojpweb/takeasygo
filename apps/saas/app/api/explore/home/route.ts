@@ -7,43 +7,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 import { checkIsOpenNow } from '@/lib/service-hours'
 import { getNowInTimezone } from '@/lib/restaurant-time'
+import type { RestaurantCardData } from '@/types/restaurant-card'
 
 const SEARCH_RADIUS_M = 20000 // 20 km
-
-// ── Tipo del response público (consistente con nearby) ────────────────────────
-
-export interface HomeNearbyTenant {
-  id: string
-  type: 'network'
-  name: string
-  slug: string
-  tenantSlug: string
-  address: string
-  lat: number | null
-  lng: number | null
-  distanceM: number | null
-  phone: string
-  cuisineTypes: string[]
-  openingHours: string
-  isOpenNow: boolean | null
-  logoUrl?: string
-  heroImage: string
-  primaryColor?: string
-  acceptsOrders: boolean
-  estimatedPickupTime: number
-  orderModes: string[]
-  isOperational: boolean
-  // Nuevos campos para Sprint 3
-  capacityScore: number | null
-  isNew: boolean
-  createdAt: string | null
-  loyaltyInfo?: {
-    hasClub: boolean
-    clubName?: string
-    hasActivePromo: boolean
-    promoTypes: string[]
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -268,7 +234,7 @@ export async function GET(request: NextRequest) {
 
       return {
         id: loc._id.toString(),
-        type: 'network',
+        type: 'network' as const,
         name: t.name,
         slug: t.slug,
         tenantSlug: t.slug,

@@ -89,7 +89,7 @@ export default function SearchBar({
   onFocus,
   results = [],
   isLoading = false,
-  placeholder = '¿Qué estás buscando?',
+  placeholder = '¿Qué te gustaría hacer hoy?',
   showLocation = true,
   onLocation,
   value: controlledValue,
@@ -196,9 +196,7 @@ export default function SearchBar({
           padding: '10px 16px',
           borderRadius: 'var(--tgo-radius-pill)',
           backgroundColor: 'var(--tgo-surface-search)',
-          boxShadow: isExpanded
-            ? 'var(--tgo-elevation-floating)'
-            : 'var(--tgo-elevation-card)',
+          boxShadow: 'var(--tgo-elevation-card)',
           border: `1px solid ${
             isExpanded
               ? 'var(--tgo-border-focus)'

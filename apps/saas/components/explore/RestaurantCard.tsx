@@ -1,6 +1,6 @@
 'use client'
 
-import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
+import type { RestaurantCardData } from '@/types/restaurant-card'
 import { MapPin, Clock, Utensils, ExternalLink, Phone, Star } from 'lucide-react'
 import Link from 'next/link'
 import { BorderBeam } from '@/components/ui/border-beam'
@@ -15,7 +15,7 @@ export function FeaturedCard({
   onNavigate,
   index = 0,
 }: {
-  restaurant: NearbyRestaurant
+  restaurant: RestaurantCardData
   onNavigate?: () => void
   index?: number
 }) {
@@ -149,7 +149,7 @@ export default function RestaurantCard({
   restaurant: r,
   onNavigate,
 }: {
-  restaurant: NearbyRestaurant
+  restaurant: RestaurantCardData
   onNavigate?: () => void
 }) {
   const isNetwork = r.type === 'network'

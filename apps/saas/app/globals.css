@@ -342,8 +342,8 @@ html.lenis body {
   --tgo-tracking-widest: 0.12em;
 
   /* ── Text Layer ──────────────────────────────────────────────────── */
-  --tgo-text-primary: #1A1A1A;
-  --tgo-text-secondary: #6B6560;
+  --tgo-text-primary: #2E3A45;
+  --tgo-text-secondary: #667085;
   --tgo-text-muted: #A09A95;
   --tgo-text-inverse: #FFFFFF;
   --tgo-text-brand: #F74211;
@@ -370,16 +370,16 @@ html.lenis body {
   --tgo-state-highlight-soft: rgba(244, 180, 45, 0.08);
 
   /* ── Border Layer ────────────────────────────────────────────────── */
-  --tgo-border: #E8E4E0;
+  --tgo-border: #ECECEC;
   --tgo-border-active: #D0CAC4;
   --tgo-border-focus: #065D63;
   --tgo-border-brand: #F74211;
 
   /* ── Radius Layer ────────────────────────────────────────────────── */
   --tgo-radius-none: 0;
-  --tgo-radius-sm: 8px;
-  --tgo-radius-md: 12px;
-  --tgo-radius-lg: 16px;
+  --tgo-radius-sm: 12px;
+  --tgo-radius-md: 20px;
+  --tgo-radius-lg: 28px;
   --tgo-radius-xl: 20px;
   --tgo-radius-2xl: 24px;
   --tgo-radius-pill: 9999px;
@@ -392,10 +392,8 @@ html.lenis body {
   --tgo-space-5: 20px;
   --tgo-space-6: 24px;
   --tgo-space-8: 32px;
-  --tgo-space-10: 40px;
   --tgo-space-12: 48px;
   --tgo-space-16: 64px;
-  --tgo-space-20: 80px;
 
   /* Contextuales — parte del ADN de la app */
   --tgo-safe-top: env(safe-area-inset-top, 0px);
@@ -416,13 +414,11 @@ html.lenis body {
   --tgo-duration-fast: 180ms;
   --tgo-duration-base: 200ms;
   --tgo-duration-slow: 220ms;
-  --tgo-duration-slower: 300ms;
 
   --tgo-ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
   --tgo-ease-emphasized: cubic-bezier(0.4, 0, 0.2, 1);
   --tgo-ease-enter: cubic-bezier(0, 0, 0.2, 1);
   --tgo-ease-exit: cubic-bezier(0.4, 0, 1, 1);
-  --tgo-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ── Opacity Layer ───────────────────────────────────────────────── */
   --tgo-opacity-full: 1;

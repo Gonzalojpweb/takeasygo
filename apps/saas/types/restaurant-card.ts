@@ -1,0 +1,42 @@
+/**
+ * Unified type for RestaurantCard across Home, Explore, Search, and Map views.
+ *
+ * This is the superset of NearbyRestaurant (nearby endpoint) and
+ * HomeNearbyTenant (home endpoint). Both endpoints must adapt their
+ * response to satisfy this type before passing to RestaurantCard.
+ *
+ * Fields marked with ? are optional — RestaurantCard must handle
+ * their absence gracefully (fallback to neutral/hidden state).
+ */
+export interface RestaurantCardData {
+  id: string
+  type: 'network' | 'listed'
+  name: string
+  slug?: string
+  tenantSlug?: string
+  address: string
+  lat: number | null
+  lng: number | null
+  distanceM: number | null
+  phone: string
+  cuisineTypes: string[]
+  heroImage: string
+  logoUrl?: string
+  primaryColor?: string
+  isOpenNow: boolean | null
+  isOperational: boolean
+  acceptsOrders: boolean
+  estimatedPickupTime: number
+  orderModes: string[]
+  averageRating?: number | null
+  ratingCount?: number
+  capacityScore?: number | null
+  isNew?: boolean
+  createdAt?: string | null
+  loyaltyInfo?: {
+    hasClub: boolean
+    clubName?: string | null
+    hasActivePromo: boolean
+    promoTypes?: string[]
+  }
+}

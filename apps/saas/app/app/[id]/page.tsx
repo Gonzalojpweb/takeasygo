@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import RestaurantDetail from '@/components/explore/RestaurantDetail'
-import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
+import type { RestaurantCardData } from '@/types/restaurant-card'
 import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
@@ -13,7 +13,7 @@ interface Props {
   searchParams: Promise<{ type?: string }>
 }
 
-async function fetchRestaurant(id: string, type: string): Promise<NearbyRestaurant | null> {
+async function fetchRestaurant(id: string, type: string): Promise<RestaurantCardData | null> {
   if (!mongoose.isValidObjectId(id)) return null
 
   await connectDB()

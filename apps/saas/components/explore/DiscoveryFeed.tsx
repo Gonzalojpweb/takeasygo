@@ -14,14 +14,13 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTenant } from '@/contexts/TenantContext'
 import { useLocation } from './LocationContext'
-import { Share2 } from 'lucide-react'
+import { Share2, Users, Sparkles, Tag, Coffee, Utensils, Moon, Sun } from 'lucide-react'
 import { toast } from 'sonner'
 import { captureHomeShared } from '@/lib/tia/events'
 
 // TGO Primitives
 import { Section } from '@/components/tgo'
 import { HorizontalScroller } from '@/components/tgo'
-import { Chip } from '@/components/tgo'
 import { EmptyState } from '@/components/tgo'
 
 // TGO Business
@@ -33,15 +32,16 @@ import { CategoryCard } from '@/components/tgo-business'
 import HomeHeader from './HomeHeader'
 
 // Types
-import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
+import type { RestaurantCardData } from '@/types/restaurant-card'
+import { Clock, Bike, MapPin, Tag } from 'lucide-react'
 
 // ── QuickFilters ─────────────────────────────────────────────────────────────
 
 const QUICK_FILTERS = [
-  { label: 'Abiertos', icon: '🔓', query: 'abiertos' },
-  { label: 'Delivery', icon: '🛵', query: 'delivery' },
-  { label: 'Cercanos', icon: '📍', query: 'cercanos' },
-  { label: 'Beneficios', icon: '🎁', query: 'beneficios' },
+  { label: 'Abiertos', icon: Clock, query: 'abiertos' },
+  { label: 'Delivery', icon: Bike, query: 'delivery' },
+  { label: 'Cercanos', icon: MapPin, query: 'cercanos' },
+  { label: 'Beneficios', icon: Tag, query: 'beneficios' },
 ]
 
 function QuickFiltersModule({
@@ -56,20 +56,35 @@ function QuickFiltersModule({
       className="flex gap-2 justify-center"
       style={{ paddingInline: 'var(--tgo-page-padding)' }}
     >
-      {QUICK_FILTERS.map((f) => (
-        <Chip
-          key={f.query}
-          variant={activeFilter === f.query ? 'active' : 'default'}
-          size="sm"
-          icon={<span>{f.icon}</span>}
-          onClick={() =>
-            onFilterChange(activeFilter === f.query ? null : f.query)
-          }
-          style={{ fontSize: 11, padding: '0 10px', height: 28 }}
-        >
-          {f.label}
-        </Chip>
-      ))}
+      {QUICK_FILTERS.map((f) => {
+        const Icon = f.icon
+        const isActive = activeFilter === f.query
+        return (
+          <button
+            key={f.query}
+            onClick={() => onFilterChange(isActive ? null : f.query)}
+            className="flex items-center gap-1.5 active:scale-[0.96]"
+            style={{
+              height: 32,
+              padding: '0 12px',
+              borderRadius: 'var(--tgo-radius-pill)',
+              fontSize: 'var(--tgo-type-body-sm)',
+              fontWeight: isActive ? 600 : 400,
+              backgroundColor: isActive
+                ? 'var(--tgo-state-interactive-soft)'
+                : 'var(--tgo-surface-2)',
+              color: isActive
+                ? 'var(--tgo-state-interactive)'
+                : 'var(--tgo-text-secondary)',
+              border: `1px solid ${isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-border)'}`,
+              transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
+            }}
+          >
+            <Icon size={14} />
+            {f.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -80,8 +95,8 @@ function OpenNowModule({
   restaurants,
   onNavigate,
 }: {
-  restaurants: NearbyRestaurant[]
-  onNavigate: (r: NearbyRestaurant) => void
+  restaurants: RestaurantCardData[]
+  onNavigate: (r: RestaurantCardData) => void
 }) {
   const open = restaurants.filter(
     (r) => r.isOpenNow === true || r.isOpenNow === null
@@ -119,8 +134,8 @@ function NearbyModule({
   restaurants,
   onNavigate,
 }: {
-  restaurants: NearbyRestaurant[]
-  onNavigate: (r: NearbyRestaurant) => void
+  restaurants: RestaurantCardData[]
+  onNavigate: (r: RestaurantCardData) => void
 }) {
   if (restaurants.length === 0) {
     return (
@@ -203,58 +218,6 @@ function ExperiencesModule({
     <HorizontalScroller>
       {mapped.slice(0, 5).map((e) => (
         <ExperienceCard key={e._id} experience={e} />
-      ))}
-    </HorizontalScroller>
-  )
-}
-
-// ── Trending ─────────────────────────────────────────────────────────────────
-
-function TrendingModule({
-  restaurants,
-  onNavigate,
-}: {
-  restaurants: NearbyRestaurant[]
-  onNavigate: (r: NearbyRestaurant) => void
-}) {
-  if (restaurants.length === 0) return null
-
-  return (
-    <HorizontalScroller>
-      {restaurants.slice(0, 6).map((r, i) => (
-        <RestaurantCard
-          key={r.id}
-          restaurant={r}
-          layout="hero"
-          onNavigate={() => onNavigate(r)}
-          index={i}
-        />
-      ))}
-    </HorizontalScroller>
-  )
-}
-
-// ── NewInNetwork ─────────────────────────────────────────────────────────────
-
-function NewInNetworkModule({
-  restaurants,
-  onNavigate,
-}: {
-  restaurants: NearbyRestaurant[]
-  onNavigate: (r: NearbyRestaurant) => void
-}) {
-  if (restaurants.length === 0) return null
-
-  return (
-    <HorizontalScroller>
-      {restaurants.slice(0, 4).map((r, i) => (
-        <RestaurantCard
-          key={r.id}
-          restaurant={r}
-          layout="hero"
-          onNavigate={() => onNavigate(r)}
-          index={i}
-        />
       ))}
     </HorizontalScroller>
   )
@@ -384,6 +347,165 @@ function CategoriesModule({
   )
 }
 
+// ── CityNow ("Ahora mismo") ──────────────────────────────────────────────────
+
+function CityNowModule({
+  nearbyTenants,
+  promotions,
+}: {
+  nearbyTenants: RestaurantCardData[]
+  promotions: any[]
+}) {
+  const openCount = nearbyTenants.filter((r) => r.isOpenNow === true).length
+  const promoCount = promotions.length
+  const newCount = nearbyTenants.filter((r) => r.isNew).length
+  const openTenants = nearbyTenants.filter((r) => r.isOpenNow === true && r.estimatedPickupTime)
+  const avgPickup = openTenants.length > 0
+    ? Math.round(openTenants.reduce((sum, r) => sum + (r.estimatedPickupTime ?? 0), 0) / openTenants.length)
+    : null
+
+  const metrics = [
+    { label: 'abiertos', value: openCount, icon: Users },
+    { label: 'promos', value: promoCount, icon: Tag },
+    { label: 'nuevos', value: newCount, icon: Sparkles },
+    ...(avgPickup !== null ? [{ label: 'espera promedio', value: avgPickup, suffix: 'min', icon: Coffee }] : []),
+  ]
+
+  return (
+    <div
+      className="flex gap-3 overflow-x-auto no-scrollbar"
+      style={{ paddingInline: 'var(--tgo-page-padding)' }}
+    >
+      {metrics.map((m) => {
+        const Icon = m.icon
+        return (
+          <div
+            key={m.label}
+            className="flex items-center gap-2 shrink-0"
+            style={{
+              padding: '10px 14px',
+              borderRadius: 'var(--tgo-radius-md)',
+              backgroundColor: 'var(--tgo-surface-1)',
+              border: '1px solid var(--tgo-border)',
+            }}
+          >
+            <Icon size={14} style={{ color: 'var(--tgo-state-interactive)' }} />
+            <div>
+              <p
+                style={{
+                  color: 'var(--tgo-text-primary)',
+                  fontSize: 'var(--tgo-type-body-sm)',
+                  fontWeight: 700,
+                  lineHeight: 1,
+                }}
+              >
+                {m.value}{m.suffix ? ` ${m.suffix}` : ''}
+              </p>
+              <p
+                style={{
+                  color: 'var(--tgo-text-muted)',
+                  fontSize: 10,
+                  lineHeight: 1,
+                  marginTop: 2,
+                }}
+              >
+                {m.label}
+              </p>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── NewInNetwork ("Recién llegaron a la red") ─────────────────────────────────
+
+function NewInNetworkModule({
+  restaurants,
+  onNavigate,
+}: {
+  restaurants: RestaurantCardData[]
+  onNavigate: (r: RestaurantCardData) => void
+}) {
+  const newRestaurants = restaurants.filter((r) => r.isNew)
+  if (newRestaurants.length === 0) return null
+
+  return (
+    <HorizontalScroller gap={12}>
+      {newRestaurants.slice(0, 6).map((r, i) => (
+        <RestaurantCard
+          key={r.id}
+          restaurant={r}
+          layout="compact"
+          onNavigate={() => onNavigate(r)}
+          index={i}
+        />
+      ))}
+    </HorizontalScroller>
+  )
+}
+
+// ── TimeBased ("Para este momento") ───────────────────────────────────────────
+
+function getTimeOfDay(): { label: string; icon: typeof Sun; categories: string[] } {
+  const hour = new Date().getHours()
+  if (hour >= 6 && hour < 11) {
+    return { label: 'Desayuno — Ideal para arrancar el día', icon: Sun, categories: ['Café', 'Bagels', 'Pastelería', 'Panadería'] }
+  }
+  if (hour >= 11 && hour < 15) {
+    return { label: 'Almuerzo — Opciones rápidas cerca', icon: Utensils, categories: ['Pizza', 'Empanadas', 'Ensalada', ' Sandwich', 'Mexicana'] }
+  }
+  if (hour >= 15 && hour < 19) {
+    return { label: 'Merienda — Cafés y dulces para vos', icon: Coffee, categories: ['Café', 'Heladería', 'Postres', 'Pastelería'] }
+  }
+  return { label: 'Noche — Para esta noche', icon: Moon, categories: ['Parrilla', 'Italiana', 'Japonesa', 'Cervecería'] }
+}
+
+function TimeBasedModule({
+  restaurants,
+  onNavigate,
+}: {
+  restaurants: RestaurantCardData[]
+  onNavigate: (r: RestaurantCardData) => void
+}) {
+  const timeInfo = getTimeOfDay()
+  const Icon = timeInfo.icon
+  const matching = restaurants.filter((r) =>
+    r.cuisineTypes.some((c) => timeInfo.categories.some((tc) => c.toLowerCase().includes(tc.toLowerCase())))
+  )
+
+  if (matching.length === 0) return null
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3" style={{ paddingInline: 'var(--tgo-page-padding)' }}>
+        <Icon size={14} style={{ color: 'var(--tgo-state-interactive)' }} />
+        <span
+          style={{
+            color: 'var(--tgo-text-secondary)',
+            fontSize: 'var(--tgo-type-caption)',
+            fontWeight: 500,
+          }}
+        >
+          {timeInfo.label}
+        </span>
+      </div>
+      <HorizontalScroller gap={12}>
+        {matching.slice(0, 6).map((r, i) => (
+          <RestaurantCard
+            key={r.id}
+            restaurant={r}
+            layout="compact"
+            onNavigate={() => onNavigate(r)}
+            index={i}
+          />
+        ))}
+      </HorizontalScroller>
+    </div>
+  )
+}
+
 // ── Main DiscoveryFeed ───────────────────────────────────────────────────────
 
 interface DiscoveryFeedProps {
@@ -460,12 +582,12 @@ export default function DiscoveryFeed({
     }
   }
 
-  const handleNavigate = (r: NearbyRestaurant) => {
+  const handleNavigate = (r: RestaurantCardData) => {
     setTenantSlug(r.id)
     router.push(`/app/${r.id}?type=${r.type}`)
   }
 
-  const nearbyTenants: NearbyRestaurant[] = data?.nearbyTenants ?? []
+  const nearbyTenants: RestaurantCardData[] = data?.nearbyTenants ?? []
   const promotions: any[] = data?.promotions ?? []
   const redemptions: any[] = data?.redemptions ?? []
   const allExperiences = useMemo(
@@ -490,12 +612,6 @@ export default function DiscoveryFeed({
       : inDb
     return [...preferred, ...notInDb]
   }, [rawCategories, preferredCuisines])
-
-  // For now, use nearbyTenants for all modules (real impl would have separate APIs)
-  const openNow = useMemo(
-    () => nearbyTenants.filter((r) => r.isOpenNow === true || r.isOpenNow === null),
-    [nearbyTenants]
-  )
 
   // QuickFilter: filter nearbyTenants based on active filter
   const filteredNearby = useMemo(() => {
@@ -621,7 +737,18 @@ export default function DiscoveryFeed({
         />
       </div>
 
-      {/* 4. Explorar Categorías */}
+      {/* 4. Ahora mismo — resumen de ciudad */}
+      <Section
+        title="Ahora mismo"
+        verticalPadding="var(--tgo-space-4)"
+      >
+        <CityNowModule
+          nearbyTenants={nearbyTenants}
+          promotions={promotions}
+        />
+      </Section>
+
+      {/* 5. Explorar Categorías */}
       {categories.length > 0 && (
         <Section
           title="Explorar Categorías"
@@ -637,21 +764,9 @@ export default function DiscoveryFeed({
         </Section>
       )}
 
-      {/* 5. Abiertos ahora */}
+      {/* 6. Está pasando cerca tuyo */}
       <Section
-        title="Abiertos ahora"
-        subtitle="Dónde podés ir ahora"
-        verticalPadding="var(--tgo-space-4)"
-      >
-        <OpenNowModule
-          restaurants={openNow}
-          onNavigate={handleNavigate}
-        />
-      </Section>
-
-      {/* 6. Cerca tuyo */}
-      <Section
-        title="Cerca tuyo"
+        title="Está pasando cerca tuyo"
         subtitle="Descubrimientos en tu zona"
         href="/explore"
         verticalPadding="var(--tgo-space-4)"
@@ -662,9 +777,32 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 7. Beneficios */}
+      {/* 7. Recién llegaron a la red */}
       <Section
-        title="Beneficios"
+        title="Recién llegaron a la red"
+        subtitle="Nuevos en TGO esta semana"
+        verticalPadding="var(--tgo-space-4)"
+      >
+        <NewInNetworkModule
+          restaurants={nearbyTenants}
+          onNavigate={handleNavigate}
+        />
+      </Section>
+
+      {/* 8. Para este momento */}
+      <Section
+        title="Para este momento"
+        verticalPadding="var(--tgo-space-4)"
+      >
+        <TimeBasedModule
+          restaurants={nearbyTenants}
+          onNavigate={handleNavigate}
+        />
+      </Section>
+
+      {/* 9. Hoy podés aprovechar */}
+      <Section
+        title="Hoy podés aprovechar"
         subtitle={allExperiences.length > 0 ? 'Lo que tenés como miembro' : 'Próximamente'}
         href="/app/promociones"
         verticalPadding="var(--tgo-space-4)"

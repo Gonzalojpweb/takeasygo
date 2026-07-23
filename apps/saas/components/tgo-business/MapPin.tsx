@@ -6,10 +6,10 @@
 // Cada restaurante se siente vivo.
 // Tiene: logo, color propio, estado, hover elegante.
 
-import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
+import type { RestaurantCardData } from '@/types/restaurant-card'
 
 interface Props {
-  restaurant: NearbyRestaurant
+  restaurant: RestaurantCardData
   isActive?: boolean
   onClick?: () => void
 }
@@ -35,7 +35,7 @@ export default function MapPin({
       className="relative flex flex-col items-center group"
       style={{
         transform: `scale(${isActive ? 1.2 : 1})`,
-        transition: `transform var(--tgo-duration-base) var(--tgo-ease-bounce)`,
+        transition: `transform var(--tgo-duration-base) var(--tgo-ease-standard)`,
       }}
     >
       {/* Pin body */}

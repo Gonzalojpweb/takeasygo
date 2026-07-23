@@ -6,6 +6,7 @@ import Promotion from '@/models/Promotion'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkIsOpenNow } from '@/lib/service-hours'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
+import type { RestaurantCardData } from '@/types/restaurant-card'
 
 const DEFAULT_RADIUS_M = 20000 // 20 km
 const MAX_RADIUS_M     = 50000 // 50 km — techo de seguridad
@@ -52,6 +53,37 @@ export interface NearbyRestaurant {
     clubName?: string
     hasActivePromo: boolean
     promoTypes?: string[]
+  }
+}
+
+// ── Mapper: NearbyRestaurant → RestaurantCardData ─────────────────────────────
+
+function toRestaurantCardData(r: NearbyRestaurant): RestaurantCardData {
+  return {
+    id: r.id,
+    type: r.type,
+    name: r.name,
+    tenantSlug: r.tenantSlug,
+    address: r.address,
+    lat: r.lat,
+    lng: r.lng,
+    distanceM: r.distanceM,
+    phone: r.phone,
+    cuisineTypes: r.cuisineTypes,
+    heroImage: r.heroImage ?? r.logoUrl ?? '',
+    logoUrl: r.logoUrl,
+    primaryColor: r.primaryColor,
+    isOpenNow: r.isOpenNow,
+    isOperational: r.isOperational ?? true,
+    acceptsOrders: r.acceptsOrders ?? true,
+    estimatedPickupTime: r.estimatedPickupTime ?? 20,
+    orderModes: r.orderModes ?? ['takeaway'],
+    averageRating: r.averageRating,
+    ratingCount: r.ratingCount,
+    loyaltyInfo: r.loyaltyInfo ? {
+      ...r.loyaltyInfo,
+      promoTypes: r.loyaltyInfo.promoTypes ?? [],
+    } : undefined,
   }
 }
 
@@ -320,7 +352,7 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({
-      restaurants: all,
+      restaurants: all.map(toRestaurantCardData),
       meta: {
         lat,
         lng,

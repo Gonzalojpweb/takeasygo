@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
+import type { RestaurantCardData } from '@/types/restaurant-card'
 import 'leaflet/dist/leaflet.css'
 import { ShoppingBag, MapPinIcon, X, Clock, Phone, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
@@ -9,8 +9,8 @@ import Link from 'next/link'
 interface Props {
   userLat: number
   userLng: number
-  restaurants: NearbyRestaurant[]
-  onSelect: (r: NearbyRestaurant) => void
+  restaurants: RestaurantCardData[]
+  onSelect: (r: RestaurantCardData) => void
 }
 
 function distLabel(m: number) {
@@ -71,7 +71,7 @@ function pulsePinSvg(fill: string) {
 interface CardPos { x: number; y: number }
 
 function HoverCard({ r, pos, containerW, containerH }: {
-  r: NearbyRestaurant
+  r: RestaurantCardData
   pos: CardPos
   containerW: number
   containerH: number
@@ -149,7 +149,7 @@ function HoverCard({ r, pos, containerW, containerH }: {
 // ── Bottom sheet (mobile) ─────────────────────────────────────────────────────
 
 function BottomSheet({ r, onClose, onNavigate }: {
-  r: NearbyRestaurant
+  r: RestaurantCardData
   onClose: () => void
   onNavigate: () => void
 }) {
@@ -278,17 +278,17 @@ function BottomSheet({ r, onClose, onNavigate }: {
 export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
-  const hoveredRef = useRef<NearbyRestaurant | null>(null)
+  const hoveredRef = useRef<RestaurantCardData | null>(null)
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [hovered, setHovered] = useState<NearbyRestaurant | null>(null)
+  const [hovered, setHovered] = useState<RestaurantCardData | null>(null)
   const [hoveredPos, setHoveredPos] = useState<CardPos | null>(null)
-  const [tapped, setTapped] = useState<NearbyRestaurant | null>(null)
+  const [tapped, setTapped] = useState<RestaurantCardData | null>(null)
   const [containerSize, setContainerSize] = useState({ w: 600, h: 500 })
 
   const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
 
-  const showCard = useCallback((r: NearbyRestaurant, pos: CardPos) => {
+  const showCard = useCallback((r: RestaurantCardData, pos: CardPos) => {
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
     hoveredRef.current = r
     setHovered(r)
