@@ -194,9 +194,6 @@ export async function GET(request: NextRequest) {
     // 6b. Construir promosByTenantMap con filtro de franja horaria
     const DEFAULT_TZ = 'America/Argentina/Buenos_Aires'
     const promosByTenantMap = new Map<string, string[]>()
-    let tzFallbackCount = 0
-    let tzMatchCount = 0
-    let filteredByTimeWindow = 0
 
     promotions.forEach(p => {
       const tid = p.tenantId?.toString()
@@ -206,11 +203,6 @@ export async function GET(request: NextRequest) {
       // verificar que la hora actual del restaurante esté dentro
       if (p.activeTimeStart && p.activeTimeEnd) {
         const tz = tenantTimezoneMap.get(tid)
-        if (tz) {
-          tzMatchCount++
-        } else {
-          tzFallbackCount++
-        }
         const { minutes: nowMinutes } = getNowInTimezone(tz || DEFAULT_TZ)
         const [startH, startM] = p.activeTimeStart.split(':').map(Number)
         const [endH, endM] = p.activeTimeEnd.split(':').map(Number)
@@ -221,12 +213,10 @@ export async function GET(request: NextRequest) {
         if (endMinutes > 1440) {
           const effectiveEnd = endMinutes - 1440
           if (nowMinutes < startMinutes && nowMinutes > effectiveEnd) {
-            filteredByTimeWindow++
             return
           }
         } else {
           if (nowMinutes < startMinutes || nowMinutes > endMinutes) {
-            filteredByTimeWindow++
             return
           }
         }
@@ -236,17 +226,6 @@ export async function GET(request: NextRequest) {
       if (!types.includes(p.type)) types.push(p.type)
       promosByTenantMap.set(tid, types)
     })
-
-    // TODO: Temporal — eliminar después de validar en producción
-    if (promotions.some(p => p.activeTimeStart || p.activeTimeEnd)) {
-      console.log('[home/timezone-validation]', {
-        totalPromosWithTimeWindow: promotions.filter(p => p.activeTimeStart || p.activeTimeEnd).length,
-        tzMatchCount,
-        tzFallbackCount,
-        filteredByTimeWindow,
-        promosByTenantMapSize: promosByTenantMap.size,
-      })
-    }
 
     // 7. Estructurar campañas de Marketing QR activas
     const marketingCampaigns = tenants
