@@ -12,6 +12,7 @@
 // Todos los colores vía --tgo-* tokens.
 
 import type { RestaurantCardData } from '@/types/restaurant-card'
+import { motion } from 'framer-motion'
 import {
   MapPin,
   Clock,
@@ -180,7 +181,10 @@ function HeroLayout({
   const opportunity = getOpportunityLabel(r.loyaltyInfo)
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
       onClick={onNavigate}
       className="relative flex overflow-hidden cursor-pointer group active:scale-[0.98]"
       style={{
@@ -331,7 +335,7 @@ function HeroLayout({
           </span>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
 
@@ -352,7 +356,10 @@ function ListLayout({
   const opportunity = getOpportunityLabel(r.loyaltyInfo)
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
       onClick={onNavigate}
       className="relative flex items-center gap-4 cursor-pointer group active:scale-[0.99]"
       style={{
@@ -559,7 +566,7 @@ function ListLayout({
           </span>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -579,7 +586,10 @@ function CompactLayout({
   const proximity = getProximityLabel(r.distanceM)
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
       onClick={onNavigate}
       className="flex items-center gap-3 cursor-pointer group active:scale-[0.98]"
       style={{
@@ -679,7 +689,7 @@ function CompactLayout({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -698,7 +708,10 @@ function MapPreviewLayout({
   const opportunity = getOpportunityLabel(r.loyaltyInfo)
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
       onClick={onNavigate}
       className="flex items-center gap-3 cursor-pointer"
       style={{
@@ -797,6 +810,6 @@ function MapPreviewLayout({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

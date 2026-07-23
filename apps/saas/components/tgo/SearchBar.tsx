@@ -202,7 +202,8 @@ export default function SearchBar({
               ? 'var(--tgo-border-focus)'
               : 'var(--tgo-border)'
           }`,
-          transition: `all var(--tgo-duration-base) var(--tgo-ease-standard)`,
+          transform: isExpanded ? 'scale(1)' : 'scale(0.98)',
+          transition: `all var(--tgo-duration-fast) var(--tgo-ease-enter)`,
         }}
       >
         {/* Location pin */}
