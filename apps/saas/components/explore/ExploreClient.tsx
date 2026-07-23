@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
-import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
+import type { RestaurantCardData } from '@/types/restaurant-card'
 import { RestaurantCard } from '@/components/tgo-business'
 import { Section } from '@/components/tgo'
 import { HorizontalScroller } from '@/components/tgo'
@@ -83,7 +83,7 @@ function ExploreClientInner() {
     return null
   }
   const exploreCache = readExploreCache()
-  const [restaurants, setRestaurants] = useState<NearbyRestaurant[]>(exploreCache?.restaurants ?? [])
+  const [restaurants, setRestaurants] = useState<RestaurantCardData[]>(exploreCache?.restaurants ?? [])
   const [fetching, setFetching] = useState(false)
   const [radius, setRadius] = useState(exploreCache?.radius ?? 5000)
   const [activeCuisine, setActiveCuisine] = useState<string | null>(null)
@@ -97,7 +97,7 @@ function ExploreClientInner() {
     setView('list')
   }, [setActiveCuisine, setView])
 
-  const handleMapSelect = useCallback((r: NearbyRestaurant) => {
+  const handleMapSelect = useCallback((r: RestaurantCardData) => {
     setTenantSlug(r.id)
       router.push(`/app/${r.id}?type=${r.type}`)
     }, [setTenantSlug, router])

@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { NearbyRestaurant } from '@/app/api/explore/nearby/route'
+import type { RestaurantCardData } from '@/types/restaurant-card'
 import { MapPin, Clock, Phone, Utensils, ExternalLink, ArrowLeft, ShoppingBag, Share2, Navigation, Star, ClockAlert, Heart } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -71,7 +71,7 @@ function MiniMap({ lat, lng }: { lat: number; lng: number }) {
   )
 }
 
-interface Props { restaurant: NearbyRestaurant }
+interface Props { restaurant: RestaurantCardData }
 
 export default function RestaurantDetail({ restaurant: r }: Props) {
   const router = useRouter()
