@@ -304,7 +304,7 @@ export async function GET(request: NextRequest) {
         ...(hasClub || hasActivePromo ? {
           loyaltyInfo: {
             hasClub,
-            clubName: t.loyalty?.clubName,
+            clubName: t.loyalty?.clubName || null,
             hasActivePromo,
             promoTypes: promoTypes || [],
           },
