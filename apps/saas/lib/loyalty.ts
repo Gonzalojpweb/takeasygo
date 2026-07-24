@@ -366,7 +366,7 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
             'cache.updatedAt': new Date(),
           },
         },
-        { session, upsert: false, new: true }
+        { session, upsert: false, returnDocument: "after" }
       )
       if (updated) member = updated
     } catch (err) {

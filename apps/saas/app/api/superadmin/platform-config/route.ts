@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
   await PlatformConfig.findByIdAndUpdate(
     'platform',
     { $set: update },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   )
 
   return NextResponse.json({ ok: true })

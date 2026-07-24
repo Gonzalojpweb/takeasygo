@@ -31,16 +31,22 @@ interface OverrideGroup {
   options: { name: string; extraPrice: number; subGroups?: any[] }[]
 }
 
+interface ItemOverride {
+  itemId: string
+  disabledVariantNames?: string[]
+  disabledGroupIds?: string[]
+  disabledOptionIds?: string[]
+}
+
 interface Slot {
   name: string
   categoryIds: string[]
   itemIds: string[]
-  itemVariantFilters: { itemId: string; variantNames: string[] }[]
   requiredQuantity: number
   customizationMode?: 'none' | 'variant' | 'full'
   allowCustomization: boolean | null
   overrideCustomizationGroups: OverrideGroup[]
-  allowedExtraGroupIds: string[]
+  itemOverrides: ItemOverride[]
 }
 
 interface Promotion {
@@ -107,6 +113,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
   const [selectedLocation, setSelectedLocation] = useState(locations[0]?._id || '')
   const [categories, setCategories] = useState<MenuCategory[]>([])
   const [menuLoading, setMenuLoading] = useState(false)
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     type: 'sale' as PromotionType,
@@ -184,12 +191,11 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
         name: '',
         categoryIds: [],
         itemIds: [],
-        itemVariantFilters: [],
         requiredQuantity: 1,
         customizationMode: 'full',
         allowCustomization: null,
         overrideCustomizationGroups: [],
-        allowedExtraGroupIds: [],
+        itemOverrides: [],
       }],
     }))
   }
@@ -246,7 +252,44 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       slots[slotIndex] = {
         ...slots[slotIndex],
         itemIds: slots[slotIndex].itemIds.filter(id => id !== itemId),
-        itemVariantFilters: slots[slotIndex].itemVariantFilters.filter(f => f.itemId !== itemId),
+        itemOverrides: slots[slotIndex].itemOverrides.filter(o => o.itemId !== itemId),
+      }
+      return { ...prev, slots }
+    })
+    if (expandedItemId === itemId) setExpandedItemId(null)
+  }
+
+  // ── Item overrides (per-item pruning) ──
+
+  function findMenuItem(itemId: string) {
+    for (const cat of categories) {
+      const found = cat.items.find(i => i._id === itemId)
+      if (found) return found
+    }
+    return null
+  }
+
+  function getItemOverride(slotIndex: number, itemId: string): ItemOverride {
+    const slot = form.slots[slotIndex]
+    return slot.itemOverrides.find(o => o.itemId === itemId) ?? { itemId, disabledVariantNames: [], disabledGroupIds: [], disabledOptionIds: [] }
+  }
+
+  function updateItemOverride(slotIndex: number, itemId: string, patch: Partial<ItemOverride>) {
+    setForm(prev => {
+      const slots = [...prev.slots]
+      const existing = slots[slotIndex].itemOverrides.find(o => o.itemId === itemId)
+      if (existing) {
+        slots[slotIndex] = {
+          ...slots[slotIndex],
+          itemOverrides: slots[slotIndex].itemOverrides.map(o =>
+            o.itemId === itemId ? { ...o, ...patch } : o
+          ),
+        }
+      } else {
+        slots[slotIndex] = {
+          ...slots[slotIndex],
+          itemOverrides: [...slots[slotIndex].itemOverrides, { itemId, ...patch }],
+        }
       }
       return { ...prev, slots }
     })
@@ -978,43 +1021,15 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                               </div>
                             </div>
 
-                            {/* Whitelist de extras opcionales */}
-                            {slot.customizationMode !== 'none' && (
-                              <div className="px-3 py-2 rounded-lg border border-border bg-background space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <Label className="text-[10px] text-muted-foreground">Filtrar extras opcionales</Label>
-                                    <p className="text-[9px] text-muted-foreground/60">Los requeridos siempre se preguntan. Acá filtrás los opcionales.</p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={(slot.allowedExtraGroupIds ?? []).length > 0}
-                                    onClick={() => updateSlot(sIdx, 'allowedExtraGroupIds', (slot.allowedExtraGroupIds ?? []).length > 0 ? [] : ['__pending__'])}
-                                    className={cn(
-                                      'relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ml-2',
-                                      (slot.allowedExtraGroupIds ?? []).length > 0 ? 'bg-primary' : 'bg-muted-foreground/30'
-                                    )}
-                                  >
-                                    <span
-                                      className={cn(
-                                        'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform',
-                                        (slot.allowedExtraGroupIds ?? []).length > 0 && 'translate-x-4'
-                                      )}
-                                    />
-                                  </button>
+                            {/* Resumen de overrides por ítem */}
+                            {slot.customizationMode !== 'none' && (slot.itemOverrides ?? []).length > 0 && (
+                              <div className="px-3 py-2 rounded-lg border border-border bg-background">
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-[10px] text-muted-foreground">Poda por ítem</Label>
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+                                    {(slot.itemOverrides ?? []).length} ítem{(slot.itemOverrides ?? []).length !== 1 ? 's' : ''} personalizado{(slot.itemOverrides ?? []).length !== 1 ? 's' : ''}
+                                  </span>
                                 </div>
-                                {(slot.allowedExtraGroupIds ?? []).length > 0 && (
-                                  <Input
-                                    value={slot.allowedExtraGroupIds.join(', ')}
-                                    onChange={e => {
-                                      const ids = e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean)
-                                      updateSlot(sIdx, 'allowedExtraGroupIds', ids)
-                                    }}
-                                    placeholder="IDs de grupos separados por coma"
-                                    className="h-7 text-[11px]"
-                                  />
-                                )}
                               </div>
                             )}
 
@@ -1038,20 +1053,197 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                               </div>
                             )}
 
-                            {/* Selected items */}
+                            {/* Selected items with per-item override editor */}
                             {slot.itemIds.length > 0 && (
                               <div>
                                 <Label className="text-[10px] text-muted-foreground mb-1 block">Ítems seleccionados</Label>
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="space-y-1.5">
                                   {slot.itemIds.map(itemId => {
                                     const item = categories.flatMap(c => c.items).find(i => i._id === itemId)
+                                    const isExpanded = expandedItemId === itemId
+                                    const ov = getItemOverride(sIdx, itemId)
+                                    const hasOverrides = (ov.disabledVariantNames?.length ?? 0) > 0 || (ov.disabledGroupIds?.length ?? 0) > 0 || (ov.disabledOptionIds?.length ?? 0) > 0
                                     return (
-                                      <span key={itemId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
-                                        {item?.name || itemId}
-                                        <button type="button" onClick={() => removeItemFromSlot(sIdx, itemId)} className="hover:text-destructive">
-                                          <X size={10} />
-                                        </button>
-                                      </span>
+                                      <div key={itemId}>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium flex-1 min-w-0 truncate">
+                                            {item?.name || itemId}
+                                            {hasOverrides && <span className="text-[8px] bg-amber-100 text-amber-700 px-1 rounded-full">poda</span>}
+                                          </span>
+                                          {slot.customizationMode !== 'none' && item && ((item.variants?.length ?? 0) > 0 || (item.customizationGroups?.length ?? 0) > 0 || (categories.find(c => c.items.some(i => i._id === itemId))?.customizationGroups?.length ?? 0) > 0) && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setExpandedItemId(isExpanded ? null : itemId)}
+                                              className={cn(
+                                                'text-[9px] px-1.5 py-0.5 rounded-md border transition-colors',
+                                                isExpanded ? 'bg-primary text-white border-primary' : 'text-muted-foreground border-border hover:border-primary/50'
+                                              )}
+                                            >
+                                              {isExpanded ? 'Cerrar' : 'Poda'}
+                                            </button>
+                                          )}
+                                          <button type="button" onClick={() => removeItemFromSlot(sIdx, itemId)} className="hover:text-destructive">
+                                            <X size={10} />
+                                          </button>
+                                        </div>
+
+                                        {/* Per-item override editor */}
+                                        {isExpanded && item && (
+                                          <div className="mt-1.5 ml-2 p-2.5 rounded-lg border border-border bg-background space-y-2">
+                                            {/* Variants blocklist */}
+                                            {(item.variants?.length ?? 0) > 0 && (
+                                              <div>
+                                                <Label className="text-[9px] text-muted-foreground font-medium mb-1 block">Variantes</Label>
+                                                <p className="text-[8px] text-muted-foreground/60 mb-1">Desmarcá las que querés ocultar en esta promo</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                  {(item.variants ?? []).map((v: any) => {
+                                                    const isDisabled = (ov.disabledVariantNames ?? []).includes(v.name)
+                                                    const wouldLeaveZero = isDisabled && (item.variants ?? []).length <= (ov.disabledVariantNames?.length ?? 0)
+                                                    return (
+                                                      <label
+                                                        key={v.name}
+                                                        className={cn(
+                                                          'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[9px] cursor-pointer transition-colors select-none',
+                                                          isDisabled ? 'bg-destructive/10 text-destructive border-destructive/30 line-through' : 'bg-muted/50 text-foreground border-border'
+                                                        )}
+                                                      >
+                                                        <input
+                                                          type="checkbox"
+                                                          className="sr-only"
+                                                          checked={!isDisabled}
+                                                          onChange={() => {
+                                                            const current = ov.disabledVariantNames ?? []
+                                                            const next = isDisabled
+                                                              ? current.filter(n => n !== v.name)
+                                                              : [...current, v.name]
+                                                            if (next.length < (item.variants ?? []).length) {
+                                                              updateItemOverride(sIdx, itemId, { disabledVariantNames: next })
+                                                            }
+                                                          }}
+                                                        />
+                                                        {v.name}
+                                                        {v.price != null && v.price !== 0 && (
+                                                          <span className="text-muted-foreground/60">+${v.price}</span>
+                                                        )}
+                                                      </label>
+                                                    )
+                                                  })}
+                                                </div>
+                                              </div>
+                                            )}
+
+                                            {/* Groups blocklist */}
+                                            {(() => {
+                                              const allGroups = [
+                                                ...(categories.find(c => c.items.some(i => i._id === itemId))?.customizationGroups ?? []),
+                                                ...(item.customizationGroups ?? []),
+                                                ...(slot.overrideCustomizationGroups ?? []),
+                                                ...(form.overrideCustomizationGroups ?? []),
+                                              ]
+                                              const requiredGroups = allGroups.filter((g: any) => g.required)
+                                              const optionalGroups = allGroups.filter((g: any) => !g.required)
+                                              const disabledGids = (ov.disabledGroupIds ?? []).map((g: string) => g)
+                                              if (allGroups.length === 0) return null
+                                              return (
+                                                <div>
+                                                  <Label className="text-[9px] text-muted-foreground font-medium mb-1 block">Grupos de personalización</Label>
+                                                  {requiredGroups.length > 0 && (
+                                                    <p className="text-[8px] text-muted-foreground/60 mb-1">Requeridos — siempre se preguntan</p>
+                                                  )}
+                                                  <div className="space-y-0.5">
+                                                    {requiredGroups.map((g: any) => (
+                                                      <div key={g._id || g.name} className="flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-muted/30 text-[9px]">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                                                        <span className="flex-1 truncate">{g.name}</span>
+                                                        <span className="text-[8px] text-muted-foreground/60">requerido</span>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                  {optionalGroups.length > 0 && (
+                                                    <>
+                                                      <p className="text-[8px] text-muted-foreground/60 mt-1 mb-1">Opcionales — desmarcá los que querés ocultar</p>
+                                                      <div className="space-y-0.5">
+                                                        {optionalGroups.map((g: any) => {
+                                                          const gid = g._id?.toString?.() || g.name
+                                                          const isDisabled = disabledGids.includes(gid)
+                                                          return (
+                                                            <label
+                                                              key={gid}
+                                                              className={cn(
+                                                                'flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[9px] cursor-pointer transition-colors select-none',
+                                                                isDisabled ? 'bg-destructive/10 text-destructive line-through' : 'hover:bg-muted/50'
+                                                              )}
+                                                            >
+                                                              <input
+                                                                type="checkbox"
+                                                                className="sr-only"
+                                                                checked={!isDisabled}
+                                                                onChange={() => {
+                                                                  const current = ov.disabledGroupIds ?? []
+                                                                  const next = isDisabled
+                                                                    ? current.filter(id => id !== gid)
+                                                                    : [...current, gid]
+                                                                  updateItemOverride(sIdx, itemId, { disabledGroupIds: next })
+                                                                }}
+                                                              />
+                                                              <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', isDisabled ? 'bg-destructive/50' : 'bg-blue-500')} />
+                                                              <span className="flex-1 truncate">{g.name}</span>
+                                                              {g.options?.length > 0 && (
+                                                                <span className="text-[8px] text-muted-foreground/60">{g.options.length} opciones</span>
+                                                              )}
+                                                            </label>
+                                                          )
+                                                        })}
+                                                      </div>
+                                                    </>
+                                                  )}
+                                                  {/* Options within optional groups */}
+                                                  {optionalGroups.filter((g: any) => !disabledGids.includes(g._id?.toString?.() || g.name) && (g.options?.length ?? 0) > 0).map((g: any) => {
+                                                    const gid = g._id?.toString?.() || g.name
+                                                    return (
+                                                      <div key={gid} className="ml-3 mt-1 border-l border-border pl-2">
+                                                        <Label className="text-[8px] text-muted-foreground font-medium block mb-0.5">{g.name}</Label>
+                                                        <div className="flex flex-wrap gap-1">
+                                                          {(g.options ?? []).map((o: any) => {
+                                                            const optId = o._id?.toString?.() || o.name
+                                                            const isOptDisabled = (ov.disabledOptionIds ?? []).includes(optId)
+                                                            return (
+                                                              <label
+                                                                key={optId}
+                                                                className={cn(
+                                                                  'inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] cursor-pointer transition-colors select-none',
+                                                                  isOptDisabled ? 'bg-destructive/10 text-destructive border-destructive/30 line-through' : 'bg-muted/30 text-foreground border-border'
+                                                                )}
+                                                              >
+                                                                <input
+                                                                  type="checkbox"
+                                                                  className="sr-only"
+                                                                  checked={!isOptDisabled}
+                                                                  onChange={() => {
+                                                                    const current = ov.disabledOptionIds ?? []
+                                                                    const next = isOptDisabled
+                                                                      ? current.filter(id => id !== optId)
+                                                                      : [...current, optId]
+                                                                    updateItemOverride(sIdx, itemId, { disabledOptionIds: next })
+                                                                  }}
+                                                                />
+                                                                {o.name}
+                                                                {o.extraPrice != null && o.extraPrice !== 0 && (
+                                                                  <span className="text-muted-foreground/60">+${o.extraPrice}</span>
+                                                                )}
+                                                              </label>
+                                                            )
+                                                          })}
+                                                        </div>
+                                                      </div>
+                                                    )
+                                                  })}
+                                                </div>
+                                              )
+                                            })()}
+                                          </div>
+                                        )}
+                                      </div>
                                     )
                                   })}
                                 </div>

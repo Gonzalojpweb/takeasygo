@@ -6,7 +6,7 @@ interface SlotData {
   itemIds: string[]
   requiredQuantity: number
   customizationMode?: 'none' | 'variant' | 'full'
-  allowedExtraGroupIds?: string[]
+  itemOverrides?: Array<{ itemId: string; disabledVariantNames?: string[]; disabledGroupIds?: string[]; disabledOptionIds?: string[] }>
   resolvedItems?: Array<{
     _id: string
     name: string
@@ -71,9 +71,9 @@ export default function PromoPickerPreview({ slots, promoTitle }: Props) {
                         : 'Personalización'}
                     </span>
                   )}
-                  {(slot.allowedExtraGroupIds ?? []).length > 0 && (
+                  {(slot.itemOverrides ?? []).length > 0 && (
                     <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-                      Whitelist
+                      Poda
                     </span>
                   )}
                 </div>

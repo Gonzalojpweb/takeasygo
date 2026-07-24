@@ -57,7 +57,7 @@ export async function PUT(
     const promotion = await Promotion.findOneAndUpdate(
       { _id: promotionId, tenantId: tenant._id },
       { $set: body },
-      { new: true }
+      { returnDocument: 'after' }
     )
 
     if (!promotion) {

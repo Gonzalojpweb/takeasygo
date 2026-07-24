@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         p256dh,
         auth,
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     )
 
     return NextResponse.json({ success: true })

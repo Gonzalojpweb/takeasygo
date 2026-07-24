@@ -81,12 +81,16 @@ export async function GET(
 
     function buildSlotItem(item: any, slot: any, cat: any, promoOverrideGroups: any[]) {
       const id = item._id?.toString?.() || item._id
-      const variantFilter = (slot.itemVariantFilters ?? []).find(
-        (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === id
+
+      // Find per-item override
+      const override = (slot.itemOverrides ?? []).find(
+        (o: any) => (o.itemId?.toString?.() || o.itemId) === id
       )
-      const allowedNames = variantFilter?.variantNames ?? []
-      const variants = allowedNames.length > 0
-        ? (item.variants ?? []).filter((v: any) => allowedNames.includes(v.name))
+
+      // Variants: blocklist via disabledVariantNames
+      const disabledVariants = override?.disabledVariantNames ?? []
+      const variants = disabledVariants.length > 0
+        ? (item.variants ?? []).filter((v: any) => !disabledVariants.includes(v.name))
         : (item.variants ?? [])
 
       const allGroups = [
@@ -96,20 +100,33 @@ export async function GET(
         ...(promoOverrideGroups ?? []),
       ]
 
-      // Separar requeridos (siempre) de opcionales (filtrados por whitelist)
-      const requiredGroups = allGroups.filter((g: any) => g.required)
-      const optionalGroups = allGroups.filter((g: any) => !g.required)
-      const whitelistIds = (slot.allowedExtraGroupIds ?? []).map((id: any) => id?.toString?.() || id)
-      const filteredOptional = whitelistIds.length > 0
-        ? optionalGroups.filter((g: any) => whitelistIds.includes(g._id?.toString?.()))
-        : optionalGroups
+      // Groups: blocklist via disabledGroupIds
+      const disabledGroupIds = (override?.disabledGroupIds ?? []).map((g: any) => g?.toString?.() || g)
+      const requiredGroups = allGroups.filter((g: any) => g.required && !disabledGroupIds.includes(g._id?.toString?.()))
+      const optionalGroups = allGroups.filter((g: any) => !g.required && !disabledGroupIds.includes(g._id?.toString?.()))
+
+      // Options: blocklist via disabledOptionIds
+      const disabledOptionIds = override?.disabledOptionIds ?? []
+
+      function pruneOptions(groups: any[]): any[] {
+        if (disabledOptionIds.length === 0) return groups
+        return groups.map((g: any) => {
+          const filteredOptions = (g.options ?? []).filter(
+            (o: any) => {
+              const optId = o._id?.toString?.() || o.name
+              return !disabledOptionIds.includes(optId)
+            }
+          )
+          return { ...g, options: filteredOptions }
+        })
+      }
 
       return {
         _id: id,
         name: item.name,
         categoryName: cat.name,
         variants,
-        customizationGroups: [...requiredGroups, ...filteredOptional],
+        customizationGroups: pruneOptions([...requiredGroups, ...optionalGroups]),
       }
     }
 

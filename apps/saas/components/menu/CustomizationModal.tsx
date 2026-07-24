@@ -118,6 +118,23 @@ export default function CustomizationModal({
     captureDishViewed({ _id: item._id, name: item.name, price: basePrice })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-select single options in required groups (promo optimization)
+  useEffect(() => {
+    const requiredGroups = activeGroups.filter(g => g.required)
+    const updates: Record<string, string[]> = {}
+    let changed = false
+    for (const g of requiredGroups) {
+      const current = selections[g._id] ?? []
+      if (current.length === 0 && g.options.length === 1) {
+        updates[g._id] = [g.options[0].name]
+        changed = true
+      }
+    }
+    if (changed) {
+      setSelections(prev => ({ ...prev, ...updates }))
+    }
+  }, [activeGroups]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function toggleOption(group: CustomizationGroup, optionName: string) {
     setSelections(prev => {
       const current = prev[group._id] ?? []

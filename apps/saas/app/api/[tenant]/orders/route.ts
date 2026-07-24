@@ -568,13 +568,13 @@ export async function POST(
                     seenItemIds.add(mid)
                     validationGroups.unshift(...(item.customizationGroups ?? []))
                     if ((item.variants ?? []).length > 0) {
-                      const vf = (slot.itemVariantFilters ?? []).find(
-                        (f: any) => (f.itemId?.toString?.() || f.itemId) === mid
+                      const ov = (slot.itemOverrides ?? []).find(
+                        (o: any) => (o.itemId?.toString?.() || o.itemId) === mid
                       )
-                      const allowedNames = vf?.variantNames ?? []
-                      const itemVariants = (item.variants ?? []).filter(
-                        (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
-                      )
+                      const disabledNames = ov?.disabledVariantNames ?? []
+                      const itemVariants = disabledNames.length > 0
+                        ? (item.variants ?? []).filter((v: any) => !disabledNames.includes(v.name))
+                        : (item.variants ?? [])
                       validationVariants.push(...itemVariants)
                     }
                   }
@@ -586,13 +586,13 @@ export async function POST(
                       seenItemIds.add(mid)
                       validationGroups.unshift(...(item.customizationGroups ?? []))
                       if ((item.variants ?? []).length > 0) {
-                        const vf = (slot.itemVariantFilters ?? []).find(
-                          (f: any) => (f.itemId?.toString?.() || f.itemId) === mid
+                        const ov = (slot.itemOverrides ?? []).find(
+                          (o: any) => (o.itemId?.toString?.() || o.itemId) === mid
                         )
-                        const allowedNames = vf?.variantNames ?? []
-                        const itemVariants = (item.variants ?? []).filter(
-                          (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
-                        )
+                        const disabledNames = ov?.disabledVariantNames ?? []
+                        const itemVariants = disabledNames.length > 0
+                          ? (item.variants ?? []).filter((v: any) => !disabledNames.includes(v.name))
+                          : (item.variants ?? [])
                         validationVariants.push(...itemVariants)
                       }
                     }
@@ -611,13 +611,13 @@ export async function POST(
                   seenItemIds.add(mid)
                   validationGroups.unshift(...(item.customizationGroups ?? []))
                   if ((item.variants ?? []).length > 0) {
-                    const vf = (slot.itemVariantFilters ?? []).find(
-                      (f: any) => (f.itemId?.toString?.() || f.itemId) === mid
+                    const ov = (slot.itemOverrides ?? []).find(
+                      (o: any) => (o.itemId?.toString?.() || o.itemId) === mid
                     )
-                    const allowedNames = vf?.variantNames ?? []
-                    const itemVariants = (item.variants ?? []).filter(
-                      (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
-                    )
+                    const disabledNames = ov?.disabledVariantNames ?? []
+                    const itemVariants = disabledNames.length > 0
+                      ? (item.variants ?? []).filter((v: any) => !disabledNames.includes(v.name))
+                      : (item.variants ?? [])
                     validationVariants.push(...itemVariants)
                   }
                 }
@@ -629,17 +629,39 @@ export async function POST(
                     seenItemIds.add(mid)
                     validationGroups.unshift(...(item.customizationGroups ?? []))
                     if ((item.variants ?? []).length > 0) {
-                      const vf = (slot.itemVariantFilters ?? []).find(
-                        (f: any) => (f.itemId?.toString?.() || f.itemId) === mid
+                      const ov = (slot.itemOverrides ?? []).find(
+                        (o: any) => (o.itemId?.toString?.() || o.itemId) === mid
                       )
-                      const allowedNames = vf?.variantNames ?? []
-                      const itemVariants = (item.variants ?? []).filter(
-                        (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
-                      )
+                      const disabledNames = ov?.disabledVariantNames ?? []
+                      const itemVariants = disabledNames.length > 0
+                        ? (item.variants ?? []).filter((v: any) => !disabledNames.includes(v.name))
+                        : (item.variants ?? [])
                       validationVariants.push(...itemVariants)
                     }
                   }
                 }
+              }
+            }
+          }
+
+          // Prune validationGroups by itemOverrides disabledGroupIds + disabledOptionIds
+          if (Array.isArray(slot.itemOverrides) && slot.itemOverrides.length > 0) {
+            const ov = slot.itemOverrides.find((o: any) => (o.itemId?.toString?.() || o.itemId) === itemId)
+            if (ov) {
+              const disabledGids = (ov.disabledGroupIds ?? []).map((g: any) => g?.toString?.() || g)
+              const disabledOids = ov.disabledOptionIds ?? []
+              if (disabledGids.length > 0 || disabledOids.length > 0) {
+                validationGroups = validationGroups
+                  .filter((g: any) => !disabledGids.includes(g._id?.toString?.()))
+                  .map((g: any) => {
+                    if (disabledOids.length === 0) return g
+                    return {
+                      ...g,
+                      options: (g.options ?? []).filter(
+                        (o: any) => !disabledOids.includes(o._id?.toString?.() || o.name)
+                      ),
+                    }
+                  })
               }
             }
           }
