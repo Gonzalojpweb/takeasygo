@@ -275,7 +275,7 @@ export function PromotionCard({
           {/* Right Image Column (Cleanly integrated using flex-shrink-0, respecting border-radius of parent container) */}
           {promotion.imageUrl && (
             <div
-              className="w-[42%] flex-shrink-0 relative overflow-hidden self-stretch pointer-events-none"
+              className="w-[48%] flex-shrink-0 relative overflow-hidden self-stretch pointer-events-none"
               style={{
                 borderTopRightRadius: styles.borderRadius || '20px',
                 borderBottomRightRadius: styles.borderRadius || '20px',
@@ -284,7 +284,7 @@ export function PromotionCard({
               <img
                 src={promotion.imageUrl}
                 alt={promotion.title}
-                className="w-full h-full object-cover object-center"
+                className="w-full h-full object-cover object-[center_35%]"
               />
               {/* Soft gradient mask to blend left edge with the colored card background */}
               <div
@@ -344,13 +344,13 @@ export function PromotionCard({
         }}
       >
         {/* Image */}
-        <div className="relative flex-shrink-0 self-stretch" style={{ width: 96 }}>
+        <div className="relative flex-shrink-0 self-stretch" style={{ width: 108 }}>
           {promotion.imageUrl ? (
             <>
               <img
                 src={promotion.imageUrl}
                 alt={promotion.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover object-[center_35%]"
                 style={{ borderRadius: '16px 0 0 16px' }}
               />
               {/* Discount badge on image */}
@@ -629,7 +629,7 @@ export function PromotionCarousel({
               className="flex-shrink-0 snap-start"
               style={{
                 width: cardIsFeatured ? 'calc(92% - 6px)' : 'calc(88% - 5px)',
-                maxWidth: cardIsFeatured ? '400px' : '320px',
+                maxWidth: cardIsFeatured ? '420px' : '320px',
               }}
             >
               <PromotionCard

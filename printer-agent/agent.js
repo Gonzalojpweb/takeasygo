@@ -526,81 +526,121 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     chunks.push(buf(`${lineStr}\n`));
 
     let lastCategory = null;
+
+    // ── Agrupar items de promo consecutivos con el mismo promotionTitle ──
+    const promoGroups = [];
+    let currentGroup = null;
+
     itemsToPrint.forEach(item => {
-        // Badge de tipo de item
-        if (item.itemType === 'reward') {
-            chunks.push(buf(`[RECOMPENSA]\n`));
-        }
-
-        // Resolver nombre a mostrar y subtítulo de promo
-        let displayName = item.name.toUpperCase();
-        let promoSubtitle = null;
-
-        if (item.itemType === 'promotion') {
-            if (item.promotionTitle) {
-                // Formato nuevo: nombre real del ítem + subtítulo (promo · slot)
-                const slotLabel = item.slotName ? ` · ${item.slotName}` : '';
-                promoSubtitle = `(${item.promotionTitle}${slotLabel})`;
-            } else if (item.name.includes(' - ')) {
-                // Legacy: parsear "Promo Title - Item Name"
-                const dashIdx = item.name.indexOf(' - ');
-                const legacyPromoTitle = item.name.substring(0, dashIdx);
-                displayName = item.name.substring(dashIdx + 3).toUpperCase();
-                promoSubtitle = `(${legacyPromoTitle})`;
+        if (item.itemType === 'promotion' && item.promotionTitle) {
+            if (currentGroup && currentGroup.promotionTitle === item.promotionTitle) {
+                currentGroup.items.push(item);
+                currentGroup.totalQuantity += item.quantity;
+            } else {
+                currentGroup = {
+                    promotionTitle: item.promotionTitle,
+                    totalQuantity: item.quantity,
+                    items: [item],
+                };
+                promoGroups.push(currentGroup);
             }
-        }
-
-        // Línea secundaria: promoción + slot (antes del nombre)
-        if (promoSubtitle) {
-            chunks.push(buf(`  ${promoSubtitle}\n`));
-        }
-
-        const line = `${item.quantity}x ${displayName}`;
-
-        // Nombre de categoría (según configuración)
-        if (settings.showCategory) {
-            const currentCategory = (item.categoryName && item.itemType !== 'promotion' && item.itemType !== 'reward')
-                ? item.categoryName : null;
-            if (currentCategory && currentCategory !== lastCategory) {
-                chunks.push(buf(`[${currentCategory.toUpperCase()}]\n`));
-            }
-            lastCategory = currentCategory;
-        }
-
-        if (settings.showPrices && role === 'cashier') {
-            const price = `$${money(item.price * item.quantity)}`;
-            const dots = '.'.repeat(Math.max(2, columns - line.length - price.length));
-            chunks.push(buf(`${line}${dots}${price}\n`));
         } else {
-            chunks.push(ESC_POS.BOLD_ON);
-            chunks.push(buf(`${line}\n`));
-            chunks.push(ESC_POS.BOLD_OFF);
+            currentGroup = null;
+            promoGroups.push({ single: item });
         }
+    });
 
-        // Mostrar descripción del ítem (según configuración)
-        if (settings.showDescriptions && item.description) {
-            const desc = item.description.length > columns
-                ? item.description.substring(0, columns - 3) + '...'
-                : item.description
-            chunks.push(buf(`  ${desc.toUpperCase()}\n`));
+    promoGroups.forEach(group => {
+        if (group.single) {
+            // ── Item normal o reward ──
+            const item = group.single;
+
+            if (item.itemType === 'reward') {
+                chunks.push(buf(`[RECOMPENSA]\n`));
+            }
+
+            let displayName = item.name.toUpperCase();
+
+            const line = `${item.quantity}x ${displayName}`;
+
+            if (settings.showCategory) {
+                const currentCategory = (item.categoryName && item.itemType !== 'reward')
+                    ? item.categoryName : null;
+                if (currentCategory && currentCategory !== lastCategory) {
+                    chunks.push(buf(`[${currentCategory.toUpperCase()}]\n`));
+                }
+                lastCategory = currentCategory;
+            }
+
+            if (settings.showPrices && role === 'cashier') {
+                const price = `$${money(item.price * item.quantity)}`;
+                const dots = '.'.repeat(Math.max(2, columns - line.length - price.length));
+                chunks.push(buf(`${line}${dots}${price}\n`));
+            } else {
+                chunks.push(ESC_POS.BOLD_ON);
+                chunks.push(buf(`${line}\n`));
+                chunks.push(ESC_POS.BOLD_OFF);
+            }
+
+            if (settings.showDescriptions && item.description) {
+                const desc = item.description.length > columns
+                    ? item.description.substring(0, columns - 3) + '...'
+                    : item.description;
+                chunks.push(buf(`  ${desc.toUpperCase()}\n`));
+            }
+
+            if (item.selectedVariant) {
+                chunks.push(buf(`  > Variante: ${item.selectedVariant.name.toUpperCase()}\n`));
+            }
+
+            printCustomizations(item.customizations, chunks, '  ');
+            chunks.push(buf('\n\n'));
+        } else {
+            // ── Grupo de promo: header + items listados ──
+            const promoTitle = group.promotionTitle.toUpperCase();
+            const totalQty = group.totalQuantity;
+
+            if (settings.showCategory) {
+                lastCategory = null;
+            }
+
+            if (settings.showPrices && role === 'cashier') {
+                const headerLine = `${totalQty}x ${promoTitle}`;
+                const headerPrice = `$${money(group.items.reduce((s, i) => s + i.price * i.quantity, 0))}`;
+                const dots = '.'.repeat(Math.max(2, columns - headerLine.length - headerPrice.length));
+                chunks.push(buf(`${headerLine}${dots}${headerPrice}\n`));
+            } else {
+                chunks.push(ESC_POS.BOLD_ON);
+                chunks.push(buf(`${totalQty}x ${promoTitle}\n`));
+                chunks.push(ESC_POS.BOLD_OFF);
+            }
+
+            // Descripción corta de la promo
+            if (settings.showDescriptions && group.items[0].shortDescription) {
+                const short = group.items[0].shortDescription.length > columns
+                    ? group.items[0].shortDescription.substring(0, columns - 3) + '...'
+                    : group.items[0].shortDescription;
+                chunks.push(buf(`  ${short.toUpperCase()}\n`));
+            }
+
+            // Listar items del combo
+            group.items.forEach(item => {
+                const rawName = item.name.includes(' - ')
+                    ? item.name.substring(item.name.indexOf(' - ') + 3)
+                    : item.name;
+                const itemName = rawName.toUpperCase();
+                const subLine = `  - ${item.quantity}x ${itemName}`;
+                chunks.push(buf(`${subLine}\n`));
+
+                if (item.selectedVariant) {
+                    chunks.push(buf(`    > Variante: ${item.selectedVariant.name.toUpperCase()}\n`));
+                }
+
+                printCustomizations(item.customizations, chunks, '    ');
+            });
+
+            chunks.push(buf('\n'));
         }
-
-        // Mostrar descripción corta para promociones (según configuración)
-        if (settings.showDescriptions && item.itemType === 'promotion' && item.shortDescription) {
-            const short = item.shortDescription.length > columns
-                ? item.shortDescription.substring(0, columns - 3) + '...'
-                : item.shortDescription
-            chunks.push(buf(`  ${short.toUpperCase()}\n`));
-        }
-
-        // Mostrar variante seleccionada
-        if (item.selectedVariant) {
-            chunks.push(buf(`  > Variante: ${item.selectedVariant.name.toUpperCase()}\n`));
-        }
-
-        // Mostrar customizaciones (incluye subGroups recursivamente)
-        printCustomizations(item.customizations, chunks, '  ');
-        chunks.push(buf('\n\n'));
     });
 
     // Promo de superadmin

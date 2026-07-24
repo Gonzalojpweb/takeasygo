@@ -663,8 +663,8 @@ export async function POST(
           }
         }
 
-        // Validate variant (skip for 'none' mode)
-        if (slotMode !== 'none' && validationVariants.length > 0) {
+        // Validate variant — always, regardless of slotMode
+        if (validationVariants.length > 0) {
           const selectedVariant = clientItem.selectedVariant
           if (!selectedVariant) {
             return NextResponse.json(

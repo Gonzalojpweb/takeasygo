@@ -530,7 +530,14 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       for (const slot of slotsWithResolved) {
         const mode: SlotCustomizationMode = resolveSlotCustomizationMode(slot, promotion.allowCustomization)
         for (const item of slot.resolvedItems ?? []) {
-          if (mode === 'full') {
+          let effectiveMode = mode
+          if (effectiveMode === 'none') {
+            const hasVariants = (item.variants ?? []).length > 0
+            const hasRequiredGroups = (item.customizationGroups ?? []).filter((g: any) => g.required).length > 0
+            if (hasRequiredGroups) effectiveMode = 'full'
+            else if (hasVariants) effectiveMode = 'variant'
+          }
+          if (effectiveMode === 'full') {
             openCustomizationModal({
               ...item,
               _promotionId: promotion._id,
@@ -547,7 +554,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               })),
               customizationGroups: item.customizationGroups ?? [],
             })
-          } else if (mode === 'variant') {
+          } else if (effectiveMode === 'variant') {
             const availableVariants = (item.variants ?? []).map((v: any) => ({
               ...v,
               price: promotion.price,
@@ -1797,13 +1804,20 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                       const isSelected = currentState.selectedItems.some((si: any) => si._id === item._id)
                       const isDisabled = !isSelected && currentState.selectedItems.length >= currentSlot.requiredQuantity
                       const slotMode: SlotCustomizationMode = resolveSlotCustomizationMode(currentSlot, promo.allowCustomization)
+                      let effectiveSlotMode = slotMode
+                      if (effectiveSlotMode === 'none') {
+                        const hasVariants = (item.variants ?? []).length > 0
+                        const hasRequiredGroups = (item.customizationGroups ?? []).filter((g: any) => g.required).length > 0
+                        if (hasRequiredGroups) effectiveSlotMode = 'full'
+                        else if (hasVariants) effectiveSlotMode = 'variant'
+                      }
                       return (
                         <button
                           key={item._id}
                           type="button"
                           disabled={isDisabled}
                           onClick={() => {
-                            if (slotMode === 'full') {
+                            if (effectiveSlotMode === 'full') {
                               openCustomizationModal({
                                 ...item,
                                 _promotionId: promo._id,
@@ -1820,7 +1834,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 })),
                                 customizationGroups: item.customizationGroups ?? [],
                               })
-                            } else if (slotMode === 'variant') {
+                            } else if (effectiveSlotMode === 'variant') {
                               const availableVariants = (item.variants ?? []).map((v: any) => ({
                                 ...v,
                                 price: promo.price,

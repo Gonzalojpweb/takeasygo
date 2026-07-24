@@ -31,6 +31,8 @@ export interface IPromotionSlot {
   /** @deprecated Usar customizationMode */
   allowCustomization?: boolean
   overrideCustomizationGroups?: ICustomizationGroup[]
+  /** IDs de customizationGroups opcionales permitidos en el slot. Si está vacío, se muestran todos (comportamiento actual). Los required siempre se preguntan. */
+  allowedExtraGroupIds?: mongoose.Types.ObjectId[]
 }
 
 export interface IPromotion {
@@ -93,6 +95,7 @@ const PromotionSlotSchema = new Schema<IPromotionSlot>({
   customizationMode: { type: String, enum: ['none', 'variant', 'full'], default: null },
   allowCustomization: { type: Boolean, default: null },
   overrideCustomizationGroups: { type: [Schema.Types.Mixed], default: [] },
+  allowedExtraGroupIds: { type: [Schema.Types.ObjectId], default: [] },
 }, { _id: false })
 
 const PromotionSchema = new Schema<IPromotion>(
