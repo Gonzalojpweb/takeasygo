@@ -50,7 +50,7 @@ export const adapter: any = {
           emailVerified: user.emailVerified ?? null,
         },
       },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, returnDocument: "after", runValidators: true }
     )
     return toAdapterUser(created)
   },
@@ -83,7 +83,7 @@ export const adapter: any = {
     const updated = await User.findByIdAndUpdate(
       user.id,
       { $set: { name: user.name, email: user.email, image: user.image, emailVerified: user.emailVerified } },
-      { new: true }
+      { returnDocument: "after" }
     ).lean()
     if (!updated) throw new Error('User not found')
     return toAdapterUser(updated)

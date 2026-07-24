@@ -47,7 +47,7 @@ export async function PUT(request: NextRequest) {
     const config = await PlatformConfig.findByIdAndUpdate(
       'platform',
       { $set: updateData },
-      { new: true, upsert: true }
+      { returnDocument: "after", upsert: true }
     )
 
     return NextResponse.json({ qrPromoStyles: config?.qrPromoStyles })

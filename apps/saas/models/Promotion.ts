@@ -7,19 +7,29 @@ export type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
 // Re-export for backward compatibility
 export { type SlotCustomizationMode, resolveSlotCustomizationMode }
 
+/** Poda de árbol de customización por ítem dentro de un slot */
+export interface IPromotionItemOverride {
+  itemId: mongoose.Types.ObjectId
+  /** Variantes del ítem a ocultar para esta promo (blocklist) */
+  disabledVariantNames?: string[]
+  /** Grupos de customizationGroups a ocultar enteros (solo aplica a los NO requeridos) */
+  disabledGroupIds?: mongoose.Types.ObjectId[]
+  /** Opciones puntuales a ocultar dentro de un grupo, a cualquier profundidad */
+  disabledOptionIds?: string[]
+}
+
 export interface IPromotionSlot {
   name: string
   categoryIds?: mongoose.Types.ObjectId[]
   itemIds?: mongoose.Types.ObjectId[]
-  itemVariantFilters?: { itemId: mongoose.Types.ObjectId; variantNames: string[] }[]
   requiredQuantity: number
-  /** 'none' = directo al carrito, 'variant' = picker inline de variante, 'full' = modal completo */
+  /** Modo por defecto del slot — 'none' = directo, 'variant' = picker variante, 'full' = modal completo */
   customizationMode?: SlotCustomizationMode
   /** @deprecated Usar customizationMode */
   allowCustomization?: boolean
   overrideCustomizationGroups?: ICustomizationGroup[]
-  /** IDs de customizationGroups opcionales permitidos en el slot. Si está vacío, se muestran todos (comportamiento actual). Los required siempre se preguntan. */
-  allowedExtraGroupIds?: mongoose.Types.ObjectId[]
+  /** Poda de customización por ítem — refinamiento fino sobre customizationMode */
+  itemOverrides?: IPromotionItemOverride[]
 }
 
 export interface IPromotion {
@@ -71,18 +81,19 @@ const PromotionSlotSchema = new Schema<IPromotionSlot>({
   name: { type: String, required: true, trim: true },
   categoryIds: { type: [Schema.Types.ObjectId], default: [] },
   itemIds: { type: [Schema.Types.ObjectId], default: [] },
-  itemVariantFilters: {
-    type: [{
-      itemId: { type: Schema.Types.ObjectId, required: true },
-      variantNames: { type: [String], default: [] },
-    }],
-    default: [],
-  },
   requiredQuantity: { type: Number, required: true, min: 1 },
   customizationMode: { type: String, enum: ['none', 'variant', 'full'], default: null },
   allowCustomization: { type: Boolean, default: null },
   overrideCustomizationGroups: { type: [Schema.Types.Mixed], default: [] },
-  allowedExtraGroupIds: { type: [Schema.Types.ObjectId], default: [] },
+  itemOverrides: {
+    type: [{
+      itemId: { type: Schema.Types.ObjectId, required: true },
+      disabledVariantNames: { type: [String], default: [] },
+      disabledGroupIds: { type: [Schema.Types.ObjectId], default: [] },
+      disabledOptionIds: { type: [String], default: [] },
+    }],
+    default: [],
+  },
 }, { _id: false })
 
 const PromotionSchema = new Schema<IPromotion>(
