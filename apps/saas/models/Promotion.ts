@@ -1,24 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose'
 import type { ICustomizationGroup } from './Menu'
+import { type SlotCustomizationMode, resolveSlotCustomizationMode } from '@/lib/promotion-helpers'
 
 export type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
 
-export type SlotCustomizationMode = 'none' | 'variant' | 'full'
-
-/**
- * Resuelve el modo de personalización efectivo para un slot.
- * Jerarquía: slot.customizationMode > slot.allowCustomization > promo.allowCustomization > default 'full'
- */
-export function resolveSlotCustomizationMode(
-  slot: { customizationMode?: SlotCustomizationMode; allowCustomization?: boolean | null },
-  promoAllowCustomization?: boolean
-): SlotCustomizationMode {
-  if (slot.customizationMode) return slot.customizationMode
-  if (slot.allowCustomization === true) return 'full'
-  if (slot.allowCustomization === false) return 'none'
-  if (promoAllowCustomization === false) return 'none'
-  return 'full'
-}
+// Re-export for backward compatibility
+export { type SlotCustomizationMode, resolveSlotCustomizationMode }
 
 export interface IPromotionSlot {
   name: string
