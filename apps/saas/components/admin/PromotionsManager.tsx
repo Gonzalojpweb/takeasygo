@@ -40,6 +40,7 @@ interface Slot {
   customizationMode?: 'none' | 'variant' | 'full'
   allowCustomization: boolean | null
   overrideCustomizationGroups: OverrideGroup[]
+  allowedExtraGroupIds: string[]
 }
 
 interface Promotion {
@@ -188,6 +189,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
         customizationMode: 'full',
         allowCustomization: null,
         overrideCustomizationGroups: [],
+        allowedExtraGroupIds: [],
       }],
     }))
   }
@@ -754,6 +756,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                   </div>
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Imagen</Label>
+                    <p className="text-[11px] text-muted-foreground mt-1">Ideal: 800×1000px (vertical) u 1000×800px (horizontal). Evitá imágenes cuadradas.</p>
                     <div className="mt-1.5 flex items-center gap-3">
                       <label className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg cursor-pointer transition-colors">
                         {uploading ? (
@@ -974,6 +977,46 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                                 })}
                               </div>
                             </div>
+
+                            {/* Whitelist de extras opcionales */}
+                            {slot.customizationMode !== 'none' && (
+                              <div className="px-3 py-2 rounded-lg border border-border bg-background space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <Label className="text-[10px] text-muted-foreground">Filtrar extras opcionales</Label>
+                                    <p className="text-[9px] text-muted-foreground/60">Los requeridos siempre se preguntan. Acá filtrás los opcionales.</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={(slot.allowedExtraGroupIds ?? []).length > 0}
+                                    onClick={() => updateSlot(sIdx, 'allowedExtraGroupIds', (slot.allowedExtraGroupIds ?? []).length > 0 ? [] : ['__pending__'])}
+                                    className={cn(
+                                      'relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ml-2',
+                                      (slot.allowedExtraGroupIds ?? []).length > 0 ? 'bg-primary' : 'bg-muted-foreground/30'
+                                    )}
+                                  >
+                                    <span
+                                      className={cn(
+                                        'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform',
+                                        (slot.allowedExtraGroupIds ?? []).length > 0 && 'translate-x-4'
+                                      )}
+                                    />
+                                  </button>
+                                </div>
+                                {(slot.allowedExtraGroupIds ?? []).length > 0 && (
+                                  <Input
+                                    value={slot.allowedExtraGroupIds.join(', ')}
+                                    onChange={e => {
+                                      const ids = e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean)
+                                      updateSlot(sIdx, 'allowedExtraGroupIds', ids)
+                                    }}
+                                    placeholder="IDs de grupos separados por coma"
+                                    className="h-7 text-[11px]"
+                                  />
+                                )}
+                              </div>
+                            )}
 
                             {/* Selected categories */}
                             {slot.categoryIds.length > 0 && (

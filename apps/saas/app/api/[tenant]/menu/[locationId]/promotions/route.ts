@@ -89,17 +89,27 @@ export async function GET(
         ? (item.variants ?? []).filter((v: any) => allowedNames.includes(v.name))
         : (item.variants ?? [])
 
+      const allGroups = [
+        ...(cat.customizationGroups ?? []),
+        ...(item.customizationGroups ?? []),
+        ...(slot.overrideCustomizationGroups ?? []),
+        ...(promoOverrideGroups ?? []),
+      ]
+
+      // Separar requeridos (siempre) de opcionales (filtrados por whitelist)
+      const requiredGroups = allGroups.filter((g: any) => g.required)
+      const optionalGroups = allGroups.filter((g: any) => !g.required)
+      const whitelistIds = (slot.allowedExtraGroupIds ?? []).map((id: any) => id?.toString?.() || id)
+      const filteredOptional = whitelistIds.length > 0
+        ? optionalGroups.filter((g: any) => whitelistIds.includes(g._id?.toString?.()))
+        : optionalGroups
+
       return {
         _id: id,
         name: item.name,
         categoryName: cat.name,
         variants,
-        customizationGroups: [
-          ...(cat.customizationGroups ?? []),
-          ...(item.customizationGroups ?? []),
-          ...(slot.overrideCustomizationGroups ?? []),
-          ...(promoOverrideGroups ?? []),
-        ],
+        customizationGroups: [...requiredGroups, ...filteredOptional],
       }
     }
 

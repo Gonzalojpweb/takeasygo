@@ -5,6 +5,8 @@ interface SlotData {
   categoryIds: string[]
   itemIds: string[]
   requiredQuantity: number
+  customizationMode?: 'none' | 'variant' | 'full'
+  allowedExtraGroupIds?: string[]
   resolvedItems?: Array<{
     _id: string
     name: string
@@ -54,9 +56,27 @@ export default function PromoPickerPreview({ slots, promoTitle }: Props) {
 
             return (
               <div key={idx}>
-                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1.5">
-                  {slot.name || 'Slot sin nombre'} — elegí {slot.requiredQuantity}
-                </p>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                    {slot.name || 'Slot sin nombre'} — elegí {slot.requiredQuantity}
+                  </p>
+                  {slot.customizationMode && (
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                      slot.customizationMode === 'none' ? 'bg-muted text-muted-foreground'
+                        : slot.customizationMode === 'variant' ? 'bg-blue-100 text-blue-700'
+                        : 'bg-primary/10 text-primary'
+                    }`}>
+                      {slot.customizationMode === 'none' ? 'Sin pers.'
+                        : slot.customizationMode === 'variant' ? 'Solo variante'
+                        : 'Personalización'}
+                    </span>
+                  )}
+                  {(slot.allowedExtraGroupIds ?? []).length > 0 && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+                      Whitelist
+                    </span>
+                  )}
+                </div>
 
                 <div className="space-y-1.5">
                   {items.map((item) => (
