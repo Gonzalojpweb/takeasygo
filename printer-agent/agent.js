@@ -528,13 +528,34 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     let lastCategory = null;
     itemsToPrint.forEach(item => {
         // Badge de tipo de item
-        if (item.itemType === 'promotion') {
-            chunks.push(buf(`[PROMOCIÓN]\n`));
-        } else if (item.itemType === 'reward') {
+        if (item.itemType === 'reward') {
             chunks.push(buf(`[RECOMPENSA]\n`));
         }
 
-        const line = `${item.quantity}x ${item.name.toUpperCase()}`;
+        // Resolver nombre a mostrar y subtítulo de promo
+        let displayName = item.name.toUpperCase();
+        let promoSubtitle = null;
+
+        if (item.itemType === 'promotion') {
+            if (item.promotionTitle) {
+                // Formato nuevo: nombre real del ítem + subtítulo (promo · slot)
+                const slotLabel = item.slotName ? ` · ${item.slotName}` : '';
+                promoSubtitle = `(${item.promotionTitle}${slotLabel})`;
+            } else if (item.name.includes(' - ')) {
+                // Legacy: parsear "Promo Title - Item Name"
+                const dashIdx = item.name.indexOf(' - ');
+                const legacyPromoTitle = item.name.substring(0, dashIdx);
+                displayName = item.name.substring(dashIdx + 3).toUpperCase();
+                promoSubtitle = `(${legacyPromoTitle})`;
+            }
+        }
+
+        // Línea secundaria: promoción + slot (antes del nombre)
+        if (promoSubtitle) {
+            chunks.push(buf(`  ${promoSubtitle}\n`));
+        }
+
+        const line = `${item.quantity}x ${displayName}`;
 
         // Nombre de categoría (según configuración)
         if (settings.showCategory) {

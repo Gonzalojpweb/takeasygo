@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
@@ -177,25 +178,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [memberPoints, setMemberPoints] = useState(0)
-  const [promoItemSelection, setPromoItemSelection] = useState<{
+  const [promoSlotSelection, setPromoSlotSelection] = useState<{
     promo: any
-    items: any[]
-    completedItemIds: string[]
+    slotStates: Record<number, { selectedItems: any[]; completed: boolean }>
+    currentSlotIndex: number
   } | null>(null)
-
-  const [promoQtyInput, setPromoQtyInput] = useState<{
-    item: any
-    promotion: any
-  } | null>(null)
-
-  const [promoUnitFlow, setPromoUnitFlow] = useState<{
-    item: any
-    promotion: any
-    totalUnits: number
-    currentUnit: number
-  } | null>(null)
-
-  const [promoQtyValue, setPromoQtyValue] = useState(1)
 
   const [likesOrderId, setLikesOrderId] = useState<string | null>(null)
   const [likesToken, setLikesToken] = useState<string | null>(null)
@@ -470,69 +457,132 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   }
 
   function addPromotionToCart(promotion: any) {
-    // Determine linked items: nuevo array linkedItems o legacy linkedItem
-    const linkedItems = promotion.linkedItems || (promotion.linkedItem ? [promotion.linkedItem] : [])
+    if (promotion.type !== 'sale' || !promotion.slots?.length) return
 
-    // Edge case: overrideCustomizationGroups without linked items
-    if (linkedItems.length === 0 && (promotion.overrideCustomizationGroups?.length ?? 0) > 0) {
-      const virtualItem = {
-        _id: `override:${promotion._id}`,
-        name: promotion.title,
-        price: promotion.price,
-        basePrice: promotion.price,
-        isPromotion: true,
-        _promotionId: promotion._id,
-        _promotionTitle: promotion.title,
-        _itemName: promotion.title,
-        customizationGroups: promotion.overrideCustomizationGroups.map((g: any, i: number) => ({
-          ...g,
-          _id: g._id || `og_${i}`,
-        })),
+    const promoOverrideGroups = promotion.overrideCustomizationGroups ?? []
+
+    function resolveItemsForSlot(slot: any) {
+      const resolved: any[] = []
+      const seenItemIds = new Set<string>()
+
+      if (Array.isArray(slot.itemIds) && slot.itemIds.length > 0) {
+        for (const cat of menuData.categories ?? []) {
+          for (const item of cat.items ?? []) {
+            const itemId = item._id?.toString?.() || item._id
+            if (slot.itemIds.some((id: any) => (id?.toString?.() || id) === itemId) && !seenItemIds.has(itemId)) {
+              seenItemIds.add(itemId)
+              resolved.push({
+                _id: itemId,
+                name: item.name,
+                categoryName: cat.name,
+                variants: item.variants ?? [],
+                customizationGroups: [
+                  ...(cat.customizationGroups ?? []),
+                  ...(item.customizationGroups ?? []),
+                  ...(slot.overrideCustomizationGroups ?? []),
+                  ...(promoOverrideGroups ?? []),
+                ],
+              })
+            }
+          }
+        }
+      } else if (Array.isArray(slot.categoryIds) && slot.categoryIds.length > 0) {
+        for (const cat of menuData.categories ?? []) {
+          const catId = cat._id?.toString?.() || cat._id
+          if (slot.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
+            for (const item of cat.items ?? []) {
+              const itemId = item._id?.toString?.() || item._id
+              if (!seenItemIds.has(itemId)) {
+                seenItemIds.add(itemId)
+                resolved.push({
+                  _id: itemId,
+                  name: item.name,
+                  categoryName: cat.name,
+                  variants: item.variants ?? [],
+                  customizationGroups: [
+                    ...(cat.customizationGroups ?? []),
+                    ...(item.customizationGroups ?? []),
+                    ...(slot.overrideCustomizationGroups ?? []),
+                    ...(promoOverrideGroups ?? []),
+                  ],
+                })
+              }
+            }
+          }
+        }
       }
-      openCustomizationModal(virtualItem)
-      return
+
+      return resolved
     }
 
-    const itemsWithCustomizations = linkedItems.filter(
-      (li: any) => (li.customizationGroups?.length ?? 0) > 0 || (li.variants?.length ?? 0) > 0
-    )
+    const slotsWithResolved = promotion.slots.map((slot: any) => ({
+      ...slot,
+      resolvedItems: slot.resolvedItems ?? resolveItemsForSlot(slot),
+    }))
 
-    if (itemsWithCustomizations.length === 0 || promotion.allowCustomization === false) {
-      // Sin customizaciones (o deshabilitadas) — agregar directo
-      const promoId = `promo:${promotion._id}`
-      setCart(prev => {
-        const existing = prev.find(i => i.cartItemId === promoId)
-        if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
-        return [...prev, {
-          cartItemId: promoId,
-          promotionId: promotion._id,
-          name: promotion.title,
-          basePrice: promotion.price,
-          extraPrice: 0,
-          price: promotion.price,
-          quantity: 1,
-          customizations: [],
-          customizationSummary: '',
-          addedFrom: 'menu',
-          type: 'promotion',
-        }]
-      })
+    const allAutoSelect = slotsWithResolved.every((slot: any) => {
+      const items = slot.resolvedItems ?? []
+      return items.length === slot.requiredQuantity
+    })
+
+    if (allAutoSelect) {
+      for (const slot of slotsWithResolved) {
+        const slotAllowCustomization = slot.allowCustomization ?? promotion.allowCustomization ?? true
+        for (const item of slot.resolvedItems ?? []) {
+          if (slotAllowCustomization) {
+            openCustomizationModal({
+              ...item,
+              _promotionId: promotion._id,
+              _promotionTitle: promotion.title,
+              _itemName: item.name,
+              _slotName: slot.name,
+              price: promotion.price,
+              basePrice: promotion.price,
+              isPromotion: true,
+              variants: (item.variants ?? []).map((v: any) => ({
+                ...v,
+                price: promotion.price,
+                takeawayPrice: promotion.price,
+              })),
+              customizationGroups: item.customizationGroups ?? [],
+            })
+          } else {
+            const promoId = `promo:${promotion._id}:${item.name.replace(/\s+/g, '_')}`
+            setCart(prev => {
+              const existing = prev.find(i => i.cartItemId === promoId)
+              if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
+              return [...prev, {
+                cartItemId: promoId,
+                promotionId: promotion._id,
+                _promotionTitle: promotion.title,
+                _slotName: slot.name,
+                name: item.name,
+                basePrice: promotion.price,
+                extraPrice: 0,
+                price: promotion.price,
+                quantity: 1,
+                customizations: [],
+                customizationSummary: '',
+                addedFrom: 'menu',
+                type: 'promotion' as const,
+              }]
+            })
+          }
+        }
+      }
       toast.success(`${promotion.title} agregado al pedido`)
       return
     }
 
-    // Un solo item — preguntar cantidad primero, luego personalizar una por una
-    if (itemsWithCustomizations.length === 1) {
-      const item = itemsWithCustomizations[0]
-      setPromoQtyInput({ item, promotion })
-      return
-    }
+    const initialSlotStates: Record<number, { selectedItems: any[]; completed: boolean }> = {}
+    slotsWithResolved.forEach((_: any, idx: number) => {
+      initialSlotStates[idx] = { selectedItems: [], completed: false }
+    })
 
-    // Múltiples items — mostrar selector con info de la promo
-    setPromoItemSelection({
-      promo: promotion,
-      items: itemsWithCustomizations,
-      completedItemIds: [],
+    setPromoSlotSelection({
+      promo: { ...promotion, slots: slotsWithResolved },
+      slotStates: initialSlotStates,
+      currentSlotIndex: 0,
     })
   }
 
@@ -574,40 +624,6 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         return
       }
 
-      if (promoUnitFlow) {
-        // Per-unit flow: each unit is a separate cart item with unique ID
-        const unitId = `promo:${promoId}:${itemName.replace(/\s+/g, '_')}:unit${promoUnitFlow.currentUnit}:${Date.now()}`
-        const enrichedSummary = itemName && cartItem.customizationSummary
-          ? `${itemName} · ${cartItem.customizationSummary}`
-          : itemName || cartItem.customizationSummary || ''
-        const taggedItem: CartItem = {
-          ...cartItem,
-          cartItemId: unitId,
-          promotionId: promoId,
-          quantity: 1,
-          name: (cartItem as any)._promotionTitle,
-          customizationSummary: enrichedSummary,
-          type: 'promotion',
-          addedFrom: 'menu',
-        }
-        if (cartItem.menuItemId) {
-          captureDishAdded({ _id: cartItem.menuItemId, name: itemName, price: cartItem.price }, 1, true)
-        }
-        setCart(prev => [...prev, taggedItem])
-        setCustomizingItem(null)
-
-        if (promoUnitFlow.currentUnit < promoUnitFlow.totalUnits) {
-          // Advance to next unit
-          setPromoUnitFlow(prev => prev ? { ...prev, currentUnit: prev.currentUnit + 1 } : null)
-          toast.success(`${itemName} unidad ${promoUnitFlow.currentUnit} de ${promoUnitFlow.totalUnits} agregada`)
-        } else {
-          // All units done
-          setPromoUnitFlow(null)
-          toast.success(`${promoUnitFlow.totalUnits} × ${itemName} agregados a ${(cartItem as any)._promotionTitle}`)
-        }
-        return
-      }
-
       const uniqueId = `promo:${promoId}:${itemName.replace(/\s+/g, '_') || Date.now()}`
       // Incluir nombre del item en el summary para que viaje hasta la DB y el print agent
       const enrichedSummary = itemName && cartItem.customizationSummary
@@ -617,7 +633,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         ...cartItem,
         cartItemId: uniqueId,
         promotionId: promoId,
-        name: (cartItem as any)._promotionTitle,
+        _promotionTitle: (cartItem as any)._promotionTitle,
+        _slotName: (cartItem as any)._slotName,
+        name: (cartItem as any)._itemName || (cartItem as any)._promotionTitle,
         customizationSummary: enrichedSummary,
         type: 'promotion',
         addedFrom: 'menu',
@@ -631,13 +649,32 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         return [...prev, taggedItem]
       })
       setCustomizingItem(null)
-      // Keep picker open for multi-item selection — mark item as completed
-      if (promoItemSelection) {
-        const itemId = (cartItem as any)._id || itemName
-        setPromoItemSelection(prev => prev ? {
-          ...prev,
-          completedItemIds: [...prev.completedItemIds, itemId],
-        } : null)
+      if (promoSlotSelection) {
+        const slotIdx = promoSlotSelection.currentSlotIndex
+        const slotState = promoSlotSelection.slotStates[slotIdx]
+        if (slotState) {
+          const slot = promoSlotSelection.promo.slots[slotIdx]
+          const newSelectedItems = [...slotState.selectedItems, { _id: (cartItem as any)._itemName, name: (cartItem as any)._itemName }]
+          const isCompleted = newSelectedItems.length >= (slot.requiredQuantity ?? 1)
+
+          setPromoSlotSelection(prev => {
+            if (!prev) return null
+            const newSlotStates = { ...prev.slotStates }
+            newSlotStates[slotIdx] = { selectedItems: newSelectedItems, completed: isCompleted }
+
+            let nextSlotIdx = prev.currentSlotIndex
+            if (isCompleted) {
+              for (let i = 0; i < prev.promo.slots.length; i++) {
+                if (!newSlotStates[i]?.completed) {
+                  nextSlotIdx = i
+                  break
+                }
+              }
+            }
+
+            return { ...prev, slotStates: newSlotStates, currentSlotIndex: nextSlotIdx }
+          })
+        }
       }
       toast.success(`${itemName} agregado a ${(cartItem as any)._promotionTitle}`)
       return
@@ -1545,14 +1582,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           onConfirm={handleConfirmCustomization}
           onClose={() => {
             setCustomizingItem(null)
-            setPromoUnitFlow(null)
           }}
           primaryColor={primary}
           bgColor={bg}
           textColor={text}
           mode={mode}
-          hideQuantity={!!promoUnitFlow}
-          unitLabel={promoUnitFlow ? `Unidad ${promoUnitFlow.currentUnit} de ${promoUnitFlow.totalUnits}` : undefined}
+          hideQuantity={false}
+          unitLabel={undefined}
           optionImageRegistry={menu.optionImageRegistry}
         />
       )}
@@ -1648,170 +1684,169 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         </div>
       )}
 
-      {/* ── Promo quantity input ── */}
-      {promoQtyInput && (() => {
-        const { item, promotion } = promoQtyInput
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60" onClick={() => { setPromoQtyInput(null); setPromoQtyValue(1) }} />
-            <div className="relative bg-background rounded-3xl w-full max-w-sm p-6 border border-border">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-lg">{promotion.title}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.name}</p>
-                </div>
-                <button onClick={() => { setPromoQtyInput(null); setPromoQtyValue(1) }} className="opacity-40 hover:opacity-70 ml-2 shrink-0">
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Cada unidad se personaliza por separado
-              </p>
-              <div className="flex items-center justify-center gap-4 mb-6">
-                <button
-                  type="button"
-                  onClick={() => setPromoQtyValue(q => Math.max(1, q - 1))}
-                  className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: primary + '20', color: primary }}
-                >
-                  <Minus size={16} />
-                </button>
-                <span className="text-2xl font-bold w-8 text-center" style={{ color: text }}>
-                  {promoQtyValue}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPromoQtyValue(q => q + 1)}
-                  className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: primary, color: bg }}
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-              <p className="text-center text-sm font-semibold mb-4" style={{ color: primary }}>
-                ${(promotion.price * promoQtyValue).toLocaleString('es-AR')}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  const builtItem = buildPromoCustomizationItem(item, promotion)
-                  setPromoUnitFlow({ item: builtItem, promotion, totalUnits: promoQtyValue, currentUnit: 1 })
-                  setPromoQtyInput(null)
-                  setPromoQtyValue(1)
-                  openCustomizationModal(builtItem)
-                }}
-                className="w-full py-3 rounded-2xl font-bold text-sm"
-                style={{ backgroundColor: primary, color: bg }}
-              >
-                Personalizar {promoQtyValue} unidad{promoQtyValue !== 1 ? 'es' : ''}
-              </button>
-            </div>
-          </div>
-        )
-      })()}
+      {/* ── Promo slot picker ── */}
+      {promoSlotSelection && (() => {
+        const { promo, slotStates, currentSlotIndex } = promoSlotSelection
+        const allCompleted = promo.slots.every((_: any, idx: number) => slotStates[idx]?.completed)
+        const currentSlot = promo.slots[currentSlotIndex]
+        const currentState = slotStates[currentSlotIndex]
 
-      {/* ── Promo item picker ── */}
-      {promoItemSelection && (() => {
-        const { promo, items, completedItemIds } = promoItemSelection
-        // Agrupar items por categoría
-        const grouped: Record<string, any[]> = {}
-        for (const it of items) {
-          const cat = it.categoryName || 'Productos'
-          if (!grouped[cat]) grouped[cat] = []
-          grouped[cat].push(it)
-        }
-        // Categorías que ya tienen un item seleccionado (máximo 1 por categoría)
-        const completedCats = new Set<string>()
-        for (const it of items) {
-          if (completedItemIds.includes(it._id || it.name)) {
-            completedCats.add(it.categoryName || 'Productos')
-          }
-        }
-        const totalCompleted = completedItemIds.length
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60" onClick={() => setPromoItemSelection(null)} />
-            <div className="relative bg-background rounded-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-6 border border-border">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setPromoSlotSelection(null)} />
+            <div className="relative bg-background rounded-3xl w-full max-w-sm max-h-[85vh] overflow-y-auto p-6 border border-border">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-lg">{promo.title}</h3>
                   {promo.shortDescription && (
                     <p className="text-xs text-muted-foreground mt-0.5">{promo.shortDescription}</p>
                   )}
-                  {promo.description && (
-                    <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-2">{promo.description}</p>
-                  )}
                 </div>
-                <button onClick={() => setPromoItemSelection(null)} className="opacity-40 hover:opacity-70 ml-2 shrink-0">
+                <button onClick={() => setPromoSlotSelection(null)} className="opacity-40 hover:opacity-70 ml-2 shrink-0">
                   <X size={20} />
                 </button>
               </div>
-              {totalCompleted > 0 && (
-                <div className="mb-3 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">
-                  {totalCompleted} producto{totalCompleted !== 1 ? 's' : ''} agregado{totalCompleted !== 1 ? 's' : ''}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground mb-3 font-medium">Elegí un producto de cada categoría:</p>
-              <div className="space-y-3">
-                {Object.entries(grouped).map(([catName, catItems]) => {
-                  const catDone = completedCats.has(catName)
+
+              {/* Slot tabs */}
+              <div className="flex gap-1 mb-4 overflow-x-auto">
+                {promo.slots.map((slot: any, idx: number) => {
+                  const state = slotStates[idx]
+                  const isDone = state?.completed
+                  const isCurrent = idx === currentSlotIndex
                   return (
-                    <div key={catName}>
-                      <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1.5">
-                        {catName} {catDone && <span className="text-emerald-600 normal-case">✓</span>}
-                      </p>
-                      <div className="space-y-1.5">
-                        {catItems.map((it: any) => {
-                          const itemId = it._id || it.name
-                          const isCompleted = completedItemIds.includes(itemId)
-                          const isDisabled = catDone && !isCompleted
-                          return (
-                            <button
-                              key={itemId}
-                              type="button"
-                              disabled={isDisabled}
-                              onClick={() => {
-                                openCustomizationModal(buildPromoCustomizationItem(it, promo))
-                              }}
-                              className={
-                                'w-full text-left p-3 rounded-xl border transition-all ' +
-                                (isCompleted
-                                  ? 'border-emerald-200 bg-emerald-50 opacity-60'
-                                  : isDisabled
-                                    ? 'border-border opacity-30 cursor-not-allowed'
-                                    : 'border-border hover:border-primary/50 hover:bg-muted/30')
-                              }
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold flex-1">{it.name}</span>
-                                {isCompleted && (
-                                  <span className="text-emerald-600 text-[10px] font-bold">✓ Agregado</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-xs font-bold text-primary">${promo.price}</span>
-                                {it.variants?.length > 0 && (
-                                  <span className="text-[10px] text-muted-foreground">{it.variants.length} var</span>
-                                )}
-                                {it.customizationGroups?.length > 0 && (
-                                  <span className="text-[10px] text-muted-foreground">{it.customizationGroups.length} pers</span>
-                                )}
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setPromoSlotSelection(prev => prev ? { ...prev, currentSlotIndex: idx } : null)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all',
+                        isCurrent
+                          ? 'bg-primary text-white'
+                          : isDone
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-muted text-muted-foreground'
+                      )}
+                    >
+                      {slot.name || `Slot ${idx + 1}`} {isDone && '✓'}
+                    </button>
                   )
                 })}
               </div>
+
+              {/* Current slot */}
+              {currentSlot && currentState && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2 font-medium">
+                    {currentSlot.name || 'Slot'} — elegí {currentSlot.requiredQuantity}
+                  </p>
+                  {currentState.selectedItems.length > 0 && (
+                    <div className="mb-3 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">
+                      {currentState.selectedItems.length} de {currentSlot.requiredQuantity} elegido{currentState.selectedItems.length !== 1 ? 's' : ''}
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    {(currentSlot.resolvedItems ?? []).map((item: any) => {
+                      const isSelected = currentState.selectedItems.some((si: any) => si._id === item._id)
+                      const isDisabled = !isSelected && currentState.selectedItems.length >= currentSlot.requiredQuantity
+                      const slotAllowCustomization = currentSlot.allowCustomization ?? promo.allowCustomization ?? true
+                      return (
+                        <button
+                          key={item._id}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => {
+                            if (slotAllowCustomization) {
+                              openCustomizationModal({
+                                ...item,
+                                _promotionId: promo._id,
+                                _promotionTitle: promo.title,
+                                _itemName: item.name,
+                                _slotName: currentSlot.name,
+                                price: promo.price,
+                                basePrice: promo.price,
+                                isPromotion: true,
+                                variants: (item.variants ?? []).map((v: any) => ({
+                                  ...v,
+                                  price: promo.price,
+                                  takeawayPrice: promo.price,
+                                })),
+                                customizationGroups: item.customizationGroups ?? [],
+                              })
+                            } else {
+                              const promoId = `promo:${promo._id}:${item.name.replace(/\s+/g, '_')}`
+                              setCart(prev => {
+                                const existing = prev.find(i => i.cartItemId === promoId)
+                                if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
+                                return [...prev, {
+                                  cartItemId: promoId,
+                                  promotionId: promo._id,
+                                  _promotionTitle: promo.title,
+                                  _slotName: currentSlot.name,
+                                  name: item.name,
+                                  basePrice: promo.price,
+                                  extraPrice: 0,
+                                  price: promo.price,
+                                  quantity: 1,
+                                  customizations: [],
+                                  customizationSummary: '',
+                                  addedFrom: 'menu',
+                                  type: 'promotion' as const,
+                                }]
+                              })
+                              setPromoSlotSelection(prev => {
+                                if (!prev) return null
+                                const newSlotStates = { ...prev.slotStates }
+                                const st = newSlotStates[currentSlotIndex]
+                                const newSelected = [...st.selectedItems, item]
+                                const isCompleted = newSelected.length >= currentSlot.requiredQuantity
+                                newSlotStates[currentSlotIndex] = { selectedItems: newSelected, completed: isCompleted }
+                                let nextIdx = currentSlotIndex
+                                if (isCompleted) {
+                                  for (let i = 0; i < prev.promo.slots.length; i++) {
+                                    if (!newSlotStates[i]?.completed) { nextIdx = i; break }
+                                  }
+                                }
+                                return { ...prev, slotStates: newSlotStates, currentSlotIndex: nextIdx }
+                              })
+                              toast.success(`${item.name} agregado`)
+                            }
+                          }}
+                          className={
+                            'w-full text-left p-3 rounded-xl border transition-all ' +
+                            (isSelected
+                              ? 'border-emerald-200 bg-emerald-50 opacity-60'
+                              : isDisabled
+                                ? 'border-border opacity-30 cursor-not-allowed'
+                                : 'border-border hover:border-primary/50 hover:bg-muted/30')
+                          }
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold flex-1">{item.name}</span>
+                            {isSelected && (
+                              <span className="text-emerald-600 text-[10px] font-bold">✓ Elegido</span>
+                            )}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Continue / Done button */}
               <button
                 type="button"
-                onClick={() => setPromoItemSelection(null)}
-                className="w-full mt-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm"
-                style={primary ? { backgroundColor: primary } : {}}
+                disabled={!allCompleted}
+                onClick={() => setPromoSlotSelection(null)}
+                className={cn(
+                  'w-full mt-4 py-2.5 rounded-xl font-bold text-sm transition-all',
+                  allCompleted
+                    ? 'bg-primary text-white'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
+                )}
+                style={allCompleted && primary ? { backgroundColor: primary } : {}}
               >
-                {totalCompleted > 0 ? 'Listo, ir al pedido' : 'Cancelar'}
+                {allCompleted ? 'Listo, ir al pedido' : 'Completá todos los pasos'}
               </button>
             </div>
           </div>

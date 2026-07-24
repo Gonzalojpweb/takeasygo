@@ -141,8 +141,12 @@ function buildPOSPayload(order: any, tenant: ITenant): BuildResult {
 
 // ── Expansión de promociones en items individuales ─────────────────────────────
 // Cuando una promoción no tiene mapeo directo (promotionId → posItemId),
-// se intenta expandirla en sus items vinculados (linkedCategoryIds / linkedItemIds)
+// se intenta expandirla en sus items vinculados (slots o linkedCategoryIds/linkedItemIds)
 // para que el POS reciba items individuales en lugar de un combo genérico.
+//
+// Legacy (linkedCategoryIds/linkedItemIds): expansion uses promo DB fields.
+// New (slots): items already have menuItemId set; expansion uses slot's
+// categoryIds/itemIds from the promotion model to resolve menu items.
 
 interface ExpansionItem {
   name: string
@@ -159,6 +163,9 @@ async function expandUnmappedPromotions(
 ): Promise<{ items: POSOrderPayload['items']; unmapped: string[] }> {
   const promoItems: { index: number; item: any }[] = []
 
+  // Items that are promotions without a POS mapping need expansion.
+  // Legacy model: items have menuItemId=null (one per promo qty).
+  // New model: items have menuItemId set (one per slot item) — these skip expansion.
   for (let i = 0; i < order.items.length; i++) {
     const it = order.items[i]
     if ((it.itemType === 'promotion' || !!it.promotionId) && it.menuItemId == null) {
@@ -172,7 +179,7 @@ async function expandUnmappedPromotions(
   const promoIds = promoItems.map(p => p.item.promotionId?.toString()).filter(Boolean)
   const promotions = await Promotion.find({ _id: { $in: promoIds } }).lean()
 
-  // Cargar el menú para resolver linkedItemIds / linkedCategoryIds
+  // Cargar el menú para resolver items desde slots o linkedCategoryIds/linkedItemIds
   const menu = await Menu.findOne({ tenantId: tenant._id, locationId: order.locationId }).lean() as any
   const menuCats: any[] = menu?.categories ?? []
 
@@ -192,11 +199,28 @@ async function expandUnmappedPromotions(
       continue
     }
 
+    // Resolve items from promotion: slots (new) or linkedCategoryIds/linkedItemIds (legacy)
+    const slots = (promo as any).slots ?? []
     const linkedCategoryIds: string[] = (promo as any).linkedCategoryIds ?? []
     const linkedItemIds: string[] = (promo as any).linkedItemIds ?? []
-    const hasLinkedItems = linkedCategoryIds.length > 0 || linkedItemIds.length > 0
 
-    if (!hasLinkedItems) {
+    // Collect all category/item IDs to expand from either model
+    const expandCategoryIds: string[] = []
+    const expandItemIds: string[] = []
+
+    if (slots.length > 0) {
+      for (const slot of slots) {
+        expandCategoryIds.push(...(slot.categoryIds ?? []))
+        expandItemIds.push(...(slot.itemIds ?? []))
+      }
+    } else {
+      expandCategoryIds.push(...linkedCategoryIds)
+      expandItemIds.push(...linkedItemIds)
+    }
+
+    const hasExpandableItems = expandCategoryIds.length > 0 || expandItemIds.length > 0
+
+    if (!hasExpandableItems) {
       expandedCounts.push(1)
       expandedBatches.push([currentItems[index]])
       continue
@@ -208,7 +232,7 @@ async function expandUnmappedPromotions(
 
     for (const cat of menuCats) {
       const catId = cat._id?.toString?.() || cat._id
-      if (linkedCategoryIds.some((lid: any) => (lid?.toString?.() || lid) === catId)) {
+      if (expandCategoryIds.some((lid: any) => (lid?.toString?.() || lid) === catId)) {
         for (const menuItem of cat.items ?? []) {
           const mid = menuItem._id?.toString?.() || menuItem._id
           if (!seenItemIds.has(mid)) {
@@ -244,7 +268,7 @@ async function expandUnmappedPromotions(
     ])
     for (const menuItem of allMenuItems) {
       const mid = menuItem._id?.toString?.() || menuItem._id
-      if (linkedItemIds.some((lid: any) => (lid?.toString?.() || lid) === mid) && !seenItemIds.has(mid)) {
+      if (expandItemIds.some((lid: any) => (lid?.toString?.() || lid) === mid) && !seenItemIds.has(mid)) {
         seenItemIds.add(mid)
         resolved.push({
           name: menuItem.name,

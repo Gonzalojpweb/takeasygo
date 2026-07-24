@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import {
   Plus, Edit2, Trash2, Eye, EyeOff, Star,
   Tag, Upload, Palette, X, DollarSign,
-  Info, Megaphone, Heart, Search, ChevronDown, ChevronRight,
+  Info, Megaphone, Heart, Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import PromoPickerPreview from '@/components/admin/PromoPickerPreview'
 
 type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
 
@@ -28,6 +29,16 @@ interface OverrideGroup {
   type: 'single' | 'multiple'
   required: boolean
   options: { name: string; extraPrice: number; subGroups?: any[] }[]
+}
+
+interface Slot {
+  name: string
+  categoryIds: string[]
+  itemIds: string[]
+  itemVariantFilters: { itemId: string; variantNames: string[] }[]
+  requiredQuantity: number
+  allowCustomization: boolean | null
+  overrideCustomizationGroups: OverrideGroup[]
 }
 
 interface Promotion {
@@ -63,19 +74,9 @@ interface Promotion {
   redemptionsCount: number
   sortOrder: number
   locationId?: string
-  linkedCategoryIds?: string[]
-  linkedItemIds?: string[]
-  linkedItemVariantFilters?: { itemId: string; variantNames: string[] }[]
+  slots?: Slot[]
   allowCustomization?: boolean
   overrideCustomizationGroups?: OverrideGroup[]
-  /** @deprecated */
-  linkedMenuItemId?: string
-  /** @deprecated */
-  linkedItemSnapshot?: {
-    name: string
-    variants: any[]
-    customizationGroups: any[]
-  }
 }
 
 interface MenuCategory {
@@ -101,12 +102,9 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [uploading, setUploading] = useState(false)
 
-  // Locations & menu
   const [selectedLocation, setSelectedLocation] = useState(locations[0]?._id || '')
   const [categories, setCategories] = useState<MenuCategory[]>([])
   const [menuLoading, setMenuLoading] = useState(false)
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
-  const [categorySearch, setCategorySearch] = useState('')
 
   const [form, setForm] = useState({
     type: 'sale' as PromotionType,
@@ -130,9 +128,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     activeTimeEnd: '',
     maxRedemptions: '',
     locationId: locations[0]?._id || '',
-    linkedCategoryIds: [] as string[],
-    linkedItemIds: [] as string[],
-    linkedItemVariantFilters: [] as { itemId: string; variantNames: string[] }[],
+    slots: [] as Slot[],
     allowCustomization: true,
     overrideCustomizationGroups: [] as OverrideGroup[],
     customStyles: {
@@ -145,7 +141,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     },
   })
 
-  // Fetch menu categories when modal opens for sale promotions
   useEffect(() => {
     if (isModalOpen && form.type === 'sale' && form.locationId) {
       setMenuLoading(true)
@@ -169,8 +164,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
         .finally(() => setMenuLoading(false))
     } else {
       setCategories([])
-      setCategorySearch('')
-      setExpandedCategories(new Set())
     }
   }, [isModalOpen, form.type, form.locationId, tenantSlug])
 
@@ -180,126 +173,83 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     return true
   })
 
-  const filteredCategories = categories.filter(cat =>
-    cat.name.toLowerCase().includes(categorySearch.toLowerCase()) ||
-    cat.items.some(item => item.name.toLowerCase().includes(categorySearch.toLowerCase()))
-  )
+  // ── Slot management ──
 
-  function toggleCategory(catId: string) {
-    setExpandedCategories(prev => {
-      const next = new Set(prev)
-      if (next.has(catId)) next.delete(catId)
-      else next.add(catId)
-      return next
-    })
+  function addSlot() {
+    setForm(prev => ({
+      ...prev,
+      slots: [...prev.slots, {
+        name: '',
+        categoryIds: [],
+        itemIds: [],
+        itemVariantFilters: [],
+        requiredQuantity: 1,
+        allowCustomization: null,
+        overrideCustomizationGroups: [],
+      }],
+    }))
   }
 
-  function isCategorySelected(catId: string) {
-    return form.linkedCategoryIds.includes(catId)
+  function removeSlot(index: number) {
+    setForm(prev => ({
+      ...prev,
+      slots: prev.slots.filter((_, i) => i !== index),
+    }))
   }
 
-  function isItemSelected(itemId: string) {
-    return form.linkedItemIds.includes(itemId)
-  }
-
-  function getVariantFilterEntry(itemId: string): { itemId: string; variantNames: string[] } | undefined {
-    return form.linkedItemVariantFilters.find(f => f.itemId === itemId)
-  }
-
-  function isVariantSelected(itemId: string, variantName: string): boolean {
-    const entry = getVariantFilterEntry(itemId)
-    if (!entry) return true
-    if (entry.variantNames.length === 0) return true
-    return entry.variantNames.includes(variantName)
-  }
-
-  function toggleCategorySelection(catId: string) {
+  function updateSlot(index: number, field: string, value: any) {
     setForm(prev => {
-      const ids = prev.linkedCategoryIds.includes(catId)
-        ? prev.linkedCategoryIds.filter(id => id !== catId)
-        : [...prev.linkedCategoryIds, catId]
-      return { ...prev, linkedCategoryIds: ids }
+      const slots = [...prev.slots]
+      slots[index] = { ...slots[index], [field]: value }
+      return { ...prev, slots }
     })
   }
 
-  function toggleItemSelection(itemId: string) {
+  function addCategoryToSlot(slotIndex: number, catId: string) {
     setForm(prev => {
-      const wasSelected = prev.linkedItemIds.includes(itemId)
-      const ids = wasSelected
-        ? prev.linkedItemIds.filter(id => id !== itemId)
-        : [...prev.linkedItemIds, itemId]
-
-      const filters = wasSelected
-        ? prev.linkedItemVariantFilters.filter(f => f.itemId !== itemId)
-        : prev.linkedItemVariantFilters
-
-      return { ...prev, linkedItemIds: ids, linkedItemVariantFilters: filters }
+      const slots = [...prev.slots]
+      const slot = slots[slotIndex]
+      if (slot.categoryIds.includes(catId)) return prev
+      slots[slotIndex] = { ...slot, categoryIds: [...slot.categoryIds, catId] }
+      return { ...prev, slots }
     })
   }
 
-  function toggleVariantFilter(itemId: string, variantName: string) {
+  function removeCategoryFromSlot(slotIndex: number, catId: string) {
     setForm(prev => {
-      const entry = prev.linkedItemVariantFilters.find(f => f.itemId === itemId)
-      if (entry) {
-        const wasSelected = entry.variantNames.includes(variantName)
-        const updatedNames = wasSelected
-          ? entry.variantNames.filter(n => n !== variantName)
-          : [...entry.variantNames, variantName]
-        const filters = updatedNames.length === 0
-          ? prev.linkedItemVariantFilters.filter(f => f.itemId !== itemId)
-          : prev.linkedItemVariantFilters.map(f =>
-              f.itemId === itemId ? { ...f, variantNames: updatedNames } : f
-            )
-        return { ...prev, linkedItemVariantFilters: filters }
+      const slots = [...prev.slots]
+      slots[slotIndex] = {
+        ...slots[slotIndex],
+        categoryIds: slots[slotIndex].categoryIds.filter(id => id !== catId),
       }
-      // No filter entry yet — init with all variants EXCEPT this one
-      const item = categories.flatMap(c => c.items).find(i => i._id === itemId)
-      const allNames = (item?.variants ?? []).map(v => v.name)
-      const variantNames = allNames.filter(n => n !== variantName)
-      return {
-        ...prev,
-        linkedItemVariantFilters: [...prev.linkedItemVariantFilters, { itemId, variantNames }],
-      }
+      return { ...prev, slots }
     })
   }
 
-  function getTotalLinkedItems(): number {
-    let count = 0
-    for (const cat of categories) {
-      if (form.linkedCategoryIds.includes(cat._id)) {
-        count += cat.items.length
-      }
-    }
-    count += form.linkedItemIds.filter(itemId =>
-      !categories.some(cat =>
-        form.linkedCategoryIds.includes(cat._id) && cat.items.some(i => i._id === itemId)
-      )
-    ).length
-    return count
+  function addItemToSlot(slotIndex: number, itemId: string) {
+    setForm(prev => {
+      const slots = [...prev.slots]
+      const slot = slots[slotIndex]
+      if (slot.itemIds.includes(itemId)) return prev
+      slots[slotIndex] = { ...slot, itemIds: [...slot.itemIds, itemId] }
+      return { ...prev, slots }
+    })
   }
 
-  function getLinkedItemsAllNoCustomizations(): boolean {
-    if (getTotalLinkedItems() === 0) return false
-    for (const cat of categories) {
-      if (form.linkedCategoryIds.includes(cat._id)) {
-        for (const item of cat.items) {
-          if (item.variants.length > 0 || item.customizationGroups.length > 0) return false
-        }
+  function removeItemFromSlot(slotIndex: number, itemId: string) {
+    setForm(prev => {
+      const slots = [...prev.slots]
+      slots[slotIndex] = {
+        ...slots[slotIndex],
+        itemIds: slots[slotIndex].itemIds.filter(id => id !== itemId),
+        itemVariantFilters: slots[slotIndex].itemVariantFilters.filter(f => f.itemId !== itemId),
       }
-    }
-    for (const itemId of form.linkedItemIds) {
-      if (categories.some(cat => form.linkedCategoryIds.includes(cat._id) && cat.items.some(i => i._id === itemId))) {
-        continue
-      }
-      for (const cat of categories) {
-        const item = cat.items.find(i => i._id === itemId)
-        if (item && (item.variants.length > 0 || item.customizationGroups.length > 0)) return false
-      }
-    }
-    return true
+      return { ...prev, slots }
+    })
   }
 
-  // Override customization groups management
+  // ── Override customization groups (promo-level) ──
+
   function addOverrideGroup() {
     setForm(prev => ({
       ...prev,
@@ -406,9 +356,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       activeTimeEnd: '',
       maxRedemptions: '',
       locationId: selectedLocation,
-      linkedCategoryIds: [],
-      linkedItemIds: [],
-      linkedItemVariantFilters: [],
+      slots: [],
       allowCustomization: true,
       overrideCustomizationGroups: [],
       customStyles: {
@@ -448,9 +396,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       activeTimeEnd: promotion.activeTimeEnd || '',
       maxRedemptions: promotion.maxRedemptions?.toString() || '',
       locationId: promotion.locationId || locations[0]?._id || '',
-      linkedCategoryIds: promotion.linkedCategoryIds || [],
-      linkedItemIds: promotion.linkedItemIds || [],
-      linkedItemVariantFilters: promotion.linkedItemVariantFilters || [],
+      slots: (promotion as any).slots || [],
       allowCustomization: promotion.allowCustomization ?? true,
       overrideCustomizationGroups: promotion.overrideCustomizationGroups || [],
       customStyles: {
@@ -468,9 +414,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
   async function handleSave() {
     setLoading(true)
     try {
-      // Clean up deprecated fields — never send them on save
-      const formAny = form as any
-      const { linkedMenuItemId: _a, linkedItemSnapshot: _b, ...cleanForm } = formAny
+      const cleanForm = { ...form }
       const payload: any = { ...cleanForm }
       payload.originalPrice = payload.originalPrice ? parseFloat(payload.originalPrice) : null
       payload.maxRedemptions = payload.maxRedemptions ? parseInt(payload.maxRedemptions) : null
@@ -554,6 +498,14 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     if (!promotion.originalPrice) return 0
     return Math.round(((promotion.originalPrice - promotion.price) / promotion.originalPrice) * 100)
   }
+
+  const isSaveDisabled = loading || !form.title || (form.type === 'sale' && form.price <= 0) || (
+    form.type === 'sale' && (
+      form.slots.length === 0 ||
+      form.slots.some(s => !s.name || s.requiredQuantity < 1 || (s.categoryIds.length === 0 && s.itemIds.length === 0))
+    )
+  )
+
 
   return (
     <div>
@@ -736,7 +688,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
 
               <div className="p-6 space-y-6">
 
-                {/* Tipo de promoción */}
+                {/* Tipo de promocion */}
                 <div>
                   <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Tipo de Promoción</Label>
                   <div className="grid grid-cols-4 gap-2">
@@ -896,13 +848,13 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                   </div>
                 )}
 
-                {/* ── Linked categories & items ── */}
+                {/* ── Slots editor ── */}
                 {form.type === 'sale' && (
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">
-                      Productos vinculados
+                      Slots
                       <span className="font-normal normal-case tracking-normal text-muted-foreground/60">
-                        {' '}(seleccioná categorías o items para heredar variantes y personalización)
+                        {' '}(definí los ítems que componen esta promoción)
                       </span>
                     </Label>
 
@@ -911,7 +863,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       <div className="mb-3">
                         <select
                           value={form.locationId}
-                          onChange={e => setForm({ ...form, locationId: e.target.value, linkedCategoryIds: [], linkedItemIds: [], linkedItemVariantFilters: [] })}
+                          onChange={e => setForm({ ...form, locationId: e.target.value, slots: [] })}
                           className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
                         >
                           {locations.map(loc => (
@@ -921,146 +873,169 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       </div>
                     )}
 
-                    {/* Search */}
-                    <div className="relative mb-3">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={categorySearch}
-                        onChange={e => setCategorySearch(e.target.value)}
-                        placeholder="Buscar categoría o producto..."
-                        className="pl-9"
-                      />
-                    </div>
-
-                    {/* Summary of selected */}
-                    {getTotalLinkedItems() > 0 && (
-                      <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                        <span className="text-sm font-bold text-emerald-600">
-                          {getTotalLinkedItems()} producto{getTotalLinkedItems() !== 1 ? 's' : ''} vinculado{getTotalLinkedItems() !== 1 ? 's' : ''}
-                        </span>
-                        {(form.linkedCategoryIds.length > 0 || form.linkedItemIds.length > 0) && (
-                          <button
-                            type="button"
-                            onClick={() => setForm({ ...form, linkedCategoryIds: [], linkedItemIds: [], linkedItemVariantFilters: [] })}
-                            className="text-xs text-emerald-600 underline ml-auto"
-                          >
-                            Limpiar
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {getTotalLinkedItems() > 0 && getLinkedItemsAllNoCustomizations() && (
-                      <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2">
-                        <span className="text-xs text-amber-600">
-                          ⚠ Los productos vinculados no tienen variantes ni personalizaciones. La promoción se agregará directamente al carrito sin solicitar personalización.
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Categories tree */}
                     {menuLoading ? (
                       <div className="text-center py-8 text-sm text-muted-foreground">Cargando menú...</div>
-                    ) : filteredCategories.length === 0 ? (
+                    ) : categories.length === 0 ? (
                       <div className="text-center py-8 text-sm text-muted-foreground">
-                        {categorySearch ? 'Sin resultados' : 'No hay categorías disponibles'}
+                        No hay categorías disponibles
                       </div>
                     ) : (
-                      <div className="max-h-64 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-                        {filteredCategories.map(cat => (
-                          <div key={cat._id}>
-                            {/* Category row */}
-                            <div className="flex items-center gap-2 px-3 py-2.5 hover:bg-muted/50 transition-colors">
+                      <div className="space-y-4">
+                        {form.slots.map((slot, sIdx) => (
+                          <div key={sIdx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-muted-foreground">Slot #{sIdx + 1}</span>
                               <button
                                 type="button"
-                                onClick={() => toggleCategorySelection(cat._id)}
-                                className={cn(
-                                  'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
-                                  isCategorySelected(cat._id)
-                                    ? 'bg-primary border-primary text-white'
-                                    : 'border-muted-foreground/30'
-                                )}
+                                onClick={() => removeSlot(sIdx)}
+                                className="text-destructive text-xs hover:underline"
                               >
-                                {isCategorySelected(cat._id) && <span className="text-[10px]">✓</span>}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => toggleCategory(cat._id)}
-                                className="flex items-center gap-1 flex-1 text-left"
-                              >
-                                {expandedCategories.has(cat._id) ? (
-                                  <ChevronDown size={14} className="text-muted-foreground flex-shrink-0" />
-                                ) : (
-                                  <ChevronRight size={14} className="text-muted-foreground flex-shrink-0" />
-                                )}
-                                <span className="text-sm font-medium">{cat.name}</span>
-                                <span className="text-xs text-muted-foreground ml-1">({cat.items.length})</span>
+                                Eliminar
                               </button>
                             </div>
 
-                            {/* Items within category */}
-                            {expandedCategories.has(cat._id) && (
-                              <div className="ml-8 border-l border-border/50 pl-2 pb-1">
-                                {cat.items.length === 0 ? (
-                                  <p className="px-3 py-2 text-xs text-muted-foreground">Sin productos</p>
-                                ) : (
-                                  cat.items.map(item => (
-                                    <div key={item._id}>
-                                      <div className="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors rounded-lg">
-                                        <button
-                                          type="button"
-                                          onClick={() => toggleItemSelection(item._id)}
-                                          className={cn(
-                                            'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
-                                            isItemSelected(item._id)
-                                              ? 'bg-primary border-primary text-white'
-                                              : 'border-muted-foreground/30'
-                                          )}
-                                        >
-                                          {isItemSelected(item._id) && <span className="text-[8px]">✓</span>}
-                                        </button>
-                                        <span className="text-xs">{item.name}</span>
-                                        {(item.variants.length > 0 || item.customizationGroups.length > 0) && (
-                                          <span className="text-[10px] text-muted-foreground ml-auto">
-                                            {item.variants.length > 0 && (() => {
-                                              const entry = getVariantFilterEntry(item._id)
-                                              const selectedCount = entry ? entry.variantNames.length : item.variants.length
-                                              return selectedCount < item.variants.length
-                                                ? `${selectedCount}/${item.variants.length} var`
-                                                : `${item.variants.length} var`
-                                            })()}
-                                            {item.variants.length > 0 && item.customizationGroups.length > 0 && ' · '}
-                                            {item.customizationGroups.length > 0 && `${item.customizationGroups.length} cust`}
-                                          </span>
-                                        )}
-                                      </div>
-                                      {isItemSelected(item._id) && item.variants.length > 0 && (
-                                        <div className="ml-8 pl-4 border-l-2 border-primary/20 space-y-0.5 pb-1.5">
-                                          {item.variants.map((v) => (
-                                            <label
-                                              key={v.name}
-                                              className="flex items-center gap-2 px-2 py-0.5 cursor-pointer hover:bg-muted/20 rounded transition-colors"
-                                            >
-                                              <input
-                                                type="checkbox"
-                                                checked={isVariantSelected(item._id, v.name)}
-                                                onChange={() => toggleVariantFilter(item._id, v.name)}
-                                                className="w-3 h-3 rounded"
-                                              />
-                                              <span className="text-[11px] text-muted-foreground">{v.name}</span>
-                                            </label>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-[10px] text-muted-foreground">Nombre *</Label>
+                                <Input
+                                  value={slot.name}
+                                  onChange={e => updateSlot(sIdx, 'name', e.target.value)}
+                                  placeholder="ej: Hamburguesa"
+                                  className="mt-0.5 h-8 text-xs"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-[10px] text-muted-foreground">Cantidad requerida *</Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={slot.requiredQuantity}
+                                  onChange={e => updateSlot(sIdx, 'requiredQuantity', parseInt(e.target.value) || 1)}
+                                  className="mt-0.5 h-8 text-xs"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Per-slot allowCustomization */}
+                            <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-background">
+                              <Label className="text-[10px] text-muted-foreground">Permitir personalización (slot)</Label>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={slot.allowCustomization === true}
+                                onClick={() => updateSlot(sIdx, 'allowCustomization', slot.allowCustomization === true ? null : true)}
+                                className={cn(
+                                  'relative w-8 h-5 rounded-full transition-colors flex-shrink-0',
+                                  slot.allowCustomization === true ? 'bg-primary' : 'bg-muted-foreground/30'
                                 )}
+                              >
+                                <span
+                                  className={cn(
+                                    'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform',
+                                    slot.allowCustomization === true && 'translate-x-3'
+                                  )}
+                                />
+                              </button>
+                            </div>
+
+                            {/* Selected categories */}
+                            {slot.categoryIds.length > 0 && (
+                              <div>
+                                <Label className="text-[10px] text-muted-foreground mb-1 block">Categorías seleccionadas</Label>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {slot.categoryIds.map(catId => {
+                                    const cat = categories.find(c => c._id === catId)
+                                    return (
+                                      <span key={catId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
+                                        {cat?.name || catId}
+                                        <button type="button" onClick={() => removeCategoryFromSlot(sIdx, catId)} className="hover:text-destructive">
+                                          <X size={10} />
+                                        </button>
+                                      </span>
+                                    )
+                                  })}
+                                </div>
                               </div>
                             )}
+
+                            {/* Selected items */}
+                            {slot.itemIds.length > 0 && (
+                              <div>
+                                <Label className="text-[10px] text-muted-foreground mb-1 block">Ítems seleccionados</Label>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {slot.itemIds.map(itemId => {
+                                    const item = categories.flatMap(c => c.items).find(i => i._id === itemId)
+                                    return (
+                                      <span key={itemId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
+                                        {item?.name || itemId}
+                                        <button type="button" onClick={() => removeItemFromSlot(sIdx, itemId)} className="hover:text-destructive">
+                                          <X size={10} />
+                                        </button>
+                                      </span>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Add category dropdown */}
+                            <div>
+                              <Label className="text-[10px] text-muted-foreground mb-1 block">+ Agregar categoría</Label>
+                              <select
+                                value=""
+                                onChange={e => {
+                                  if (e.target.value) addCategoryToSlot(sIdx, e.target.value)
+                                }}
+                                className="w-full px-2 py-1.5 rounded-lg border border-border bg-background text-xs"
+                              >
+                                <option value="">Seleccionar categoría...</option>
+                                {categories
+                                  .filter(cat => !slot.categoryIds.includes(cat._id))
+                                  .map(cat => (
+                                    <option key={cat._id} value={cat._id}>{cat.name} ({cat.items.length})</option>
+                                  ))
+                                }
+                              </select>
+                            </div>
+
+                            {/* Add item dropdown */}
+                            <div>
+                              <Label className="text-[10px] text-muted-foreground mb-1 block">+ Agregar ítem</Label>
+                              <select
+                                value=""
+                                onChange={e => {
+                                  if (e.target.value) addItemToSlot(sIdx, e.target.value)
+                                }}
+                                className="w-full px-2 py-1.5 rounded-lg border border-border bg-background text-xs"
+                              >
+                                <option value="">Seleccionar ítem...</option>
+                                {categories
+                                  .flatMap(cat => cat.items)
+                                  .filter(item => !slot.itemIds.includes(item._id))
+                                  .map(item => (
+                                    <option key={item._id} value={item._id}>{item.name}</option>
+                                  ))
+                                }
+                              </select>
+                            </div>
                           </div>
                         ))}
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={addSlot}
+                          className="w-full"
+                        >
+                          <Plus size={14} className="mr-1" /> Agregar Slot
+                        </Button>
                       </div>
                     )}
+
+                    <div className="mt-4">
+                      <PromoPickerPreview slots={form.slots} promoTitle={form.title} />
+                    </div>
                   </div>
                 )}
 
@@ -1093,6 +1068,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                   </div>
                 )}
 
+
                 {/* ── Override customization groups ── */}
                 {form.type === 'sale' && (
                   <div>
@@ -1118,14 +1094,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       <p className="text-xs text-muted-foreground text-center py-3">
                         Sin customizaciones extra. La promo usará las que hereda de los productos vinculados.
                       </p>
-                    )}
-
-                    {form.overrideCustomizationGroups.length > 0 && getTotalLinkedItems() === 0 && (
-                      <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2">
-                        <span className="text-xs text-amber-600">
-                          ⚠ No hay productos vinculados. Las customizaciones extra se aplicarán a un item virtual con el nombre de la promoción, sin heredar variantes ni grupos de los productos.
-                        </span>
-                      </div>
                     )}
 
                     <div className="space-y-3">
@@ -1470,7 +1438,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                 </Button>
                 <Button
                   onClick={handleSave}
-                  disabled={loading || !form.title || (form.type === 'sale' && form.price <= 0)}
+                  disabled={isSaveDisabled}
                   className="bg-primary hover:bg-primary/90 text-white font-bold"
                 >
                   {loading ? 'Guardando...' : editingPromotion ? 'Actualizar' : 'Crear'}

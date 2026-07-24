@@ -41,6 +41,8 @@ export interface IOrderItem {
   printRole?: string
   addedFrom?: string
   addedByEmail?: string
+  promotionTitle?: string      // Título de la promo para ticket cocina
+  slotName?: string            // Nombre del slot para ticket cocina
   /** Si true, el item tenía descuento de categoría (originalPrice definido en el menú). El QR no aplicó sobre él. */
   hasCategoryDiscount?: boolean
 }
@@ -239,6 +241,8 @@ const OrderItemSchema = new Schema<IOrderItem>({
   printRole: { type: String, default: 'kitchen' },
   addedFrom: { type: String, default: null },
   addedByEmail: { type: String, default: null },
+  promotionTitle: { type: String, default: null },
+  slotName: { type: String, default: null },
   hasCategoryDiscount: { type: Boolean, default: false },
 })
 
