@@ -37,6 +37,7 @@ interface Slot {
   itemIds: string[]
   itemVariantFilters: { itemId: string; variantNames: string[] }[]
   requiredQuantity: number
+  customizationMode?: 'none' | 'variant' | 'full'
   allowCustomization: boolean | null
   overrideCustomizationGroups: OverrideGroup[]
 }
@@ -184,6 +185,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
         itemIds: [],
         itemVariantFilters: [],
         requiredQuantity: 1,
+        customizationMode: 'full',
         allowCustomization: null,
         overrideCustomizationGroups: [],
       }],
@@ -851,6 +853,33 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                 {/* ── Slots editor ── */}
                 {form.type === 'sale' && (
                   <div>
+                    {/* Promo-level customization default */}
+                    <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-muted/10 mb-4">
+                      <div className="flex-1 min-w-0">
+                        <Label className="text-xs font-bold text-foreground">Personalización por defecto</Label>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Modo por defecto para todos los slots. Cada slot puede cambiarlo individualmente.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={form.allowCustomization}
+                        onClick={() => setForm({ ...form, allowCustomization: !form.allowCustomization })}
+                        className={cn(
+                          'relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ml-3',
+                          form.allowCustomization ? 'bg-primary' : 'bg-muted-foreground/30'
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform',
+                            form.allowCustomization && 'translate-x-4'
+                          )}
+                        />
+                      </button>
+                    </div>
+
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">
                       Slots
                       <span className="font-normal normal-case tracking-normal text-muted-foreground/60">
@@ -916,26 +945,34 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                               </div>
                             </div>
 
-                            {/* Per-slot allowCustomization */}
-                            <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-background">
-                              <Label className="text-[10px] text-muted-foreground">Permitir personalización (slot)</Label>
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={slot.allowCustomization === true}
-                                onClick={() => updateSlot(sIdx, 'allowCustomization', slot.allowCustomization === true ? null : true)}
-                                className={cn(
-                                  'relative w-8 h-5 rounded-full transition-colors flex-shrink-0',
-                                  slot.allowCustomization === true ? 'bg-primary' : 'bg-muted-foreground/30'
-                                )}
-                              >
-                                <span
-                                  className={cn(
-                                    'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform',
-                                    slot.allowCustomization === true && 'translate-x-3'
-                                  )}
-                                />
-                              </button>
+                            {/* Per-slot customization mode */}
+                            <div className="px-3 py-2 rounded-lg border border-border bg-background">
+                              <Label className="text-[10px] text-muted-foreground mb-1.5 block">Personalización</Label>
+                              <div className="flex gap-1">
+                                {([
+                                  { value: 'none' as const, label: 'Sin personalizar' },
+                                  { value: 'variant' as const, label: 'Solo variante' },
+                                  { value: 'full' as const, label: 'Personalización completa' },
+                                ]).map(opt => {
+                                  const effective = slot.customizationMode ?? (slot.allowCustomization === false ? 'none' : slot.allowCustomization === true ? 'full' : null) ?? form.allowCustomization ? 'full' : 'none'
+                                  const isActive = (slot.customizationMode || effective) === opt.value
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => updateSlot(sIdx, 'customizationMode', opt.value)}
+                                      className={cn(
+                                        'flex-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all border',
+                                        isActive
+                                          ? 'bg-primary text-white border-primary'
+                                          : 'bg-background text-muted-foreground border-border hover:border-primary/50'
+                                      )}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
                             </div>
 
                             {/* Selected categories */}
@@ -1036,35 +1073,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                     <div className="mt-4">
                       <PromoPickerPreview slots={form.slots} promoTitle={form.title} />
                     </div>
-                  </div>
-                )}
-
-                {/* ── Allow customization toggle ── */}
-                {form.type === 'sale' && (
-                  <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-muted/10">
-                    <div className="flex-1 min-w-0">
-                      <Label className="text-xs font-bold text-foreground">Permitir personalización</Label>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Si desactivás, la promo se agrega directo sin pedir variantes ni extras al cliente
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={form.allowCustomization}
-                      onClick={() => setForm({ ...form, allowCustomization: !form.allowCustomization })}
-                      className={cn(
-                        'relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ml-3',
-                        form.allowCustomization ? 'bg-primary' : 'bg-muted-foreground/30'
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform',
-                          form.allowCustomization && 'translate-x-4'
-                        )}
-                      />
-                    </button>
                   </div>
                 )}
 

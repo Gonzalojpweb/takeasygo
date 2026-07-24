@@ -16,6 +16,7 @@ import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import CustomizationModal from '@/components/menu/CustomizationModal'
 import UpsellSheet from '@/components/menu/UpsellSheet'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
+import { resolveSlotCustomizationMode, type SlotCustomizationMode } from '@/models/Promotion'
 import StoreCarousel from '@/components/menu/StoreCarousel'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
@@ -527,9 +528,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
     if (allAutoSelect) {
       for (const slot of slotsWithResolved) {
-        const slotAllowCustomization = slot.allowCustomization ?? promotion.allowCustomization ?? true
+        const mode: SlotCustomizationMode = resolveSlotCustomizationMode(slot, promotion.allowCustomization)
         for (const item of slot.resolvedItems ?? []) {
-          if (slotAllowCustomization) {
+          if (mode === 'full') {
             openCustomizationModal({
               ...item,
               _promotionId: promotion._id,
@@ -546,6 +547,52 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               })),
               customizationGroups: item.customizationGroups ?? [],
             })
+          } else if (mode === 'variant') {
+            const availableVariants = (item.variants ?? []).map((v: any) => ({
+              ...v,
+              price: promotion.price,
+              takeawayPrice: promotion.price,
+            }))
+            if (availableVariants.length === 1) {
+              const v = availableVariants[0]
+              const promoId = `promo:${promotion._id}:${item.name.replace(/\s+/g, '_')}:${v.name}`
+              setCart(prev => {
+                const existing = prev.find(i => i.cartItemId === promoId)
+                if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
+                return [...prev, {
+                  cartItemId: promoId,
+                  menuItemId: item._id,
+                  promotionId: promotion._id,
+                  _promotionTitle: promotion.title,
+                  _slotName: slot.name,
+                  name: `${item.name} - ${v.name}`,
+                  basePrice: promotion.price,
+                  extraPrice: 0,
+                  price: promotion.price,
+                  quantity: 1,
+                  customizations: [],
+                  customizationSummary: v.name,
+                  selectedVariant: { name: v.name, price: v.price },
+                  addedFrom: 'menu',
+                  type: 'promotion' as const,
+                }]
+              })
+            } else {
+              openCustomizationModal({
+                ...item,
+                _promotionId: promotion._id,
+                _promotionTitle: promotion.title,
+                _itemName: item.name,
+                _slotName: slot.name,
+                price: promotion.price,
+                basePrice: promotion.price,
+                isPromotion: true,
+                hideQuantity: true,
+                unitLabel: slot.name,
+                variants: availableVariants,
+                customizationGroups: [],
+              })
+            }
           } else {
             const promoId = `promo:${promotion._id}:${item.name.replace(/\s+/g, '_')}`
             setCart(prev => {
@@ -1749,14 +1796,14 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                     {(currentSlot.resolvedItems ?? []).map((item: any) => {
                       const isSelected = currentState.selectedItems.some((si: any) => si._id === item._id)
                       const isDisabled = !isSelected && currentState.selectedItems.length >= currentSlot.requiredQuantity
-                      const slotAllowCustomization = currentSlot.allowCustomization ?? promo.allowCustomization ?? true
+                      const slotMode: SlotCustomizationMode = resolveSlotCustomizationMode(currentSlot, promo.allowCustomization)
                       return (
                         <button
                           key={item._id}
                           type="button"
                           disabled={isDisabled}
                           onClick={() => {
-                            if (slotAllowCustomization) {
+                            if (slotMode === 'full') {
                               openCustomizationModal({
                                 ...item,
                                 _promotionId: promo._id,
@@ -1773,6 +1820,68 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 })),
                                 customizationGroups: item.customizationGroups ?? [],
                               })
+                            } else if (slotMode === 'variant') {
+                              const availableVariants = (item.variants ?? []).map((v: any) => ({
+                                ...v,
+                                price: promo.price,
+                                takeawayPrice: promo.price,
+                              }))
+                              if (availableVariants.length <= 1) {
+                                const v = availableVariants[0]
+                                const promoId = `promo:${promo._id}:${item.name.replace(/\s+/g, '_')}:${v?.name || 'default'}`
+                                setCart(prev => {
+                                  const existing = prev.find(i => i.cartItemId === promoId)
+                                  if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
+                                  return [...prev, {
+                                    cartItemId: promoId,
+                                    menuItemId: item._id,
+                                    promotionId: promo._id,
+                                    _promotionTitle: promo.title,
+                                    _slotName: currentSlot.name,
+                                    name: v ? `${item.name} - ${v.name}` : item.name,
+                                    basePrice: promo.price,
+                                    extraPrice: 0,
+                                    price: promo.price,
+                                    quantity: 1,
+                                    customizations: [],
+                                    customizationSummary: v?.name || '',
+                                    selectedVariant: v ? { name: v.name, price: v.price } : undefined,
+                                    addedFrom: 'menu',
+                                    type: 'promotion' as const,
+                                  }]
+                                })
+                                setPromoSlotSelection(prev => {
+                                  if (!prev) return null
+                                  const newSlotStates = { ...prev.slotStates }
+                                  const st = newSlotStates[currentSlotIndex]
+                                  const newSelected = [...st.selectedItems, item]
+                                  const isCompleted = newSelected.length >= currentSlot.requiredQuantity
+                                  newSlotStates[currentSlotIndex] = { selectedItems: newSelected, completed: isCompleted }
+                                  let nextIdx = currentSlotIndex
+                                  if (isCompleted) {
+                                    for (let i = 0; i < prev.promo.slots.length; i++) {
+                                      if (!newSlotStates[i]?.completed) { nextIdx = i; break }
+                                    }
+                                  }
+                                  return { ...prev, slotStates: newSlotStates, currentSlotIndex: nextIdx }
+                                })
+                                toast.success(`${item.name} agregado`)
+                              } else {
+                                openCustomizationModal({
+                                  ...item,
+                                  _promotionId: promo._id,
+                                  _promotionTitle: promo.title,
+                                  _itemName: item.name,
+                                  _slotName: currentSlot.name,
+                                  price: promo.price,
+                                  basePrice: promo.price,
+                                  isPromotion: true,
+                                  hideQuantity: true,
+                                  unitLabel: currentSlot.name,
+                                  variants: availableVariants,
+                                  customizationGroups: [],
+                                })
+                              }
                             } else {
                               const promoId = `promo:${promo._id}:${item.name.replace(/\s+/g, '_')}`
                               setCart(prev => {

@@ -460,6 +460,7 @@ export async function POST(
         const overrideGroups = promotion.overrideCustomizationGroups ?? []
         let validationGroups: any[] = [...overrideGroups]
         let validationVariants: any[] = []
+        let slotMode: string = 'full'
 
         if (promotion.slots?.length > 0) {
           const clientAny = clientItem as any
@@ -510,6 +511,11 @@ export async function POST(
               { status: 400 }
             )
           }
+
+          // Resolve effective customization mode
+          slotMode = (slot as any).customizationMode
+            ?? ((slot as any).allowCustomization === false ? 'none' : (slot as any).allowCustomization === true ? 'full' : null)
+            ?? (promotion.allowCustomization === false ? 'none' : 'full')
 
           // Validate item belongs to slot
 
@@ -639,8 +645,8 @@ export async function POST(
           }
         }
 
-        // Validate customizations
-        if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
+        // Validate customizations (only for 'full' mode)
+        if (slotMode === 'full' && Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
           if (validationGroups.length > 0) {
             try {
               const result = resolveCustomizations(clientItem.customizations, validationGroups)
@@ -657,8 +663,8 @@ export async function POST(
           }
         }
 
-        // Validate variant
-        if (validationVariants.length > 0) {
+        // Validate variant (skip for 'none' mode)
+        if (slotMode !== 'none' && validationVariants.length > 0) {
           const selectedVariant = clientItem.selectedVariant
           if (!selectedVariant) {
             return NextResponse.json(

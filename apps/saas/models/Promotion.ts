@@ -3,12 +3,32 @@ import type { ICustomizationGroup } from './Menu'
 
 export type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
 
+export type SlotCustomizationMode = 'none' | 'variant' | 'full'
+
+/**
+ * Resuelve el modo de personalización efectivo para un slot.
+ * Jerarquía: slot.customizationMode > slot.allowCustomization > promo.allowCustomization > default 'full'
+ */
+export function resolveSlotCustomizationMode(
+  slot: { customizationMode?: SlotCustomizationMode; allowCustomization?: boolean | null },
+  promoAllowCustomization?: boolean
+): SlotCustomizationMode {
+  if (slot.customizationMode) return slot.customizationMode
+  if (slot.allowCustomization === true) return 'full'
+  if (slot.allowCustomization === false) return 'none'
+  if (promoAllowCustomization === false) return 'none'
+  return 'full'
+}
+
 export interface IPromotionSlot {
   name: string
   categoryIds?: mongoose.Types.ObjectId[]
   itemIds?: mongoose.Types.ObjectId[]
   itemVariantFilters?: { itemId: mongoose.Types.ObjectId; variantNames: string[] }[]
   requiredQuantity: number
+  /** 'none' = directo al carrito, 'variant' = picker inline de variante, 'full' = modal completo */
+  customizationMode?: SlotCustomizationMode
+  /** @deprecated Usar customizationMode */
   allowCustomization?: boolean
   overrideCustomizationGroups?: ICustomizationGroup[]
 }
@@ -70,6 +90,7 @@ const PromotionSlotSchema = new Schema<IPromotionSlot>({
     default: [],
   },
   requiredQuantity: { type: Number, required: true, min: 1 },
+  customizationMode: { type: String, enum: ['none', 'variant', 'full'], default: null },
   allowCustomization: { type: Boolean, default: null },
   overrideCustomizationGroups: { type: [Schema.Types.Mixed], default: [] },
 }, { _id: false })
