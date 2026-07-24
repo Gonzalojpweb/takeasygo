@@ -553,6 +553,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
               return [...prev, {
                 cartItemId: promoId,
+                menuItemId: item._id,
                 promotionId: promotion._id,
                 _promotionTitle: promotion.title,
                 _slotName: slot.name,
@@ -1779,6 +1780,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
                                 return [...prev, {
                                   cartItemId: promoId,
+                                  menuItemId: item._id,
                                   promotionId: promo._id,
                                   _promotionTitle: promo.title,
                                   _slotName: currentSlot.name,

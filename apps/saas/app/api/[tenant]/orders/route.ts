@@ -506,7 +506,7 @@ export async function POST(
 
           if (!slot) {
             return NextResponse.json(
-              { error: `No se pudo resolver el slot para el ítem en la promoción "${promotion.title}"` },
+              { error: `No se pudo identificar el ítem "${itemName}" en la promoción "${promotion.title}". Probá eliminarlo y agregarlo nuevamente.` },
               { status: 400 }
             )
           }
