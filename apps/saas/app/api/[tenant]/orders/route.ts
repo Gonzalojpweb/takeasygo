@@ -452,44 +452,91 @@ export async function POST(
         const quantity = clientItem.quantity
         const price = promotion.price
 
-        // ── Validate customizations if promotion has linked items ──────────
+        // ── Validate slot-based promotions ───────────────────────────────
         let extraPrice = 0
         const resolvedCustomizations: any[] = []
         let resolvedSelectedVariant: any = null
 
-        // Obtener los grupos de customización del snapshot o de linkedCategoryIds/overrideCustomizationGroups
-        const linkedSnapshot = promotion.linkedItemSnapshot
         const overrideGroups = promotion.overrideCustomizationGroups ?? []
-
-        // Construir los customizationGroups de validación: mezcla de snapshot + overrideGroups
-        let validationGroups: any[] = []
+        let validationGroups: any[] = [...overrideGroups]
         let validationVariants: any[] = []
 
-        if (linkedSnapshot) {
-          // Backward compat: usar snapshot legacy
-          validationGroups = [...(linkedSnapshot.customizationGroups ?? []), ...overrideGroups]
-          validationVariants = linkedSnapshot.variants ?? []
-        } else if (promotion.linkedCategoryIds?.length > 0 || promotion.linkedItemIds?.length > 0) {
-          // Nuevo sistema: usar grupos de override + heredados del menú
-          validationGroups = [...overrideGroups]
+        if (promotion.slots?.length > 0) {
+          const clientAny = clientItem as any
+          const slotName = clientAny._slotName
+
+          if (!slotName) {
+            return NextResponse.json(
+              { error: `Falta _slotName en item de promoción "${promotion.title}"` },
+              { status: 400 }
+            )
+          }
+
+          const slot = promotion.slots.find((s: any) => s.name === slotName)
+          if (!slot) {
+            return NextResponse.json(
+              { error: `Slot "${slotName}" no existe en la promoción "${promotion.title}"` },
+              { status: 400 }
+            )
+          }
+
+          // Validate item belongs to slot
+          const itemName = clientAny._itemName
+          const itemId = clientItem.menuItemId?.toString()
+
+          if (slot.itemIds?.length > 0) {
+            if (!itemId || !slot.itemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
+              return NextResponse.json(
+                { error: `Ítem "${itemName}" no pertenece al slot "${slotName}"` },
+                { status: 400 }
+              )
+            }
+          } else if (slot.categoryIds?.length > 0) {
+            const menuCats: any[] = menu.categories ?? []
+            let belongs = false
+            for (const cat of menuCats) {
+              const catId = cat._id?.toString?.() || cat._id
+              if (slot.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
+                const allItems = [
+                  ...(cat.items ?? []),
+                  ...(cat.subcategories ?? []).flatMap((s: any) => s.items ?? []),
+                ]
+                if (allItems.some((i: any) => (i._id?.toString?.() || i._id) === itemId)) {
+                  belongs = true
+                  break
+                }
+              }
+            }
+            if (!belongs) {
+              return NextResponse.json(
+                { error: `Ítem "${itemName}" no pertenece al slot "${slotName}"` },
+                { status: 400 }
+              )
+            }
+          }
+
+          // Build validation groups from slot's item + category groups
+          const slotOverrideGroups = slot.overrideCustomizationGroups ?? []
+          validationGroups = [...overrideGroups, ...slotOverrideGroups]
           const menuCats: any[] = menu.categories ?? []
           const seenItemIds = new Set<string>()
 
-          if (Array.isArray(promotion.linkedCategoryIds)) {
+          // Resolve items from slot's categoryIds for group inheritance
+          if (Array.isArray(slot.categoryIds)) {
             for (const cat of menuCats) {
               const catId = cat._id?.toString?.() || cat._id
-              if (promotion.linkedCategoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
+              if (slot.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
                 validationGroups.unshift(...(cat.customizationGroups ?? []))
                 for (const item of cat.items ?? []) {
-                  const itemId = item._id?.toString?.() || item._id
-                  if (!seenItemIds.has(itemId)) {
-                    seenItemIds.add(itemId)
+                  const mid = item._id?.toString?.() || item._id
+                  if (!seenItemIds.has(mid)) {
+                    seenItemIds.add(mid)
                     validationGroups.unshift(...(item.customizationGroups ?? []))
                     if ((item.variants ?? []).length > 0) {
-                      const variantFilter = (promotion.linkedItemVariantFilters ?? []).find(
-                        (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === itemId
+                      const vf = (slot.itemVariantFilters ?? []).find(
+                        (f: any) => (f.itemId?.toString?.() || f.itemId) === mid
                       )
-                      const allowedNames = variantFilter?.variantNames ?? []
+                      const allowedNames = vf?.variantNames ?? []
                       const itemVariants = (item.variants ?? []).filter(
                         (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
                       )
@@ -497,18 +544,17 @@ export async function POST(
                     }
                   }
                 }
-                for (const subcat of cat.subcategories ?? []) {
-                  validationGroups.unshift(...(subcat.customizationGroups ?? []))
-                  for (const item of subcat.items ?? []) {
-                    const itemId = item._id?.toString?.() || item._id
-                    if (!seenItemIds.has(itemId)) {
-                      seenItemIds.add(itemId)
+                for (const sub of cat.subcategories ?? []) {
+                  for (const item of sub.items ?? []) {
+                    const mid = item._id?.toString?.() || item._id
+                    if (!seenItemIds.has(mid)) {
+                      seenItemIds.add(mid)
                       validationGroups.unshift(...(item.customizationGroups ?? []))
                       if ((item.variants ?? []).length > 0) {
-                        const variantFilter = (promotion.linkedItemVariantFilters ?? []).find(
-                          (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === itemId
+                        const vf = (slot.itemVariantFilters ?? []).find(
+                          (f: any) => (f.itemId?.toString?.() || f.itemId) === mid
                         )
-                        const allowedNames = variantFilter?.variantNames ?? []
+                        const allowedNames = vf?.variantNames ?? []
                         const itemVariants = (item.variants ?? []).filter(
                           (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
                         )
@@ -521,18 +567,19 @@ export async function POST(
             }
           }
 
-          if (Array.isArray(promotion.linkedItemIds)) {
+          // Also resolve from slot's itemIds for group inheritance
+          if (Array.isArray(slot.itemIds)) {
             for (const cat of menuCats) {
               for (const item of cat.items ?? []) {
-                const itemId = item._id?.toString?.() || item._id
-                if (!seenItemIds.has(itemId) && promotion.linkedItemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
-                  seenItemIds.add(itemId)
+                const mid = item._id?.toString?.() || item._id
+                if (!seenItemIds.has(mid) && slot.itemIds.some((id: any) => (id?.toString?.() || id) === mid)) {
+                  seenItemIds.add(mid)
                   validationGroups.unshift(...(item.customizationGroups ?? []))
                   if ((item.variants ?? []).length > 0) {
-                    const variantFilter = (promotion.linkedItemVariantFilters ?? []).find(
-                      (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === itemId
+                    const vf = (slot.itemVariantFilters ?? []).find(
+                      (f: any) => (f.itemId?.toString?.() || f.itemId) === mid
                     )
-                    const allowedNames = variantFilter?.variantNames ?? []
+                    const allowedNames = vf?.variantNames ?? []
                     const itemVariants = (item.variants ?? []).filter(
                       (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
                     )
@@ -540,17 +587,17 @@ export async function POST(
                   }
                 }
               }
-              for (const subcat of cat.subcategories ?? []) {
-                for (const item of subcat.items ?? []) {
-                  const itemId = item._id?.toString?.() || item._id
-                  if (!seenItemIds.has(itemId) && promotion.linkedItemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
-                    seenItemIds.add(itemId)
+              for (const sub of cat.subcategories ?? []) {
+                for (const item of sub.items ?? []) {
+                  const mid = item._id?.toString?.() || item._id
+                  if (!seenItemIds.has(mid) && slot.itemIds.some((id: any) => (id?.toString?.() || id) === mid)) {
+                    seenItemIds.add(mid)
                     validationGroups.unshift(...(item.customizationGroups ?? []))
                     if ((item.variants ?? []).length > 0) {
-                      const variantFilter = (promotion.linkedItemVariantFilters ?? []).find(
-                        (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === itemId
+                      const vf = (slot.itemVariantFilters ?? []).find(
+                        (f: any) => (f.itemId?.toString?.() || f.itemId) === mid
                       )
-                      const allowedNames = variantFilter?.variantNames ?? []
+                      const allowedNames = vf?.variantNames ?? []
                       const itemVariants = (item.variants ?? []).filter(
                         (v: any) => allowedNames.length === 0 || allowedNames.includes(v.name)
                       )
@@ -563,6 +610,7 @@ export async function POST(
           }
         }
 
+        // Validate customizations
         if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
           if (validationGroups.length > 0) {
             try {
@@ -580,7 +628,7 @@ export async function POST(
           }
         }
 
-        // ── Validate variant if linked item has variants ───────────────────
+        // Validate variant
         if (validationVariants.length > 0) {
           const selectedVariant = clientItem.selectedVariant
           if (!selectedVariant) {
@@ -626,6 +674,8 @@ export async function POST(
           selectedVariant: resolvedSelectedVariant,
           printRole: 'kitchen',
           addedFrom: clientItem.addedFrom ?? null,
+          promotionTitle: clientAny._promotionTitle || promotion.title,
+          slotName: clientAny._slotName || null,
           hasCategoryDiscount: false,
         })
       } else {

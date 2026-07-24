@@ -47,7 +47,6 @@ export async function GET(
       ]
     }
 
-    // Tenant-specific promotions
     const tenantPromos: any = {
       tenantId: tenant._id,
       isActive: true,
@@ -55,7 +54,6 @@ export async function GET(
       $and: scheduleFilters,
     }
 
-    // Legacy promotions without scope field
     const legacyPromos: any = {
       scope: { $exists: false },
       tenantId: tenant._id,
@@ -64,7 +62,6 @@ export async function GET(
       $and: scheduleFilters,
     }
 
-    // Global promotions targeting this tenant (or all tenants)
     const globalPromos: any = {
       scope: 'global',
       isActive: true,
@@ -82,141 +79,101 @@ export async function GET(
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId }).lean()
     const menuCats = (menu as any)?.categories ?? []
 
-    const promotionsWithLinked = promotions.map(p => {
-      const promo: any = { ...p }
+    function buildSlotItem(item: any, slot: any, cat: any, promoOverrideGroups: any[]) {
+      const id = item._id?.toString?.() || item._id
+      const variantFilter = (slot.itemVariantFilters ?? []).find(
+        (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === id
+      )
+      const allowedNames = variantFilter?.variantNames ?? []
+      const variants = allowedNames.length > 0
+        ? (item.variants ?? []).filter((v: any) => allowedNames.includes(v.name))
+        : (item.variants ?? [])
 
-      // Build linkedItems from linkedCategoryIds + linkedItemIds + deprecated linkedMenuItemId
-      const linkedItems: any[] = []
+      return {
+        _id: id,
+        name: item.name,
+        categoryName: cat.name,
+        variants,
+        customizationGroups: [
+          ...(cat.customizationGroups ?? []),
+          ...(item.customizationGroups ?? []),
+          ...(slot.overrideCustomizationGroups ?? []),
+          ...(promoOverrideGroups ?? []),
+        ],
+      }
+    }
+
+    function resolveItemsForSlot(slot: any, promoOverrideGroups: any[]) {
+      const resolved: any[] = []
       const seenItemIds = new Set<string>()
 
-      // Helper to add an item with merged customization groups
-      function addItem(item: any, catCustomGroups: any[], catName: string) {
-        const id = item._id?.toString?.() || item._id
-        if (seenItemIds.has(id)) return
-        seenItemIds.add(id)
-
-        const variantFilter = (promo.linkedItemVariantFilters ?? []).find(
-          (vf: any) => (vf.itemId?.toString?.() || vf.itemId) === id
-        )
-        const allowedNames = variantFilter?.variantNames ?? []
-        const variants = allowedNames.length > 0
-          ? (item.variants ?? []).filter((v: any) => allowedNames.includes(v.name))
-          : (item.variants ?? [])
-
-        linkedItems.push({
-          _id: id,
-          name: item.name,
-          categoryName: catName,
-          variants,
-          customizationGroups: [
-            ...(catCustomGroups ?? []),
-            ...(item.customizationGroups ?? []),
-            ...(promo.overrideCustomizationGroups ?? []),
-          ],
-        })
-      }
-
-      // 1) Items from linked categories
-      if (Array.isArray(promo.linkedCategoryIds) && promo.linkedCategoryIds.length > 0) {
-        for (const cat of menuCats) {
-          const catId = cat._id?.toString?.() || cat._id
-          if (promo.linkedCategoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
-            for (const item of cat.items ?? []) {
-              addItem(item, cat.customizationGroups ?? [], cat.name)
-            }
-            for (const sub of cat.subcategories ?? []) {
-              for (const item of sub.items ?? []) {
-                addItem(item, cat.customizationGroups ?? [], cat.name)
-              }
-            }
-          }
-        }
-      }
-
-      // 2) Specific linked items
-      if (Array.isArray(promo.linkedItemIds) && promo.linkedItemIds.length > 0) {
+      if (Array.isArray(slot.itemIds) && slot.itemIds.length > 0) {
         for (const cat of menuCats) {
           for (const item of cat.items ?? []) {
             const itemId = item._id?.toString?.() || item._id
-            if (promo.linkedItemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
-              addItem(item, cat.customizationGroups ?? [], cat.name)
+            if (slot.itemIds.some((id: any) => (id?.toString?.() || id) === itemId) && !seenItemIds.has(itemId)) {
+              seenItemIds.add(itemId)
+              resolved.push(buildSlotItem(item, slot, cat, promoOverrideGroups))
             }
           }
           for (const sub of cat.subcategories ?? []) {
             for (const item of sub.items ?? []) {
               const itemId = item._id?.toString?.() || item._id
-              if (promo.linkedItemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
-                addItem(item, cat.customizationGroups ?? [], cat.name)
+              if (slot.itemIds.some((id: any) => (id?.toString?.() || id) === itemId) && !seenItemIds.has(itemId)) {
+                seenItemIds.add(itemId)
+                resolved.push(buildSlotItem(item, slot, cat, promoOverrideGroups))
+              }
+            }
+          }
+        }
+      } else if (Array.isArray(slot.categoryIds) && slot.categoryIds.length > 0) {
+        for (const cat of menuCats) {
+          const catId = cat._id?.toString?.() || cat._id
+          if (slot.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
+            for (const item of cat.items ?? []) {
+              const itemId = item._id?.toString?.() || item._id
+              if (!seenItemIds.has(itemId)) {
+                seenItemIds.add(itemId)
+                resolved.push(buildSlotItem(item, slot, cat, promoOverrideGroups))
+              }
+            }
+            for (const sub of cat.subcategories ?? []) {
+              for (const item of sub.items ?? []) {
+                const itemId = item._id?.toString?.() || item._id
+                if (!seenItemIds.has(itemId)) {
+                  seenItemIds.add(itemId)
+                  resolved.push(buildSlotItem(item, slot, cat, promoOverrideGroups))
+                }
               }
             }
           }
         }
       }
 
-      // 3) Backward compat: deprecated linkedMenuItemId
-      if (promo.linkedMenuItemId && !linkedItems.length) {
-        const oldId = promo.linkedMenuItemId?.toString?.() || promo.linkedMenuItemId
-        for (const cat of menuCats) {
-          const item = (cat.items ?? []).find(
-            (i: any) => (i._id?.toString?.() || i._id) === oldId
-          )
-          if (item) {
-            const snapshot = promo.linkedItemSnapshot
-            addItem(
-              {
-                _id: item._id,
-                name: snapshot?.name || item.name,
-                variants: snapshot?.variants ?? item.variants ?? [],
-                customizationGroups: [
-                  ...(cat.customizationGroups ?? []),
-                  ...(snapshot?.customizationGroups ?? item.customizationGroups ?? []),
-                  ...(promo.overrideCustomizationGroups ?? []),
-                ],
-              },
-              [],
-              cat.name
-            )
-            break
-          }
-          for (const sub of cat.subcategories ?? []) {
-            const subItem = (sub.items ?? []).find(
-              (i: any) => (i._id?.toString?.() || i._id) === oldId
-            )
-            if (subItem) {
-              const snapshot = promo.linkedItemSnapshot
-              addItem(
-                {
-                  _id: subItem._id,
-                  name: snapshot?.name || subItem.name,
-                  variants: snapshot?.variants ?? subItem.variants ?? [],
-                  customizationGroups: [
-                    ...(cat.customizationGroups ?? []),
-                    ...(snapshot?.customizationGroups ?? subItem.customizationGroups ?? []),
-                    ...(promo.overrideCustomizationGroups ?? []),
-                  ],
-                },
-                [],
-                cat.name
-              )
-              break
-            }
-          }
-        }
+      return resolved
+    }
+
+    const promotionsWithSlots = promotions.map(p => {
+      const promo: any = { ...p }
+
+      if (p.type === 'sale' && Array.isArray(p.slots) && p.slots.length > 0) {
+        const promoOverrideGroups = p.overrideCustomizationGroups ?? []
+        promo.slots = p.slots.map((slot: any) => ({
+          ...slot,
+          resolvedItems: resolveItemsForSlot(slot, promoOverrideGroups),
+        }))
       }
 
-      promo.linkedItems = linkedItems
       return promo
     })
 
-    const filteredPromotions = promotionsWithLinked.filter((p: any) => {
-      // Treat missing/undefined visibility as 'both' (visible everywhere)
+    const filteredPromotions = promotionsWithSlots.filter((p: any) => {
       const vis = p.visibility || 'both'
       if (vis === 'both') return true
       if (vis === mode) return true
       return false
     }).filter((p: any) => {
       if (!p.activeTimeStart || !p.activeTimeEnd) return true
-      const now = new Date()
       const currentMinutes = now.getHours() * 60 + now.getMinutes()
       const [startH, startM] = p.activeTimeStart.split(':').map(Number)
       const [endH, endM] = p.activeTimeEnd.split(':').map(Number)

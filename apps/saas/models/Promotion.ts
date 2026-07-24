@@ -3,6 +3,16 @@ import type { ICustomizationGroup } from './Menu'
 
 export type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
 
+export interface IPromotionSlot {
+  name: string
+  categoryIds?: mongoose.Types.ObjectId[]
+  itemIds?: mongoose.Types.ObjectId[]
+  itemVariantFilters?: { itemId: mongoose.Types.ObjectId; variantNames: string[] }[]
+  requiredQuantity: number
+  allowCustomization?: boolean
+  overrideCustomizationGroups?: ICustomizationGroup[]
+}
+
 export interface IPromotion {
   tenantId?: mongoose.Types.ObjectId
   locationId?: mongoose.Types.ObjectId
@@ -38,25 +48,31 @@ export interface IPromotion {
   maxRedemptions?: number
   redemptionsCount: number
   sortOrder: number
-  /** Categorías del menú vinculadas — hereda todos sus items + customizaciones de categoría */
-  linkedCategoryIds?: mongoose.Types.ObjectId[]
-  /** Items específicos vinculados (para control fino fuera de categorías) */
-  linkedItemIds?: mongoose.Types.ObjectId[]
-  /** Customizaciones extra que el admin define, se mergean con las heredadas */
-  overrideCustomizationGroups?: ICustomizationGroup[]
-  linkedItemVariantFilters?: { itemId: mongoose.Types.ObjectId; variantNames: string[] }[]
+  /** REQUERIDO para type === 'sale'. Ignorado para info/announcement/loyalty. */
+  slots: IPromotionSlot[]
+  /** Default true — aplica como default a todos los slots */
   allowCustomization?: boolean
-  /** @deprecated Usar linkedCategoryIds/linkedItemIds + overrideCustomizationGroups */
-  linkedMenuItemId?: mongoose.Types.ObjectId
-  /** @deprecated Usar overrideCustomizationGroups */
-  linkedItemSnapshot?: {
-    name: string
-    variants: any[]
-    customizationGroups: any[]
-  }
+  /** A nivel promo, se fusiona con el de cada slot */
+  overrideCustomizationGroups?: ICustomizationGroup[]
   createdAt: Date
   updatedAt: Date
 }
+
+const PromotionSlotSchema = new Schema<IPromotionSlot>({
+  name: { type: String, required: true, trim: true },
+  categoryIds: { type: [Schema.Types.ObjectId], default: [] },
+  itemIds: { type: [Schema.Types.ObjectId], default: [] },
+  itemVariantFilters: {
+    type: [{
+      itemId: { type: Schema.Types.ObjectId, required: true },
+      variantNames: { type: [String], default: [] },
+    }],
+    default: [],
+  },
+  requiredQuantity: { type: Number, required: true, min: 1 },
+  allowCustomization: { type: Boolean, default: null },
+  overrideCustomizationGroups: { type: [Schema.Types.Mixed], default: [] },
+}, { _id: false })
 
 const PromotionSchema = new Schema<IPromotion>(
   {
@@ -185,37 +201,17 @@ const PromotionSchema = new Schema<IPromotion>(
       type: Number,
       default: 0,
     },
-    linkedCategoryIds: {
-      type: [Schema.Types.ObjectId],
-      default: [],
-    },
-    linkedItemIds: {
-      type: [Schema.Types.ObjectId],
-      default: [],
-    },
-    overrideCustomizationGroups: {
-      type: [Schema.Types.Mixed],
-      default: [],
-    },
-    linkedItemVariantFilters: {
-      type: [{
-        itemId: { type: Schema.Types.ObjectId, required: true },
-        variantNames: { type: [String], default: [] },
-      }],
+    slots: {
+      type: [PromotionSlotSchema],
       default: [],
     },
     allowCustomization: {
       type: Boolean,
       default: true,
     },
-    // deprecated — mantenido para backward compat
-    linkedMenuItemId: {
-      type: Schema.Types.ObjectId,
-      default: null,
-    },
-    linkedItemSnapshot: {
-      type: Schema.Types.Mixed,
-      default: null,
+    overrideCustomizationGroups: {
+      type: [Schema.Types.Mixed],
+      default: [],
     },
   },
   {

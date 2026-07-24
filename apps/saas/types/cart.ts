@@ -22,6 +22,8 @@ export interface CartItem {
   cartItemId: string           // `${menuItemId}:plain` or `${menuItemId}:${Date.now()}`
   menuItemId?: string
   promotionId?: string         // ID de la promoción si type === 'promotion'
+  _promotionTitle?: string     // Título de la promo, para subtítulo en carrito
+  _slotName?: string           // Nombre del slot, para subtítulo en carrito
   name: string
   description?: string
   imageUrl?: string
