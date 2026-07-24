@@ -463,26 +463,55 @@ export async function POST(
 
         if (promotion.slots?.length > 0) {
           const clientAny = clientItem as any
-          const slotName = clientAny._slotName
+          const itemName = clientAny._itemName
+          const itemId = clientItem.menuItemId?.toString()
+          let slotName = clientAny._slotName
+          let slot: any = null
 
-          if (!slotName) {
-            return NextResponse.json(
-              { error: `Falta _slotName en item de promoción "${promotion.title}"` },
-              { status: 400 }
-            )
+          if (slotName) {
+            slot = promotion.slots.find((s: any) => s.name === slotName)
           }
 
-          const slot = promotion.slots.find((s: any) => s.name === slotName)
+          // Defensive: if _slotName missing or doesn't match, infer from itemId/categoryId
+          if (!slot) {
+            const menuCats: any[] = menu.categories ?? []
+            for (const s of promotion.slots) {
+              if (s.itemIds?.length > 0) {
+                if (itemId && s.itemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
+                  slot = s
+                  break
+                }
+              } else if (s.categoryIds?.length > 0) {
+                for (const cat of menuCats) {
+                  const catId = cat._id?.toString?.() || cat._id
+                  if (s.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
+                    const allItems = [
+                      ...(cat.items ?? []),
+                      ...(cat.subcategories ?? []).flatMap((sub: any) => sub.items ?? []),
+                    ]
+                    if (allItems.some((i: any) => (i._id?.toString?.() || i._id) === itemId)) {
+                      slot = s
+                      break
+                    }
+                  }
+                }
+                if (slot) break
+              }
+            }
+            if (slot) {
+              slotName = slot.name
+              console.warn(`[orders] Promo item missing _slotName — inferred "${slotName}" for "${itemName}" in promo "${promotion.title}"`)
+            }
+          }
+
           if (!slot) {
             return NextResponse.json(
-              { error: `Slot "${slotName}" no existe en la promoción "${promotion.title}"` },
+              { error: `No se pudo resolver el slot para el ítem en la promoción "${promotion.title}"` },
               { status: 400 }
             )
           }
 
           // Validate item belongs to slot
-          const itemName = clientAny._itemName
-          const itemId = clientItem.menuItemId?.toString()
 
           if (slot.itemIds?.length > 0) {
             if (!itemId || !slot.itemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
