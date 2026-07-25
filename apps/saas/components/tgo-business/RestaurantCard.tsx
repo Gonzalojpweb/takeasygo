@@ -27,6 +27,7 @@ import {
   getProximityLabel,
   getOpportunityLabel,
 } from '@/lib/restaurant-card-helpers'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 function walkingMinutes(distanceM: number | null): number | null {
   if (distanceM === null) return null
@@ -172,6 +173,7 @@ function HeroLayout({
   onNavigate?: () => void
   index: number
 }) {
+  const haptic = useHaptic()
   const proximity = getProximityLabel(r.distanceM, walkingMinutes(r.distanceM) ?? undefined)
   const opportunity = getOpportunityLabel(r.loyaltyInfo)
 
@@ -180,7 +182,7 @@ function HeroLayout({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
-      onClick={onNavigate}
+      onClick={() => { haptic.impact('light'); onNavigate?.() }}
       className="relative flex overflow-hidden cursor-pointer group active:scale-[0.98]"
       style={{
         borderRadius: 'var(--tgo-radius-lg)',
@@ -226,7 +228,7 @@ function HeroLayout({
             backgroundColor: 'rgba(255,255,255,0.9)',
             transition: `opacity var(--tgo-duration-fast) var(--tgo-ease-standard)`,
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => { haptic.selection(); e.stopPropagation() }}
         >
           <Bookmark size={14} style={{ color: 'var(--tgo-text-primary)' }} />
         </button>
@@ -347,6 +349,7 @@ function ListLayout({
   onNavigate?: () => void
   index: number
 }) {
+  const haptic = useHaptic()
   const proximity = getProximityLabel(r.distanceM, walkingMinutes(r.distanceM) ?? undefined)
   const opportunity = getOpportunityLabel(r.loyaltyInfo)
 
@@ -355,7 +358,7 @@ function ListLayout({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
-      onClick={onNavigate}
+      onClick={() => { haptic.impact('light'); onNavigate?.() }}
       className="relative flex items-center gap-4 cursor-pointer group active:scale-[0.99]"
       style={{
         padding: 'var(--tgo-card-padding)',
@@ -578,6 +581,7 @@ function CompactLayout({
   onNavigate?: () => void
   index: number
 }) {
+  const haptic = useHaptic()
   const proximity = getProximityLabel(r.distanceM)
 
   return (
@@ -585,7 +589,7 @@ function CompactLayout({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
-      onClick={onNavigate}
+      onClick={() => { haptic.impact('light'); onNavigate?.() }}
       className="flex items-center gap-3 cursor-pointer group active:scale-[0.98]"
       style={{
         padding: '10px 12px',
@@ -699,6 +703,7 @@ function MapPreviewLayout({
   isNetwork: boolean
   onNavigate?: () => void
 }) {
+  const haptic = useHaptic()
   const proximity = getProximityLabel(r.distanceM)
   const opportunity = getOpportunityLabel(r.loyaltyInfo)
 
@@ -707,7 +712,7 @@ function MapPreviewLayout({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
-      onClick={onNavigate}
+      onClick={() => { haptic.impact('light'); onNavigate?.() }}
       className="flex items-center gap-3 cursor-pointer"
       style={{
         padding: '10px 12px',

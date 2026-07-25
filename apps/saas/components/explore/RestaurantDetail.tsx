@@ -9,6 +9,8 @@ import WeeklySchedule from './WeeklySchedule'
 import { getClosingTime, getNextOpenTime } from '@/lib/service-hours'
 import { Chip } from '@/components/tgo'
 import 'leaflet/dist/leaflet.css'
+import { useHaptic } from '@/components/tgo/useHaptic'
+import { microcopy } from '@/components/tgo/microcopy'
 
 function getOrCreateSessionId(): string {
   const key = 'tgo_explore_session'
@@ -78,6 +80,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
   const router = useRouter()
   const isNetwork = r.type === 'network'
   const [isFavorite, setIsFavorite] = useState(false)
+  const haptic = useHaptic()
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
@@ -94,14 +97,14 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
 
         {/* Nav */}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between" style={{ padding: 'var(--tgo-safe-top) var(--tgo-page-padding) 0', paddingTop: 'calc(var(--tgo-safe-top) + 16px)' }}>
-          <button onClick={() => router.back()} className="flex items-center justify-center" style={{ width: 40, height: 40, borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'rgba(26,26,26,0.48)', backdropFilter: 'blur(12px)', color: 'var(--tgo-text-inverse)' }}>
+          <button onClick={() => router.back()} aria-label={microcopy.nav.back} className="flex items-center justify-center" style={{ width: 40, height: 40, borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'rgba(26,26,26,0.48)', backdropFilter: 'blur(12px)', color: 'var(--tgo-text-inverse)' }}>
             <ArrowLeft size={18} />
           </button>
           <div className="flex items-center gap-2">
-            <button onClick={() => setIsFavorite(v => !v)} className="flex items-center justify-center" style={{ width: 40, height: 40, borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'rgba(26,26,26,0.48)', backdropFilter: 'blur(12px)', color: isFavorite ? 'var(--tgo-brand-primary)' : 'var(--tgo-text-inverse)' }}>
+            <button onClick={() => { haptic.selection(); setIsFavorite(v => !v) }} aria-label={isFavorite ? microcopy.restaurant.unfavorite : microcopy.restaurant.favorite} className="flex items-center justify-center" style={{ width: 40, height: 40, borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'rgba(26,26,26,0.48)', backdropFilter: 'blur(12px)', color: isFavorite ? 'var(--tgo-brand-primary)' : 'var(--tgo-text-inverse)' }}>
               <Heart size={18} fill={isFavorite ? 'var(--tgo-brand-primary)' : 'none'} />
             </button>
-            <button onClick={() => handleShare(r.name, r.address, r.tenantSlug)} className="flex items-center justify-center" style={{ width: 40, height: 40, borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'rgba(26,26,26,0.48)', backdropFilter: 'blur(12px)', color: 'var(--tgo-text-inverse)' }} title="Compartir">
+            <button onClick={() => { haptic.impact('light'); handleShare(r.name, r.address, r.tenantSlug) }} aria-label={microcopy.restaurant.share} className="flex items-center justify-center" style={{ width: 40, height: 40, borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'rgba(26,26,26,0.48)', backdropFilter: 'blur(12px)', color: 'var(--tgo-text-inverse)' }}>
               <Share2 size={17} />
             </button>
           </div>
@@ -132,15 +135,15 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
             </Chip>
           )}
           <Chip variant={isNetwork ? 'active' : 'default'} size="sm">
-            {isNetwork ? 'En Red TGO' : 'Directorio'}
+            {isNetwork ? microcopy.restaurant.inNetwork : microcopy.restaurant.directory}
           </Chip>
           {r.isOpenNow === true && (
             <Chip variant="active" size="sm" icon={<span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--tgo-state-success)' }} />}>
-              Abierto
+              {microcopy.restaurant.open}
             </Chip>
           )}
           {r.isOpenNow === false && (
-            <Chip variant="danger" size="sm">Cerrado</Chip>
+            <Chip variant="danger" size="sm">{microcopy.restaurant.closed}</Chip>
           )}
           {r.distanceM != null && r.distanceM > 0 && (
             <span style={{ color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-body-sm)' }}>{distLabel(r.distanceM)}</span>
@@ -153,12 +156,12 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
             <InfoRow icon={<MapPin size={14} />} color="var(--tgo-text-muted)">{r.address}</InfoRow>
             {r.isOpenNow === true && r.serviceHours && (
               <InfoRow icon={<Clock size={14} />} color="var(--tgo-state-success)">
-                {(() => { const c = getClosingTime(r.serviceHours!); return c ? `Abierto — Cierra a las ${c}` : 'Abierto ahora' })()}
+                {(() => { const c = getClosingTime(r.serviceHours!); return c ? microcopy.restaurant.openUntil(c) : microcopy.restaurant.openNow })()}
               </InfoRow>
             )}
             {r.isOpenNow === false && r.serviceHours && (
               <InfoRow icon={<ClockAlert size={14} />} color="var(--tgo-state-danger)">
-                {(() => { const n = getNextOpenTime(r.serviceHours!); return n ? `Cerrado — Abre ${n}` : 'Cerrado ahora' })()}
+                {(() => { const n = getNextOpenTime(r.serviceHours!); return n ? microcopy.restaurant.closedUntil(n) : microcopy.restaurant.closedNow })()}
               </InfoRow>
             )}
             {r.openingHours && !r.serviceHours && (
@@ -177,7 +180,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
             )}
             {isNetwork && r.estimatedPickupTime && (
               <InfoRow icon={<Clock size={14} />} color="var(--tgo-state-success)">
-                <span style={{ fontWeight: 600 }}>Listo en ~{r.estimatedPickupTime} min</span>
+                <span style={{ fontWeight: 600 }}>{microcopy.restaurant.readyIn(r.estimatedPickupTime)}</span>
               </InfoRow>
             )}
           </div>
@@ -189,7 +192,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
             <MiniMap lat={r.lat} lng={r.lng} />
             <a href={`https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`} target="_blank" rel="noopener noreferrer" className="absolute bottom-3 right-3 flex items-center gap-1.5" style={{ padding: '8px 12px', borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'rgba(26,26,26,0.64)', backdropFilter: 'blur(12px)', color: 'var(--tgo-text-inverse)', fontSize: 'var(--tgo-type-caption)', fontWeight: 600 }}>
               <Navigation size={12} />
-              Cómo llegar
+              {microcopy.restaurant.directions}
             </a>
           </div>
         )}
@@ -197,10 +200,10 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
         {/* Conversion CTA (directory only) */}
         {!isNetwork && (
           <div style={{ padding: 'var(--tgo-space-5)', borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)', textAlign: 'center' }}>
-            <p style={{ color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 600 }}>¿Sos el dueño de este restaurante?</p>
-            <p style={{ color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-caption)', lineHeight: 1.5, marginTop: 4 }}>Sumate a la red TGO y recibí pedidos en tiempo real, sin comisiones por pedido.</p>
+            <p style={{ color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 600 }}>{microcopy.restaurant.isOwner}</p>
+            <p style={{ color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-caption)', lineHeight: 1.5, marginTop: 4 }}>{microcopy.restaurant.ownerPitch}</p>
             <Link href="/#pricing" className="inline-flex items-center gap-1.5 mt-3" style={{ padding: '8px 20px', borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'var(--tgo-state-interactive)', color: 'var(--tgo-text-inverse)', fontSize: 'var(--tgo-type-caption)', fontWeight: 700 }}>
-              Conocer planes →
+              {microcopy.restaurant.ownerCta}
             </Link>
           </div>
         )}
@@ -209,27 +212,27 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
       {/* Fixed CTA */}
       <div className="fixed bottom-0 left-0 right-0" style={{ padding: '0 var(--tgo-page-padding) var(--tgo-space-6)', paddingTop: 16, zIndex: 'var(--tgo-z-nav)', background: 'linear-gradient(to top, var(--tgo-surface-0) 60%, transparent)' }}>
         {isNetwork ? (
-          <Link href={`/${r.tenantSlug}/menu/${r.id}/takeaway?source=tgo-explore`} onClick={() => trackEvent({ eventType: 'click_menu', restaurantId: r.id, tenantSlug: r.tenantSlug })} className="flex items-center justify-center gap-2.5 w-full active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-state-interactive)', color: 'var(--tgo-text-inverse)', fontSize: 'var(--tgo-type-body)', fontWeight: 700, boxShadow: 'var(--tgo-elevation-floating)', transition: 'transform var(--tgo-duration-fast) var(--tgo-ease-standard)' }}>
+          <Link href={`/${r.tenantSlug}/menu/${r.id}/takeaway?source=tgo-explore`} onClick={() => { haptic.impact('medium'); trackEvent({ eventType: 'click_menu', restaurantId: r.id, tenantSlug: r.tenantSlug }) }} className="flex items-center justify-center gap-2.5 w-full active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-state-interactive)', color: 'var(--tgo-text-inverse)', fontSize: 'var(--tgo-type-body)', fontWeight: 700, boxShadow: 'var(--tgo-elevation-floating)', transition: 'transform var(--tgo-duration-fast) var(--tgo-ease-standard)' }}>
             <ShoppingBag size={18} />
-            Ver menú y pedir
+            {microcopy.restaurant.viewMenuAndOrder}
           </Link>
         ) : (
           <div className="flex gap-3">
             {r.phone && (
               <a href={`tel:${r.phone}`} className="flex-1 flex items-center justify-center gap-2 active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)', color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 700, boxShadow: 'var(--tgo-elevation-card)' }}>
                 <Phone size={16} />
-                Llamar
+                {microcopy.restaurant.call}
               </a>
             )}
             {r.externalMenuUrl && (
               <a href={r.externalMenuUrl} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)', color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 700, boxShadow: 'var(--tgo-elevation-card)' }}>
                 <ExternalLink size={16} />
-                Ver carta
+                {microcopy.restaurant.viewCard}
               </a>
             )}
             {!r.phone && !r.externalMenuUrl && (
               <div className="flex-1 text-center" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-surface-2)', color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-body-sm)' }}>
-                Sin contacto disponible
+                {microcopy.restaurant.noContact}
               </div>
             )}
           </div>

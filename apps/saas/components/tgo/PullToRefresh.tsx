@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { motion, useAnimation } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { RefreshCw } from 'lucide-react'
+import { useHaptic } from './useHaptic'
 
 /**
  * PullToRefresh — Pull-to-refresh nativo para mobile.
@@ -34,7 +35,7 @@ export default function PullToRefresh({
   const containerRef = useRef<HTMLDivElement>(null)
   const startY = useRef(0)
   const isPulling = useRef(false)
-  const controls = useAnimation()
+  const haptic = useHaptic()
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
@@ -70,8 +71,7 @@ export default function PullToRefresh({
 
     if (pullDistance >= threshold) {
       setIsRefreshing(true)
-      // Haptic feedback
-      if ('vibrate' in navigator) navigator.vibrate(15)
+      haptic.impact('light')
 
       try {
         await onRefresh()

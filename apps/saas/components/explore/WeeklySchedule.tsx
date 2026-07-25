@@ -4,12 +4,14 @@ import type { ServiceSlot } from '@/app/api/explore/nearby/route'
 import { formatWeeklySchedule } from '@/lib/service-hours'
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface Props {
   serviceHours?: { takeaway: ServiceSlot[] }
 }
 
 export default function WeeklySchedule({ serviceHours }: Props) {
+  const haptic = useHaptic()
   const [expanded, setExpanded] = useState(false)
   const schedule = formatWeeklySchedule(serviceHours)
 
@@ -18,7 +20,7 @@ export default function WeeklySchedule({ serviceHours }: Props) {
   return (
     <div>
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => { haptic.selection(); setExpanded(!expanded) }}
         className="flex items-center gap-1.5"
         style={{
           color: 'var(--tgo-text-muted)',

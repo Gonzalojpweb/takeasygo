@@ -5,6 +5,7 @@ import { CheckCircle, QrCode, Share2, ArrowLeft, Clock, Copy, ThumbsUp, ThumbsDo
 import { toast } from 'sonner'
 import confetti from 'canvas-confetti'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface Props {
   tenantSlug: string
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function RedemptionSuccess({ tenantSlug, redemption, item, member, onBack }: Props) {
+  const haptic = useHaptic()
   const [copied, setCopied] = useState(false)
   const { play: playPop } = useNotificationSound('/pop.mp3')
 
@@ -73,7 +75,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
       <div className="max-w-md mx-auto">
         <div className="flex gap-2 mb-4">
           <button
-            onClick={onBack}
+            onClick={() => { haptic.impact('light'); onBack() }}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
             style={{ color: 'var(--tgo-text-primary)' }}
           >
@@ -82,6 +84,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
           </button>
           <a
             href={`/${tenantSlug}`}
+            onClick={() => haptic.impact('light')}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
             style={{ color: 'var(--tgo-state-interactive)' }}
           >
@@ -156,7 +159,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
                   {redemption.redemptionCode}
                 </code>
                 <button
-                  onClick={handleCopyCode}
+                  onClick={() => { haptic.success(); handleCopyCode() }}
                   aria-label={copied ? 'Código copiado' : 'Copiar código de redención'}
                   className="p-2 transition-colors"
                   style={{ color: 'var(--tgo-text-muted)' }}
@@ -197,7 +200,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
 
             {/* Share Button */}
             <button
-              onClick={handleShare}
+              onClick={() => { haptic.impact('light'); handleShare() }}
               className="w-full mb-3 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-all"
               style={{
                 borderRadius: 'var(--tgo-radius-md)',
@@ -221,7 +224,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
                 </p>
                 <div className="flex gap-3 justify-center">
                   <button
-                    onClick={() => sendRedeemFeedback(true)}
+                    onClick={() => { haptic.success(); sendRedeemFeedback(true) }}
                     aria-label="El canje fue fácil, sí"
                     className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all"
                     style={{
@@ -232,7 +235,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
                     <ThumbsUp size={16} /> Sí
                   </button>
                   <button
-                    onClick={() => sendRedeemFeedback(false)}
+                    onClick={() => { haptic.error(); sendRedeemFeedback(false) }}
                     aria-label="El canje no fue fácil, no"
                     className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all"
                     style={{

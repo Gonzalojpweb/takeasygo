@@ -5,6 +5,7 @@ import { MapPin, Plus, Trash2, Check, X, Loader2, Home, Briefcase, MapPin as Map
 import { useLocation } from '@/components/explore/LocationContext'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface AddressSelectorProps {
   onClose?: () => void
@@ -12,6 +13,7 @@ interface AddressSelectorProps {
 }
 
 export default function AddressSelector({ onClose, showAddButton = true }: AddressSelectorProps) {
+  const haptic = useHaptic()
   const { currentAddress, savedAddresses, loading, setAddress, addAddress, removeAddress, refreshAddresses } = useLocation()
   const { data: session } = useSession()
   const [showAddForm, setShowAddForm] = useState(false)
@@ -176,7 +178,8 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
             return (
               <button
                 key={index}
-                onClick={() => handleSelectAddress(addr)}
+                onClick={() => { haptic.selection(); handleSelectAddress(addr) }}
+                aria-label={`Seleccionar ${addr.label}`}
                 className="w-full p-4 flex items-center gap-3 group transition-all"
                 style={{
                   borderRadius: 'var(--tgo-radius-xl)',
@@ -205,8 +208,10 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
+                      haptic.warning()
                       handleRemoveAddress(index)
                     }}
+                    aria-label={`Eliminar dirección ${addr.label}`}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                     style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
                   >
@@ -222,7 +227,8 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
       {/* Add Address Button */}
       {showAddButton && !showAddForm && (
         <button
-          onClick={() => setShowAddForm(true)}
+          onClick={() => { haptic.impact('light'); setShowAddForm(true) }}
+          aria-label="Agregar nueva dirección"
           className="w-full p-4 flex items-center gap-3 transition-all"
           style={{
             borderRadius: 'var(--tgo-radius-xl)',
@@ -262,7 +268,8 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
               Nueva Dirección
             </p>
             <button
-              onClick={() => setShowAddForm(false)}
+              onClick={() => { haptic.impact('light'); setShowAddForm(false) }}
+              aria-label="Cerrar formulario"
               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
               style={{
                 backgroundColor: 'var(--tgo-surface-1)',
@@ -361,7 +368,8 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
             </div>
             <button
               type="button"
-              onClick={handleGetCurrentLocation}
+              onClick={() => { haptic.impact('light'); handleGetCurrentLocation() }}
+              aria-label="Usar mi ubicación actual"
               className="w-full flex items-center justify-center gap-2 py-2 text-xs transition-colors"
               style={{
                 borderRadius: 'var(--tgo-radius-md)',
@@ -376,7 +384,8 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
           </div>
 
           <button
-            onClick={handleAddAddress}
+            onClick={() => { haptic.success(); handleAddAddress() }}
+            aria-label="Guardar dirección"
             disabled={adding || !newAddress.address || !newAddress.coordinates.lat || !newAddress.coordinates.lng}
             className="w-full py-3 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             style={{

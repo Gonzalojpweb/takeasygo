@@ -19,6 +19,7 @@ import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '@/contexts/TenantContext'
 import { Button } from '@/components/ui/button'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 const ExploreMap = dynamic(() => import('./ExploreMap'), {
   ssr: false,
@@ -64,6 +65,7 @@ function trackExploreEvent(payload: Record<string, any>) {
 }
 
 function ExploreClientInner() {
+  const haptic = useHaptic()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setTenantSlug } = useTenant()
@@ -420,6 +422,7 @@ function ExploreClientInner() {
                       ? {
                           label: 'Limpiar filtros',
                           onClick: () => {
+                            haptic.selection()
                             setActiveCuisine(null)
                             setOpenNowOnly(false)
                             setSearchQuery('')
@@ -533,7 +536,7 @@ function ExploreClientInner() {
                         ridículas.
                       </p>
                       <button
-                        onClick={() => setShowLeadModal(true)}
+                        onClick={() => { haptic.selection(); setShowLeadModal(true) }}
                         className="mt-3"
                         style={{
                           color: 'var(--tgo-state-interactive)',

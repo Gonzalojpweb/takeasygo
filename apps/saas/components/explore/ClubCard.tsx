@@ -3,6 +3,7 @@
 import { Trophy, MapPin, ShoppingBag, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface ClubCardProps {
   tenantSlug: string
@@ -31,11 +32,12 @@ export default function ClubCard({
   points,
   variant = 'suggested',
 }: ClubCardProps) {
+  const haptic = useHaptic()
   const router = useRouter()
 
   return (
     <button
-      onClick={() => router.push(`/app/profile/club/${tenantSlug}`)}
+      onClick={() => { haptic.impact('light'); router.push(`/app/profile/club/${tenantSlug}`) }}
       className="w-full p-4 flex items-center gap-4 group transition-all text-left"
       style={{
         borderRadius: 'var(--tgo-radius-xl)',

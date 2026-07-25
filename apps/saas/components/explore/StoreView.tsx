@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Package, Filter, Star, ArrowLeft, Gift } from 'lucide-react'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/tgo'
 import StoreItemCard from './StoreItemCard'
 import RedemptionSuccess from './RedemptionSuccess'
 import MyRedemptions from './MyRedemptions'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface StoreItem {
   _id: string
@@ -53,6 +55,7 @@ const CATEGORIES = [
 ]
 
 export default function StoreView({ tenantSlug, memberId, memberPoints, memberTier, tenantBranding, onBack, menuUrl }: Props) {
+  const haptic = useHaptic()
   const router = useRouter()
   const [items, setItems] = useState<StoreItem[]>([])
   const [config, setConfig] = useState<StoreConfig | null>(null)
@@ -176,34 +179,13 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
         className="min-h-screen flex items-center justify-center p-4"
         style={{ backgroundColor: 'var(--tgo-surface-0)' }}
       >
-        <div
-          className="max-w-md w-full p-8 text-center"
-          style={{
-            borderRadius: 'var(--tgo-radius-xl)',
-            backgroundColor: 'var(--tgo-surface-card)',
-            border: '1px solid var(--tgo-border)',
-          }}
-        >
-          <Gift size={48} className="mx-auto mb-4" style={{ color: 'var(--tgo-text-muted)', opacity: 0.3 }} />
-          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--tgo-text-primary)' }}>
-            Tienda no disponible
-          </h2>
-          <p className="mb-4" style={{ color: 'var(--tgo-text-muted)' }}>
-            La tienda de recompensas no está habilitada en este momento.
-          </p>
-          {onBack && (
-            <button
-              onClick={onBack}
-              className="px-6 py-2 text-sm font-bold transition-all"
-              style={{
-                borderRadius: 'var(--tgo-radius-md)',
-                border: '1px solid var(--tgo-border)',
-                color: 'var(--tgo-text-primary)',
-              }}
-            >
-              Volver
-            </button>
-          )}
+        <div className="max-w-md w-full" style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)' }}>
+          <EmptyState
+            icon={<Gift size={48} />}
+            title="Tienda no disponible"
+            subtitle="La tienda de recompensas no está habilitada en este momento."
+            secondaryAction={onBack ? { label: "Volver", onClick: onBack } : undefined}
+          />
         </div>
       </div>
     )
@@ -222,7 +204,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
           <div className="flex items-center gap-4 mb-6">
             {onBack && (
               <button
-                onClick={onBack}
+                onClick={() => { haptic.impact('light'); onBack() }}
                 aria-label="Volver al club"
                 className="text-white hover:bg-white/10 transition-colors p-2"
               >
@@ -236,7 +218,8 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
 
           {menuUrl && (
             <button
-              onClick={() => router.push(menuUrl)}
+              onClick={() => { haptic.impact('light'); router.push(menuUrl) }}
+              aria-label="Volver al menú"
               className="w-fit mb-4 text-white hover:bg-white/10 transition-colors px-4 py-2 text-sm font-medium"
             >
               <ArrowLeft size={18} className="mr-2 inline" />
@@ -302,7 +285,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
               key={cat.value}
               role="tab"
               aria-selected={filterCategory === cat.value}
-              onClick={() => setFilterCategory(cat.value)}
+              onClick={() => { haptic.selection(); setFilterCategory(cat.value) }}
               className="shrink-0 px-4 py-2 text-sm font-bold transition-all"
               style={{
                 borderRadius: 'var(--tgo-radius-md)',
@@ -315,7 +298,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
             </button>
           ))}
           <button
-            onClick={() => setShowMyRedemptions(true)}
+            onClick={() => { haptic.impact('light'); setShowMyRedemptions(true) }}
             aria-label="Ver mis canjes"
             className="shrink-0 ml-auto px-4 py-2 text-sm font-bold transition-all"
             style={{
@@ -378,19 +361,11 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
         )}
 
         {filteredItems.length === 0 && (
-          <div
-            className="p-8 text-center"
-            style={{
-              borderRadius: 'var(--tgo-radius-xl)',
-              backgroundColor: 'var(--tgo-surface-card)',
-              border: '1px solid var(--tgo-border)',
-            }}
-          >
-            <Package size={48} className="mx-auto mb-4" style={{ color: 'var(--tgo-text-muted)', opacity: 0.3 }} />
-            <p style={{ color: 'var(--tgo-text-muted)' }}>
-              No hay artículos disponibles
-            </p>
-          </div>
+          <EmptyState
+            icon={<Package size={48} />}
+            title="No hay artículos disponibles"
+            subtitle="Probá con otra categoría o volvé más tarde."
+          />
         )}
       </div>
     </div>

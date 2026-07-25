@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, QrCode, CheckCircle, Clock, XCircle, Package } from 'lucide-react'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/tgo'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface Redemption {
   _id: string
@@ -30,6 +32,7 @@ interface Props {
 }
 
 export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }: Props) {
+  const haptic = useHaptic()
   const router = useRouter()
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,7 +117,8 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
     >
       <div className="max-w-2xl mx-auto">
         <button
-          onClick={onBack}
+          onClick={() => { haptic.impact('light'); onBack() }}
+          aria-label="Volver"
           className="mb-4 flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
           style={{ color: 'var(--tgo-text-primary)' }}
         >
@@ -124,7 +128,8 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
 
         {menuUrl && (
           <button
-            onClick={() => router.push(menuUrl)}
+            onClick={() => { haptic.impact('light'); router.push(menuUrl) }}
+            aria-label="Volver al menú"
             className="mb-4 flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
             style={{ color: 'var(--tgo-text-primary)' }}
           >
@@ -154,13 +159,13 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
           <div className="p-8">
             {/* Filter Tabs */}
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2" role="tablist" aria-label="Filtrar por estado">
-              <button role="tab" aria-selected={filterStatus === 'all'} onClick={() => setFilterStatus('all')} style={filterBtn(filterStatus === 'all')}>
+              <button role="tab" aria-selected={filterStatus === 'all'} onClick={() => { haptic.selection(); setFilterStatus('all') }} style={filterBtn(filterStatus === 'all')}>
                 Todos
               </button>
-              <button role="tab" aria-selected={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')} style={filterBtn(filterStatus === 'pending')}>
+              <button role="tab" aria-selected={filterStatus === 'pending'} onClick={() => { haptic.selection(); setFilterStatus('pending') }} style={filterBtn(filterStatus === 'pending')}>
                 Pendientes
               </button>
-              <button role="tab" aria-selected={filterStatus === 'claimed'} onClick={() => setFilterStatus('claimed')} style={filterBtn(filterStatus === 'claimed')}>
+              <button role="tab" aria-selected={filterStatus === 'claimed'} onClick={() => { haptic.selection(); setFilterStatus('claimed') }} style={filterBtn(filterStatus === 'claimed')}>
                 Reclamados
               </button>
             </div>
@@ -170,10 +175,10 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
                 Cargando...
               </div>
             ) : redemptions.length === 0 ? (
-              <div className="text-center py-12">
-                <Package size={48} className="mx-auto mb-4" style={{ color: 'var(--tgo-text-muted)', opacity: 0.3 }} />
-                <p style={{ color: 'var(--tgo-text-muted)' }}>No tienes canjes aún</p>
-              </div>
+              <EmptyState
+                icon={<Package size={48} />}
+                title="No tienes canjes aún"
+              />
             ) : (
               <div className="space-y-6">
                 {/* Pending Redemptions */}

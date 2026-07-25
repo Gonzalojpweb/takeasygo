@@ -13,6 +13,7 @@ import { useTenant } from '@/contexts/TenantContext'
 import AddressSelector from '@/components/explore/AddressSelector'
 import { useState, useEffect } from 'react'
 import RestaurantLeadModal from '@/components/explore/RestaurantLeadModal'
+import { microcopy } from '@/components/tgo/microcopy'
 
 interface ClubSummary {
   tenantSlug: string
@@ -164,13 +165,13 @@ export default function ProfileContent() {
               className="text-2xl font-bold text-center mb-2"
               style={{ color: 'var(--tgo-text-primary)' }}
             >
-              Tu perfil Gastronómico
+              {microcopy.profile.gastronomicTitle}
             </h1>
             <p
               className="text-sm text-center mb-8 max-w-[280px]"
               style={{ color: 'var(--tgo-text-muted)' }}
             >
-              Iniciá sesión para guardar tus favoritos, ver tu historial y gestionar tus pedidos.
+              {microcopy.profile.loginRequired}
             </p>
           </BlurFade>
 
@@ -178,19 +179,19 @@ export default function ProfileContent() {
             <button
               onClick={() => {}}
               disabled
-              className="w-full flex items-center justify-center gap-3 py-3.5 bg-black text-white font-bold transition-transform active:scale-95 opacity-50 cursor-not-allowed"
-              style={{ borderRadius: 'var(--tgo-radius-xl)' }}
+              className="w-full flex items-center justify-center gap-3 py-3.5 font-bold transition-transform active:scale-95 opacity-50 cursor-not-allowed"
+              style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-text-primary)', color: 'var(--tgo-text-inverse)' }}
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
                 <path d="M17.05 20.28c-.96.95-2.04 2.15-3.32 2.15-1.24 0-1.63-.78-3.08-.78-1.46 0-1.89.76-3.08.76-1.28 0-2.31-1.13-3.32-2.15-2.07-2.08-3.66-5.88-3.66-9.15 0-5.23 3.39-8 6.58-8 1.63 0 2.92.57 3.82.57.85 0 2.37-.62 4.24-.62 1.93 0 4.09.87 5.3 2.76-3.8 1.83-3.18 6.78.29 8.24-1.07 2.47-2.73 5.3-3.77 6.22zm-4.33-14.89c.83-1.05 1.4-2.5 1.4-3.94 0-.2-.02-.4-.05-.59-1.34.05-2.95.89-3.92 2.03-.86 1-1.61 2.5-1.61 4 .01.21.04.42.06.6.14.01.29.02.43.02 1.25 0 2.87-.78 3.69-2.12z" />
               </svg>
-              Próximamente Apple
+              {microcopy.onboarding.auth.apple}
             </button>
 
             <button
               onClick={() => signIn('google', { callbackUrl })}
-              className="w-full flex items-center justify-center gap-3 py-3.5 bg-white text-zinc-900 font-bold shadow-sm border border-zinc-200 transition-transform active:scale-95"
-              style={{ borderRadius: 'var(--tgo-radius-xl)' }}
+              className="w-full flex items-center justify-center gap-3 py-3.5 font-bold shadow-sm border transition-transform active:scale-95"
+              style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-card)', color: 'var(--tgo-text-primary)', borderColor: 'var(--tgo-border)' }}
             >
               <Image
                 src="https://www.google.com/favicon.ico"
@@ -199,17 +200,17 @@ export default function ProfileContent() {
                 height={18}
                 className="shrink-0"
               />
-              Continuar con Google
+              {microcopy.onboarding.auth.google}
             </button>
 
             {!showEmailForm ? (
               <button
                 onClick={() => setShowEmailForm(true)}
-                className="w-full flex items-center justify-center gap-3 py-3.5 bg-zinc-100 text-zinc-900 font-bold transition-transform active:scale-95"
-                style={{ borderRadius: 'var(--tgo-radius-xl)' }}
+                className="w-full flex items-center justify-center gap-3 py-3.5 font-bold transition-transform active:scale-95"
+                style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-1)', color: 'var(--tgo-text-primary)' }}
               >
-                <LogIn size={20} className="text-zinc-600" />
-                Continuar con Email
+                <LogIn size={20} style={{ color: 'var(--tgo-text-secondary)' }} />
+                {microcopy.onboarding.auth.email}
               </button>
             ) : (
               <form
@@ -221,7 +222,7 @@ export default function ProfileContent() {
                   try {
                     await signIn('email', { email: emailInput, callbackUrl, redirect: false })
                   } catch {
-                    setEmailError('Error al enviar el link. Intentá de nuevo.')
+                    setEmailError(microcopy.errors.sendFailed)
                   } finally {
                     setEmailLoading(false)
                   }
@@ -231,11 +232,11 @@ export default function ProfileContent() {
                 <input
                   type="email"
                   required
-                  placeholder="Tu email"
+                  placeholder={microcopy.onboarding.auth.emailInput}
                   value={emailInput}
                   onChange={e => setEmailInput(e.target.value)}
-                  className="w-full h-12 px-4 bg-zinc-100 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none focus:ring-2 focus:ring-[var(--tgo-state-interactive)]/30 transition-all"
-                  style={{ borderRadius: 'var(--tgo-radius-xl)' }}
+                  className="w-full h-12 px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-[var(--tgo-state-interactive)]/30 transition-all"
+                  style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-1)', color: 'var(--tgo-text-primary)' }}
                 />
                 {emailError && (
                   <p className="text-xs text-red-500 font-medium">{emailError}</p>
@@ -243,17 +244,18 @@ export default function ProfileContent() {
                 <button
                   type="submit"
                   disabled={emailLoading || !emailInput}
-                  className="w-full h-12 bg-zinc-900 text-white font-bold text-sm transition-all active:scale-[0.985] disabled:opacity-50"
-                  style={{ borderRadius: 'var(--tgo-radius-xl)' }}
+                  className="w-full h-12 font-bold text-sm transition-all active:scale-[0.985] disabled:opacity-50"
+                  style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-text-primary)', color: 'var(--tgo-text-inverse)' }}
                 >
-                  {emailLoading ? 'Enviando...' : 'Enviar link mágico'}
+                  {emailLoading ? 'Enviando...' : microcopy.onboarding.auth.send}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setShowEmailForm(false); setEmailInput(''); setEmailError('') }}
-                  className="w-full text-xs text-zinc-400 hover:text-zinc-600 font-medium transition-colors"
+                  className="w-full text-xs font-medium transition-colors"
+                  style={{ color: 'var(--tgo-text-muted)' }}
                 >
-                  Volver
+                  {microcopy.nav.back}
                 </button>
               </form>
             )}
@@ -279,7 +281,7 @@ export default function ProfileContent() {
               className="text-[10px] text-center mb-3 uppercase tracking-widest font-medium"
               style={{ color: 'var(--tgo-text-muted)' }}
             >
-              ¿Tenés un restaurante?
+              {microcopy.b2b.askOwner}
             </p>
             <button
               onClick={() => setShowRestaurantLead(true)}
@@ -289,7 +291,7 @@ export default function ProfileContent() {
                 color: 'var(--tgo-state-interactive)',
               }}
             >
-              Registrá tu restaurante
+              {microcopy.b2b.register}
             </button>
             <button
               onClick={() => router.push('/login')}
@@ -379,7 +381,7 @@ export default function ProfileContent() {
           {/* Quick Actions List */}
           <div className="space-y-3">
             <h3 className="ml-1 mb-2" style={sectionTitle}>
-              Actividad
+              {microcopy.profile.activity}
             </h3>
 
             <button
@@ -398,10 +400,10 @@ export default function ProfileContent() {
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                  Mis Pedidos
+                  {microcopy.profile.orders}
                 </p>
                 <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
-                  Historial y seguimiento
+                  {microcopy.profile.historyAndTracking}
                 </p>
               </div>
               <ChevronRight size={16} style={{ color: 'var(--tgo-text-muted)' }} />
@@ -416,17 +418,17 @@ export default function ProfileContent() {
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{
                   backgroundColor: 'var(--tgo-surface-1)',
-                  color: '#3b82f6',
+                  color: 'var(--tgo-state-info)',
                 }}
               >
                 <MapPin size={20} />
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                  Mis Direcciones
+                  {microcopy.profile.addresses}
                 </p>
                 <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
-                  Gestionar direcciones de entrega
+                  {microcopy.profile.manageAddresses}
                 </p>
               </div>
               <ChevronRight size={16} style={{ color: 'var(--tgo-text-muted)' }} />
@@ -444,10 +446,10 @@ export default function ProfileContent() {
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                  Favoritos
+                  {microcopy.profile.favorites}
                 </p>
                 <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
-                  Tus lugares preferidos
+                  {microcopy.profile.yourFavoritePlaces}
                 </p>
               </div>
               <ChevronRight size={16} style={{ color: 'var(--tgo-text-muted)' }} />
@@ -467,7 +469,7 @@ export default function ProfileContent() {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                    Club de Fidelización
+                    {microcopy.profile.clubs}
                   </p>
                   <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
                     Cargando...
@@ -480,7 +482,7 @@ export default function ProfileContent() {
                   <div className="flex items-center gap-2">
                     <Trophy size={16} style={{ color: 'var(--tgo-state-warning)' }} />
                     <p className="text-xs font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                      Tus Clubs
+                      {microcopy.profile.yourClubs}
                     </p>
                   </div>
                   <button
@@ -488,7 +490,7 @@ export default function ProfileContent() {
                     className="text-[10px] font-bold transition-colors"
                     style={{ color: 'var(--tgo-state-warning)' }}
                   >
-                    Ver todos
+                    {microcopy.profile.viewAll}
                   </button>
                 </div>
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -545,7 +547,7 @@ export default function ProfileContent() {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                    Unite al Club
+                    {microcopy.profile.joinClub}
                   </p>
                   <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
                     Acumulá puntos en {suggestedClubs.find(c => c.tenantSlug === tenantSlug)?.clubName}
@@ -570,7 +572,7 @@ export default function ProfileContent() {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                    Descubrí Clubs
+                    {microcopy.profile.discoverClubs}
                   </p>
                   <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
                     {suggestedClubs.length} clubs disponibles cerca tuyo
@@ -591,10 +593,10 @@ export default function ProfileContent() {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                    Club de Fidelización
+                    {microcopy.profile.clubs}
                   </p>
                   <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
-                    Sin clubs disponibles por ahora
+                    {microcopy.profile.noClubsAvailable}
                   </p>
                 </div>
               </div>
@@ -602,7 +604,7 @@ export default function ProfileContent() {
 
             <div className="h-4" />
             <h3 className="ml-1 mb-2" style={sectionTitle}>
-              Configuración
+              {microcopy.profile.settings}
             </h3>
 
             <button
@@ -621,10 +623,10 @@ export default function ProfileContent() {
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                  Mi Cuenta
+                  {microcopy.profile.myAccount}
                 </p>
                 <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
-                  Preferencias y datos
+                  {microcopy.profile.preferencesAndData}
                 </p>
               </div>
               <ChevronRight size={16} style={{ color: 'var(--tgo-text-muted)' }} />
@@ -635,13 +637,13 @@ export default function ProfileContent() {
               className="w-full p-4 flex items-center gap-4 group transition-all mt-8"
               style={{
                 ...cardStyle,
-                borderColor: 'rgba(239, 68, 68, 0.1)',
+                borderColor: 'var(--tgo-state-danger-soft)',
               }}
             >
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                  backgroundColor: 'var(--tgo-state-danger-soft)',
                   color: 'var(--tgo-state-danger)',
                 }}
               >
@@ -652,7 +654,7 @@ export default function ProfileContent() {
                   className="text-sm font-bold"
                   style={{ color: 'var(--tgo-state-danger)', opacity: 0.8 }}
                 >
-                  Cerrar Sesión
+                  {microcopy.profile.signOut}
                 </p>
               </div>
             </button>
@@ -667,7 +669,7 @@ export default function ProfileContent() {
 
       {/* Address Selector Modal */}
       {showAddressSelector && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'var(--tgo-surface-overlay)' }}>
           <div
             className="w-full max-w-md max-h-[80vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300"
             style={{
@@ -684,7 +686,7 @@ export default function ProfileContent() {
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                  Mis Direcciones
+                  {microcopy.profile.addresses}
                 </h2>
                 <button
                   onClick={() => setShowAddressSelector(false)}

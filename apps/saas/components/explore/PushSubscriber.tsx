@@ -94,21 +94,22 @@ export default function PushSubscriber({ tenantId, memberId }: PushSubscriberPro
   if (state !== 'prompt') return null
 
   return (
-    <div className="flex items-center gap-3 bg-emerald-50 text-slate-900 px-4 py-3 shrink-0 border-b border-emerald-100">
-      <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-        <Bell size={16} className="text-emerald-600 shrink-0" />
+    <div className="flex items-center gap-3 px-4 py-3 shrink-0 border-b" style={{ backgroundColor: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' }}>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)' }}>
+        <Bell size={16} className="shrink-0" style={{ color: 'var(--tgo-status-success)' }} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-black uppercase tracking-tight leading-tight">¿Notificaciones?</p>
-        <p className="text-[10px] text-emerald-700/70 font-medium leading-tight">Te avisamos cuando tu pedido esté listo</p>
+        <p className="text-[10px] font-medium leading-tight" style={{ color: 'var(--tgo-status-success)', opacity: 0.7 }}>Te avisamos cuando tu pedido esté listo</p>
       </div>
       <button
         onClick={handleAllow}
-        className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shrink-0 transition-all shadow-sm"
+        className="text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shrink-0 transition-all shadow-sm"
+        style={{ backgroundColor: 'var(--tgo-status-success)' }}
       >
         Activar
       </button>
-      <button onClick={dismiss} className="text-emerald-300 hover:text-emerald-500 p-1">
+      <button onClick={dismiss} className="p-1" style={{ color: 'var(--tgo-text-muted)' }}>
         <X size={16} />
       </button>
     </div>

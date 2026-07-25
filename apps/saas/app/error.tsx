@@ -8,21 +8,22 @@ export default function GlobalError({
   reset: () => void
 }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
       <div className="text-center max-w-md">
         <div className="text-6xl mb-6">⚠️</div>
-        <h1 className="text-2xl font-black mb-3 text-zinc-900">Algo salió mal</h1>
-        <p className="text-zinc-500 mb-6 text-sm">
+        <h1 className="text-2xl font-black mb-3" style={{ color: 'var(--tgo-text-primary)' }}>Algo salió mal</h1>
+        <p className="mb-6 text-sm" style={{ color: 'var(--tgo-text-muted)' }}>
           Ocurrió un error inesperado. Intentá recargar la página.
         </p>
         <button
           onClick={reset}
-          className="px-8 py-3 rounded-2xl text-sm font-bold text-white bg-zinc-900 hover:bg-zinc-700 transition-colors"
+          className="px-8 py-3 rounded-2xl text-sm font-bold transition-colors"
+          style={{ color: 'var(--tgo-text-inverse)', backgroundColor: 'var(--tgo-text-primary)' }}
         >
           Recargar
         </button>
-        <p className="text-xs text-zinc-300 mt-6 font-mono">
-          {error.digest && <span className="text-red-400">Error ID: {error.digest}</span>}
+        <p className="text-xs mt-6 font-mono" style={{ color: 'var(--tgo-text-muted)' }}>
+          {error.digest && <span style={{ color: 'var(--tgo-status-error)' }}>Error ID: {error.digest}</span>}
         </p>
       </div>
     </div>

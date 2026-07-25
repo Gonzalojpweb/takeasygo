@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { microcopy } from '@/components/tgo/microcopy'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Bell, BellOff, ChevronRight, ExternalLink } from 'lucide-react'
 import BottomNav from '@/components/explore/BottomNav'
@@ -59,10 +60,10 @@ export default function SettingsClient() {
           </button>
           <div>
             <h1 className="text-lg font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-              Configuración
+              {microcopy.settings.title}
             </h1>
             <p className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>
-              Preferencias de tu cuenta
+              {microcopy.settings.subtitle}
             </p>
           </div>
         </div>
@@ -75,7 +76,7 @@ export default function SettingsClient() {
             className="ml-1 mb-2 uppercase tracking-widest"
             style={{ fontSize: 10, fontWeight: 900, color: 'var(--tgo-text-muted)' }}
           >
-            Notificaciones
+            {microcopy.settings.notifications}
           </h3>
           <div className="w-full p-4 flex items-center gap-4" style={cardStyle}>
             <div
@@ -89,10 +90,10 @@ export default function SettingsClient() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                Notificaciones Push
+                {microcopy.settings.pushNotifications}
               </p>
               <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
-                Recibí alertas cuando tu pedido esté listo
+                {microcopy.settings.pushDescription}
               </p>
             </div>
             <button
@@ -103,8 +104,9 @@ export default function SettingsClient() {
               }}
             >
               <div
-                className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200"
+                className="absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-transform duration-200"
                 style={{
+                  backgroundColor: 'var(--tgo-surface-card)',
                   transform: notifications ? 'translateX(22px)' : 'translateX(2px)',
                 }}
               />
@@ -118,7 +120,7 @@ export default function SettingsClient() {
             className="ml-1 mb-2 uppercase tracking-widest"
             style={{ fontSize: 10, fontWeight: 900, color: 'var(--tgo-text-muted)' }}
           >
-            Información
+            {microcopy.settings.information}
           </h3>
 
           <button
@@ -134,10 +136,10 @@ export default function SettingsClient() {
             </div>
             <div className="flex-1 text-left">
               <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                Términos y Condiciones
+                {microcopy.settings.terms}
               </p>
               <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
-                Uso de la plataforma
+                {microcopy.settings.termsSub}
               </p>
             </div>
             <ChevronRight size={16} style={{ color: 'var(--tgo-text-muted)' }} />
@@ -156,10 +158,10 @@ export default function SettingsClient() {
             </div>
             <div className="flex-1 text-left">
               <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                Aviso de Privacidad
+                {microcopy.settings.privacy}
               </p>
               <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
-                Protección de datos personales
+                {microcopy.settings.privacySub}
               </p>
             </div>
             <ChevronRight size={16} style={{ color: 'var(--tgo-text-muted)' }} />
@@ -175,7 +177,7 @@ export default function SettingsClient() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                  Información General
+                  {microcopy.settings.generalInfo}
                 </p>
                 <p
                   className="text-[10px] leading-relaxed mt-1"

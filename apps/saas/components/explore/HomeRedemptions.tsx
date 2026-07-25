@@ -21,8 +21,8 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
     <div className="py-6 px-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-black text-slate-900 tracking-tight">Canjes del Club</h2>
-          <p className="text-[10px] text-slate-500 font-medium">Usá tus puntos en tus locales favoritos</p>
+          <h2 className="text-lg font-black tracking-tight" style={{ color: 'var(--tgo-text-primary)' }}>Canjes del Club</h2>
+          <p className="text-[10px] font-medium" style={{ color: 'var(--tgo-text-muted)' }}>Usá tus puntos en tus locales favoritos</p>
         </div>
       </div>
 
@@ -31,7 +31,8 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
           <Link 
             key={item._id}
             href={`/${item.tenantSlug}/club/lookup`}
-            className="bg-white rounded-3xl p-3 border border-slate-100 shadow-md shadow-slate-100 flex flex-col items-center text-center active:scale-[0.97] transition-transform duration-150"
+            className="rounded-3xl p-3 border shadow-md flex flex-col items-center text-center active:scale-[0.97] transition-transform duration-150"
+            style={{ backgroundColor: 'var(--tgo-surface-card)', borderColor: 'var(--tgo-border)' }}
           >
             <div className="w-20 h-20 rounded-2xl overflow-hidden mb-2 relative">
               <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
@@ -40,14 +41,14 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
               </div>
             </div>
             
-            <h3 className="font-bold text-slate-900 text-[11px] leading-tight mb-2 line-clamp-2 h-7">{item.name}</h3>
+            <h3 className="font-bold text-[11px] leading-tight mb-2 line-clamp-2 h-7" style={{ color: 'var(--tgo-text-primary)' }}>{item.name}</h3>
             
-            <div className="w-full bg-slate-50 rounded-xl py-1.5 px-2.5 flex items-center justify-between">
+            <div className="w-full rounded-xl py-1.5 px-2.5 flex items-center justify-between" style={{ backgroundColor: 'var(--tgo-surface-1)' }}>
               <div className="flex flex-col items-start">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Puntos</span>
+                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--tgo-text-muted)' }}>Puntos</span>
                 <span className="text-xs font-black text-amber-600 leading-none">{item.pointsCost}</span>
               </div>
-              <div className="w-5 h-5 rounded-lg bg-white flex items-center justify-center text-slate-400">
+              <div className="w-5 h-5 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-surface-card)', color: 'var(--tgo-text-muted)' }}>
                 <ChevronRight size={12} />
               </div>
             </div>

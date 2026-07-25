@@ -4,19 +4,22 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Home, Map, Compass, ShoppingBag, User } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useHaptic } from '@/components/tgo/useHaptic'
+import { microcopy } from '@/components/tgo/microcopy'
 
 const TABS = [
-  { id: 'home', href: '/app', label: 'Inicio', icon: Home, isCenter: false },
-  { id: 'map', href: '/app?view=map', label: 'Mapa', icon: Map, isCenter: false },
-  { id: 'explore', href: '/app?view=list', label: 'Explorar', icon: Compass, isCenter: true },
-  { id: 'orders', href: '/app?view=orders', label: 'Pedidos', icon: ShoppingBag, isCenter: false },
-  { id: 'profile', href: '/app/profile', label: 'Perfil', icon: User, isCenter: false },
+  { id: 'home', href: '/app', label: microcopy.nav.home, icon: Home, isCenter: false },
+  { id: 'map', href: '/app?view=map', label: microcopy.nav.map, icon: Map, isCenter: false },
+  { id: 'explore', href: '/app?view=list', label: microcopy.nav.discover, icon: Compass, isCenter: true },
+  { id: 'orders', href: '/app?view=orders', label: microcopy.nav.orders, icon: ShoppingBag, isCenter: false },
+  { id: 'profile', href: '/app/profile', label: microcopy.nav.profile, icon: User, isCenter: false },
 ] as const
 
 export default function BottomNav() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const haptic = useHaptic()
   
   const currentView = searchParams.get('view') || 'home'
 
@@ -49,7 +52,7 @@ export default function BottomNav() {
             return (
               <div key={tab.id} className="relative w-16 h-full flex flex-col items-center justify-center">
                 <button
-                  onClick={() => router.push(tab.href)}
+                  onClick={() => { haptic.selection(); router.push(tab.href) }}
                   aria-label={tab.label}
                   className="w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-300"
                   style={{
