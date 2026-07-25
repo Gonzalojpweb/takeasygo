@@ -44,7 +44,7 @@ export default function NotificationStage({ onComplete }: NotificationStageProps
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col items-center justify-center px-8"
-      style={{ backgroundColor: '#0d0b0a' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       {/* Bell icon */}
       <motion.div
@@ -54,7 +54,7 @@ export default function NotificationStage({ onComplete }: NotificationStageProps
         className="w-16 h-16 rounded-2xl flex items-center justify-center mb-8"
         style={{ backgroundColor: 'rgba(247, 66, 17, 0.1)' }}
       >
-        <Bell size={28} color="#F74211" />
+        <Bell size={28} color="var(--tgo-brand-primary)" />
       </motion.div>
 
       {/* Title */}
@@ -63,7 +63,7 @@ export default function NotificationStage({ onComplete }: NotificationStageProps
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25, duration: 0.5 }}
         className="text-2xl font-bold tracking-tight mb-3 text-center"
-        style={{ color: '#F7F4F2' }}
+        style={{ color: 'var(--tgo-text-primary)' }}
       >
         No te pierdas lo mejor.
       </motion.h2>
@@ -74,7 +74,7 @@ export default function NotificationStage({ onComplete }: NotificationStageProps
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35, duration: 0.5 }}
         className="text-sm text-center mb-8"
-        style={{ color: '#A09A95' }}
+        style={{ color: 'var(--tgo-text-muted)' }}
       >
         Activá las notificaciones para recibir:
       </motion.p>
@@ -101,7 +101,7 @@ export default function NotificationStage({ onComplete }: NotificationStageProps
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <span className="text-sm" style={{ color: '#F7F4F2' }}>
+            <span className="text-sm" style={{ color: 'var(--tgo-text-primary)' }}>
               {benefit}
             </span>
           </motion.div>
@@ -119,8 +119,8 @@ export default function NotificationStage({ onComplete }: NotificationStageProps
           disabled={requesting}
           className="h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150 disabled:opacity-50"
           style={{
-            backgroundColor: '#F74211',
-            color: '#FFFFFF',
+            backgroundColor: 'var(--tgo-brand-primary)',
+            color: 'var(--tgo-surface-card)',
             boxShadow: '0 12px 24px -4px rgba(247, 66, 17, 0.4)',
           }}
         >
@@ -142,7 +142,7 @@ export default function NotificationStage({ onComplete }: NotificationStageProps
           onClick={handleSkip}
           className="h-12 rounded-2xl flex items-center justify-center font-medium text-sm transition-all duration-150"
           style={{
-            color: '#6B6560',
+            color: 'var(--tgo-text-muted)',
           }}
         >
           Ahora no

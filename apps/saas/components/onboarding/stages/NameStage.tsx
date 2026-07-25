@@ -44,7 +44,7 @@ export default function NameStage({ value, onChange, onNext }: NameStageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.5 }}
         className="text-2xl font-bold tracking-tight mb-2 text-center"
-        style={{ color: '#F7F4F2' }}
+        style={{ color: 'var(--tgo-text-primary)' }}
       >
         ¿Cómo preferís que te llamemos?
       </motion.h2>
@@ -55,7 +55,7 @@ export default function NameStage({ value, onChange, onNext }: NameStageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
         className="text-sm text-center mb-8"
-        style={{ color: '#6B6560' }}
+        style={{ color: 'var(--tgo-text-muted)' }}
       >
         Queremos que esta experiencia se sienta un poco más tuya.
       </motion.p>
@@ -78,11 +78,11 @@ export default function NameStage({ value, onChange, onNext }: NameStageProps) {
           className="w-full h-14 rounded-2xl px-5 text-base font-medium outline-none transition-all duration-150"
           style={{
             backgroundColor: 'rgba(255,255,255,0.05)',
-            color: '#F7F4F2',
+            color: 'var(--tgo-text-primary)',
             border: '1px solid rgba(255,255,255,0.1)',
           }}
           onFocus={(e) => {
-            e.currentTarget.style.borderColor = '#F74211'
+            e.currentTarget.style.borderColor = 'var(--tgo-brand-primary)'
           }}
           onBlur={(e) => {
             e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
@@ -100,8 +100,8 @@ export default function NameStage({ value, onChange, onNext }: NameStageProps) {
         disabled={!localValue.trim()}
         className="w-full max-w-[300px] h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150 disabled:opacity-30"
         style={{
-          backgroundColor: '#F74211',
-          color: '#FFFFFF',
+          backgroundColor: 'var(--tgo-brand-primary)',
+          color: 'var(--tgo-surface-card)',
           boxShadow: localValue.trim() ? '0 12px 24px -4px rgba(247, 66, 17, 0.4)' : 'none',
         }}
       >

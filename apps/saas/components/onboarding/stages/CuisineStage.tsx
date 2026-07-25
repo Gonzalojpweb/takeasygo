@@ -45,7 +45,7 @@ export default function CuisineStage({ value, onChange, onNext }: CuisineStagePr
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.5 }}
         className="text-2xl font-bold tracking-tight mb-2 text-center"
-        style={{ color: '#F7F4F2' }}
+        style={{ color: 'var(--tgo-text-primary)' }}
       >
         ¿Qué te gusta comer?
       </motion.h2>
@@ -56,10 +56,10 @@ export default function CuisineStage({ value, onChange, onNext }: CuisineStagePr
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
         className="text-sm text-center mb-6"
-        style={{ color: '#6B6560' }}
+        style={{ color: 'var(--tgo-text-muted)' }}
       >
         Elegí hasta {MAX_SELECT}.{' '}
-        <span style={{ color: selected.length > 0 ? '#F74211' : '#3D3A38' }}>
+        <span style={{ color: selected.length > 0           ? 'var(--tgo-brand-primary)' : 'var(--tgo-surface-3)' }}>
           {selected.length}/{MAX_SELECT}
         </span>
       </motion.p>
@@ -94,15 +94,15 @@ export default function CuisineStage({ value, onChange, onNext }: CuisineStagePr
                 {isSelected && (
                   <div
                     className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: '#F74211' }}
+                    style={{ backgroundColor: 'var(--tgo-brand-primary)' }}
                   >
-                    <Check size={10} color="#FFFFFF" strokeWidth={3} />
+                    <Check size={10} color="var(--tgo-text-on-accent)" strokeWidth={3} />
                   </div>
                 )}
                 <span className="text-xl">{cuisine.emoji}</span>
                 <span
                   className="text-[10px] font-medium leading-tight text-center px-1"
-                  style={{ color: isSelected ? '#F74211' : '#A09A95' }}
+                  style={{ color: isSelected ? 'var(--tgo-brand-primary)' : 'var(--tgo-text-muted)' }}
                 >
                   {cuisine.label}
                 </span>
@@ -122,8 +122,8 @@ export default function CuisineStage({ value, onChange, onNext }: CuisineStagePr
         disabled={selected.length === 0}
         className="w-full h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150 disabled:opacity-30"
         style={{
-          backgroundColor: '#F74211',
-          color: '#FFFFFF',
+          backgroundColor: 'var(--tgo-brand-primary)',
+          color: 'var(--tgo-surface-card)',
           boxShadow: selected.length > 0 ? '0 12px 24px -4px rgba(247, 66, 17, 0.4)' : 'none',
         }}
       >

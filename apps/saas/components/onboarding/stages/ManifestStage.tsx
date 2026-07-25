@@ -249,13 +249,13 @@ export default function ManifestStage({ onComplete }: ManifestStageProps) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
       className="absolute inset-0 flex flex-col"
-      style={{ backgroundColor: '#0d0b0a' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       {/* Progress bar */}
-      <div className="relative h-[3px] w-full" style={{ backgroundColor: '#1A1A1A' }}>
+      <div className="relative h-[3px] w-full" style={{ backgroundColor: 'var(--tgo-surface-1)' }}>
         <motion.div
           className="absolute left-0 top-0 h-full"
-          style={{ backgroundColor: '#F74211' }}
+          style={{ backgroundColor: 'var(--tgo-brand-primary)' }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.05, ease: 'linear' }}
         />
@@ -288,7 +288,7 @@ export default function ManifestStage({ onComplete }: ManifestStageProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
               className="text-2xl font-bold tracking-tight mb-4 text-center max-w-[300px]"
-              style={{ color: '#F7F4F2' }}
+              style={{ color: 'var(--tgo-text-primary)' }}
             >
               {slide.title}
             </motion.h2>
@@ -299,7 +299,7 @@ export default function ManifestStage({ onComplete }: ManifestStageProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.5 }}
               className="text-sm text-center leading-relaxed max-w-[280px]"
-              style={{ color: '#A09A95' }}
+              style={{ color: 'var(--tgo-text-muted)' }}
             >
               {slide.body}
             </motion.p>
@@ -318,8 +318,8 @@ export default function ManifestStage({ onComplete }: ManifestStageProps) {
             onClick={onComplete}
             className="w-full h-16 rounded-2xl flex items-center justify-center gap-2 font-black text-base uppercase tracking-widest transition-all duration-150"
             style={{
-              backgroundColor: '#F74211',
-              color: '#FFFFFF',
+              backgroundColor: 'var(--tgo-brand-primary)',
+              color: 'var(--tgo-text-on-accent)',
               boxShadow: '0 16px 32px -4px rgba(247, 66, 17, 0.5)',
             }}
           >
@@ -336,7 +336,7 @@ export default function ManifestStage({ onComplete }: ManifestStageProps) {
             className="w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest transition-all duration-150"
             style={{
               backgroundColor: 'rgba(255,255,255,0.05)',
-              color: '#F7F4F2',
+              color: 'var(--tgo-text-primary)',
               border: '1px solid rgba(255,255,255,0.1)',
             }}
           >
@@ -354,7 +354,7 @@ export default function ManifestStage({ onComplete }: ManifestStageProps) {
             whileTap={{ scale: 0.97 }}
             onClick={onComplete}
             className="mt-3 text-xs font-medium transition-colors duration-150"
-            style={{ color: '#3D3A38' }}
+            style={{ color: 'var(--tgo-surface-3)' }}
           >
             Saltar
           </motion.button>

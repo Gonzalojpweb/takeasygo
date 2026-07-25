@@ -52,7 +52,7 @@ export default function AgeStage({ value, onChange, onNext }: AgeStageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.5 }}
         className="text-2xl font-bold tracking-tight mb-2 text-center"
-        style={{ color: '#F7F4F2' }}
+        style={{ color: 'var(--tgo-text-primary)' }}
       >
         ¿Cuántos años tenés?
       </motion.h2>
@@ -63,7 +63,7 @@ export default function AgeStage({ value, onChange, onNext }: AgeStageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
         className="text-sm text-center mb-6"
-        style={{ color: '#6B6560' }}
+        style={{ color: 'var(--tgo-text-muted)' }}
       >
         La edad nos ayuda a recomendar experiencias más relevantes para vos.
       </motion.p>
@@ -89,13 +89,13 @@ export default function AgeStage({ value, onChange, onNext }: AgeStageProps) {
         <div
           className="absolute top-0 left-0 right-0 h-12 pointer-events-none z-20"
           style={{
-            background: 'linear-gradient(to bottom, #0d0b0a, transparent)',
+            background: 'linear-gradient(to bottom, var(--tgo-surface-0), transparent)',
           }}
         />
         <div
           className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none z-20"
           style={{
-            background: 'linear-gradient(to top, #0d0b0a, transparent)',
+            background: 'linear-gradient(to top, var(--tgo-surface-0), transparent)',
           }}
         />
 
@@ -116,7 +116,7 @@ export default function AgeStage({ value, onChange, onNext }: AgeStageProps) {
               <span
                 className="text-2xl font-bold transition-all duration-150"
                 style={{
-                  color: age === localValue ? '#F74211' : '#3D3A38',
+                  color: age === localValue ? 'var(--tgo-brand-primary)' : 'var(--tgo-surface-3)',
                 }}
               >
                 {age}
@@ -137,8 +137,8 @@ export default function AgeStage({ value, onChange, onNext }: AgeStageProps) {
         onClick={handleSubmit}
         className="w-full max-w-[300px] h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150"
         style={{
-          backgroundColor: '#F74211',
-          color: '#FFFFFF',
+          backgroundColor: 'var(--tgo-brand-primary)',
+          color: 'var(--tgo-surface-card)',
           boxShadow: '0 12px 24px -4px rgba(247, 66, 17, 0.4)',
         }}
       >

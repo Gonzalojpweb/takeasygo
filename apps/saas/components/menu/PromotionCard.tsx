@@ -5,6 +5,7 @@ import { Tag, Plus, Percent, Info, Megaphone, Heart, ExternalLink, ChevronRight 
 import { cn } from '@/lib/utils'
 import { capturePromotionViewed, capturePromotionClicked, capturePromotionApplied } from '@/lib/tia/events'
 import ClubOnboardingModal from '../club/ClubOnboardingModal'
+import { toast } from 'sonner'
 
 // Helper function to check if a hex color is light
 function isLightColor(color?: string) {
@@ -138,8 +139,7 @@ export function PromotionCard({
             } else if (promoType === 'loyalty') {
               setShowLoyaltyModal(true)
             } else if (promotion.conditions || promotion.shortDescription) {
-              // Show details for info/announcements if there is a description/conditions
-              alert(`${promotion.title}\n\n${promotion.shortDescription || ''}\n\nCondiciones: ${promotion.conditions || 'Ninguna'}`)
+              toast(promotion.title, { description: `${promotion.shortDescription || ''}\nCondiciones: ${promotion.conditions || 'Ninguna'}` })
             }
           }}
           className={cn(
@@ -233,9 +233,9 @@ export function PromotionCard({
                       onClick={(e) => {
                         e.stopPropagation();
                         if (promotion.conditions || promotion.shortDescription) {
-                          alert(`${promotion.title}\n\n${promotion.shortDescription || ''}\n\nCondiciones: ${promotion.conditions || 'Ninguna'}`)
+                          toast(promotion.title, { description: `${promotion.shortDescription || ''}\nCondiciones: ${promotion.conditions || 'Ninguna'}` })
                         } else {
-                          alert(`Promoción: ${promotion.title}`)
+                          toast.info(promotion.title)
                         }
                       }}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold shadow-md flex-shrink-0"
@@ -259,7 +259,7 @@ export function PromotionCard({
                       if (promotion.ctaLink) {
                         window.open(promotion.ctaLink, '_blank');
                       } else if (promotion.conditions || promotion.shortDescription) {
-                        alert(`${promotion.title}\n\n${promotion.shortDescription || ''}\n\nCondiciones: ${promotion.conditions || 'Ninguna'}`)
+                        toast(promotion.title, { description: `${promotion.shortDescription || ''}\nCondiciones: ${promotion.conditions || 'Ninguna'}` })
                       }
                     }}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold shadow-md flex-shrink-0"
