@@ -128,7 +128,7 @@ const LocationSchema = new Schema<ILocation>(
     },
     networkVisible: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     // ─────────────────────────────────────────────────────────────────────────
     hours: {

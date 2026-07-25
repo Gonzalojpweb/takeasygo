@@ -32,6 +32,8 @@ export interface ITenant extends Document {
   status: 'active' | 'paused' | 'deleted'
   isActive: boolean  // Computed: status === 'active' || status === 'paused'
   isOperational: boolean // Si el local ya está aceptando pedidos o está en modo catálogo
+  /** true = aparece en explore sin importar distancia del usuario */
+  alwaysVisible: boolean
   pausedAt?: Date | null
   pausedReason?: string
   subscription: {
@@ -287,6 +289,10 @@ const TenantSchema = new Schema<ITenant>(
     isOperational: {
       type: Boolean,
       default: true,
+    },
+    alwaysVisible: {
+      type: Boolean,
+      default: false,
     },
     pausedAt: {
       type: Date,

@@ -56,7 +56,24 @@ export async function GET(request: NextRequest) {
       },
     ])
 
-    const tenantIds = nearbyLocations.map(loc => loc.tenantId)
+    // 1b. AlwaysVisible tenants — their locations regardless of distance
+    const alwaysVisibleTenants = await Tenant.find(
+      { alwaysVisible: true, status: 'active' }
+    ).select('_id').lean()
+    const alwaysVisibleTenantIds = alwaysVisibleTenants.map(t => t._id)
+
+    const nearbyLocationIds = new Set(nearbyLocations.map(l => l._id.toString()))
+    const alwaysVisibleLocations = alwaysVisibleTenantIds.length > 0
+      ? await Location.find({
+          isActive: true,
+          tenantId: { $in: alwaysVisibleTenantIds },
+          _id: { $nin: [...nearbyLocationIds] },
+        }).select('_id tenantId name address phone cuisineTypes distanceM geo serviceHours timezone createdAt settings.acceptsOrders settings.estimatedPickupTime settings.orderModes').limit(30).lean()
+      : []
+
+    // 1c. Merge
+    const allLocations = [...nearbyLocations, ...alwaysVisibleLocations]
+    const tenantIds = [...new Set(allLocations.map(loc => loc.tenantId?.toString()))].filter(Boolean)
 
     // 2. Obtener info de los Tenants y sus Marketing QRs
     const tenants = await Tenant.find({
@@ -139,7 +156,7 @@ export async function GET(request: NextRequest) {
 
     // 5. Extraer Categorías Únicas de los Tenants cercanos
     const categoriesSet = new Set<string>()
-    nearbyLocations.forEach(loc => {
+    allLocations.forEach(loc => {
       if (loc.cuisineTypes) {
         loc.cuisineTypes.forEach((c: string) => categoriesSet.add(c))
       }
@@ -149,9 +166,9 @@ export async function GET(request: NextRequest) {
     // 6. Mapa de promos por tenant (para loyaltyInfo)
     //    Incluir filtro de franja horaria (activeTimeStart/End) con timezone real
 
-    // 6a. Mapa de tenantId → timezone (desde nearbyLocations)
+    // 6a. Mapa de tenantId → timezone (desde allLocations)
     const tenantTimezoneMap = new Map<string, string>()
-    nearbyLocations.forEach(loc => {
+    allLocations.forEach(loc => {
       if (loc.tenantId && loc.timezone) {
         tenantTimezoneMap.set(loc.tenantId.toString(), loc.timezone)
       }
@@ -209,7 +226,7 @@ export async function GET(request: NextRequest) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
     const featuredTenants = tenants.map(t => {
-      const loc = nearbyLocations.find(l => l.tenantId.toString() === t._id.toString())
+      const loc = allLocations.find(l => l.tenantId.toString() === t._id.toString())
       if (!loc) return null
 
       // isOpenNow: calcular desde serviceHours
