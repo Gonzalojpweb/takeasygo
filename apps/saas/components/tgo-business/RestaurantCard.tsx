@@ -11,6 +11,7 @@
 //
 // Todos los colores vía --tgo-* tokens.
 
+import { memo } from 'react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import { motion } from 'framer-motion'
 import {
@@ -29,10 +30,171 @@ import {
 } from '@/lib/restaurant-card-helpers'
 import { useHaptic } from '@/components/tgo/useHaptic'
 
+// ── Static Style Constants ──────────────────────────────────────────────────
+
+// Badge styles
+const BADGE_NUEVO: React.CSSProperties = {
+  borderRadius: 'var(--tgo-radius-pill)',
+  fontSize: 'var(--tgo-type-tag)',
+  fontWeight: 700,
+  letterSpacing: 'var(--tgo-tracking-wider)',
+  textTransform: 'uppercase',
+  color: '#fff',
+  backgroundColor: 'var(--tgo-state-info)',
+}
+const BADGE_ABIERTO: React.CSSProperties = {
+  ...BADGE_NUEVO,
+  backgroundColor: 'var(--tgo-state-success)',
+}
+const BADGE_CERRADO: React.CSSProperties = {
+  ...BADGE_NUEVO,
+  color: 'var(--tgo-text-muted)',
+  backgroundColor: 'var(--tgo-surface-2)',
+}
+
+// Small badge (N / open dot / closed dot)
+const BADGE_N: React.CSSProperties = {
+  width: 18,
+  height: 18,
+  borderRadius: 'var(--tgo-radius-pill)',
+  backgroundColor: 'var(--tgo-state-info)',
+  border: '2px solid var(--tgo-surface-card)',
+  color: '#fff',
+  fontSize: 8,
+  fontWeight: 700,
+}
+const DOT_OPEN: React.CSSProperties = {
+  width: 18,
+  height: 18,
+  borderRadius: 'var(--tgo-radius-pill)',
+  backgroundColor: 'var(--tgo-state-success)',
+  border: '2px solid var(--tgo-surface-card)',
+}
+const DOT_CLOSED: React.CSSProperties = {
+  width: 18,
+  height: 18,
+  borderRadius: 'var(--tgo-radius-pill)',
+  backgroundColor: 'var(--tgo-state-danger)',
+  border: '2px solid var(--tgo-surface-card)',
+}
+
+// Image containers
+const IMAGE_64: React.CSSProperties = {
+  width: 64,
+  height: 64,
+  borderRadius: 'var(--tgo-radius-md)',
+  backgroundColor: 'var(--tgo-surface-1)',
+}
+const IMAGE_48: React.CSSProperties = {
+  width: 48,
+  height: 48,
+  borderRadius: 'var(--tgo-radius-sm)',
+  backgroundColor: 'var(--tgo-surface-1)',
+}
+const IMAGE_40: React.CSSProperties = {
+  width: 40,
+  height: 40,
+  borderRadius: 'var(--tgo-radius-sm)',
+  backgroundColor: 'var(--tgo-surface-1)',
+}
+
+// Signal container
+const SIGNAL_CONTAINER: React.CSSProperties = {
+  borderRadius: 'var(--tgo-radius-md)',
+  backgroundColor: 'var(--tgo-surface-1)',
+  border: '1px solid var(--tgo-border)',
+}
+const SIGNAL_LABEL: React.CSSProperties = {
+  color: 'var(--tgo-text-primary)',
+  fontSize: 'var(--tgo-type-caption)',
+  fontWeight: 500,
+}
+
+// Text styles (repeated across layouts)
+const TEXT_PRIMARY: React.CSSProperties = {
+  color: 'var(--tgo-text-primary)',
+  fontWeight: 600,
+}
+const TEXT_SECONDARY: React.CSSProperties = {
+  color: 'var(--tgo-text-secondary)',
+  fontSize: 'var(--tgo-type-caption)',
+  fontWeight: 500,
+}
+const TEXT_PICKUP: React.CSSProperties = {
+  color: 'var(--tgo-state-success)',
+  fontSize: 'var(--tgo-type-caption)',
+  fontWeight: 600,
+}
+const TEXT_OPPORTUNITY: React.CSSProperties = {
+  color: 'var(--tgo-state-warning)',
+  fontSize: 'var(--tgo-type-caption)',
+  fontWeight: 600,
+}
+const TEXT_RATING: React.CSSProperties = {
+  color: 'var(--tgo-state-warning)',
+  fontSize: 'var(--tgo-type-caption)',
+  fontWeight: 700,
+}
+const TEXT_MUTED: React.CSSProperties = {
+  color: 'var(--tgo-text-muted)',
+  fontSize: 10,
+}
+const TEXT_PROMO: React.CSSProperties = {
+  color: 'var(--tgo-state-warning)',
+  fontSize: 10,
+  fontWeight: 600,
+}
+const DOT_SEPARATOR: React.CSSProperties = { color: 'var(--tgo-border)' }
+
+// Bookmark button
+const BOOKMARK_BTN: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 'var(--tgo-radius-pill)',
+  backgroundColor: 'rgba(255,255,255,0.9)',
+}
+
+// Hover overlay (hero)
+const HOVER_OVERLAY: React.CSSProperties = {
+  backgroundColor: 'rgba(26,26,26,0.32)',
+}
+const HOVER_CTA_PILL: React.CSSProperties = {
+  borderRadius: 'var(--tgo-radius-pill)',
+  backgroundColor: 'var(--tgo-surface-0)',
+  color: 'var(--tgo-text-primary)',
+  fontSize: 'var(--tgo-type-body-sm)',
+  fontWeight: 600,
+}
+
+// CTA button styles
+const CTA_ACTIVE: React.CSSProperties = {
+  padding: '8px 16px',
+  borderRadius: 'var(--tgo-radius-md)',
+  fontSize: 'var(--tgo-type-caption)',
+  fontWeight: 600,
+  backgroundColor: 'var(--tgo-state-interactive)',
+  color: 'var(--tgo-text-inverse)',
+}
+const CTA_DISABLED: React.CSSProperties = {
+  ...CTA_ACTIVE,
+  backgroundColor: 'var(--tgo-surface-2)',
+  color: 'var(--tgo-text-muted)',
+}
+const TEXT_OPEN: React.CSSProperties = {
+  color: 'var(--tgo-state-success)',
+  fontSize: 10,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
 function walkingMinutes(distanceM: number | null): number | null {
   if (distanceM === null) return null
   return Math.max(1, Math.round(distanceM / 80))
 }
+
+// ── Props ───────────────────────────────────────────────────────────────────
 
 interface RestaurantCardProps {
   restaurant: RestaurantCardData
@@ -41,7 +203,9 @@ interface RestaurantCardProps {
   index?: number
 }
 
-export default function RestaurantCard({
+// ── Main Component (memoized) ───────────────────────────────────────────────
+
+const RestaurantCard = memo(function RestaurantCard({
   restaurant: r,
   layout = 'list',
   onNavigate,
@@ -53,61 +217,30 @@ export default function RestaurantCard({
   if (layout === 'compact') return <CompactLayout r={r} isNetwork={isNetwork} onNavigate={onNavigate} index={index} />
   if (layout === 'mapPreview') return <MapPreviewLayout r={r} isNetwork={isNetwork} onNavigate={onNavigate} />
   return <ListLayout r={r} isNetwork={isNetwork} onNavigate={onNavigate} index={index} />
-}
+})
+
+export default RestaurantCard
 
 // ── Shared: Badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ r }: { r: RestaurantCardData }) {
   if (r.isNew) {
     return (
-      <span
-        className="inline-flex items-center gap-1 px-2 py-0.5"
-        style={{
-          borderRadius: 'var(--tgo-radius-pill)',
-          fontSize: 'var(--tgo-type-tag)',
-          fontWeight: 700,
-          letterSpacing: 'var(--tgo-tracking-wider)',
-          textTransform: 'uppercase',
-          color: '#fff',
-          backgroundColor: 'var(--tgo-state-info)',
-        }}
-      >
+      <span className="inline-flex items-center gap-1 px-2 py-0.5" style={BADGE_NUEVO}>
         NUEVO
       </span>
     )
   }
   if (r.isOpenNow === true) {
     return (
-      <span
-        className="inline-flex items-center gap-1 px-2 py-0.5"
-        style={{
-          borderRadius: 'var(--tgo-radius-pill)',
-          fontSize: 'var(--tgo-type-tag)',
-          fontWeight: 700,
-          letterSpacing: 'var(--tgo-tracking-wider)',
-          textTransform: 'uppercase',
-          color: '#fff',
-          backgroundColor: 'var(--tgo-state-success)',
-        }}
-      >
+      <span className="inline-flex items-center gap-1 px-2 py-0.5" style={BADGE_ABIERTO}>
         ABIERTO
       </span>
     )
   }
   if (r.isOpenNow === false) {
     return (
-      <span
-        className="inline-flex items-center gap-1 px-2 py-0.5"
-        style={{
-          borderRadius: 'var(--tgo-radius-pill)',
-          fontSize: 'var(--tgo-type-tag)',
-          fontWeight: 700,
-          letterSpacing: 'var(--tgo-tracking-wider)',
-          textTransform: 'uppercase',
-          color: 'var(--tgo-text-muted)',
-          backgroundColor: 'var(--tgo-surface-2)',
-        }}
-      >
+      <span className="inline-flex items-center gap-1 px-2 py-0.5" style={BADGE_CERRADO}>
         CERRADO
       </span>
     )
@@ -124,14 +257,7 @@ function OperationalSignalBox({ r }: { r: RestaurantCardData }) {
   const Icon = signal.icon
 
   return (
-    <div
-      className="flex items-center gap-2 px-3 py-2"
-      style={{
-        borderRadius: 'var(--tgo-radius-md)',
-        backgroundColor: 'var(--tgo-surface-1)',
-        border: '1px solid var(--tgo-border)',
-      }}
-    >
+    <div className="flex items-center gap-2 px-3 py-2" style={SIGNAL_CONTAINER}>
       <Icon
         size={14}
         style={{
@@ -147,15 +273,7 @@ function OperationalSignalBox({ r }: { r: RestaurantCardData }) {
                     : 'var(--tgo-state-success)',
         }}
       />
-      <span
-        style={{
-          color: 'var(--tgo-text-primary)',
-          fontSize: 'var(--tgo-type-caption)',
-          fontWeight: 500,
-        }}
-      >
-        {signal.label}
-      </span>
+      <span style={SIGNAL_LABEL}>{signal.label}</span>
     </div>
   )
 }
@@ -221,13 +339,7 @@ function HeroLayout({
         {/* Bookmark — top right */}
         <button
           className="absolute top-3 right-3 flex items-center justify-center opacity-0 group-hover:opacity-100"
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 'var(--tgo-radius-pill)',
-            backgroundColor: 'rgba(255,255,255,0.9)',
-            transition: `opacity var(--tgo-duration-fast) var(--tgo-ease-standard)`,
-          }}
+          style={{ ...BOOKMARK_BTN, transition: `opacity var(--tgo-duration-fast) var(--tgo-ease-standard)` }}
           onClick={(e) => { haptic.selection(); e.stopPropagation() }}
         >
           <Bookmark size={14} style={{ color: 'var(--tgo-text-primary)' }} />
@@ -238,25 +350,11 @@ function HeroLayout({
       <div className="flex-1 flex flex-col justify-between p-4 min-w-0">
         {/* Top: name + cuisine */}
         <div>
-          <h3
-            className="leading-tight mb-1"
-            style={{
-              color: 'var(--tgo-text-primary)',
-              fontSize: 'var(--tgo-type-title)',
-              fontWeight: 700,
-            }}
-          >
+          <h3 className="leading-tight mb-1" style={{ ...TEXT_PRIMARY, fontSize: 'var(--tgo-type-title)' }}>
             {r.name}
           </h3>
           {r.cuisineTypes && r.cuisineTypes.length > 0 && (
-            <p
-              className="truncate"
-              style={{
-                color: 'var(--tgo-text-secondary)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 500,
-              }}
-            >
+            <p className="truncate" style={TEXT_SECONDARY}>
               {r.cuisineTypes.slice(0, 2).join(' · ')}
             </p>
           )}
@@ -268,40 +366,19 @@ function HeroLayout({
         {/* Bottom: proximity + opportunity */}
         <div className="flex items-center gap-2 flex-wrap">
           {proximity && (
-            <span
-              className="flex items-center gap-1"
-              style={{
-                color: 'var(--tgo-text-secondary)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 500,
-              }}
-            >
+            <span className="flex items-center gap-1" style={TEXT_SECONDARY}>
               <proximity.icon size={10} />
               {proximity.label}
             </span>
           )}
           {opportunity && (
-            <span
-              className="flex items-center gap-1"
-              style={{
-                color: 'var(--tgo-state-warning)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 600,
-              }}
-            >
+            <span className="flex items-center gap-1" style={TEXT_OPPORTUNITY}>
               <opportunity.icon size={10} />
               {opportunity.label}
             </span>
           )}
           {r.averageRating != null && r.ratingCount != null && r.ratingCount > 0 && (
-            <span
-              className="flex items-center gap-0.5"
-              style={{
-                color: 'var(--tgo-state-warning)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 700,
-              }}
-            >
+            <span className="flex items-center gap-0.5" style={TEXT_RATING}>
               <Star size={10} className="fill-current" />
               {r.averageRating.toFixed(1)}
             </span>
@@ -313,21 +390,9 @@ function HeroLayout({
       {isNetwork && r.isOperational !== false && (
         <div
           className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
-          style={{
-            backgroundColor: 'rgba(26,26,26,0.32)',
-            transition: `opacity var(--tgo-duration-fast) var(--tgo-ease-standard)`,
-          }}
+          style={{ ...HOVER_OVERLAY, transition: `opacity var(--tgo-duration-fast) var(--tgo-ease-standard)` }}
         >
-          <span
-            className="px-5 py-2.5"
-            style={{
-              borderRadius: 'var(--tgo-radius-pill)',
-              backgroundColor: 'var(--tgo-surface-0)',
-              color: 'var(--tgo-text-primary)',
-              fontSize: 'var(--tgo-type-body-sm)',
-              fontWeight: 600,
-            }}
-          >
+          <span className="px-5 py-2.5" style={HOVER_CTA_PILL}>
             Ver carta
           </span>
         </div>
@@ -379,15 +444,7 @@ function ListLayout({
       }}
     >
       {/* Image */}
-      <div
-        className="relative shrink-0 overflow-hidden flex items-center justify-center"
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 'var(--tgo-radius-md)',
-          backgroundColor: 'var(--tgo-surface-1)',
-        }}
-      >
+      <div className="relative shrink-0 overflow-hidden flex items-center justify-center" style={IMAGE_64}>
         {isNetwork && r.logoUrl ? (
           <img src={r.logoUrl} alt={r.name} className="w-full h-full object-cover" />
         ) : r.heroImage ? (
@@ -398,43 +455,11 @@ function ListLayout({
         {/* Badge overlay */}
         <div className="absolute -bottom-0.5 -right-0.5">
           {r.isNew ? (
-            <span
-              className="flex items-center justify-center"
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 'var(--tgo-radius-pill)',
-                backgroundColor: 'var(--tgo-state-info)',
-                border: '2px solid var(--tgo-surface-card)',
-                color: '#fff',
-                fontSize: 8,
-                fontWeight: 700,
-              }}
-            >
-              N
-            </span>
+            <span className="flex items-center justify-center" style={BADGE_N}>N</span>
           ) : r.isOpenNow === true ? (
-            <span
-              className="flex items-center justify-center"
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 'var(--tgo-radius-pill)',
-                backgroundColor: 'var(--tgo-state-success)',
-                border: '2px solid var(--tgo-surface-card)',
-              }}
-            />
+            <span className="flex items-center justify-center" style={DOT_OPEN} />
           ) : r.isOpenNow === false ? (
-            <span
-              className="flex items-center justify-center"
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 'var(--tgo-radius-pill)',
-                backgroundColor: 'var(--tgo-state-danger)',
-                border: '2px solid var(--tgo-surface-card)',
-              }}
-            />
+            <span className="flex items-center justify-center" style={DOT_CLOSED} />
           ) : null}
         </div>
       </div>
@@ -442,14 +467,7 @@ function ListLayout({
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3
-            className="truncate leading-tight"
-            style={{
-              color: 'var(--tgo-text-primary)',
-              fontSize: 'var(--tgo-type-body-sm)',
-              fontWeight: 600,
-            }}
-          >
+          <h3 className="truncate leading-tight" style={{ ...TEXT_PRIMARY, fontSize: 'var(--tgo-type-body-sm)' }}>
             {r.name}
           </h3>
           <StatusBadge r={r} />
@@ -465,29 +483,15 @@ function ListLayout({
         {/* Meta row */}
         <div className="flex items-center gap-1.5 flex-wrap mt-1">
           {proximity && (
-            <span
-              className="flex items-center gap-1"
-              style={{
-                color: 'var(--tgo-text-secondary)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 500,
-              }}
-            >
+            <span className="flex items-center gap-1" style={TEXT_SECONDARY}>
               <proximity.icon size={10} />
               {proximity.label}
             </span>
           )}
           {r.estimatedPickupTime && isNetwork && r.isOperational !== false && (
             <>
-              <span style={{ color: 'var(--tgo-border)' }}>·</span>
-              <span
-                className="flex items-center gap-1"
-                style={{
-                  color: 'var(--tgo-state-success)',
-                  fontSize: 'var(--tgo-type-caption)',
-                  fontWeight: 600,
-                }}
-              >
+              <span style={DOT_SEPARATOR}>·</span>
+              <span className="flex items-center gap-1" style={TEXT_PICKUP}>
                 <Clock size={10} />
                 {r.estimatedPickupTime} min
               </span>
@@ -495,15 +499,8 @@ function ListLayout({
           )}
           {opportunity && (
             <>
-              <span style={{ color: 'var(--tgo-border)' }}>·</span>
-              <span
-                className="flex items-center gap-1"
-                style={{
-                  color: 'var(--tgo-state-warning)',
-                  fontSize: 'var(--tgo-type-caption)',
-                  fontWeight: 600,
-                }}
-              >
+              <span style={DOT_SEPARATOR}>·</span>
+              <span className="flex items-center gap-1" style={TEXT_OPPORTUNITY}>
                 <opportunity.icon size={10} />
                 {opportunity.label}
               </span>
@@ -511,15 +508,8 @@ function ListLayout({
           )}
           {r.averageRating != null && r.ratingCount != null && r.ratingCount > 0 && (
             <>
-              <span style={{ color: 'var(--tgo-border)' }}>·</span>
-              <span
-                className="flex items-center gap-0.5"
-                style={{
-                  color: 'var(--tgo-state-warning)',
-                  fontSize: 'var(--tgo-type-caption)',
-                  fontWeight: 700,
-                }}
-              >
+              <span style={DOT_SEPARATOR}>·</span>
+              <span className="flex items-center gap-0.5" style={TEXT_RATING}>
                 <Star size={10} className="fill-current" />
                 {r.averageRating.toFixed(1)}
               </span>
@@ -535,31 +525,14 @@ function ListLayout({
             href={`/${r.tenantSlug}/menu/${r.id}/takeaway`}
             className="flex items-center gap-1.5"
             style={{
-              padding: '8px 16px',
-              borderRadius: 'var(--tgo-radius-md)',
-              fontSize: 'var(--tgo-type-caption)',
-              fontWeight: 600,
-              backgroundColor:
-                r.isOperational === false
-                  ? 'var(--tgo-surface-2)'
-                  : 'var(--tgo-state-interactive)',
-              color:
-                r.isOperational === false
-                  ? 'var(--tgo-text-muted)'
-                  : 'var(--tgo-text-inverse)',
+              ...(r.isOperational === false ? CTA_DISABLED : CTA_ACTIVE),
               transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
             }}
           >
             {r.isOperational === false ? 'Ver carta' : 'Pedir'}
           </Link>
         ) : (
-          <span
-            style={{
-              color: r.isOpenNow === true ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)',
-              fontSize: 'var(--tgo-type-caption)',
-              fontWeight: 600,
-            }}
-          >
+          <span style={r.isOpenNow === true ? TEXT_PICKUP : { color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-caption)', fontWeight: 600 }}>
             {r.isOpenNow === true ? 'Abierto' : r.isOpenNow === false ? 'Cerrado' : ''}
           </span>
         )}
@@ -607,15 +580,7 @@ function CompactLayout({
       }}
     >
       {/* Image */}
-      <div
-        className="relative shrink-0 overflow-hidden flex items-center justify-center"
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: 'var(--tgo-radius-sm)',
-          backgroundColor: 'var(--tgo-surface-1)',
-        }}
-      >
+      <div className="relative shrink-0 overflow-hidden flex items-center justify-center" style={IMAGE_48}>
         {isNetwork && r.logoUrl ? (
           <img src={r.logoUrl} alt={r.name} className="w-full h-full object-cover" />
         ) : r.heroImage ? (
@@ -627,62 +592,27 @@ function CompactLayout({
 
       {/* Info — one line */}
       <div className="flex-1 min-w-0">
-        <p
-          className="truncate"
-          style={{
-            color: 'var(--tgo-text-primary)',
-            fontSize: 'var(--tgo-type-body-sm)',
-            fontWeight: 600,
-          }}
-        >
+        <p className="truncate" style={{ ...TEXT_PRIMARY, fontSize: 'var(--tgo-type-body-sm)' }}>
           {r.name}
         </p>
         <div className="flex items-center gap-1.5">
           {r.isOpenNow === true && (
-            <span
-              style={{
-                color: 'var(--tgo-state-success)',
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-              }}
-            >
-              Abierto
-            </span>
+            <span style={TEXT_OPEN}>Abierto</span>
           )}
           {r.estimatedPickupTime && isNetwork && r.isOperational !== false && (
-            <span
-              className="flex items-center gap-0.5"
-              style={{
-                color: 'var(--tgo-text-secondary)',
-                fontSize: 10,
-              }}
-            >
+            <span className="flex items-center gap-0.5" style={TEXT_MUTED}>
               <Clock size={8} />
               {r.estimatedPickupTime} min
             </span>
           )}
           {proximity && (
-            <span
-              className="flex items-center gap-0.5"
-              style={{
-                color: 'var(--tgo-text-muted)',
-                fontSize: 10,
-              }}
-            >
+            <span className="flex items-center gap-0.5" style={TEXT_MUTED}>
               <proximity.icon size={8} />
               {proximity.label}
             </span>
           )}
           {r.loyaltyInfo?.hasActivePromo && (
-            <span
-              className="flex items-center gap-0.5"
-              style={{
-                color: 'var(--tgo-state-warning)',
-                fontSize: 10,
-                fontWeight: 600,
-              }}
-            >
+            <span className="flex items-center gap-0.5" style={TEXT_PROMO}>
               Promo
             </span>
           )}
@@ -724,15 +654,7 @@ function MapPreviewLayout({
       }}
     >
       {/* Image */}
-      <div
-        className="relative shrink-0 overflow-hidden flex items-center justify-center"
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 'var(--tgo-radius-sm)',
-          backgroundColor: 'var(--tgo-surface-1)',
-        }}
-      >
+      <div className="relative shrink-0 overflow-hidden flex items-center justify-center" style={IMAGE_40}>
         {isNetwork && r.logoUrl ? (
           <img src={r.logoUrl} alt={r.name} className="w-full h-full object-cover" />
         ) : r.heroImage ? (
@@ -745,65 +667,31 @@ function MapPreviewLayout({
       {/* Info */}
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <p
-            className="truncate"
-            style={{
-              color: 'var(--tgo-text-primary)',
-              fontSize: 'var(--tgo-type-caption)',
-              fontWeight: 600,
-              lineHeight: 1.2,
-            }}
-          >
+          <p className="truncate" style={{ ...TEXT_PRIMARY, fontSize: 'var(--tgo-type-caption)', lineHeight: 1.2 }}>
             {r.name}
           </p>
           <StatusBadge r={r} />
         </div>
         {r.cuisineTypes && r.cuisineTypes.length > 0 && (
-          <p
-            className="truncate"
-            style={{
-              color: 'var(--tgo-text-muted)',
-              fontSize: 10,
-            }}
-          >
+          <p className="truncate" style={{ color: 'var(--tgo-text-muted)', fontSize: 10 }}>
             {r.cuisineTypes.slice(0, 1).join('')}
           </p>
         )}
         <div className="flex items-center gap-1.5">
           {r.estimatedPickupTime && isNetwork && r.isOperational !== false && (
-            <span
-              className="flex items-center gap-0.5"
-              style={{
-                color: 'var(--tgo-state-success)',
-                fontSize: 10,
-                fontWeight: 600,
-              }}
-            >
+            <span className="flex items-center gap-0.5" style={TEXT_PICKUP}>
               <Clock size={8} />
               {r.estimatedPickupTime} min
             </span>
           )}
           {proximity && (
-            <span
-              className="flex items-center gap-0.5"
-              style={{
-                color: 'var(--tgo-text-muted)',
-                fontSize: 10,
-              }}
-            >
+            <span className="flex items-center gap-0.5" style={TEXT_MUTED}>
               <proximity.icon size={8} />
               {proximity.label}
             </span>
           )}
           {opportunity && (
-            <span
-              className="flex items-center gap-0.5"
-              style={{
-                color: 'var(--tgo-state-warning)',
-                fontSize: 10,
-                fontWeight: 600,
-              }}
-            >
+            <span className="flex items-center gap-0.5" style={TEXT_PROMO}>
               <opportunity.icon size={8} />
               {opportunity.label}
             </span>
