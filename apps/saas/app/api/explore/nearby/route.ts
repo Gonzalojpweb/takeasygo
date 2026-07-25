@@ -119,11 +119,6 @@ export async function GET(request: NextRequest) {
     }
 
     await connectDB()
-    // Garantiza que los índices 2dsphere existan antes de ejecutar $geoNear
-    await Promise.all([
-      Location.createIndexes(),
-      RestaurantDirectory.createIndexes(),
-    ])
 
     const geoNearStage = {
       $geoNear: {
