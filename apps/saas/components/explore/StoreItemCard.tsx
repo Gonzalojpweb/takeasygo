@@ -1,14 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Star, TrendingUp, Lock, Package, Sparkles } from 'lucide-react'
+import { Star, TrendingUp, Lock, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import confetti from 'canvas-confetti'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
-import { cn } from '@/lib/utils'
 
 interface StoreItem {
   _id: string
@@ -53,7 +49,6 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
   const pointsNeeded = item.pointsCost - memberPoints
   const progress = Math.min((memberPoints / item.pointsCost) * 100, 100)
 
-  // Momento 05: detectar desbloqueo (transición de no-poder a poder)
   useEffect(() => {
     if (canAfford && !prevCanAfford.current) {
       setUnlocked(true)
@@ -75,7 +70,6 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
 
   async function handleRedeem() {
     if (!canRedeem) return
-    
     setLoading(true)
     try {
       await onRedeem(item._id)
@@ -84,13 +78,25 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
     }
   }
 
+  const cardBorder = !canAfford
+    ? '1px solid var(--tgo-border)'
+    : unlocked
+      ? '2px solid var(--tgo-state-success)'
+      : '2px solid var(--tgo-state-success)'
+
   return (
-    <Card className={cn(
-      'overflow-hidden transition-all duration-500 hover:shadow-xl hover:-translate-y-1 border-2',
-      !canAfford ? 'grayscale opacity-60' : unlocked ? 'ring-2 ring-emerald-400 animate-pulse' : '',
-      canAfford ? 'border-emerald-200' : 'border-border/60'
-    )}>
-      <div className="relative h-48 bg-muted">
+    <div
+      className="overflow-hidden transition-all duration-500"
+      style={{
+        borderRadius: 'var(--tgo-radius-xl)',
+        backgroundColor: 'var(--tgo-surface-card)',
+        border: cardBorder,
+        boxShadow: 'var(--tgo-elevation-card)',
+        opacity: !canAfford ? 0.6 : 1,
+        filter: !canAfford ? 'grayscale(1)' : 'none',
+      }}
+    >
+      <div className="relative h-48" style={{ backgroundColor: 'var(--tgo-surface-1)' }}>
         {item.imageUrl ? (
           <img
             src={item.imageUrl}
@@ -99,55 +105,77 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Package size={48} className="text-muted-foreground/30" />
+            <Package size={48} style={{ color: 'var(--tgo-text-muted)', opacity: 0.3 }} />
           </div>
         )}
-        
+
         {/* Points Badge */}
         <div className="absolute top-3 right-3">
-          <Badge 
-            className="bg-black/90 backdrop-blur-sm text-white font-bold px-3 py-1.5"
-            aria-label={`${item.pointsCost} puntos requeridos`}
+          <div
+            className="flex items-center gap-1 text-white font-bold px-3 py-1.5"
+            style={{
+              borderRadius: 'var(--tgo-radius-md)',
+              backgroundColor: 'rgba(0,0,0,0.85)',
+            }}
           >
-            <Star size={14} className="fill-white mr-1" aria-hidden="true" />
+            <Star size={14} className="fill-white" />
             {item.pointsCost} pts
-          </Badge>
+          </div>
         </div>
 
         {/* Stock Badge */}
         {item.stock !== null && (
           <div className="absolute top-3 left-3">
-            <Badge 
-              variant={inStock ? 'default' : 'destructive'}
-              className="bg-black/90 backdrop-blur-sm"
-              aria-label={inStock ? `${item.stock} unidades disponibles` : 'Sin stock'}
+            <div
+              className="text-white text-xs font-bold px-3 py-1.5"
+              style={{
+                borderRadius: 'var(--tgo-radius-md)',
+                backgroundColor: inStock ? 'rgba(0,0,0,0.85)' : 'var(--tgo-state-danger)',
+              }}
             >
               {inStock ? `${item.stock} disponibles` : 'Sin stock'}
-            </Badge>
+            </div>
           </div>
         )}
       </div>
 
-      <CardContent className="p-4">
-        <h3 className="font-bold text-lg mb-2">{item.name}</h3>
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+      <div className="p-4">
+        <h3 className="font-bold text-lg mb-2" style={{ color: 'var(--tgo-text-primary)' }}>
+          {item.name}
+        </h3>
+        <p
+          className="text-sm line-clamp-2 mb-4"
+          style={{ color: 'var(--tgo-text-muted)' }}
+        >
           {item.description}
         </p>
 
         {/* Progress Bar */}
         {!canAfford && (
           <div className="mb-4">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <div
+              className="flex items-center justify-between text-xs mb-1"
+              style={{ color: 'var(--tgo-text-muted)' }}
+            >
               <span>Tus puntos</span>
               <span>{memberPoints} / {item.pointsCost}</span>
             </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all"
-                style={{ width: `${progress}%` }}
+            <div
+              className="h-2 rounded-full overflow-hidden"
+              style={{ backgroundColor: 'var(--tgo-surface-1)' }}
+            >
+              <div
+                className="h-full transition-all"
+                style={{
+                  width: `${progress}%`,
+                  background: `linear-gradient(90deg, var(--tgo-state-interactive), var(--tgo-state-interactive-muted))`,
+                }}
               />
             </div>
-            <p className="text-xs text-orange-600 font-medium mt-1">
+            <p
+              className="text-xs font-medium mt-1"
+              style={{ color: 'var(--tgo-state-warning)' }}
+            >
               Necesitas {pointsNeeded} puntos más
             </p>
           </div>
@@ -155,8 +183,18 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
 
         {/* Tier Requirement */}
         {!meetsTier && (
-          <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 text-amber-700 text-xs font-medium">
+          <div
+            className="mb-4 p-2"
+            style={{
+              borderRadius: 'var(--tgo-radius-md)',
+              backgroundColor: 'var(--tgo-state-warning-soft)',
+              border: '1px solid var(--tgo-state-warning)',
+            }}
+          >
+            <div
+              className="flex items-center gap-2 text-xs font-medium"
+              style={{ color: 'var(--tgo-state-warning)' }}
+            >
               <Lock size={12} />
               Requiere nivel {item.tierRequirement}
             </div>
@@ -165,7 +203,14 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
 
         {/* Recurrence Requirement */}
         {hasRecurrenceRequirement && (
-          <div className="mb-4 p-2 bg-purple-50 border border-purple-200 rounded-lg">
+          <div
+            className="mb-4 p-2"
+            style={{
+              borderRadius: 'var(--tgo-radius-md)',
+              backgroundColor: 'rgba(168, 85, 247, 0.05)',
+              border: '1px solid rgba(168, 85, 247, 0.2)',
+            }}
+          >
             <div className="flex items-center gap-2 text-purple-700 text-xs font-medium">
               <Package size={12} />
               Requiere compras recurrentes de este producto
@@ -175,24 +220,20 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
 
         {/* Cash Value */}
         {item.cashValue && (
-          <div className="mb-4 text-xs text-muted-foreground">
+          <div className="mb-4 text-xs" style={{ color: 'var(--tgo-text-muted)' }}>
             Valor estimado: ${item.cashValue}
           </div>
         )}
 
-        <Button
+        <button
           onClick={handleRedeem}
           disabled={!canRedeem || loading}
-          aria-label={
-            loading ? 'Procesando canje' :
-            !canAfford ? `Puntos insuficientes para canjear ${item.name}` :
-            !meetsTier ? `Nivel insuficiente para canjear ${item.name}` :
-            !inStock ? `${item.name} sin stock` :
-            hasRecurrenceRequirement ? `${item.name} requiere compras recurrentes` :
-            `Canjear ${item.name} por ${item.pointsCost} puntos`
-          }
-          className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          variant={canRedeem ? 'default' : 'outline'}
+          className="w-full py-3 font-bold text-sm text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{
+            borderRadius: 'var(--tgo-radius-md)',
+            backgroundColor: canRedeem ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-1)',
+            color: canRedeem ? 'white' : 'var(--tgo-text-muted)',
+          }}
         >
           {loading ? (
             'Procesando...'
@@ -205,13 +246,13 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
           ) : hasRecurrenceRequirement ? (
             'Requiere compras recurrentes'
           ) : (
-            <>
-              <TrendingUp size={16} className="mr-2" />
+            <span className="flex items-center justify-center gap-2">
+              <TrendingUp size={16} />
               Canjear
-            </>
+            </span>
           )}
-        </Button>
-      </CardContent>
-    </Card>
+        </button>
+      </div>
+    </div>
   )
 }

@@ -15,7 +15,7 @@ export default function LoadingScreen({ loadingText = 'Preparando tu experiencia
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center"
-      style={{ backgroundColor: '#0d0b0a' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       <div className="flex flex-col items-center gap-10">
         {/* Logo Container */}
@@ -59,13 +59,13 @@ export default function LoadingScreen({ loadingText = 'Preparando tu experiencia
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
           className="text-sm font-medium tracking-wide"
-          style={{ color: '#6B6560' }}
+          style={{ color: 'var(--tgo-text-muted)' }}
         >
           {loadingText}
         </motion.p>
 
         {/* Shimmer progress line */}
-        <div className="w-28 h-[2px] rounded-full overflow-hidden relative" style={{ backgroundColor: '#242220' }}>
+        <div className="w-28 h-[2px] rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--tgo-surface-1)' }}>
           <motion.div
             animate={{ x: ['-100%', '400%'] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}

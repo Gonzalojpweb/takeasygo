@@ -3,7 +3,6 @@
 import React from 'react'
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
 
 interface Promo {
   _id: string
@@ -28,16 +27,20 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 mb-4">
         <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-[-0.02em]">
+          <h2
+            className="text-xl font-black tracking-[-0.02em]"
+            style={{ color: 'var(--tgo-text-primary)' }}
+          >
             Ofertas Destacadas
           </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-sm mt-0.5" style={{ color: 'var(--tgo-text-muted)' }}>
             ¡Aprovechá estos beneficios hoy!
           </p>
         </div>
         <Link
           href="/app/promociones"
-          className="text-primary font-semibold text-sm flex items-center gap-1.5 hover:underline"
+          className="font-semibold text-sm flex items-center gap-1.5 hover:underline"
+          style={{ color: 'var(--tgo-state-interactive)' }}
         >
           Ver todas <ArrowRight size={16} />
         </Link>
@@ -56,17 +59,22 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
             return (
               <Link
                 key={promo._id}
-                href={promo.locationId 
-                  ? `/${promo.tenantSlug}/menu/${promo.locationId}` 
+                href={promo.locationId
+                  ? `/${promo.tenantSlug}/menu/${promo.locationId}`
                   : `/${promo.tenantSlug}`}
-                className={cn(
-                  "shrink-0 w-[88%] max-w-[300px] snap-start",
-                  "bg-white rounded-3xl overflow-hidden shadow-xl shadow-slate-200/70",
-                  "border border-slate-100 active:scale-[0.985] transition-all duration-200"
-                )}
+                className="shrink-0 w-[88%] max-w-[300px] snap-start active:scale-[0.985] transition-all duration-200"
+                style={{
+                  borderRadius: 'var(--tgo-radius-2xl)',
+                  backgroundColor: 'var(--tgo-surface-card)',
+                  border: '1px solid var(--tgo-border)',
+                  boxShadow: 'var(--tgo-elevation-card)',
+                  overflow: 'hidden',
+                }}
               >
-                <div className="relative h-[168px] bg-gradient-to-br from-slate-900 to-slate-800">
-                  
+                <div
+                  className="relative h-[168px]"
+                  style={{ background: 'linear-gradient(135deg, var(--tgo-surface-3), var(--tgo-surface-2))' }}
+                >
                   {/* Background Image */}
                   {promo.imageUrl && (
                     <img
@@ -82,7 +90,14 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
                   {/* Top Badges */}
                   <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-10">
                     {promo.tenantLogo ? (
-                      <div className="w-9 h-9 rounded-2xl overflow-hidden bg-white/95 backdrop-blur-md shadow-md ring-2 ring-white/50 flex-shrink-0">
+                      <div
+                        className="w-9 h-9 overflow-hidden flex-shrink-0"
+                        style={{
+                          borderRadius: 'var(--tgo-radius-xl)',
+                          backgroundColor: 'var(--tgo-surface-card)',
+                          boxShadow: 'var(--tgo-elevation-overlay)',
+                        }}
+                      >
                         <img
                           src={promo.tenantLogo}
                           alt={promo.tenantName || ''}
@@ -90,11 +105,24 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
                         />
                       </div>
                     ) : (
-                      <div className="w-9 h-9 rounded-2xl bg-white/95 backdrop-blur-md flex items-center justify-center shadow-md" />
+                      <div
+                        className="w-9 h-9 flex items-center justify-center"
+                        style={{
+                          borderRadius: 'var(--tgo-radius-xl)',
+                          backgroundColor: 'var(--tgo-surface-card)',
+                        }}
+                      />
                     )}
 
                     {discount > 0 && (
-                      <div className="bg-emerald-500 text-white text-xs font-black px-3 py-1 rounded-2xl shadow-md">
+                      <div
+                        className="text-white text-xs font-black px-3 py-1"
+                        style={{
+                          borderRadius: 'var(--tgo-radius-xl)',
+                          backgroundColor: 'var(--tgo-state-success)',
+                          boxShadow: 'var(--tgo-elevation-overlay)',
+                        }}
+                      >
                         {discount}% OFF
                       </div>
                     )}
@@ -105,7 +133,7 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
                     <h3 className="text-white font-bold text-lg leading-tight line-clamp-2 mb-1.5 tracking-tight">
                       {promo.title}
                     </h3>
-                    
+
                     <p className="text-white/80 text-sm line-clamp-2 leading-snug mb-3">
                       {promo.description}
                     </p>

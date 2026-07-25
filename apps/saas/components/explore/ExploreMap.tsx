@@ -324,7 +324,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
       // User location marker
       const userIcon = L.divIcon({
         className: '',
-        html: pulsePinSvg('#f14722'),
+        html: pulsePinSvg('var(--tgo-brand-primary)'),
         iconSize: [36, 36],
       })
       L.marker([userLat, userLng], { icon: userIcon }).addTo(map)

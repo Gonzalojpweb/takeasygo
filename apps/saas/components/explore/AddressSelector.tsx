@@ -96,10 +96,23 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
     return <MapPinIcon size={16} />
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    backgroundColor: 'var(--tgo-surface-1)',
+    border: '1px solid var(--tgo-border)',
+    borderRadius: 'var(--tgo-radius-md)',
+    padding: '10px 16px',
+    fontSize: 'var(--tgo-type-body-sm)',
+    color: 'var(--tgo-text-primary)',
+    outline: 'none',
+  }
+
+  const inputFocusStyle = 'focus:ring-2 focus:ring-[var(--tgo-state-interactive)]/30'
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 size={24} className="text-[#f14722] animate-spin" />
+        <Loader2 size={24} style={{ color: 'var(--tgo-state-interactive)' }} className="animate-spin" />
       </div>
     )
   }
@@ -108,19 +121,35 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
     <div className="space-y-3">
       {/* Current Address */}
       {currentAddress && (
-        <div className="glass-card rounded-2xl p-4 border-[#f14722]/30 bg-[#f14722]/5">
+        <div
+          className="rounded-2xl p-4"
+          style={{
+            backgroundColor: 'var(--tgo-state-interactive-soft)',
+            border: '1px solid var(--tgo-state-interactive)',
+          }}
+        >
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#f14722] flex items-center justify-center shrink-0">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+              style={{ backgroundColor: 'var(--tgo-state-interactive)' }}
+            >
               <Check size={16} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-[#f14722] uppercase tracking-wider mb-1">
+              <p
+                className="uppercase tracking-wider mb-1"
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'var(--tgo-state-interactive)',
+                }}
+              >
                 Dirección Actual
               </p>
-              <p className="text-sm font-bold text-[#f7f4f2] truncate">
+              <p className="text-sm font-bold truncate" style={{ color: 'var(--tgo-text-primary)' }}>
                 {currentAddress.label}
               </p>
-              <p className="text-xs text-[#5a524d] truncate">
+              <p className="text-xs truncate" style={{ color: 'var(--tgo-text-muted)' }}>
                 {currentAddress.address}
               </p>
             </div>
@@ -131,41 +160,61 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
       {/* Saved Addresses */}
       {savedAddresses.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#5a524d] ml-1">
+          <p
+            className="ml-1 uppercase tracking-widest"
+            style={{
+              fontSize: 10,
+              fontWeight: 900,
+              color: 'var(--tgo-text-muted)',
+            }}
+          >
             Direcciones Guardadas
           </p>
-          {savedAddresses.map((addr, index) => (
-            <button
-              key={index}
-              onClick={() => handleSelectAddress(addr)}
-              className={`w-full glass-card rounded-2xl p-4 flex items-center gap-3 group transition-all ${
-                currentAddress?.address === addr.address ? 'border-[#f14722]/30 bg-[#f14722]/5' : 'hover:border-[var(--c-border-active)]'
-              }`}
-            >
-              <div className="w-8 h-8 rounded-lg bg-[var(--c-surface)] flex items-center justify-center text-[#5a524d] shrink-0">
-                {getLabelIcon(addr.label)}
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-bold text-[#f7f4f2] truncate">
-                  {addr.label}
-                </p>
-                <p className="text-xs text-[#5a524d] truncate">
-                  {addr.address}
-                </p>
-              </div>
-              {session?.user && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleRemoveAddress(index)
+          {savedAddresses.map((addr, index) => {
+            const isActive = currentAddress?.address === addr.address
+            return (
+              <button
+                key={index}
+                onClick={() => handleSelectAddress(addr)}
+                className="w-full p-4 flex items-center gap-3 group transition-all"
+                style={{
+                  borderRadius: 'var(--tgo-radius-xl)',
+                  backgroundColor: isActive ? 'var(--tgo-state-interactive-soft)' : 'var(--tgo-surface-card)',
+                  border: `1px solid ${isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-border)'}`,
+                }}
+              >
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                  style={{
+                    backgroundColor: 'var(--tgo-surface-1)',
+                    color: 'var(--tgo-text-muted)',
                   }}
-                  className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </button>
-          ))}
+                  {getLabelIcon(addr.label)}
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-bold truncate" style={{ color: 'var(--tgo-text-primary)' }}>
+                    {addr.label}
+                  </p>
+                  <p className="text-xs truncate" style={{ color: 'var(--tgo-text-muted)' }}>
+                    {addr.address}
+                  </p>
+                </div>
+                {session?.user && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRemoveAddress(index)
+                    }}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -173,39 +222,68 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
       {showAddButton && !showAddForm && (
         <button
           onClick={() => setShowAddForm(true)}
-          className="w-full glass-card rounded-2xl p-4 flex items-center gap-3 group hover:border-[var(--c-border-active)] transition-all"
+          className="w-full p-4 flex items-center gap-3 transition-all"
+          style={{
+            borderRadius: 'var(--tgo-radius-xl)',
+            backgroundColor: 'var(--tgo-surface-card)',
+            border: '1px solid var(--tgo-border)',
+          }}
         >
-          <div className="w-8 h-8 rounded-lg bg-[#f14722] flex items-center justify-center text-white shrink-0">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0"
+            style={{ backgroundColor: 'var(--tgo-state-interactive)' }}
+          >
             <Plus size={16} />
           </div>
           <div className="flex-1 text-left">
-            <p className="text-sm font-bold text-[#f7f4f2]">Agregar Nueva Dirección</p>
-            <p className="text-xs text-[#5a524d]">Guardar una dirección para pedidos</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+              Agregar Nueva Dirección
+            </p>
+            <p className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>
+              Guardar una dirección para pedidos
+            </p>
           </div>
         </button>
       )}
 
       {/* Add Address Form */}
       {showAddForm && (
-        <div className="glass-card rounded-2xl p-4 space-y-3">
+        <div
+          className="p-4 space-y-3"
+          style={{
+            borderRadius: 'var(--tgo-radius-xl)',
+            backgroundColor: 'var(--tgo-surface-card)',
+            border: '1px solid var(--tgo-border)',
+          }}
+        >
           <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-[#f7f4f2]">Nueva Dirección</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+              Nueva Dirección
+            </p>
             <button
               onClick={() => setShowAddForm(false)}
-              className="w-8 h-8 rounded-lg bg-[var(--c-surface)] flex items-center justify-center text-[#5a524d] hover:bg-[var(--c-border)] transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+              style={{
+                backgroundColor: 'var(--tgo-surface-1)',
+                color: 'var(--tgo-text-muted)',
+              }}
             >
               <X size={16} />
             </button>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#5a524d]">
+            <label
+              className="uppercase tracking-widest"
+              style={{ fontSize: 10, fontWeight: 700, color: 'var(--tgo-text-muted)' }}
+            >
               Etiqueta
             </label>
             <select
               value={newAddress.label}
               onChange={(e) => setNewAddress({ ...newAddress, label: e.target.value })}
-              className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-2.5 text-sm text-[#f7f4f2] focus:outline-none focus:ring-2 focus:ring-[#f14722]/30"
+              className={inputFocusStyle}
+              style={inputStyle}
             >
               <option value="Casa">Casa</option>
               <option value="Trabajo">Trabajo</option>
@@ -214,7 +292,10 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#5a524d]">
+            <label
+              className="uppercase tracking-widest"
+              style={{ fontSize: 10, fontWeight: 700, color: 'var(--tgo-text-muted)' }}
+            >
               Dirección
             </label>
             <input
@@ -222,12 +303,16 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
               value={newAddress.address}
               onChange={(e) => setNewAddress({ ...newAddress, address: e.target.value })}
               placeholder="Calle 123, Ciudad"
-              className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-2.5 text-sm text-[#f7f4f2] placeholder-[#5a524d] focus:outline-none focus:ring-2 focus:ring-[#f14722]/30"
+              className={inputFocusStyle}
+              style={{ ...inputStyle, colorScheme: 'light' }}
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#5a524d]">
+            <label
+              className="uppercase tracking-widest"
+              style={{ fontSize: 10, fontWeight: 700, color: 'var(--tgo-text-muted)' }}
+            >
               Ciudad (opcional)
             </label>
             <input
@@ -235,12 +320,16 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
               value={newAddress.city}
               onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
               placeholder="Buenos Aires"
-              className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-2.5 text-sm text-[#f7f4f2] placeholder-[#5a524d] focus:outline-none focus:ring-2 focus:ring-[#f14722]/30"
+              className={inputFocusStyle}
+              style={{ ...inputStyle, colorScheme: 'light' }}
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#5a524d]">
+            <label
+              className="uppercase tracking-widest"
+              style={{ fontSize: 10, fontWeight: 700, color: 'var(--tgo-text-muted)' }}
+            >
               Coordenadas
             </label>
             <div className="flex gap-2">
@@ -253,7 +342,8 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
                   coordinates: { ...newAddress.coordinates, lat: parseFloat(e.target.value) || 0 }
                 })}
                 placeholder="Latitud"
-                className="flex-1 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-2.5 text-sm text-[#f7f4f2] placeholder-[#5a524d] focus:outline-none focus:ring-2 focus:ring-[#f14722]/30"
+                className={inputFocusStyle}
+                style={{ ...inputStyle, flex: 1, colorScheme: 'light' }}
               />
               <input
                 type="number"
@@ -264,13 +354,20 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
                   coordinates: { ...newAddress.coordinates, lng: parseFloat(e.target.value) || 0 }
                 })}
                 placeholder="Longitud"
-                className="flex-1 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-2.5 text-sm text-[#f7f4f2] placeholder-[#5a524d] focus:outline-none focus:ring-2 focus:ring-[#f14722]/30"
+                className={inputFocusStyle}
+                style={{ ...inputStyle, flex: 1, colorScheme: 'light' }}
               />
             </div>
             <button
               type="button"
               onClick={handleGetCurrentLocation}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-[var(--c-surface)] border border-[var(--c-border)] text-xs text-[#5a524d] hover:bg-[var(--c-border)] transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2 text-xs transition-colors"
+              style={{
+                borderRadius: 'var(--tgo-radius-md)',
+                backgroundColor: 'var(--tgo-surface-1)',
+                border: '1px solid var(--tgo-border)',
+                color: 'var(--tgo-text-muted)',
+              }}
             >
               <MapPin size={14} />
               Usar mi ubicación actual
@@ -280,7 +377,11 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
           <button
             onClick={handleAddAddress}
             disabled={adding || !newAddress.address || !newAddress.coordinates.lat || !newAddress.coordinates.lng}
-            className="w-full py-3 rounded-xl bg-[#f14722] text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#d93a1d] transition-colors"
+            className="w-full py-3 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            style={{
+              borderRadius: 'var(--tgo-radius-md)',
+              backgroundColor: 'var(--tgo-state-interactive)',
+            }}
           >
             {adding ? <Loader2 size={16} className="animate-spin" /> : 'Guardar Dirección'}
           </button>
@@ -288,7 +389,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
       )}
 
       {!session?.user && savedAddresses.length === 0 && (
-        <p className="text-center text-xs text-[#5a524d] py-4">
+        <p className="text-center text-xs py-4" style={{ color: 'var(--tgo-text-muted)' }}>
           Iniciá sesión para guardar tus direcciones
         </p>
       )}

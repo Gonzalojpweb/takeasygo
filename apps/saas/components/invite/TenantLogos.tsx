@@ -16,7 +16,10 @@ export default function TenantLogos({ tenants }: TenantLogosProps) {
 
   return (
     <div className="animate-fade-in-up pt-4" style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>
-      <p className="text-xs text-center text-[var(--c-text-muted)] font-medium mb-5 uppercase tracking-wider">
+      <p
+        className="text-xs text-center font-medium mb-5 uppercase tracking-wider"
+        style={{ color: 'var(--tgo-text-muted)' }}
+      >
         Algunos que ya confían
       </p>
 

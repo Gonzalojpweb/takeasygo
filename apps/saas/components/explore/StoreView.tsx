@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Package, Filter, Star, ArrowLeft, Gift } from 'lucide-react'
 import { toast } from 'sonner'
 import StoreItemCard from './StoreItemCard'
@@ -24,14 +21,6 @@ interface StoreItem {
   minItemPurchases: number
   category: string
   isFeatured: boolean
-}
-
-interface Member {
-  _id: string
-  loyalty: {
-    points: number
-    tier: string
-  }
 }
 
 interface StoreConfig {
@@ -69,10 +58,8 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
   const [config, setConfig] = useState<StoreConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [showRedemptions, setShowRedemptions] = useState(false)
   const [redeemedItem, setRedeemedItem] = useState<{ item: StoreItem; redemptionCode: string; expiresAt: string } | null>(null)
   const [points, setPoints] = useState(memberPoints)
-  const [redemption, setRedemption] = useState<any>(null)
   const [showMyRedemptions, setShowMyRedemptions] = useState(false)
 
   useEffect(() => {
@@ -86,7 +73,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
         fetch(`/api/${tenantSlug}/store/items?isActive=true`),
         fetch(`/api/${tenantSlug}/store/config`),
       ])
-      
+
       const itemsData = await itemsRes.json()
       const configData = await configRes.json()
 
@@ -99,7 +86,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
     }
   }
 
-  const filteredItems = items.filter(item => 
+  const filteredItems = items.filter(item =>
     filterCategory === 'all' || item.category === filterCategory
   )
 
@@ -121,19 +108,17 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
         }
         throw new Error(data.error || 'Error al canjear')
       }
-      
+
       const redemption = data.redemption || data
-      
+
       setRedeemedItem({
         item: items.find(i => i._id === itemId)!,
         redemptionCode: redemption.redemptionCode,
         expiresAt: redemption.expiresAt,
       })
-      
-      // Update points
+
       setPoints(data.member?.points ?? points - items.find(i => i._id === itemId)!.pointsCost)
 
-      // Mostrar mensaje si se aplicó micro-SOS (adelanto forzado)
       if (data.microSosApplied && data.pendingAdvance > 0) {
         toast.success(`Canje exitoso. Tenés ${data.pendingAdvance} puntos pendientes para consolidar en tu próxima compra.`, { duration: 6000 })
       }
@@ -176,51 +161,73 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-muted-foreground">Cargando...</div>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+      >
+        <div style={{ color: 'var(--tgo-text-muted)' }}>Cargando...</div>
       </div>
     )
   }
 
   if (!config?.enabled) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center">
-          <Gift size={48} className="mx-auto text-muted-foreground/30 mb-4" />
-          <h2 className="text-xl font-bold mb-2">Tienda no disponible</h2>
-          <p className="text-muted-foreground mb-4">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+      >
+        <div
+          className="max-w-md w-full p-8 text-center"
+          style={{
+            borderRadius: 'var(--tgo-radius-xl)',
+            backgroundColor: 'var(--tgo-surface-card)',
+            border: '1px solid var(--tgo-border)',
+          }}
+        >
+          <Gift size={48} className="mx-auto mb-4" style={{ color: 'var(--tgo-text-muted)', opacity: 0.3 }} />
+          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--tgo-text-primary)' }}>
+            Tienda no disponible
+          </h2>
+          <p className="mb-4" style={{ color: 'var(--tgo-text-muted)' }}>
             La tienda de recompensas no está habilitada en este momento.
           </p>
           {onBack && (
-            <Button onClick={onBack} variant="outline" aria-label="Volver al club" className="text-white">
+            <button
+              onClick={onBack}
+              className="px-6 py-2 text-sm font-bold transition-all"
+              style={{
+                borderRadius: 'var(--tgo-radius-md)',
+                border: '1px solid var(--tgo-border)',
+                color: 'var(--tgo-text-primary)',
+              }}
+            >
               Volver
-            </Button>
+            </button>
           )}
-        </Card>
+        </div>
       </div>
     )
   }
 
+  const brandColor = tenantBranding?.primaryColor || 'var(--tgo-state-interactive)'
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div
+      className="min-h-screen"
+      style={{ background: `linear-gradient(180deg, var(--tgo-surface-0), var(--tgo-surface-1) 50%)` }}
+    >
       {/* Header */}
-      <div 
-        className="relative pt-12 pb-8 px-4"
-        style={{ backgroundColor: tenantBranding?.primaryColor || '#000' }}
-      >
+      <div className="relative pt-12 pb-8 px-4" style={{ backgroundColor: brandColor }}>
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-4 mb-6">
             {onBack && (
-              <Button
+              <button
                 onClick={onBack}
-                variant="ghost"
-                size="icon"
                 aria-label="Volver al club"
-                title="Volver al club"
-                className="text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white"
+                className="text-white hover:bg-white/10 transition-colors p-2"
               >
                 <ArrowLeft size={24} />
-              </Button>
+              </button>
             )}
             <h1 className="text-3xl font-black text-white tracking-tight">
               {config.title}
@@ -228,21 +235,30 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
           </div>
 
           {menuUrl && (
-            <Button
+            <button
               onClick={() => router.push(menuUrl)}
-              variant="ghost"
-              className="w-fit mb-4 text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white"
+              className="w-fit mb-4 text-white hover:bg-white/10 transition-colors px-4 py-2 text-sm font-medium"
             >
-              <ArrowLeft size={18} className="mr-2" />
+              <ArrowLeft size={18} className="mr-2 inline" />
               Volver al Menú
-            </Button>
+            </button>
           )}
 
           {/* Points Balance */}
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20 p-4 mb-6">
+          <div
+            className="p-4 mb-6"
+            style={{
+              borderRadius: 'var(--tgo-radius-xl)',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+            }}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+                >
                   <Star size={24} className="text-yellow-300 fill-yellow-300" />
                 </div>
                 <div className="text-right">
@@ -250,17 +266,21 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
                   <p className="text-xs text-white font-medium">Puntos disponibles</p>
                 </div>
               </div>
-              <Badge className="bg-white text-black font-bold">
+              <div
+                className="px-3 py-1 text-black font-bold text-sm"
+                style={{ borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'white' }}
+              >
                 {memberTier === 'none' ? 'Sin nivel' : memberTier}
-              </Badge>
+              </div>
             </div>
-          </Card>
+          </div>
 
           {config.heroImageUrl && (
             <img
               src={config.heroImageUrl}
               alt="Hero"
-              className="w-full h-48 object-cover rounded-2xl mb-4"
+              className="w-full h-48 object-cover mb-4"
+              style={{ borderRadius: 'var(--tgo-radius-xl)' }}
             />
           )}
 
@@ -271,40 +291,51 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Category Filters */}
-        <div 
+        <div
           className="flex items-center gap-2 mb-6 overflow-x-auto pb-2"
           role="tablist"
           aria-label="Filtrar por categoría"
         >
-          <Filter size={18} className="text-muted-foreground shrink-0" aria-hidden="true" />
+          <Filter size={18} className="shrink-0" style={{ color: 'var(--tgo-text-muted)' }} />
           {CATEGORIES.map(cat => (
-            <Button
+            <button
               key={cat.value}
-              size="sm"
               role="tab"
               aria-selected={filterCategory === cat.value}
-              variant={filterCategory === cat.value ? 'default' : 'outline'}
               onClick={() => setFilterCategory(cat.value)}
-              className="shrink-0 focus-visible:ring-2 focus-visible:ring-primary"
+              className="shrink-0 px-4 py-2 text-sm font-bold transition-all"
+              style={{
+                borderRadius: 'var(--tgo-radius-md)',
+                backgroundColor: filterCategory === cat.value ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-card)',
+                color: filterCategory === cat.value ? 'white' : 'var(--tgo-text-primary)',
+                border: `1px solid ${filterCategory === cat.value ? 'var(--tgo-state-interactive)' : 'var(--tgo-border)'}`,
+              }}
             >
               {cat.icon} {cat.label}
-            </Button>
+            </button>
           ))}
-          <Button
-            size="sm"
-            variant="outline"
+          <button
             onClick={() => setShowMyRedemptions(true)}
             aria-label="Ver mis canjes"
-            className="shrink-0 ml-auto focus-visible:ring-2 focus-visible:ring-primary"
+            className="shrink-0 ml-auto px-4 py-2 text-sm font-bold transition-all"
+            style={{
+              borderRadius: 'var(--tgo-radius-md)',
+              border: '1px solid var(--tgo-border)',
+              backgroundColor: 'var(--tgo-surface-card)',
+              color: 'var(--tgo-text-primary)',
+            }}
           >
             Mis Canjes
-          </Button>
+          </button>
         </div>
 
         {/* Featured Items */}
         {featuredItems.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <h2
+              className="text-lg font-bold mb-4 flex items-center gap-2"
+              style={{ color: 'var(--tgo-text-primary)' }}
+            >
               <Star size={18} className="text-amber-500 fill-amber-500" />
               Destacados
             </h2>
@@ -325,40 +356,41 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
         {/* Regular Items */}
         {regularItems.length > 0 && (
           <div>
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <h2
+              className="text-lg font-bold mb-4 flex items-center gap-2"
+              style={{ color: 'var(--tgo-text-primary)' }}
+            >
               <Package size={18} />
               Todos los artículos
             </h2>
-            {regularItems.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {regularItems.map(item => (
-                  <StoreItemCard
-                    key={item._id}
-                    item={item}
-                    memberPoints={points}
-                    memberTier={memberTier}
-                    onRedeem={handleRedeem}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="p-8 text-center">
-                <Package size={48} className="mx-auto text-muted-foreground/30 mb-4" />
-                <p className="text-muted-foreground">
-                  No hay artículos en esta categoría
-                </p>
-              </Card>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {regularItems.map(item => (
+                <StoreItemCard
+                  key={item._id}
+                  item={item}
+                  memberPoints={points}
+                  memberTier={memberTier}
+                  onRedeem={handleRedeem}
+                />
+              ))}
+            </div>
           </div>
         )}
 
         {filteredItems.length === 0 && (
-          <Card className="p-8 text-center">
-            <Package size={48} className="mx-auto text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground">
+          <div
+            className="p-8 text-center"
+            style={{
+              borderRadius: 'var(--tgo-radius-xl)',
+              backgroundColor: 'var(--tgo-surface-card)',
+              border: '1px solid var(--tgo-border)',
+            }}
+          >
+            <Package size={48} className="mx-auto mb-4" style={{ color: 'var(--tgo-text-muted)', opacity: 0.3 }} />
+            <p style={{ color: 'var(--tgo-text-muted)' }}>
               No hay artículos disponibles
             </p>
-          </Card>
+          </div>
         )}
       </div>
     </div>

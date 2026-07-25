@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import ActiveOrderBanner from '@/components/menu/ActiveOrderBanner'
 
 export const viewport: Viewport = {
-  themeColor: '#0d0b0a',
+  themeColor: '#FAFAF8',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -33,7 +33,7 @@ export default function ExploreLayout({ children }: { children: React.ReactNode 
   return (
     <>
       <style>{`
-        html, body { background-color: #0d0b0a; }
+        html, body { background-color: var(--tgo-surface-0, #FAFAF8); }
       `}</style>
     <TenantProvider>
       <Suspense fallback={null}>
@@ -43,7 +43,7 @@ export default function ExploreLayout({ children }: { children: React.ReactNode 
         <Suspense fallback={null}>
           <ActiveOrderBanner />
         </Suspense>
-        <div className="consumer-dark min-h-screen bg-[#0d0b0a]">
+        <div className="min-h-screen" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
           {children}
         </div>
       </LocationProvider>
@@ -51,4 +51,3 @@ export default function ExploreLayout({ children }: { children: React.ReactNode 
     </>
   )
 }
-

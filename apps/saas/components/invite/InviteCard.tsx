@@ -4,7 +4,6 @@ import { useState, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { QRCodeSVG } from 'qrcode.react'
 import { Share2, Download, Check, Smartphone } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 const LOGO_URL = '/tgoicon-512.png'
 const EXPLORE_URL = 'https://takeasygo.com/app?source=invitacion'
@@ -65,10 +64,16 @@ export default function InviteCard() {
     img.src = url
   }, [])
 
+  const cardStyle: React.CSSProperties = {
+    borderRadius: 'var(--tgo-radius-2xl)',
+    backgroundColor: 'var(--tgo-surface-card)',
+    border: '1px solid var(--tgo-border)',
+  }
+
   return (
     <div className="animate-fade-in-up">
-      {/* Glass card */}
-      <div className="glass-card rounded-3xl p-8 flex flex-col items-center text-center">
+      {/* Card */}
+      <div className="p-8 flex flex-col items-center text-center" style={cardStyle}>
         {/* Logo */}
         <div className="mb-6">
           <Image
@@ -83,17 +88,18 @@ export default function InviteCard() {
         </div>
 
         {/* Headline */}
-        <h1 className="text-lg font-bold text-[var(--c-text)] mb-1">
+        <h1 className="text-lg font-bold mb-1" style={{ color: 'var(--tgo-text-primary)' }}>
           Escaneá y descubrí
         </h1>
-        <p className="text-sm text-[var(--c-text-secondary)] mb-8">
+        <p className="text-sm mb-8" style={{ color: 'var(--tgo-text-secondary)' }}>
           restaurantes takeaway cerca tuyo
         </p>
 
         {/* QR */}
         <div
           ref={qrRef}
-          className="bg-white rounded-2xl p-4 mb-4 glow-brand"
+          className="rounded-2xl p-4 mb-4"
+          style={{ backgroundColor: 'white' }}
         >
           <QRCodeSVG
             value={EXPLORE_URL}
@@ -104,7 +110,10 @@ export default function InviteCard() {
         </div>
 
         {/* URL label */}
-        <p className="text-xs text-[var(--c-text-muted)] font-mono mb-8">
+        <p
+          className="text-xs font-mono mb-8"
+          style={{ color: 'var(--tgo-text-muted)' }}
+        >
           takeasygo.com/app
         </p>
 
@@ -112,16 +121,17 @@ export default function InviteCard() {
         <div className="flex gap-3 w-full">
           <button
             onClick={handleShare}
-            className={cn(
-              'flex-1 h-12 rounded-2xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2',
-              copied === 'share'
-                ? 'bg-emerald-500/20 text-emerald-400'
-                : 'glass-card-elevated text-[var(--c-text)] hover:bg-[var(--c-surface-elevated)] active:scale-[0.98]'
-            )}
+            className="flex-1 h-12 text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2"
+            style={{
+              borderRadius: 'var(--tgo-radius-xl)',
+              backgroundColor: copied === 'share' ? 'var(--tgo-state-success-soft)' : 'var(--tgo-surface-1)',
+              color: copied === 'share' ? 'var(--tgo-state-success)' : 'var(--tgo-text-primary)',
+              border: '1px solid var(--tgo-border)',
+            }}
           >
             {copied === 'share' ? (
               <>
-                <Check size={16} className="text-emerald-400" />
+                <Check size={16} style={{ color: 'var(--tgo-state-success)' }} />
                 ¡Copiado!
               </>
             ) : (
@@ -134,16 +144,17 @@ export default function InviteCard() {
 
           <button
             onClick={handleDownload}
-            className={cn(
-              'flex-1 h-12 rounded-2xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2',
-              copied === 'download'
-                ? 'bg-emerald-500/20 text-emerald-400'
-                : 'glass-card-elevated text-[var(--c-text)] hover:bg-[var(--c-surface-elevated)] active:scale-[0.98]'
-            )}
+            className="flex-1 h-12 text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2"
+            style={{
+              borderRadius: 'var(--tgo-radius-xl)',
+              backgroundColor: copied === 'download' ? 'var(--tgo-state-success-soft)' : 'var(--tgo-surface-1)',
+              color: copied === 'download' ? 'var(--tgo-state-success)' : 'var(--tgo-text-primary)',
+              border: '1px solid var(--tgo-border)',
+            }}
           >
             {copied === 'download' ? (
               <>
-                <Check size={16} className="text-emerald-400" />
+                <Check size={16} style={{ color: 'var(--tgo-state-success)' }} />
                 Descargado
               </>
             ) : (
@@ -157,7 +168,7 @@ export default function InviteCard() {
       </div>
 
       {/* Footer hint */}
-      <div className="flex items-center justify-center gap-2 mt-6 text-[var(--c-text-muted)]">
+      <div className="flex items-center justify-center gap-2 mt-6" style={{ color: 'var(--tgo-text-muted)' }}>
         <Smartphone size={14} />
         <span className="text-xs">Mostrá este QR desde tu celular</span>
       </div>
