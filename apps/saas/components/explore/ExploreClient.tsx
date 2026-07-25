@@ -24,7 +24,7 @@ const ExploreMap = dynamic(() => import('./ExploreMap'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
-      <div className="w-6 h-6 rounded-full border-2 border-[#f14722]/30 border-t-[#f14722] animate-spin" />
+      <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--tgo-state-interactive)', borderTopColor: 'transparent' }} />
     </div>
   ),
 })

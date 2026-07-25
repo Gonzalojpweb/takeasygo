@@ -3,20 +3,17 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { 
-  Trophy, 
-  ShoppingBag, 
-  DollarSign, 
-  Calendar, 
+import {
+  Trophy,
+  ShoppingBag,
+  DollarSign,
+  Calendar,
   ArrowLeft,
   Loader2,
   AlertCircle,
-  CreditCard,
   Smartphone,
   Gift
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 import BottomNav from '@/components/explore/BottomNav'
 import { useTenant } from '@/contexts/TenantContext'
@@ -110,7 +107,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
       setLoading(true)
       const res = await fetch(`/api/${tenantSlug}/loyalty/me`)
       const data = await res.json()
-      
+
       if (!res.ok) {
         throw new Error(data.error || 'Error al cargar datos del club')
       }
@@ -143,31 +140,37 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="flex flex-col h-full bg-[var(--c-bg)] items-center justify-center">
-        <Loader2 size={32} className="text-[#f14722] animate-spin" />
+      <div
+        className="flex flex-col h-full items-center justify-center"
+        style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+      >
+        <Loader2 size={32} style={{ color: 'var(--tgo-state-interactive)' }} className="animate-spin" />
       </div>
     )
   }
 
   if (!clubData?.clubEnabled) {
     return (
-      <div className="flex flex-col h-full bg-[var(--c-bg)] p-6 pb-24">
-        <Button
-          variant="ghost"
+      <div
+        className="flex flex-col h-full p-6 pb-24"
+        style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+      >
+        <button
           onClick={() => router.back()}
           aria-label="Volver atrás"
-          className="w-fit mb-6 text-[#a8a29e] hover:text-[#f7f4f2]"
+          className="w-fit mb-6 flex items-center gap-2 text-sm font-medium transition-colors"
+          style={{ color: 'var(--tgo-text-muted)' }}
         >
-          <ArrowLeft size={20} className="mr-2" />
+          <ArrowLeft size={20} />
           Volver
-        </Button>
+        </button>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <AlertCircle size={48} className="text-[#a8a29e] mb-4" />
-          <h2 className="text-xl font-bold text-[#f7f4f2] mb-2">
+          <AlertCircle size={48} style={{ color: 'var(--tgo-text-muted)' }} className="mb-4" />
+          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--tgo-text-primary)' }}>
             Club no disponible
           </h2>
-          <p className="text-[#a8a29e] text-sm">
+          <p className="text-sm" style={{ color: 'var(--tgo-text-muted)' }}>
             Este restaurante no tiene el club de fidelización activo.
           </p>
         </div>
@@ -177,8 +180,17 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
     )
   }
 
+  const cardStyle: React.CSSProperties = {
+    borderRadius: 'var(--tgo-radius-xl)',
+    backgroundColor: 'var(--tgo-surface-card)',
+    border: '1px solid var(--tgo-border)',
+  }
+
   return (
-    <div className="flex flex-col h-full bg-[var(--c-bg)] overflow-y-auto pb-24">
+    <div
+      className="flex flex-col h-full overflow-y-auto pb-24"
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+    >
       {currentTab === 'store' && clubData?.member ? (
         <StoreView
           tenantSlug={tenantSlug}
@@ -203,135 +215,140 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
       ) : (
         <>
           <div className="p-6">
-            <Button
-              variant="ghost"
+            <button
               onClick={() => router.back()}
               aria-label="Volver atrás"
-              className="w-fit mb-4 text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-2 focus-visible:ring-[#a8a29e]"
+              className="w-fit mb-4 flex items-center gap-2 text-sm font-medium transition-colors"
+              style={{ color: 'var(--tgo-text-muted)' }}
             >
-              <ArrowLeft size={20} className="mr-2" />
+              <ArrowLeft size={20} />
               Volver
-            </Button>
+            </button>
 
             {menuUrl && (
-              <Button
-                variant="ghost"
+              <button
                 onClick={() => router.push(menuUrl)}
                 aria-label="Volver al menú"
-                className="w-fit mb-4 text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-2 focus-visible:ring-[#a8a29e]"
+                className="w-fit mb-4 flex items-center gap-2 text-sm font-medium transition-colors"
+                style={{ color: 'var(--tgo-text-muted)' }}
               >
-                <ArrowLeft size={18} className="mr-2" />
+                <ArrowLeft size={18} />
                 Volver al Menú
-              </Button>
+              </button>
             )}
 
-            <h1 className="text-2xl font-bold text-[#f7f4f2] mb-1">
+            <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--tgo-text-primary)' }}>
               {clubData?.clubName || 'Club de Fidelización'}
             </h1>
             {clubData?.welcomeMessage && (
-              <p className="text-[#a8a29e] text-sm">{clubData.welcomeMessage}</p>
+              <p className="text-sm" style={{ color: 'var(--tgo-text-muted)' }}>
+                {clubData.welcomeMessage}
+              </p>
             )}
           </div>
 
           {clubData?.member && (
             <div className="px-6 pb-4">
-              <div 
-                className="flex items-center gap-2 rounded-xl p-1"
+              <div
+                className="flex items-center gap-2 p-1"
                 role="tablist"
                 aria-label="Navegación del club"
-                style={{ backgroundColor: `${clubData.branding?.primaryColor || '#000'}15` }}
+                style={{
+                  borderRadius: 'var(--tgo-radius-md)',
+                  backgroundColor: `${clubData.branding?.primaryColor || 'var(--tgo-surface-1)'}15`,
+                }}
               >
-                <button
-                  role="tab"
-                  aria-selected={currentTab === 'club'}
-                  aria-controls="panel-club"
-                  onClick={() => router.replace(`${pathname}?tab=club`)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                    currentTab === 'club'
-                      ? 'text-white shadow-lg'
-                      : 'text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-[#a8a29e]'
-                  }`}
-                  style={currentTab === 'club' ? { backgroundColor: clubData.branding?.primaryColor || '#f14722' } : undefined}
-                >
-                  <Trophy size={16} />
-                  Club
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={currentTab === 'store'}
-                  aria-controls="panel-store"
-                  onClick={() => router.replace(`${pathname}?tab=store`)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                    currentTab === 'store'
-                      ? 'text-white shadow-lg'
-                      : 'text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-[#a8a29e]'
-                  }`}
-                  style={currentTab === 'store' ? { backgroundColor: clubData.branding?.primaryColor || '#f14722' } : undefined}
-                >
-                  <Gift size={16} />
-                  Tienda
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={currentTab === 'canjes'}
-                  aria-controls="panel-canjes"
-                  onClick={() => router.replace(`${pathname}?tab=canjes`)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                    currentTab === 'canjes'
-                      ? 'text-white shadow-lg'
-                      : 'text-[#a8a29e] hover:text-[#f7f4f2] focus-visible:ring-[#a8a29e]'
-                  }`}
-                  style={currentTab === 'canjes' ? { backgroundColor: clubData.branding?.primaryColor || '#f14722' } : undefined}
-                >
-                  <ShoppingBag size={16} />
-                  Canjes
-                </button>
+                {[
+                  { key: 'club', label: 'Club', icon: Trophy },
+                  { key: 'store', label: 'Tienda', icon: Gift },
+                  { key: 'canjes', label: 'Canjes', icon: ShoppingBag },
+                ].map(tab => {
+                  const isActive = currentTab === tab.key
+                  const TabIcon = tab.icon
+                  return (
+                    <button
+                      key={tab.key}
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-controls={`panel-${tab.key}`}
+                      onClick={() => router.replace(`${pathname}?tab=${tab.key}`)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold transition-all"
+                      style={{
+                        borderRadius: 'var(--tgo-radius-md)',
+                        backgroundColor: isActive ? (clubData.branding?.primaryColor || 'var(--tgo-state-interactive)') : 'transparent',
+                        color: isActive ? 'white' : 'var(--tgo-text-muted)',
+                      }}
+                    >
+                      <TabIcon size={16} />
+                      {tab.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
 
           {error ? (
             <div className="p-6">
-              <Card className="border-red-500/20 bg-red-500/5">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 text-red-500">
-                    <AlertCircle size={20} />
-                    <p className="text-sm">{error}</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div
+                className="p-4"
+                style={{
+                  ...cardStyle,
+                  borderColor: 'rgba(239, 68, 68, 0.2)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                }}
+              >
+                <div className="flex items-center gap-3" style={{ color: 'var(--tgo-state-danger)' }}>
+                  <AlertCircle size={20} />
+                  <p className="text-sm">{error}</p>
+                </div>
+              </div>
             </div>
           ) : !clubData?.member ? (
             <div className="p-6">
-              <Card className="border-[var(--c-border)] bg-[var(--c-surface)]">
-                <CardContent className="p-6 text-center">
-                  <Trophy size={48} className="text-[#a8a29e] mx-auto mb-4" />
-                  <h3 className="text-lg font-bold text-[#f7f4f2] mb-2">
-                    No sos miembro del club
-                  </h3>
-                  <p className="text-[#a8a29e] text-sm mb-6">
-                    Unite al club para acumular puntos en cada compra y obtener beneficios exclusivos.
+              <div className="p-6 text-center" style={cardStyle}>
+                <Trophy size={48} className="mx-auto mb-4" style={{ color: 'var(--tgo-text-muted)' }} />
+                <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--tgo-text-primary)' }}>
+                  No sos miembro del club
+                </h3>
+                <p className="text-sm mb-6" style={{ color: 'var(--tgo-text-muted)' }}>
+                  Unite al club para acumular puntos en cada compra y obtener beneficios exclusivos.
+                </p>
+                <button
+                  onClick={handleJoinClub}
+                  disabled={joining}
+                  className="w-full py-3 text-white font-bold text-sm transition-all disabled:opacity-50"
+                  style={{
+                    borderRadius: 'var(--tgo-radius-md)',
+                    backgroundColor: 'var(--tgo-state-interactive)',
+                  }}
+                >
+                  {joining ? 'Uniéndote...' : 'Unirse al Club'}
+                </button>
+                {joinError && (
+                  <p className="text-xs mt-2" style={{ color: 'var(--tgo-state-danger)' }}>
+                    {joinError}
                   </p>
-                  <Button
-                    className="w-full bg-[#f14722] text-white"
-                    onClick={handleJoinClub}
-                    disabled={joining}
-                  >
-                    {joining ? 'Uniéndote...' : 'Unirse al Club'}
-                  </Button>
-                  {joinError && (
-                    <p className="text-red-500 text-xs mt-2">{joinError}</p>
-                  )}
-                </CardContent>
-              </Card>
+                )}
+              </div>
             </div>
           ) : (
             <div className="p-6 space-y-6">
-              <Card className="border-[var(--c-border)] bg-gradient-to-br from-zinc-900 to-zinc-800 overflow-hidden">
-                <CardContent className="p-6">
+              {/* Points Card */}
+              <div
+                className="overflow-hidden"
+                style={{
+                  ...cardStyle,
+                  background: 'linear-gradient(135deg, var(--tgo-surface-3), var(--tgo-surface-2))',
+                }}
+              >
+                <div className="p-6">
                   <div className="flex items-start justify-between mb-6">
                     <div>
-                      <p className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">
+                      <p
+                        className="uppercase tracking-wider mb-1"
+                        style={{ fontSize: 10, color: 'var(--tgo-text-muted)' }}
+                      >
                         Nivel Actual
                       </p>
                       <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r ${getTierColor(clubData.member.tier)}`}>
@@ -342,87 +359,109 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">
+                      <p
+                        className="uppercase tracking-wider mb-1"
+                        style={{ fontSize: 10, color: 'var(--tgo-text-muted)' }}
+                      >
                         Miembro desde
                       </p>
-                      <p className="text-sm text-zinc-300">
-                        {new Date(clubData.member.joinedAt).toLocaleDateString('es-AR', { 
-                          month: 'short', 
-                          year: 'numeric' 
+                      <p className="text-sm" style={{ color: 'var(--tgo-text-secondary)' }}>
+                        {new Date(clubData.member.joinedAt).toLocaleDateString('es-AR', {
+                          month: 'short',
+                          year: 'numeric'
                         })}
                       </p>
                     </div>
                   </div>
 
                   <div className="text-center py-4">
-                    <p className="text-6xl font-black text-white mb-2">
+                    <p className="text-6xl font-black mb-2" style={{ color: 'var(--tgo-text-primary)' }}>
                       {clubData.member.points}
                     </p>
-                    <p className="text-zinc-400 text-sm uppercase tracking-wider">
+                    <p
+                      className="text-sm uppercase tracking-wider"
+                      style={{ color: 'var(--tgo-text-muted)' }}
+                    >
                       Puntos Disponibles
                     </p>
                   </div>
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Card className="border-[var(--c-border)] bg-[var(--c-surface)]">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <ShoppingBag size={18} className="text-[#f14722]" />
-                      <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider">
-                        Pedidos
-                      </p>
-                    </div>
-                    <p className="text-2xl font-bold text-[#f7f4f2]">
-                      {clubData.member.totalOrders}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-[var(--c-border)] bg-[var(--c-surface)]">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <DollarSign size={18} className="text-emerald-500" />
-                      <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider">
-                        Gastado
-                      </p>
-                    </div>
-                    <p className="text-2xl font-bold text-[#f7f4f2]">
-                      ${clubData.member.totalSpent.toFixed(0)}
-                    </p>
-                  </CardContent>
-                </Card>
+                </div>
               </div>
 
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4" style={cardStyle}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <ShoppingBag size={18} style={{ color: 'var(--tgo-state-interactive)' }} />
+                    <p
+                      className="uppercase tracking-wider"
+                      style={{ fontSize: 10, color: 'var(--tgo-text-muted)' }}
+                    >
+                      Pedidos
+                    </p>
+                  </div>
+                  <p className="text-2xl font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+                    {clubData.member.totalOrders}
+                  </p>
+                </div>
+
+                <div className="p-4" style={cardStyle}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign size={18} style={{ color: 'var(--tgo-state-success)' }} />
+                    <p
+                      className="uppercase tracking-wider"
+                      style={{ fontSize: 10, color: 'var(--tgo-text-muted)' }}
+                    >
+                      Gastado
+                    </p>
+                  </div>
+                  <p className="text-2xl font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+                    ${clubData.member.totalSpent.toFixed(0)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Last Order */}
               {clubData.member.lastOrderAt && (
-                <Card className="border-[var(--c-border)] bg-[var(--c-surface)]">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={18} className="text-[#a8a29e]" />
-                      <div>
-                        <p className="text-[10px] text-[#a8a29e] uppercase tracking-wider">
-                          Último pedido
-                        </p>
-                        <p className="text-sm text-[#f7f4f2]">
-                          {new Date(clubData.member.lastOrderAt).toLocaleDateString('es-AR', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </p>
-                      </div>
+                <div className="p-4" style={cardStyle}>
+                  <div className="flex items-center gap-2">
+                    <Calendar size={18} style={{ color: 'var(--tgo-text-muted)' }} />
+                    <div>
+                      <p
+                        className="uppercase tracking-wider"
+                        style={{ fontSize: 10, color: 'var(--tgo-text-muted)' }}
+                      >
+                        Último pedido
+                      </p>
+                      <p className="text-sm" style={{ color: 'var(--tgo-text-primary)' }}>
+                        {new Date(clubData.member.lastOrderAt).toLocaleDateString('es-AR', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
+              {/* Wallet */}
               {clubData.walletEnabled && (
                 <div className="space-y-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[#a8a29e]">
+                  <h3
+                    className="uppercase tracking-widest"
+                    style={{ fontSize: 10, fontWeight: 900, color: 'var(--tgo-text-muted)' }}
+                  >
                     Billetera Digital
                   </h3>
-                  <div className="flex items-start gap-3 p-4 bg-violet-50 rounded-xl border border-violet-100">
+                  <div
+                    className="flex items-start gap-3 p-4"
+                    style={{
+                      borderRadius: 'var(--tgo-radius-md)',
+                      backgroundColor: 'rgba(139, 92, 246, 0.05)',
+                      border: '1px solid rgba(139, 92, 246, 0.1)',
+                    }}
+                  >
                     <Smartphone size={16} className="text-violet-600 mt-0.5 shrink-0" />
                     <p className="text-xs text-violet-700 leading-relaxed">
                       Agrega tu tarjeta a Google Wallet o Apple Wallet para tenerla siempre disponible.
@@ -455,8 +494,11 @@ export default function ClubProfilePage({ params }: { params: Promise<{ tenantSl
 
   return (
     <Suspense fallback={
-      <div className="flex flex-col h-full bg-[var(--c-bg)] items-center justify-center">
-        <Loader2 size={32} className="text-[#f14722] animate-spin" />
+      <div
+        className="flex flex-col h-full items-center justify-center"
+        style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+      >
+        <Loader2 size={32} style={{ color: 'var(--tgo-state-interactive)' }} className="animate-spin" />
       </div>
     }>
       <ClubContent tenantSlug={tenantSlug} />

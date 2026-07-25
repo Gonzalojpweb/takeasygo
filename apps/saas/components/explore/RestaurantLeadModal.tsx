@@ -38,20 +38,53 @@ export default function RestaurantLeadModal({ onClose }: { onClose: () => void }
     }
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    height: 44,
+    padding: '0 16px',
+    borderRadius: 'var(--tgo-radius-md)',
+    backgroundColor: 'var(--tgo-surface-1)',
+    border: '1px solid var(--tgo-border)',
+    color: 'var(--tgo-text-primary)',
+    fontSize: 'var(--tgo-type-body-sm)',
+    outline: 'none',
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !loading && onClose()} />
-      <div className="relative z-10 w-full max-w-md bg-[var(--c-bg)] rounded-3xl max-h-[90vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div
+        className="relative z-10 w-full max-w-md max-h-[90vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300"
+        style={{
+          backgroundColor: 'var(--tgo-surface-0)',
+          borderRadius: 'var(--tgo-radius-2xl)',
+        }}
+      >
         {/* Header */}
-        <div className="sticky top-0 z-10 glass-card border-b border-[var(--c-border)] p-4">
+        <div
+          className="sticky top-0 z-10 p-4"
+          style={{
+            backgroundColor: 'var(--tgo-surface-0)',
+            borderBottom: '1px solid var(--tgo-border)',
+          }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-[#f7f4f2]">Registrá tu restaurante</h2>
-              <p className="text-xs text-[#5a524d]">Formá parte de la red TakeasyGO</p>
+              <h2 className="text-lg font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+                Registrá tu restaurante
+              </h2>
+              <p className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>
+                Formá parte de la red TakeasyGO
+              </p>
             </div>
             <button
               onClick={() => !loading && onClose()}
-              className="w-8 h-8 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-[#5a524d] hover:bg-[var(--c-border)] transition-colors"
+              className="w-8 h-8 flex items-center justify-center transition-colors"
+              style={{
+                borderRadius: 'var(--tgo-radius-md)',
+                backgroundColor: 'var(--tgo-surface-1)',
+                color: 'var(--tgo-text-muted)',
+              }}
             >
               <X size={16} />
             </button>
@@ -62,9 +95,16 @@ export default function RestaurantLeadModal({ onClose }: { onClose: () => void }
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {FIELDS.map(({ key, label, placeholder, type, required }) => (
             <div key={key}>
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#5a524d] block mb-1.5">
+              <label
+                className="block mb-1.5 uppercase tracking-widest"
+                style={{ fontSize: 10, fontWeight: 900, color: 'var(--tgo-text-muted)' }}
+              >
                 {label}
-                {!required && <span className="font-normal tracking-normal uppercase-none text-[#5a524d]/60 ml-1">(opcional)</span>}
+                {!required && (
+                  <span className="font-normal tracking-normal normal-case ml-1" style={{ opacity: 0.6 }}>
+                    (opcional)
+                  </span>
+                )}
               </label>
               <input
                 type={type}
@@ -72,7 +112,8 @@ export default function RestaurantLeadModal({ onClose }: { onClose: () => void }
                 placeholder={placeholder}
                 value={(form as any)[key]}
                 onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
-                className="w-full h-11 px-4 rounded-xl bg-[var(--c-surface)] border border-[var(--c-border)] text-[#f7f4f2] text-sm placeholder:text-[#5a524d] outline-none focus:border-[#f14722] transition-colors"
+                className="transition-colors focus:border-[var(--tgo-state-interactive)]"
+                style={inputStyle}
               />
             </div>
           ))}
@@ -80,7 +121,12 @@ export default function RestaurantLeadModal({ onClose }: { onClose: () => void }
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 rounded-2xl bg-[#f14722] text-white font-black text-xs uppercase tracking-widest hover:bg-[#d63d1a] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            className="w-full text-white font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            style={{
+              height: 48,
+              borderRadius: 'var(--tgo-radius-xl)',
+              backgroundColor: 'var(--tgo-state-interactive)',
+            }}
           >
             {loading ? (
               <>

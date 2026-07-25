@@ -4,16 +4,11 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { ShoppingBag, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react'
+import { ShoppingBag, Clock, CheckCircle, XCircle, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react'
 import BottomNav from '@/components/explore/BottomNav'
 import { BlurFade } from '@/components/ui/blur-fade'
 
 type OrderStatus = 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
-
-interface OrderItem {
-  name: string
-  quantity: number
-}
 
 interface Order {
   id: string
@@ -44,14 +39,14 @@ interface OrdersResponse {
   }
 }
 
-const statusConfig: Record<OrderStatus, { label: string; icon: any; color: string }> = {
-  awaiting_payment: { label: 'Esperando pago', icon: Clock, color: 'text-amber-500' },
-  pending: { label: 'Pendiente', icon: Clock, color: 'text-amber-500' },
-  confirmed: { label: 'Confirmado', icon: CheckCircle, color: 'text-blue-500' },
-  preparing: { label: 'Preparando', icon: Clock, color: 'text-purple-500' },
-  ready: { label: 'Listo', icon: CheckCircle, color: 'text-emerald-500' },
-  delivered: { label: 'Entregado', icon: CheckCircle, color: 'text-emerald-500' },
-  cancelled: { label: 'Cancelado', icon: XCircle, color: 'text-red-500' },
+const statusConfig: Record<OrderStatus, { label: string; icon: any; color: string; bg: string }> = {
+  awaiting_payment: { label: 'Esperando pago', icon: Clock, color: 'var(--tgo-state-warning)', bg: 'var(--tgo-state-warning-soft)' },
+  pending: { label: 'Pendiente', icon: Clock, color: 'var(--tgo-state-warning)', bg: 'var(--tgo-state-warning-soft)' },
+  confirmed: { label: 'Confirmado', icon: CheckCircle, color: 'var(--tgo-state-info)', bg: 'var(--tgo-state-info-soft)' },
+  preparing: { label: 'Preparando', icon: Clock, color: 'var(--tgo-state-interactive)', bg: 'var(--tgo-state-interactive-soft)' },
+  ready: { label: 'Listo', icon: CheckCircle, color: 'var(--tgo-state-success)', bg: 'var(--tgo-state-success-soft)' },
+  delivered: { label: 'Entregado', icon: CheckCircle, color: 'var(--tgo-state-success)', bg: 'var(--tgo-state-success-soft)' },
+  cancelled: { label: 'Cancelado', icon: XCircle, color: 'var(--tgo-state-danger)', bg: 'var(--tgo-state-danger-soft)' },
 }
 
 export default function OrdersPage() {
@@ -96,26 +91,60 @@ export default function OrdersPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="flex flex-col h-full bg-[var(--c-bg)] items-center justify-center">
-        <Loader2 size={32} className="text-[#f14722] animate-spin" />
+      <div
+        className="flex flex-col h-full items-center justify-center"
+        style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+      >
+        <Loader2 size={32} style={{ color: 'var(--tgo-state-interactive)' }} className="animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--c-bg)] consumer-dark overflow-y-auto pb-24">
+    <div
+      className="flex flex-col h-full overflow-y-auto pb-24"
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+    >
       {/* Header */}
-      <div className="sticky top-0 z-10 glass-card border-b border-[var(--c-border)]">
+      <div
+        className="sticky top-0 z-10"
+        style={{
+          backgroundColor: 'var(--tgo-surface-0)',
+          borderBottom: '1px solid var(--tgo-border)',
+        }}
+      >
         <div className="flex items-center gap-4 p-4">
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 rounded-xl bg-[var(--c-surface)] flex items-center justify-center text-[#f7f4f2] hover:bg-[var(--c-border)] transition-colors"
+            className="flex items-center justify-center"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 'var(--tgo-radius-md)',
+              backgroundColor: 'var(--tgo-surface-1)',
+              color: 'var(--tgo-text-primary)',
+            }}
           >
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-[#f7f4f2]">Mis Pedidos</h1>
-            <p className="text-xs text-[#5a524d]">Historial de compras</p>
+            <h1
+              style={{
+                fontSize: 'var(--tgo-type-title)',
+                fontWeight: 700,
+                color: 'var(--tgo-text-primary)',
+              }}
+            >
+              Mis Pedidos
+            </h1>
+            <p
+              style={{
+                fontSize: 'var(--tgo-type-caption)',
+                color: 'var(--tgo-text-muted)',
+              }}
+            >
+              Historial de compras
+            </p>
           </div>
         </div>
       </div>
@@ -124,26 +153,66 @@ export default function OrdersPage() {
       <div className="flex-1 p-4 space-y-3">
         {orders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <div className="w-20 h-20 rounded-full bg-[var(--c-surface)] flex items-center justify-center mb-4">
-              <ShoppingBag size={32} className="text-[#5a524d]" />
+            <div
+              className="flex items-center justify-center mb-4"
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 'var(--tgo-radius-xl)',
+                backgroundColor: 'var(--tgo-surface-1)',
+              }}
+            >
+              <ShoppingBag size={32} style={{ color: 'var(--tgo-text-muted)' }} />
             </div>
-            <p className="text-[#f7f4f2] font-medium mb-1">No tienes pedidos aún</p>
-            <p className="text-sm text-[#5a524d] text-center max-w-[200px]">
-              Explora restaurantes y realiza tu primer pedido
+            <p
+              style={{
+                color: 'var(--tgo-text-primary)',
+                fontWeight: 500,
+                marginBottom: 4,
+              }}
+            >
+              No tenés pedidos aún
+            </p>
+            <p
+              style={{
+                fontSize: 'var(--tgo-type-body-sm)',
+                color: 'var(--tgo-text-muted)',
+                textAlign: 'center',
+                maxWidth: 200,
+              }}
+            >
+              Explorá restaurantes y realizá tu primer pedido
             </p>
           </div>
         ) : (
           <>
             {orders.map((order, index) => {
-              const StatusIcon = statusConfig[order.status].icon
+              const cfg = statusConfig[order.status]
+              const StatusIcon = cfg.icon
               return (
                 <BlurFade key={order.id} delay={index * 0.05}>
                   <button
                     onClick={() => handleOrderClick(order)}
-                    className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 group hover:border-[var(--c-border-active)] transition-all text-left"
+                    className="w-full flex items-center gap-4 group text-left"
+                    style={{
+                      padding: 'var(--tgo-card-padding)',
+                      borderRadius: 'var(--tgo-radius-xl)',
+                      backgroundColor: 'var(--tgo-surface-card)',
+                      border: '1px solid var(--tgo-border)',
+                      boxShadow: 'var(--tgo-elevation-card)',
+                      transition: 'all var(--tgo-duration-fast) var(--tgo-ease-standard)',
+                    }}
                   >
                     {/* Restaurant Logo */}
-                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-[var(--c-border)] shrink-0">
+                    <div
+                      className="relative shrink-0 overflow-hidden"
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 'var(--tgo-radius-md)',
+                        border: '1px solid var(--tgo-border)',
+                      }}
+                    >
                       {order.tenant?.logoUrl ? (
                         <Image
                           src={order.tenant.logoUrl}
@@ -153,8 +222,11 @@ export default function OrdersPage() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full bg-[var(--c-surface)] flex items-center justify-center">
-                          <ShoppingBag size={20} className="text-[#5a524d]" />
+                        <div
+                          className="w-full h-full flex items-center justify-center"
+                          style={{ backgroundColor: 'var(--tgo-surface-1)' }}
+                        >
+                          <ShoppingBag size={20} style={{ color: 'var(--tgo-text-muted)' }} />
                         </div>
                       )}
                     </div>
@@ -162,19 +234,45 @@ export default function OrdersPage() {
                     {/* Order Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="text-sm font-bold text-[#f7f4f2] truncate">
+                        <p
+                          className="truncate"
+                          style={{
+                            fontSize: 'var(--tgo-type-body-sm)',
+                            fontWeight: 600,
+                            color: 'var(--tgo-text-primary)',
+                          }}
+                        >
                           {order.tenant?.name || 'Restaurante'}
                         </p>
-                        <StatusIcon size={16} className={statusConfig[order.status].color} />
+                        <StatusIcon size={16} style={{ color: cfg.color }} />
                       </div>
-                      <p className="text-xs text-[#5a524d] mb-1">
+                      <p
+                        style={{
+                          fontSize: 'var(--tgo-type-caption)',
+                          color: 'var(--tgo-text-muted)',
+                          marginBottom: 4,
+                        }}
+                      >
                         #{order.orderNumber} • {order.itemCount} {order.itemCount === 1 ? 'item' : 'items'}
                       </p>
                       <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${statusConfig[order.status].color}`}>
-                          {statusConfig[order.status].label}
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: 'var(--tgo-tracking-wider)',
+                            color: cfg.color,
+                          }}
+                        >
+                          {cfg.label}
                         </span>
-                        <span className="text-[10px] text-[#5a524d]">
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: 'var(--tgo-text-muted)',
+                          }}
+                        >
                           ${order.total.toLocaleString('es-AR')}
                         </span>
                       </div>
@@ -182,7 +280,11 @@ export default function OrdersPage() {
 
                     {/* Chevron */}
                     {order.trackingUrl && (
-                      <ChevronRight size={16} className="text-[#5a524d] group-hover:translate-x-1 transition-transform shrink-0" />
+                      <ChevronRight
+                        size={16}
+                        className="shrink-0"
+                        style={{ color: 'var(--tgo-text-muted)' }}
+                      />
                     )}
                   </button>
                 </BlurFade>
@@ -195,17 +297,40 @@ export default function OrdersPage() {
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-4 py-2 rounded-xl bg-[var(--c-surface)] text-[#f7f4f2] text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--c-border)] transition-colors"
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 'var(--tgo-radius-md)',
+                    backgroundColor: 'var(--tgo-surface-1)',
+                    color: 'var(--tgo-text-primary)',
+                    fontSize: 'var(--tgo-type-body-sm)',
+                    fontWeight: 600,
+                    opacity: page === 1 ? 0.4 : 1,
+                    cursor: page === 1 ? 'not-allowed' : 'pointer',
+                  }}
                 >
                   Anterior
                 </button>
-                <span className="text-sm text-[#5a524d]">
+                <span
+                  style={{
+                    fontSize: 'var(--tgo-type-body-sm)',
+                    color: 'var(--tgo-text-muted)',
+                  }}
+                >
                   {page} de {totalPages}
                 </span>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-4 py-2 rounded-xl bg-[var(--c-surface)] text-[#f7f4f2] text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--c-border)] transition-colors"
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 'var(--tgo-radius-md)',
+                    backgroundColor: 'var(--tgo-surface-1)',
+                    color: 'var(--tgo-text-primary)',
+                    fontSize: 'var(--tgo-type-body-sm)',
+                    fontWeight: 600,
+                    opacity: page === totalPages ? 0.4 : 1,
+                    cursor: page === totalPages ? 'not-allowed' : 'pointer',
+                  }}
                 >
                   Siguiente
                 </button>

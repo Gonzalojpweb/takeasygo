@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, QrCode, CheckCircle, Clock, XCircle, Package } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -64,140 +61,148 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
   const otherRedemptions = redemptions.filter(r => r.status !== 'pending')
 
   function getStatusBadge(status: string) {
-    switch (status) {
-      case 'pending':
-        return <Badge className="bg-amber-500">Pendiente</Badge>
-      case 'claimed':
-        return <Badge className="bg-emerald-500">Reclamado</Badge>
-      case 'expired':
-        return <Badge variant="secondary">Expirado</Badge>
-      case 'cancelled':
-        return <Badge variant="destructive">Cancelado</Badge>
-      default:
-        return <Badge>{status}</Badge>
+    const styles: Record<string, { bg: string; color: string; label: string }> = {
+      pending: { bg: 'var(--tgo-state-warning)', color: 'white', label: 'Pendiente' },
+      claimed: { bg: 'var(--tgo-state-success)', color: 'white', label: 'Reclamado' },
+      expired: { bg: 'var(--tgo-surface-1)', color: 'var(--tgo-text-muted)', label: 'Expirado' },
+      cancelled: { bg: 'var(--tgo-state-danger)', color: 'white', label: 'Cancelado' },
     }
+    const s = styles[status] || { bg: 'var(--tgo-surface-1)', color: 'var(--tgo-text-primary)', label: status }
+    return (
+      <span
+        className="text-xs font-bold px-2 py-0.5"
+        style={{ borderRadius: 'var(--tgo-radius-md)', backgroundColor: s.bg, color: s.color }}
+      >
+        {s.label}
+      </span>
+    )
   }
 
   function getStatusIcon(status: string) {
-    switch (status) {
-      case 'pending':
-        return <Clock size={20} className="text-amber-500" />
-      case 'claimed':
-        return <CheckCircle size={20} className="text-emerald-500" />
-      case 'expired':
-        return <XCircle size={20} className="text-muted-foreground" />
-      case 'cancelled':
-        return <XCircle size={20} className="text-red-500" />
-      default:
-        return <Package size={20} />
+    const colors: Record<string, string> = {
+      pending: 'var(--tgo-state-warning)',
+      claimed: 'var(--tgo-state-success)',
+      expired: 'var(--tgo-text-muted)',
+      cancelled: 'var(--tgo-state-danger)',
     }
+    const Icon = status === 'pending' ? Clock : status === 'claimed' ? CheckCircle : XCircle
+    return <Icon size={20} style={{ color: colors[status] || 'var(--tgo-text-muted)' }} />
   }
 
+  const cardStyle: React.CSSProperties = {
+    borderRadius: 'var(--tgo-radius-xl)',
+    backgroundColor: 'var(--tgo-surface-card)',
+    border: '1px solid var(--tgo-border)',
+  }
+
+  const filterBtn = (active: boolean) => ({
+    padding: '6px 14px',
+    borderRadius: 'var(--tgo-radius-md)' as const,
+    fontSize: 'var(--tgo-type-body-sm)',
+    fontWeight: 700 as const,
+    backgroundColor: active ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-card)',
+    color: active ? 'white' : 'var(--tgo-text-primary)',
+    border: `1px solid ${active ? 'var(--tgo-state-interactive)' : 'var(--tgo-border)'}`,
+    cursor: 'pointer' as const,
+    transition: 'all 150ms ease',
+  })
+
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div
+      className="min-h-screen p-4"
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+    >
       <div className="max-w-2xl mx-auto">
-        <Button
+        <button
           onClick={onBack}
-          variant="ghost"
-          aria-label="Volver a la tienda"
-          className="mb-4 focus-visible:ring-2 focus-visible:ring-primary"
+          className="mb-4 flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
+          style={{ color: 'var(--tgo-text-primary)' }}
         >
-          <ArrowLeft size={18} className="mr-2" />
+          <ArrowLeft size={18} />
           Volver
-        </Button>
+        </button>
 
         {menuUrl && (
-          <Button
+          <button
             onClick={() => router.push(menuUrl)}
-            variant="ghost"
-            aria-label="Volver al menú"
-            className="mb-4 focus-visible:ring-2 focus-visible:ring-primary"
+            className="mb-4 flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
+            style={{ color: 'var(--tgo-text-primary)' }}
           >
-            <ArrowLeft size={18} className="mr-2" />
+            <ArrowLeft size={18} />
             Volver al Menú
-          </Button>
+          </button>
         )}
 
-        <Card className="border-2 border-border/60 rounded-[2.5rem] overflow-hidden">
-          <CardHeader className="p-8 border-b border-border/40 bg-muted/5">
-            <CardTitle className="text-xl font-bold tracking-tight">Mis Canjes</CardTitle>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">
+        <div className="overflow-hidden" style={cardStyle}>
+          {/* Header */}
+          <div
+            className="p-8"
+            style={{
+              borderBottom: '1px solid var(--tgo-border)',
+              backgroundColor: 'var(--tgo-surface-1)',
+            }}
+          >
+            <h2 className="text-xl font-bold tracking-tight" style={{ color: 'var(--tgo-text-primary)' }}>
+              Mis Canjes
+            </h2>
+            <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--tgo-text-muted)' }}>
               Historial de tus redenciones de puntos
             </p>
-          </CardHeader>
+          </div>
 
-          <CardContent className="p-8">
+          {/* Content */}
+          <div className="p-8">
             {/* Filter Tabs */}
-            <div 
-              className="flex gap-2 mb-6 overflow-x-auto pb-2"
-              role="tablist"
-              aria-label="Filtrar por estado"
-            >
-              <Button
-                size="sm"
-                role="tab"
-                aria-selected={filterStatus === 'all'}
-                variant={filterStatus === 'all' ? 'default' : 'outline'}
-                onClick={() => setFilterStatus('all')}
-                className="focus-visible:ring-2 focus-visible:ring-primary"
-              >
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2" role="tablist" aria-label="Filtrar por estado">
+              <button role="tab" aria-selected={filterStatus === 'all'} onClick={() => setFilterStatus('all')} style={filterBtn(filterStatus === 'all')}>
                 Todos
-              </Button>
-              <Button
-                size="sm"
-                role="tab"
-                aria-selected={filterStatus === 'pending'}
-                variant={filterStatus === 'pending' ? 'default' : 'outline'}
-                onClick={() => setFilterStatus('pending')}
-                className="focus-visible:ring-2 focus-visible:ring-primary"
-              >
+              </button>
+              <button role="tab" aria-selected={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')} style={filterBtn(filterStatus === 'pending')}>
                 Pendientes
-              </Button>
-              <Button
-                size="sm"
-                role="tab"
-                aria-selected={filterStatus === 'claimed'}
-                variant={filterStatus === 'claimed' ? 'default' : 'outline'}
-                onClick={() => setFilterStatus('claimed')}
-                className="focus-visible:ring-2 focus-visible:ring-primary"
-              >
+              </button>
+              <button role="tab" aria-selected={filterStatus === 'claimed'} onClick={() => setFilterStatus('claimed')} style={filterBtn(filterStatus === 'claimed')}>
                 Reclamados
-              </Button>
+              </button>
             </div>
 
             {loading ? (
-              <div className="text-center py-12 text-muted-foreground">Cargando...</div>
+              <div className="text-center py-12" style={{ color: 'var(--tgo-text-muted)' }}>
+                Cargando...
+              </div>
             ) : redemptions.length === 0 ? (
               <div className="text-center py-12">
-                <Package size={48} className="mx-auto text-muted-foreground/30 mb-4" />
-                <p className="text-muted-foreground">No tienes canjes aún</p>
+                <Package size={48} className="mx-auto mb-4" style={{ color: 'var(--tgo-text-muted)', opacity: 0.3 }} />
+                <p style={{ color: 'var(--tgo-text-muted)' }}>No tienes canjes aún</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {/* Pending Redemptions */}
                 {pendingRedemptions.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-bold text-muted-foreground mb-3">
+                    <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--tgo-text-muted)' }}>
                       Pendientes de reclamar
                     </h3>
                     <div className="space-y-4">
                       {pendingRedemptions.map(redemption => (
-                        <Card key={redemption._id} className="border-amber-200">
-                          <CardContent className="p-4">
+                        <div key={redemption._id} style={{ ...cardStyle, border: '1px solid var(--tgo-state-warning)' }}>
+                          <div className="p-4">
                             <div className="flex items-start gap-4">
                               {redemption.storeItemId.imageUrl && (
                                 <img
                                   src={redemption.storeItemId.imageUrl}
                                   alt={redemption.storeItemId.name}
-                                  className="w-16 h-16 rounded-lg object-cover"
+                                  className="w-16 h-16 object-cover"
+                                  style={{ borderRadius: 'var(--tgo-radius-md)' }}
                                 />
                               )}
                               <div className="flex-1">
                                 <div className="flex items-start justify-between mb-2">
-                                  <h4 className="font-bold">{redemption.storeItemId.name}</h4>
+                                  <h4 className="font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+                                    {redemption.storeItemId.name}
+                                  </h4>
                                   {getStatusBadge(redemption.status)}
                                 </div>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--tgo-text-muted)' }}>
                                   <span>{redemption.pointsUsed} pts</span>
                                   {redemption.expiresAt && (
                                     <span className="flex items-center gap-1">
@@ -208,21 +213,35 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
                                 </div>
                               </div>
                             </div>
-                            <div className="mt-4 pt-4 border-t border-border">
+                            <div
+                              className="mt-4 pt-4"
+                              style={{ borderTop: '1px solid var(--tgo-border)' }}
+                            >
                               <div className="flex items-center justify-between">
                                 <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Código de redención</p>
-                                  <code className="text-lg font-mono font-bold tracking-wider">
+                                  <p className="text-xs mb-1" style={{ color: 'var(--tgo-text-muted)' }}>
+                                    Código de redención
+                                  </p>
+                                  <code
+                                    className="text-lg font-mono font-bold tracking-wider"
+                                    style={{ color: 'var(--tgo-text-primary)' }}
+                                  >
                                     {redemption.redemptionCode}
                                   </code>
                                 </div>
-                                <div className="w-16 h-16 bg-muted flex items-center justify-center rounded-lg">
-                                  <QrCode size={32} className="text-muted-foreground" />
+                                <div
+                                  className="w-16 h-16 flex items-center justify-center"
+                                  style={{
+                                    borderRadius: 'var(--tgo-radius-md)',
+                                    backgroundColor: 'var(--tgo-surface-1)',
+                                  }}
+                                >
+                                  <QrCode size={32} style={{ color: 'var(--tgo-text-muted)' }} />
                                 </div>
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -231,23 +250,28 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
                 {/* Other Redemptions */}
                 {otherRedemptions.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-bold text-muted-foreground mb-3">
+                    <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--tgo-text-muted)' }}>
                       Historial
                     </h3>
                     <div className="space-y-3">
                       {otherRedemptions.map(redemption => (
-                        <Card key={redemption._id} className="border-border/60">
-                          <CardContent className="p-4">
+                        <div key={redemption._id} style={cardStyle}>
+                          <div className="p-4">
                             <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                              <div
+                                className="w-10 h-10 rounded-full flex items-center justify-center"
+                                style={{ backgroundColor: 'var(--tgo-surface-1)' }}
+                              >
                                 {getStatusIcon(redemption.status)}
                               </div>
                               <div className="flex-1">
                                 <div className="flex items-start justify-between">
-                                  <h4 className="font-bold">{redemption.storeItemId.name}</h4>
+                                  <h4 className="font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+                                    {redemption.storeItemId.name}
+                                  </h4>
                                   {getStatusBadge(redemption.status)}
                                 </div>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                                <div className="flex items-center gap-4 text-sm mt-1" style={{ color: 'var(--tgo-text-muted)' }}>
                                   <span>{redemption.pointsUsed} pts</span>
                                   <span>{new Date(redemption.createdAt).toLocaleDateString()}</span>
                                   {redemption.claimedAt && (
@@ -256,16 +280,16 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
                                 </div>
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )
