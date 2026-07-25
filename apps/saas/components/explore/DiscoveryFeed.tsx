@@ -10,6 +10,7 @@
 //          OpenNow → Nearby → Experiences
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { microcopy } from '@/components/tgo/microcopy'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTenant } from '@/contexts/TenantContext'
@@ -24,6 +25,7 @@ import { HorizontalScroller } from '@/components/tgo'
 import { EmptyState } from '@/components/tgo'
 import { LiveCityMetrics } from '@/components/tgo'
 import { DiscoveryContinuo } from '@/components/tgo'
+import PullToRefresh from '@/components/tgo/PullToRefresh'
 
 // TGO Business
 import { RestaurantCard } from '@/components/tgo-business'
@@ -38,6 +40,7 @@ import type { RestaurantCardData } from '@/types/restaurant-card'
 import Image from 'next/image'
 import { User, Clock, Bike, MapPin } from 'lucide-react'
 import { SmartGreeting } from '@/components/tgo'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 // ── QuickFilters ─────────────────────────────────────────────────────────────
 
@@ -55,6 +58,7 @@ function QuickFiltersModule({
   activeFilter: string | null
   onFilterChange: (q: string | null) => void
 }) {
+  const haptic = useHaptic()
   return (
     <div
       className="flex gap-2 justify-center"
@@ -66,7 +70,7 @@ function QuickFiltersModule({
         return (
           <button
             key={f.query}
-            onClick={() => onFilterChange(isActive ? null : f.query)}
+            onClick={() => { haptic.selection(); onFilterChange(isActive ? null : f.query) }}
             className="flex items-center gap-1.5 active:scale-[0.96]"
             style={{
               height: 32,
@@ -172,9 +176,9 @@ function ExperiencesModule({
     return (
       <EmptyState
         icon={<span style={{ fontSize: 24 }}>🎁</span>}
-        title="Unite a un club"
+        title={microcopy.discovery.empty.joinClub}
         subtitle="Desbloqueá beneficios exclusivos en tus lugares favoritos"
-        action={{ label: 'Explorar clubes', onClick: () => {} }}
+        action={{ label: microcopy.discovery.empty.exploreClubs, onClick: () => {} }}
         variant="search"
       />
     )
@@ -247,6 +251,7 @@ function CategoriesModule({
   onToggleShowAll: () => void
   onSelect: (name: string) => void
 }) {
+  const haptic = useHaptic()
   const visible = showAll ? categories.slice(0, 12) : categories.slice(0, 8)
   const hasMore = categories.length > 8
 
@@ -265,14 +270,14 @@ function CategoriesModule({
               icon={config.icon}
               color={config.color}
               bg={config.bg}
-              onClick={() => onSelect(cat)}
+              onClick={() => { haptic.selection(); onSelect(cat) }}
             />
           )
         })}
       </div>
       {hasMore && (
         <button
-          onClick={onToggleShowAll}
+          onClick={() => { haptic.impact('light'); onToggleShowAll() }}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -417,6 +422,7 @@ export default function DiscoveryFeed({
   const { setTenantSlug } = useTenant()
   const { data: session } = useSession()
   const router = useRouter()
+  const haptic = useHaptic()
 
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -549,10 +555,11 @@ export default function DiscoveryFeed({
   }
 
   return (
-    <div
-      className="h-full overflow-y-auto no-scrollbar pb-32"
-      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
-    >
+    <PullToRefresh onRefresh={fetchHomeData}>
+      <div
+        className="h-full overflow-y-auto no-scrollbar pb-32"
+        style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+      >
       {/* 1. Smart Greeting + Avatar */}
       <div
         style={{
@@ -652,7 +659,7 @@ export default function DiscoveryFeed({
         </p>
 
         <button
-          onClick={handleShare}
+          onClick={() => { haptic.impact('light'); handleShare() }}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -700,8 +707,8 @@ export default function DiscoveryFeed({
       {/* 5. Explorar Categorías */}
       {categories.length > 0 && (
         <Section
-          title="Explorar Categorías"
-          subtitle="Descubrí por tipo de comida"
+          title={microcopy.discovery.sections.categories}
+          subtitle={microcopy.discovery.sections.categoriesSub}
           verticalPadding="var(--tgo-space-5)"
         >
           <CategoriesModule
@@ -715,8 +722,8 @@ export default function DiscoveryFeed({
 
       {/* 6. Está pasando cerca tuyo */}
       <Section
-        title="Está pasando cerca tuyo"
-        subtitle="Descubrimientos en tu zona"
+        title={microcopy.discovery.sections.nearYou}
+        subtitle={microcopy.discovery.sections.nearYouSub}
         href="/explore"
         verticalPadding="var(--tgo-space-4)"
       >
@@ -728,8 +735,8 @@ export default function DiscoveryFeed({
 
       {/* 7. Recién llegaron a la red */}
       <Section
-        title="Recién llegaron a la red"
-        subtitle="Nuevos en TGO esta semana"
+        title={microcopy.discovery.sections.newInNetwork}
+        subtitle={microcopy.discovery.sections.newInNetworkSub}
         verticalPadding="var(--tgo-space-4)"
       >
         <NewInNetworkModule
@@ -740,7 +747,7 @@ export default function DiscoveryFeed({
 
       {/* 8. Para este momento */}
       <Section
-        title="Para este momento"
+        title={microcopy.discovery.sections.timeBased}
         verticalPadding="var(--tgo-space-4)"
       >
         <TimeBasedModule
@@ -751,7 +758,7 @@ export default function DiscoveryFeed({
 
       {/* 9. Hoy podés aprovechar */}
       <Section
-        title="Hoy podés aprovechar"
+        title={microcopy.discovery.sections.experiences}
         subtitle={allExperiences.length > 0 ? 'Lo que tenés como miembro' : 'Próximamente'}
         href="/app/promociones"
         verticalPadding="var(--tgo-space-4)"
@@ -793,7 +800,7 @@ export default function DiscoveryFeed({
               Sumate a la plataforma que potencia locales sin comisiones abusivas.
             </p>
             <button
-              onClick={onOpenLeadModal}
+              onClick={() => { haptic.impact('light'); onOpenLeadModal() }}
               className="mt-3"
               style={{
                 padding: '10px 20px',
@@ -811,6 +818,7 @@ export default function DiscoveryFeed({
           </div>
         </section>
       )}
-    </div>
+      </div>
+    </PullToRefresh>
   )
 }

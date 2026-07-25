@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { microcopy } from '@/components/tgo/microcopy'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -87,10 +88,10 @@ export default function PromocionesClient() {
           </button>
           <div>
             <h1 className="text-lg font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-              Ofertas
+              {microcopy.promotions.title}
             </h1>
             <p className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>
-              Todas las promociones disponibles
+              {microcopy.promotions.subtitle}
             </p>
           </div>
         </div>
@@ -101,13 +102,13 @@ export default function PromocionesClient() {
         {promos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <p className="font-medium mb-1" style={{ color: 'var(--tgo-text-primary)' }}>
-              Sin ofertas por ahora
+              {microcopy.promotions.empty}
             </p>
             <p
               className="text-sm text-center max-w-[200px]"
               style={{ color: 'var(--tgo-text-muted)' }}
             >
-              No hay promociones disponibles en tu zona
+              {microcopy.promotions.emptySub}
             </p>
           </div>
         ) : (

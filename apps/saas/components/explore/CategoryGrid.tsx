@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { cn } from '@/lib/utils'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface Category {
   name: string
@@ -22,6 +23,7 @@ const CATEGORIES: Category[] = [
 ]
 
 export default function CategoryGrid({ categories, onCategorySelect }: { categories?: string[]; onCategorySelect?: (name: string) => void }) {
+  const haptic = useHaptic()
   const displayCategories = categories
     ? CATEGORIES.filter(c => c.name === 'Restaurantes' || categories.includes(c.name))
     : CATEGORIES
@@ -32,7 +34,7 @@ export default function CategoryGrid({ categories, onCategorySelect }: { categor
         {displayCategories.map((cat) => (
           <button
             key={cat.name}
-            onClick={() => onCategorySelect?.(cat.name)}
+            onClick={() => { haptic.selection(); onCategorySelect?.(cat.name) }}
             className="flex flex-col items-center gap-1.5 group"
           >
             <div
@@ -44,7 +46,7 @@ export default function CategoryGrid({ categories, onCategorySelect }: { categor
             >
               {cat.icon}
             </div>
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 transition-colors">
+            <span className="text-[9px] font-black uppercase tracking-widest transition-colors" style={{ color: 'var(--tgo-text-muted)' }}>
               {cat.name}
             </span>
           </button>

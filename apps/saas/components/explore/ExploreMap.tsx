@@ -5,6 +5,7 @@ import type { RestaurantCardData } from '@/types/restaurant-card'
 import 'leaflet/dist/leaflet.css'
 import { ShoppingBag, MapPinIcon, X, Clock, Phone, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface Props {
   userLat: number
@@ -155,10 +156,11 @@ function BottomSheet({ r, onClose, onNavigate }: {
   onNavigate: () => void
 }) {
   const isNetwork = r.type === 'network'
+  const haptic = useHaptic()
 
   return (
     <>
-      <div className="absolute inset-0 z-[900]" style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
+      <div className="absolute inset-0 z-[900]" style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }} onClick={() => { haptic.impact('light'); onClose() }} role="button" aria-label="Cerrar mapa" />
       <div className="absolute bottom-[84px] left-0 right-0 z-[1100] animate-slide-up px-4">
         <div
           className="rounded-[24px] shadow-2xl overflow-hidden"
@@ -167,7 +169,7 @@ function BottomSheet({ r, onClose, onNavigate }: {
             border: '1px solid var(--tgo-border)',
           }}
         >
-          <div className="flex justify-center pt-3 pb-2" onClick={onClose}>
+          <div className="flex justify-center pt-3 pb-2" onClick={onClose} role="button" aria-label="Cerrar">
             <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'var(--tgo-border)' }} />
           </div>
 
@@ -277,6 +279,7 @@ function BottomSheet({ r, onClose, onNavigate }: {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: Props) {
+  const haptic = useHaptic()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const hoveredRef = useRef<RestaurantCardData | null>(null)
@@ -410,7 +413,8 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
       {/* Zoom controls (overlay) */}
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-[500]">
         <button
-          onClick={() => mapRef.current?.zoomIn()}
+          onClick={() => { haptic.selection(); mapRef.current?.zoomIn() }}
+          aria-label="Acercar"
           className="w-10 h-10 rounded-xl flex items-center justify-center font-bold active:scale-95"
           style={{
             backgroundColor: 'var(--tgo-surface-1)',
@@ -420,7 +424,8 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
           }}
         >+</button>
         <button
-          onClick={() => mapRef.current?.zoomOut()}
+          onClick={() => { haptic.selection(); mapRef.current?.zoomOut() }}
+          aria-label="Alejar"
           className="w-10 h-10 rounded-xl flex items-center justify-center font-bold active:scale-95"
           style={{
             backgroundColor: 'var(--tgo-surface-1)',

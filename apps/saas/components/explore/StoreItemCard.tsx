@@ -5,6 +5,7 @@ import { Star, TrendingUp, Lock, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import confetti from 'canvas-confetti'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface StoreItem {
   _id: string
@@ -35,6 +36,7 @@ const TIER_ORDER: Record<string, number> = {
 }
 
 export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem }: Props) {
+  const haptic = useHaptic()
   const [loading, setLoading] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
   const prevCanAfford = useRef(false)
@@ -70,6 +72,7 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
 
   async function handleRedeem() {
     if (!canRedeem) return
+    haptic.success()
     setLoading(true)
     try {
       await onRedeem(item._id)

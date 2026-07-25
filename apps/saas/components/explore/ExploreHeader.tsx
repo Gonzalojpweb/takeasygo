@@ -12,6 +12,7 @@ import { useState } from 'react'
 import AddressSelector from '@/components/explore/AddressSelector'
 import { SearchBar } from '@/components/tgo'
 import { Chip } from '@/components/tgo'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface Props {
   gpsError: string | null
@@ -50,6 +51,7 @@ export default function ExploreHeader({
 }: Props) {
   const [showFilters, setShowFilters] = useState(false)
   const [showAddressSelector, setShowAddressSelector] = useState(false)
+  const haptic = useHaptic()
 
   return (
     <div
@@ -114,7 +116,8 @@ export default function ExploreHeader({
             Takeaway cerca de vos
           </h1>
           <button
-            onClick={() => setShowAddressSelector(true)}
+            onClick={() => { haptic.impact('light'); setShowAddressSelector(true) }}
+            aria-label="Seleccionar dirección"
             className="p-1.5"
             style={{
               borderRadius: 'var(--tgo-radius-sm)',
@@ -153,7 +156,8 @@ export default function ExploreHeader({
         {/* Filter toggle */}
         <div className="flex items-center gap-2 mb-2">
           <button
-            onClick={() => setShowFilters((v) => !v)}
+            onClick={() => { haptic.selection(); setShowFilters((v) => !v) }}
+            aria-label="Filtros"
             className="flex items-center gap-1.5"
             style={{
               padding: '6px 12px',
@@ -191,7 +195,8 @@ export default function ExploreHeader({
 
           {activeFilters > 0 && (
             <button
-              onClick={onClearFilters}
+              onClick={() => { haptic.selection(); onClearFilters() }}
+              aria-label="Limpiar filtros"
               className="flex items-center gap-1"
               style={{
                 color: 'var(--tgo-text-muted)',
@@ -238,7 +243,7 @@ export default function ExploreHeader({
                 {RADIUS_OPTIONS.map((r) => (
                   <button
                     key={r.value}
-                    onClick={() => setRadius(r.value)}
+                    onClick={() => { haptic.selection(); setRadius(r.value) }}
                     style={{
                       padding: '6px 12px',
                       borderRadius: 'var(--tgo-radius-md)',
@@ -263,7 +268,8 @@ export default function ExploreHeader({
 
             {/* Open now */}
             <button
-              onClick={() => setOpenNowOnly(!openNowOnly)}
+              onClick={() => { haptic.selection(); setOpenNowOnly(!openNowOnly) }}
+              aria-label="Filtrar abiertos ahora"
               className="flex items-center gap-2"
               style={{
                 padding: '8px 16px',
@@ -377,6 +383,9 @@ export default function ExploreHeader({
             className="absolute inset-0"
             style={{ backgroundColor: 'var(--tgo-surface-overlay)' }}
             onClick={() => setShowAddressSelector(false)}
+            role="button"
+            tabIndex={0}
+            aria-label="Cerrar selector de dirección"
           />
           <div
             className="relative w-full max-w-md max-h-[80vh] overflow-y-auto"
@@ -405,6 +414,7 @@ export default function ExploreHeader({
               </h2>
               <button
                 onClick={() => setShowAddressSelector(false)}
+                aria-label="Cerrar"
                 className="flex items-center justify-center"
                 style={{
                   width: 32,

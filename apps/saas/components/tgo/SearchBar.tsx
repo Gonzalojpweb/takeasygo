@@ -31,6 +31,7 @@ import {
 // el usuario ya debería ver caminos para descubrir.
 
 import { Chip } from './Chip'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 // ── Sugerencias por defecto ──────────────────────────────────────────────────
 // Siempre visibles. Nunca vacío.
@@ -99,6 +100,7 @@ export default function SearchBar({
   const [isFocused, setIsFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const haptic = useHaptic()
 
   // Sync controlled value
   useEffect(() => {
@@ -209,7 +211,8 @@ export default function SearchBar({
         {/* Location pin */}
         {showLocation && (
           <button
-            onClick={onLocation}
+            onClick={() => { haptic.impact('light'); onLocation?.() }}
+            aria-label="Ubicación"
             className="shrink-0"
             style={{
               color: 'var(--tgo-state-interactive)',
@@ -256,7 +259,8 @@ export default function SearchBar({
         {/* Clear button */}
         {!isLoading && query.length > 0 && (
           <button
-            onClick={handleClear}
+            onClick={() => { haptic.selection(); handleClear() }}
+            aria-label="Limpiar búsqueda"
             className="shrink-0"
             style={{
               color: 'var(--tgo-text-muted)',
@@ -312,7 +316,7 @@ export default function SearchBar({
                       key={s.query}
                       variant="suggestion"
                       icon={s.icon}
-                      onClick={() => handleSuggestionClick(s.query)}
+                      onClick={() => { haptic.selection(); handleSuggestionClick(s.query) }}
                     >
                       {s.label}
                     </Chip>
@@ -338,7 +342,7 @@ export default function SearchBar({
                   {TRENDING_SUGGESTIONS.map((s) => (
                     <button
                       key={s.query}
-                      onClick={() => handleSuggestionClick(s.query)}
+                      onClick={() => { haptic.selection(); handleSuggestionClick(s.query) }}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-[var(--tgo-surface-1)] transition-colors"
                     >
                       <span
@@ -374,7 +378,7 @@ export default function SearchBar({
           {showSuggestions && (
             <div className="p-4">
               <button
-                onClick={() => handleSuggestionClick(query)}
+                onClick={() => { haptic.selection(); handleSuggestionClick(query) }}
                 className="flex items-center gap-3 w-full px-3 py-3 rounded-lg text-left transition-colors"
                 style={{
                   backgroundColor: 'var(--tgo-surface-1)',
@@ -417,7 +421,7 @@ export default function SearchBar({
                   {items.map((r) => (
                     <button
                       key={r.id}
-                      onClick={() => onSelect?.(r)}
+                      onClick={() => { haptic.selection(); onSelect?.(r) }}
                       className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-left hover:bg-[var(--tgo-surface-1)] transition-colors"
                     >
                       {r.imageUrl ? (

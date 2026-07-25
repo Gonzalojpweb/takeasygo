@@ -3,18 +3,20 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Package, ChevronRight, Clock, CheckCircle2, XCircle, Loader2, ShoppingBag, AlertCircle, ArrowRight } from 'lucide-react'
+import { Package, ChevronRight, Clock, CheckCircle2, XCircle, Loader2, ShoppingBag, AlertCircle, ArrowRight, LogIn } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BlurFade } from '@/components/ui/blur-fade'
+import { EmptyState } from '@/components/tgo'
+import { useHaptic } from '@/components/tgo/useHaptic'
 
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  awaiting_payment: { label: 'Esperando pago', color: '#f59e0b', bg: '#fef3c7', icon: <Clock size={11} /> },
-  pending:          { label: 'Recibido',        color: '#3b82f6', bg: '#eff6ff', icon: <Clock size={11} /> },
-  confirmed:        { label: 'Confirmado',      color: '#8b5cf6', bg: '#f5f3ff', icon: <CheckCircle2 size={11} /> },
-  preparing:        { label: 'Preparando',      color: '#f97316', bg: '#fff7ed', icon: <Loader2 size={11} className="animate-spin" /> },
-  ready:            { label: '¡Listo!',         color: '#10b981', bg: '#ecfdf5', icon: <CheckCircle2 size={11} /> },
-  delivered:        { label: 'Entregado',       color: '#6b7280', bg: '#f9fafb', icon: <CheckCircle2 size={11} /> },
-  cancelled:        { label: 'Cancelado',       color: '#ef4444', bg: '#fef2f2', icon: <XCircle size={11} /> },
+  awaiting_payment: { label: 'Esperando pago', color: 'var(--tgo-status-warning)', bg: 'rgba(245, 158, 11, 0.1)', icon: <Clock size={11} /> },
+  pending:          { label: 'Recibido',        color: 'var(--tgo-status-info)', bg: 'rgba(59, 130, 246, 0.1)', icon: <Clock size={11} /> },
+  confirmed:        { label: 'Confirmado',      color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', icon: <CheckCircle2 size={11} /> },
+  preparing:        { label: 'Preparando',      color: '#f97316', bg: 'rgba(249, 115, 22, 0.1)', icon: <Loader2 size={11} className="animate-spin" /> },
+  ready:            { label: '¡Listo!',         color: 'var(--tgo-status-success)', bg: 'rgba(16, 185, 129, 0.1)', icon: <CheckCircle2 size={11} /> },
+  delivered:        { label: 'Entregado',       color: 'var(--tgo-text-muted)', bg: 'var(--tgo-surface-1)', icon: <CheckCircle2 size={11} /> },
+  cancelled:        { label: 'Cancelado',       color: 'var(--tgo-status-error)', bg: 'rgba(239, 68, 68, 0.1)', icon: <XCircle size={11} /> },
 }
 
 interface OrderItem {
@@ -47,6 +49,7 @@ function formatDate(dateStr: string) {
 }
 
 export default function OrdersView() {
+  const haptic = useHaptic()
   const { data: session, status: authStatus } = useSession()
   const router = useRouter()
   const [orders, setOrders] = useState<OrderItem[]>([])
@@ -82,22 +85,13 @@ export default function OrdersView() {
   // Unauthenticated state
   if (authStatus === 'unauthenticated') {
     return (
-      <div className="h-full bg-white flex flex-col items-center justify-center px-6 text-center gap-6">
-        <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center">
-          <Package size={32} className="text-zinc-400" />
-        </div>
-        <div>
-          <h3 className="font-black text-xl text-slate-900 mb-1">Tus pedidos</h3>
-          <p className="text-sm text-slate-500 leading-relaxed max-w-[260px]">
-            Iniciá sesión para ver el historial de tus compras y hacer seguimiento en tiempo real.
-          </p>
-        </div>
-        <button
-          onClick={() => router.push('/login?callbackUrl=/app')}
-          className="px-8 py-3 bg-[#f74211] text-white font-bold rounded-xl text-sm shadow-lg shadow-[#f74211]/20 active:scale-95 transition-all"
-        >
-          Iniciar sesión
-        </button>
+      <div className="h-full" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
+        <EmptyState
+          icon={<LogIn size={48} />}
+          title="Tus pedidos"
+          subtitle="Iniciá sesión para ver el historial de tus compras y hacer seguimiento en tiempo real."
+            action={{ label: "Iniciar sesión", onClick: () => { haptic.impact('light'); router.push('/login?callbackUrl=/app') } }}
+        />
       </div>
     )
   }
@@ -105,13 +99,13 @@ export default function OrdersView() {
   // Loading state
   if (loading && orders.length === 0) {
     return (
-      <div className="h-full bg-white">
-        <div className="sticky top-0 bg-white border-b border-zinc-100 px-4 py-4">
-          <h2 className="font-black text-xl text-slate-900">Mis pedidos</h2>
+      <div className="h-full" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
+        <div className="sticky top-0 px-4 py-4" style={{ backgroundColor: 'var(--tgo-surface-card)', borderBottom: '1px solid var(--tgo-border)' }}>
+          <h2 className="font-black text-xl" style={{ color: 'var(--tgo-text-primary)' }}>Mis pedidos</h2>
         </div>
         <div className="p-4 space-y-3">
           {[1,2,3].map(i => (
-            <div key={i} className="h-24 bg-zinc-50 rounded-2xl animate-pulse" />
+            <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ backgroundColor: 'var(--tgo-surface-1)' }} />
           ))}
         </div>
       </div>
@@ -121,37 +115,28 @@ export default function OrdersView() {
   // Empty state
   if (!loading && orders.length === 0) {
     return (
-      <div className="h-full bg-white flex flex-col">
-        <div className="sticky top-0 bg-white border-b border-zinc-100 px-4 py-4">
-          <h2 className="font-black text-xl text-slate-900">Mis pedidos</h2>
+      <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
+        <div className="sticky top-0 px-4 py-4" style={{ backgroundColor: 'var(--tgo-surface-card)', borderBottom: '1px solid var(--tgo-border)' }}>
+          <h2 className="font-black text-xl" style={{ color: 'var(--tgo-text-primary)' }}>Mis pedidos</h2>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-5">
-          <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center">
-            <ShoppingBag size={32} className="text-zinc-300" />
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-slate-700 mb-1">Todavía no hiciste pedidos</h3>
-            <p className="text-sm text-slate-400 max-w-[240px]">
-              Explorá los restaurantes cercanos y hacé tu primer pedido.
-            </p>
-          </div>
-          <button
-            onClick={() => router.push('/app')}
-            className="flex items-center gap-2 px-6 py-3 bg-[#f74211] text-white font-bold rounded-xl text-sm shadow-lg shadow-[#f74211]/20"
-          >
-            Explorar ahora <ArrowRight size={16} />
-          </button>
+        <div className="flex-1">
+          <EmptyState
+            icon={<ShoppingBag size={48} />}
+            title="Todavía no hiciste pedidos"
+            subtitle="Explorá los restaurantes cercanos y hacé tu primer pedido."
+            action={{ label: "Explorar ahora", onClick: () => { haptic.impact('light'); router.push('/app') } }}
+          />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-full bg-white overflow-y-auto no-scrollbar pb-24">
+    <div className="h-full overflow-y-auto no-scrollbar pb-24" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
       {/* Header */}
-      <div className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-zinc-100 px-4 py-4 z-10">
-        <h2 className="font-black text-xl text-slate-900">Mis pedidos</h2>
-        <p className="text-xs text-slate-400 font-medium mt-0.5">{orders.length} pedido{orders.length !== 1 ? 's' : ''}</p>
+      <div className="sticky top-0 backdrop-blur-xl px-4 py-4 z-10" style={{ backgroundColor: 'color-mix(in srgb, var(--tgo-surface-card) 90%, transparent)', borderBottom: '1px solid var(--tgo-border)' }}>
+        <h2 className="font-black text-xl" style={{ color: 'var(--tgo-text-primary)' }}>Mis pedidos</h2>
+        <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--tgo-text-muted)' }}>{orders.length} pedido{orders.length !== 1 ? 's' : ''}</p>
       </div>
 
       {/* Orders list */}
@@ -166,12 +151,15 @@ export default function OrdersView() {
                 <motion.div
                   layout
                   onClick={() => order.trackingUrl && router.push(order.trackingUrl)}
-                  className={`relative flex items-center gap-3 p-4 rounded-2xl border transition-all active:scale-[0.99] ${
+                  className={`relative flex items-center gap-3 p-4 rounded-2xl transition-all active:scale-[0.99] ${
                     isActive
-                      ? 'border-2 cursor-pointer bg-white shadow-sm'
-                      : 'border border-zinc-100 cursor-pointer bg-white hover:bg-zinc-50'
+                      ? 'border-2 cursor-pointer shadow-sm'
+                      : 'border cursor-pointer'
                   }`}
-                  style={isActive ? { borderColor: order.tenant?.primaryColor + '40' } : {}}
+                  style={{
+                    backgroundColor: 'var(--tgo-surface-card)',
+                    borderColor: isActive ? order.tenant?.primaryColor + '40' : 'var(--tgo-border)',
+                  }}
                 >
                   {/* Active indicator */}
                   {isActive && (
@@ -182,22 +170,22 @@ export default function OrdersView() {
                   )}
 
                   {/* Logo */}
-                  <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-zinc-100 flex items-center justify-center border border-zinc-100">
+                  <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-surface-1)', border: '1px solid var(--tgo-border)' }}>
                     {order.tenant?.logoUrl ? (
                       <img src={order.tenant.logoUrl} alt={order.tenant.name} className="w-full h-full object-cover" />
                     ) : (
-                      <Package size={20} className="text-zinc-400" />
+                      <Package size={20} style={{ color: 'var(--tgo-text-muted)' }} />
                     )}
                   </div>
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-bold text-sm text-slate-900 truncate">
+                      <h3 className="font-bold text-sm truncate" style={{ color: 'var(--tgo-text-primary)' }}>
                         {order.tenant?.name ?? 'Restaurante'}
                       </h3>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-medium mb-1.5 truncate">
+                    <p className="text-[10px] font-medium mb-1.5 truncate" style={{ color: 'var(--tgo-text-muted)' }}>
                       {order.itemCount} ítem{order.itemCount !== 1 ? 's' : ''} · #{order.orderNumber}
                     </p>
                     <div className="flex items-center gap-2">
@@ -214,14 +202,14 @@ export default function OrdersView() {
 
                   {/* Right: total + date + chevron */}
                   <div className="shrink-0 text-right flex flex-col items-end gap-1">
-                    <span className="font-black text-sm text-slate-900">
+                    <span className="font-black text-sm" style={{ color: 'var(--tgo-text-primary)' }}>
                       ${order.total.toLocaleString('es-AR')}
                     </span>
-                    <span className="text-[9px] text-slate-400 font-medium">
+                    <span className="text-[9px] font-medium" style={{ color: 'var(--tgo-text-muted)' }}>
                       {formatDate(order.createdAt)}
                     </span>
                     {order.trackingUrl && (
-                      <ChevronRight size={14} className="text-zinc-300 mt-0.5" />
+                      <ChevronRight size={14} className="mt-0.5" style={{ color: 'var(--tgo-text-muted)' }} />
                     )}
                   </div>
                 </motion.div>
@@ -235,9 +223,11 @@ export default function OrdersView() {
       {page < totalPages && (
         <div className="px-4 pb-6">
           <button
-            onClick={() => fetchOrders(page + 1)}
+            onClick={() => { haptic.impact('light'); fetchOrders(page + 1) }}
+            aria-label="Cargar más pedidos"
             disabled={loading}
-            className="w-full py-3 rounded-xl border-2 border-zinc-100 text-sm font-bold text-slate-500 hover:border-zinc-200 transition-all disabled:opacity-50"
+            className="w-full py-3 rounded-xl border-2 text-sm font-bold transition-all disabled:opacity-50"
+            style={{ borderColor: 'var(--tgo-border)', color: 'var(--tgo-text-muted)' }}
           >
             {loading ? 'Cargando...' : 'Ver más pedidos'}
           </button>
