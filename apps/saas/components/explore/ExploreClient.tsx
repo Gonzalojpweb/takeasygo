@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { RestaurantCardData } from '@/types/restaurant-card'
@@ -99,10 +99,10 @@ function ExploreClientInner() {
     setView('list')
   }, [setActiveCuisine, setView])
 
-  const handleMapSelect = useCallback((r: RestaurantCardData) => {
+  const handleNavigate = useCallback((r: RestaurantCardData) => {
     setTenantSlug(r.id)
-      router.push(`/app/${r.id}?type=${r.type}`)
-    }, [setTenantSlug, router])
+    router.push(`/app/${r.id}?type=${r.type}`)
+  }, [setTenantSlug, router])
 
   // ── GPS con cache en sessionStorage ────────────────────────────────────
   const GPS_CACHE_KEY = 'tgo_gps_cache'
@@ -270,12 +270,13 @@ function ExploreClientInner() {
     if (coords) fetchNearby(coords.lat, coords.lng, radius)
   }, [coords, radius, fetchNearby])
 
-  // ── Filtering ─────────────────────────────────────────────────────────
-  const allCuisines = Array.from(
-    new Set(restaurants.flatMap(r => r.cuisineTypes))
-  ).sort()
+  // ── Filtering (memoized) ───────────────────────────────────────────────
+  const allCuisines = useMemo(() =>
+    Array.from(new Set(restaurants.flatMap(r => r.cuisineTypes))).sort(),
+    [restaurants]
+  )
 
-  const filtered = restaurants.filter(r => {
+  const filtered = useMemo(() => restaurants.filter(r => {
     if (activeCuisine && !r.cuisineTypes.includes(activeCuisine)) return false
     if (openNowOnly && r.isOpenNow !== true) return false
     if (searchQuery) {
@@ -285,21 +286,21 @@ function ExploreClientInner() {
       if (!matchName && !matchCuisine) return false
     }
     return true
-  })
+  }), [restaurants, activeCuisine, openNowOnly, searchQuery])
 
-  const networkCount = filtered.filter(r => r.type === 'network').length
-  const listedCount = filtered.filter(r => r.type === 'listed').length
+  const networkCount = useMemo(() => filtered.filter(r => r.type === 'network').length, [filtered])
+  const listedCount = useMemo(() => filtered.filter(r => r.type === 'listed').length, [filtered])
   const activeFilters = (activeCuisine ? 1 : 0) + (openNowOnly ? 1 : 0) + (searchQuery ? 1 : 0)
 
   // Separate network (featured) vs listed
-  const featuredRestaurants = filtered.filter(r => r.type === 'network').slice(0, 7)
+  const featuredRestaurants = useMemo(() => filtered.filter(r => r.type === 'network').slice(0, 7), [filtered])
   const listRestaurants = filtered
 
   // ── Infinite scroll ───────────────────────────────────────────────────
   const ITEMS_PER_PAGE = 10
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE)
   const loadMoreRef = useRef<HTMLDivElement>(null)
-  const visibleListRestaurants = listRestaurants.slice(0, visibleCount)
+  const visibleListRestaurants = useMemo(() => listRestaurants.slice(0, visibleCount), [listRestaurants, visibleCount])
   const hasMore = visibleCount < listRestaurants.length
 
   useEffect(() => {
@@ -448,10 +449,7 @@ function ExploreClientInner() {
                             restaurant={r}
                             layout="hero"
                             index={i}
-                            onNavigate={() => {
-                              setTenantSlug(r.id)
-                              router.push(`/app/${r.id}?type=${r.type}`)
-                            }}
+                            onNavigate={() => handleNavigate(r)}
                           />
                         ))}
                       </HorizontalScroller>
@@ -476,10 +474,7 @@ function ExploreClientInner() {
                           key={r.id}
                           restaurant={r}
                           layout="list"
-                          onNavigate={() => {
-                            setTenantSlug(r.id)
-                            router.push(`/app/${r.id}?type=${r.type}`)
-                          }}
+                          onNavigate={() => handleNavigate(r)}
                         />
                       ))}
                     </div>
@@ -573,7 +568,7 @@ function ExploreClientInner() {
                   userLat={coords.lat}
                   userLng={coords.lng}
                   restaurants={restaurants}
-                  onSelect={handleMapSelect}
+                  onSelect={handleNavigate}
                 />
               ) : (
                 <div
