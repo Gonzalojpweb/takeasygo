@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { MapPin, Plus, Trash2, Check, X, Loader2, Home, Briefcase, MapPin as MapPinIcon } from 'lucide-react'
 import { useLocation } from '@/components/explore/LocationContext'
 import { useSession } from 'next-auth/react'
+import { toast } from 'sonner'
 
 interface AddressSelectorProps {
   onClose?: () => void
@@ -24,7 +25,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
 
   const handleAddAddress = async () => {
     if (!newAddress.address || !newAddress.coordinates.lat || !newAddress.coordinates.lng) {
-      alert('Por favor completa la dirección y las coordenadas')
+      toast.error('Completá la dirección y las coordenadas')
       return
     }
 
@@ -44,7 +45,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
       await refreshAddresses()
     } catch (error) {
       console.error('Error adding address:', error)
-      alert('Error al agregar dirección')
+      toast.error('Error al agregar dirección')
     } finally {
       setAdding(false)
     }
@@ -57,7 +58,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
       await refreshAddresses()
     } catch (error) {
       console.error('Error removing address:', error)
-      alert('Error al eliminar dirección')
+      toast.error('Error al eliminar dirección')
     }
   }
 
@@ -68,7 +69,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
 
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert('Geolocalización no soportada')
+      toast.error('Geolocalización no soportada')
       return
     }
 
@@ -84,7 +85,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
       },
       (error) => {
         console.error('Error getting location:', error)
-        alert('Error al obtener ubicación')
+        toast.error('Error al obtener ubicación')
       }
     )
   }

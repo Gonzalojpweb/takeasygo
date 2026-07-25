@@ -75,7 +75,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col items-center justify-center px-8"
-      style={{ backgroundColor: '#0d0b0a' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       <AnimatePresence mode="wait">
         {!showEmailInput ? (
@@ -96,7 +96,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               className="w-16 h-16 rounded-2xl flex items-center justify-center mb-8"
               style={{ backgroundColor: 'rgba(247, 66, 17, 0.1)' }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F74211" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--tgo-brand-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
             </motion.div>
@@ -107,7 +107,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
               className="text-2xl font-bold tracking-tight mb-3 text-center"
-              style={{ color: '#F7F4F2' }}
+              style={{ color: 'var(--tgo-text-primary)' }}
             >
               Continuá.
             </motion.h2>
@@ -118,7 +118,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.5 }}
               className="text-sm text-center mb-10 leading-relaxed max-w-[280px]"
-              style={{ color: '#A09A95' }}
+              style={{ color: 'var(--tgo-text-muted)' }}
             >
               Creá tu cuenta para guardar favoritos, acceder a beneficios exclusivos y acompañarte donde estés.
             </motion.p>
@@ -133,7 +133,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 whileTap={{ scale: 0.97 }}
                 onClick={handleGoogle}
                 className="h-14 rounded-2xl flex items-center justify-center gap-3 font-semibold text-sm transition-all duration-150"
-                style={{ backgroundColor: '#FFFFFF', color: '#1A1A1A' }}
+                style={{ backgroundColor: 'var(--tgo-text-on-accent)', color: 'var(--tgo-surface-1)' }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
@@ -153,7 +153,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 className="h-14 rounded-2xl flex items-center justify-center gap-3 font-semibold text-sm transition-all duration-150 opacity-50 cursor-not-allowed"
                 style={{
                   backgroundColor: 'rgba(255,255,255,0.05)',
-                  color: '#6B6560',
+                  color: 'var(--tgo-text-muted)',
                   border: '1px solid rgba(255,255,255,0.08)',
                 }}
               >
@@ -166,7 +166,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               {/* Divider */}
               <div className="flex items-center gap-3 my-1">
                 <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }} />
-                <span className="text-xs font-medium" style={{ color: '#6B6560' }}>o</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--tgo-text-muted)' }}>o</span>
                 <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }} />
               </div>
 
@@ -180,7 +180,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 className="h-14 rounded-2xl flex items-center justify-center gap-2 font-semibold text-sm transition-all duration-150"
                 style={{
                   backgroundColor: 'rgba(255,255,255,0.05)',
-                  color: '#F7F4F2',
+                  color: 'var(--tgo-text-primary)',
                   border: '1px solid rgba(255,255,255,0.1)',
                 }}
               >
@@ -215,7 +215,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
               className="text-2xl font-bold tracking-tight mb-3 text-center"
-              style={{ color: '#F7F4F2' }}
+              style={{ color: 'var(--tgo-text-primary)' }}
             >
               Revisá tu email.
             </motion.h2>
@@ -226,7 +226,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.5 }}
               className="text-sm text-center mb-3 leading-relaxed max-w-[280px]"
-              style={{ color: '#A09A95' }}
+              style={{ color: 'var(--tgo-text-muted)' }}
             >
               Te enviamos un link mágico para entrar sin contraseña.
             </motion.p>
@@ -237,7 +237,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4, duration: 0.5 }}
               className="text-sm font-medium text-center mb-10"
-              style={{ color: '#F74211' }}
+              style={{ color: 'var(--tgo-brand-primary)' }}
             >
               {sentEmail}
             </motion.p>
@@ -253,7 +253,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 border: '1px solid rgba(255,255,255,0.06)',
               }}
             >
-              <p className="text-xs text-center leading-relaxed" style={{ color: '#6B6560' }}>
+              <p className="text-xs text-center leading-relaxed" style={{ color: 'var(--tgo-text-muted)' }}>
                 Abrí el email en tu celular o computadora y hacé clic en el link. Vas a volver automáticamente a la app.
               </p>
             </motion.div>
@@ -271,7 +271,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 setSentEmail('')
               }}
               className="flex items-center gap-1 text-sm font-medium"
-              style={{ color: '#6B6560' }}
+              style={{ color: 'var(--tgo-text-muted)' }}
             >
               <ArrowLeft size={14} />
               Usar otro email
@@ -298,7 +298,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 setError('')
               }}
               className="self-start mb-8 flex items-center gap-1 text-sm font-medium"
-              style={{ color: '#6B6560' }}
+              style={{ color: 'var(--tgo-text-muted)' }}
             >
               <ArrowLeft size={14} />
               Atrás
@@ -310,7 +310,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.5 }}
               className="text-2xl font-bold tracking-tight mb-2 text-center"
-              style={{ color: '#F7F4F2' }}
+              style={{ color: 'var(--tgo-text-primary)' }}
             >
               Ingresá tu email
             </motion.h2>
@@ -320,7 +320,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25, duration: 0.5 }}
               className="text-sm text-center mb-8"
-              style={{ color: '#6B6560' }}
+              style={{ color: 'var(--tgo-text-muted)' }}
             >
               Te enviamos un link mágico para acceder sin contraseña.
             </motion.p>
@@ -346,13 +346,13 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 className="w-full h-14 rounded-2xl px-5 text-base font-medium outline-none transition-all duration-150"
                 style={{
                   backgroundColor: 'rgba(255,255,255,0.05)',
-                  color: '#F7F4F2',
+                  color: 'var(--tgo-text-primary)',
                   border: error
-                    ? '1px solid #D94A3D'
+                    ? '1px solid var(--tgo-status-error)'
                     : '1px solid rgba(255,255,255,0.1)',
                 }}
                 onFocus={(e) => {
-                  if (!error) e.currentTarget.style.borderColor = '#F74211'
+                  if (!error) e.currentTarget.style.borderColor = 'var(--tgo-brand-primary)'
                 }}
                 onBlur={(e) => {
                   if (!error) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
@@ -363,7 +363,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-xs mt-2 ml-1"
-                  style={{ color: '#D94A3D' }}
+                  style={{ color: 'var(--tgo-status-error)' }}
                 >
                   {error}
                 </motion.p>
@@ -380,8 +380,8 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               disabled={!email.trim() || sending}
               className="w-full max-w-[300px] h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150 disabled:opacity-30"
               style={{
-                backgroundColor: '#F74211',
-                color: '#FFFFFF',
+                backgroundColor: 'var(--tgo-brand-primary)',
+                color: 'var(--tgo-text-on-accent)',
                 boxShadow: email.trim() ? '0 12px 24px -4px rgba(247, 66, 17, 0.4)' : 'none',
               }}
             >

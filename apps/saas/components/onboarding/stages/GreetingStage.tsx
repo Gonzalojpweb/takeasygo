@@ -18,7 +18,7 @@ export default function GreetingStage({ userName, onComplete }: GreetingStagePro
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col items-center justify-center px-8"
-      style={{ backgroundColor: '#0d0b0a' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       {/* Wave emoji */}
       <motion.div
@@ -36,7 +36,7 @@ export default function GreetingStage({ userName, onComplete }: GreetingStagePro
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.5 }}
         className="text-3xl font-bold tracking-tight mb-2 text-center"
-        style={{ color: '#F7F4F2' }}
+        style={{ color: 'var(--tgo-text-primary)' }}
       >
         Hola, {displayName}
       </motion.h2>
@@ -47,7 +47,7 @@ export default function GreetingStage({ userName, onComplete }: GreetingStagePro
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.55, duration: 0.5 }}
         className="text-base text-center leading-relaxed max-w-[280px]"
-        style={{ color: '#A09A95' }}
+        style={{ color: 'var(--tgo-text-muted)' }}
       >
         Qué bueno tenerte con nosotros.
       </motion.p>
@@ -57,7 +57,7 @@ export default function GreetingStage({ userName, onComplete }: GreetingStagePro
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7, duration: 0.5 }}
         className="text-sm text-center leading-relaxed max-w-[280px] mt-3"
-        style={{ color: '#6B6560' }}
+        style={{ color: 'var(--tgo-text-muted)' }}
       >
         A partir de ahora vamos a ayudarte a descubrir lugares increíbles cerca tuyo.
       </motion.p>
@@ -71,8 +71,8 @@ export default function GreetingStage({ userName, onComplete }: GreetingStagePro
         onClick={onComplete}
         className="mt-12 w-full max-w-[300px] h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150"
         style={{
-          backgroundColor: '#F74211',
-          color: '#FFFFFF',
+          backgroundColor: 'var(--tgo-brand-primary)',
+          color: 'var(--tgo-surface-card)',
           boxShadow: '0 12px 24px -4px rgba(247, 66, 17, 0.4)',
         }}
       >

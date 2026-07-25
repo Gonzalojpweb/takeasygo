@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface OrderSummary {
   _id: string
@@ -55,7 +56,7 @@ export default function PendingOrdersList({ orders, token, onTakeOrder, onTakeAl
       }
       onTakeOrder(order)
     } catch (err: any) {
-      alert(err.message)
+      toast.error(err.message)
     } finally {
       setTakingId(null)
     }

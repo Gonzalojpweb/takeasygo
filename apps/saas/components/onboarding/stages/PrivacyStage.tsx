@@ -33,7 +33,7 @@ export default function PrivacyStage({ onNext }: PrivacyStageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
         className="text-2xl font-bold tracking-tight mb-6 text-center"
-        style={{ color: '#F7F4F2' }}
+        style={{ color: 'var(--tgo-text-primary)' }}
       >
         Tus datos son tuyos.
       </motion.h2>
@@ -47,13 +47,13 @@ export default function PrivacyStage({ onNext }: PrivacyStageProps) {
       >
         <p
           className="text-sm leading-relaxed text-center mb-4"
-          style={{ color: '#A09A95' }}
+          style={{ color: 'var(--tgo-text-muted)' }}
         >
           Solo utilizamos esta información para ofrecerte mejores recomendaciones y una experiencia más personalizada.
         </p>
         <p
           className="text-sm leading-relaxed text-center"
-          style={{ color: '#6B6560' }}
+          style={{ color: 'var(--tgo-text-muted)' }}
         >
           Nunca comercializamos tus datos personales ni compartimos información privada con terceros sin tu consentimiento.
         </p>
@@ -65,7 +65,7 @@ export default function PrivacyStage({ onNext }: PrivacyStageProps) {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5, duration: 0.5 }}
         className="text-xs text-center mb-10 italic"
-        style={{ color: '#3D3A38' }}
+        style={{ color: 'var(--tgo-surface-3)' }}
       >
         Porque la confianza también forma parte de una buena experiencia.
       </motion.p>
@@ -79,8 +79,8 @@ export default function PrivacyStage({ onNext }: PrivacyStageProps) {
         onClick={onNext}
         className="w-full max-w-[300px] h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150"
         style={{
-          backgroundColor: '#F74211',
-          color: '#FFFFFF',
+          backgroundColor: 'var(--tgo-brand-primary)',
+          color: 'var(--tgo-surface-card)',
           boxShadow: '0 12px 24px -4px rgba(247, 66, 17, 0.4)',
         }}
       >

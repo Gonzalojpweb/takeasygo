@@ -42,7 +42,7 @@ export default function ExperienceStage({ value, onChange, onNext }: ExperienceS
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.5 }}
         className="text-2xl font-bold tracking-tight mb-2 text-center"
-        style={{ color: '#F7F4F2' }}
+        style={{ color: 'var(--tgo-text-primary)' }}
       >
         ¿Qué experiencias disfrutás más?
       </motion.h2>
@@ -53,7 +53,7 @@ export default function ExperienceStage({ value, onChange, onNext }: ExperienceS
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
         className="text-sm text-center mb-6"
-        style={{ color: '#6B6560' }}
+        style={{ color: 'var(--tgo-text-muted)' }}
       >
         No preguntamos solo comida. Preguntamos experiencias.
       </motion.p>
@@ -86,16 +86,16 @@ export default function ExperienceStage({ value, onChange, onNext }: ExperienceS
               >
                 <span
                   className="text-sm font-medium"
-                  style={{ color: isSelected ? '#F74211' : '#A09A95' }}
+                  style={{ color: isSelected ? 'var(--tgo-brand-primary)' : 'var(--tgo-text-muted)' }}
                 >
                   {exp.label}
                 </span>
                 {isSelected && (
                   <div
                     className="w-5 h-5 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: '#F74211' }}
+                    style={{ backgroundColor: 'var(--tgo-brand-primary)' }}
                   >
-                    <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                    <Check size={12} color="var(--tgo-text-on-accent)" strokeWidth={3} />
                   </div>
                 )}
               </motion.button>
@@ -113,8 +113,8 @@ export default function ExperienceStage({ value, onChange, onNext }: ExperienceS
         onClick={handleSubmit}
         className="w-full h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150"
         style={{
-          backgroundColor: '#F74211',
-          color: '#FFFFFF',
+          backgroundColor: 'var(--tgo-brand-primary)',
+          color: 'var(--tgo-surface-card)',
           boxShadow: '0 12px 24px -4px rgba(247, 66, 17, 0.4)',
         }}
       >

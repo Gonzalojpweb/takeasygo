@@ -22,7 +22,7 @@ export default function WelcomeStage({ onComplete }: WelcomeStageProps) {
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col items-center justify-center px-8"
-      style={{ backgroundColor: '#0d0b0a' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       {/* Logo */}
       <motion.div
@@ -48,7 +48,7 @@ export default function WelcomeStage({ onComplete }: WelcomeStageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="text-4xl font-bold tracking-tight mb-4 text-center"
-        style={{ color: '#F7F4F2' }}
+        style={{ color: 'var(--tgo-text-primary)' }}
       >
         Bienvenido.
       </motion.h1>
@@ -59,7 +59,7 @@ export default function WelcomeStage({ onComplete }: WelcomeStageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="text-base mb-10 text-center max-w-[300px] leading-relaxed"
-        style={{ color: '#A09A95' }}
+        style={{ color: 'var(--tgo-text-muted)' }}
       >
         Descubrí lugares increíbles cerca tuyo.
       </motion.p>
@@ -80,9 +80,9 @@ export default function WelcomeStage({ onComplete }: WelcomeStageProps) {
           >
             <div
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: '#F74211' }}
+              style={{ backgroundColor: 'var(--tgo-brand-primary)' }}
             />
-            <span className="text-sm font-medium" style={{ color: '#F7F4F2' }}>
+            <span className="text-sm font-medium" style={{ color: 'var(--tgo-text-primary)' }}>
               {text}
             </span>
           </motion.div>
@@ -98,8 +98,8 @@ export default function WelcomeStage({ onComplete }: WelcomeStageProps) {
         onClick={onComplete}
         className="w-full max-w-[300px] h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150"
         style={{
-          backgroundColor: '#F74211',
-          color: '#FFFFFF',
+          backgroundColor: 'var(--tgo-brand-primary)',
+          color: 'var(--tgo-surface-card)',
           boxShadow: '0 12px 24px -4px rgba(247, 66, 17, 0.4)',
         }}
       >
