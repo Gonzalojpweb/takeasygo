@@ -22,6 +22,8 @@ import { captureHomeShared } from '@/lib/tia/events'
 import { Section } from '@/components/tgo'
 import { HorizontalScroller } from '@/components/tgo'
 import { EmptyState } from '@/components/tgo'
+import { LiveCityMetrics } from '@/components/tgo'
+import { DiscoveryContinuo } from '@/components/tgo'
 
 // TGO Business
 import { RestaurantCard } from '@/components/tgo-business'
@@ -29,11 +31,13 @@ import { ExperienceCard } from '@/components/tgo-business'
 import { CategoryCard } from '@/components/tgo-business'
 
 // Components
-import HomeHeader from './HomeHeader'
+// (HomeHeader removed — SmartGreeting + Avatar used inline)
 
 // Types
 import type { RestaurantCardData } from '@/types/restaurant-card'
-import { Clock, Bike, MapPin } from 'lucide-react'
+import Image from 'next/image'
+import { User, Clock, Bike, MapPin } from 'lucide-react'
+import { SmartGreeting } from '@/components/tgo'
 
 // ── QuickFilters ─────────────────────────────────────────────────────────────
 
@@ -111,19 +115,20 @@ function NearbyModule({
   }
 
   return (
-    <div
-      className="flex flex-col gap-3"
+    <DiscoveryContinuo
+      items={restaurants.slice(0, 6)}
+      keyExtractor={(r) => r.id}
+      gap={12}
       style={{ paddingInline: 'var(--tgo-page-padding)' }}
     >
-      {restaurants.slice(0, 6).map((r) => (
+      {(r) => (
         <RestaurantCard
-          key={r.id}
           restaurant={r}
           layout="list"
           onNavigate={() => onNavigate(r)}
         />
-      ))}
-    </div>
+      )}
+    </DiscoveryContinuo>
   )
 }
 
@@ -304,78 +309,6 @@ function CategoriesModule({
           </svg>
         </button>
       )}
-    </div>
-  )
-}
-
-// ── CityNow ("Ahora mismo") ──────────────────────────────────────────────────
-
-function CityNowModule({
-  nearbyTenants,
-  promotions,
-}: {
-  nearbyTenants: RestaurantCardData[]
-  promotions: any[]
-}) {
-  const openCount = nearbyTenants.filter((r) => r.isOpenNow === true).length
-  const promoCount = promotions.length
-  const newCount = nearbyTenants.filter((r) => r.isNew).length
-  const openTenants = nearbyTenants.filter((r) => r.isOpenNow === true && r.estimatedPickupTime)
-  const avgPickup = openTenants.length > 0
-    ? Math.round(openTenants.reduce((sum, r) => sum + (r.estimatedPickupTime ?? 0), 0) / openTenants.length)
-    : null
-
-  const metrics = [
-    { label: 'abiertos', value: openCount, icon: Users },
-    { label: 'promos', value: promoCount, icon: Tag },
-    { label: 'nuevos', value: newCount, icon: Sparkles },
-    ...(avgPickup !== null ? [{ label: 'espera promedio', value: avgPickup, suffix: 'min', icon: Coffee }] : []),
-  ]
-
-  return (
-    <div
-      className="flex gap-3 overflow-x-auto no-scrollbar"
-      style={{ paddingInline: 'var(--tgo-page-padding)' }}
-    >
-      {metrics.map((m) => {
-        const Icon = m.icon
-        return (
-          <div
-            key={m.label}
-            className="flex items-center gap-2 shrink-0"
-            style={{
-              padding: '10px 14px',
-              borderRadius: 'var(--tgo-radius-md)',
-              backgroundColor: 'var(--tgo-surface-1)',
-              border: '1px solid var(--tgo-border)',
-            }}
-          >
-            <Icon size={14} style={{ color: 'var(--tgo-state-interactive)' }} />
-            <div>
-              <p
-                style={{
-                  color: 'var(--tgo-text-primary)',
-                  fontSize: 'var(--tgo-type-body-sm)',
-                  fontWeight: 700,
-                  lineHeight: 1,
-                }}
-              >
-                {m.value}{m.suffix ? ` ${m.suffix}` : ''}
-              </p>
-              <p
-                style={{
-                  color: 'var(--tgo-text-muted)',
-                  fontSize: 10,
-                  lineHeight: 1,
-                  marginTop: 2,
-                }}
-              >
-                {m.label}
-              </p>
-            </div>
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -620,11 +553,59 @@ export default function DiscoveryFeed({
       className="h-full overflow-y-auto no-scrollbar pb-32"
       style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
-      {/* 1. Personalized Header */}
-      <HomeHeader
-        userName={userName || session?.user?.name?.split(' ')[0] || ''}
-        userAvatar={session?.user?.image}
-      />
+      {/* 1. Smart Greeting + Avatar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          padding: 'var(--tgo-space-5) var(--tgo-page-padding) var(--tgo-space-3)',
+        }}
+      >
+        {/* Avatar */}
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: 'var(--tgo-radius-xl)',
+            overflow: 'hidden',
+            flexShrink: 0,
+            background: session?.user?.image ? 'transparent' : 'var(--tgo-brand-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: session?.user?.image ? 'none' : '0 2px 8px rgba(247, 66, 17, 0.25)',
+          }}
+        >
+          {session?.user?.image ? (
+            <Image
+              src={session.user.image}
+              alt={userName || ''}
+              width={52}
+              height={52}
+              className="object-cover"
+              unoptimized
+            />
+          ) : (
+            <span
+              style={{
+                color: '#FFFFFF',
+                fontSize: 22,
+                fontWeight: 700,
+                lineHeight: 1,
+              }}
+            >
+              {userName ? userName.charAt(0).toUpperCase() : <User size={24} />}
+            </span>
+          )}
+        </div>
+
+        {/* Smart Greeting — frase contextual animada */}
+        <SmartGreeting
+          userName={userName || session?.user?.name?.split(' ')[0] || ''}
+          interval={10000}
+        />
+      </div>
 
       {/* 2. Brand Block */}
       <div
@@ -703,9 +684,16 @@ export default function DiscoveryFeed({
         title="Ahora mismo"
         verticalPadding="var(--tgo-space-4)"
       >
-        <CityNowModule
-          nearbyTenants={nearbyTenants}
-          promotions={promotions}
+        <LiveCityMetrics
+          openCount={nearbyTenants.filter((r: any) => r.isOpenNow === true).length}
+          promoCount={promotions.length}
+          newCount={nearbyTenants.filter((r: any) => r.isNew).length}
+          avgPickup={(() => {
+            const open = nearbyTenants.filter((r: any) => r.isOpenNow === true && r.estimatedPickupTime)
+            return open.length > 0
+              ? Math.round(open.reduce((sum: number, r: any) => sum + (r.estimatedPickupTime ?? 0), 0) / open.length)
+              : null
+          })()}
         />
       </Section>
 
