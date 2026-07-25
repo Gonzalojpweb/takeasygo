@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
+import Tenant from '@/models/Tenant'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
@@ -20,8 +21,21 @@ export async function GET(
     await connectDB()
 
     if (type === 'network') {
+      // Check if the location's tenant is alwaysVisible
+      const locationDoc = await Location.findById(id).select('tenantId').lean()
+      const tenantDoc = locationDoc
+        ? await Tenant.findById(locationDoc.tenantId).select('alwaysVisible').lean()
+        : null
+      const isAlwaysVisible = tenantDoc?.alwaysVisible === true
+
       const [loc] = await Location.aggregate([
-        { $match: { _id: new mongoose.Types.ObjectId(id), networkVisible: true, status: 'active' } },
+        {
+          $match: {
+            _id: new mongoose.Types.ObjectId(id),
+            isActive: true,
+            ...(isAlwaysVisible ? {} : { networkVisible: true }),
+          },
+        },
         {
           $lookup: {
             from: 'tenants',

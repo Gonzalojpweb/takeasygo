@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
+    // 1. Nearby locations (normal geo query)
     const nearbyLocations = await Location.aggregate([
       {
         $geoNear: {
@@ -31,7 +32,24 @@ export async function GET(request: NextRequest) {
       { $limit: 30 }
     ])
 
-    const tenantIds = nearbyLocations.map(loc => loc.tenantId)
+    // 2. AlwaysVisible tenants — their locations regardless of distance
+    const alwaysVisibleTenants = await Tenant.find(
+      { alwaysVisible: true, status: 'active' }
+    ).select('_id').lean()
+    const alwaysVisibleTenantIds = alwaysVisibleTenants.map(t => t._id)
+
+    const nearbyLocationIds = new Set(nearbyLocations.map(l => l._id.toString()))
+    const alwaysVisibleLocations = alwaysVisibleTenantIds.length > 0
+      ? await Location.find({
+          isActive: true,
+          tenantId: { $in: alwaysVisibleTenantIds },
+          _id: { $nin: [...nearbyLocationIds] },
+        }).limit(30).lean()
+      : []
+
+    // 3. Merge and deduplicate
+    const allLocations = [...nearbyLocations, ...alwaysVisibleLocations]
+    const tenantIds = [...new Set(allLocations.map(l => l.tenantId?.toString()))].filter(Boolean)
 
     const tenants = await Tenant.find({
       _id: { $in: tenantIds },

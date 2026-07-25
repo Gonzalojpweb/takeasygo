@@ -1,5 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
+import mongoose from 'mongoose'
 import Location from '@/models/Location'
+import Tenant from '@/models/Tenant'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
 import Rating from '@/models/Rating'
 import Promotion from '@/models/Promotion'
@@ -185,8 +187,72 @@ export async function GET(request: NextRequest) {
       console.error('[explore/nearby] network query failed:', e)
     }
 
+    // ── AlwaysVisible tenants — their locations regardless of distance ──────
+    const alwaysVisibleTenantDocs = await Tenant.find(
+      { alwaysVisible: true, status: 'active' }
+    ).select('_id').lean()
+    const alwaysVisibleTenantIds = alwaysVisibleTenantDocs.map(t => t._id)
+
+    const nearbyLocationIdSet = new Set(networkRaw.map((l: any) => l._id?.toString()))
+    let alwaysVisibleRaw: any[] = []
+    if (alwaysVisibleTenantIds.length > 0) {
+      try {
+        alwaysVisibleRaw = await Location.aggregate([
+          {
+            $match: {
+              isActive: true,
+              tenantId: { $in: alwaysVisibleTenantIds },
+              _id: { $nin: [...nearbyLocationIdSet].map((id: string) => new mongoose.Types.ObjectId(id)) },
+            },
+          },
+          { $limit: MAX_RESULTS },
+          {
+            $lookup: {
+              from: 'tenants',
+              localField: 'tenantId',
+              foreignField: '_id',
+              as: 'tenant',
+            },
+          },
+          { $unwind: { path: '$tenant', preserveNullAndEmptyArrays: false } },
+          { $match: { 'tenant.status': 'active' } },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              address: 1,
+              distanceM: { $literal: 0 },
+              phone: 1,
+              cuisineTypes: 1,
+              serviceHours: 1,
+              timezone: 1,
+              'geo.coordinates': 1,
+              'settings.acceptsOrders': 1,
+              'settings.estimatedPickupTime': 1,
+              'settings.orderModes': 1,
+              'tenant._id': 1,
+              'tenant.name': 1,
+              'tenant.slug': 1,
+              'tenant.branding.logoUrl': 1,
+              'tenant.branding.primaryColor': 1,
+              'tenant.loyalty.enabled': 1,
+              'tenant.loyalty.clubName': 1,
+              'tenant.cachedScores.icoScore': 1,
+              'tenant.cachedScores.capacityScore': 1,
+              'tenant.isOperational': 1,
+            },
+          },
+        ])
+      } catch (e) {
+        console.error('[explore/nearby] alwaysVisible query failed:', e)
+      }
+    }
+
+    // Merge and deduplicate
+    const mergedNetworkRaw = [...networkRaw, ...alwaysVisibleRaw]
+
     // ── Ratings: aggregate average per tenant ────────────────────────────────
-    const tenantIdsForRatings = networkRaw.map((loc: any) => loc.tenant?._id).filter(Boolean)
+    const tenantIdsForRatings = mergedNetworkRaw.map((loc: any) => loc.tenant?._id).filter(Boolean)
     let ratingsMap: Record<string, { avg: number; count: number }> = {}
     if (tenantIdsForRatings.length > 0) {
       try {
@@ -250,7 +316,7 @@ export async function GET(request: NextRequest) {
 
     // ── Normalizar a NearbyRestaurant ────────────────────────────────────────
 
-    const networkResults: NearbyRestaurant[] = networkRaw.map(loc => {
+    const networkResults: NearbyRestaurant[] = mergedNetworkRaw.map(loc => {
       const distanceM = Math.round(loc.distanceM)
       const estimatedPickupTime: number = loc.settings?.estimatedPickupTime ?? 20
       const acceptsOrders: boolean = loc.settings?.acceptsOrders ?? true
