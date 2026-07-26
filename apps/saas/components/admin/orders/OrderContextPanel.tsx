@@ -417,7 +417,7 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
       </Section>
 
       {/* ── Beneficios ──────────────────────────────────── */}
-      {(hasDiscount || hasLoyalty || item.rewardItems?.length) && (
+      {(hasDiscount || hasLoyalty || (item.rewardItems?.length ?? 0) > 0) && (
         <Section title="Beneficios">
           <div className="space-y-1.5">
             {hasDiscount && (
