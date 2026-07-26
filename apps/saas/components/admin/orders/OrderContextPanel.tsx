@@ -58,8 +58,8 @@ const STATUS_DOT: Record<string, string> = {
 
 const MODE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   takeaway: { label: 'TAKE AWAY', icon: ShoppingBag, color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  delivery: { label: 'DELIVERY', icon: Truck, color: 'bg-sky-100 text-sky-700 border-sky-200' },
-  'dine-in': { label: 'EN EL LOCAL', icon: UtensilsCrossed, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  delivery: { label: 'DELIVERY', icon: Truck, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  'dine-in': { label: 'EN EL LOCAL', icon: UtensilsCrossed, color: 'bg-sky-100 text-sky-700 border-sky-200' },
   business: { label: 'CORPORATIVO', icon: Building2, color: 'bg-purple-100 text-purple-700 border-purple-200' },
 }
 
@@ -117,37 +117,20 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
   const ModeIcon = mode?.icon || ShoppingBag
   const waLink = buildAdminWhatsAppLink(item.customer.phone, item)
 
-  const headerBadge = (
-    <div className="flex items-center gap-1.5 shrink-0">
-      {mode && (
-        <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase border', mode.color)}>
-          <ModeIcon size={10} />
-          {mode.label}
-        </span>
-      )}
-      <span className="flex items-center gap-1">
-        <span className={cn('w-2 h-2 rounded-full', statusDot)} />
-        <span className="text-xs font-bold text-muted-foreground">{status}</span>
-      </span>
-    </div>
-  )
-
-  const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
-    { key: 'detalles', label: 'Detalles', icon: FileText },
-    { key: 'timeline', label: 'Timeline', icon: Clock },
-    { key: 'historial', label: 'Historial', icon: History },
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'detalles', label: 'Detalles' },
+    { key: 'timeline', label: 'Timeline' },
+    { key: 'historial', label: 'Historial' },
   ]
 
   return (
     <div className="w-full h-full bg-card flex flex-col shrink-0 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-        <div className="flex items-center gap-2 min-w-0">
-          <h3 className="font-semibold text-sm tracking-tight text-foreground truncate">
-            Pedido #{item.orderNumber}
-          </h3>
-          {headerBadge}
-        </div>
+      {/* Header — centered title */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <div className="w-7" />
+        <h3 className="text-sm font-bold text-foreground">
+          Pedido #{item.orderNumber}
+        </h3>
         <button
           onClick={onClose}
           className="h-7 w-7 rounded-lg hover:bg-muted/80 flex items-center justify-center text-muted-foreground/50 hover:text-foreground transition-all shrink-0"
@@ -156,74 +139,101 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
         </button>
       </div>
 
+      {/* Mode + Status badges — centered */}
+      <div className="flex items-center justify-center gap-2 px-4 pb-3">
+        {mode && (
+          <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border', mode.color)}>
+            <ModeIcon size={10} />
+            {mode.label}
+          </span>
+        )}
+        <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border',
+          item.status === 'preparing' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+          item.status === 'ready' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+          item.status === 'confirmed' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+          item.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+          item.status === 'en_ruta' ? 'bg-sky-100 text-sky-700 border-sky-200' :
+          'bg-zinc-100 text-zinc-600 border-zinc-200'
+        )}>
+          <span className={cn('w-1.5 h-1.5 rounded-full', statusDot)} />
+          {status}
+        </span>
+      </div>
+
       {/* Tabs */}
       <div className="flex border-b border-border/50">
-        {tabs.map(tab => {
-          const Icon = tab.icon
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all border-b-2',
-                activeTab === tab.key
-                  ? 'text-orange-600 border-orange-500'
-                  : 'text-muted-foreground/50 border-transparent hover:text-foreground hover:bg-muted/50'
-              )}
-            >
-              <Icon size={12} />
-              {tab.label}
-            </button>
-          )
-        })}
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all border-b-2',
+              activeTab === tab.key
+                ? 'text-orange-600 border-orange-500'
+                : 'text-muted-foreground/50 border-transparent hover:text-foreground hover:bg-muted/50'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
         {activeTab === 'detalles' && <DetallesTab item={item} waLink={waLink} />}
         {activeTab === 'timeline' && <TimelineTab timestamps={timestamps} />}
         {activeTab === 'historial' && <HistorialTab item={item} tenantSlug={tenantSlug} />}
       </div>
 
-      {/* Footer */}
-      <div className="px-4 py-3 border-t border-border/50 flex items-center gap-2">
-        {['confirmed', 'preparing'].includes(item.status) && (
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                const res = await fetch(`/api/${tenantSlug}/orders/${item._id}/reprint`, { method: 'POST' })
-                if (!res.ok) throw new Error()
-                toast.success('Reimprimiendo...')
-              } catch { toast.error('Error al reimprimir') }
-            }}
-            className="h-8 w-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center justify-center shrink-0"
-            title="Reimprimir pedido"
-          >
-            <Printer size={13} />
-          </button>
-        )}
-        {waLink && (
-          <a
-            href={waLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-8 w-8 rounded-lg border border-emerald-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-all flex items-center justify-center shrink-0"
-            title="Enviar WhatsApp al cliente"
-          >
-            <MessageCircle size={13} />
-          </a>
-        )}
-        <div className="flex-1 flex justify-end">
-          <OrderStatusButton
-            orderId={item._id}
-            currentStatus={item.status}
-            tenantSlug={tenantSlug}
-            orderMode={item.orderMode}
-            compact
-            posSyncStatus={item.posSync?.status}
-          />
+      {/* Footer — Actions */}
+      <div className="px-4 py-3 border-t border-border/50 space-y-2">
+        {/* Secondary actions row */}
+        <div className="flex items-center gap-2">
+          {waLink && (
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border border-border/60 text-xs font-semibold text-foreground hover:bg-muted/50 transition-all"
+            >
+              <MessageCircle size={13} className="text-emerald-500" />
+              Enviar mensaje
+            </a>
+          )}
+          {item.customer.phone && (
+            <a
+              href={`tel:${item.customer.phone}`}
+              className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border border-border/60 text-xs font-semibold text-foreground hover:bg-muted/50 transition-all"
+            >
+              <Phone size={13} className="text-muted-foreground" />
+              Llamar
+            </a>
+          )}
+          {['confirmed', 'preparing'].includes(item.status) && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`/api/${tenantSlug}/orders/${item._id}/reprint`, { method: 'POST' })
+                  if (!res.ok) throw new Error()
+                  toast.success('Reimprimiendo...')
+                } catch { toast.error('Error al reimprimir') }
+              }}
+              className="h-9 w-9 rounded-xl border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center justify-center shrink-0"
+              title="Reimprimir pedido"
+            >
+              <Printer size={13} />
+            </button>
+          )}
         </div>
+        {/* Primary CTA */}
+        <OrderStatusButton
+          orderId={item._id}
+          currentStatus={item.status}
+          tenantSlug={tenantSlug}
+          orderMode={item.orderMode}
+          posSyncStatus={item.posSync?.status}
+        />
       </div>
     </div>
   )
@@ -234,13 +244,12 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
    ═══════════════════════════════════════════════════════════ */
 
 function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null }) {
-  const timestamps = item.statusTimestamps || {}
   const hasDiscount = (item.discountAmount ?? 0) > 0 || item.qrPromoApplied
   const hasLoyalty = (item.loyaltyPointsUsed ?? 0) > 0
 
   return (
     <>
-      {/* Cliente */}
+      {/* ── Cliente ─────────────────────────────────────── */}
       <Section title="Cliente">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
@@ -255,88 +264,90 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
                 href={waLink || '#'}
                 target={waLink ? '_blank' : undefined}
                 rel={waLink ? 'noopener noreferrer' : undefined}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground/70 hover:text-emerald-600 transition-colors"
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 hover:text-emerald-600 transition-colors"
               >
-                <MessageCircle size={10} className="text-emerald-500" /> {item.customer.phone}
+                <MessageCircle size={10} className="text-emerald-500" />
+                {item.customer.phone}
               </a>
             )}
             {item.customer.email && (
-              <p className="flex items-center gap-1 text-[11px] text-muted-foreground/70 truncate">
-                <Mail size={10} /> {item.customer.email}
+              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 truncate mt-0.5">
+                <Mail size={10} />
+                {item.customer.email}
               </p>
             )}
           </div>
         </div>
       </Section>
 
-      {/* Entrega */}
+      {/* ── Entrega ─────────────────────────────────────── */}
       {item.orderMode === 'delivery' && item.deliveryAddress && (
         <Section title="Entrega">
-          <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-emerald-50/80 border border-emerald-200/60">
-            <MapPin size={12} className="text-emerald-600 mt-0.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-emerald-800 font-medium leading-relaxed">
+          <div className="space-y-1.5">
+            <div className="flex items-start gap-2">
+              <MapPin size={12} className="text-muted-foreground mt-0.5 shrink-0" />
+              <p className="text-xs font-medium text-foreground leading-relaxed">
                 {item.deliveryAddress.street} {item.deliveryAddress.number}
                 {item.deliveryAddress.apt ? `, ${item.deliveryAddress.apt}` : ''}
               </p>
-              {item.deliveryAddress.city && (
-                <p className="text-[10px] text-emerald-600/70 mt-0.5">{item.deliveryAddress.city}</p>
-              )}
             </div>
+            {item.deliveryAddress.city && (
+              <p className="text-[11px] text-muted-foreground/70 pl-5">{item.deliveryAddress.city}</p>
+            )}
+            <div className="flex items-center gap-3 pl-5">
+              {item.deliveryDistance ? (
+                <span className="text-[11px] text-muted-foreground/70">{item.deliveryDistance.toFixed(1)} km</span>
+              ) : null}
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                <Clock size={10} /> 20-30 min
+              </span>
+            </div>
+            {item.deliveryConfirmation?.deliveryPersonName && (
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 pl-5">
+                <Truck size={10} />
+                <span>Repartidor: <strong>{item.deliveryConfirmation.deliveryPersonName}</strong></span>
+              </div>
+            )}
+            {item.deliveryConfirmation?.customerCode && typeof item.deliveryConfirmation.customerCode === 'object' && (item.deliveryConfirmation.customerCode as any).code && (
+              <div className="text-[11px] text-muted-foreground/70 pl-5">
+                Código de entrega: <strong className="font-mono">{(item.deliveryConfirmation.customerCode as any).code}</strong>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-4 mt-1 px-1">
-            {item.deliveryDistance ? (
-              <span className="text-[10px] text-muted-foreground/70">{item.deliveryDistance.toFixed(1)} km</span>
-            ) : null}
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
-              <Clock size={10} /> 20-30 min
-            </span>
-          </div>
-          {item.deliveryConfirmation?.deliveryPersonName && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Truck size={11} />
-              <span>Repartidor: <strong>{item.deliveryConfirmation.deliveryPersonName}</strong></span>
-            </div>
-          )}
-          {item.deliveryConfirmation?.customerCode && typeof item.deliveryConfirmation.customerCode === 'object' && (item.deliveryConfirmation.customerCode as any).code && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Código de entrega: <strong className="font-mono">{(item.deliveryConfirmation.customerCode as any).code}</strong></span>
-            </div>
-          )}
         </Section>
       )}
 
-      {/* Programado */}
+      {/* ── Programado ──────────────────────────────────── */}
       {item.orderTiming === 'scheduled' && item.scheduledPickupAt && (
         <Section title="Programado para">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
-            <Clock size={12} className="text-amber-600" />
-            <span className="text-xs text-amber-800 font-medium">{fmtDateTime(item.scheduledPickupAt)}</span>
+          <div className="flex items-center gap-2">
+            <Clock size={12} className="text-amber-500" />
+            <span className="text-xs font-medium text-foreground">{fmtDateTime(item.scheduledPickupAt)}</span>
           </div>
         </Section>
       )}
 
-      {/* Productos */}
+      {/* ── Productos ───────────────────────────────────── */}
       {item.items && item.items.length > 0 && (
         <Section title={`Productos (${item.items.length})`}>
           <div className="space-y-3">
             {item.items.map((orderItem: any, i: number) => (
-              <div key={i} className="px-3 py-2.5 rounded-xl bg-muted/40">
-                <div className="flex items-start justify-between gap-2">
+              <div key={i}>
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-foreground">
+                    <p className="text-xs font-semibold text-foreground">
                       {orderItem.quantity}x {orderItem.name}
                     </p>
                     {orderItem.description && (
-                      <p className="text-[10px] text-muted-foreground/60 mt-1 line-clamp-2 leading-relaxed">{orderItem.description}</p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5 line-clamp-2">{orderItem.description}</p>
                     )}
                     {orderItem.selectedVariant && (
-                      <p className="text-[10px] text-muted-foreground/60 mt-1">
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                         Variante: {orderItem.selectedVariant.name}
                       </p>
                     )}
                     {orderItem.customizations && orderItem.customizations.length > 0 && (
-                      <div className="mt-1 space-y-0.5">
+                      <div className="mt-0.5 space-y-0.5">
                         {orderItem.customizations.map((cg: any, ci: number) => (
                           <p key={ci} className="text-[10px] text-muted-foreground/60">
                             <span className="font-medium">{cg.groupName}:</span>{' '}
@@ -350,13 +361,14 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
                     ${orderItem.subtotal.toLocaleString('es-AR')}
                   </span>
                 </div>
+                {i < (item.items?.length ?? 0) - 1 && <div className="h-px bg-border/30 mt-3" />}
               </div>
             ))}
           </div>
         </Section>
       )}
 
-      {/* Notas */}
+      {/* ── Notas ───────────────────────────────────────── */}
       {item.notes && (
         <Section title="Notas">
           <div className="px-3 py-2.5 rounded-xl bg-amber-50/80 border border-amber-200/60">
@@ -365,102 +377,87 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
         </Section>
       )}
 
-      {/* Pago */}
+      {/* ── Pago ────────────────────────────────────────── */}
       <Section title="Pago">
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {item.payment?.method === 'cash' ? <Wallet size={12} className="text-muted-foreground" /> : <CreditCard size={12} className="text-muted-foreground" />}
-              <span className="text-xs font-medium text-foreground">
-                {PAYMENT_LABELS[item.payment?.method || ''] || item.payment?.method || '—'}
-              </span>
-            </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {item.payment?.method === 'cash' ? <Wallet size={14} className="text-muted-foreground" /> : <CreditCard size={14} className="text-muted-foreground" />}
+            <span className="text-xs font-semibold text-foreground">
+              {PAYMENT_LABELS[item.payment?.method || ''] || item.payment?.method || '—'}
+            </span>
             {item.payment?.status && (
               <span className={cn(
-                'text-[9px] font-black uppercase px-2 py-0.5 rounded-full border',
-                PAYMENT_STATUS_COLORS[item.payment.status] || 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                'text-[9px] font-bold uppercase px-2 py-0.5 rounded-full',
+                PAYMENT_STATUS_COLORS[item.payment.status] || 'bg-zinc-100 text-zinc-600'
               )}>
                 {item.payment.status === 'approved' ? 'Pagado' : item.payment.status === 'pending' ? 'Pendiente' : item.payment.status}
               </span>
             )}
           </div>
-
-          {/* Pricing breakdown */}
-          {item.payment?.baseTotal != null && item.payment.baseTotal > 0 ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground/70">Precio de carta</span>
-                <span className="text-[10px] font-semibold text-foreground tabular-nums">${item.payment.baseTotal.toLocaleString('es-AR')}</span>
-              </div>
-              {item.payment.surchargeAmount ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground/70">
-                    Recargo MP{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
-                  </span>
-                  <span className="text-[10px] font-semibold text-amber-600 tabular-nums">+${item.payment.surchargeAmount.toLocaleString('es-AR')}</span>
-                </div>
-              ) : null}
-              <div className="h-px bg-border/40 my-1" />
-              <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/15">
-                <span className="text-xs font-bold text-primary">Total cobrado</span>
-                <span className="font-black text-xl text-primary tabular-nums">
-                  ${item.total.toLocaleString('es-AR')}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between px-3 py-3 rounded-xl bg-primary/5 border border-primary/15">
-              <span className="text-xs font-bold text-primary">Total</span>
-              <span className="font-black text-xl text-primary tabular-nums">
-                ${item.total.toLocaleString('es-AR')}
-              </span>
-            </div>
-          )}
+          <span className="text-sm font-black text-foreground tabular-nums">
+            ${item.total.toLocaleString('es-AR')}
+          </span>
         </div>
+
+        {/* Pricing breakdown — only if surcharge exists */}
+        {item.payment?.baseTotal != null && item.payment.baseTotal > 0 && item.payment.surchargeAmount ? (
+          <div className="mt-2 space-y-1 pl-6">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground/60">Precio de carta</span>
+              <span className="text-[10px] text-muted-foreground/70 tabular-nums">${item.payment.baseTotal.toLocaleString('es-AR')}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground/60">
+                Recargo MP{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
+              </span>
+              <span className="text-[10px] text-amber-600 tabular-nums">+${item.payment.surchargeAmount.toLocaleString('es-AR')}</span>
+            </div>
+          </div>
+        ) : null}
       </Section>
 
-      {/* Descuentos / Lealtad */}
+      {/* ── Beneficios ──────────────────────────────────── */}
       {(hasDiscount || hasLoyalty || item.rewardItems?.length) && (
         <Section title="Beneficios">
-          {hasDiscount && (
-            <div className="flex items-center gap-2 text-xs text-emerald-700">
-              <BadgePercent size={12} />
-              <span>Descuento: -${(item.discountAmount ?? 0).toLocaleString('es-AR')}</span>
-              {item.promoCode && <span className="text-[10px] text-muted-foreground">({item.promoCode})</span>}
-            </div>
-          )}
-          {hasLoyalty && (
-            <div className="flex items-center gap-2 text-xs text-amber-700">
-              <Star size={12} />
-              <span>{item.loyaltyPointsUsed} puntos usados{item.loyaltyDiscountAmount ? ` (-$${item.loyaltyDiscountAmount.toLocaleString('es-AR')})` : ''}</span>
-            </div>
-          )}
-          {item.rewardItems && item.rewardItems.length > 0 && (
-            <div className="space-y-1">
-              {item.rewardItems.map((r: any, i: number) => (
-                <div key={i} className="flex items-center gap-2 text-xs text-purple-700">
-                  <Gift size={12} />
-                  <span>{r.storeItemName} ({r.pointsCost} pts)</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="space-y-1.5">
+            {hasDiscount && (
+              <div className="flex items-center gap-2 text-xs text-emerald-700">
+                <BadgePercent size={12} />
+                <span>Descuento: -${(item.discountAmount ?? 0).toLocaleString('es-AR')}</span>
+                {item.promoCode && <span className="text-[10px] text-muted-foreground">({item.promoCode})</span>}
+              </div>
+            )}
+            {hasLoyalty && (
+              <div className="flex items-center gap-2 text-xs text-amber-700">
+                <Star size={12} />
+                <span>{item.loyaltyPointsUsed} puntos usados{item.loyaltyDiscountAmount ? ` (-$${item.loyaltyDiscountAmount.toLocaleString('es-AR')})` : ''}</span>
+              </div>
+            )}
+            {item.rewardItems && item.rewardItems.length > 0 && (
+              <div className="space-y-1">
+                {item.rewardItems.map((r: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-xs text-purple-700">
+                    <Gift size={12} />
+                    <span>{r.storeItemName} ({r.pointsCost} pts)</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </Section>
       )}
 
-      {/* POS */}
+      {/* ── POS ─────────────────────────────────────────── */}
       {item.posSync?.status && item.posSync.status !== 'not_applicable' && (
         <Section title="POS">
-          <div className="flex items-center gap-2 text-xs">
-            <span className={cn(
-              'px-1.5 py-0.5 rounded text-[9px] font-black uppercase',
-              item.posSync.status === 'synced' ? 'bg-emerald-100 text-emerald-700' :
-              item.posSync.status === 'failed' ? 'bg-red-100 text-red-700' :
-              'bg-amber-100 text-amber-700'
-            )}>
-              {item.posSync.status}
-            </span>
-          </div>
+          <span className={cn(
+            'inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase',
+            item.posSync.status === 'synced' ? 'bg-emerald-100 text-emerald-700' :
+            item.posSync.status === 'failed' ? 'bg-red-100 text-red-700' :
+            'bg-amber-100 text-amber-700'
+          )}>
+            {item.posSync.status}
+          </span>
         </Section>
       )}
     </>
@@ -497,7 +494,7 @@ function TimelineTab({ timestamps }: { timestamps: Record<string, string> }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TAB: HISTORIAL — Historial de compras del cliente + WhatsApp promo
+   TAB: HISTORIAL
    ═══════════════════════════════════════════════════════════ */
 
 interface CustomerHistoryOrder {
@@ -581,9 +578,7 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
         </div>
         <div>
           <p className="text-xs font-bold text-foreground">Historial no disponible</p>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            Requiere plan Crecimiento o Premium
-          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">Requiere plan Crecimiento o Premium</p>
         </div>
       </div>
     )
@@ -597,9 +592,7 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
         </div>
         <div>
           <p className="text-xs font-bold text-foreground">Sin pedidos recientes</p>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            Este cliente no tiene pedidos en los últimos 3 meses
-          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">Este cliente no tiene pedidos en los últimos 3 meses</p>
         </div>
       </div>
     )
@@ -722,8 +715,8 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2.5 pb-1">
-      <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">{title}</h4>
+    <div className="space-y-2">
+      <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{title}</h4>
       {children}
     </div>
   )
