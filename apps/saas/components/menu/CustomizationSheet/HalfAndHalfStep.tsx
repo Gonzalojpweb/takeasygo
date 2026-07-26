@@ -1,5 +1,6 @@
 'use client'
 
+import { Check } from 'lucide-react'
 import OptionChip from './OptionChip'
 
 interface HalfAndHalfStepProps {
@@ -16,7 +17,6 @@ interface HalfAndHalfStepProps {
   primaryColor: string
   textColor: string
   onToggleType: (type: 'Un sabor' | 'Mitad y mitad') => void
-  onSelectFirstHalf: (name: string) => void
   onSelectSecondHalf: (name: string) => void
 }
 
@@ -29,7 +29,6 @@ export default function HalfAndHalfStep({
   primaryColor,
   textColor,
   onToggleType,
-  onSelectFirstHalf,
   onSelectSecondHalf,
 }: HalfAndHalfStepProps) {
   return (
@@ -60,7 +59,7 @@ export default function HalfAndHalfStep({
       {/* Mitad y mitad: two mini-steps */}
       {halfTypeSelection === 'Mitad y mitad' && (
         <div className="space-y-3">
-          {/* Step 1: Primera mitad */}
+          {/* Step 1: Primera mitad — READ ONLY (locked to the item already chosen) */}
           <div className="rounded-xl p-3" style={{ backgroundColor: `${primaryColor}08` }}>
             <div className="flex items-center gap-2 mb-2">
               <div
@@ -73,24 +72,24 @@ export default function HalfAndHalfStep({
             </div>
             {firstHalfSelection ? (
               <div className="flex flex-wrap gap-1.5">
-                {halfFirstItems.map((opt) => (
-                  <OptionChip
-                    key={opt.name}
-                    name={opt.name}
-                    extraPrice={opt.extraPrice}
-                    isSelected={opt.name === firstHalfSelection}
-                    primaryColor={primaryColor}
-                    textColor={textColor}
-                    onClick={() => onSelectFirstHalf(opt.name)}
-                  />
-                ))}
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium border cursor-default"
+                  style={{
+                    backgroundColor: `${primaryColor}15`,
+                    borderColor: primaryColor,
+                    color: primaryColor,
+                  }}
+                >
+                  <Check size={14} strokeWidth={3} style={{ color: primaryColor }} />
+                  {firstHalfSelection}
+                </span>
               </div>
             ) : (
               <p className="text-xs text-zinc-400">Elegí el primer sabor</p>
             )}
           </div>
 
-          {/* Step 2: Segunda mitad */}
+          {/* Step 2: Segunda mitad — interactive */}
           <div className="rounded-xl p-3 bg-zinc-50">
             <div className="flex items-center gap-2 mb-2">
               <div

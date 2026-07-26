@@ -430,16 +430,6 @@ export default function CustomizationSheet({
     setSelections(prev => ({ ...prev, __half_type: [type] }))
   }
 
-  function handleSelectFirstHalf(name: string) {
-    setSelections(prev => {
-      const next = { ...prev, __half_first: [name] }
-      if (prev['__half_second']?.[0] === name) {
-        delete next['__half_second']
-      }
-      return next
-    })
-  }
-
   function handleSelectSecondHalf(name: string) {
     setSelections(prev => ({ ...prev, __half_second: [name] }))
   }
@@ -484,7 +474,6 @@ export default function CustomizationSheet({
               primaryColor={primaryColor}
               textColor={textColor}
               onToggleType={handleToggleHalfType}
-              onSelectFirstHalf={handleSelectFirstHalf}
               onSelectSecondHalf={handleSelectSecondHalf}
             />
           )}
