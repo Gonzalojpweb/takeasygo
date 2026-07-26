@@ -30,6 +30,7 @@ import { calculateFinalTotal } from '@/lib/pricing'
 import PlatformConfig from '@/models/PlatformConfig'
 import { calculateDeliveryCost } from '@/lib/geocode'
 import PushSubscription from '@/models/PushSubscription'
+import Rating from '@/models/Rating'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
 import { pushOrderToSyncLayer } from '@/lib/sync-layer'
@@ -134,7 +135,30 @@ export async function GET(
         email: safeDecrypt(o.customer.email),
       },
     }))
-    return NextResponse.json({ orders })
+
+    // Piggyback recent ratings for admin toast notifications (zero extra fetch)
+    const recentRatings = await Rating.find({ tenantId: tenant._id })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('orderId stars comment createdAt')
+      .lean()
+
+    // Enrich with order number
+    const ratingOrderIds = recentRatings.map(r => r.orderId)
+    const ratingOrders = await Order.find({ _id: { $in: ratingOrderIds } })
+      .select('_id orderNumber')
+      .lean()
+    const ratingOrderMap = new Map(ratingOrders.map(o => [o._id.toString(), o]))
+
+    const enrichedRatings = recentRatings.map(r => ({
+      _id: r._id.toString(),
+      stars: r.stars,
+      comment: r.comment,
+      createdAt: r.createdAt.toISOString(),
+      orderNumber: ratingOrderMap.get(r.orderId.toString())?.orderNumber ?? '—',
+    }))
+
+    return NextResponse.json({ orders, recentRatings: enrichedRatings })
   } catch (error) {
     return NextResponse.json({ error: 'Error al obtener las órdenes' }, { status: 500 })
   }

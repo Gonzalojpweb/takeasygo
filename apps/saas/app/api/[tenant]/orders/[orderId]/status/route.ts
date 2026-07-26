@@ -10,6 +10,7 @@ import { logAudit } from '@/lib/audit'
 import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
 import { addPointsFromOrder } from '@/lib/loyalty'
 import { notifySyncLayerStatus } from '@/lib/sync-layer'
+import { generateRatingToken } from '@/lib/rating-token'
 import webpush from 'web-push'
 
 webpush.setVapidDetails(
@@ -218,6 +219,35 @@ export async function PATCH(
       addPointsFromOrder(order, tenant).catch(err => 
         console.error('[Loyalty] Error sumando puntos en delivered:', err)
       )
+
+      // ── Push notification al cliente: pedido entregado + link a rating ──────
+      if ((order as any).clientToken) {
+        try {
+          const sub = await PushSubscription.findOne({ clientToken: (order as any).clientToken })
+          if (sub) {
+            const ratingToken = generateRatingToken(order._id.toString())
+            const ratingUrl = `/${tenantSlug}/rate/${order.orderNumber}?token=${ratingToken}`
+            const isDelivery = order.orderMode === 'delivery'
+            await webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              JSON.stringify({
+                title: isDelivery ? '📦 ¡Pedido entregado!' : '✅ ¡Pedido entregado!',
+                body: isDelivery
+                  ? `Pedido #${order.orderNumber} fue entregado. ¡Calificalo para ayudarnos a mejorar!`
+                  : `Pedido #${order.orderNumber} fue retirado. ¡Calificalo para ayudarnos a mejorar!`,
+                icon: '/tgoicon-192.png',
+                badge: '/tgoicon-192.png',
+                url: ratingUrl,
+              })
+            )
+          }
+        } catch (pushErr: any) {
+          if (pushErr?.statusCode === 410) {
+            await PushSubscription.deleteOne({ clientToken: (order as any).clientToken })
+          }
+          console.warn('[push] Error enviando notificación delivered:', pushErr?.message)
+        }
+      }
     }
 
     // Milestone detection: notificar al cliente cuando el pedido #30 es procesado (solo plan trial)

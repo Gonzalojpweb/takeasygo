@@ -46,12 +46,16 @@ export default function BoardColumn<T extends BoardItem>({
             <p className="text-[10px] text-muted-foreground/50 font-medium">Sin items</p>
           </div>
         ) : (
-          items.map(item => renderCard({
-            item,
-            isSelected: selectedItemId === item._id,
-            isNew: newItemIds.has(item._id),
-            onClick: () => onSelectItem(item),
-          }))
+          items.map(item => (
+            <div key={item._id}>
+              {renderCard({
+                item,
+                isSelected: selectedItemId === item._id,
+                isNew: newItemIds.has(item._id),
+                onClick: () => onSelectItem(item),
+              })}
+            </div>
+          ))
         )}
       </div>
     </div>

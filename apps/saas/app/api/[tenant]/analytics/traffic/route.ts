@@ -27,6 +27,8 @@ export async function GET(
     }
     const { searchParams } = new URL(request.url)
     const days = parseInt(searchParams.get('days') || '30')
+    const dateFromParam = searchParams.get('dateFrom')
+    const dateToParam = searchParams.get('dateTo')
 
     await connectDB()
 
@@ -38,9 +40,19 @@ export async function GET(
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
 
+    const visitedAtFilter: Record<string, Date> = { $gte: startDate }
+    if (dateFromParam) {
+      visitedAtFilter.$gte = new Date(dateFromParam)
+    }
+    if (dateToParam) {
+      const endDate = new Date(dateToParam)
+      endDate.setHours(23, 59, 59, 999)
+      visitedAtFilter.$lte = endDate
+    }
+
     const query = {
       tenantId: tenant._id,
-      visitedAt: { $gte: startDate }
+      visitedAt: visitedAtFilter,
     }
 
     const [visits, total, bySource, byDevice, byDay, byPromo] = await Promise.all([
@@ -93,7 +105,9 @@ export async function GET(
       byPromo,
       summary: {
         totalVisits: total,
-        days,
+        days: dateFromParam || dateToParam ? undefined : days,
+        dateFrom: dateFromParam || undefined,
+        dateTo: dateToParam || undefined,
         bySource,
         byDevice,
       },

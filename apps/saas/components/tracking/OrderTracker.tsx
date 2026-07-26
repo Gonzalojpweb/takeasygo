@@ -753,6 +753,8 @@ export default function OrderTracker({
             textColor={textColor}
             onConfirmed={() => setStatus('delivered')}
             customerName={initialCustomerName}
+            ratingToken={ratingToken}
+            orderNumber={orderNumber}
           />
         </div>
       )}
@@ -837,6 +839,7 @@ export default function OrderTracker({
           ratingToken={ratingToken}
           primaryColor={primaryColor}
           backgroundColor={backgroundColor}
+          textColor={textColor}
         />
       )}
       

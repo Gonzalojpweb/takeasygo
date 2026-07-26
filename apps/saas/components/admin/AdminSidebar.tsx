@@ -31,6 +31,7 @@ import {
   BookOpen,
   TrendingUp,
   Building2,
+  Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -162,6 +163,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
       items: [
         { href: `${base}/reports`, label: 'Reportes', icon: BarChart3, roles: ['admin', 'manager'], feature: 'reports', requiresTakeaway: true },
         { href: `${base}/analytics`, label: 'Analytics', icon: TrendingUp, roles: ['admin', 'manager'] },
+        { href: `${base}/reviews`, label: 'Reseñas', icon: Star, roles: ['admin', 'manager'] },
         { href: `${base}/ico`, label: 'ICO', icon: Activity, roles: ['admin'], feature: 'ico', requiresTakeaway: true },
         { href: `${base}/audit`, label: 'Auditoría', icon: Shield, roles: ['admin'], feature: 'audit' },
         { href: `${base}/tia`, label: 'Inteligencia TIA', icon: BrainCircuit, roles: ['admin', 'manager'], feature: 'tia' },

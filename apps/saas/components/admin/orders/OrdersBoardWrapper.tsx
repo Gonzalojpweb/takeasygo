@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { OperationsBoard, type BoardColumnDef, type BoardItem } from '@/components/shared/operations-board'
 import OrderCard from './OrderCard'
 import OrderContextPanel from './OrderContextPanel'
 import OrderInsights from './OrderInsights'
 import DelayAnnouncementPopover from './DelayAnnouncementPopover'
+import { toast } from 'sonner'
+import { Star } from 'lucide-react'
 
 interface OrderItem extends BoardItem {
   orderNumber: string
@@ -36,17 +38,43 @@ const ORDER_COLUMNS: BoardColumnDef[] = [
 const ACTIVE_STATUSES = ['awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
 const ALERT_STATUSES = ['awaiting_confirmation', 'pending', 'confirmed']
 
+interface RecentRating {
+  _id: string
+  stars: number
+  comment: string
+  createdAt: string
+  orderNumber: string
+}
+
 interface Props {
   orders: OrderItem[]
   tenantSlug: string
   locations?: { _id: string; name: string }[]
   userAssignedLocations?: string[]
+  recentRatings?: RecentRating[]
 }
 
-export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [], userAssignedLocations = [] }: Props) {
+export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [], userAssignedLocations = [], recentRatings = [] }: Props) {
   const isAdmin = userAssignedLocations.length === 0
   const availableLocations = isAdmin ? locations : locations.filter(l => userAssignedLocations.includes(l._id))
   const [selectedLocationId, setSelectedLocationId] = useState('all')
+  const lastRatingIdRef = useRef<string | null>(null)
+
+  // Review toast: detect new ratings from piggybacked data
+  useEffect(() => {
+    if (recentRatings.length === 0) return
+    const latestId = recentRatings[0]._id
+    if (lastRatingIdRef.current !== null && lastRatingIdRef.current !== latestId) {
+      const rating = recentRatings[0]
+      const starsDisplay = '⭐'.repeat(rating.stars)
+      toast(`Nueva reseña`, {
+        description: `#${rating.orderNumber} — ${starsDisplay}`,
+        icon: <Star size={16} className="text-amber-400 fill-amber-400" />,
+        duration: 8000,
+      })
+    }
+    lastRatingIdRef.current = latestId
+  }, [recentRatings])
 
   const handleCleanup = async () => {
     const res = await fetch(`/api/${tenantSlug}/orders/cleanup-cancelled`, { method: 'POST' })

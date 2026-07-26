@@ -2,10 +2,12 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import Location from '@/models/Location'
+import Rating from '@/models/Rating'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import OrdersBoardWrapper from '@/components/admin/orders/OrdersBoardWrapper'
+import AdminKPIBar from '@/components/admin/orders/AdminKPIBar'
 import type { Types } from 'mongoose'
 import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 import { Lock } from 'lucide-react'
@@ -76,14 +78,39 @@ export default async function OrdersPage() {
     locationName: locationMap[o.locationId?.toString()] || 'Sede',
   }))
 
+  // Recent ratings for admin toast (piggyback on board refresh)
+  const recentRatingsRaw = await Rating.find({ tenantId })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .select('orderId stars comment createdAt')
+    .lean()
+
+  const ratingOrderIds = recentRatingsRaw.map(r => r.orderId)
+  const ratingOrders = await Order.find({ _id: { $in: ratingOrderIds } })
+    .select('_id orderNumber')
+    .lean()
+  const ratingOrderMap = new Map(ratingOrders.map(o => [o._id.toString(), o]))
+
+  const recentRatings = recentRatingsRaw.map(r => ({
+    _id: r._id.toString(),
+    stars: r.stars,
+    comment: r.comment,
+    createdAt: r.createdAt.toISOString(),
+    orderNumber: ratingOrderMap.get(r.orderId.toString())?.orderNumber ?? '—',
+  }))
+
   return (
-    <div className="flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500 is-admin-orders-page">
-      <OrdersBoardWrapper
-        orders={JSON.parse(JSON.stringify(decryptedOrders))}
-        tenantSlug={tenantSlug || ''}
-        locations={serializedLocations}
-        userAssignedLocations={userAssignedLocations}
-      />
+    <div className="flex-1 min-h-0 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 is-admin-orders-page">
+      <AdminKPIBar userName={session?.user?.name || 'Admin'} />
+      <div className="flex-1 min-h-0">
+        <OrdersBoardWrapper
+          orders={JSON.parse(JSON.stringify(decryptedOrders))}
+          tenantSlug={tenantSlug || ''}
+          locations={serializedLocations}
+          userAssignedLocations={userAssignedLocations}
+          recentRatings={recentRatings}
+        />
+      </div>
     </div>
   )
 }
