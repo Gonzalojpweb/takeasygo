@@ -57,20 +57,23 @@ function resolveCustomizations(
       throw new ValidationError(`Grupo de personalización inválido: ${clientGroup.groupName}`)
     }
 
+    const rule: string = dbGroup.priceRule ?? 'sum'
     const resolvedOptions: any[] = []
+    const groupSelectedOpts: any[] = []
+
     for (const clientOption of clientGroup.selectedOptions ?? []) {
       const dbOption = dbGroup.options.find((o: any) => o.name === clientOption.name)
       if (!dbOption) {
         throw new ValidationError(`Opción inválida "${clientOption.name}" en grupo "${dbGroup.name}"`)
       }
-      extraPrice += dbOption.extraPrice || 0
+      groupSelectedOpts.push(dbOption)
 
       const resolvedOption: any = {
         name: dbOption.name,
         extraPrice: dbOption.extraPrice || 0,
       }
 
-      // Resolver subGroups recursivamente
+      // Resolver subGroups recursivamente (cada subGroup tiene su propio priceRule)
       if (dbOption.subGroups?.length > 0 && Array.isArray(clientOption.subGroups)) {
         const subResult = resolveCustomizations(clientOption.subGroups, dbOption.subGroups)
         if (subResult.resolved.length > 0) {
@@ -80,6 +83,18 @@ function resolveCustomizations(
       }
 
       resolvedOptions.push(resolvedOption)
+    }
+
+    // Aplicar priceRule del grupo sobre las opciones directas seleccionadas
+    if (groupSelectedOpts.length > 0) {
+      const prices = groupSelectedOpts.map(o => o.extraPrice || 0)
+      if (rule === 'max') {
+        extraPrice += Math.max(...prices)
+      } else if (rule === 'average') {
+        extraPrice += prices.reduce((a, b) => a + b, 0) / prices.length
+      } else {
+        extraPrice += prices.reduce((a, b) => a + b, 0)
+      }
     }
 
     resolved.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions })
@@ -92,6 +107,77 @@ class ValidationError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'ValidationError'
+  }
+}
+
+/**
+ * Detects and validates "Primera mitad" / "Segunda mitad" half-price customizations.
+ * Returns null if the customizations don't contain half-price groups (normal flow).
+ */
+function resolveHalfPriceCustomizations(
+  clientCustomizations: any[],
+  allMenuItems: any[],
+): { resolved: any[]; extraPrice: number; isHalfPrice: true } | null {
+  const firstGroup = clientCustomizations.find((g: any) => g.groupName === 'Primera mitad')
+  const secondGroup = clientCustomizations.find((g: any) => g.groupName === 'Segunda mitad')
+
+  if (!firstGroup && !secondGroup) return null
+
+  // Both must be present
+  if (!firstGroup || !secondGroup) {
+    throw new ValidationError(
+      'Para pizza mitad y mitad, debés seleccionar ambas mitades'
+    )
+  }
+
+  const firstFlavor = firstGroup.selectedOptions?.[0]?.name
+  const secondFlavor = secondGroup.selectedOptions?.[0]?.name
+
+  if (!firstFlavor || !secondFlavor) {
+    throw new ValidationError('Falta seleccionar una de las mitades')
+  }
+
+  // Prevent duplicate
+  if (firstFlavor === secondFlavor) {
+    throw new ValidationError(
+      'No podés elegir el mismo sabor para ambas mitades'
+    )
+  }
+
+  // Lookup flavors in menu
+  const firstItem = allMenuItems.find(
+    (i: any) => i.name === firstFlavor && i.halfPrice != null && i.halfPrice > 0
+  )
+  const secondItem = allMenuItems.find(
+    (i: any) => i.name === secondFlavor && i.halfPrice != null && i.halfPrice > 0
+  )
+
+  if (!firstItem) {
+    throw new ValidationError(
+      `"${firstFlavor}" no está disponible para mitad y mitad`
+    )
+  }
+  if (!secondItem) {
+    throw new ValidationError(
+      `"${secondFlavor}" no está disponible para mitad y mitad`
+    )
+  }
+
+  const extraPrice = (firstItem.halfPrice as number) + (secondItem.halfPrice as number)
+
+  return {
+    resolved: [
+      {
+        groupName: 'Primera mitad',
+        selectedOptions: [{ name: firstFlavor, extraPrice: firstItem.halfPrice }],
+      },
+      {
+        groupName: 'Segunda mitad',
+        selectedOptions: [{ name: secondFlavor, extraPrice: secondItem.halfPrice }],
+      },
+    ],
+    extraPrice,
+    isHalfPrice: true,
   }
 }
 
@@ -474,7 +560,7 @@ export async function POST(
         }
 
         const quantity = clientItem.quantity
-        const price = promotion.price
+        let price = promotion.price
 
         // ── Validate slot-based promotions ───────────────────────────────
         let extraPrice = 0
@@ -485,13 +571,13 @@ export async function POST(
         let validationGroups: any[] = [...overrideGroups]
         let validationVariants: any[] = []
         let slotMode: string = 'full'
+        let slot: any = null
 
         if (promotion.slots?.length > 0) {
           const clientAny = clientItem as any
           const itemName = clientAny._itemName
           const itemId = clientItem.menuItemId?.toString()
           let slotName = clientAny._slotName
-          let slot: any = null
 
           if (slotName) {
             slot = promotion.slots.find((s: any) => s.name === slotName)
@@ -693,7 +779,15 @@ export async function POST(
 
         // Validate customizations (only for 'full' mode)
         if (slotMode === 'full' && Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
-          if (validationGroups.length > 0) {
+          // Check for half-price "mitad y mitad" first
+          const slotItems = (slot?.resolvedItems ?? [])
+          const halfResult = resolveHalfPriceCustomizations(clientItem.customizations, slotItems)
+          if (halfResult) {
+            resolvedCustomizations.push(...halfResult.resolved)
+            extraPrice += halfResult.extraPrice
+            // Override promo price for mitad y mitad: use sum of halfPrices
+            price = halfResult.extraPrice
+          } else if (validationGroups.length > 0) {
             try {
               const result = resolveCustomizations(clientItem.customizations, validationGroups)
               resolvedCustomizations.push(...result.resolved)
@@ -779,6 +873,7 @@ export async function POST(
           // ── Precio base: si el item tiene variantes, el precio viene de la variante seleccionada ──
           let basePrice: number
           let resolvedSelectedVariant: any = null
+          let dbVariant: any = null
 
           const hasVariants = (menuItem.variants ?? []).length > 0
 
@@ -790,7 +885,7 @@ export async function POST(
                 { status: 400 }
               )
             }
-            const dbVariant = menuItem.variants.find(
+            dbVariant = menuItem.variants.find(
               (v: any) => v.name === selectedVariant.name
             )
             if (!dbVariant) {
@@ -825,14 +920,25 @@ export async function POST(
 
         if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
           try {
-            // Combinar grupos del item con grupos globales de la categoría
-            const allCustomizationGroups = [
-              ...(menuItem.categoryCustomizationGroups || []),
-              ...(menuItem.customizationGroups || [])
-            ]
-            const result = resolveCustomizations(clientItem.customizations, allCustomizationGroups)
-            resolvedCustomizations.push(...result.resolved)
-            extraPrice += result.extraPrice
+            // Check for half-price "mitad y mitad" customizations first
+            const allMenuItems = [...menuItemMap.values()]
+            const halfResult = resolveHalfPriceCustomizations(clientItem.customizations, allMenuItems)
+            if (halfResult) {
+              resolvedCustomizations.push(...halfResult.resolved)
+              extraPrice += halfResult.extraPrice
+              // Override basePrice: mitad y mitad uses halfPrice sum, not basePrice
+              basePrice = 0
+            } else {
+              // Normal customization flow
+              const allCustomizationGroups = [
+                ...(menuItem.categoryCustomizationGroups || []),
+                ...(menuItem.customizationGroups || []),
+                ...(dbVariant?.customizationGroups || []),
+              ]
+              const result = resolveCustomizations(clientItem.customizations, allCustomizationGroups)
+              resolvedCustomizations.push(...result.resolved)
+              extraPrice += result.extraPrice
+            }
           } catch (err: any) {
             if (err.name === 'ValidationError') {
               return NextResponse.json({ error: err.message }, { status: 400 })

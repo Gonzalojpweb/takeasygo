@@ -15,6 +15,7 @@ export interface IMenuItemVariant {
   businessPrice?: number
   originalPrice?: number
   takeawayOriginalPrice?: number
+  customizationGroups?: ICustomizationGroup[]
 }
 
 export interface ICustomizationOption {
@@ -31,6 +32,7 @@ export interface ICustomizationGroup {
   type: "single" | "multiple"
   required: boolean
   options: ICustomizationOption[]
+  priceRule?: "sum" | "max" | "average"
 }
 
 export interface IMenuItem {
@@ -40,6 +42,7 @@ export interface IMenuItem {
   price: number
   takeawayPrice?: number
   businessPrice?: number | null
+  halfPrice?: number
   originalPrice?: number
   takeawayOriginalPrice?: number
   imageUrl: string
@@ -94,6 +97,10 @@ export interface IMenuDocument extends Document {
 
 // Nested schemas (lean enough to parse the same structure as SaaS)
 
+// Declarados primero para permitir referencia circular opción ↔ grupo
+const CustomizationOptionSchema = new Schema<ICustomizationOption>({})
+const CustomizationGroupSchema = new Schema<ICustomizationGroup>({})
+
 const MenuItemVariantSchema = new Schema<IMenuItemVariant>(
   {
     name: { type: String, required: true },
@@ -103,12 +110,10 @@ const MenuItemVariantSchema = new Schema<IMenuItemVariant>(
     businessPrice: { type: Number },
     originalPrice: { type: Number },
     takeawayOriginalPrice: { type: Number },
+    customizationGroups: { type: [CustomizationGroupSchema], default: [] },
   },
   { _id: true }
 )
-
-const CustomizationOptionSchema = new Schema<ICustomizationOption>({})
-const CustomizationGroupSchema = new Schema<ICustomizationGroup>({})
 
 CustomizationOptionSchema.add({
   name: { type: String, required: true },
@@ -122,6 +127,7 @@ CustomizationGroupSchema.add({
   type: { type: String, enum: ["single", "multiple"], default: "single" },
   required: { type: Boolean, default: false },
   options: { type: [CustomizationOptionSchema], default: [] },
+  priceRule: { type: String, enum: ["sum", "max", "average"], default: "sum" },
 })
 
 const MenuItemSchema = new Schema<IMenuItem>(
@@ -131,6 +137,7 @@ const MenuItemSchema = new Schema<IMenuItem>(
     price: { type: Number, required: true },
     takeawayPrice: { type: Number },
     businessPrice: { type: Number, default: null },
+    halfPrice: { type: Number },
     originalPrice: { type: Number },
     takeawayOriginalPrice: { type: Number },
     imageUrl: { type: String, default: "" },

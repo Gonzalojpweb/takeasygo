@@ -20,6 +20,7 @@ export interface ISelectedVariant {
   name: string
   price: number
   takeawayPrice?: number
+  businessPrice?: number
 }
 
 export interface IOrderItem {
@@ -189,6 +190,7 @@ const SelectedVariantSchema = new Schema<ISelectedVariant>({
   name: { type: String, required: true },
   price: { type: Number, required: true },
   takeawayPrice: { type: Number },
+  businessPrice: { type: Number },
 }, { _id: false })
 
 // Schemas circulares para subGroups (misma técnica que Menu.ts)

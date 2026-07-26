@@ -138,6 +138,10 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [showCart, setShowCart] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [customizingItem, setCustomizingItem] = useState<any | null>(null)
+  const [halfPriceContext, setHalfPriceContext] = useState<{
+    isHalfAndHalf: boolean
+    halfPriceItems: Array<{ _id: string; name: string; halfPrice: number }>
+  } | null>(null)
   const [upsellSuggestions, setUpsellSuggestions] = useState<any[]>([])
   const [insights, setInsights] = useState<ICoOccurrencePair[] | null>(null)
   const skipUpsellRef = useRef(false)
@@ -521,113 +525,12 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       resolvedItems: slot.resolvedItems ?? resolveItemsForSlot(slot),
     }))
 
-    const allAutoSelect = slotsWithResolved.every((slot: any) => {
-      const items = slot.resolvedItems ?? []
-      return items.length === slot.requiredQuantity
-    })
+    // Auto-select disabled: always show the multi-slot picker UI so users manually confirm
+    const allAutoSelect = false
 
-    if (allAutoSelect) {
-      for (const slot of slotsWithResolved) {
-        const mode: SlotCustomizationMode = resolveSlotCustomizationMode(slot, promotion.allowCustomization)
-        for (const item of slot.resolvedItems ?? []) {
-          let effectiveMode = mode
-          if (effectiveMode === 'none') {
-            const hasVariants = (item.variants ?? []).length > 0
-            const hasRequiredGroups = (item.customizationGroups ?? []).filter((g: any) => g.required).length > 0
-            if (hasRequiredGroups) effectiveMode = 'full'
-            else if (hasVariants) effectiveMode = 'variant'
-          }
-          if (effectiveMode === 'full') {
-            openCustomizationModal({
-              ...item,
-              _promotionId: promotion._id,
-              _promotionTitle: promotion.title,
-              _itemName: item.name,
-              _slotName: slot.name,
-              price: promotion.price,
-              basePrice: promotion.price,
-              isPromotion: true,
-              variants: (item.variants ?? []).map((v: any) => ({
-                ...v,
-                price: promotion.price,
-                takeawayPrice: promotion.price,
-              })),
-              customizationGroups: item.customizationGroups ?? [],
-            })
-          } else if (effectiveMode === 'variant') {
-            const availableVariants = (item.variants ?? []).map((v: any) => ({
-              ...v,
-              price: promotion.price,
-              takeawayPrice: promotion.price,
-            }))
-            if (availableVariants.length === 1) {
-              const v = availableVariants[0]
-              const promoId = `promo:${promotion._id}:${item.name.replace(/\s+/g, '_')}:${v.name}`
-              setCart(prev => {
-                const existing = prev.find(i => i.cartItemId === promoId)
-                if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
-                return [...prev, {
-                  cartItemId: promoId,
-                  menuItemId: item._id,
-                  promotionId: promotion._id,
-                  _promotionTitle: promotion.title,
-                  _slotName: slot.name,
-                  name: `${item.name} - ${v.name}`,
-                  basePrice: promotion.price,
-                  extraPrice: 0,
-                  price: promotion.price,
-                  quantity: 1,
-                  customizations: [],
-                  customizationSummary: v.name,
-                  selectedVariant: { name: v.name, price: v.price },
-                  addedFrom: 'menu',
-                  type: 'promotion' as const,
-                }]
-              })
-            } else {
-              openCustomizationModal({
-                ...item,
-                _promotionId: promotion._id,
-                _promotionTitle: promotion.title,
-                _itemName: item.name,
-                _slotName: slot.name,
-                price: promotion.price,
-                basePrice: promotion.price,
-                isPromotion: true,
-                hideQuantity: true,
-                unitLabel: slot.name,
-                variants: availableVariants,
-                customizationGroups: [],
-              })
-            }
-          } else {
-            const promoId = `promo:${promotion._id}:${item.name.replace(/\s+/g, '_')}`
-            setCart(prev => {
-              const existing = prev.find(i => i.cartItemId === promoId)
-              if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
-              return [...prev, {
-                cartItemId: promoId,
-                menuItemId: item._id,
-                promotionId: promotion._id,
-                _promotionTitle: promotion.title,
-                _slotName: slot.name,
-                name: item.name,
-                basePrice: promotion.price,
-                extraPrice: 0,
-                price: promotion.price,
-                quantity: 1,
-                customizations: [],
-                customizationSummary: '',
-                addedFrom: 'menu',
-                type: 'promotion' as const,
-              }]
-            })
-          }
-        }
-      }
-      toast.success(`${promotion.title} agregado al pedido`)
-      return
-    }
+    // Note: when allAutoSelect is true, the block below auto-adds all items to cart.
+    // Disabled because multi-sabor promotions (docenas, pizzas mitad y mitad) require
+    // manual selection. The slot picker UI at line 630+ is always shown instead.
 
     const initialSlotStates: Record<number, { selectedItems: any[]; completed: boolean }> = {}
     slotsWithResolved.forEach((_: any, idx: number) => {
@@ -778,13 +681,14 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     })
   }
 
-  function openCustomizationModal(item: any, categoryGroups?: any[]) {
+  function openCustomizationModal(item: any, categoryGroups?: any[], hpCtx?: typeof halfPriceContext) {
     setShowCart(false)
     const mergedGroups = [
       ...(categoryGroups ?? []),
       ...(item.customizationGroups ?? []),
     ]
     setCustomizingItem({ ...item, customizationGroups: mergedGroups })
+    setHalfPriceContext(hpCtx ?? null)
   }
 
   function goToCheckout() {
@@ -1637,6 +1541,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           onConfirm={handleConfirmCustomization}
           onClose={() => {
             setCustomizingItem(null)
+            setHalfPriceContext(null)
           }}
           primaryColor={primary}
           bgColor={bg}
@@ -1645,6 +1550,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           hideQuantity={false}
           unitLabel={undefined}
           optionImageRegistry={menu.optionImageRegistry}
+          isHalfAndHalf={halfPriceContext?.isHalfAndHalf ?? false}
+          halfPriceItems={halfPriceContext?.halfPriceItems ?? []}
         />
       )}
 
@@ -1811,6 +1718,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         if (hasRequiredGroups) effectiveSlotMode = 'full'
                         else if (hasVariants) effectiveSlotMode = 'variant'
                       }
+                      const slotHpItems = (currentSlot.resolvedItems ?? [])
+                        .filter((i: any) => i.halfPrice != null && i.halfPrice > 0)
+                        .map((i: any) => ({ _id: i._id, name: i.name, halfPrice: i.halfPrice as number }))
+                      const isHalfSlot = slotHpItems.length >= 2
+                      const halfCtx = isHalfSlot
+                        ? { isHalfAndHalf: true, halfPriceItems: slotHpItems }
+                        : undefined
                       return (
                         <button
                           key={item._id}
@@ -1833,7 +1747,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                   takeawayPrice: promo.price,
                                 })),
                                 customizationGroups: item.customizationGroups ?? [],
-                              })
+                              }, undefined, halfCtx)
                             } else if (effectiveSlotMode === 'variant') {
                               const availableVariants = (item.variants ?? []).map((v: any) => ({
                                 ...v,
@@ -1894,7 +1808,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                   unitLabel: currentSlot.name,
                                   variants: availableVariants,
                                   customizationGroups: [],
-                                })
+                                }, undefined, halfCtx)
                               }
                             } else {
                               const promoId = `promo:${promo._id}:${item.name.replace(/\s+/g, '_')}`

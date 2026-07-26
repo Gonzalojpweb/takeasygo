@@ -14,6 +14,7 @@ interface FlatProduct {
   name: string
   description: string
   price: number
+  halfPrice?: number
   category: string
   isAvailable: boolean
   modifiers?: Array<{
@@ -31,6 +32,7 @@ interface FlatProduct {
     }>
     required?: boolean
     maxSelections?: number
+    priceRule?: 'sum' | 'max' | 'average'
   }>
   imageUrl?: string
   sortOrder?: number
@@ -43,16 +45,18 @@ interface FlatCategory {
   isVisible: boolean
 }
 
-function flattenSubGroups(groups: Array<{ name: string; type?: string; required?: boolean; options: Array<{ name: string; extraPrice?: number; subGroups?: any[] }> }>): Array<{
+function flattenSubGroups(groups: Array<{ name: string; type?: string; required?: boolean; priceRule?: string; options: Array<{ name: string; extraPrice?: number; subGroups?: any[] }> }>): Array<{
   name: string
   type?: "single" | "multiple"
   required?: boolean
+  priceRule?: 'sum' | 'max' | 'average'
   options: Array<{ name: string; price: number }>
 }> {
   return groups.map((g) => ({
     name: g.name,
     type: g.type as "single" | "multiple" | undefined,
     required: g.required,
+    priceRule: (g.priceRule as 'sum' | 'max' | 'average') ?? 'sum',
     options: g.options.map((o) => ({
       name: o.name,
       price: o.extraPrice ?? 0,
@@ -86,13 +90,26 @@ function flattenMenu(doc: IMenuDocument): {
       // Merge item-level + inherited customization groups
       const allGroups = [...inheritedGroups, ...(item.customizationGroups ?? [])]
 
+      // Merge variant-specific customization groups from ALL variants, dedup by name
+      const variants = (item as any).variants ?? []
+      const seenGroupNames = new Set(allGroups.map((g: any) => g.name))
+      for (const variant of variants) {
+        for (const vg of variant.customizationGroups ?? []) {
+          if (!seenGroupNames.has(vg.name)) {
+            allGroups.push(vg)
+            seenGroupNames.add(vg.name)
+          }
+        }
+      }
+
       const modifiers =
         allGroups.length > 0
-          ? allGroups.map((g) => ({
+          ? allGroups.map((g: any) => ({
               name: g.name,
               type: g.type as "single" | "multiple" | undefined,
               required: g.required ?? false,
               maxSelections: g.type === "single" ? 1 : undefined,
+              priceRule: g.priceRule ?? 'sum',
               options: g.options.map((o: { name: string; extraPrice?: number; subGroups?: Array<{ name: string; type?: string; required?: boolean; options: Array<{ name: string; extraPrice?: number; subGroups?: any[] }> }> }) => ({
                 name: o.name,
                 price: o.extraPrice ?? 0,
@@ -110,6 +127,7 @@ function flattenMenu(doc: IMenuDocument): {
         name: item.name,
         description: item.description ?? "",
         price: item.price,
+        halfPrice: item.halfPrice ?? undefined,
         category: cat.name,
         isAvailable: item.isAvailable ?? true,
         modifiers,
@@ -118,7 +136,66 @@ function flattenMenu(doc: IMenuDocument): {
     }
   }
 
+  // Inject half-price modifiers for products with halfPrice
+  injectHalfPriceModifiers(products)
+
   return { products, categories }
+}
+
+/**
+ * Injects synthetic "Tipo de pizza" / "Primera mitad" / "Segunda mitad"
+ * modifiers for products that have halfPrice defined.
+ */
+function injectHalfPriceModifiers(products: FlatProduct[]): void {
+  // Group products by category
+  const byCategory = new Map<string, FlatProduct[]>()
+  for (const p of products) {
+    const list = byCategory.get(p.category) ?? []
+    list.push(p)
+    byCategory.set(p.category, list)
+  }
+
+  for (const [, catProducts] of byCategory) {
+    const halfPriceItems = catProducts.filter(p => p.halfPrice != null && p.halfPrice > 0)
+    if (halfPriceItems.length < 2) continue
+
+    const flavorOptions = halfPriceItems.map(p => ({
+      name: p.name,
+      price: p.halfPrice!,
+    }))
+
+    for (const product of halfPriceItems) {
+      const existingMods = product.modifiers ?? []
+      const tipoGroup = {
+        name: '__half_type',
+        type: 'single' as const,
+        required: true,
+        maxSelections: 1,
+        priceRule: 'sum' as const,
+        options: [
+          { name: 'Un sabor', price: 0 },
+          { name: 'Mitad y mitad', price: 0 },
+        ],
+      }
+      const firstHalfGroup = {
+        name: '__half_first',
+        type: 'single' as const,
+        required: true,
+        maxSelections: 1,
+        priceRule: 'sum' as const,
+        options: flavorOptions,
+      }
+      const secondHalfGroup = {
+        name: '__half_second',
+        type: 'single' as const,
+        required: true,
+        maxSelections: 1,
+        priceRule: 'sum' as const,
+        options: flavorOptions,
+      }
+      product.modifiers = [tipoGroup, firstHalfGroup, secondHalfGroup, ...existingMods]
+    }
+  }
 }
 
 export function menuRouter(): Router {
