@@ -593,7 +593,28 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                 chunks.push(buf(`  > Variante: ${item.selectedVariant.name.toUpperCase()}\n`));
             }
 
-            printCustomizations(item.customizations, chunks, '  ');
+            const halfFirst = (item.customizations || []).find(c => /primera mitad/i.test(c.groupName));
+            const halfSecond = (item.customizations || []).find(c => /segunda mitad/i.test(c.groupName));
+
+            if (halfFirst || halfSecond) {
+                chunks.push(buf('  ━━━ MITAD Y MITAD ━━━\n'));
+                if (halfFirst) {
+                    const opt = halfFirst.selectedOptions?.[0]?.name || '';
+                    chunks.push(buf(`    1ra mitad: ${opt.toUpperCase()}\n`));
+                }
+                if (halfSecond) {
+                    const opt = halfSecond.selectedOptions?.[0]?.name || '';
+                    chunks.push(buf(`    2da mitad: ${opt.toUpperCase()}\n`));
+                }
+                const otherCustomizations = (item.customizations || []).filter(c =>
+                    !/primera mitad/i.test(c.groupName) && !/segunda mitad/i.test(c.groupName)
+                );
+                if (otherCustomizations.length > 0) {
+                    printCustomizations(otherCustomizations, chunks, '  ');
+                }
+            } else {
+                printCustomizations(item.customizations, chunks, '  ');
+            }
             chunks.push(buf('\n\n'));
         } else {
             // ── Grupo de promo: header + items listados ──
@@ -636,7 +657,28 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                     chunks.push(buf(`    > Variante: ${item.selectedVariant.name.toUpperCase()}\n`));
                 }
 
-                printCustomizations(item.customizations, chunks, '    ');
+                const promoHalfFirst = (item.customizations || []).find(c => /primera mitad/i.test(c.groupName));
+                const promoHalfSecond = (item.customizations || []).find(c => /segunda mitad/i.test(c.groupName));
+
+                if (promoHalfFirst || promoHalfSecond) {
+                    chunks.push(buf('    ━━━ MITAD Y MITAD ━━━\n'));
+                    if (promoHalfFirst) {
+                        const opt = promoHalfFirst.selectedOptions?.[0]?.name || '';
+                        chunks.push(buf(`      1ra mitad: ${opt.toUpperCase()}\n`));
+                    }
+                    if (promoHalfSecond) {
+                        const opt = promoHalfSecond.selectedOptions?.[0]?.name || '';
+                        chunks.push(buf(`      2da mitad: ${opt.toUpperCase()}\n`));
+                    }
+                    const otherCustomizations = (item.customizations || []).filter(c =>
+                        !/primera mitad/i.test(c.groupName) && !/segunda mitad/i.test(c.groupName)
+                    );
+                    if (otherCustomizations.length > 0) {
+                        printCustomizations(otherCustomizations, chunks, '    ');
+                    }
+                } else {
+                    printCustomizations(item.customizations, chunks, '    ');
+                }
             });
 
             chunks.push(buf('\n'));
