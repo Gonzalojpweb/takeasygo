@@ -9,7 +9,7 @@ import { isAvailableNow } from '@/lib/availability'
 import { motion, AnimatePresence } from 'framer-motion'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
-import CustomizationModal from '@/components/menu/CustomizationModal'
+import CustomizationSheet from '@/components/menu/CustomizationSheet'
 import { useClubMembership } from '@/hooks/useClubMembership'
 import { captureMenuOpened, captureDishViewed, capturePromotionApplied } from '@/lib/tia/events'
 import LocationBar from '@/components/menu/LocationBar'
@@ -1159,7 +1159,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
 
       {/* ── Customization modal ──────────────────────────── */}
       {customizingItem && (
-        <CustomizationModal
+        <CustomizationSheet
           item={{ ...customizingItem, price: customizingItem.price ?? 0, variants: customizingItem.variants ?? [] }}
           onConfirm={handleConfirmCustomization}
           onClose={() => {
