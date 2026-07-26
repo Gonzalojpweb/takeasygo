@@ -23,6 +23,7 @@ interface ImportVariant {
   name: string
   price: number
   takeawayPrice?: number
+  businessPrice?: number
   originalPrice?: number
   takeawayOriginalPrice?: number
   nameTranslations?: { en: string }
@@ -39,12 +40,17 @@ interface ImportItem {
   description?: string
   price: number
   takeawayPrice?: number
+  businessPrice?: number
+  halfPrice?: number
   originalPrice?: number
   takeawayOriginalPrice?: number
   tags?: string[]
   isFeatured?: boolean
   isAvailable?: boolean
+  isTakeawayAvailable?: boolean
+  isBusinessAvailable?: boolean
   imageUrl?: string
+  printRole?: string
   suggestWith?: string[]
   variants?: ImportVariant[]
   customizationGroups?: ImportGroup[]
@@ -57,6 +63,9 @@ interface ImportCategory {
   description?: string
   imageUrl?: string
   isAvailable?: boolean
+  isBusinessAvailable?: boolean
+  sortOrder?: number
+  printRole?: string
   customizationGroups?: ImportGroup[]
   availabilityMode?: 'always' | 'scheduled'
   availabilitySchedule?: ImportAvailabilitySlot[]
@@ -153,7 +162,9 @@ export async function POST(
       description: cat.description?.trim() ?? '',
       imageUrl: cat.imageUrl ?? '',
       isAvailable: cat.isAvailable ?? true,
-      sortOrder: catIndex,
+      isBusinessAvailable: cat.isBusinessAvailable ?? true,
+      sortOrder: cat.sortOrder ?? catIndex,
+      printRole: cat.printRole ?? 'kitchen',
       customizationGroups: buildGroups(cat.customizationGroups),
       availabilityMode: cat.availabilityMode ?? 'always',
       availabilitySchedule: cat.availabilityMode === 'scheduled' ? (cat.availabilitySchedule ?? []) : [],
@@ -162,17 +173,23 @@ export async function POST(
         description: item.description?.trim() ?? '',
         price: item.price,
         takeawayPrice: item.takeawayPrice,
+        businessPrice: item.businessPrice,
+        halfPrice: item.halfPrice,
         originalPrice: item.originalPrice,
         takeawayOriginalPrice: item.takeawayOriginalPrice,
         tags: Array.isArray(item.tags) ? item.tags.map((t: string) => t.trim()).filter(Boolean) : [],
         isFeatured: item.isFeatured ?? false,
         isAvailable: item.isAvailable ?? true,
+        isTakeawayAvailable: item.isTakeawayAvailable ?? true,
+        isBusinessAvailable: item.isBusinessAvailable ?? true,
         imageUrl: item.imageUrl ?? '',
+        printRole: item.printRole ?? 'kitchen',
         suggestWith: Array.isArray(item.suggestWith) ? item.suggestWith : [],
         variants: (item.variants ?? []).map((v: ImportVariant) => ({
           name: v.name,
           price: v.price,
           takeawayPrice: v.takeawayPrice,
+          businessPrice: v.businessPrice,
           originalPrice: v.originalPrice,
           takeawayOriginalPrice: v.takeawayOriginalPrice,
           nameTranslations: v.nameTranslations,
@@ -191,17 +208,23 @@ export async function POST(
           description: item.description?.trim() ?? '',
           price: item.price,
           takeawayPrice: item.takeawayPrice,
+          businessPrice: item.businessPrice,
+          halfPrice: item.halfPrice,
           originalPrice: item.originalPrice,
           takeawayOriginalPrice: item.takeawayOriginalPrice,
           tags: Array.isArray(item.tags) ? item.tags.map((t: string) => t.trim()).filter(Boolean) : [],
           isFeatured: item.isFeatured ?? false,
           isAvailable: item.isAvailable ?? true,
+          isTakeawayAvailable: item.isTakeawayAvailable ?? true,
+          isBusinessAvailable: item.isBusinessAvailable ?? true,
           imageUrl: item.imageUrl ?? '',
+          printRole: item.printRole ?? 'kitchen',
           suggestWith: Array.isArray(item.suggestWith) ? item.suggestWith : [],
           variants: (item.variants ?? []).map((v: ImportVariant) => ({
             name: v.name,
             price: v.price,
             takeawayPrice: v.takeawayPrice,
+            businessPrice: v.businessPrice,
             originalPrice: v.originalPrice,
             takeawayOriginalPrice: v.takeawayOriginalPrice,
             nameTranslations: v.nameTranslations,

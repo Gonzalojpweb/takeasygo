@@ -64,16 +64,40 @@ function formatItems(items: OrderItem[]): string {
       lines.push(`  * ${item.selectedVariant.name}. $${item.selectedVariant.price.toLocaleString('es-AR')}`)
     }
 
-    if (item.customizations) {
-      for (const group of item.customizations) {
+    const halfFirst = (item.customizations || []).find(c => /primera mitad/i.test(c.groupName))
+    const halfSecond = (item.customizations || []).find(c => /segunda mitad/i.test(c.groupName))
+
+    if (halfFirst || halfSecond) {
+      lines.push(`  🍕 Mitad y mitad:`)
+      if (halfFirst) {
+        const opt = halfFirst.selectedOptions?.[0]?.name || ''
+        lines.push(`    → 1ra: ${opt}`)
+      }
+      if (halfSecond) {
+        const opt = halfSecond.selectedOptions?.[0]?.name || ''
+        lines.push(`    → 2da: ${opt}`)
+      }
+      const otherCustomizations = (item.customizations || []).filter(c =>
+        !/primera mitad/i.test(c.groupName) && !/segunda mitad/i.test(c.groupName)
+      )
+      for (const group of otherCustomizations) {
         for (const opt of group.selectedOptions) {
           const priceStr = opt.extraPrice > 0 ? ` $${opt.extraPrice.toLocaleString('es-AR')}` : ''
           lines.push(`  * ${opt.name}.${priceStr}`)
-          if (opt.subGroups) {
-            for (const subGroup of opt.subGroups) {
-              for (const subOpt of subGroup.selectedOptions) {
-                const subPrice = subOpt.extraPrice > 0 ? ` $${subOpt.extraPrice.toLocaleString('es-AR')}` : ''
-                lines.push(`    · ${subOpt.name}.${subPrice}`)
+        }
+      }
+    } else {
+      if (item.customizations) {
+        for (const group of item.customizations) {
+          for (const opt of group.selectedOptions) {
+            const priceStr = opt.extraPrice > 0 ? ` $${opt.extraPrice.toLocaleString('es-AR')}` : ''
+            lines.push(`  * ${opt.name}.${priceStr}`)
+            if (opt.subGroups) {
+              for (const subGroup of opt.subGroups) {
+                for (const subOpt of subGroup.selectedOptions) {
+                  const subPrice = subOpt.extraPrice > 0 ? ` $${subOpt.extraPrice.toLocaleString('es-AR')}` : ''
+                  lines.push(`    · ${subOpt.name}.${subPrice}`)
+                }
               }
             }
           }

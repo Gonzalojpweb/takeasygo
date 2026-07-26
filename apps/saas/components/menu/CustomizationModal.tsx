@@ -290,6 +290,10 @@ export default function CustomizationModal({
 
       const newActiveGroups = computeActiveGroups(rootGroups, next, variantGroups)
       const newActiveIds = new Set(newActiveGroups.map(g => g._id))
+      // Also keep synthetic half-price group selections
+      for (const hg of halfSyntheticGroups) {
+        newActiveIds.add(hg._id)
+      }
       const cleaned: Record<string, string[]> = {}
       for (const [key, val] of Object.entries(next)) {
         if (newActiveIds.has(key)) cleaned[key] = val
