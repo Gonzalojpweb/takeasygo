@@ -960,6 +960,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             <PromotionCarousel
               promotions={[...featuredPromotions, ...regularPromotions]}
               tenantSlug={tenant.slug}
+              restaurantName={tenant.name}
               onAdd={addPromotionToCart}
               primary={primary}
               bg={bg}

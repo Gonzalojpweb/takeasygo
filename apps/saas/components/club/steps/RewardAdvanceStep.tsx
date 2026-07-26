@@ -5,11 +5,11 @@ import { Zap, ChevronRight } from 'lucide-react'
 
 interface RewardAdvanceStepProps {
   accentColor: string
-  tenantName: string
+  restaurantName: string
   onNext: () => void
 }
 
-export default function RewardAdvanceStep({ accentColor, tenantName, onNext }: RewardAdvanceStepProps) {
+export default function RewardAdvanceStep({ accentColor, restaurantName, onNext }: RewardAdvanceStepProps) {
   return (
     <div className="flex flex-col items-center justify-center py-8 px-2">
       <motion.div
@@ -43,7 +43,7 @@ export default function RewardAdvanceStep({ accentColor, tenantName, onNext }: R
         className="text-lg font-semibold text-center mb-2"
         style={{ color: accentColor, fontFamily: 'var(--tgo-type-subtitle)' }}
       >
-        TGO y {tenantName} te adelantamos los puntos con Reward Advance.
+        TGO y {restaurantName} te adelantamos los puntos con Reward Advance.
       </motion.p>
 
       <motion.p
