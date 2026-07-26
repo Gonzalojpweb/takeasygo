@@ -60,6 +60,7 @@ interface PromotionCardProps {
     }
   }
   tenantSlug?: string
+  restaurantName?: string
   onAdd?: (promotion: any) => void
   primary?: string
   bg?: string
@@ -83,6 +84,7 @@ interface PromotionCardProps {
 export function PromotionCard({
   promotion,
   tenantSlug,
+  restaurantName,
   onAdd,
   primary,
   bg,
@@ -300,6 +302,7 @@ export function PromotionCard({
         {tenantSlug && (
           <ClubOnboardingModal
             tenantSlug={tenantSlug}
+            restaurantName={restaurantName}
             promotionId={promotion._id}
             title={promotion.title}
             ctaText={promotion.ctaText}
@@ -454,6 +457,7 @@ export function PromotionCard({
       {tenantSlug && (
         <ClubOnboardingModal
           tenantSlug={tenantSlug}
+          restaurantName={restaurantName}
           promotionId={promotion._id}
           title={promotion.title}
           ctaText={promotion.ctaText}
@@ -475,6 +479,7 @@ export function PromotionCard({
 interface PromotionCarouselProps {
   promotions: any[]
   tenantSlug?: string
+  restaurantName?: string
   onAdd?: (promotion: any) => void
   primary?: string
   bg?: string
@@ -501,6 +506,7 @@ const PAUSE_ON_TOUCH_MS = 8000    // pause 8s after user interaction
 export function PromotionCarousel({
   promotions,
   tenantSlug,
+  restaurantName,
   onAdd,
   primary,
   bg,
@@ -635,6 +641,7 @@ export function PromotionCarousel({
               <PromotionCard
                 promotion={promo}
                 tenantSlug={tenantSlug}
+                restaurantName={restaurantName}
                 onAdd={onAdd}
                 primary={primary}
                 bg={bg}

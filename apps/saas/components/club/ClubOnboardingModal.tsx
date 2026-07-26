@@ -17,6 +17,7 @@ import type { ClubStep, ClubFormData, ClubOnboardingProps } from './types'
 
 export default function ClubOnboardingModal({
   tenantSlug,
+  restaurantName,
   tenantLogo,
   promotionId,
   title,
@@ -213,7 +214,7 @@ export default function ClubOnboardingModal({
                 {currentStepKey === 'reward-advance' && (
                   <RewardAdvanceStep
                     accentColor={accentColor}
-                    tenantName={tenantName}
+                    restaurantName={restaurantName || tenantName}
                     onNext={goNext}
                   />
                 )}

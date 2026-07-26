@@ -17,6 +17,7 @@ export interface ClubFormData {
 
 export interface ClubOnboardingProps {
   tenantSlug: string
+  restaurantName?: string
   tenantLogo?: string
   promotionId: string
   title?: string
