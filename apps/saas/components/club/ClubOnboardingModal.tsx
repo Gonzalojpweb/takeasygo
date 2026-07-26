@@ -213,6 +213,7 @@ export default function ClubOnboardingModal({
                 {currentStepKey === 'reward-advance' && (
                   <RewardAdvanceStep
                     accentColor={accentColor}
+                    tenantName={tenantName}
                     onNext={goNext}
                   />
                 )}
