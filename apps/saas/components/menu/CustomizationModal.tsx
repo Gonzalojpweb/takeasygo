@@ -289,12 +289,9 @@ export default function CustomizationModal({
   // Auto-select "Primera mitad" with current item name when "Mitad y mitad" is chosen
   useEffect(() => {
     if (isHalfMode && !firstHalfSelection) {
-      const itemHp = halfPriceItems.find(hp => hp.name === item.name)
-      if (itemHp) {
-        setSelections(prev => ({ ...prev, __half_first: [item.name] }))
-      }
+      setSelections(prev => ({ ...prev, __half_first: [item.name] }))
     }
-  }, [isHalfMode, firstHalfSelection, halfPriceItems, item.name]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isHalfMode, firstHalfSelection, item.name]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleOption(group: CustomizationGroup, optionName: string) {
     setSelections(prev => {
