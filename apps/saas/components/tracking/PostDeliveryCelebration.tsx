@@ -3,6 +3,8 @@
 import { useEffect, useRef } from 'react'
 import confetti from 'canvas-confetti'
 
+import RatingForm from './RatingForm'
+
 interface Props {
   customerName: string
   locationId: string
@@ -13,6 +15,7 @@ interface Props {
   ratingToken: string | null
   primaryColor: string
   backgroundColor: string
+  textColor: string
 }
 
 export default function PostDeliveryCelebration({
@@ -25,6 +28,7 @@ export default function PostDeliveryCelebration({
   ratingToken,
   primaryColor,
   backgroundColor,
+  textColor,
 }: Props) {
   const celebRef = useRef(false)
 
@@ -64,6 +68,19 @@ export default function PostDeliveryCelebration({
           Gracias por elegirnos. ¡Que lo disfrutes!
         </p>
       </div>
+
+      {/* Rating form */}
+      {ratingToken && (
+        <RatingForm
+          orderId={orderId}
+          orderNumber={orderNumber}
+          tenantSlug={tenantSlug}
+          token={ratingToken}
+          primaryColor={primaryColor}
+          backgroundColor={backgroundColor}
+          textColor={textColor}
+        />
+      )}
 
       {/* Back to like */}
       {ratingToken && (

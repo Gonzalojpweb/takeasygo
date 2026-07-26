@@ -108,9 +108,9 @@ export default function OperationsBoard<T extends BoardItem>({
   const activeCount = activeStatuses.reduce((sum, s) => sum + (itemsByStatus[s]?.length || 0), 0)
 
   return (
-    <div className="flex h-full gap-0 relative">
+    <div className="flex h-full min-h-0 gap-0 relative">
       {/* Main board area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Toolbar */}
         <BoardToolbar
           searchTerm={searchTerm}
@@ -134,7 +134,7 @@ export default function OperationsBoard<T extends BoardItem>({
         />
 
         {/* Board columns — zoom affects column sizing only */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-3 md:p-4">
+        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-3 md:p-4">
           <div
             className="flex gap-3 h-full md:gap-4"
             style={{ zoom: mounted ? zoom : 1 }}
@@ -156,7 +156,7 @@ export default function OperationsBoard<T extends BoardItem>({
 
       {/* Context Panel — Always visible on desktop, dynamic width */}
       <div className={cn(
-        'hidden lg:block shrink-0 h-full border-l border-border/50 transition-all duration-200',
+        'hidden lg:flex lg:flex-col shrink-0 min-h-0 border-l border-border/50 transition-all duration-200 overflow-hidden',
         selectedItem ? 'w-[340px]' : 'w-[280px]'
       )}>
         {selectedItem ? (

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import confetti from 'canvas-confetti'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
+import RatingForm from './RatingForm'
 
 interface Props {
   orderId: string
@@ -13,6 +14,8 @@ interface Props {
   textColor: string
   onConfirmed?: () => void
   customerName?: string
+  ratingToken?: string | null
+  orderNumber?: string
 }
 
 export default function ConfirmPickupButton({
@@ -24,6 +27,8 @@ export default function ConfirmPickupButton({
   textColor,
   onConfirmed,
   customerName,
+  ratingToken,
+  orderNumber,
 }: Props) {
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
@@ -77,6 +82,20 @@ export default function ConfirmPickupButton({
               : 'Gracias por tu compra. ¡Que lo disfrutes!'}
           </p>
         </div>
+
+        {/* Rating form */}
+        {ratingToken && orderNumber && (
+          <RatingForm
+            orderId={orderId}
+            orderNumber={orderNumber}
+            tenantSlug={tenantSlug}
+            token={ratingToken}
+            primaryColor={primaryColor}
+            backgroundColor={backgroundColor}
+            textColor={textColor}
+          />
+        )}
+
         <a
           href={`/${tenantSlug}/menu/${locationId}/takeaway`}
           className="block w-full py-4 rounded-2xl font-bold text-center text-base"

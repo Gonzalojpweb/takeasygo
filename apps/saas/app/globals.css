@@ -666,10 +666,15 @@ pre code.hljs {
 main div:has(> div > .is-admin-orders-page) {
   padding: 0 !important;
   overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 main div:has(> .is-admin-orders-page) {
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
 }

@@ -143,14 +143,14 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="font-black text-base tracking-tight text-foreground truncate">
-            #{item.orderNumber}
+          <h3 className="font-semibold text-sm tracking-tight text-foreground truncate">
+            Pedido #{item.orderNumber}
           </h3>
           {headerBadge}
         </div>
         <button
           onClick={onClose}
-          className="h-7 w-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shrink-0"
+          className="h-7 w-7 rounded-lg hover:bg-muted/80 flex items-center justify-center text-muted-foreground/50 hover:text-foreground transition-all shrink-0"
         >
           ×
         </button>
@@ -167,8 +167,8 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
               className={cn(
                 'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all border-b-2',
                 activeTab === tab.key
-                  ? 'text-primary border-primary'
-                  : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/50'
+                  ? 'text-orange-600 border-orange-500'
+                  : 'text-muted-foreground/50 border-transparent hover:text-foreground hover:bg-muted/50'
               )}
             >
               <Icon size={12} />
@@ -179,7 +179,7 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-5">
         {activeTab === 'detalles' && <DetallesTab item={item} waLink={waLink} />}
         {activeTab === 'timeline' && <TimelineTab timestamps={timestamps} />}
         {activeTab === 'historial' && <HistorialTab item={item} tenantSlug={tenantSlug} />}
@@ -208,7 +208,7 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="h-8 w-8 rounded-lg border border-border/60 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 transition-all flex items-center justify-center shrink-0"
+            className="h-8 w-8 rounded-lg border border-emerald-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-all flex items-center justify-center shrink-0"
             title="Enviar WhatsApp al cliente"
           >
             <MessageCircle size={13} />
@@ -243,8 +243,8 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
       {/* Cliente */}
       <Section title="Cliente">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <span className="text-xs font-black text-primary">
+          <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+            <span className="text-xs font-black text-rose-600">
               {item.customer.name?.slice(0, 2).toUpperCase() || '??'}
             </span>
           </div>
@@ -255,13 +255,13 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
                 href={waLink || '#'}
                 target={waLink ? '_blank' : undefined}
                 rel={waLink ? 'noopener noreferrer' : undefined}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-emerald-600 transition-colors"
+                className="flex items-center gap-1 text-[11px] text-muted-foreground/70 hover:text-emerald-600 transition-colors"
               >
-                <Phone size={10} /> {item.customer.phone}
+                <MessageCircle size={10} className="text-emerald-500" /> {item.customer.phone}
               </a>
             )}
             {item.customer.email && (
-              <p className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+              <p className="flex items-center gap-1 text-[11px] text-muted-foreground/70 truncate">
                 <Mail size={10} /> {item.customer.email}
               </p>
             )}
@@ -272,20 +272,25 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
       {/* Entrega */}
       {item.orderMode === 'delivery' && item.deliveryAddress && (
         <Section title="Entrega">
-          <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+          <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-emerald-50/80 border border-emerald-200/60">
             <MapPin size={12} className="text-emerald-600 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs text-emerald-800 font-medium">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-emerald-800 font-medium leading-relaxed">
                 {item.deliveryAddress.street} {item.deliveryAddress.number}
                 {item.deliveryAddress.apt ? `, ${item.deliveryAddress.apt}` : ''}
               </p>
               {item.deliveryAddress.city && (
-                <p className="text-[10px] text-emerald-600">{item.deliveryAddress.city}</p>
+                <p className="text-[10px] text-emerald-600/70 mt-0.5">{item.deliveryAddress.city}</p>
               )}
-              {item.deliveryDistance ? (
-                <p className="text-[10px] text-emerald-600 mt-0.5">{item.deliveryDistance.toFixed(1)} km</p>
-              ) : null}
             </div>
+          </div>
+          <div className="flex items-center gap-4 mt-1 px-1">
+            {item.deliveryDistance ? (
+              <span className="text-[10px] text-muted-foreground/70">{item.deliveryDistance.toFixed(1)} km</span>
+            ) : null}
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
+              <Clock size={10} /> 20-30 min
+            </span>
           </div>
           {item.deliveryConfirmation?.deliveryPersonName && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -314,26 +319,26 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
       {/* Productos */}
       {item.items && item.items.length > 0 && (
         <Section title={`Productos (${item.items.length})`}>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {item.items.map((orderItem: any, i: number) => (
-              <div key={i} className="px-3 py-2 rounded-xl bg-muted/50">
+              <div key={i} className="px-3 py-2.5 rounded-xl bg-muted/40">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-foreground">
                       {orderItem.quantity}x {orderItem.name}
                     </p>
                     {orderItem.description && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{orderItem.description}</p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-1 line-clamp-2 leading-relaxed">{orderItem.description}</p>
                     )}
                     {orderItem.selectedVariant && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                      <p className="text-[10px] text-muted-foreground/60 mt-1">
                         Variante: {orderItem.selectedVariant.name}
                       </p>
                     )}
                     {orderItem.customizations && orderItem.customizations.length > 0 && (
                       <div className="mt-1 space-y-0.5">
                         {orderItem.customizations.map((cg: any, ci: number) => (
-                          <p key={ci} className="text-[10px] text-muted-foreground">
+                          <p key={ci} className="text-[10px] text-muted-foreground/60">
                             <span className="font-medium">{cg.groupName}:</span>{' '}
                             {cg.selectedOptions?.map((o: any) => o.name).join(', ')}
                           </p>
@@ -341,7 +346,7 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
                       </div>
                     )}
                   </div>
-                  <span className="text-xs font-bold text-foreground/70 tabular-nums shrink-0">
+                  <span className="text-xs font-bold text-foreground tabular-nums shrink-0">
                     ${orderItem.subtotal.toLocaleString('es-AR')}
                   </span>
                 </div>
@@ -353,16 +358,16 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
 
       {/* Notas */}
       {item.notes && (
-        <Section title="Nota del cliente">
-          <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
-            <p className="text-xs text-amber-800">{item.notes}</p>
+        <Section title="Notas">
+          <div className="px-3 py-2.5 rounded-xl bg-amber-50/80 border border-amber-200/60">
+            <p className="text-xs text-amber-900 leading-relaxed">{item.notes}</p>
           </div>
         </Section>
       )}
 
       {/* Pago */}
       <Section title="Pago">
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {item.payment?.method === 'cash' ? <Wallet size={12} className="text-muted-foreground" /> : <CreditCard size={12} className="text-muted-foreground" />}
@@ -372,10 +377,10 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
             </div>
             {item.payment?.status && (
               <span className={cn(
-                'text-[9px] font-black uppercase px-1.5 py-0.5 rounded border',
+                'text-[9px] font-black uppercase px-2 py-0.5 rounded-full border',
                 PAYMENT_STATUS_COLORS[item.payment.status] || 'bg-zinc-100 text-zinc-600 border-zinc-200'
               )}>
-                {item.payment.status === 'approved' ? 'Aprobado' : item.payment.status === 'pending' ? 'Pendiente' : item.payment.status}
+                {item.payment.status === 'approved' ? 'Pagado' : item.payment.status === 'pending' ? 'Pendiente' : item.payment.status}
               </span>
             )}
           </div>
@@ -384,29 +389,29 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
           {item.payment?.baseTotal != null && item.payment.baseTotal > 0 ? (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground">Precio de carta</span>
+                <span className="text-[10px] text-muted-foreground/70">Precio de carta</span>
                 <span className="text-[10px] font-semibold text-foreground tabular-nums">${item.payment.baseTotal.toLocaleString('es-AR')}</span>
               </div>
               {item.payment.surchargeAmount ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[10px] text-muted-foreground/70">
                     Recargo MP{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
                   </span>
                   <span className="text-[10px] font-semibold text-amber-600 tabular-nums">+${item.payment.surchargeAmount.toLocaleString('es-AR')}</span>
                 </div>
               ) : null}
-              <div className="h-px bg-border/60 my-1" />
-              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-primary/5 border border-primary/20">
+              <div className="h-px bg-border/40 my-1" />
+              <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/15">
                 <span className="text-xs font-bold text-primary">Total cobrado</span>
-                <span className="font-black text-lg text-primary tabular-nums">
+                <span className="font-black text-xl text-primary tabular-nums">
                   ${item.total.toLocaleString('es-AR')}
                 </span>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/20">
+            <div className="flex items-center justify-between px-3 py-3 rounded-xl bg-primary/5 border border-primary/15">
               <span className="text-xs font-bold text-primary">Total</span>
-              <span className="font-black text-lg text-primary tabular-nums">
+              <span className="font-black text-xl text-primary tabular-nums">
                 ${item.total.toLocaleString('es-AR')}
               </span>
             </div>
@@ -717,8 +722,8 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{title}</h4>
+    <div className="space-y-2.5 pb-1">
+      <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">{title}</h4>
       {children}
     </div>
   )
