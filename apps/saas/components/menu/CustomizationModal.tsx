@@ -101,7 +101,9 @@ export default function CustomizationModal({
   )
 
   // ── Half-and-half (mitad y mitad) ──────────────────────────────────────────
-  const halfAvailable = isHalfAndHalf && halfPriceItems.length >= 2
+  // Mitad y mitad SOLO está disponible para variante "Grande"
+  const isGrandeVariant = selectedVariant?.name?.toLowerCase() === 'grande'
+  const halfAvailable = isHalfAndHalf && halfPriceItems.length >= 2 && isGrandeVariant
   const halfTypeSelection = selections['__half_type']?.[0] ?? null
   const isHalfMode = halfAvailable && halfTypeSelection === 'Mitad y mitad'
 
@@ -270,6 +272,29 @@ export default function CustomizationModal({
       return changed ? cleaned : prev
     })
   }, [selectedVariant]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset half-and-half selections when switching away from Grande
+  useEffect(() => {
+    if (!halfAvailable && (selections['__half_type'] || selections['__half_first'] || selections['__half_second'])) {
+      setSelections(prev => {
+        const next = { ...prev }
+        delete next['__half_type']
+        delete next['__half_first']
+        delete next['__half_second']
+        return next
+      })
+    }
+  }, [halfAvailable]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-select "Primera mitad" with current item name when "Mitad y mitad" is chosen
+  useEffect(() => {
+    if (isHalfMode && !firstHalfSelection) {
+      const itemHp = halfPriceItems.find(hp => hp.name === item.name)
+      if (itemHp) {
+        setSelections(prev => ({ ...prev, __half_first: [item.name] }))
+      }
+    }
+  }, [isHalfMode, firstHalfSelection, halfPriceItems, item.name]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleOption(group: CustomizationGroup, optionName: string) {
     setSelections(prev => {
@@ -526,6 +551,16 @@ export default function CustomizationModal({
           )}
 
           {/* Customizations */}
+          {isHalfMode && firstHalfSelection && (
+            <div
+              className="rounded-2xl p-4 mb-2"
+              style={{ backgroundColor: primaryColor + '12', border: `1px solid ${primaryColor}30` }}
+            >
+              <p className="text-sm font-medium" style={{ color: primaryColor }}>
+                Tu pizza es <strong>{item.name}</strong>, que ya queda como tu <strong>primera mitad</strong>. Elegí el segundo sabor para completar.
+              </p>
+            </div>
+          )}
           {activeGroups.map((group, index) => (
             <div key={`${group._id}-${index}`} className="scroll-mt-6">
               <div className="flex items-center gap-2 mb-4">
