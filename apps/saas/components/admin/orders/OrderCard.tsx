@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Clock, MapPin, ShoppingBag, Truck, UtensilsCrossed, Briefcase } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { BoardCardRenderProps } from '@/components/shared/operations-board'
@@ -45,13 +46,23 @@ function getTimeElapsed(createdAt: string, now: number): string {
   return `${hours}h ${remainingMin}m`
 }
 
+function useElapsed(createdAt: string): string {
+  const [elapsed, setElapsed] = useState(() => getTimeElapsed(createdAt, Date.now()))
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(getTimeElapsed(createdAt, Date.now())), 60_000)
+    return () => clearInterval(id)
+  }, [createdAt])
+  return elapsed
+}
+
 export default function OrderCard({ item, isSelected, isNew, onClick }: BoardCardRenderProps<OrderItem>) {
   const mode = MODE_CONFIG[item.orderMode || 'takeaway'] || MODE_CONFIG.takeaway
   const ModeIcon = mode.icon
   const statusColor = STATUS_COLORS[item.status] || 'bg-zinc-400'
+  const computedElapsed = useElapsed(item.createdAt)
   const timeLabel = item.orderTiming === 'scheduled' && item.scheduledPickupAt
     ? new Date(item.scheduledPickupAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-    : getTimeElapsed(item.createdAt, Date.now())
+    : computedElapsed
 
   return (
     <button
