@@ -681,6 +681,32 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     })
   }
 
+  function buildHalfPriceContext(item: any): typeof halfPriceContext {
+    if (item.halfPrice == null || item.halfPrice <= 0) return null
+
+    // Find the category containing this item
+    const itemCategoryId = item.categoryId ?? item._id
+    let siblingItems: any[] = []
+    for (const cat of categories) {
+      const allCatItems = [
+        ...(cat.items ?? []),
+        ...(cat.subcategories ?? []).flatMap((s: any) => s.items ?? []),
+      ]
+      if (allCatItems.some((i: any) => String(i._id) === String(item._id))) {
+        siblingItems = allCatItems
+        break
+      }
+    }
+
+    // Collect all items in the category with halfPrice > 0
+    const hpItems = siblingItems
+      .filter((i: any) => i.halfPrice != null && i.halfPrice > 0)
+      .map((i: any) => ({ _id: i._id, name: i.name, halfPrice: i.halfPrice as number }))
+
+    if (hpItems.length < 2) return null
+    return { isHalfAndHalf: true, halfPriceItems: hpItems }
+  }
+
   function openCustomizationModal(item: any, categoryGroups?: any[], hpCtx?: typeof halfPriceContext) {
     setShowCart(false)
     const mergedGroups = [
@@ -688,7 +714,10 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       ...(item.customizationGroups ?? []),
     ]
     setCustomizingItem({ ...item, customizationGroups: mergedGroups })
-    setHalfPriceContext(hpCtx ?? null)
+
+    // Auto-detect half-price context if not explicitly provided
+    const effectiveCtx = hpCtx ?? buildHalfPriceContext(item)
+    setHalfPriceContext(effectiveCtx)
   }
 
   function goToCheckout() {
