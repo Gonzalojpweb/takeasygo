@@ -12,6 +12,7 @@ interface VariantInfo {
   price: number
   takeawayPrice?: number
   businessPrice?: number
+  customizationGroups?: CustomizationGroup[]
 }
 
 interface CustomizationOption {
@@ -29,6 +30,7 @@ interface CustomizationGroup {
   type: 'single' | 'multiple'
   required: boolean
   options: CustomizationOption[]
+  priceRule?: 'sum' | 'max' | 'average'
 }
 
 interface Props {
@@ -42,11 +44,14 @@ interface Props {
   hideQuantity?: boolean
   unitLabel?: string
   optionImageRegistry?: Record<string, string>
+  isHalfAndHalf?: boolean
+  halfPriceItems?: Array<{ _id: string; name: string; halfPrice: number }>
 }
 
 function computeActiveGroups(
   rootGroups: CustomizationGroup[],
-  selections: Record<string, string[]>
+  selections: Record<string, string[]>,
+  variantGroups?: CustomizationGroup[]
 ): CustomizationGroup[] {
   const result: CustomizationGroup[] = []
 
@@ -63,6 +68,9 @@ function computeActiveGroups(
   }
 
   visit(rootGroups)
+  if (variantGroups?.length) {
+    visit(variantGroups)
+  }
   return result
 }
 
@@ -77,6 +85,8 @@ export default function CustomizationModal({
   hideQuantity = false,
   unitLabel,
   optionImageRegistry,
+  isHalfAndHalf = false,
+  halfPriceItems = [],
 }: Props) {
   const rootGroups: CustomizationGroup[] = item.customizationGroups ?? []
   const variants: VariantInfo[] = item.variants ?? []
@@ -84,32 +94,144 @@ export default function CustomizationModal({
 
   const [selections, setSelections] = useState<Record<string, string[]>>({})
   const [quantity, setQuantity] = useState(1)
+  const [notes, setNotes] = useState('')
+  const [notesCount, setNotesCount] = useState(0)
   const [selectedVariant, setSelectedVariant] = useState<VariantInfo | null>(
-    hasVariants && variants.length === 1 ? variants[0] : null
+    variants.length === 1 ? variants[0] : null
   )
 
-  const activeGroups = useMemo(
-    () => computeActiveGroups(rootGroups, selections),
-    [rootGroups, selections]
+  // ── Half-and-half (mitad y mitad) ──────────────────────────────────────────
+  const halfAvailable = isHalfAndHalf && halfPriceItems.length >= 2
+  const halfTypeSelection = selections['__half_type']?.[0] ?? null
+  const isHalfMode = halfAvailable && halfTypeSelection === 'Mitad y mitad'
+
+  // Items with halfPrice for the "Primera mitad" group
+  const halfFirstItems: CustomizationOption[] = halfAvailable
+    ? halfPriceItems
+        .filter(hp => hp.halfPrice > 0)
+        .map(hp => ({ name: hp.name, extraPrice: hp.halfPrice, _id: hp._id }))
+    : []
+
+  // Items for "Segunda mitad" — exclude the one selected in "Primera mitad"
+  const firstHalfSelection = selections['__half_first']?.[0] ?? null
+  const halfSecondItems: CustomizationOption[] = isHalfMode
+    ? halfFirstItems.filter(opt => opt.name !== firstHalfSelection)
+    : []
+
+  // Synthetic groups for half-and-half mode
+  const halfSyntheticGroups: CustomizationGroup[] = halfAvailable
+    ? [
+        {
+          _id: '__half_type',
+          name: 'Tipo de pizza',
+          type: 'single',
+          required: true,
+          options: [
+            { name: 'Un sabor', extraPrice: 0 },
+            { name: 'Mitad y mitad', extraPrice: 0 },
+          ],
+        },
+        ...(isHalfMode
+          ? [
+              {
+                _id: '__half_first',
+                name: 'Primera mitad',
+                type: 'single' as const,
+                required: true,
+                options: halfFirstItems,
+              },
+              {
+                _id: '__half_second',
+                name: 'Segunda mitad',
+                type: 'single' as const,
+                required: true,
+                options: halfSecondItems,
+              },
+            ]
+          : []),
+      ]
+    : []
+
+  const variantGroups = useMemo(
+    () => (selectedVariant as any)?.customizationGroups ?? [],
+    [(selectedVariant as any)?.customizationGroups]
   )
 
-  const isValid =
-    (!hasVariants || selectedVariant != null) &&
-    activeGroups
-      .filter(g => g.required)
-      .every(g => (selections[g._id] ?? []).length > 0)
+  const activeGroups = useMemo(() => {
+    const groups = computeActiveGroups(rootGroups, selections, variantGroups)
+    // For half-and-half: when "Un sabor" is selected, show item's normal groups
+    // When "Mitad y mitad" is selected, show synthetic half groups instead
+    if (halfAvailable) {
+      if (isHalfMode) {
+        return halfSyntheticGroups
+      }
+      if (halfTypeSelection === 'Un sabor') {
+        return groups
+      }
+      // No selection yet on "Tipo" — show the type selector only
+      return halfSyntheticGroups
+    }
+    return groups
+  }, [rootGroups, selections, variantGroups, halfAvailable, isHalfMode, halfTypeSelection, halfSyntheticGroups])
 
-  const extraPrice = activeGroups
-    .flatMap(g => g.options.filter(opt => (selections[g._id] ?? []).includes(opt.name)))
-    .reduce((sum, opt) => sum + opt.extraPrice, 0)
+  const isValid = useMemo(() => {
+    // Half-and-half: need type selected + both halves selected
+    if (halfAvailable) {
+      if (!halfTypeSelection) return false
+      if (isHalfMode) {
+        return !!firstHalfSelection && !!selections['__half_second']?.[0]
+      }
+      return true // "Un sabor" selected — need normal groups to be valid
+    }
+    // Normal mode
+    return (
+      (!hasVariants || selectedVariant != null) &&
+      activeGroups
+        .filter(g => g.required)
+        .every(g => (selections[g._id] ?? []).length > 0)
+    )
+  }, [halfAvailable, halfTypeSelection, isHalfMode, firstHalfSelection, selections, hasVariants, selectedVariant, activeGroups])
 
-  const basePrice = hasVariants && selectedVariant
-    ? (mode === 'takeaway' ? (Number(selectedVariant.takeawayPrice ?? selectedVariant.price) || 0) :
-       mode === 'business' ? (Number(selectedVariant.businessPrice ?? selectedVariant.price) || 0) :
-       Number(selectedVariant.price) || 0)
-    : (mode === 'takeaway' ? (Number(item.takeawayPrice ?? item.price) || 0) :
-       mode === 'business' ? (Number(item.businessPrice ?? item.price) || 0) :
-       Number(item.price) || 0)
+  const extraPrice = useMemo(() => {
+    // Half-and-half mode: price = sum of two halfPrices
+    if (isHalfMode) {
+      const firstHalf = halfFirstItems.find(opt => opt.name === firstHalfSelection)
+      const secondHalfName = selections['__half_second']?.[0]
+      const secondHalf = halfSecondItems.find(opt => opt.name === secondHalfName)
+      if (firstHalf && secondHalf) {
+        return firstHalf.extraPrice + secondHalf.extraPrice
+      }
+      return 0
+    }
+    // Normal mode: sum extraPrice from selected options
+    return activeGroups.reduce((sum, g) => {
+      const selectedOpts = g.options.filter(opt => (selections[g._id] ?? []).includes(opt.name))
+      if (selectedOpts.length === 0) return sum
+      const rule = g.priceRule ?? 'sum'
+      if (rule === 'max') {
+        return sum + Math.max(...selectedOpts.map(o => o.extraPrice))
+      }
+      if (rule === 'average') {
+        return sum + selectedOpts.reduce((s, o) => s + o.extraPrice, 0) / selectedOpts.length
+      }
+      return sum + selectedOpts.reduce((s, o) => s + o.extraPrice, 0)
+    }, 0)
+  }, [activeGroups, selections, isHalfMode, firstHalfSelection, halfFirstItems, halfSecondItems])
+
+  const basePrice = useMemo(() => {
+    // Half-and-half mode: basePrice is 0 — total comes from the two halfPrices
+    if (isHalfMode) {
+      return 0
+    }
+    // Normal mode
+    return hasVariants && selectedVariant
+      ? (mode === 'takeaway' ? (Number(selectedVariant.takeawayPrice ?? selectedVariant.price) || 0) :
+         mode === 'business' ? (Number(selectedVariant.businessPrice ?? selectedVariant.price) || 0) :
+         Number(selectedVariant.price) || 0)
+      : (mode === 'takeaway' ? (Number(item.takeawayPrice ?? item.price) || 0) :
+         mode === 'business' ? (Number(item.businessPrice ?? item.price) || 0) :
+         Number(item.price) || 0)
+  }, [hasVariants, selectedVariant, mode, item, isHalfMode])
 
   const unitPrice = basePrice + extraPrice
   const totalPrice = unitPrice * quantity
@@ -135,6 +257,20 @@ export default function CustomizationModal({
     }
   }, [activeGroups]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clear orphaned selections when variant changes (variant-specific groups become inactive)
+  useEffect(() => {
+    const activeIds = new Set(activeGroups.map(g => g._id))
+    setSelections(prev => {
+      const cleaned: Record<string, string[]> = {}
+      let changed = false
+      for (const [key, val] of Object.entries(prev)) {
+        if (activeIds.has(key)) cleaned[key] = val
+        else changed = true
+      }
+      return changed ? cleaned : prev
+    })
+  }, [selectedVariant]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function toggleOption(group: CustomizationGroup, optionName: string) {
     setSelections(prev => {
       const current = prev[group._id] ?? []
@@ -152,7 +288,7 @@ export default function CustomizationModal({
         }
       }
 
-      const newActiveGroups = computeActiveGroups(rootGroups, next)
+      const newActiveGroups = computeActiveGroups(rootGroups, next, variantGroups)
       const newActiveIds = new Set(newActiveGroups.map(g => g._id))
       const cleaned: Record<string, string[]> = {}
       for (const [key, val] of Object.entries(next)) {
@@ -193,30 +329,57 @@ export default function CustomizationModal({
   }
 
   function handleConfirm() {
-    const customizations: SelectedCustomization[] = activeGroups
-      .filter(g => (selections[g._id] ?? []).length > 0)
-      .map(g => ({
-        groupName: g.name,
-        selectedOptions: buildSelectedOptions(g, selections[g._id] ?? []),
-      }))
+    let customizations: SelectedCustomization[]
+    let customizationSummary: string
+    let finalBasePrice: number
+    let finalExtraPrice: number
 
-    function buildCustomizationSummary(customizations: SelectedCustomization[]): string {
-      return customizations.flatMap(c => {
-        const groupLabel = c.groupName ? `${c.groupName}: ` : ''
-        const opts = c.selectedOptions.map(o => {
-          let text = o.name
-          if (o.subGroups && o.subGroups.length > 0) {
-            const sub = buildCustomizationSummary(o.subGroups)
-            if (sub) text += ` (${sub})`
-          }
-          return text
-        })
-        if (opts.length === 0) return []
-        return [`${groupLabel}${opts.join(', ')}`]
-      }).join(' · ')
+    if (isHalfMode && firstHalfSelection) {
+      const secondHalfName = selections['__half_second']?.[0] ?? ''
+      const firstHalfItem = halfPriceItems.find(hp => hp.name === firstHalfSelection)
+      const secondHalfItem = halfPriceItems.find(hp => hp.name === secondHalfName)
+
+      customizations = [
+        {
+          groupName: 'Primera mitad',
+          selectedOptions: [{ name: firstHalfSelection, extraPrice: firstHalfItem?.halfPrice ?? 0 }],
+        },
+        {
+          groupName: 'Segunda mitad',
+          selectedOptions: [{ name: secondHalfName, extraPrice: secondHalfItem?.halfPrice ?? 0 }],
+        },
+      ]
+      customizationSummary = `Mitad ${firstHalfSelection} / Mitad ${secondHalfName}`
+      finalBasePrice = 0
+      finalExtraPrice = (firstHalfItem?.halfPrice ?? 0) + (secondHalfItem?.halfPrice ?? 0)
+    } else {
+      customizations = activeGroups
+        .filter(g => (selections[g._id] ?? []).length > 0)
+        .map(g => ({
+          groupName: g.name,
+          selectedOptions: buildSelectedOptions(g, selections[g._id] ?? []),
+        }))
+
+      function buildCustomizationSummary(c: SelectedCustomization[]): string {
+        return c.flatMap(c => {
+          const groupLabel = c.groupName ? `${c.groupName}: ` : ''
+          const opts = c.selectedOptions.map(o => {
+            let text = o.name
+            if (o.subGroups && o.subGroups.length > 0) {
+              const sub = buildCustomizationSummary(o.subGroups)
+              if (sub) text += ` (${sub})`
+            }
+            return text
+          })
+          if (opts.length === 0) return []
+          return [`${groupLabel}${opts.join(', ')}`]
+        }).join(' · ')
+      }
+
+      customizationSummary = buildCustomizationSummary(customizations)
+      finalBasePrice = basePrice
+      finalExtraPrice = extraPrice
     }
-
-    let customizationSummary = buildCustomizationSummary(customizations)
 
     const selectedVariantData: SelectedVariant | undefined = selectedVariant
       ? {
@@ -227,23 +390,27 @@ export default function CustomizationModal({
         }
       : undefined
 
-    const itemName = selectedVariant
-      ? `${item.name} - ${selectedVariant.name}`
-      : item.name
+    const itemName = isHalfMode
+      ? `${item.name} Mitad y mitad`
+      : selectedVariant
+        ? `${item.name} - ${selectedVariant.name}`
+        : item.name
 
-    if (selectedVariant && customizationSummary) {
+    if (!isHalfMode && selectedVariant && customizationSummary) {
       customizationSummary = `${selectedVariant.name} · ${customizationSummary}`
-    } else if (selectedVariant) {
+    } else if (!isHalfMode && selectedVariant) {
       customizationSummary = selectedVariant.name
     }
+
+    const unitPrice = finalBasePrice + finalExtraPrice
 
     const cartItem: any = {
       ...(item as any),
       cartItemId: `${item._id}:${Date.now()}`,
       menuItemId: item._id,
       name: itemName,
-      basePrice,
-      extraPrice,
+      basePrice: finalBasePrice,
+      extraPrice: finalExtraPrice,
       price: unitPrice,
       quantity: hideQuantity ? 1 : quantity,
       customizations,

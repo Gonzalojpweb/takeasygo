@@ -148,6 +148,7 @@ export interface Product {
   name: string
   description: string
   price: number
+  halfPrice?: number
   category: string
   isAvailable: boolean
   modifiers?: ProductModifier[]
@@ -163,6 +164,7 @@ export interface ProductModifier {
   options: ModifierOption[]
   required?: boolean
   maxSelections?: number
+  priceRule?: 'sum' | 'max' | 'average'
 }
 
 export interface ModifierOption {

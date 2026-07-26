@@ -14,6 +14,12 @@ export interface ICustomizationGroup {
   type: 'single' | 'multiple'
   required: boolean
   options: ICustomizationOption[]
+  /** Regla de cálculo de precio para las opciones seleccionadas de este grupo.
+   *  'sum' (default) — se suman los extraPrice de todas las opciones seleccionadas.
+   *  'max' — se cobra solo el mayor extraPrice entre las opciones seleccionadas.
+   *  'average' — se promedian los extraPrice.
+   *  Aplica solo a las opciones directas del grupo, no recursivamente a subGroups. */
+  priceRule?: 'sum' | 'max' | 'average'
 }
 
 export interface IMenuItemVariant {
@@ -25,6 +31,10 @@ export interface IMenuItemVariant {
   businessPrice?: number
   originalPrice?: number
   takeawayOriginalPrice?: number
+  /** Grupos de customización propios de esta variante.
+   *  Cuando el usuario selecciona esta variante, estos grupos se activan
+   *  además de los grupos heredados de categoría/item. */
+  customizationGroups?: ICustomizationGroup[]
 }
 
 export interface IAvailabilitySlot {
@@ -40,6 +50,8 @@ export interface IMenuItem {
   price: number
   takeawayPrice?: number
   businessPrice?: number | null
+  /** Precio de cada mitad para promociones "mitad y mitad". Si está definido, el item aparece como opción disponible para armar mitad y mitad. */
+  halfPrice?: number
   /** Precio original de lista (antes de descuentos de categoría). Se guarda una sola vez. */
   originalPrice?: number
   /** Precio takeaway original de lista (antes de descuentos de categoría). Se guarda una sola vez. */
@@ -102,6 +114,10 @@ export interface IMenu extends Document {
   updatedAt: Date
 }
 
+// Declarados como Schema genérico primero para permitir referencia circular opción ↔ grupo
+const CustomizationOptionSchema: Schema = new Schema({})
+const CustomizationGroupSchema: Schema = new Schema({})
+
 const MenuItemVariantSchema = new Schema<IMenuItemVariant>({
   name: { type: String, required: true, trim: true },
   nameTranslations: {
@@ -112,13 +128,10 @@ const MenuItemVariantSchema = new Schema<IMenuItemVariant>({
   businessPrice: { type: Number, min: 0 },
   originalPrice: { type: Number, min: 0 },
   takeawayOriginalPrice: { type: Number, min: 0 },
+  customizationGroups: { type: [CustomizationGroupSchema], default: [] },
 }, { _id: true })
 
-// Declarados como Schema genérico primero para permitir referencia circular opción ↔ grupo
-const CustomizationOptionSchema: Schema = new Schema({})
-const CustomizationGroupSchema: Schema = new Schema({})
-
-// Se agregan los campos después de que ambos schemas existen (resuelve la referencia circular)
+// Se agregan los campos después de que ambos schemas existen (resuelve la referencia circular opción ↔ grupo)
 CustomizationOptionSchema.add({
   name:       { type: String, required: true, trim: true },
   extraPrice: { type: Number, default: 0, min: 0 },
@@ -131,6 +144,7 @@ CustomizationGroupSchema.add({
   type:     { type: String, enum: ['single', 'multiple'], default: 'single' },
   required: { type: Boolean, default: false },
   options:  { type: [CustomizationOptionSchema], default: [] },
+  priceRule: { type: String, enum: ['sum', 'max', 'average'], default: 'sum' },
 })
 
 const MenuItemSchema = new Schema<IMenuItem>({
@@ -157,6 +171,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
     type: Number,
     min: [0, 'El precio business no puede ser negativo'],
     default: null,
+  },
+  halfPrice: {
+    type: Number,
+    min: [0, 'El precio de mitad no puede ser negativo'],
   },
   originalPrice: {
     type: Number,

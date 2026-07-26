@@ -103,6 +103,7 @@ export async function POST(
 
       let basePrice: number
       let resolvedSelectedVariant: any = null
+      let dbVariant: any = null
 
       const hasVariants = (menuItem.variants ?? []).length > 0
 
@@ -114,7 +115,7 @@ export async function POST(
             { status: 400 }
           )
         }
-        const dbVariant = menuItem.variants.find((v: any) => v.name === selectedVariant.name)
+        dbVariant = menuItem.variants.find((v: any) => v.name === selectedVariant.name)
         if (!dbVariant) {
           return NextResponse.json(
             { error: `Variante inválida "${selectedVariant.name}" para "${menuItem.name}"` },
@@ -135,21 +136,114 @@ export async function POST(
       const resolvedCustomizations: any[] = []
 
       if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
-        for (const clientGroup of clientItem.customizations) {
-          const dbGroup = (menuItem.customizationGroups || []).find((g: any) => g.name === clientGroup.groupName)
-          if (!dbGroup) continue
+        // Check for half-price "mitad y mitad" customizations first
+        const allMenuItems = [...menuItemMap.values()]
+        const hasFirstHalf = clientItem.customizations.some((g: any) => g.groupName === 'Primera mitad')
+        const hasSecondHalf = clientItem.customizations.some((g: any) => g.groupName === 'Segunda mitad')
 
+        if (hasFirstHalf || hasSecondHalf) {
+          // Half-price validation
+          if (!hasFirstHalf || !hasSecondHalf) {
+            return NextResponse.json(
+              { error: 'Para pizza mitad y mitad, debés seleccionar ambas mitades' },
+              { status: 400 }
+            )
+          }
+          const firstGroup = clientItem.customizations.find((g: any) => g.groupName === 'Primera mitad')
+          const secondGroup = clientItem.customizations.find((g: any) => g.groupName === 'Segunda mitad')
+          const firstFlavor = firstGroup?.selectedOptions?.[0]?.name
+          const secondFlavor = secondGroup?.selectedOptions?.[0]?.name
+
+          if (!firstFlavor || !secondFlavor) {
+            return NextResponse.json({ error: 'Falta seleccionar una de las mitades' }, { status: 400 })
+          }
+          if (firstFlavor === secondFlavor) {
+            return NextResponse.json(
+              { error: 'No podés elegir el mismo sabor para ambas mitades' },
+              { status: 400 }
+            )
+          }
+
+          const firstItem = allMenuItems.find(
+            (i: any) => i.name === firstFlavor && i.halfPrice != null && i.halfPrice > 0
+          )
+          const secondItem = allMenuItems.find(
+            (i: any) => i.name === secondFlavor && i.halfPrice != null && i.halfPrice > 0
+          )
+          if (!firstItem) {
+            return NextResponse.json(
+              { error: `"${firstFlavor}" no está disponible para mitad y mitad` },
+              { status: 400 }
+            )
+          }
+          if (!secondItem) {
+            return NextResponse.json(
+              { error: `"${secondFlavor}" no está disponible para mitad y mitad` },
+              { status: 400 }
+            )
+          }
+
+          const halfExtra = (firstItem.halfPrice as number) + (secondItem.halfPrice as number)
+          resolvedCustomizations.push(
+            { groupName: 'Primera mitad', selectedOptions: [{ name: firstFlavor, extraPrice: firstItem.halfPrice }] },
+            { groupName: 'Segunda mitad', selectedOptions: [{ name: secondFlavor, extraPrice: secondItem.halfPrice }] },
+          )
+          extraPrice += halfExtra
+          basePrice = 0
+        } else {
+        // Combinar grupos del item + grupos de la variante
+        const allGroups = [
+          ...(menuItem.customizationGroups || []),
+          ...(dbVariant?.customizationGroups || []),
+        ]
+
+        function resolveGroup(clientGroup: any, dbGroups: any[]): { resolved: any; extraPrice: number } {
+          const dbGroup = dbGroups.find((g: any) => g.name === clientGroup.groupName)
+          if (!dbGroup) return { resolved: null, extraPrice: 0 }
+
+          const rule: string = dbGroup.priceRule ?? 'sum'
           const resolvedOptions: any[] = []
+          const groupPrices: number[] = []
+
           for (const clientOption of (clientGroup.selectedOptions || [])) {
             const dbOption = dbGroup.options.find((o: any) => o.name === clientOption.name)
             if (!dbOption) continue
-            extraPrice += dbOption.extraPrice || 0
-            resolvedOptions.push({ name: dbOption.name, extraPrice: dbOption.extraPrice || 0 })
+            groupPrices.push(dbOption.extraPrice || 0)
+
+            const resolvedOption: any = { name: dbOption.name, extraPrice: dbOption.extraPrice || 0 }
+
+            if (dbOption.subGroups?.length > 0 && Array.isArray(clientOption.subGroups)) {
+              let subExtraPrice = 0
+              const subResolved: any[] = []
+              for (const subClient of clientOption.subGroups) {
+                const sub = resolveGroup(subClient, dbOption.subGroups)
+                if (sub.resolved) { subResolved.push(sub.resolved); subExtraPrice += sub.extraPrice }
+              }
+              if (subResolved.length > 0) resolvedOption.subGroups = subResolved
+              groupPrices[groupPrices.length - 1] += subExtraPrice
+            }
+
+            resolvedOptions.push(resolvedOption)
           }
-          if (resolvedOptions.length > 0) {
-            resolvedCustomizations.push({ groupName: dbGroup.name, selectedOptions: resolvedOptions })
+
+          let groupExtraPrice = 0
+          if (groupPrices.length > 0) {
+            if (rule === 'max') groupExtraPrice = Math.max(...groupPrices)
+            else if (rule === 'average') groupExtraPrice = groupPrices.reduce((a, b) => a + b, 0) / groupPrices.length
+            else groupExtraPrice = groupPrices.reduce((a, b) => a + b, 0)
+          }
+
+          return { resolved: { groupName: dbGroup.name, selectedOptions: resolvedOptions }, extraPrice: groupExtraPrice }
+        }
+
+        for (const clientGroup of clientItem.customizations) {
+          const result = resolveGroup(clientGroup, allGroups)
+          if (result.resolved) {
+            resolvedCustomizations.push(result.resolved)
+            extraPrice += result.extraPrice
           }
         }
+        } // end else (normal customization flow)
       }
 
       const price = basePrice + extraPrice

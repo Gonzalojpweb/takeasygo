@@ -37,6 +37,7 @@ type CustomizationGroupForm = {
   type: 'single' | 'multiple'
   required: boolean
   options: CustomizationOptionForm[]
+  priceRule?: 'sum' | 'max' | 'average'
 }
 
 type VariantForm = {
@@ -45,18 +46,19 @@ type VariantForm = {
   takeawayPrice: string
   businessPrice: string
   nameTranslations: string
+  customizationGroups: CustomizationGroupForm[]
 }
 
 const EMPTY_CUSTOMIZATION_GROUP: CustomizationGroupForm = {
-  name: '', type: 'single', required: false, options: [],
+  name: '', type: 'single', required: false, options: [], priceRule: 'sum',
 }
 
 const EMPTY_VARIANT: VariantForm = {
-  name: '', price: '', takeawayPrice: '', businessPrice: '', nameTranslations: '',
+  name: '', price: '', takeawayPrice: '', businessPrice: '', nameTranslations: '', customizationGroups: [],
 }
 
 const EMPTY_ITEM = {
-  name: '', description: '', price: '', takeawayPrice: '', businessPrice: '', tags: '', isFeatured: false, imageUrl: '',
+  name: '', description: '', price: '', takeawayPrice: '', businessPrice: '', halfPrice: '', tags: '', isFeatured: false, imageUrl: '',
   isBusinessAvailable: false,
   suggestWith: [] as string[],
   customizationGroups: [] as CustomizationGroupForm[],
@@ -72,6 +74,7 @@ function serializeGroups(groups: CustomizationGroupForm[]): any[] {
     name: g.name,
     type: g.type,
     required: g.required,
+    ...(g.priceRule && g.priceRule !== 'sum' ? { priceRule: g.priceRule } : {}),
     options: g.options.map((o: CustomizationOptionForm) => ({
       name: o.name,
       extraPrice: parseFloat(o.extraPrice) || 0,
@@ -88,6 +91,7 @@ function serializeVariants(variants: VariantForm[]): any[] {
     takeawayPrice: v.takeawayPrice ? parseFloat(v.takeawayPrice) : undefined,
     businessPrice: v.businessPrice !== '' ? parseFloat(v.businessPrice) : null,
     nameTranslations: v.nameTranslations ? { en: v.nameTranslations } : undefined,
+    customizationGroups: serializeGroups(v.customizationGroups ?? []),
   }))
 }
 
@@ -98,6 +102,7 @@ function deserializeVariants(variants: any[]): VariantForm[] {
     takeawayPrice: v.takeawayPrice?.toString() ?? '',
     businessPrice: v.businessPrice?.toString() ?? '',
     nameTranslations: v.nameTranslations?.en ?? '',
+    customizationGroups: deserializeGroups(v.customizationGroups ?? []),
   }))
 }
 
@@ -106,6 +111,7 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
     name: g.name,
     type: g.type ?? 'single',
     required: g.required ?? false,
+    priceRule: g.priceRule ?? 'sum',
     options: (g.options || []).map((o: any) => ({
       name: o.name,
       extraPrice: o.extraPrice?.toString() ?? '0',
@@ -446,6 +452,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           price: parseFloat(newItem.price),
           takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
           businessPrice: newItem.businessPrice !== '' ? parseFloat(newItem.businessPrice) : null,
+          halfPrice: newItem.halfPrice ? parseFloat(newItem.halfPrice) : undefined,
           isBusinessAvailable: newItem.isBusinessAvailable,
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
@@ -482,6 +489,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           price: parseFloat(editingItemData.price),
           takeawayPrice: editingItemData.takeawayPrice ? parseFloat(editingItemData.takeawayPrice) : undefined,
           businessPrice: editingItemData.businessPrice !== '' ? parseFloat(editingItemData.businessPrice) : null,
+          halfPrice: editingItemData.halfPrice ? parseFloat(editingItemData.halfPrice) : undefined,
           isBusinessAvailable: editingItemData.isBusinessAvailable,
           tags: parseTags(editingItemData.tags),
           isFeatured: editingItemData.isFeatured,
@@ -1542,6 +1550,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                                       price: item.price.toString(),
                                                                       takeawayPrice: item.takeawayPrice?.toString() ?? '',
                                                                       businessPrice: item.businessPrice?.toString() ?? '',
+                                                                      halfPrice: item.halfPrice?.toString() ?? '',
                                                                       tags: (item.tags || []).join(', '),
                                                                       isFeatured: item.isFeatured ?? false,
                                                                       imageUrl: item.imageUrl || '',
@@ -1592,6 +1601,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                               price: parseFloat(newItem.price),
                                                               takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
                                                               businessPrice: newItem.businessPrice !== '' ? parseFloat(newItem.businessPrice) : null,
+                                                              halfPrice: newItem.halfPrice ? parseFloat(newItem.halfPrice) : undefined,
                                                               isBusinessAvailable: newItem.isBusinessAvailable,
                                                               tags: parseTags(newItem.tags),
                                                               isFeatured: newItem.isFeatured,
@@ -1796,6 +1806,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                         price: item.price.toString(),
                                                         takeawayPrice: item.takeawayPrice?.toString() ?? '',
                                                         businessPrice: item.businessPrice?.toString() ?? '',
+                                                        halfPrice: item.halfPrice?.toString() ?? '',
                                                         tags: (item.tags || []).join(', '),
                                                         isFeatured: item.isFeatured ?? false,
                                                         imageUrl: item.imageUrl || '',
@@ -1828,6 +1839,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                   price: item.price.toString(),
                                                   takeawayPrice: item.takeawayPrice?.toString() ?? '',
                                                   businessPrice: item.businessPrice?.toString() ?? '',
+                                                  halfPrice: item.halfPrice?.toString() ?? '',
                                                   tags: (item.tags || []).join(', '),
                                                   isFeatured: item.isFeatured ?? false,
                                                   imageUrl: item.imageUrl || '',
@@ -2131,6 +2143,262 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   )
 }
 
+function RecursiveGroupEditor({
+  groups,
+  onUpdate,
+  depth = 0,
+  labelCls,
+  inputCls,
+  context,
+  optFileRefs,
+  uploadingOptKey,
+  onImageUpload,
+}: {
+  groups: CustomizationGroupForm[]
+  onUpdate: (next: CustomizationGroupForm[]) => void
+  depth?: number
+  labelCls: string
+  inputCls: string
+  context: string
+  optFileRefs: React.MutableRefObject<Record<string, HTMLInputElement | null>>
+  uploadingOptKey: string | null
+  onImageUpload: (e: React.ChangeEvent<HTMLInputElement>, path: number[]) => void
+}) {
+  function updateGroup(idx: number, patch: Partial<CustomizationGroupForm>) {
+    const next = [...groups]
+    next[idx] = { ...next[idx], ...patch }
+    onUpdate(next)
+  }
+  function updateOption(gIdx: number, oIdx: number, patch: Partial<CustomizationOptionForm>) {
+    const next = [...groups]
+    const opts = [...next[gIdx].options]
+    opts[oIdx] = { ...opts[oIdx], ...patch }
+    next[gIdx] = { ...next[gIdx], options: opts }
+    onUpdate(next)
+  }
+  function updateSubGroups(gIdx: number, oIdx: number, subGroups: CustomizationGroupForm[]) {
+    const next = [...groups]
+    const opts = [...next[gIdx].options]
+    opts[oIdx] = { ...opts[oIdx], subGroups }
+    next[gIdx] = { ...next[gIdx], options: opts }
+    onUpdate(next)
+  }
+
+  return (
+    <div className={depth === 0 ? 'grid grid-cols-1 gap-6' : 'space-y-3'}>
+      {groups.map((group, gi) => (
+        <div
+          key={gi}
+          className={depth === 0
+            ? 'p-6 bg-muted/20 rounded-3xl border border-border/60 relative group/card'
+            : 'bg-white rounded-2xl p-4 border border-primary/15 relative group/sg'
+          }
+        >
+          {/* Delete group */}
+          <button
+            type="button"
+            className={depth === 0
+              ? 'absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-border text-muted-foreground hover:text-white hover:bg-destructive hover:border-destructive shadow-sm opacity-0 group-hover/card:opacity-100 transition-all flex items-center justify-center'
+              : 'absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-white border border-border text-muted-foreground hover:text-destructive hover:border-destructive shadow-sm opacity-0 group-hover/sg:opacity-100 transition-all flex items-center justify-center z-10'
+            }
+            onClick={() => onUpdate(groups.filter((_, i) => i !== gi))}
+          >
+            <X size={depth === 0 ? 14 : 11} strokeWidth={3} />
+          </button>
+
+          {/* Group header */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <div className="flex-1 min-w-[160px]">
+              <label className={labelCls}>{depth === 0 ? 'Nombre del grupo' : 'Nombre del sub-grupo'}</label>
+              <input
+                className={cn(inputCls, depth === 0 ? 'bg-white h-11 border-border/100 shadow-sm' : 'bg-muted/30 h-9 text-sm')}
+                placeholder={depth === 0 ? 'Ej: ¿Qué guarnición prefieres?' : 'Ej: Tipo de café'}
+                value={group.name}
+                onChange={e => updateGroup(gi, { name: e.target.value })}
+              />
+            </div>
+            <div className={depth === 0 ? 'w-full sm:w-40' : 'w-32'}>
+              <label className={labelCls}>Tipo</label>
+              <select
+                className={cn(inputCls, depth === 0 ? 'bg-white h-11 border-border/100 shadow-sm appearance-none cursor-pointer' : 'bg-muted/30 h-9 text-sm appearance-none cursor-pointer')}
+                value={group.type}
+                onChange={e => updateGroup(gi, { type: e.target.value as 'single' | 'multiple' })}
+              >
+                <option value="single">Selección única</option>
+                <option value="multiple">Selección libre</option>
+              </select>
+            </div>
+            <div className={depth === 0 ? 'w-full sm:w-32' : 'w-28'}>
+              <label className={labelCls}>Req.</label>
+              <button
+                type="button"
+                onClick={() => updateGroup(gi, { required: !group.required })}
+                className={cn(
+                  'w-full rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all',
+                  depth === 0 ? 'h-11' : 'h-9',
+                  group.required
+                    ? 'bg-primary/5 border-primary/40 text-primary'
+                    : 'bg-muted text-muted-foreground border-transparent'
+                )}
+              >
+                {group.required ? 'Obligatorio' : 'Opcional'}
+              </button>
+            </div>
+            <div className={depth === 0 ? 'w-full sm:w-40' : 'w-32'}>
+              <label className={labelCls}>Regla de precio</label>
+              <select
+                className={cn(inputCls, depth === 0 ? 'bg-white h-11 border-border/100 shadow-sm appearance-none cursor-pointer' : 'bg-muted/30 h-9 text-sm appearance-none cursor-pointer')}
+                value={group.priceRule ?? 'sum'}
+                onChange={e => updateGroup(gi, { priceRule: e.target.value as 'sum' | 'max' | 'average' })}
+              >
+                <option value="sum">Suma</option>
+                <option value="max">Máximo</option>
+                <option value="average">Promedio</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Options */}
+          <div className={depth === 0 ? 'space-y-3 pl-2 border-l-2 border-border/60 ml-1' : 'space-y-2 pl-2 border-l-2 border-border/40'}>
+            {depth === 0 && (
+              <div className="flex items-center gap-4 mb-2">
+                <span className={labelCls}>Opciones y precios adicionales</span>
+              </div>
+            )}
+
+            {group.options.map((opt, oi) => {
+              const hasSubGroups = (opt.subGroups ?? []).length > 0
+              const refKey = `${context}-${depth}-${gi}-${oi}`
+              return (
+                <div key={oi} className="group/opt space-y-2">
+                  {/* Option row */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 relative">
+                      <input
+                        className={cn(inputCls, depth === 0 ? 'bg-white border-border/80 h-10' : 'bg-white border-border/80 h-9 text-xs')}
+                        placeholder={depth === 0 ? 'Ej: Papas fritas' : 'Ej: Espresso'}
+                        value={opt.name}
+                        onChange={e => updateOption(gi, oi, { name: e.target.value })}
+                      />
+                    </div>
+                    <div className={depth === 0 ? 'w-28 relative' : 'w-24 relative'}>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
+                      <input
+                        className={cn(inputCls, depth === 0 ? 'bg-white border-border/80 h-10 pl-7 tabular-nums' : 'bg-white border-border/80 h-9 pl-6 text-xs tabular-nums')}
+                        placeholder="Precio"
+                        type="number"
+                        min="0"
+                        value={opt.extraPrice}
+                        onChange={e => updateOption(gi, oi, { extraPrice: e.target.value })}
+                      />
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={el => { optFileRefs.current[refKey] = el }}
+                      onChange={e => onImageUpload(e, [gi, oi])}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => optFileRefs.current[refKey]?.click()}
+                      disabled={uploadingOptKey === refKey}
+                      className={depth === 0 ? 'h-10 w-10 rounded-xl border-2 border-dashed border-border/60 flex items-center justify-center flex-shrink-0 hover:border-primary/40 transition-all overflow-hidden' : 'h-9 w-9 rounded-lg border-2 border-dashed border-border/60 flex items-center justify-center flex-shrink-0 hover:border-primary/40 transition-all overflow-hidden'}
+                    >
+                      {uploadingOptKey === refKey ? (
+                        <span className="text-[9px] font-bold text-muted-foreground">...</span>
+                      ) : opt.imageUrl ? (
+                        <img src={opt.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      )}
+                    </button>
+
+                    {/* Toggle sub-group */}
+                    <button
+                      type="button"
+                      title={hasSubGroups ? 'Sub-opciones configuradas' : 'Agregar sub-opciones'}
+                      className={cn(
+                        depth === 0 ? 'h-10 w-10 rounded-xl' : 'h-9 w-9 rounded-lg',
+                        'flex items-center justify-center flex-shrink-0 border-2 transition-all',
+                        hasSubGroups
+                          ? 'bg-primary/10 border-primary/30 text-primary'
+                          : 'bg-transparent border-dashed border-border/60 text-muted-foreground hover:border-primary/30 hover:text-primary'
+                      )}
+                      onClick={() => {
+                        const current = opt.subGroups ?? []
+                        updateOption(gi, oi, {
+                          subGroups: [...current, { name: '', type: 'single', required: false, options: [], priceRule: 'sum' }],
+                        })
+                      }}
+                    >
+                      <Layers size={14} />
+                    </button>
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className={depth === 0 ? 'h-10 w-10' : 'h-9 w-9'}
+                      style={{ color: undefined }}
+                      onClick={() => updateGroup(gi, { options: group.options.filter((_, i) => i !== oi) })}
+                    >
+                      <X size={12} strokeWidth={4} />
+                    </Button>
+                  </div>
+
+                  {/* Sub-groups (recursive) */}
+                  {hasSubGroups && (
+                    <div className="ml-8 pl-4 border-l-2 space-y-3" style={{ borderColor: 'hsl(var(--primary) / 0.2)' }}>
+                      <RecursiveGroupEditor
+                        groups={opt.subGroups ?? []}
+                        onUpdate={next => updateSubGroups(gi, oi, next)}
+                        depth={depth + 1}
+                        labelCls={labelCls}
+                        inputCls={inputCls}
+                        context={context}
+                        optFileRefs={optFileRefs}
+                        uploadingOptKey={uploadingOptKey}
+                        onImageUpload={(e, path) => onImageUpload(e, [gi, oi, ...path])}
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const next = [...groups]
+                next[gi] = { ...next[gi], options: [...next[gi].options, { name: '', extraPrice: '0', imageUrl: '', subGroups: [] }] }
+                onUpdate(next)
+              }}
+              className="text-primary hover:bg-primary/5 text-[10px] font-black uppercase tracking-widest mt-2 px-4 h-9 rounded-lg"
+            >
+              <Plus size={12} className="mr-1.5" strokeWidth={4} /> Agregar opción
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      {/* Add group button */}
+      {depth === 0 && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onUpdate([...groups, { ...EMPTY_CUSTOMIZATION_GROUP, options: [] }])}
+          className="border-2 border-primary/20 text-primary hover:bg-primary/5 font-bold rounded-xl active:scale-95 transition-all px-4"
+        >
+          <Plus size={14} className="mr-2" strokeWidth={3} /> Agregar grupo
+        </Button>
+      )}
+    </div>
+  )
+}
+
 function ItemForm({
   data, onChange, onSave, onCancel, loading, mode, tenantSlug, allItems = [],
 }: {
@@ -2253,6 +2521,20 @@ function ItemForm({
                 />
               </div>
               <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">Si no tiene precio corporativo, no aparece en el menú Business</p>
+            </div>
+            <div>
+              <label className={labelCls}>Precio Mitad y mitad (Opcional)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">$</span>
+                <input
+                  className={cn(inputCls, "pl-8 tabular-nums font-bold text-rose-600")}
+                  placeholder="Sin mitad y mitad"
+                  type="number"
+                  value={data.halfPrice}
+                  onChange={e => onChange({ ...data, halfPrice: e.target.value })}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">Precio de cada mitad. Si se carga, este sabor aparece como opción para mitad y mitad.</p>
             </div>
           </div>
 
@@ -2384,361 +2666,18 @@ function ItemForm({
               </p>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onChange({
-              ...data,
-              customizationGroups: [...data.customizationGroups, { ...EMPTY_CUSTOMIZATION_GROUP, options: [] }],
-            })}
-            className="border-2 border-primary/20 text-primary hover:bg-primary/5 font-bold rounded-xl active:scale-95 transition-all px-4"
-          >
-            <Plus size={14} className="mr-2" strokeWidth={3} /> Agregar grupo
-          </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          {data.customizationGroups.map((group, gi) => (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              key={gi}
-              className="p-6 bg-muted/20 rounded-3xl border border-border/60 relative group/card"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  const updated = data.customizationGroups.filter((_, i) => i !== gi)
-                  onChange({ ...data, customizationGroups: updated })
-                }}
-                className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-border text-muted-foreground hover:text-white hover:bg-destructive hover:border-destructive shadow-sm opacity-0 group-hover/card:opacity-100 transition-all flex items-center justify-center"
-              >
-                <X size={14} strokeWidth={3} />
-              </button>
-
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="flex-1">
-                  <label className={labelCls}>Nombre del grupo</label>
-                  <input
-                    className={cn(inputCls, "bg-white h-11 border-border/100 shadow-sm")}
-                    placeholder="Ej: ¿Qué guarnición prefieres?"
-                    value={group.name}
-                    onChange={e => {
-                      const updated = [...data.customizationGroups]
-                      updated[gi] = { ...updated[gi], name: e.target.value }
-                      onChange({ ...data, customizationGroups: updated })
-                    }}
-                  />
-                </div>
-                <div className="w-full sm:w-40">
-                  <label className={labelCls}>Tipo</label>
-                  <select
-                    className={cn(inputCls, "bg-white h-11 border-border/100 shadow-sm appearance-none cursor-pointer")}
-                    value={group.type}
-                    onChange={e => {
-                      const updated = [...data.customizationGroups]
-                      updated[gi] = { ...updated[gi], type: e.target.value as 'single' | 'multiple' }
-                      onChange({ ...data, customizationGroups: updated })
-                    }}>
-                    <option value="single">Selección única</option>
-                    <option value="multiple">Selección libre</option>
-                  </select>
-                </div>
-                <div className="w-full sm:w-32">
-                  <label className={labelCls}>Req.</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updated = [...data.customizationGroups]
-                      updated[gi] = { ...updated[gi], required: !updated[gi].required }
-                      onChange({ ...data, customizationGroups: updated })
-                    }}
-                    className={cn(
-                      "w-full h-11 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all",
-                      group.required
-                        ? "bg-primary/5 border-primary/40 text-primary"
-                        : "bg-muted text-muted-foreground border-transparent"
-                    )}
-                  >
-                    {group.required ? 'Obligatorio' : 'Opcional'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Options */}
-              <div className="space-y-3 pl-2 border-l-2 border-border/60 ml-1">
-                <div className="flex items-center gap-4 mb-2">
-                  <span className={labelCls}>Opciones y precios adicionales</span>
-                </div>
-                {group.options.map((opt, oi) => {
-                  const hasSubGroups = (opt.subGroups ?? []).length > 0
-                  return (
-                    <div key={oi} className="group/opt space-y-2">
-                      {/* Option row */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 relative">
-                          <input
-                            className={cn(inputCls, "bg-white border-border/80 h-10")}
-                            placeholder="Ej: Papas fritas"
-                            value={opt.name}
-                            onChange={e => {
-                              const updated = [...data.customizationGroups]
-                              updated[gi].options[oi] = { ...opt, name: e.target.value }
-                              onChange({ ...data, customizationGroups: updated })
-                            }}
-                          />
-                        </div>
-                        <div className="w-28 relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
-                          <input
-                            className={cn(inputCls, "bg-white border-border/80 h-10 pl-7 tabular-nums")}
-                            placeholder="Precio"
-                            type="number"
-                            min="0"
-                            value={opt.extraPrice}
-                            onChange={e => {
-                              const updated = [...data.customizationGroups]
-                              updated[gi].options[oi] = { ...opt, extraPrice: e.target.value }
-                              onChange({ ...data, customizationGroups: updated })
-                            }}
-                          />
-                        </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          ref={el => { optFileRefs.current[`item-${gi}-${oi}`] = el }}
-                          onChange={e => handleOptionImageUpload(e, gi, oi)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => optFileRefs.current[`item-${gi}-${oi}`]?.click()}
-                          disabled={uploadingOptKey === `item-${gi}-${oi}`}
-                          className="h-10 w-10 rounded-xl border-2 border-dashed border-border/60 flex items-center justify-center flex-shrink-0 hover:border-primary/40 transition-all overflow-hidden"
-                        >
-                          {uploadingOptKey === `item-${gi}-${oi}` ? (
-                            <span className="text-[9px] font-bold text-muted-foreground">...</span>
-                          ) : opt.imageUrl ? (
-                            <img src={opt.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" />
-                          ) : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                          )}
-                        </button>
-
-                        {/* Toggle sub-grupo */}
-                        <button
-                          type="button"
-                          title={hasSubGroups ? 'Sub-opciones configuradas' : 'Agregar sub-opciones'}
-                          className={cn(
-                            'h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 border-2 transition-all',
-                            hasSubGroups
-                              ? 'bg-primary/10 border-primary/30 text-primary'
-                              : 'bg-transparent border-dashed border-border/60 text-muted-foreground hover:border-primary/30 hover:text-primary'
-                          )}
-                          onClick={() => {
-                            const updated = [...data.customizationGroups]
-                            const currentSubGroups = updated[gi].options[oi].subGroups ?? []
-                            updated[gi].options[oi] = {
-                              ...updated[gi].options[oi],
-                              subGroups: [...currentSubGroups, { name: '', type: 'single', required: false, options: [] }],
-                            }
-                            onChange({ ...data, customizationGroups: updated })
-                          }}
-                        >
-                          <Layers size={14} />
-                        </button>
-
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0 opacity-40 group-hover/opt:opacity-100 transition-opacity"
-                          onClick={() => {
-                            const updated = [...data.customizationGroups]
-                            updated[gi].options = updated[gi].options.filter((_, i) => i !== oi)
-                            onChange({ ...data, customizationGroups: updated })
-                          }}
-                        >
-                          <X size={12} strokeWidth={4} />
-                        </Button>
-                      </div>
-
-                      {/* Sub-groups editor — aparece si la opción tiene sub-grupos configurados */}
-                      {hasSubGroups && (
-                        <div className="ml-8 pl-4 border-l-2 space-y-3" style={{ borderColor: 'hsl(var(--primary) / 0.2)' }}>
-                          {(opt.subGroups ?? []).map((sg, sgi) => (
-                            <div key={sgi} className="bg-white rounded-2xl p-4 border border-primary/15 relative group/sg">
-
-                              {/* Eliminar sub-grupo */}
-                              <button
-                                type="button"
-                                className="absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-white border border-border text-muted-foreground hover:text-destructive hover:border-destructive shadow-sm opacity-0 group-hover/sg:opacity-100 transition-all flex items-center justify-center z-10"
-                                onClick={() => {
-                                  const updated = [...data.customizationGroups]
-                                  const newSubGroups = (updated[gi].options[oi].subGroups ?? []).filter((_, i) => i !== sgi)
-                                  updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSubGroups }
-                                  onChange({ ...data, customizationGroups: updated })
-                                }}
-                              >
-                                <X size={11} strokeWidth={3} />
-                              </button>
-
-                              {/* Cabecera del sub-grupo */}
-                              <div className="flex flex-wrap gap-3 mb-4">
-                                <div className="flex-1 min-w-[160px]">
-                                  <label className={labelCls}>Nombre del sub-grupo</label>
-                                  <input
-                                    className={cn(inputCls, 'bg-muted/30 h-9 text-sm')}
-                                    placeholder="Ej: Tipo de café"
-                                    value={sg.name}
-                                    onChange={e => {
-                                      const updated = [...data.customizationGroups]
-                                      const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
-                                      newSgs[sgi] = { ...newSgs[sgi], name: e.target.value }
-                                      updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
-                                      onChange({ ...data, customizationGroups: updated })
-                                    }}
-                                  />
-                                </div>
-                                <div className="w-32">
-                                  <label className={labelCls}>Tipo</label>
-                                  <select
-                                    className={cn(inputCls, 'bg-muted/30 h-9 text-sm appearance-none cursor-pointer')}
-                                    value={sg.type}
-                                    onChange={e => {
-                                      const updated = [...data.customizationGroups]
-                                      const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
-                                      newSgs[sgi] = { ...newSgs[sgi], type: e.target.value as 'single' | 'multiple' }
-                                      updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
-                                      onChange({ ...data, customizationGroups: updated })
-                                    }}
-                                  >
-                                    <option value="single">Selección única</option>
-                                    <option value="multiple">Selección libre</option>
-                                  </select>
-                                </div>
-                                <div className="w-28">
-                                  <label className={labelCls}>Req.</label>
-                                  <button
-                                    type="button"
-                                    className={cn(
-                                      'w-full h-9 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all',
-                                      sg.required
-                                        ? 'bg-primary/5 border-primary/40 text-primary'
-                                        : 'bg-muted text-muted-foreground border-transparent'
-                                    )}
-                                    onClick={() => {
-                                      const updated = [...data.customizationGroups]
-                                      const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
-                                      newSgs[sgi] = { ...newSgs[sgi], required: !newSgs[sgi].required }
-                                      updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
-                                      onChange({ ...data, customizationGroups: updated })
-                                    }}
-                                  >
-                                    {sg.required ? 'Obligatorio' : 'Opcional'}
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Opciones del sub-grupo */}
-                              <div className="space-y-2 pl-2 border-l-2 border-border/40">
-                                {sg.options.map((sopt, soI) => (
-                                  <div key={soI} className="flex items-center gap-2 group/sopt">
-                                    <div className="flex-1">
-                                      <input
-                                        className={cn(inputCls, 'bg-white border-border/80 h-9 text-xs')}
-                                        placeholder="Ej: Espresso"
-                                        value={sopt.name}
-                                        onChange={e => {
-                                          const updated = [...data.customizationGroups]
-                                          const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
-                                          const newOpts = [...newSgs[sgi].options]
-                                          newOpts[soI] = { ...newOpts[soI], name: e.target.value }
-                                          newSgs[sgi] = { ...newSgs[sgi], options: newOpts }
-                                          updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
-                                          onChange({ ...data, customizationGroups: updated })
-                                        }}
-                                      />
-                                    </div>
-                                    <div className="w-24 relative">
-                                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] font-bold">$</span>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        className={cn(inputCls, 'bg-white border-border/80 h-9 pl-6 text-xs tabular-nums')}
-                                        placeholder="0"
-                                        value={sopt.extraPrice}
-                                        onChange={e => {
-                                          const updated = [...data.customizationGroups]
-                                          const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
-                                          const newOpts = [...newSgs[sgi].options]
-                                          newOpts[soI] = { ...newOpts[soI], extraPrice: e.target.value }
-                                          newSgs[sgi] = { ...newSgs[sgi], options: newOpts }
-                                          updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
-                                          onChange({ ...data, customizationGroups: updated })
-                                        }}
-                                      />
-                                    </div>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0 opacity-40 group-hover/sopt:opacity-100 transition-opacity"
-                                      onClick={() => {
-                                        const updated = [...data.customizationGroups]
-                                        const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
-                                        newSgs[sgi] = { ...newSgs[sgi], options: newSgs[sgi].options.filter((_, i) => i !== soI) }
-                                        updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
-                                        onChange({ ...data, customizationGroups: updated })
-                                      }}
-                                    >
-                                      <X size={11} strokeWidth={4} />
-                                    </Button>
-                                  </div>
-                                ))}
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-primary hover:bg-primary/5 text-[10px] font-black uppercase tracking-widest mt-1 px-3 h-8 rounded-lg"
-                                  onClick={() => {
-                                    const updated = [...data.customizationGroups]
-                                    const newSgs = [...(updated[gi].options[oi].subGroups ?? [])]
-                                    newSgs[sgi] = {
-                                      ...newSgs[sgi],
-                                      options: [...newSgs[sgi].options, { name: '', extraPrice: '0', imageUrl: '', subGroups: [] }],
-                                    }
-                                    updated[gi].options[oi] = { ...updated[gi].options[oi], subGroups: newSgs }
-                                    onChange({ ...data, customizationGroups: updated })
-                                  }}
-                                >
-                                  <Plus size={10} className="mr-1" strokeWidth={4} /> Agregar opción
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const updated = [...data.customizationGroups]
-                    updated[gi].options.push({ name: '', extraPrice: '0', imageUrl: '', subGroups: [] })
-                    onChange({ ...data, customizationGroups: updated })
-                  }}
-                  className="text-primary hover:bg-primary/5 text-[10px] font-black uppercase tracking-widest mt-2 px-4 h-9 rounded-lg"
-                >
-                  <Plus size={12} className="mr-1.5" strokeWidth={4} /> Agregar opción
-                </Button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        <RecursiveGroupEditor
+          groups={data.customizationGroups}
+          onUpdate={next => onChange({ ...data, customizationGroups: next })}
+          labelCls={labelCls}
+          inputCls={inputCls}
+          context="item"
+          optFileRefs={optFileRefs}
+          uploadingOptKey={uploadingOptKey}
+          onImageUpload={(e, path) => handleOptionImageUpload(e, path[0], path[1])}
+        />
       </div>
 
       {/* ── Variants ── */}
@@ -2879,6 +2818,31 @@ function ItemForm({
                     updated[vi] = { ...updated[vi], nameTranslations: e.target.value }
                     onChange({ ...data, variants: updated })
                   }}
+                />
+              </div>
+
+              {/* Variant-specific customization groups */}
+              <div className="mt-4 pt-4 border-t border-border/40">
+                <div className="flex items-center gap-2 mb-3">
+                  <Settings2 size={13} className="text-muted-foreground/60" />
+                  <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60">
+                    Personalizaciones específicas de esta variante
+                  </span>
+                </div>
+                <RecursiveGroupEditor
+                  groups={variant.customizationGroups ?? []}
+                  onUpdate={next => {
+                    const updated = [...data.variants]
+                    updated[vi] = { ...updated[vi], customizationGroups: next }
+                    onChange({ ...data, variants: updated })
+                  }}
+                  depth={1}
+                  labelCls={labelCls}
+                  inputCls={inputCls}
+                  context={`variant-${vi}`}
+                  optFileRefs={optFileRefs}
+                  uploadingOptKey={uploadingOptKey}
+                  onImageUpload={(e, path) => handleOptionImageUpload(e, path[0], path[1])}
                 />
               </div>
             </div>
