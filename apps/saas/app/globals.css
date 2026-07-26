@@ -595,10 +595,56 @@ html.lenis body {
   }
 }
 
-/* ── Sonner toast width ─────────────────────────────────────────────── */
-[data-sonner-toast] {
-  width: 100% !important;
-  max-width: 460px !important;
+/* ── Sonner toast width + shine border ──────────────────────────────── */
+@property --shine-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes shine-border-rotate {
+  from { --shine-angle: 0deg; }
+  to   { --shine-angle: 360deg; }
+}
+
+.toast-shine [data-sonner-toast] {
+  position: relative;
+  overflow: hidden;
+  padding: 16px 20px;
+  font-size: 14px;
+}
+
+.toast-shine [data-sonner-toast]::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--border-radius, 12px) + 2px);
+  padding: 2px;
+  background: conic-gradient(
+    from var(--shine-angle, 0deg),
+    transparent 50%,
+    #A07CFE 60%,
+    #FE8FB5 70%,
+    #FFBE7B 80%,
+    transparent 90%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: shine-border-rotate 3s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.toast-shine [data-sonner-toast]:hover::after {
+  opacity: 1;
 }
 
 /* ── Highlight.js Dark Mode ─────────────────────────────────────────── */
