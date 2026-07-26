@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 import type { ICoOccurrencePair } from '@/models/MenuInsights'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
-import CustomizationModal from '@/components/menu/CustomizationModal'
+import CustomizationSheet from '@/components/menu/CustomizationSheet'
 import UpsellSheet from '@/components/menu/UpsellSheet'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import { resolveSlotCustomizationMode, type SlotCustomizationMode } from '@/lib/promotion-helpers'
@@ -1565,7 +1565,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
       {/* ── Customization Modal ── */}
       {customizingItem && (
-        <CustomizationModal
+        <CustomizationSheet
           item={{ ...customizingItem, price: getItemPrice(customizingItem), variants: customizingItem.variants ?? [] }}
           onConfirm={handleConfirmCustomization}
           onClose={() => {
