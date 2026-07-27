@@ -20,8 +20,8 @@ const customizationGroupSchema: z.ZodType<any> = z.object({
 const selectedVariantSchema = z.object({
   name: z.string().min(1).max(100),
   price: z.number().min(0),
-  takeawayPrice: z.number().min(0).optional(),
-  businessPrice: z.number().min(0).optional(),
+  takeawayPrice: z.number().min(0).nullish(),
+  businessPrice: z.number().min(0).nullish(),
 })
 
 const rewardItemSchema = z.object({
