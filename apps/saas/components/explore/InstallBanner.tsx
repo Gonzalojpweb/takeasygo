@@ -42,13 +42,13 @@ export default function InstallBanner() {
   return (
     <div className="relative mx-4 mt-3 mb-1 rounded-2xl overflow-hidden animate-fade-in-up"
       style={{
-        background: 'linear-gradient(135deg, var(--tgo-state-interactive-soft) 0%, var(--tgo-state-success-soft) 100%)',
+        background: 'linear-gradient(135deg, var(--tgo-state-action-soft) 0%, var(--tgo-state-success-soft) 100%)',
         border: '1px solid var(--tgo-border)',
       }}
     >
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--tgo-state-interactive-soft)' }}>
-          <Download size={16} style={{ color: 'var(--tgo-state-interactive)' }} />
+        <div className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--tgo-state-action-soft)' }}>
+          <Download size={16} style={{ color: 'var(--tgo-state-action)' }} />
         </div>
         <div className="flex-1 min-w-0">
           <AnimatedShinyText className="text-xs font-black inline-block uppercase tracking-tight" style={{ color: 'var(--tgo-text-primary)' }}>
@@ -63,7 +63,7 @@ export default function InstallBanner() {
           aria-label="Instalar TGO"
           className="shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95"
           style={{
-            background: 'linear-gradient(135deg, var(--tgo-state-interactive), var(--tgo-state-interactive-muted))',
+            background: 'var(--tgo-state-action)',
             color: 'white',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           }}

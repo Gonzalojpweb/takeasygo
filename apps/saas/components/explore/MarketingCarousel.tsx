@@ -54,9 +54,9 @@ export default function MarketingCarousel({ campaigns }: { campaigns: Campaign[]
               ) : (
                 <div
                   className="w-full h-full flex items-center justify-center"
-                  style={{ backgroundColor: 'var(--tgo-state-interactive-soft)' }}
+                  style={{ backgroundColor: 'var(--tgo-surface-2)' }}
                 >
-                  <Gift size={32} style={{ color: 'var(--tgo-state-interactive)', opacity: 0.2 }} />
+                  <Gift size={32} style={{ color: 'var(--tgo-text-muted)', opacity: 0.2 }} />
                 </div>
               )}
               <div
@@ -67,7 +67,7 @@ export default function MarketingCarousel({ campaigns }: { campaigns: Campaign[]
                   boxShadow: 'var(--tgo-elevation-overlay)',
                 }}
               >
-                <Sparkles size={10} style={{ color: 'var(--tgo-state-interactive)' }} />
+                <Sparkles size={10} style={{ color: 'var(--tgo-state-discovery)' }} />
                 <span
                   style={{
                     fontSize: 9,
@@ -111,7 +111,7 @@ export default function MarketingCarousel({ campaigns }: { campaigns: Campaign[]
                   </span>
                   <span
                     className="text-xl font-black leading-none"
-                    style={{ color: 'var(--tgo-state-interactive)' }}
+                    style={{ color: 'var(--tgo-text-link)' }}
                   >
                     -{camp.discountPercentage}%
                   </span>
@@ -120,7 +120,7 @@ export default function MarketingCarousel({ campaigns }: { campaigns: Campaign[]
                   className="w-9 h-9 flex items-center justify-center text-white"
                   style={{
                     borderRadius: 'var(--tgo-radius-md)',
-                    backgroundColor: 'var(--tgo-state-interactive)',
+                    backgroundColor: 'var(--tgo-surface-1)',
                     boxShadow: 'var(--tgo-elevation-overlay)',
                   }}
                 >

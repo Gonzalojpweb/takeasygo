@@ -25,7 +25,7 @@ const ExploreMap = dynamic(() => import('./ExploreMap'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
-      <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--tgo-state-interactive)', borderTopColor: 'transparent' }} />
+      <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--tgo-text-muted)', borderTopColor: 'transparent' }} />
     </div>
   ),
 })
@@ -340,7 +340,7 @@ function ExploreClientInner() {
           <div
             className="flex items-center justify-center gap-2 py-1.5"
             style={{
-              backgroundColor: 'var(--tgo-state-interactive-soft)',
+              backgroundColor: 'var(--tgo-state-proximity-soft)',
               borderBottom: '1px solid var(--tgo-border)',
             }}
           >
@@ -350,12 +350,12 @@ function ExploreClientInner() {
                 width: 8,
                 height: 8,
                 borderRadius: 'var(--tgo-radius-pill)',
-                backgroundColor: 'var(--tgo-state-interactive)',
+                backgroundColor: 'var(--tgo-state-proximity)',
               }}
             />
             <span
               style={{
-                color: 'var(--tgo-state-interactive)',
+                color: 'var(--tgo-state-proximity)',
                 fontSize: 10,
                 fontWeight: 700,
                 textTransform: 'uppercase',
@@ -492,7 +492,7 @@ function ExploreClientInner() {
                             height: 24,
                             borderRadius: 'var(--tgo-radius-pill)',
                             border: '2px solid var(--tgo-border)',
-                            borderTopColor: 'var(--tgo-state-interactive)',
+                            borderTopColor: 'var(--tgo-text-muted)',
                           }}
                         />
                       </div>
@@ -534,7 +534,7 @@ function ExploreClientInner() {
                         onClick={() => { haptic.selection(); setShowLeadModal(true) }}
                         className="mt-3"
                         style={{
-                          color: 'var(--tgo-state-interactive)',
+                          color: 'var(--tgo-text-link)',
                           fontSize: 'var(--tgo-type-caption)',
                           fontWeight: 700,
                           textTransform: 'uppercase',
@@ -582,7 +582,7 @@ function ExploreClientInner() {
                       height: 32,
                       borderRadius: 'var(--tgo-radius-pill)',
                       border: '2px solid var(--tgo-border)',
-                      borderTopColor: 'var(--tgo-state-interactive)',
+                      borderTopColor: 'var(--tgo-text-muted)',
                     }}
                   />
                   <p

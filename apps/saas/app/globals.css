@@ -292,7 +292,14 @@ html.lenis body {
 /* ── TGO Spatial UI Design Tokens ─────────────────────────────────────── */
 /* TOF-DES-001 — Foundation del Design System */
 /* Namespace: --tgo-* | Selector: [data-design="spatial"] */
-/* NO modificar. NO extender sin revisión del equipo. */
+/*
+ * GOBERNANZA DE COLOR — NO NEGOCIABLE
+ * Todo color usado en cualquier componente, card, badge, ícono o estado
+ * debe mapear a un token de esta hoja. Ningún componente puede introducir
+ * un hex nuevo, un pastel nuevo, ni una variante de opacidad no documentada
+ * sin que primero se agregue acá y se apruebe explícitamente.
+ * "Se ve bien" no es criterio de aprobación de color — el token correcto sí lo es.
+ */
 
 [data-design="spatial"] {
   /* ── Brand Layer (Identidad) ─────────────────────────────────────── */
@@ -347,11 +354,16 @@ html.lenis body {
   --tgo-text-muted: #98A2B3;
   --tgo-text-inverse: #FFFFFF;
   --tgo-text-brand: #F74211;
+  --tgo-text-link: #4E5067;
 
   /* ── Functional Layer (Estados) ──────────────────────────────────── */
-  --tgo-state-interactive: #065D63;
-  --tgo-state-interactive-hover: #055257;
-  --tgo-state-interactive-soft: rgba(6, 93, 99, 0.08);
+  --tgo-state-action: #F74211;
+  --tgo-state-action-hover: #E03A0F;
+  --tgo-state-action-soft: rgba(247, 66, 17, 0.08);
+
+  --tgo-state-trust: #2D2A4B;
+  --tgo-state-trust-hover: #23203D;
+  --tgo-state-trust-soft: rgba(45, 42, 75, 0.08);
 
   --tgo-state-success: #12B76A;
   --tgo-state-success-soft: rgba(18, 183, 106, 0.08);
@@ -361,6 +373,9 @@ html.lenis body {
 
   --tgo-state-danger: #D92D20;
   --tgo-state-danger-soft: rgba(217, 45, 32, 0.08);
+
+  --tgo-state-error: #D92D20;
+  --tgo-state-error-soft: rgba(217, 45, 32, 0.08);
 
   --tgo-state-info: #3B82F6;
   --tgo-state-info-soft: rgba(59, 130, 246, 0.08);
@@ -383,7 +398,7 @@ html.lenis body {
   /* ── Border Layer ────────────────────────────────────────────────── */
   --tgo-border: #D8D4D5;
   --tgo-border-active: #D8D4D5;
-  --tgo-border-focus: #065D63;
+  --tgo-border-focus: #2D2A4B;
   --tgo-border-brand: #F74211;
 
   /* ── Radius Layer ────────────────────────────────────────────────── */

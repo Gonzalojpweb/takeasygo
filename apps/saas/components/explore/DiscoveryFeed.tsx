@@ -96,12 +96,12 @@ function QuickFiltersModule({
               fontSize: 'var(--tgo-type-body-sm)',
               fontWeight: isActive ? 600 : 400,
               backgroundColor: isActive
-                ? 'var(--tgo-state-interactive-soft)'
+                ? 'var(--tgo-state-trust-soft)'
                 : 'var(--tgo-surface-2)',
               color: isActive
-                ? 'var(--tgo-state-interactive)'
+                ? 'var(--tgo-state-trust)'
                 : 'var(--tgo-text-secondary)',
-              border: `1px solid ${isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-border)'}`,
+              border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
               transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
             }}
           >
@@ -375,7 +375,7 @@ export default function DiscoveryFeed({
             gap: 6,
             fontSize: '0.75rem',
             fontWeight: 600,
-            color: 'var(--tgo-state-interactive)',
+            color: 'var(--tgo-text-link)',
             background: 'none',
             border: 'none',
             cursor: 'pointer',
@@ -514,8 +514,9 @@ export default function DiscoveryFeed({
               style={{
                 padding: '10px 20px',
                 borderRadius: 'var(--tgo-radius-md)',
-                backgroundColor: 'var(--tgo-state-interactive)',
-                color: 'var(--tgo-text-inverse)',
+                border: '1.5px solid var(--tgo-state-trust)',
+                backgroundColor: 'transparent',
+                color: 'var(--tgo-state-trust)',
                 fontSize: 'var(--tgo-type-caption)',
                 fontWeight: 700,
                 textTransform: 'uppercase',

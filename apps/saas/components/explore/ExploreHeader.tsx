@@ -163,10 +163,10 @@ export default function ExploreHeader({
               padding: '6px 12px',
               borderRadius: 'var(--tgo-radius-md)',
               backgroundColor: showFilters || activeFilters > 0
-                ? 'var(--tgo-state-interactive-soft)'
+                ? 'var(--tgo-state-trust-soft)'
                 : 'var(--tgo-surface-2)',
               color: showFilters || activeFilters > 0
-                ? 'var(--tgo-state-interactive)'
+                ? 'var(--tgo-state-trust)'
                 : 'var(--tgo-text-muted)',
               fontSize: 'var(--tgo-type-caption)',
               fontWeight: 600,
@@ -182,7 +182,7 @@ export default function ExploreHeader({
                   width: 16,
                   height: 16,
                   borderRadius: 'var(--tgo-radius-pill)',
-                  backgroundColor: 'var(--tgo-state-interactive)',
+                  backgroundColor: 'var(--tgo-state-trust)',
                   color: 'var(--tgo-text-inverse)',
                   fontSize: 9,
                   fontWeight: 700,
@@ -226,7 +226,7 @@ export default function ExploreHeader({
             <div className="flex items-center gap-2 mb-3">
               <MapPin
                 size={14}
-                style={{ color: 'var(--tgo-state-interactive)' }}
+                style={{ color: 'var(--tgo-state-trust)' }}
               />
               <span
                 style={{
@@ -251,7 +251,7 @@ export default function ExploreHeader({
                       fontWeight: 700,
                       backgroundColor:
                         radius === r.value
-                          ? 'var(--tgo-state-interactive)'
+                          ? 'var(--tgo-state-trust)'
                           : 'var(--tgo-surface-2)',
                       color:
                         radius === r.value

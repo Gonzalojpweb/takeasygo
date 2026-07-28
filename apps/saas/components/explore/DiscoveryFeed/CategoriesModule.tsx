@@ -14,7 +14,7 @@ const CATEGORY_CONFIG: Record<
   Thai: { icon: '🍜', color: '#F74211', bg: 'rgba(247, 66, 17, 0.08)' },
   Mexicana: { icon: '🌮', color: '#E03A0E', bg: 'rgba(224, 58, 14, 0.08)' },
   Italiana: { icon: '🍝', color: '#D94A3D', bg: 'rgba(217, 74, 61, 0.08)' },
-  Café: { icon: '☕', color: '#065D63', bg: 'rgba(6, 93, 99, 0.08)' },
+  Café: { icon: '☕', color: 'var(--tgo-state-trust)', bg: 'var(--tgo-state-trust-soft)' },
   Parrilla: { icon: '🥩', color: '#C2410C', bg: 'rgba(194, 65, 12, 0.08)' },
   Japonesa: { icon: '🍱', color: '#DC2626', bg: 'rgba(220, 38, 38, 0.08)' },
   China: { icon: '🥡', color: '#B91C1C', bg: 'rgba(185, 28, 28, 0.08)' },
@@ -34,7 +34,7 @@ const CATEGORY_CONFIG: Record<
   Rostisería: { icon: '🍗', color: '#EA580C', bg: 'rgba(234, 88, 12, 0.08)' },
   Pastelería: { icon: '🥐', color: '#DB2777', bg: 'rgba(219, 39, 119, 0.08)' },
   Saludable: { icon: '🥗', color: '#12B76A', bg: 'rgba(18, 183, 106, 0.08)' },
-  Cafetería: { icon: '☕', color: '#065D63', bg: 'rgba(6, 93, 99, 0.08)' },
+  Cafetería: { icon: '☕', color: 'var(--tgo-state-trust)', bg: 'var(--tgo-state-trust-soft)' },
   Helados: { icon: '🍦', color: '#E11D48', bg: 'rgba(225, 29, 72, 0.08)' },
   'Comida Casera': { icon: '🍲', color: '#92400E', bg: 'rgba(146, 64, 14, 0.08)' },
 }
@@ -102,7 +102,7 @@ export function CategoriesModule({
             background: 'transparent',
             fontSize: '0.8125rem',
             fontWeight: 600,
-            color: 'var(--tgo-state-interactive)',
+            color: 'var(--tgo-text-link)',
             cursor: 'pointer',
             width: 'calc(100% - 40px)',
           }}

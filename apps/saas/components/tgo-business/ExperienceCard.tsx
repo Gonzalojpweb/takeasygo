@@ -61,8 +61,8 @@ const BADGE_CONFIG: Record<
   },
   qr: {
     label: 'QR',
-    color: 'var(--tgo-state-interactive)',
-    bg: 'var(--tgo-state-interactive-soft)',
+    color: 'var(--tgo-state-discovery)',
+    bg: 'var(--tgo-state-discovery-soft)',
   },
   event: {
     label: 'Evento',
@@ -76,8 +76,8 @@ const BADGE_CONFIG: Record<
   },
   'bank-benefit': {
     label: 'Beneficio',
-    color: 'var(--tgo-state-interactive)',
-    bg: 'var(--tgo-state-interactive-soft)',
+    color: 'var(--tgo-state-discovery)',
+    bg: 'var(--tgo-state-discovery-soft)',
   },
 }
 
@@ -126,8 +126,7 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
           <div
             className="absolute inset-0 flex items-center justify-center"
             style={{
-              background:
-                'linear-gradient(135deg, #F74211 0%, #FAB300 50%, #12B76A 100%)',
+              background: 'var(--tgo-surface-2)',
             }}
           >
             <span style={{ fontSize: 48, opacity: 0.3 }}>

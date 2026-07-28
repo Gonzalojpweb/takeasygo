@@ -144,7 +144,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
         className="flex flex-col h-full items-center justify-center"
         style={{ backgroundColor: 'var(--tgo-surface-0)' }}
       >
-        <Loader2 size={32} style={{ color: 'var(--tgo-state-interactive)' }} className="animate-spin" />
+        <Loader2 size={32} style={{ color: 'var(--tgo-text-muted)' }} className="animate-spin" />
       </div>
     )
   }
@@ -275,7 +275,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold transition-all"
                       style={{
                         borderRadius: 'var(--tgo-radius-md)',
-                        backgroundColor: isActive ? (clubData.branding?.primaryColor || 'var(--tgo-state-interactive)') : 'transparent',
+                        backgroundColor: isActive ? (clubData.branding?.primaryColor || 'var(--tgo-brand-primary)') : 'transparent',
                         color: isActive ? 'white' : 'var(--tgo-text-muted)',
                       }}
                     >
@@ -320,7 +320,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
                   className="w-full py-3 text-white font-bold text-sm transition-all disabled:opacity-50"
                   style={{
                     borderRadius: 'var(--tgo-radius-md)',
-                    backgroundColor: 'var(--tgo-state-interactive)',
+                    backgroundColor: 'var(--tgo-state-action)',
                   }}
                 >
                   {joining ? 'Uniéndote...' : 'Unirse al Club'}
@@ -392,7 +392,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-4" style={cardStyle}>
                   <div className="flex items-center gap-2 mb-2">
-                    <ShoppingBag size={18} style={{ color: 'var(--tgo-state-interactive)' }} />
+                    <ShoppingBag size={18} style={{ color: 'var(--tgo-state-reward)' }} />
                     <p
                       className="uppercase tracking-wider"
                       style={{ fontSize: 10, color: 'var(--tgo-text-muted)' }}
@@ -498,7 +498,7 @@ export default function ClubProfilePage({ params }: { params: Promise<{ tenantSl
         className="flex flex-col h-full items-center justify-center"
         style={{ backgroundColor: 'var(--tgo-surface-0)' }}
       >
-        <Loader2 size={32} style={{ color: 'var(--tgo-state-interactive)' }} className="animate-spin" />
+        <Loader2 size={32} style={{ color: 'var(--tgo-text-muted)' }} className="animate-spin" />
       </div>
     }>
       <ClubContent tenantSlug={tenantSlug} />

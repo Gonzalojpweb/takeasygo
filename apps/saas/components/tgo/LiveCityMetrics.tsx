@@ -72,7 +72,7 @@ export default function LiveCityMetrics({
           >
             <Icon
               size={14}
-              style={{ color: 'var(--tgo-state-interactive)' }}
+              style={{ color: 'var(--tgo-text-muted)' }}
             />
             <div>
               <AnimatedNumber

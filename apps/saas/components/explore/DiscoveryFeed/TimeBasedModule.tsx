@@ -36,7 +36,7 @@ export function TimeBasedModule({ restaurants, onNavigate }: Props) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-3" style={{ paddingInline: 'var(--tgo-page-padding)' }}>
-        <Icon size={14} style={{ color: 'var(--tgo-state-interactive)' }} />
+        <Icon size={14} style={{ color: 'var(--tgo-text-muted)' }} />
         <span
           style={{
             color: 'var(--tgo-text-secondary)',

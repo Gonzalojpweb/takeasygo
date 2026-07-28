@@ -57,7 +57,7 @@ function MiniMap({ lat, lng }: { lat: number; lng: number }) {
         zoomControl: false, attributionControl: false, dragging: false,
         scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false,
       }).setView([lat, lng], 16)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map)
       const icon = L.divIcon({
         className: '',
         html: '<div style="width:16px;height:16px;border-radius:50%;background:#12B76A;border:3px solid #fff;box-shadow:0 0 0 3px rgba(18,183,106,0.4),0 0 16px rgba(18,183,106,0.3)"></div>',
@@ -202,7 +202,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
           <div style={{ padding: 'var(--tgo-space-5)', borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)', textAlign: 'center' }}>
             <p style={{ color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 600 }}>{microcopy.restaurant.isOwner}</p>
             <p style={{ color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-caption)', lineHeight: 1.5, marginTop: 4 }}>{microcopy.restaurant.ownerPitch}</p>
-            <Link href="/#pricing" className="inline-flex items-center gap-1.5 mt-3" style={{ padding: '8px 20px', borderRadius: 'var(--tgo-radius-md)', backgroundColor: 'var(--tgo-state-interactive)', color: 'var(--tgo-text-inverse)', fontSize: 'var(--tgo-type-caption)', fontWeight: 700 }}>
+            <Link href="/#pricing" className="inline-flex items-center gap-1.5 mt-3" style={{ padding: '8px 20px', borderRadius: 'var(--tgo-radius-md)', border: '1.5px solid var(--tgo-state-trust)', color: 'var(--tgo-state-trust)', backgroundColor: 'transparent', fontSize: 'var(--tgo-type-caption)', fontWeight: 700 }}>
               {microcopy.restaurant.ownerCta}
             </Link>
           </div>
@@ -212,7 +212,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
       {/* Fixed CTA */}
       <div className="fixed bottom-0 left-0 right-0" style={{ padding: '0 var(--tgo-page-padding) var(--tgo-space-6)', paddingTop: 16, zIndex: 'var(--tgo-z-nav)', background: 'linear-gradient(to top, var(--tgo-surface-0) 60%, transparent)' }}>
         {isNetwork ? (
-          <Link href={`/${r.tenantSlug}/menu/${r.id}/takeaway?source=tgo-explore`} onClick={() => { haptic.impact('medium'); trackEvent({ eventType: 'click_menu', restaurantId: r.id, tenantSlug: r.tenantSlug }) }} className="flex items-center justify-center gap-2.5 w-full active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-state-interactive)', color: 'var(--tgo-text-inverse)', fontSize: 'var(--tgo-type-body)', fontWeight: 700, boxShadow: 'var(--tgo-elevation-floating)', transition: 'transform var(--tgo-duration-fast) var(--tgo-ease-standard)' }}>
+          <Link href={`/${r.tenantSlug}/menu/${r.id}/takeaway?source=tgo-explore`} onClick={() => { haptic.impact('medium'); trackEvent({ eventType: 'click_menu', restaurantId: r.id, tenantSlug: r.tenantSlug }) }} className="flex items-center justify-center gap-2.5 w-full active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-state-action)', color: 'var(--tgo-text-inverse)', fontSize: 'var(--tgo-type-body)', fontWeight: 700, boxShadow: 'var(--tgo-elevation-floating)', transition: 'transform var(--tgo-duration-fast) var(--tgo-ease-standard)' }}>
             <ShoppingBag size={18} />
             {microcopy.restaurant.viewMenuAndOrder}
           </Link>

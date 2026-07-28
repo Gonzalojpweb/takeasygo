@@ -43,7 +43,7 @@ const statusConfig: Record<OrderStatus, { label: string; icon: any; color: strin
   awaiting_payment: { label: 'Esperando pago', icon: Clock, color: 'var(--tgo-state-discovery)', bg: 'var(--tgo-state-discovery-soft)' },
   pending: { label: 'Pendiente', icon: Clock, color: 'var(--tgo-state-discovery)', bg: 'var(--tgo-state-discovery-soft)' },
   confirmed: { label: 'Confirmado', icon: CheckCircle, color: 'var(--tgo-state-info)', bg: 'var(--tgo-state-info-soft)' },
-  preparing: { label: 'Preparando', icon: Clock, color: 'var(--tgo-state-interactive)', bg: 'var(--tgo-state-interactive-soft)' },
+  preparing: { label: 'Preparando', icon: Clock, color: 'var(--tgo-state-activity)', bg: 'var(--tgo-state-activity-soft)' },
   ready: { label: 'Listo', icon: CheckCircle, color: 'var(--tgo-state-success)', bg: 'var(--tgo-state-success-soft)' },
   delivered: { label: 'Entregado', icon: CheckCircle, color: 'var(--tgo-state-success)', bg: 'var(--tgo-state-success-soft)' },
   cancelled: { label: 'Cancelado', icon: XCircle, color: 'var(--tgo-state-danger)', bg: 'var(--tgo-state-danger-soft)' },
@@ -95,7 +95,7 @@ export default function OrdersPage() {
         className="flex flex-col h-full items-center justify-center"
         style={{ backgroundColor: 'var(--tgo-surface-0)' }}
       >
-        <Loader2 size={32} style={{ color: 'var(--tgo-state-interactive)' }} className="animate-spin" />
+        <Loader2 size={32} style={{ color: 'var(--tgo-text-muted)' }} className="animate-spin" />
       </div>
     )
   }

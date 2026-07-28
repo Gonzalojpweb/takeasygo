@@ -90,7 +90,7 @@ export default function ProfileContent() {
         <div
           className="w-8 h-8 rounded-full border-2 animate-spin"
           style={{
-            borderColor: 'var(--tgo-state-interactive)',
+            borderColor: 'var(--tgo-text-muted)',
             borderTopColor: 'transparent',
           }}
         />
@@ -128,7 +128,7 @@ export default function ProfileContent() {
               left: '-10%',
               width: '40%',
               height: '40%',
-              background: 'var(--tgo-state-interactive)',
+              background: 'var(--tgo-brand-primary)',
               opacity: 0.06,
               filter: 'blur(120px)',
             }}
@@ -156,7 +156,7 @@ export default function ProfileContent() {
               }}
             >
               <BorderBeam size={80} duration={8} />
-              <User size={32} style={{ color: 'var(--tgo-state-interactive)' }} />
+              <User size={32} style={{ color: 'var(--tgo-state-trust)' }} />
             </div>
           </BlurFade>
 
@@ -235,7 +235,7 @@ export default function ProfileContent() {
                   placeholder={microcopy.onboarding.auth.emailInput}
                   value={emailInput}
                   onChange={e => setEmailInput(e.target.value)}
-                  className="w-full h-12 px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-[var(--tgo-state-interactive)]/30 transition-all"
+                  className="w-full h-12 px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-[var(--tgo-border-focus)]/30 transition-all"
                   style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-1)', color: 'var(--tgo-text-primary)' }}
                 />
                 {emailError && (
@@ -288,7 +288,7 @@ export default function ProfileContent() {
               className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold transition-all active:scale-[0.98]"
               style={{
                 ...cardStyle,
-                color: 'var(--tgo-state-interactive)',
+                  color: 'var(--tgo-text-muted)',
               }}
             >
               {microcopy.b2b.register}
@@ -316,7 +316,7 @@ export default function ProfileContent() {
               borderRadius: 'var(--tgo-radius-2xl)',
             }}
           >
-            <BorderBeam size={200} duration={12} colorFrom="var(--tgo-state-interactive)" colorTo="var(--tgo-state-interactive)" />
+            <BorderBeam size={200} duration={12} colorFrom="var(--tgo-brand-primary)" colorTo="var(--tgo-brand-primary)" />
 
             <div className="flex items-center gap-4 relative z-10">
               <div
@@ -393,7 +393,7 @@ export default function ProfileContent() {
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{
                   backgroundColor: 'var(--tgo-surface-1)',
-                  color: 'var(--tgo-state-interactive)',
+                color: 'var(--tgo-text-link)',
                 }}
               >
                 <ShoppingBag size={20} />

@@ -215,7 +215,7 @@ export default function SearchBar({
             aria-label="Ubicación"
             className="shrink-0"
             style={{
-              color: 'var(--tgo-state-interactive)',
+              color: 'var(--tgo-text-muted)',
             }}
           >
             <MapPin size={20} />
@@ -250,7 +250,7 @@ export default function SearchBar({
               width: 18,
               height: 18,
               border: '2px solid var(--tgo-border)',
-              borderTopColor: 'var(--tgo-state-interactive)',
+              borderTopColor: 'var(--tgo-text-muted)',
               borderRadius: '50%',
             }}
           />
@@ -385,7 +385,7 @@ export default function SearchBar({
                   border: '1px solid var(--tgo-border)',
                 }}
               >
-                <SearchIcon size={16} style={{ color: 'var(--tgo-state-interactive)' }} />
+                <SearchIcon size={16} style={{ color: 'var(--tgo-text-muted)' }} />
                 <span
                   className="truncate"
                   style={{ color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 500, maxWidth: 260 }}

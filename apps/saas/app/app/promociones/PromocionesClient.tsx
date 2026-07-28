@@ -54,7 +54,7 @@ export default function PromocionesClient() {
         className="flex flex-col h-full items-center justify-center"
         style={{ backgroundColor: 'var(--tgo-surface-0)' }}
       >
-        <Loader2 size={32} style={{ color: 'var(--tgo-state-interactive)' }} className="animate-spin" />
+        <Loader2 size={32} style={{ color: 'var(--tgo-text-muted)' }} className="animate-spin" />
       </div>
     )
   }

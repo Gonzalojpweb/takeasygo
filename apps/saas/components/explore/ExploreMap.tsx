@@ -229,9 +229,9 @@ function BottomSheet({ r, onClose, onNavigate }: {
                   onClick={onNavigate}
                   className="col-span-2 flex items-center justify-center gap-2.5 py-4 rounded-2xl text-white font-bold transition-transform active:scale-95"
                   style={{
-                    backgroundColor: r.isOperational === false ? 'var(--tgo-surface-3)' : 'var(--tgo-state-interactive)',
-                    color: r.isOperational === false ? 'var(--tgo-text-muted)' : 'var(--tgo-text-on-interactive)',
-                    boxShadow: r.isOperational === false ? 'none' : '0 4px 16px var(--tgo-state-interactive-soft)',
+                    backgroundColor: r.isOperational === false ? 'var(--tgo-surface-3)' : 'var(--tgo-state-action)',
+                    color: r.isOperational === false ? 'var(--tgo-text-muted)' : 'var(--tgo-text-inverse)',
+                    boxShadow: r.isOperational === false ? 'none' : '0 4px 16px var(--tgo-state-action-soft)',
                   }}
                 >
                   {r.isOperational === false ? (
@@ -320,7 +320,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
       }).setView([userLat, userLng], 15)
 
       // Dark tiles
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
       }).addTo(map)
 

@@ -56,17 +56,17 @@ export default function BottomNav() {
                   aria-label={tab.label}
                   className="w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-300"
                   style={{
-                    backgroundColor: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-1)',
-                    color: isActive ? 'var(--tgo-text-on-interactive)' : 'var(--tgo-text-muted)',
+                    backgroundColor: isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-surface-1)',
+                    color: isActive ? 'var(--tgo-text-inverse)' : 'var(--tgo-text-muted)',
                     transform: isActive ? 'scale(1.05)' : undefined,
-                    boxShadow: isActive ? '0 4px 16px var(--tgo-state-interactive-soft)' : '0 2px 8px rgba(0,0,0,0.08)',
+                    boxShadow: isActive ? '0 4px 16px var(--tgo-state-trust-soft)' : '0 2px 8px rgba(0,0,0,0.08)',
                   }}
                 >
                   <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 </button>
                 <span
                   className="text-[10px] font-black uppercase mt-0.5 transition-colors"
-                  style={{ color: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-text-muted)' }}
+                   style={{ color: isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-text-muted)' }}
                 >
                   {tab.label}
                 </span>
@@ -82,13 +82,13 @@ export default function BottomNav() {
             >
               <div
                 className="relative flex items-center justify-center transition-colors"
-                style={{ color: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-text-muted)' }}
+                style={{ color: isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-text-muted)' }}
               >
                 <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
               </div>
               <span
                 className="text-[10px] font-bold tracking-tight transition-colors"
-                style={{ color: isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-text-muted)' }}
+                style={{ color: isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-text-muted)' }}
               >
                 {tab.label}
               </span>
