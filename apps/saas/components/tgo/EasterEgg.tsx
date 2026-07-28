@@ -57,7 +57,7 @@ export function EasterEggToast({ message }: EasterEggToastProps) {
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
         className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-2xl shadow-lg max-w-[280px] text-center"
         style={{
-          backgroundColor: 'var(--tgo-surface-card)',
+          backgroundColor: 'var(--tgo-card)',
           border: '1px solid var(--tgo-brand-primary)',
           color: 'var(--tgo-text-primary)',
         }}

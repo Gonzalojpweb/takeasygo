@@ -58,7 +58,7 @@ export default function ExploreHeader({
       className="shrink-0"
       style={{
         paddingTop: 'var(--tgo-safe-top)',
-        backgroundColor: 'var(--tgo-surface-card)',
+        backgroundColor: 'var(--tgo-card)',
       }}
     >
       {/* Top bar */}
@@ -217,7 +217,7 @@ export default function ExploreHeader({
             style={{
               padding: 'var(--tgo-space-4)',
               borderRadius: 'var(--tgo-radius-lg)',
-              backgroundColor: 'var(--tgo-surface-card)',
+              backgroundColor: 'var(--tgo-card)',
               border: '1px solid var(--tgo-border)',
               boxShadow: 'var(--tgo-elevation-floating)',
             }}

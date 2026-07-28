@@ -34,7 +34,7 @@ export default function CategoryCard({
           height: 56,
           borderRadius: 'var(--tgo-radius-lg)',
           backgroundColor: bg,
-          boxShadow: 'var(--tgo-elevation-card)',
+          boxShadow: 'var(--shadow-card)',
           border: '1px solid var(--tgo-border)',
           fontSize: 24,
           transition: `all var(--tgo-duration-base) var(--tgo-ease-standard)`,
@@ -44,7 +44,7 @@ export default function CategoryCard({
           e.currentTarget.style.borderColor = 'var(--tgo-border-active)'
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = 'var(--tgo-elevation-card)'
+          e.currentTarget.style.boxShadow = 'var(--shadow-card)'
           e.currentTarget.style.borderColor = 'var(--tgo-border)'
         }}
       >

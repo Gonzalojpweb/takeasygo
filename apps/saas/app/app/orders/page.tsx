@@ -197,9 +197,9 @@ export default function OrdersPage() {
                     style={{
                       padding: 'var(--tgo-card-padding)',
                       borderRadius: 'var(--tgo-radius-xl)',
-                      backgroundColor: 'var(--tgo-surface-card)',
+                      backgroundColor: 'var(--tgo-card)',
                       border: '1px solid var(--tgo-border)',
-                      boxShadow: 'var(--tgo-elevation-card)',
+                      boxShadow: 'var(--shadow-card)',
                       transition: 'all var(--tgo-duration-fast) var(--tgo-ease-standard)',
                     }}
                   >

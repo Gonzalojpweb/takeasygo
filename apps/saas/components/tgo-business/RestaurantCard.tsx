@@ -60,7 +60,7 @@ const BADGE_N: React.CSSProperties = {
   height: 18,
   borderRadius: 'var(--tgo-radius-pill)',
   backgroundColor: 'var(--tgo-state-info)',
-  border: '2px solid var(--tgo-surface-card)',
+  border: '2px solid var(--tgo-card)',
   color: '#fff',
   fontSize: 8,
   fontWeight: 700,
@@ -70,14 +70,14 @@ const DOT_OPEN: React.CSSProperties = {
   height: 18,
   borderRadius: 'var(--tgo-radius-pill)',
   backgroundColor: 'var(--tgo-state-success)',
-  border: '2px solid var(--tgo-surface-card)',
+  border: '2px solid var(--tgo-card)',
 }
 const DOT_CLOSED: React.CSSProperties = {
   width: 18,
   height: 18,
   borderRadius: 'var(--tgo-radius-pill)',
   backgroundColor: 'var(--tgo-state-danger)',
-  border: '2px solid var(--tgo-surface-card)',
+  border: '2px solid var(--tgo-card)',
 }
 
 // Image containers
@@ -311,9 +311,9 @@ function HeroLayout({
       className="relative flex overflow-hidden cursor-pointer group active:scale-[0.98]"
       style={{
         borderRadius: 'var(--tgo-radius-lg)',
-        backgroundColor: 'var(--tgo-surface-card)',
+        backgroundColor: 'var(--tgo-card)',
         border: '1px solid var(--tgo-border)',
-        boxShadow: 'var(--tgo-elevation-card)',
+        boxShadow: 'var(--shadow-card)',
         transition: `transform var(--tgo-duration-base) var(--tgo-ease-standard)`,
         animationDelay: `${index * 80}ms`,
         height: 200,
@@ -435,9 +435,9 @@ function ListLayout({
       style={{
         padding: 'var(--tgo-card-padding)',
         borderRadius: 'var(--tgo-radius-lg)',
-        backgroundColor: 'var(--tgo-surface-card)',
+        backgroundColor: 'var(--tgo-card)',
         border: '1px solid var(--tgo-border)',
-        boxShadow: 'var(--tgo-elevation-card)',
+        boxShadow: 'var(--shadow-card)',
         transition: `all var(--tgo-duration-base) var(--tgo-ease-standard)`,
         animationDelay: `${index * 80}ms`,
       }}
@@ -447,7 +447,7 @@ function ListLayout({
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = 'var(--tgo-border)'
-        e.currentTarget.style.boxShadow = 'var(--tgo-elevation-card)'
+        e.currentTarget.style.boxShadow = 'var(--shadow-card)'
       }}
     >
       {/* Image */}
@@ -574,7 +574,7 @@ function CompactLayout({
       style={{
         padding: '10px 12px',
         borderRadius: 'var(--tgo-radius-md)',
-        backgroundColor: 'var(--tgo-surface-card)',
+        backgroundColor: 'var(--tgo-card)',
         border: '1px solid var(--tgo-border)',
         transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
         animationDelay: `${index * 60}ms`,
@@ -654,7 +654,7 @@ function MapPreviewLayout({
       style={{
         padding: '10px 12px',
         borderRadius: 'var(--tgo-radius-md)',
-        backgroundColor: 'var(--tgo-surface-card)',
+        backgroundColor: 'var(--tgo-card)',
         boxShadow: 'var(--tgo-elevation-floating)',
         border: '1px solid var(--tgo-border)',
         maxWidth: 240,

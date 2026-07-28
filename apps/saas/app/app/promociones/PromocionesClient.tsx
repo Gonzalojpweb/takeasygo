@@ -129,9 +129,9 @@ export default function PromocionesClient() {
                   className="block active:scale-[0.985] transition-all duration-200"
                   style={{
                     borderRadius: 'var(--tgo-radius-2xl)',
-                    backgroundColor: 'var(--tgo-surface-card)',
+                    backgroundColor: 'var(--tgo-card)',
                     border: '1px solid var(--tgo-border)',
-                    boxShadow: 'var(--tgo-elevation-card)',
+                    boxShadow: 'var(--shadow-card)',
                     overflow: 'hidden',
                   }}
                 >
@@ -155,7 +155,7 @@ export default function PromocionesClient() {
                           className="w-9 h-9 overflow-hidden flex-shrink-0"
                           style={{
                             borderRadius: 'var(--tgo-radius-xl)',
-                            backgroundColor: 'var(--tgo-surface-card)',
+                            backgroundColor: 'var(--tgo-card)',
                             boxShadow: 'var(--tgo-elevation-overlay)',
                           }}
                         >
@@ -170,7 +170,7 @@ export default function PromocionesClient() {
                           className="w-9 h-9 flex items-center justify-center"
                           style={{
                             borderRadius: 'var(--tgo-radius-xl)',
-                            backgroundColor: 'var(--tgo-surface-card)',
+                            backgroundColor: 'var(--tgo-card)',
                           }}
                         />
                       )}

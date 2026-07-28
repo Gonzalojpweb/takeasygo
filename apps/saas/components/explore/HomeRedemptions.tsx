@@ -32,7 +32,7 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
             key={item._id}
             href={`/${item.tenantSlug}/club/lookup`}
             className="rounded-3xl p-3 border shadow-md flex flex-col items-center text-center active:scale-[0.97] transition-transform duration-150"
-            style={{ backgroundColor: 'var(--tgo-surface-card)', borderColor: 'var(--tgo-border)' }}
+            style={{ backgroundColor: 'var(--tgo-card)', borderColor: 'var(--tgo-border)' }}
           >
             <div className="w-20 h-20 rounded-2xl overflow-hidden mb-2 relative">
               <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
@@ -48,7 +48,7 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
                 <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--tgo-text-muted)' }}>Puntos</span>
                 <span className="text-xs font-black leading-none" style={{ color: 'var(--tgo-state-reward)' }}>{item.pointsCost}</span>
               </div>
-              <div className="w-5 h-5 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-surface-card)', color: 'var(--tgo-text-muted)' }}>
+              <div className="w-5 h-5 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-card)', color: 'var(--tgo-text-muted)' }}>
                 <ChevronRight size={12} />
               </div>
             </div>

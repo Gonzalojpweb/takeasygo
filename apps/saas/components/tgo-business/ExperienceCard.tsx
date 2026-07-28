@@ -103,7 +103,7 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
         borderRadius: 'var(--tgo-radius-lg)',
         overflow: 'hidden',
         backgroundColor: 'var(--tgo-surface-1)',
-        boxShadow: 'var(--tgo-elevation-card)',
+        boxShadow: 'var(--shadow-card)',
         border: '1px solid var(--tgo-border-active)',
         transition: `all var(--tgo-duration-base) var(--tgo-ease-standard)`,
       }}
@@ -111,7 +111,7 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
         e.currentTarget.style.boxShadow = 'var(--tgo-elevation-floating)'
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = 'var(--tgo-elevation-card)'
+        e.currentTarget.style.boxShadow = 'var(--shadow-card)'
       }}
     >
       {/* Image area */}
