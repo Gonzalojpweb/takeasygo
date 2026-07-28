@@ -54,6 +54,8 @@ export function internalRouter(
         tenantId: data.tenantId,
         items: data.items,
         total: data.total,
+        baseTotal: data.baseTotal,
+        surchargeAmount: data.surchargeAmount,
         paymentMethod: data.paymentMethod,
         timestamp: new Date().toISOString(),
       })

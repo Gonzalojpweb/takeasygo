@@ -277,6 +277,10 @@ export interface Order {
   integratedAt?: Date
   /** Quién integró el pedido al POS */
   integratedBy?: string
+  /** Precio de carta sin recargo (solo pedidos externos con ajuste) */
+  baseTotal?: number
+  /** Monto del recargo MP/platform (solo pedidos externos con ajuste) */
+  surchargeAmount?: number
 }
 
 export interface OrderItem {

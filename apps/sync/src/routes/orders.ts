@@ -102,6 +102,8 @@ export function ordersRouter(
         status: "pending",
         items: data.items,
         total: data.total,
+        baseTotal: data.baseTotal,
+        surchargeAmount: data.surchargeAmount,
         menuVersion: data.menuVersion ?? 1,
         customerId: data.customerId,
         notes: data.notes,
@@ -113,6 +115,8 @@ export function ordersRouter(
         tenantId: auth.tenantId,
         items: data.items,
         total: data.total,
+        baseTotal: data.baseTotal,
+        surchargeAmount: data.surchargeAmount,
         paymentMethod: data.paymentMethod,
         timestamp: new Date().toISOString(),
       })

@@ -1364,6 +1364,8 @@ export async function POST(
           total: i.subtotal,
         })),
         total: pricing.finalTotal,
+        baseTotal: pricing.baseTotal,
+        surchargeAmount: pricing.surchargeAmount,
         notes: order.notes || undefined,
         paymentMethod: order.payment?.method ?? 'mercadopago',
       })
