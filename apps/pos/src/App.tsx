@@ -135,7 +135,7 @@ function App() {
     }).catch(() => {})
 
     const unsubOrderCreated = onSocketEvent("order:created", (data: unknown) => {
-      const event = data as { orderId: string; items: unknown[]; total: number; source?: string; paymentMethod?: string }
+      const event = data as { orderId: string; items: unknown[]; total: number; baseTotal?: number; surchargeAmount?: number; source?: string; paymentMethod?: string }
       const orderSource = (event.source as Order["source"]) || "external"
 
       persistExternalOrder({
@@ -147,6 +147,8 @@ function App() {
         paymentMethod: event.paymentMethod as Order["paymentMethod"],
         items: event.items as Order["items"],
         total: event.total,
+        baseTotal: event.baseTotal,
+        surchargeAmount: event.surchargeAmount,
       }).then(() => {
         console.log(`[App] order:created persisted: ${event.orderId}`)
       }).catch((err) => {

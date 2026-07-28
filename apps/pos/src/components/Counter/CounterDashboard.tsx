@@ -851,10 +851,27 @@ export function CounterDashboard() {
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>
-                    <span>Total</span>
-                    <span>{formatCurrency(selectedKanbanOrder.total)}</span>
-                  </div>
+                  {selectedKanbanOrder.surchargeAmount && selectedKanbanOrder.surchargeAmount > 0 ? (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "var(--sp-2)", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
+                        <span>Precio de carta</span>
+                        <span style={{ fontWeight: 500 }}>{formatCurrency(selectedKanbanOrder.baseTotal ?? selectedKanbanOrder.total - selectedKanbanOrder.surchargeAmount)}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--warning)" }}>
+                        <span>Recargo MP</span>
+                        <span style={{ fontWeight: 500 }}>+{formatCurrency(selectedKanbanOrder.surchargeAmount)}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>
+                        <span>Total cobrado</span>
+                        <span>{formatCurrency(selectedKanbanOrder.total)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>
+                      <span>Total</span>
+                      <span>{formatCurrency(selectedKanbanOrder.total)}</span>
+                    </div>
+                  )}
                   <div style={{ marginTop: "var(--sp-2)", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
                     {selectedKanbanOrder.paymentMethod === "mercadopago" ? "💙 MercadoPago" :
                      selectedKanbanOrder.paymentMethod === "transfer" ? "🏦 Transferencia" :

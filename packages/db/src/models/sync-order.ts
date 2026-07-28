@@ -14,6 +14,8 @@ export interface SyncOrderDocument extends Document {
     modifiers?: Array<{ name: string; price: number }>
   }>
   total: number
+  baseTotal?: number
+  surchargeAmount?: number
   menuVersion: number
   externalOrderId?: string
   paymentMethod?: string
@@ -56,6 +58,8 @@ export const SyncOrderSchema = new Schema<SyncOrderDocument>(
       },
     ],
     total: { type: Number, required: true },
+    baseTotal: { type: Number, default: 0 },
+    surchargeAmount: { type: Number, default: 0 },
     menuVersion: { type: Number, required: true },
     externalOrderId: { type: String },
     paymentMethod: { type: String },

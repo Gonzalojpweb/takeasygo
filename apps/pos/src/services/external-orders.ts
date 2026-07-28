@@ -57,6 +57,8 @@ interface PersistExternalOrderParams {
   paymentMethod?: PaymentMethod
   items: Order["items"]
   total: number
+  baseTotal?: number
+  surchargeAmount?: number
   notes?: string
 }
 
@@ -96,6 +98,8 @@ export async function persistExternalOrder(
     paymentMethod,
     items,
     total,
+    baseTotal,
+    surchargeAmount,
     notes,
   } = params
 
@@ -144,6 +148,8 @@ export async function persistExternalOrder(
       status: appliedCancelReason ? "cancelled" : status,
       items,
       total,
+      baseTotal,
+      surchargeAmount,
       menuVersion: 1,
       notes: appliedCancelReason
         ? `${notes ?? ""} [Cancelado: ${appliedCancelReason}]`.trim()

@@ -8,6 +8,8 @@ interface SyncOrderPayload {
   externalOrderId: string
   items: { productId?: string; name: string; quantity: number; unitPrice: number; total: number }[]
   total: number
+  baseTotal?: number
+  surchargeAmount?: number
   notes?: string
   menuVersion?: number
   paymentMethod?: string

@@ -14,6 +14,8 @@ export interface TranslatedOrder {
     modifiers?: Array<{ name: string; price: number }>
   }>
   total: number
+  baseTotal?: number
+  surchargeAmount?: number
   menuVersion: number
   externalOrderId?: string
   customerId?: string
@@ -41,6 +43,8 @@ export async function createTranslatedOrder(
     status: data.status,
     items: data.items,
     total: data.total,
+    baseTotal: data.baseTotal,
+    surchargeAmount: data.surchargeAmount,
     menuVersion: data.menuVersion,
     externalOrderId: data.externalOrderId ?? undefined,
     paymentMethod: data.paymentMethod ?? undefined,
@@ -100,6 +104,8 @@ export async function getPendingOrders(
       })),
     })),
     total: doc.total,
+    baseTotal: (doc as any).baseTotal,
+    surchargeAmount: (doc as any).surchargeAmount,
     menuVersion: doc.menuVersion,
     externalOrderId: doc.externalOrderId ?? undefined,
   }))
