@@ -22,7 +22,7 @@ import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import BestSellersSection from '@/components/menu/BestSellersSection'
 import LikeBadge from '@/components/menu/LikeBadge'
-import { getSuggestions } from '@/lib/upsell-menu'
+import { getSuggestions, type UpsellSource } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
 import { captureMenuOpened, captureDishAdded } from '@/lib/tia/events'
@@ -143,6 +143,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     halfPriceItems: Array<{ _id: string; name: string; halfPrice: number }>
   } | null>(null)
   const [upsellSuggestions, setUpsellSuggestions] = useState<any[]>([])
+  const [upsellSource, setUpsellSource] = useState<UpsellSource>('static')
   const [insights, setInsights] = useState<ICoOccurrencePair[] | null>(null)
   const skipUpsellRef = useRef(false)
   const upsellModalRef = useRef(false)
@@ -432,8 +433,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       }]
     })
     if (triggerUpsell && isNew && !upsellDismissedRef.current) {
-      const suggestions = getSuggestions(categories, cart, String(item._id), insights)
-      if (suggestions.length > 0) setUpsellSuggestions(suggestions)
+      const { items, source } = getSuggestions(categories, cart, String(item._id), insights)
+      if (items.length > 0) { setUpsellSuggestions(items); setUpsellSource(source) }
     }
     captureDishAdded({ _id: item._id, name: item.name, price: getItemPrice(item) }, 1, false)
     // Momento 01: feedback de posesión
@@ -659,8 +660,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     setCart(prev => [...prev, taggedItem])
     setCustomizingItem(null)
     if (!skipUpsellRef.current && !upsellDismissedRef.current && cartItem.menuItemId) {
-      const suggestions = getSuggestions(categories, cart, cartItem.menuItemId, insights)
-      if (suggestions.length > 0) setUpsellSuggestions(suggestions)
+      const { items, source } = getSuggestions(categories, cart, cartItem.menuItemId, insights)
+      if (items.length > 0) { setUpsellSuggestions(items); setUpsellSource(source) }
     }
     skipUpsellRef.current = false
     upsellModalRef.current = false
@@ -1596,6 +1597,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           bg={bg}
           text={text}
           locale={locale}
+          source={upsellSource}
         />
       )}
 
