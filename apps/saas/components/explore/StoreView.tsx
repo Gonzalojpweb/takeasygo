@@ -179,7 +179,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
         className="min-h-screen flex items-center justify-center p-4"
         style={{ backgroundColor: 'var(--tgo-surface-0)' }}
       >
-        <div className="max-w-md w-full" style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)' }}>
+        <div className="max-w-md w-full" style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-card)', border: '1px solid var(--tgo-border)' }}>
           <EmptyState
             icon={<Gift size={48} />}
             title="Tienda no disponible"
@@ -289,7 +289,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
               className="shrink-0 px-4 py-2 text-sm font-bold transition-all"
               style={{
                 borderRadius: 'var(--tgo-radius-md)',
-                backgroundColor: filterCategory === cat.value ? 'var(--tgo-state-trust)' : 'var(--tgo-surface-card)',
+                backgroundColor: filterCategory === cat.value ? 'var(--tgo-state-trust)' : 'var(--tgo-card)',
                 color: filterCategory === cat.value ? 'white' : 'var(--tgo-text-primary)',
                 border: `1px solid ${filterCategory === cat.value ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
               }}
@@ -304,7 +304,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
             style={{
               borderRadius: 'var(--tgo-radius-md)',
               border: '1px solid var(--tgo-border)',
-              backgroundColor: 'var(--tgo-surface-card)',
+              backgroundColor: 'var(--tgo-card)',
               color: 'var(--tgo-text-primary)',
             }}
           >

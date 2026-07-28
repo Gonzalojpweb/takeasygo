@@ -182,7 +182,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 'var(--tgo-radius-xl)',
-    backgroundColor: 'var(--tgo-surface-card)',
+    backgroundColor: 'var(--tgo-card)',
     border: '1px solid var(--tgo-border)',
   }
 

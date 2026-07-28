@@ -30,14 +30,16 @@ const SIZE_STYLES: Record<ChipSize, React.CSSProperties> = {
 
 const VARIANT_STYLES: Record<ChipVariant, React.CSSProperties> = {
   default: {
-    backgroundColor: 'var(--tgo-surface-card)',
+    backgroundColor: 'var(--tgo-card)',
     color: 'var(--tgo-state-trust)',
-    border: '1px solid var(--tgo-border)',
+    border: '0.5px solid var(--tgo-border)',
+    boxShadow: 'var(--shadow-card)',
   },
   active: {
     backgroundColor: 'var(--tgo-state-trust-soft)',
     color: 'var(--tgo-state-trust)',
-    border: '1px solid var(--tgo-state-trust)',
+    border: '0.5px solid var(--tgo-state-trust)',
+    boxShadow: 'var(--shadow-card)',
     fontWeight: 600,
   },
   suggestion: {

@@ -94,7 +94,7 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 'var(--tgo-radius-xl)',
-    backgroundColor: 'var(--tgo-surface-card)',
+    backgroundColor: 'var(--tgo-card)',
     border: '1px solid var(--tgo-border)',
   }
 
@@ -103,7 +103,7 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
     borderRadius: 'var(--tgo-radius-md)' as const,
     fontSize: 'var(--tgo-type-body-sm)',
     fontWeight: 700 as const,
-    backgroundColor: active ? 'var(--tgo-state-trust)' : 'var(--tgo-surface-card)',
+    backgroundColor: active ? 'var(--tgo-state-trust)' : 'var(--tgo-card)',
     color: active ? 'white' : 'var(--tgo-text-primary)',
     border: `1px solid ${active ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
     cursor: 'pointer' as const,

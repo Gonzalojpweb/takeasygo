@@ -43,9 +43,9 @@ export default function MarketingCarousel({ campaigns }: { campaigns: Campaign[]
             className="shrink-0 w-[260px] snap-center overflow-hidden flex flex-col"
             style={{
               borderRadius: 'var(--tgo-radius-2xl)',
-              backgroundColor: 'var(--tgo-surface-card)',
+              backgroundColor: 'var(--tgo-card)',
               border: '1px solid var(--tgo-border)',
-              boxShadow: 'var(--tgo-elevation-card)',
+              boxShadow: 'var(--shadow-card)',
             }}
           >
             <div className="h-32 relative">
@@ -63,7 +63,7 @@ export default function MarketingCarousel({ campaigns }: { campaigns: Campaign[]
                 className="absolute top-3 left-3 px-2.5 py-1 flex items-center gap-1.5"
                 style={{
                   borderRadius: 'var(--tgo-radius-md)',
-                  backgroundColor: 'var(--tgo-surface-card)',
+                  backgroundColor: 'var(--tgo-card)',
                   boxShadow: 'var(--tgo-elevation-overlay)',
                 }}
               >

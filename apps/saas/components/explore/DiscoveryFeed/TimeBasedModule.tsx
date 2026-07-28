@@ -60,7 +60,7 @@ export function TimeBasedModule({ restaurants, onNavigate }: Props) {
               overflow: 'hidden',
               flexShrink: 0,
               cursor: 'pointer',
-              backgroundColor: 'var(--tgo-surface-card)',
+              backgroundColor: 'var(--tgo-card)',
             }}
           >
             {/* Image fallback */}

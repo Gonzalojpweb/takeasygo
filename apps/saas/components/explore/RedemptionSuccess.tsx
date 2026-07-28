@@ -96,7 +96,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
           className="overflow-hidden"
           style={{
             borderRadius: 'var(--tgo-radius-xl)',
-            backgroundColor: 'var(--tgo-surface-card)',
+            backgroundColor: 'var(--tgo-card)',
             border: '2px solid var(--tgo-state-success)',
           }}
         >
