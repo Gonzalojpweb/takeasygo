@@ -327,64 +327,50 @@ export default function DiscoveryFeed({
       <div
         style={{
           padding: '4px var(--tgo-page-padding) 16px',
-          textAlign: 'center',
         }}
       >
-        <a
-          href="https://instagram.com/tgo.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: '0.75rem',
-            fontWeight: 500,
-            color: 'var(--tgo-text-muted)',
-            textDecoration: 'none',
-            marginBottom: 10,
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-          </svg>
-          Seguinos en @tgo.app
-        </a>
-
-        <p
-          style={{
-            fontSize: '0.6875rem',
-            lineHeight: 1.6,
-            color: 'var(--tgo-text-muted)',
-            maxWidth: 300,
-            margin: '0 auto 10px',
-          }}
-        >
-          TGO conecta personas y comercios cercanos.
-          Creemos en una ciudad donde todo lo importante
-          sucede cerca de vos.
-        </p>
-
-        <button
-          onClick={() => { haptic.impact('light'); handleShare() }}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: 'var(--tgo-text-link)',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px 0',
-          }}
-        >
-          <Share2 size={14} />
-          Compartí con tus amigos
-        </button>
+        <div className="flex items-center justify-center gap-2">
+          <a
+            href="https://instagram.com/tgo.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 'var(--tgo-radius-pill)',
+              fontSize: 'var(--tgo-type-caption)',
+              fontWeight: 500,
+              color: 'var(--tgo-text-muted)',
+              backgroundColor: 'var(--tgo-surface-card)',
+              border: '1px solid var(--tgo-border)',
+              textDecoration: 'none',
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+            </svg>
+            @tgo.app
+          </a>
+          <button
+            onClick={() => { haptic.impact('light'); handleShare() }}
+            className="flex items-center gap-1.5"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 'var(--tgo-radius-pill)',
+              fontSize: 'var(--tgo-type-caption)',
+              fontWeight: 500,
+              color: 'var(--tgo-text-muted)',
+              backgroundColor: 'var(--tgo-surface-card)',
+              border: '1px solid var(--tgo-border)',
+              cursor: 'pointer',
+            }}
+          >
+            <Share2 size={12} />
+            Compartí
+          </button>
+        </div>
       </div>
 
       {/* 3. QuickFilters */}
@@ -481,6 +467,20 @@ export default function DiscoveryFeed({
           className="py-6"
           style={{ paddingInline: 'var(--tgo-page-padding)' }}
         >
+          <p
+            style={{
+              fontSize: '0.6875rem',
+              lineHeight: 1.6,
+              color: 'var(--tgo-text-muted)',
+              maxWidth: 300,
+              margin: '0 auto 16px',
+              textAlign: 'center',
+            }}
+          >
+            TGO conecta personas y comercios cercanos.
+            Creemos en una ciudad donde todo lo importante
+            sucede cerca de vos.
+          </p>
           <div
             className="p-6 text-center"
             style={{
@@ -514,9 +514,8 @@ export default function DiscoveryFeed({
               style={{
                 padding: '10px 20px',
                 borderRadius: 'var(--tgo-radius-md)',
-                border: '1.5px solid var(--tgo-state-trust)',
-                backgroundColor: 'transparent',
-                color: 'var(--tgo-state-trust)',
+                backgroundColor: 'var(--tgo-state-trust)',
+                color: 'var(--tgo-text-inverse)',
                 fontSize: 'var(--tgo-type-caption)',
                 fontWeight: 700,
                 textTransform: 'uppercase',

@@ -104,18 +104,24 @@ function HoverCard({ r, pos, containerW, containerH }: {
       >
         <div
           className="h-1.5 w-full"
-          style={{ backgroundColor: isNetwork ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)' }}
+          style={{ backgroundColor: isNetwork ? (r.isOperational === false ? 'var(--tgo-state-discovery)' : 'var(--tgo-brand-primary)') : 'var(--tgo-state-inactive)' }}
         />
         <div className="p-4 space-y-2">
           <div className="flex items-center gap-2">
             <span
               className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
               style={{
-                backgroundColor: isNetwork ? 'var(--tgo-state-success-soft)' : 'var(--tgo-surface-2)',
-                color: isNetwork ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)',
+                backgroundColor: isNetwork
+                  ? (r.isOperational === false ? 'var(--tgo-state-discovery-soft)' : 'var(--tgo-brand-primary-soft)')
+                  : 'var(--tgo-state-inactive-soft)',
+                color: isNetwork
+                  ? (r.isOperational === false ? 'var(--tgo-state-discovery)' : 'var(--tgo-brand-primary)')
+                  : 'var(--tgo-state-inactive)',
               }}
             >
-              {isNetwork ? 'Red' : 'Directorio'}
+              {isNetwork
+                ? (r.isOperational === false ? 'Catálogo' : 'En Red')
+                : 'Directorio'}
             </span>
             <span style={{ color: 'var(--tgo-text-muted)' }} className="text-[10px] ml-auto">{distLabel(r.distanceM)}</span>
           </div>
@@ -189,15 +195,15 @@ function BottomSheet({ r, onClose, onNavigate }: {
                     className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                     style={{
                       backgroundColor: isNetwork
-                        ? (r.isOperational === false ? 'var(--tgo-state-discovery-soft)' : 'var(--tgo-state-success-soft)')
-                        : 'var(--tgo-surface-2)',
+                        ? (r.isOperational === false ? 'var(--tgo-state-discovery-soft)' : 'var(--tgo-brand-primary-soft)')
+                        : 'var(--tgo-state-inactive-soft)',
                       color: isNetwork
-                        ? (r.isOperational === false ? 'var(--tgo-state-discovery)' : 'var(--tgo-state-success)')
-                        : 'var(--tgo-text-muted)',
+                        ? (r.isOperational === false ? 'var(--tgo-state-discovery)' : 'var(--tgo-brand-primary)')
+                        : 'var(--tgo-state-inactive)',
                     }}
                   >
-                    {isNetwork 
-                      ? (r.isOperational === false ? 'Catálogo' : 'En Red') 
+                    {isNetwork
+                      ? (r.isOperational === false ? 'Catálogo' : 'En Red')
                       : 'Directorio'}
                   </span>
                   <span className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>{distLabel(r.distanceM)}</span>
@@ -229,8 +235,8 @@ function BottomSheet({ r, onClose, onNavigate }: {
                   onClick={onNavigate}
                   className="col-span-2 flex items-center justify-center gap-2.5 py-4 rounded-2xl text-white font-bold transition-transform active:scale-95"
                   style={{
-                    backgroundColor: r.isOperational === false ? 'var(--tgo-surface-3)' : 'var(--tgo-state-action)',
-                    color: r.isOperational === false ? 'var(--tgo-text-muted)' : 'var(--tgo-text-inverse)',
+                    backgroundColor: r.isOperational === false ? 'var(--tgo-state-inactive)' : 'var(--tgo-state-action)',
+                    color: r.isOperational === false ? 'var(--tgo-text-inverse)' : 'var(--tgo-text-inverse)',
                     boxShadow: r.isOperational === false ? 'none' : '0 4px 16px var(--tgo-state-action-soft)',
                   }}
                 >
@@ -247,9 +253,9 @@ function BottomSheet({ r, onClose, onNavigate }: {
                       href={`tel:${r.phone}`}
                       className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold active:scale-95"
                       style={{
-                        backgroundColor: 'var(--tgo-surface-2)',
-                        color: 'var(--tgo-text-primary)',
-                        border: '1px solid var(--tgo-border)',
+                        backgroundColor: 'var(--tgo-state-trust)',
+                        color: 'var(--tgo-text-inverse)',
+                        border: '1px solid var(--tgo-state-trust)',
                       }}
                     >
                       <Phone size={16} /> Llamar
@@ -259,9 +265,9 @@ function BottomSheet({ r, onClose, onNavigate }: {
                     onClick={onNavigate}
                     className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold active:scale-95"
                     style={{
-                      backgroundColor: 'var(--tgo-surface-2)',
-                      color: 'var(--tgo-text-primary)',
-                      border: '1px solid var(--tgo-border)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--tgo-state-trust)',
+                      border: '1.5px solid var(--tgo-state-trust)',
                     }}
                   >
                     <MapPinIcon size={16} /> Detalle
@@ -337,11 +343,12 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
         const isNetwork = r.type === 'network'
         const isOperational = r.isOperational ?? true
         const isClosed = r.isOpenNow === false
-        const fill = isNetwork 
-          ? (isOperational ? 'var(--tgo-state-activity)' : 'var(--tgo-state-warning)') 
-          : 'var(--tgo-state-proximity)'
+        // 3-level legend: En red → brand, Catálogo → discovery, Directorio → inactive
+        const fill = isNetwork
+          ? (isOperational ? 'var(--tgo-brand-primary)' : 'var(--tgo-state-discovery)')
+          : 'var(--tgo-state-inactive)'
         const opacity = isClosed ? 0.55 : 1
-        const pinColor = isClosed ? '#5a524d' : fill
+        const pinColor = isClosed ? fill : fill
 
         const icon = L.divIcon({
           className: '',
