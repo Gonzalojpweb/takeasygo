@@ -18,6 +18,7 @@ interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   dismissible?: boolean
   onClose?: () => void
   icon?: React.ReactNode
+  iconColor?: string
 }
 
 const SIZE_STYLES: Record<ChipSize, React.CSSProperties> = {
@@ -68,6 +69,7 @@ function Chip({
   dismissible = false,
   onClose,
   icon,
+  iconColor,
   children,
   style,
   ...props
@@ -89,7 +91,7 @@ function Chip({
       }}
       {...props}
     >
-      {icon && <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', lineHeight: 0 }}>{icon}</span>}
+      {icon && <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', lineHeight: 0, color: iconColor }}>{icon}</span>}
       {children}
       {dismissible && onClose && (
         <span

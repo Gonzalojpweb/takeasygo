@@ -35,12 +35,14 @@ import { useHaptic } from '@/components/tgo/useHaptic'
 // Badge styles
 const BADGE_NUEVO: React.CSSProperties = {
   borderRadius: 'var(--tgo-radius-pill)',
-  fontSize: 'var(--tgo-type-tag)',
-  fontWeight: 700,
+  fontSize: '0.5625rem',
+  fontWeight: 600,
   letterSpacing: 'var(--tgo-tracking-wider)',
   textTransform: 'uppercase',
   color: '#fff',
-  backgroundColor: 'var(--tgo-state-info)',
+  backgroundColor: 'var(--tgo-state-discovery)',
+  padding: '1px 7px',
+  lineHeight: 1.4,
 }
 const BADGE_ABIERTO: React.CSSProperties = {
   ...BADGE_NUEVO,
