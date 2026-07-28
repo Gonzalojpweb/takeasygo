@@ -60,7 +60,7 @@ export function TimeBasedModule({ restaurants, onNavigate }: Props) {
               overflow: 'hidden',
               flexShrink: 0,
               cursor: 'pointer',
-              backgroundColor: timeInfo.color,
+              backgroundColor: 'var(--tgo-surface-card)',
             }}
           >
             {/* Image fallback */}
@@ -71,6 +71,18 @@ export function TimeBasedModule({ restaurants, onNavigate }: Props) {
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.35 }}
               />
             )}
+
+            {/* Bottom gradient for text readability */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '60%',
+                background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)',
+              }}
+            />
 
             {/* Text */}
             <div
