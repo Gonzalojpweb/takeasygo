@@ -109,7 +109,7 @@ function HoverCard({ r, pos, containerW, containerH }: {
         <div className="p-4 space-y-2">
           <div className="flex items-center gap-2">
             <span
-              className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+              className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-[1px] rounded-full"
               style={{
                 backgroundColor: isNetwork
                   ? (r.isOperational === false ? 'var(--tgo-state-discovery-soft)' : 'var(--tgo-brand-primary-soft)')
@@ -133,18 +133,18 @@ function HoverCard({ r, pos, containerW, containerH }: {
             </p>
           )}
           {r.isOpenNow === true && (
-            <p className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
+            <p className="text-[9px] font-semibold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
               <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--tgo-state-success)' }} />
               Abierto ahora
             </p>
           )}
           {r.isOpenNow === false && (
-            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--tgo-state-danger)' }}>
+            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--tgo-state-inactive)' }}>
               Cerrado ahora
             </p>
           )}
           {isNetwork && r.isOperational === false && (
-            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--tgo-state-discovery)' }}>
+            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--tgo-state-discovery)' }}>
               Catálogo / Próximamente
             </p>
           )}
@@ -192,7 +192,7 @@ function BottomSheet({ r, onClose, onNavigate }: {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span
-                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                    className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-[1px] rounded-full"
                     style={{
                       backgroundColor: isNetwork
                         ? (r.isOperational === false ? 'var(--tgo-state-discovery-soft)' : 'var(--tgo-brand-primary-soft)')
@@ -211,18 +211,18 @@ function BottomSheet({ r, onClose, onNavigate }: {
                 <h3 className="font-bold text-xl leading-tight truncate" style={{ color: 'var(--tgo-text-primary)' }}>{r.name}</h3>
                 <p className="text-sm mt-0.5 truncate" style={{ color: 'var(--tgo-text-muted)' }}>{r.address}</p>
                 {r.isOpenNow === true && (
-                  <p className="text-[10px] font-bold uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
                     <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--tgo-state-success)' }} />
                     Abierto ahora
                   </p>
                 )}
                 {r.isOpenNow === false && (
-                  <p className="text-[10px] font-bold uppercase tracking-wider mt-1" style={{ color: 'var(--tgo-state-danger)' }}>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mt-1" style={{ color: 'var(--tgo-state-inactive)' }}>
                     Cerrado ahora
                   </p>
                 )}
                 {isNetwork && r.isOperational === false && (
-                   <p className="text-[10px] font-black uppercase tracking-widest mt-1 animate-pulse" style={{ color: 'var(--tgo-state-discovery)' }}>
+                   <p className="text-[9px] font-semibold uppercase tracking-wider mt-1 animate-pulse" style={{ color: 'var(--tgo-state-discovery)' }}>
                      Proximamente takeaway
                    </p>
                 )}

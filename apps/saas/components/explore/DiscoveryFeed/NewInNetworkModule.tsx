@@ -1,7 +1,7 @@
 'use client'
 
-import { RestaurantCard } from '@/components/tgo-business'
 import { HorizontalScroller } from '@/components/tgo'
+import { MapPin } from 'lucide-react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 
 interface Props {
@@ -9,20 +9,134 @@ interface Props {
   onNavigate: (r: RestaurantCardData) => void
 }
 
+function distLabel(m: number | null) {
+  if (m === null) return ''
+  return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`
+}
+
 export function NewInNetworkModule({ restaurants, onNavigate }: Props) {
   const newRestaurants = restaurants.filter((r) => r.isNew)
   if (newRestaurants.length === 0) return null
 
   return (
-    <HorizontalScroller gap="12px">
-      {newRestaurants.slice(0, 6).map((r, i) => (
-        <RestaurantCard
+    <HorizontalScroller gap="12px" padding="var(--tgo-page-padding)">
+      {newRestaurants.slice(0, 6).map((r) => (
+        <button
           key={r.id}
-          restaurant={r}
-          layout="compact"
-          onNavigate={() => onNavigate(r)}
-          index={i}
-        />
+          onClick={() => onNavigate(r)}
+          className="text-left"
+          style={{
+            width: 270,
+            height: 150,
+            borderRadius: 'var(--tgo-radius-xl)',
+            position: 'relative',
+            overflow: 'hidden',
+            flexShrink: 0,
+            cursor: 'pointer',
+          }}
+        >
+          {/* Image */}
+          {r.heroImage ? (
+            <img
+              src={r.heroImage}
+              alt={r.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(135deg, var(--tgo-surface-1) 0%, var(--tgo-surface-2) 100%)',
+              }}
+            />
+          )}
+
+          {/* Gradient overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)',
+            }}
+          />
+
+          {/* Badge NUEVO */}
+          <span
+            style={{
+              position: 'absolute',
+              top: 10,
+              left: 10,
+              padding: '2px 8px',
+              borderRadius: 'var(--tgo-radius-pill)',
+              fontSize: '0.5625rem',
+              fontWeight: 700,
+              letterSpacing: 'var(--tgo-tracking-wider)',
+              textTransform: 'uppercase',
+              color: '#fff',
+              backgroundColor: 'var(--tgo-state-discovery)',
+            }}
+          >
+            NUEVO
+          </span>
+
+          {/* Text overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 12,
+              left: 14,
+              right: 14,
+              color: '#fff',
+            }}
+          >
+            <p
+              style={{
+                fontWeight: 700,
+                fontSize: 'var(--tgo-type-subtitle)',
+                lineHeight: 1.2,
+                marginBottom: 4,
+                textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              }}
+            >
+              {r.name}
+            </p>
+            <div className="flex items-center gap-2">
+              {r.isOpenNow === true && (
+                <span
+                  style={{
+                    fontSize: '0.5625rem',
+                    fontWeight: 600,
+                    color: 'var(--tgo-state-activity)',
+                  }}
+                >
+                  Abierto
+                </span>
+              )}
+              {r.isOpenNow === false && (
+                <span
+                  style={{
+                    fontSize: '0.5625rem',
+                    fontWeight: 600,
+                    color: 'var(--tgo-state-inactive)',
+                  }}
+                >
+                  Cerrado
+                </span>
+              )}
+              <span
+                className="flex items-center gap-0.5"
+                style={{
+                  fontSize: '0.5625rem',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                <MapPin size={9} />
+                {distLabel(r.distanceM)}
+              </span>
+            </div>
+          </div>
+        </button>
       ))}
     </HorizontalScroller>
   )

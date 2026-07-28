@@ -62,10 +62,10 @@ import { CATEGORY_CONFIG } from './DiscoveryFeed/CategoriesModule'
 import { Clock, Bike, MapPin, Tag } from 'lucide-react'
 
 const QUICK_FILTERS = [
-  { label: 'Abiertos', icon: Clock, query: 'abiertos' },
-  { label: 'Delivery', icon: Bike, query: 'delivery' },
-  { label: 'Cercanos', icon: MapPin, query: 'cercanos' },
-  { label: 'Beneficios', icon: Tag, query: 'beneficios' },
+  { label: 'Abiertos', icon: Clock, query: 'abiertos', iconColor: 'var(--tgo-state-activity)' },
+  { label: 'Delivery', icon: Bike, query: 'delivery', iconColor: 'var(--tgo-state-trust)' },
+  { label: 'Cercanos', icon: MapPin, query: 'cercanos', iconColor: 'var(--tgo-state-proximity)' },
+  { label: 'Beneficios', icon: Tag, query: 'beneficios', iconColor: 'var(--tgo-state-reward)' },
 ]
 
 function QuickFiltersModule({
@@ -97,15 +97,17 @@ function QuickFiltersModule({
               fontWeight: isActive ? 600 : 400,
               backgroundColor: isActive
                 ? 'var(--tgo-state-trust-soft)'
-                : 'var(--tgo-surface-2)',
+                : 'var(--tgo-surface-card)',
               color: isActive
                 ? 'var(--tgo-state-trust)'
-                : 'var(--tgo-text-secondary)',
+                : 'var(--tgo-state-trust)',
               border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
               transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
             }}
           >
-            <Icon size={14} />
+            <span style={{ color: isActive ? undefined : f.iconColor }}>
+              <Icon size={14} />
+            </span>
             {f.label}
           </button>
         )
