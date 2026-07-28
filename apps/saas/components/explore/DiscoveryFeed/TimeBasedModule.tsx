@@ -68,7 +68,7 @@ export function TimeBasedModule({ restaurants, onNavigate }: Props) {
               <img
                 src={r.heroImage}
                 alt=""
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.35 }}
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
               />
             )}
 
@@ -80,7 +80,6 @@ export function TimeBasedModule({ restaurants, onNavigate }: Props) {
                 left: 0,
                 right: 0,
                 height: '60%',
-                background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)',
               }}
             />
 
