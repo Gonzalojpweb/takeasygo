@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useRef, useState } from 'react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
@@ -36,7 +36,7 @@ function distLabel(m: number | null) {
 async function handleShare(name: string, address: string, tenantSlug?: string) {
   const url = window.location.href
   if (navigator.share) {
-    await navigator.share({ title: name, text: `${name} — ${address}`, url })
+    await navigator.share({ title: name, text: `${name} � ${address}`, url })
   } else {
     await navigator.clipboard.writeText(url)
   }
@@ -151,7 +151,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
         </div>
 
         {/* Info card */}
-        <div style={{ padding: 'var(--tgo-card-padding)', borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)', boxShadow: 'var(--tgo-elevation-card)', marginBottom: 'var(--tgo-space-4)' }}>
+        <div style={{ padding: 'var(--tgo-card-padding)', borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-card)', border: '1px solid var(--tgo-border)', boxShadow: 'var(--shadow-card)', marginBottom: 'var(--tgo-space-4)' }}>
           <div className="space-y-3">
             <InfoRow icon={<MapPin size={14} />} color="var(--tgo-text-muted)">{r.address}</InfoRow>
             {r.isOpenNow === true && r.serviceHours && (
@@ -173,7 +173,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
               </div>
             )}
             {r.cuisineTypes && r.cuisineTypes.length > 0 && (
-              <InfoRow icon={<Utensils size={14} />} color="var(--tgo-text-muted)">{r.cuisineTypes.join(' · ')}</InfoRow>
+              <InfoRow icon={<Utensils size={14} />} color="var(--tgo-text-muted)">{r.cuisineTypes.join(' � ')}</InfoRow>
             )}
             {r.phone && (
               <InfoRow icon={<Phone size={14} />} color="var(--tgo-text-muted)">{r.phone}</InfoRow>
@@ -199,7 +199,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
 
         {/* Conversion CTA (directory only) */}
         {!isNetwork && (
-          <div style={{ padding: 'var(--tgo-space-5)', borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)', textAlign: 'center' }}>
+          <div style={{ padding: 'var(--tgo-space-5)', borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-card)', border: '1px solid var(--tgo-border)', textAlign: 'center' }}>
             <p style={{ color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 600 }}>{microcopy.restaurant.isOwner}</p>
             <p style={{ color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-caption)', lineHeight: 1.5, marginTop: 4 }}>{microcopy.restaurant.ownerPitch}</p>
             <Link href="/#pricing" className="inline-flex items-center gap-1.5 mt-3" style={{ padding: '8px 20px', borderRadius: 'var(--tgo-radius-md)', border: '1.5px solid var(--tgo-state-trust)', color: 'var(--tgo-state-trust)', backgroundColor: 'transparent', fontSize: 'var(--tgo-type-caption)', fontWeight: 700 }}>
@@ -219,13 +219,13 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
         ) : (
           <div className="flex gap-3">
             {r.phone && (
-              <a href={`tel:${r.phone}`} className="flex-1 flex items-center justify-center gap-2 active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)', color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 700, boxShadow: 'var(--tgo-elevation-card)' }}>
+              <a href={`tel:${r.phone}`} className="flex-1 flex items-center justify-center gap-2 active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-card)', border: '1px solid var(--tgo-border)', color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 700, boxShadow: 'var(--shadow-card)' }}>
                 <Phone size={16} />
                 {microcopy.restaurant.call}
               </a>
             )}
             {r.externalMenuUrl && (
-              <a href={r.externalMenuUrl} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-surface-card)', border: '1px solid var(--tgo-border)', color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 700, boxShadow: 'var(--tgo-elevation-card)' }}>
+              <a href={r.externalMenuUrl} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-card)', border: '1px solid var(--tgo-border)', color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 700, boxShadow: 'var(--shadow-card)' }}>
                 <ExternalLink size={16} />
                 {microcopy.restaurant.viewCard}
               </a>

@@ -30,7 +30,7 @@ export function GpsLoading() {
             height: 56,
             borderRadius: 'var(--tgo-radius-pill)',
             backgroundColor: 'var(--tgo-surface-0)',
-            boxShadow: 'var(--tgo-elevation-card)',
+            boxShadow: 'var(--shadow-card)',
             border: '1px solid var(--tgo-border)',
           }}
         >

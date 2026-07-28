@@ -8,7 +8,7 @@ export default function GlobalError({
   reset: () => void
 }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: 'var(--tgo-card)' }}>
       <div className="text-center max-w-md">
         <div className="text-6xl mb-6">⚠️</div>
         <h1 className="text-2xl font-black mb-3" style={{ color: 'var(--tgo-text-primary)' }}>Algo salió mal</h1>

@@ -27,7 +27,7 @@ export default function SettingsClient() {
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 'var(--tgo-radius-xl)',
-    backgroundColor: 'var(--tgo-surface-card)',
+    backgroundColor: 'var(--tgo-card)',
     border: '1px solid var(--tgo-border)',
   }
 
@@ -106,7 +106,7 @@ export default function SettingsClient() {
               <div
                 className="absolute top-0.5 w-5 h-5 rounded-full shadow-md transition-transform duration-200"
                 style={{
-                  backgroundColor: 'var(--tgo-surface-card)',
+                  backgroundColor: 'var(--tgo-card)',
                   transform: notifications ? 'translateX(22px)' : 'translateX(2px)',
                 }}
               />
