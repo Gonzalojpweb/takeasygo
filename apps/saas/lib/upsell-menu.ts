@@ -1,6 +1,8 @@
 import type { CartItem } from '@/types/cart'
 import type { ICoOccurrencePair } from '@/models/MenuInsights'
 
+export type UpsellSource = 'manual' | 'behavioral' | 'static'
+
 function median(values: number[]): number {
   if (values.length === 0) return 0
   const sorted = [...values].sort((a, b) => a - b)
@@ -17,6 +19,8 @@ function median(values: number[]): number {
  *  2. Fallback estático (price tiers + isFeatured): funciona desde el día 1 sin historial
  *
  * Siempre excluye ítems ya en el carrito y el ítem recién agregado.
+ *
+ * @returns `{ items, source }` — source indica de qué capa vinieron las sugerencias
  */
 export function getSuggestions(
   categories: any[],
@@ -24,7 +28,7 @@ export function getSuggestions(
   justAddedItemId: string | undefined,
   insights: ICoOccurrencePair[] | null,
   maxSuggestions = 2,
-): any[] {
+): { items: any[]; source: UpsellSource } {
   const allItems: any[] = categories.flatMap((cat) => {
     if (!cat.isAvailable) return []
     const directItems = cat.items.filter((i: any) => i.isAvailable && i.isTakeawayAvailable !== false)
@@ -34,7 +38,7 @@ export function getSuggestions(
     return [...directItems, ...subItems]
   })
 
-  if (allItems.length < 2) return []
+  if (allItems.length < 2) return { items: [], source: 'static' }
 
   const cartItemIds = new Set<string>([
     ...cart.map((i) => i.menuItemId).filter((id): id is string => !!id),
@@ -43,7 +47,7 @@ export function getSuggestions(
 
   const itemById = new Map<string, any>(allItems.map((i) => [String(i._id), i]))
   const candidates = allItems.filter((i: any) => !cartItemIds.has(String(i._id)))
-  if (candidates.length === 0) return []
+  if (candidates.length === 0) return { items: [], source: 'static' }
 
   const result: any[] = []
   const included = new Set<string>()
@@ -67,7 +71,7 @@ export function getSuggestions(
     fill(manualItems)
   }
 
-  if (result.length >= maxSuggestions) return result
+  if (result.length >= maxSuggestions) return { items: result, source: 'manual' }
 
   // ── Capa 1: Behavioral (co-ocurrencia real de órdenes) ──────────────────
   if (insights && insights.length > 0 && justAddedItemId) {
@@ -82,23 +86,52 @@ export function getSuggestions(
     fill(behavioralItems)
   }
 
-  if (result.length >= maxSuggestions) return result
+  if (result.length >= maxSuggestions) return { items: result, source: 'behavioral' }
 
   // ── Capa 2: Fallback estático (price tiers + isFeatured) ────────────────
   const remainingCandidates = candidates.filter((i: any) => !included.has(String(i._id)))
   fill(getStaticSuggestions(remainingCandidates, allItems, maxSuggestions - result.length))
 
-  return result
+  return { items: result, source: 'static' }
 }
 
+/**
+ * Static fallback scoring — prioritizes low-ticket complementary items
+ * (drinks, sides, desserts) over main dishes.
+ *
+ * Scoring is ACCUMULATIVE (multiple conditions can stack):
+ *   +5  price ≤ median * 0.4   (very cheap add-ons: drinks, sauces, small sides)
+ *   +3  isFeatured && price ≤ median * 0.65  (featured + affordable)
+ *   +2  isFeatured             (featured but pricier)
+ *   +1  categoryType is drink/side/dessert   (complementary category)
+ */
 function getStaticSuggestions(candidates: any[], allItems: any[], max: number): any[] {
   const med = median(allItems.map((i: any) => i.price))
+  const cheapThreshold = med * 0.4
   const addonThreshold = med * 0.65
+  const complementaryTypes = new Set(['drink', 'side', 'dessert'])
 
   const scored = candidates.map((item: any) => {
     let score = 0
-    if (item.isFeatured) score += 3
-    if (item.price <= addonThreshold) score += 2
+
+    // Price tier: very cheap add-ons get highest boost
+    if (item.price <= cheapThreshold) score += 5
+
+    // Featured + affordable sweet spot
+    if (item.isFeatured && item.price <= addonThreshold) score += 3
+
+    // Featured but pricier (main dishes)
+    if (item.isFeatured) score += 2
+
+    // Complementary category type (uses categoryType field if available,
+    // falls back to heuristic price check for items without categoryType)
+    if (item.categoryType && complementaryTypes.has(item.categoryType)) {
+      score += 1
+    } else if (!item.categoryType && item.price <= addonThreshold) {
+      // Heuristic fallback: cheap items without categoryType are likely complementary
+      score += 1
+    }
+
     return { item, score }
   })
 
