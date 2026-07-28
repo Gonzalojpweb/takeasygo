@@ -113,7 +113,7 @@ export default function RestaurantLeadModal({ onClose }: { onClose: () => void }
                 placeholder={placeholder}
                 value={(form as any)[key]}
                 onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
-                className="transition-colors focus:border-[var(--tgo-state-interactive)]"
+                className="transition-colors focus:border-[var(--tgo-border-focus)]"
                 style={inputStyle}
               />
             </div>
@@ -122,11 +122,13 @@ export default function RestaurantLeadModal({ onClose }: { onClose: () => void }
           <button
             type="submit"
             disabled={loading}
-            className="w-full text-white font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            className="w-full font-black text-xs uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             style={{
               height: 48,
               borderRadius: 'var(--tgo-radius-xl)',
-              backgroundColor: 'var(--tgo-state-interactive)',
+              border: '1.5px solid var(--tgo-state-trust)',
+              backgroundColor: 'transparent',
+              color: 'var(--tgo-state-trust)',
             }}
           >
             {loading ? (

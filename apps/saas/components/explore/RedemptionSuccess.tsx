@@ -86,7 +86,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
             href={`/${tenantSlug}`}
             onClick={() => haptic.impact('light')}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
-            style={{ color: 'var(--tgo-state-interactive)' }}
+            style={{ color: 'var(--tgo-text-link)' }}
           >
             Ir al menú
           </a>

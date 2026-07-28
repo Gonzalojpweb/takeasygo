@@ -110,12 +110,12 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
     outline: 'none',
   }
 
-  const inputFocusStyle = 'focus:ring-2 focus:ring-[var(--tgo-state-interactive)]/30'
+  const inputFocusStyle = 'focus:ring-2 focus:ring-[var(--tgo-border-focus)]/30'
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 size={24} style={{ color: 'var(--tgo-state-interactive)' }} className="animate-spin" />
+        <Loader2 size={24} style={{ color: 'var(--tgo-text-muted)' }} className="animate-spin" />
       </div>
     )
   }
@@ -127,14 +127,14 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
         <div
           className="rounded-2xl p-4"
           style={{
-            backgroundColor: 'var(--tgo-state-interactive-soft)',
-            border: '1px solid var(--tgo-state-interactive)',
+            backgroundColor: 'var(--tgo-state-trust-soft)',
+            border: '1px solid var(--tgo-state-trust)',
           }}
         >
           <div className="flex items-start gap-3">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: 'var(--tgo-state-interactive)' }}
+            style={{ backgroundColor: 'var(--tgo-state-action)' }}
             >
               <Check size={16} className="text-white" />
             </div>
@@ -144,7 +144,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: 'var(--tgo-state-interactive)',
+                   color: 'var(--tgo-state-trust)',
                 }}
               >
                 Dirección Actual
@@ -183,8 +183,8 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
                 className="w-full p-4 flex items-center gap-3 group transition-all"
                 style={{
                   borderRadius: 'var(--tgo-radius-xl)',
-                  backgroundColor: isActive ? 'var(--tgo-state-interactive-soft)' : 'var(--tgo-surface-card)',
-                  border: `1px solid ${isActive ? 'var(--tgo-state-interactive)' : 'var(--tgo-border)'}`,
+                  backgroundColor: isActive ? 'var(--tgo-state-trust-soft)' : 'var(--tgo-surface-card)',
+                  border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
                 }}
               >
                 <div
@@ -238,7 +238,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
         >
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0"
-            style={{ backgroundColor: 'var(--tgo-state-interactive)' }}
+            style={{ backgroundColor: 'var(--tgo-state-action)' }}
           >
             <Plus size={16} />
           </div>
@@ -390,7 +390,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
             className="w-full py-3 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             style={{
               borderRadius: 'var(--tgo-radius-md)',
-              backgroundColor: 'var(--tgo-state-interactive)',
+              backgroundColor: 'var(--tgo-state-action)',
             }}
           >
             {adding ? <Loader2 size={16} className="animate-spin" /> : 'Guardar Dirección'}

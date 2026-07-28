@@ -40,7 +40,7 @@ export default function PromoCarousel({ promos }: { promos: Promo[] }) {
         <Link
           href="/app/promociones"
           className="font-semibold text-sm flex items-center gap-1.5 hover:underline"
-          style={{ color: 'var(--tgo-state-interactive)' }}
+          style={{ color: 'var(--tgo-text-link)' }}
         >
           Ver todas <ArrowRight size={16} />
         </Link>

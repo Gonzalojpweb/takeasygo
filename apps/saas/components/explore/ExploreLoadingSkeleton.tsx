@@ -212,7 +212,7 @@ export function FetchOverlay() {
             height: 28,
             borderRadius: 'var(--tgo-radius-pill)',
             border: '2px solid var(--tgo-border)',
-            borderTopColor: 'var(--tgo-state-interactive)',
+            borderTopColor: 'var(--tgo-text-muted)',
           }}
         />
         <span

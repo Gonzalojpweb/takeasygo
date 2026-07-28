@@ -93,7 +93,7 @@ export default function Section({
             href={href}
             className="flex items-center gap-1 shrink-0"
             style={{
-              color: 'var(--tgo-state-interactive)',
+              color: 'var(--tgo-text-link)',
               fontSize: 'var(--tgo-type-body-sm)',
               fontWeight: 600,
             }}

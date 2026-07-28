@@ -134,7 +134,7 @@ export default function EmptyState({
               style={{
                 padding: '10px 20px',
                 borderRadius: 'var(--tgo-radius-md)',
-                backgroundColor: 'var(--tgo-state-interactive)',
+                backgroundColor: 'var(--tgo-state-action)',
                 color: 'var(--tgo-text-inverse)',
                 fontSize: 'var(--tgo-type-body-sm)',
                 fontWeight: 600,
@@ -152,7 +152,7 @@ export default function EmptyState({
                 padding: '10px 20px',
                 borderRadius: 'var(--tgo-radius-md)',
                 backgroundColor: 'transparent',
-                color: 'var(--tgo-state-interactive)',
+                color: 'var(--tgo-text-link)',
                 fontSize: 'var(--tgo-type-body-sm)',
                 fontWeight: 500,
                 transition: `all var(--tgo-duration-base) var(--tgo-ease-standard)`,

@@ -25,8 +25,10 @@ export default function MapPin({
 
   const pinColor = isNetwork
     ? isClosed
-      ? 'var(--tgo-state-danger)'
-      : r.primaryColor || 'var(--tgo-state-interactive)'
+      ? 'var(--tgo-state-inactive)'
+      : isActive
+        ? 'var(--tgo-brand-primary)'
+        : 'var(--tgo-state-activity)'
     : 'var(--tgo-text-muted)'
 
   return (
@@ -84,9 +86,9 @@ export default function MapPin({
               height: 12,
               borderRadius: 'var(--tgo-radius-pill)',
               backgroundColor: isOpen
-                ? 'var(--tgo-state-success)'
+                ? 'var(--tgo-state-activity)'
                 : isClosed
-                  ? 'var(--tgo-state-danger)'
+                  ? 'var(--tgo-state-inactive)'
                   : 'var(--tgo-state-discovery)',
               border: '2px solid var(--tgo-surface-0)',
             }}

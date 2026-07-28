@@ -34,9 +34,9 @@ const VARIANT_STYLES: Record<ChipVariant, React.CSSProperties> = {
     border: '1px solid var(--tgo-border)',
   },
   active: {
-    backgroundColor: 'var(--tgo-state-interactive-soft)',
-    color: 'var(--tgo-state-interactive)',
-    border: '1px solid var(--tgo-state-interactive)',
+    backgroundColor: 'var(--tgo-state-trust-soft)',
+    color: 'var(--tgo-state-trust)',
+    border: '1px solid var(--tgo-state-trust)',
     fontWeight: 600,
   },
   suggestion: {

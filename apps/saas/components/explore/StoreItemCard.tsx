@@ -171,7 +171,7 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
                 className="h-full transition-all"
                 style={{
                   width: `${progress}%`,
-                  background: `linear-gradient(90deg, var(--tgo-state-interactive), var(--tgo-state-interactive-muted))`,
+                  background: `linear-gradient(90deg, var(--tgo-state-action), var(--tgo-state-action-soft))`,
                 }}
               />
             </div>
@@ -234,7 +234,7 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
           className="w-full py-3 font-bold text-sm text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
             borderRadius: 'var(--tgo-radius-md)',
-            backgroundColor: canRedeem ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-1)',
+            backgroundColor: canRedeem ? 'var(--tgo-state-action)' : 'var(--tgo-surface-1)',
             color: canRedeem ? 'white' : 'var(--tgo-text-muted)',
           }}
         >

@@ -172,13 +172,18 @@ const CTA_ACTIVE: React.CSSProperties = {
   borderRadius: 'var(--tgo-radius-md)',
   fontSize: 'var(--tgo-type-caption)',
   fontWeight: 600,
-  backgroundColor: 'var(--tgo-state-interactive)',
+  backgroundColor: 'var(--tgo-state-action)',
   color: 'var(--tgo-text-inverse)',
 }
 const CTA_DISABLED: React.CSSProperties = {
-  ...CTA_ACTIVE,
-  backgroundColor: 'var(--tgo-surface-2)',
-  color: 'var(--tgo-text-muted)',
+  padding: '8px 16px',
+  borderRadius: 'var(--tgo-radius-md)',
+  fontSize: 'var(--tgo-type-caption)',
+  fontWeight: 600,
+  backgroundColor: 'var(--tgo-state-inactive)',
+  color: 'var(--tgo-text-inverse)',
+  cursor: 'not-allowed',
+  boxShadow: 'none',
 }
 const TEXT_OPEN: React.CSSProperties = {
   color: 'var(--tgo-state-success)',
@@ -265,7 +270,7 @@ function OperationalSignalBox({ r }: { r: RestaurantCardData }) {
             signal.variant === 'active'
               ? 'var(--tgo-state-danger)'
               : signal.variant === 'calm'
-                ? 'var(--tgo-state-interactive)'
+                ? 'var(--tgo-state-trust)'
                 : signal.variant === 'new'
                   ? 'var(--tgo-state-info)'
                   : signal.variant === 'benefit'

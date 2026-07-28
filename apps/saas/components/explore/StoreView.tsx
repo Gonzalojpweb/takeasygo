@@ -191,7 +191,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
     )
   }
 
-  const brandColor = tenantBranding?.primaryColor || 'var(--tgo-state-interactive)'
+  const brandColor = tenantBranding?.primaryColor || 'var(--tgo-brand-primary)'
 
   return (
     <div
@@ -289,9 +289,9 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
               className="shrink-0 px-4 py-2 text-sm font-bold transition-all"
               style={{
                 borderRadius: 'var(--tgo-radius-md)',
-                backgroundColor: filterCategory === cat.value ? 'var(--tgo-state-interactive)' : 'var(--tgo-surface-card)',
+                backgroundColor: filterCategory === cat.value ? 'var(--tgo-state-trust)' : 'var(--tgo-surface-card)',
                 color: filterCategory === cat.value ? 'white' : 'var(--tgo-text-primary)',
-                border: `1px solid ${filterCategory === cat.value ? 'var(--tgo-state-interactive)' : 'var(--tgo-border)'}`,
+                border: `1px solid ${filterCategory === cat.value ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
               }}
             >
               {cat.icon} {cat.label}
