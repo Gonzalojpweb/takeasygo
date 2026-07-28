@@ -58,7 +58,7 @@ export default function ExploreHeader({
       className="shrink-0"
       style={{
         paddingTop: 'var(--tgo-safe-top)',
-        backgroundColor: 'var(--tgo-surface-0)',
+        backgroundColor: 'var(--tgo-surface-card)',
       }}
     >
       {/* Top bar */}
@@ -92,7 +92,7 @@ export default function ExploreHeader({
             <p
               className="ml-auto flex items-center gap-1"
               style={{
-                color: 'var(--tgo-state-warning)',
+                color: 'var(--tgo-state-discovery)',
                 fontSize: 'var(--tgo-type-caption)',
                 fontWeight: 700,
               }}
@@ -344,8 +344,8 @@ export default function ExploreHeader({
                 <span
                   className="w-2 h-2 rounded-full"
                   style={{
-                    backgroundColor: 'var(--tgo-state-success)',
-                    boxShadow: '0 0 8px rgba(16, 163, 74, 0.5)',
+                    backgroundColor: 'var(--tgo-state-activity)',
+                    boxShadow: '0 0 8px rgba(47, 191, 113, 0.5)',
                   }}
                 />
                 {networkCount} en red

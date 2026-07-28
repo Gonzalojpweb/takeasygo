@@ -34,7 +34,7 @@ export default function SuccessStep({
       >
         <CheckCircle2
           size={72}
-          style={{ color: 'var(--tgo-state-success, #16A34A)' }}
+          style={{ color: 'var(--tgo-state-success, #12B76A)' }}
           strokeWidth={1.5}
         />
       </motion.div>

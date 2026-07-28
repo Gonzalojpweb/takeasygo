@@ -86,7 +86,7 @@ export default function ClubsDiscoveryPage() {
       <div className="px-4 py-5 space-y-6 max-w-lg mx-auto">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 size={24} style={{ color: 'var(--tgo-state-warning)' }} className="animate-spin" />
+            <Loader2 size={24} style={{ color: 'var(--tgo-state-reward)' }} className="animate-spin" />
             <p className="text-sm" style={{ color: 'var(--tgo-text-muted)' }}>Buscando clubs...</p>
           </div>
         ) : (
@@ -95,7 +95,7 @@ export default function ClubsDiscoveryPage() {
             {myClubs.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <Trophy size={16} style={{ color: 'var(--tgo-state-warning)' }} />
+                  <Trophy size={16} style={{ color: 'var(--tgo-state-reward)' }} />
                   <h2 className="text-sm font-bold">Tus Clubs</h2>
                   <span className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
                     ({myClubs.length})

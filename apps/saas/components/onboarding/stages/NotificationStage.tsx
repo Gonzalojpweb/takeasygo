@@ -97,7 +97,7 @@ export default function NotificationStage({ onComplete }: NotificationStageProps
               className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: 'rgba(22, 163, 74, 0.15)' }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#12B76A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>

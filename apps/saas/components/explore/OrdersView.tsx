@@ -10,13 +10,13 @@ import { EmptyState } from '@/components/tgo'
 import { useHaptic } from '@/components/tgo/useHaptic'
 
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  awaiting_payment: { label: 'Esperando pago', color: 'var(--tgo-status-warning)', bg: 'rgba(245, 158, 11, 0.1)', icon: <Clock size={11} /> },
-  pending:          { label: 'Recibido',        color: 'var(--tgo-status-info)', bg: 'rgba(59, 130, 246, 0.1)', icon: <Clock size={11} /> },
-  confirmed:        { label: 'Confirmado',      color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', icon: <CheckCircle2 size={11} /> },
-  preparing:        { label: 'Preparando',      color: '#f97316', bg: 'rgba(249, 115, 22, 0.1)', icon: <Loader2 size={11} className="animate-spin" /> },
-  ready:            { label: '¡Listo!',         color: 'var(--tgo-status-success)', bg: 'rgba(16, 185, 129, 0.1)', icon: <CheckCircle2 size={11} /> },
+  awaiting_payment: { label: 'Esperando pago', color: 'var(--tgo-state-warning)', bg: 'rgba(245, 158, 11, 0.1)', icon: <Clock size={11} /> },
+  pending:          { label: 'Recibido',        color: 'var(--tgo-state-info)', bg: 'rgba(59, 130, 246, 0.1)', icon: <Clock size={11} /> },
+  confirmed:        { label: 'Confirmado',      color: 'var(--tgo-state-info)', bg: 'rgba(59, 130, 246, 0.1)', icon: <CheckCircle2 size={11} /> },
+  preparing:        { label: 'Preparando',      color: 'var(--tgo-state-warning)', bg: 'rgba(245, 158, 11, 0.1)', icon: <Loader2 size={11} className="animate-spin" /> },
+  ready:            { label: '¡Listo!',         color: 'var(--tgo-state-activity)', bg: 'rgba(47, 191, 113, 0.1)', icon: <CheckCircle2 size={11} /> },
   delivered:        { label: 'Entregado',       color: 'var(--tgo-text-muted)', bg: 'var(--tgo-surface-1)', icon: <CheckCircle2 size={11} /> },
-  cancelled:        { label: 'Cancelado',       color: 'var(--tgo-status-error)', bg: 'rgba(239, 68, 68, 0.1)', icon: <XCircle size={11} /> },
+  cancelled:        { label: 'Cancelado',       color: 'var(--tgo-state-danger)', bg: 'rgba(217, 45, 32, 0.1)', icon: <XCircle size={11} /> },
 }
 
 interface OrderItem {

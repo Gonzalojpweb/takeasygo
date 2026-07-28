@@ -36,7 +36,7 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
           >
             <div className="w-20 h-20 rounded-2xl overflow-hidden mb-2 relative">
               <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-              <div className="absolute top-1.5 right-1.5 bg-amber-400 text-white p-1 rounded-lg shadow-sm">
+              <div className="absolute top-1.5 right-1.5 text-white p-1 rounded-lg shadow-sm" style={{ backgroundColor: 'var(--tgo-state-reward)' }}>
                 <Star size={10} className="fill-white" />
               </div>
             </div>
@@ -46,7 +46,7 @@ export default function HomeRedemptions({ items }: { items: Redemption[] }) {
             <div className="w-full rounded-xl py-1.5 px-2.5 flex items-center justify-between" style={{ backgroundColor: 'var(--tgo-surface-1)' }}>
               <div className="flex flex-col items-start">
                 <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--tgo-text-muted)' }}>Puntos</span>
-                <span className="text-xs font-black text-amber-600 leading-none">{item.pointsCost}</span>
+                <span className="text-xs font-black leading-none" style={{ color: 'var(--tgo-state-reward)' }}>{item.pointsCost}</span>
               </div>
               <div className="w-5 h-5 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-surface-card)', color: 'var(--tgo-text-muted)' }}>
                 <ChevronRight size={12} />

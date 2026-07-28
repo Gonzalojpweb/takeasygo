@@ -55,18 +55,18 @@ function NeighborhoodsIllustration() {
     >
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 200" fill="none">
         {/* Zone circles */}
-        <circle cx="100" cy="100" r="60" stroke="#16A34A" strokeWidth="1" opacity="0.15" />
-        <circle cx="100" cy="100" r="40" stroke="#16A34A" strokeWidth="1" opacity="0.2" />
-        <circle cx="100" cy="100" r="20" stroke="#16A34A" strokeWidth="1" opacity="0.3" />
+        <circle cx="100" cy="100" r="60" stroke="#12B76A" strokeWidth="1" opacity="0.15" />
+        <circle cx="100" cy="100" r="40" stroke="#12B76A" strokeWidth="1" opacity="0.2" />
+        <circle cx="100" cy="100" r="20" stroke="#12B76A" strokeWidth="1" opacity="0.3" />
         {/* Location pins */}
-        <circle cx="70" cy="80" r="6" fill="#16A34A" opacity="0.4" />
-        <circle cx="130" cy="85" r="5" fill="#16A34A" opacity="0.3" />
-        <circle cx="90" cy="120" r="7" fill="#16A34A" opacity="0.5" />
-        <circle cx="115" cy="115" r="4" fill="#16A34A" opacity="0.3" />
+        <circle cx="70" cy="80" r="6" fill="#12B76A" opacity="0.4" />
+        <circle cx="130" cy="85" r="5" fill="#12B76A" opacity="0.3" />
+        <circle cx="90" cy="120" r="7" fill="#12B76A" opacity="0.5" />
+        <circle cx="115" cy="115" r="4" fill="#12B76A" opacity="0.3" />
         {/* Connection paths */}
-        <path d="M70 80 Q 100 90 130 85" stroke="#16A34A" strokeWidth="1.5" opacity="0.25" fill="none" />
-        <path d="M70 80 Q 80 100 90 120" stroke="#16A34A" strokeWidth="1.5" opacity="0.25" fill="none" />
-        <path d="M90 120 Q 105 118 115 115" stroke="#16A34A" strokeWidth="1.5" opacity="0.2" fill="none" />
+        <path d="M70 80 Q 100 90 130 85" stroke="#12B76A" strokeWidth="1.5" opacity="0.25" fill="none" />
+        <path d="M70 80 Q 80 100 90 120" stroke="#12B76A" strokeWidth="1.5" opacity="0.25" fill="none" />
+        <path d="M90 120 Q 105 118 115 115" stroke="#12B76A" strokeWidth="1.5" opacity="0.2" fill="none" />
       </svg>
     </div>
   )

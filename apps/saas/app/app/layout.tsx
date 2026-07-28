@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import ActiveOrderBanner from '@/components/menu/ActiveOrderBanner'
 
 export const viewport: Viewport = {
-  themeColor: '#FAFAF8',
+  themeColor: '#E7E2E3',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -33,7 +33,7 @@ export default function ExploreLayout({ children }: { children: React.ReactNode 
   return (
     <>
       <style>{`
-        html, body { background-color: var(--tgo-surface-0, #FAFAF8); }
+        html, body { background-color: var(--tgo-surface-0, #E7E2E3); }
       `}</style>
     <TenantProvider>
       <Suspense fallback={null}>

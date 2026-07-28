@@ -94,18 +94,18 @@ export default function PushSubscriber({ tenantId, memberId }: PushSubscriberPro
   if (state !== 'prompt') return null
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 shrink-0 border-b" style={{ backgroundColor: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' }}>
-      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)' }}>
-        <Bell size={16} className="shrink-0" style={{ color: 'var(--tgo-status-success)' }} />
+    <div className="flex items-center gap-3 px-4 py-3 shrink-0 border-b" style={{ backgroundColor: 'var(--tgo-state-activity-soft)', borderColor: 'rgba(47, 191, 113, 0.2)' }}>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(47, 191, 113, 0.1)' }}>
+        <Bell size={16} className="shrink-0" style={{ color: 'var(--tgo-state-activity)' }} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-black uppercase tracking-tight leading-tight">¿Notificaciones?</p>
-        <p className="text-[10px] font-medium leading-tight" style={{ color: 'var(--tgo-status-success)', opacity: 0.7 }}>Te avisamos cuando tu pedido esté listo</p>
+        <p className="text-[10px] font-medium leading-tight" style={{ color: 'var(--tgo-state-activity)', opacity: 0.7 }}>Te avisamos cuando tu pedido esté listo</p>
       </div>
       <button
         onClick={handleAllow}
         className="text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shrink-0 transition-all shadow-sm"
-        style={{ backgroundColor: 'var(--tgo-status-success)' }}
+        style={{ backgroundColor: 'var(--tgo-state-activity)' }}
       >
         Activar
       </button>

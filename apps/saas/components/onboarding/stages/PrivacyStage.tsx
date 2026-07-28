@@ -24,7 +24,7 @@ export default function PrivacyStage({ onNext }: PrivacyStageProps) {
         className="w-16 h-16 rounded-2xl flex items-center justify-center mb-8"
         style={{ backgroundColor: 'rgba(22, 163, 74, 0.1)' }}
       >
-        <Shield size={28} color="#16A34A" />
+        <Shield size={28} color="#12B76A" />
       </motion.div>
 
       {/* Title */}

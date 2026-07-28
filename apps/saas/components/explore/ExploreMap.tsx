@@ -138,7 +138,7 @@ function HoverCard({ r, pos, containerW, containerH }: {
             </p>
           )}
           {isNetwork && r.isOperational === false && (
-            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--tgo-state-warning)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--tgo-state-discovery)' }}>
               Catálogo / Próximamente
             </p>
           )}
@@ -189,10 +189,10 @@ function BottomSheet({ r, onClose, onNavigate }: {
                     className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                     style={{
                       backgroundColor: isNetwork
-                        ? (r.isOperational === false ? 'var(--tgo-state-warning-soft)' : 'var(--tgo-state-success-soft)')
+                        ? (r.isOperational === false ? 'var(--tgo-state-discovery-soft)' : 'var(--tgo-state-success-soft)')
                         : 'var(--tgo-surface-2)',
                       color: isNetwork
-                        ? (r.isOperational === false ? 'var(--tgo-state-warning)' : 'var(--tgo-state-success)')
+                        ? (r.isOperational === false ? 'var(--tgo-state-discovery)' : 'var(--tgo-state-success)')
                         : 'var(--tgo-text-muted)',
                     }}
                   >
@@ -216,7 +216,7 @@ function BottomSheet({ r, onClose, onNavigate }: {
                   </p>
                 )}
                 {isNetwork && r.isOperational === false && (
-                   <p className="text-[10px] font-black uppercase tracking-widest mt-1 animate-pulse" style={{ color: 'var(--tgo-state-warning)' }}>
+                   <p className="text-[10px] font-black uppercase tracking-widest mt-1 animate-pulse" style={{ color: 'var(--tgo-state-discovery)' }}>
                      Proximamente takeaway
                    </p>
                 )}
@@ -338,8 +338,8 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
         const isOperational = r.isOperational ?? true
         const isClosed = r.isOpenNow === false
         const fill = isNetwork 
-          ? (isOperational ? '#10b981' : '#f59e0b') 
-          : '#a78bfa'
+          ? (isOperational ? 'var(--tgo-state-activity)' : 'var(--tgo-state-warning)') 
+          : 'var(--tgo-state-proximity)'
         const opacity = isClosed ? 0.55 : 1
         const pinColor = isClosed ? '#5a524d' : fill
 
