@@ -183,7 +183,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
                 className="w-full p-4 flex items-center gap-3 group transition-all"
                 style={{
                   borderRadius: 'var(--tgo-radius-xl)',
-                  backgroundColor: isActive ? 'var(--tgo-state-trust-soft)' : 'var(--tgo-surface-card)',
+                  backgroundColor: isActive ? 'var(--tgo-state-trust-soft)' : 'var(--tgo-card)',
                   border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
                 }}
               >
@@ -232,7 +232,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
           className="w-full p-4 flex items-center gap-3 transition-all"
           style={{
             borderRadius: 'var(--tgo-radius-xl)',
-            backgroundColor: 'var(--tgo-surface-card)',
+            backgroundColor: 'var(--tgo-card)',
             border: '1px solid var(--tgo-border)',
           }}
         >
@@ -259,7 +259,7 @@ export default function AddressSelector({ onClose, showAddButton = true }: Addre
           className="p-4 space-y-3"
           style={{
             borderRadius: 'var(--tgo-radius-xl)',
-            backgroundColor: 'var(--tgo-surface-card)',
+            backgroundColor: 'var(--tgo-card)',
             border: '1px solid var(--tgo-border)',
           }}
         >

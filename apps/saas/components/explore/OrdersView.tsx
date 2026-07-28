@@ -85,7 +85,7 @@ export default function OrdersView() {
   // Unauthenticated state
   if (authStatus === 'unauthenticated') {
     return (
-      <div className="h-full" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
+      <div className="h-full" style={{ backgroundColor: 'var(--tgo-card)' }}>
         <EmptyState
           icon={<LogIn size={48} />}
           title="Tus pedidos"
@@ -99,8 +99,8 @@ export default function OrdersView() {
   // Loading state
   if (loading && orders.length === 0) {
     return (
-      <div className="h-full" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
-        <div className="sticky top-0 px-4 py-4" style={{ backgroundColor: 'var(--tgo-surface-card)', borderBottom: '1px solid var(--tgo-border)' }}>
+      <div className="h-full" style={{ backgroundColor: 'var(--tgo-card)' }}>
+        <div className="sticky top-0 px-4 py-4" style={{ backgroundColor: 'var(--tgo-card)', borderBottom: '1px solid var(--tgo-border)' }}>
           <h2 className="font-black text-xl" style={{ color: 'var(--tgo-text-primary)' }}>Mis pedidos</h2>
         </div>
         <div className="p-4 space-y-3">
@@ -115,8 +115,8 @@ export default function OrdersView() {
   // Empty state
   if (!loading && orders.length === 0) {
     return (
-      <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
-        <div className="sticky top-0 px-4 py-4" style={{ backgroundColor: 'var(--tgo-surface-card)', borderBottom: '1px solid var(--tgo-border)' }}>
+      <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--tgo-card)' }}>
+        <div className="sticky top-0 px-4 py-4" style={{ backgroundColor: 'var(--tgo-card)', borderBottom: '1px solid var(--tgo-border)' }}>
           <h2 className="font-black text-xl" style={{ color: 'var(--tgo-text-primary)' }}>Mis pedidos</h2>
         </div>
         <div className="flex-1">
@@ -132,9 +132,9 @@ export default function OrdersView() {
   }
 
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-24" style={{ backgroundColor: 'var(--tgo-surface-card)' }}>
+    <div className="h-full overflow-y-auto no-scrollbar pb-24" style={{ backgroundColor: 'var(--tgo-card)' }}>
       {/* Header */}
-      <div className="sticky top-0 backdrop-blur-xl px-4 py-4 z-10" style={{ backgroundColor: 'color-mix(in srgb, var(--tgo-surface-card) 90%, transparent)', borderBottom: '1px solid var(--tgo-border)' }}>
+      <div className="sticky top-0 backdrop-blur-xl px-4 py-4 z-10" style={{ backgroundColor: 'color-mix(in srgb, var(--tgo-card) 90%, transparent)', borderBottom: '1px solid var(--tgo-border)' }}>
         <h2 className="font-black text-xl" style={{ color: 'var(--tgo-text-primary)' }}>Mis pedidos</h2>
         <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--tgo-text-muted)' }}>{orders.length} pedido{orders.length !== 1 ? 's' : ''}</p>
       </div>
@@ -157,7 +157,7 @@ export default function OrdersView() {
                       : 'border cursor-pointer'
                   }`}
                   style={{
-                    backgroundColor: 'var(--tgo-surface-card)',
+                    backgroundColor: 'var(--tgo-card)',
                     borderColor: isActive ? order.tenant?.primaryColor + '40' : 'var(--tgo-border)',
                   }}
                 >

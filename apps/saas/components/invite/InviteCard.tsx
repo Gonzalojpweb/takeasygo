@@ -66,7 +66,7 @@ export default function InviteCard() {
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 'var(--tgo-radius-2xl)',
-    backgroundColor: 'var(--tgo-surface-card)',
+    backgroundColor: 'var(--tgo-card)',
     border: '1px solid var(--tgo-border)',
   }
 

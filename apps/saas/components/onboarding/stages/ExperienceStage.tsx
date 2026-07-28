@@ -114,7 +114,7 @@ export default function ExperienceStage({ value, onChange, onNext }: ExperienceS
         className="w-full h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150"
         style={{
           backgroundColor: 'var(--tgo-brand-primary)',
-          color: 'var(--tgo-surface-card)',
+          color: 'var(--tgo-card)',
           boxShadow: '0 12px 24px -4px rgba(247, 66, 17, 0.4)',
         }}
       >

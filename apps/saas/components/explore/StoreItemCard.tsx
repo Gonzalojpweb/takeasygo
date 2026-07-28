@@ -92,9 +92,9 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
       className="overflow-hidden transition-all duration-500"
       style={{
         borderRadius: 'var(--tgo-radius-xl)',
-        backgroundColor: 'var(--tgo-surface-card)',
+        backgroundColor: 'var(--tgo-card)',
         border: cardBorder,
-        boxShadow: 'var(--tgo-elevation-card)',
+        boxShadow: 'var(--shadow-card)',
         opacity: !canAfford ? 0.6 : 1,
         filter: !canAfford ? 'grayscale(1)' : 'none',
       }}

@@ -41,7 +41,7 @@ export default function ClubCard({
       className="w-full p-4 flex items-center gap-4 group transition-all text-left"
       style={{
         borderRadius: 'var(--tgo-radius-xl)',
-        backgroundColor: 'var(--tgo-surface-card)',
+        backgroundColor: 'var(--tgo-card)',
         border: '1px solid var(--tgo-border)',
       }}
     >

@@ -198,7 +198,7 @@ export default function SearchBar({
           padding: '10px 16px',
           borderRadius: 'var(--tgo-radius-pill)',
           backgroundColor: 'var(--tgo-surface-search)',
-          boxShadow: 'var(--tgo-elevation-card)',
+          boxShadow: 'var(--shadow-card)',
           border: `1px solid ${
             isExpanded
               ? 'var(--tgo-border-focus)'
@@ -285,7 +285,7 @@ export default function SearchBar({
           className="absolute left-0 right-0 mt-2 overflow-hidden"
           style={{
             borderRadius: 'var(--tgo-radius-lg)',
-            backgroundColor: 'var(--tgo-surface-card)',
+            backgroundColor: 'var(--tgo-card)',
             boxShadow: 'var(--tgo-elevation-dialog)',
             border: '1px solid var(--tgo-border)',
             zIndex: 'var(--tgo-z-sheet)',

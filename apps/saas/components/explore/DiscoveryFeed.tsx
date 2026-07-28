@@ -97,7 +97,7 @@ function QuickFiltersModule({
               fontWeight: isActive ? 600 : 400,
               backgroundColor: isActive
                 ? 'var(--tgo-state-trust-soft)'
-                : 'var(--tgo-surface-card)',
+                : 'var(--tgo-card)',
               color: isActive
                 ? 'var(--tgo-state-trust)'
                 : 'var(--tgo-state-trust)',
@@ -343,7 +343,7 @@ export default function DiscoveryFeed({
               fontSize: 'var(--tgo-type-caption)',
               fontWeight: 500,
               color: 'var(--tgo-text-muted)',
-              backgroundColor: 'var(--tgo-surface-card)',
+              backgroundColor: 'var(--tgo-card)',
               border: '1px solid var(--tgo-border)',
               textDecoration: 'none',
             }}
@@ -364,7 +364,7 @@ export default function DiscoveryFeed({
               fontSize: 'var(--tgo-type-caption)',
               fontWeight: 500,
               color: 'var(--tgo-text-muted)',
-              backgroundColor: 'var(--tgo-surface-card)',
+              backgroundColor: 'var(--tgo-card)',
               border: '1px solid var(--tgo-border)',
               cursor: 'pointer',
             }}

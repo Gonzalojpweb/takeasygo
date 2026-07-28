@@ -100,7 +100,7 @@ export default function ProfileContent() {
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 'var(--tgo-radius-xl)',
-    backgroundColor: 'var(--tgo-surface-card)',
+    backgroundColor: 'var(--tgo-card)',
     border: '1px solid var(--tgo-border)',
   }
 
@@ -150,7 +150,7 @@ export default function ProfileContent() {
             <div
               className="w-20 h-20 flex items-center justify-center mb-6 relative group"
               style={{
-                backgroundColor: 'var(--tgo-surface-card)',
+                backgroundColor: 'var(--tgo-card)',
                 borderRadius: 'var(--tgo-radius-2xl)',
                 border: '1px solid var(--tgo-border)',
               }}
@@ -191,7 +191,7 @@ export default function ProfileContent() {
             <button
               onClick={() => signIn('google', { callbackUrl })}
               className="w-full flex items-center justify-center gap-3 py-3.5 font-bold shadow-sm border transition-transform active:scale-95"
-              style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-surface-card)', color: 'var(--tgo-text-primary)', borderColor: 'var(--tgo-border)' }}
+              style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-card)', color: 'var(--tgo-text-primary)', borderColor: 'var(--tgo-border)' }}
             >
               <Image
                 src="https://www.google.com/favicon.ico"
