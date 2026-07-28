@@ -172,7 +172,7 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
             {/* Expiry */}
             <div
               className="flex items-center justify-center gap-2 mb-6"
-              style={{ color: 'var(--tgo-state-warning)' }}
+              style={{ color: 'var(--tgo-state-discovery)' }}
             >
               <Clock size={16} />
               <span className="text-sm font-medium">

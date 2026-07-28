@@ -40,8 +40,8 @@ interface OrdersResponse {
 }
 
 const statusConfig: Record<OrderStatus, { label: string; icon: any; color: string; bg: string }> = {
-  awaiting_payment: { label: 'Esperando pago', icon: Clock, color: 'var(--tgo-state-warning)', bg: 'var(--tgo-state-warning-soft)' },
-  pending: { label: 'Pendiente', icon: Clock, color: 'var(--tgo-state-warning)', bg: 'var(--tgo-state-warning-soft)' },
+  awaiting_payment: { label: 'Esperando pago', icon: Clock, color: 'var(--tgo-state-discovery)', bg: 'var(--tgo-state-discovery-soft)' },
+  pending: { label: 'Pendiente', icon: Clock, color: 'var(--tgo-state-discovery)', bg: 'var(--tgo-state-discovery-soft)' },
   confirmed: { label: 'Confirmado', icon: CheckCircle, color: 'var(--tgo-state-info)', bg: 'var(--tgo-state-info-soft)' },
   preparing: { label: 'Preparando', icon: Clock, color: 'var(--tgo-state-interactive)', bg: 'var(--tgo-state-interactive-soft)' },
   ready: { label: 'Listo', icon: CheckCircle, color: 'var(--tgo-state-success)', bg: 'var(--tgo-state-success-soft)' },

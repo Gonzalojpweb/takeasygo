@@ -87,7 +87,7 @@ export default function MapPin({
                 ? 'var(--tgo-state-success)'
                 : isClosed
                   ? 'var(--tgo-state-danger)'
-                  : 'var(--tgo-state-warning)',
+                  : 'var(--tgo-state-discovery)',
               border: '2px solid var(--tgo-surface-0)',
             }}
           />

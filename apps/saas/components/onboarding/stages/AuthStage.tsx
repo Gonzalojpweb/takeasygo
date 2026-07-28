@@ -206,7 +206,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               transition={{ delay: 0.1, duration: 0.5, type: 'spring', bounce: 0.4 }}
               className="mb-8"
             >
-              <CheckCircle2 size={64} color="#16A34A" strokeWidth={1.5} />
+              <CheckCircle2 size={64} color="#12B76A" strokeWidth={1.5} />
             </motion.div>
 
             {/* Title */}
@@ -348,7 +348,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                   backgroundColor: 'rgba(255,255,255,0.05)',
                   color: 'var(--tgo-text-primary)',
                   border: error
-                    ? '1px solid var(--tgo-status-error)'
+                    ? '1px solid var(--tgo-state-danger)'
                     : '1px solid rgba(255,255,255,0.1)',
                 }}
                 onFocus={(e) => {
@@ -363,7 +363,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-xs mt-2 ml-1"
-                  style={{ color: 'var(--tgo-status-error)' }}
+                  style={{ color: 'var(--tgo-state-danger)' }}
                 >
                   {error}
                 </motion.p>

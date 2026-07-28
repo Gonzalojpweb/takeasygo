@@ -23,7 +23,7 @@ export default function GlobalError({
           Recargar
         </button>
         <p className="text-xs mt-6 font-mono" style={{ color: 'var(--tgo-text-muted)' }}>
-          {error.digest && <span style={{ color: 'var(--tgo-status-error)' }}>Error ID: {error.digest}</span>}
+          {error.digest && <span style={{ color: 'var(--tgo-state-danger)' }}>Error ID: {error.digest}</span>}
         </p>
       </div>
     </div>

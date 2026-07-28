@@ -177,7 +177,7 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
             </div>
             <p
               className="text-xs font-medium mt-1"
-              style={{ color: 'var(--tgo-state-warning)' }}
+              style={{ color: 'var(--tgo-state-discovery)' }}
             >
               Necesitas {pointsNeeded} puntos más
             </p>
@@ -190,13 +190,13 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
             className="mb-4 p-2"
             style={{
               borderRadius: 'var(--tgo-radius-md)',
-              backgroundColor: 'var(--tgo-state-warning-soft)',
-              border: '1px solid var(--tgo-state-warning)',
+              backgroundColor: 'var(--tgo-state-discovery-soft)',
+              border: '1px solid var(--tgo-state-discovery)',
             }}
           >
             <div
               className="flex items-center gap-2 text-xs font-medium"
-              style={{ color: 'var(--tgo-state-warning)' }}
+              style={{ color: 'var(--tgo-state-discovery)' }}
             >
               <Lock size={12} />
               Requiere nivel {item.tierRequirement}

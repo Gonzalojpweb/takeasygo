@@ -60,7 +60,7 @@ function MiniMap({ lat, lng }: { lat: number; lng: number }) {
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map)
       const icon = L.divIcon({
         className: '',
-        html: '<div style="width:16px;height:16px;border-radius:50%;background:#16A34A;border:3px solid #fff;box-shadow:0 0 0 3px rgba(22,163,74,0.4),0 0 16px rgba(22,163,74,0.3)"></div>',
+        html: '<div style="width:16px;height:16px;border-radius:50%;background:#12B76A;border:3px solid #fff;box-shadow:0 0 0 3px rgba(18,183,106,0.4),0 0 16px rgba(18,183,106,0.3)"></div>',
         iconSize: [16, 16], iconAnchor: [8, 8],
       })
       L.marker([lat, lng], { icon }).addTo(map)

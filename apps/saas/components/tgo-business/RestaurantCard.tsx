@@ -126,12 +126,12 @@ const TEXT_PICKUP: React.CSSProperties = {
   fontWeight: 600,
 }
 const TEXT_OPPORTUNITY: React.CSSProperties = {
-  color: 'var(--tgo-state-warning)',
+  color: 'var(--tgo-state-discovery)',
   fontSize: 'var(--tgo-type-caption)',
   fontWeight: 600,
 }
 const TEXT_RATING: React.CSSProperties = {
-  color: 'var(--tgo-state-warning)',
+  color: 'var(--tgo-state-discovery)',
   fontSize: 'var(--tgo-type-caption)',
   fontWeight: 700,
 }
@@ -140,7 +140,7 @@ const TEXT_MUTED: React.CSSProperties = {
   fontSize: 10,
 }
 const TEXT_PROMO: React.CSSProperties = {
-  color: 'var(--tgo-state-warning)',
+  color: 'var(--tgo-state-discovery)',
   fontSize: 10,
   fontWeight: 600,
 }
@@ -269,7 +269,7 @@ function OperationalSignalBox({ r }: { r: RestaurantCardData }) {
                 : signal.variant === 'new'
                   ? 'var(--tgo-state-info)'
                   : signal.variant === 'benefit'
-                    ? 'var(--tgo-state-warning)'
+                    ? 'var(--tgo-state-discovery)'
                     : 'var(--tgo-state-success)',
         }}
       />

@@ -71,8 +71,8 @@ const BADGE_CONFIG: Record<
   },
   'happy-hour': {
     label: 'Happy Hour',
-    color: 'var(--tgo-state-warning)',
-    bg: 'var(--tgo-state-warning-soft)',
+    color: 'var(--tgo-state-discovery)',
+    bg: 'var(--tgo-state-discovery-soft)',
   },
   'bank-benefit': {
     label: 'Beneficio',
@@ -127,7 +127,7 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
             className="absolute inset-0 flex items-center justify-center"
             style={{
               background:
-                'linear-gradient(135deg, #F74211 0%, #F4B42D 50%, #16A34A 100%)',
+                'linear-gradient(135deg, #F74211 0%, #FAB300 50%, #12B76A 100%)',
             }}
           >
             <span style={{ fontSize: 48, opacity: 0.3 }}>

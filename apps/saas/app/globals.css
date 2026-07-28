@@ -301,10 +301,10 @@ html.lenis body {
   --tgo-brand-primary-hover: #E03A0F;
 
   /* ── Surface Layer (Superficies y Elevaciones) ───────────────────── */
-  --tgo-surface-0: #FFFFFF;
-  --tgo-surface-1: #FAFAF8;
-  --tgo-surface-2: #F5F3F0;
-  --tgo-surface-3: #EDEAE6;
+  --tgo-surface-0: #E7E2E3;
+  --tgo-surface-1: #ECEAE9;
+  --tgo-surface-2: #FFFFFF;
+  --tgo-surface-3: #E7E2E3;
 
   --tgo-surface-card: #FFFFFF;
   --tgo-surface-sheet: #FFFFFF;
@@ -342,36 +342,47 @@ html.lenis body {
   --tgo-tracking-widest: 0.12em;
 
   /* ── Text Layer ──────────────────────────────────────────────────── */
-  --tgo-text-primary: #2E3A45;
-  --tgo-text-secondary: #667085;
-  --tgo-text-muted: #A09A95;
+  --tgo-text-primary: #2D2A4B;
+  --tgo-text-secondary: #4E5067;
+  --tgo-text-muted: #98A2B3;
   --tgo-text-inverse: #FFFFFF;
   --tgo-text-brand: #F74211;
-  --tgo-text-interactive: #065D63;
 
   /* ── Functional Layer (Estados) ──────────────────────────────────── */
   --tgo-state-interactive: #065D63;
   --tgo-state-interactive-hover: #055257;
   --tgo-state-interactive-soft: rgba(6, 93, 99, 0.08);
 
-  --tgo-state-success: #16A34A;
-  --tgo-state-success-soft: rgba(22, 163, 74, 0.08);
+  --tgo-state-success: #12B76A;
+  --tgo-state-success-soft: rgba(18, 183, 106, 0.08);
 
-  --tgo-state-warning: #F4B42D;
-  --tgo-state-warning-soft: rgba(244, 180, 45, 0.08);
+  --tgo-state-warning: #F59E0B;
+  --tgo-state-warning-soft: rgba(245, 158, 11, 0.08);
 
-  --tgo-state-danger: #D94A3D;
-  --tgo-state-danger-soft: rgba(217, 74, 61, 0.08);
+  --tgo-state-danger: #D92D20;
+  --tgo-state-danger-soft: rgba(217, 45, 32, 0.08);
 
   --tgo-state-info: #3B82F6;
   --tgo-state-info-soft: rgba(59, 130, 246, 0.08);
 
-  --tgo-state-highlight: #F4B42D;
-  --tgo-state-highlight-soft: rgba(244, 180, 45, 0.08);
+  --tgo-state-discovery: #FAB300;
+  --tgo-state-discovery-soft: rgba(250, 179, 0, 0.08);
+
+  --tgo-state-activity: #2FBF71;
+  --tgo-state-activity-soft: rgba(47, 191, 113, 0.08);
+
+  --tgo-state-proximity: #3A86C8;
+  --tgo-state-proximity-soft: rgba(58, 134, 200, 0.08);
+
+  --tgo-state-reward: #7A5AF8;
+  --tgo-state-reward-soft: rgba(122, 90, 248, 0.08);
+
+  --tgo-state-inactive: #98A2B3;
+  --tgo-state-inactive-soft: rgba(152, 162, 179, 0.08);
 
   /* ── Border Layer ────────────────────────────────────────────────── */
-  --tgo-border: #ECECEC;
-  --tgo-border-active: #D0CAC4;
+  --tgo-border: #D8D4D5;
+  --tgo-border-active: #D8D4D5;
   --tgo-border-focus: #065D63;
   --tgo-border-brand: #F74211;
 

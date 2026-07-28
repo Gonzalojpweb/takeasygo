@@ -57,7 +57,7 @@ export default function ClubCard({
       ) : (
         <div
           className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-          style={{ backgroundColor: 'var(--tgo-state-warning-soft)', color: 'var(--tgo-state-warning)' }}
+          style={{ backgroundColor: 'var(--tgo-state-reward-soft)', color: 'var(--tgo-state-reward)' }}
         >
           <Trophy size={20} />
         </div>
@@ -67,7 +67,7 @@ export default function ClubCard({
           {clubName}
         </p>
         {variant === 'mine' && typeof points === 'number' ? (
-          <p className="text-[11px] font-black tabular-nums" style={{ color: 'var(--tgo-state-warning)' }}>
+          <p className="text-[11px] font-black tabular-nums" style={{ color: 'var(--tgo-state-reward)' }}>
             {points} pts
           </p>
         ) : (

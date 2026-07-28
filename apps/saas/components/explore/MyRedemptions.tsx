@@ -65,7 +65,7 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
 
   function getStatusBadge(status: string) {
     const styles: Record<string, { bg: string; color: string; label: string }> = {
-      pending: { bg: 'var(--tgo-state-warning)', color: 'white', label: 'Pendiente' },
+      pending: { bg: 'var(--tgo-state-discovery)', color: 'white', label: 'Pendiente' },
       claimed: { bg: 'var(--tgo-state-success)', color: 'white', label: 'Reclamado' },
       expired: { bg: 'var(--tgo-surface-1)', color: 'var(--tgo-text-muted)', label: 'Expirado' },
       cancelled: { bg: 'var(--tgo-state-danger)', color: 'white', label: 'Cancelado' },
@@ -83,7 +83,7 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
 
   function getStatusIcon(status: string) {
     const colors: Record<string, string> = {
-      pending: 'var(--tgo-state-warning)',
+      pending: 'var(--tgo-state-discovery)',
       claimed: 'var(--tgo-state-success)',
       expired: 'var(--tgo-text-muted)',
       cancelled: 'var(--tgo-state-danger)',
@@ -189,7 +189,7 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
                     </h3>
                     <div className="space-y-4">
                       {pendingRedemptions.map(redemption => (
-                        <div key={redemption._id} style={{ ...cardStyle, border: '1px solid var(--tgo-state-warning)' }}>
+                        <div key={redemption._id} style={{ ...cardStyle, border: '1px solid var(--tgo-state-discovery)' }}>
                           <div className="p-4">
                             <div className="flex items-start gap-4">
                               {redemption.storeItemId.imageUrl && (

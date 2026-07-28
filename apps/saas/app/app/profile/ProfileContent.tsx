@@ -462,7 +462,7 @@ export default function ProfileContent() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{
                     backgroundColor: 'var(--tgo-surface-1)',
-                    color: 'var(--tgo-state-warning)',
+                    color: 'var(--tgo-state-reward)',
                   }}
                 >
                   <Loader2 size={20} className="animate-spin" />
@@ -480,7 +480,7 @@ export default function ProfileContent() {
               <div className="w-full p-4" style={cardStyle}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Trophy size={16} style={{ color: 'var(--tgo-state-warning)' }} />
+                    <Trophy size={16} style={{ color: 'var(--tgo-state-reward)' }} />
                     <p className="text-xs font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
                       {microcopy.profile.yourClubs}
                     </p>
@@ -488,7 +488,7 @@ export default function ProfileContent() {
                   <button
                     onClick={() => router.push('/app/profile/clubs')}
                     className="text-[10px] font-bold transition-colors"
-                    style={{ color: 'var(--tgo-state-warning)' }}
+                    style={{ color: 'var(--tgo-state-reward)' }}
                   >
                     {microcopy.profile.viewAll}
                   </button>
@@ -509,9 +509,9 @@ export default function ProfileContent() {
                       ) : (
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center"
-                          style={{ backgroundColor: 'var(--tgo-state-warning-soft)' }}
+                          style={{ backgroundColor: 'var(--tgo-state-reward-soft)' }}
                         >
-                          <Trophy size={14} style={{ color: 'var(--tgo-state-warning)' }} />
+                          <Trophy size={14} style={{ color: 'var(--tgo-state-reward)' }} />
                         </div>
                       )}
                       <p
@@ -522,7 +522,7 @@ export default function ProfileContent() {
                       </p>
                       <p
                         className="text-[9px] font-black tabular-nums"
-                        style={{ color: 'var(--tgo-state-warning)' }}
+                        style={{ color: 'var(--tgo-state-reward)' }}
                       >
                         {club.points} pts
                       </p>
@@ -539,8 +539,8 @@ export default function ProfileContent() {
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{
-                    backgroundColor: 'var(--tgo-state-warning-soft)',
-                    color: 'var(--tgo-state-warning)',
+                    backgroundColor: 'var(--tgo-state-reward-soft)',
+                    color: 'var(--tgo-state-reward)',
                   }}
                 >
                   <Trophy size={20} />
@@ -565,7 +565,7 @@ export default function ProfileContent() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{
                     backgroundColor: 'var(--tgo-surface-1)',
-                    color: 'var(--tgo-state-warning)',
+                    color: 'var(--tgo-state-reward)',
                   }}
                 >
                   <Trophy size={20} />

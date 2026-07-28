@@ -37,7 +37,7 @@ export default function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-[1000] pb-[safe-area-inset-bottom] h-[calc(64px+env(safe-area-inset-bottom,0px))]"
       aria-label="Navegación principal"
       style={{
-        backgroundColor: 'var(--tgo-surface-0)',
+        backgroundColor: 'var(--tgo-surface-card)',
         borderTop: '1px solid var(--tgo-border)',
         backdropFilter: 'blur(16px)',
       }}

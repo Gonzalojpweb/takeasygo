@@ -82,8 +82,8 @@ export default function SettingsClient() {
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{
-                backgroundColor: notifications ? 'rgba(16, 185, 129, 0.1)' : 'var(--tgo-surface-1)',
-                color: notifications ? 'var(--tgo-state-success)' : 'var(--tgo-text-muted)',
+                backgroundColor: notifications ? 'var(--tgo-state-activity-soft)' : 'var(--tgo-surface-1)',
+                color: notifications ? 'var(--tgo-state-activity)' : 'var(--tgo-text-muted)',
               }}
             >
               {notifications ? <Bell size={20} /> : <BellOff size={20} />}

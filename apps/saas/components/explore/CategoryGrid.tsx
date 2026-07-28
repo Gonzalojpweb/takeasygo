@@ -17,7 +17,7 @@ const CATEGORIES: Category[] = [
   { name: 'Hamburguesas', icon: '🍔', color: '#DC2626', bg: '#FEF2F2' },
   { name: 'Sushi', icon: '🍣', color: '#0F172A', bg: '#F8FAFC' },
   { name: 'Empanadas', icon: '🥟', color: '#D97706', bg: '#FFFBEB' },
-  { name: 'Pasta', icon: '🍝', color: '#16A34A', bg: '#F0FDF4' },
+  { name: 'Pasta', icon: '🍝', color: '#12B76A', bg: '#F0FDF4' },
   { name: 'Tacos', icon: '🌮', color: '#7C3AED', bg: '#FAF5FF' },
   { name: 'Parrilla', icon: '🥩', color: '#991B1B', bg: '#FEF2F2' },
 ]
