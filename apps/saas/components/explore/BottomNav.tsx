@@ -54,19 +54,19 @@ export default function BottomNav() {
                 <button
                   onClick={() => { haptic.selection(); router.push(tab.href) }}
                   aria-label={tab.label}
-                  className="w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-300"
+                  className="tgo-nav-center w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 active:scale-90"
                   style={{
-                    backgroundColor: isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-surface-1)',
+                    backgroundColor: isActive ? 'var(--tgo-state-action)' : 'var(--tgo-surface-1)',
                     color: isActive ? 'var(--tgo-text-inverse)' : 'var(--tgo-text-muted)',
                     transform: isActive ? 'scale(1.05)' : undefined,
-                    boxShadow: isActive ? '0 4px 16px var(--tgo-state-trust-soft)' : '0 2px 8px rgba(0,0,0,0.08)',
+                    boxShadow: isActive ? '0 4px 16px var(--tgo-state-action-soft)' : '0 2px 8px rgba(0,0,0,0.08)',
                   }}
                 >
                   <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 </button>
                 <span
                   className="text-[10px] font-black uppercase mt-0.5 transition-colors"
-                   style={{ color: isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-text-muted)' }}
+                   style={{ color: isActive ? 'var(--tgo-state-action)' : 'var(--tgo-text-muted)' }}
                 >
                   {tab.label}
                 </span>

@@ -750,3 +750,11 @@ main div:has(> .is-admin-orders-page) {
   flex-direction: column !important;
   min-height: 0 !important;
 }
+
+/* ── BottomNav pressed states ──────────────────────────────────────── */
+[data-design="spatial"] nav[aria-label="Navegación principal"] .tgo-nav-center:active {
+  background-color: var(--tgo-state-action-hover) !important;
+}
+[data-design="spatial"] nav[aria-label="Navegación principal"] a:active {
+  opacity: 0.7;
+}
