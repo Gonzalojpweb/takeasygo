@@ -72,15 +72,6 @@ export function TimeBasedModule({ restaurants, onNavigate }: Props) {
               />
             )}
 
-            {/* Gradient overlay */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: `linear-gradient(135deg, ${timeInfo.color} 0%, transparent 100%)`,
-              }}
-            />
-
             {/* Text */}
             <div
               style={{
