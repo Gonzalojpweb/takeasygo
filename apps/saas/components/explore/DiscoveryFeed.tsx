@@ -369,7 +369,15 @@ export default function DiscoveryFeed({
         </div>
       </div>
 
-      {/* 3. Ahora mismo — resumen de ciudad */}
+      {/* 3. QuickFilters */}
+      <div style={{ paddingInline: 'var(--tgo-page-padding)', marginBottom: 'var(--tgo-space-4)' }}>
+        <QuickFiltersModule
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+        />
+      </div>
+
+      {/* 4. Ahora mismo — resumen de ciudad */}
       <Section
         title="Ahora mismo"
         verticalPadding="var(--tgo-space-4)"
@@ -385,73 +393,6 @@ export default function DiscoveryFeed({
               : null
           })()}
         />
-      </Section>
-
-      {/* 4. Explorar Categorías (lazy) */}
-      {categories.length > 0 && (
-        <Section
-          title={microcopy.discovery.sections.categories}
-          subtitle={microcopy.discovery.sections.categoriesSub}
-          verticalPadding="var(--tgo-space-5)"
-        >
-          <CategoriesModule
-            categories={categories}
-            showAll={showAllCategories}
-            onToggleShowAll={() => setShowAllCategories(!showAllCategories)}
-            onSelect={(name) => onCategorySelect?.(name)}
-          />
-        </Section>
-      )}
-
-      {/* 5. Cerca de vos — QuickFilters + Nearby */}
-      <Section
-        title={microcopy.discovery.sections.nearYou}
-        subtitle={filteredNearby.length > 0 ? `${filteredNearby.length} lugares cerca` : microcopy.discovery.sections.nearYouSub}
-        verticalPadding="var(--tgo-space-4)"
-      >
-        <QuickFiltersModule
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
-        />
-        <div className="mt-3">
-          <NearbyModule
-            restaurants={filteredNearby}
-            onNavigate={handleNavigate}
-          />
-        </div>
-      </Section>
-
-      {/* 6. Recién llegados a la red (lazy) */}
-      <Section
-        title={microcopy.discovery.sections.newInNetwork}
-        subtitle={microcopy.discovery.sections.newInNetworkSub}
-        verticalPadding="var(--tgo-space-4)"
-      >
-        <NewInNetworkModule
-          restaurants={nearbyTenants}
-          onNavigate={handleNavigate}
-        />
-      </Section>
-
-      {/* 7. Para este momento (lazy) */}
-      <Section
-        title={microcopy.discovery.sections.timeBased}
-        verticalPadding="var(--tgo-space-4)"
-      >
-        <TimeBasedModule
-          restaurants={nearbyTenants}
-          onNavigate={handleNavigate}
-        />
-      </Section>
-
-      {/* 8. Hoy podés aprovechar (lazy) */}
-      <Section
-        title={microcopy.discovery.sections.experiences}
-        subtitle={allExperiences.length > 0 ? 'Lo que tenés como miembro' : 'Próximamente'}
-        href="/app/promociones"
-        verticalPadding="var(--tgo-space-4)"
-      >
-        <ExperiencesModule experiences={allExperiences} />
       </Section>
 
       {/* 5. Explorar Categorías (lazy) */}
@@ -470,11 +411,10 @@ export default function DiscoveryFeed({
         </Section>
       )}
 
-      {/* 6. Está pasando cerca tuyo (lazy) */}
+      {/* 6. Cerca de vos — Nearby */}
       <Section
         title={microcopy.discovery.sections.nearYou}
-        subtitle={microcopy.discovery.sections.nearYouSub}
-        href="/explore"
+        subtitle={filteredNearby.length > 0 ? `${filteredNearby.length} lugares cerca` : microcopy.discovery.sections.nearYouSub}
         verticalPadding="var(--tgo-space-4)"
       >
         <NearbyModule
@@ -483,7 +423,7 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 7. Recién llegaron a la red (lazy) */}
+      {/* 7. Recién llegados a la red (lazy) */}
       <Section
         title={microcopy.discovery.sections.newInNetwork}
         subtitle={microcopy.discovery.sections.newInNetworkSub}
