@@ -11,9 +11,13 @@
 //
 // Para componentes de negocio (RestaurantCard, ExperienceCard, etc.)
 // van en components/explore/tgo-business/
-
 export { Chip } from './Chip'
+
 export type { ChipProps } from './Chip'
+
+export { SolidIconPill } from './SolidIconPill'
+
+export type { SolidIconPillProps } from './SolidIconPill'
 
 export { default as EmptyState } from './EmptyState'
 
