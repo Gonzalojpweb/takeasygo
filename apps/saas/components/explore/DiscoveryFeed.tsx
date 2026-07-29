@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTenant } from '@/contexts/TenantContext'
 import { useLocation } from './LocationContext'
-import { Share2, Users } from 'lucide-react'
+import { Share2, Users, Sun, Moon } from 'lucide-react'
 import { toast } from 'sonner'
 import { captureHomeShared } from '@/lib/tia/events'
 
@@ -270,69 +270,89 @@ export default function DiscoveryFeed({
         className="h-full overflow-y-auto no-scrollbar pb-32"
         style={{ backgroundColor: 'var(--tgo-surface-0)' }}
       >
-      {/* 1. Smart Greeting + Avatar */}
+      {/* 0. Top Nav Bar */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '14px',
-          padding: 'var(--tgo-space-5) var(--tgo-page-padding) var(--tgo-space-3)',
+          justifyContent: 'space-between',
+          padding: '12px var(--tgo-page-padding)',
         }}
       >
-        {/* Avatar */}
-        <div
+        <Image src="/tgoicon.png" alt="TGO" width={28} height={28} unoptimized />
+        <button
+          onClick={() => router.push('/app/profile')}
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: 'var(--tgo-radius-xl)',
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
             overflow: 'hidden',
-            flexShrink: 0,
-            background: session?.user?.image ? 'transparent' : 'var(--tgo-brand-primary)',
+            border: '2px solid var(--tgo-border)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+            background: session?.user?.image ? 'transparent' : 'var(--tgo-state-trust)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: session?.user?.image ? 'none' : '0 2px 8px rgba(247, 66, 17, 0.25)',
+            cursor: 'pointer',
+            padding: 0,
           }}
         >
           {session?.user?.image ? (
             <Image
               src={session.user.image}
               alt={userName || ''}
-              width={52}
-              height={52}
+              width={36}
+              height={36}
               className="object-cover"
               unoptimized
             />
           ) : (
-            <span
-              style={{
-                color: '#FFFFFF',
-                fontSize: 22,
-                fontWeight: 700,
-                lineHeight: 1,
-              }}
-            >
-              {userName ? userName.charAt(0).toUpperCase() : <User size={24} />}
+            <span style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, lineHeight: 1 }}>
+              {userName ? userName.charAt(0).toUpperCase() : <User size={16} />}
             </span>
           )}
-        </div>
-
-        {/* Smart Greeting — frase contextual animada */}
-        <SmartGreeting
-          userName={userName || session?.user?.name?.split(' ')[0] || ''}
-          interval={10000}
-        />
+        </button>
       </div>
 
-      {/* 2. Brand Block */}
+      {/* 1. Greeting Card */}
+      {(() => {
+        const hour = new Date().getHours()
+        const isDay = hour >= 6 && hour < 19
+        return (
+          <div
+            style={{
+              backgroundColor: 'var(--tgo-card)',
+              borderRadius: 'var(--tgo-radius-lg)',
+              padding: '16px var(--tgo-page-padding)',
+              margin: '0 var(--tgo-page-padding) 16px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ paddingTop: 2, flexShrink: 0 }}>
+                {isDay ? (
+                  <Sun size={20} style={{ color: 'var(--tgo-state-discovery)' }} />
+                ) : (
+                  <Moon size={20} style={{ color: 'var(--tgo-state-trust)' }} />
+                )}
+              </div>
+              <SmartGreeting
+                userName={userName || session?.user?.name?.split(' ')[0] || ''}
+                interval={10000}
+              />
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* 2. Brand Block — Pills */}
       <div
         style={{
-          padding: '4px var(--tgo-page-padding) 16px',
+          padding: '0 var(--tgo-page-padding) 20px',
         }}
       >
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-3">
           <SolidIconPill
-            bgColor="var(--tgo-state-reward)"
+            bgColor="var(--tgo-state-trust)"
             title="@tgo.app"
             subtitle="Seguinos"
             icon={
@@ -345,7 +365,7 @@ export default function DiscoveryFeed({
             href="https://instagram.com/tgo.app"
           />
           <SolidIconPill
-            bgColor="var(--tgo-state-action)"
+            bgColor="var(--tgo-state-discovery)"
             title="Compartí"
             subtitle="Conocidos"
             icon={<Share2 size={14} />}
