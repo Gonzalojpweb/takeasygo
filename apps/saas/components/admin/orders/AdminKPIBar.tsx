@@ -44,10 +44,11 @@ export default function AdminKPIBar({ userName }: { userName: string }) {
         ])
         if (metricsRes.ok) {
           const data = await metricsRes.json()
+          const summary = data.dailySummary ?? data
           setMetrics({
-            todayOrders: data.todayOrders ?? 0,
-            todayRevenue: data.todayRevenue ?? 0,
-            todayNewMembers: data.todayNewMembers ?? 0,
+            todayOrders: summary.todayOrders ?? 0,
+            todayRevenue: summary.todayRevenue ?? 0,
+            todayNewMembers: summary.todayNewMembers ?? 0,
           })
         }
         if (satRes.ok) {
