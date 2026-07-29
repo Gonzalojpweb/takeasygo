@@ -13,11 +13,12 @@ import PrivacyStage from './stages/PrivacyStage'
 interface OnboardingWizardProps {
   initialData: OnboardingData
   onComplete: (data: OnboardingData) => void
+  onStepChange?: (step: number) => void
 }
 
 const STEPS: ConocerteStep[] = ['name', 'age', 'zone', 'cuisine', 'experience', 'privacy']
 
-export default function OnboardingWizard({ initialData, onComplete }: OnboardingWizardProps) {
+export default function OnboardingWizard({ initialData, onComplete, onStepChange }: OnboardingWizardProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [data, setData] = useState<OnboardingData>(initialData)
 
@@ -27,17 +28,21 @@ export default function OnboardingWizard({ initialData, onComplete }: Onboarding
 
   const goNext = useCallback(() => {
     if (currentStep < STEPS.length - 1) {
-      setCurrentStep((prev) => prev + 1)
+      const next = currentStep + 1
+      setCurrentStep(next)
+      onStepChange?.(next)
     } else {
       onComplete(data)
     }
-  }, [currentStep, data, onComplete])
+  }, [currentStep, data, onComplete, onStepChange])
 
   const goBack = useCallback(() => {
     if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1)
+      const prev = currentStep - 1
+      setCurrentStep(prev)
+      onStepChange?.(prev)
     }
-  }, [currentStep])
+  }, [currentStep, onStepChange])
 
   const progress = ((currentStep + 1) / STEPS.length) * 100
 

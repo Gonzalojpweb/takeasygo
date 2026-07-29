@@ -37,6 +37,7 @@ export default function NameStage({ value, onChange, onNext }: NameStageProps) {
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col items-center justify-center px-8"
+      style={{ paddingTop: 80 }}
     >
       {/* Title */}
       <motion.h2
