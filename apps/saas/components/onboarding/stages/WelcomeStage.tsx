@@ -21,7 +21,7 @@ export default function WelcomeStage({ onComplete }: WelcomeStageProps) {
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col items-center justify-center px-8"
-      style={{ backgroundColor: 'var(--tgo-surface-0)', paddingTop: 100 }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)', paddingTop: 110 }}
     >
       {/* Title */}
       <motion.h1
