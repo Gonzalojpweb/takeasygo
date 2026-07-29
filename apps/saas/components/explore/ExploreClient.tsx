@@ -147,15 +147,10 @@ function ExploreClientInner() {
     setHasSeenOnboarding(seen)
   }, [])
 
-  // Dynamic splash: wait for data + minimum 600ms
+  // Dynamic splash: wait for data + animation full cycle (~4.5s)
   useEffect(() => {
-    if (sessionStorage.getItem(SPLASH_CACHE_KEY)) {
-      setShowSplash(false)
-      setSplashReady(true)
-      return
-    }
-
-    const minDelay = new Promise((resolve) => setTimeout(resolve, 600))
+    // Animation is the app's hook — always play on first session visit
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 4500))
     const dataLoad = Promise.allSettled([
       fetch('/api/auth/session').then(() => {}).catch(() => {}),
       fetch('/api/explore/nearby?lat=-34.6037&lng=-58.3816&radius=2000').then(() => {}).catch(() => {}),
