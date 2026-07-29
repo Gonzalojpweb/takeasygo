@@ -19,6 +19,8 @@ export { SolidIconPill } from './SolidIconPill'
 
 export type { SolidIconPillProps } from './SolidIconPill'
 
+export { default as AnimatedLogoLoader } from './AnimatedLogoLoader'
+
 export { default as EmptyState } from './EmptyState'
 
 export { default as HorizontalScroller } from './HorizontalScroller'
