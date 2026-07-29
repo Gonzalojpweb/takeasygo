@@ -48,13 +48,13 @@ export default function OnboardingWizard({ initialData, onComplete }: Onboarding
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col"
-      style={{ backgroundColor: '#0d0b0a' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       {/* Progress bar */}
-      <div className="relative h-[3px] w-full" style={{ backgroundColor: '#1A1A1A' }}>
+      <div className="relative h-[3px] w-full" style={{ backgroundColor: 'var(--tgo-border)' }}>
         <motion.div
           className="absolute left-0 top-0 h-full"
-          style={{ backgroundColor: '#F74211' }}
+          style={{ backgroundColor: 'var(--tgo-state-action)' }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         />
@@ -62,14 +62,14 @@ export default function OnboardingWizard({ initialData, onComplete }: Onboarding
 
       {/* Step counter */}
       <div className="flex items-center justify-between px-6 pt-4">
-        <span className="text-xs font-medium" style={{ color: '#6B6560' }}>
+        <span className="text-xs font-medium" style={{ color: 'var(--tgo-text-muted)' }}>
           {currentStep + 1} de {STEPS.length}
         </span>
         {currentStep > 0 && (
           <button
             onClick={goBack}
             className="text-xs font-medium transition-colors duration-150"
-            style={{ color: '#6B6560' }}
+            style={{ color: 'var(--tgo-text-muted)' }}
           >
             Atrás
           </button>

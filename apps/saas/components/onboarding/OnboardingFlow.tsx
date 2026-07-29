@@ -218,7 +218,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   return (
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center overflow-hidden"
-      style={{ backgroundColor: '#0d0b0a' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       {/* Phone frame for desktop */}
       <div
@@ -226,7 +226,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         style={{
           maxWidth: '100vw',
           maxHeight: '100vh',
-          borderColor: 'rgba(255,255,255,0.08)',
+          borderColor: 'var(--tgo-border)',
         }}
       >
         <AnimatePresence mode="wait">

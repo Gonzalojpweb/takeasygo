@@ -20,8 +20,7 @@ import { toast } from 'sonner'
 import { captureHomeShared } from '@/lib/tia/events'
 
 // TGO Primitives
-import { Section } from '@/components/tgo'
-import { LiveCityMetrics } from '@/components/tgo'
+import { Section, LiveCityMetrics, SolidIconPill } from '@/components/tgo'
 import PullToRefresh from '@/components/tgo/PullToRefresh'
 
 // Components
@@ -332,46 +331,26 @@ export default function DiscoveryFeed({
         }}
       >
         <div className="flex items-center justify-center gap-2">
-          <a
+          <SolidIconPill
+            bgColor="var(--tgo-state-reward)"
+            title="@tgo.app"
+            subtitle="Seguinos"
+            icon={
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+              </svg>
+            }
             href="https://instagram.com/tgo.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--tgo-radius-pill)',
-              fontSize: 'var(--tgo-type-caption)',
-              fontWeight: 500,
-              color: 'var(--tgo-text-muted)',
-              backgroundColor: 'var(--tgo-card)',
-              border: '1px solid var(--tgo-border)',
-              textDecoration: 'none',
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-            </svg>
-            @tgo.app
-          </a>
-          <button
+          />
+          <SolidIconPill
+            bgColor="var(--tgo-state-action)"
+            title="Compartí"
+            subtitle="Conocidos"
+            icon={<Share2 size={14} />}
             onClick={() => { haptic.impact('light'); handleShare() }}
-            className="flex items-center gap-1.5"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--tgo-radius-pill)',
-              fontSize: 'var(--tgo-type-caption)',
-              fontWeight: 500,
-              color: 'var(--tgo-text-muted)',
-              backgroundColor: 'var(--tgo-card)',
-              border: '1px solid var(--tgo-border)',
-              cursor: 'pointer',
-            }}
-          >
-            <Share2 size={12} />
-            Compartí
-          </button>
+          />
         </div>
       </div>
 
