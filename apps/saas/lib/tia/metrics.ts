@@ -1,6 +1,10 @@
 import mongoose from 'mongoose'
 import Order from '@/models/Order'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import Location from '@/models/Location'
+import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
+
+const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
 const POSTHOG_HOST = 'https://us.i.posthog.com'
 
@@ -181,32 +185,39 @@ export interface TiaMetricsData {
   sil: SilData
 }
 
-function todayRange() {
+function todayRange(timezone: string) {
   const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+  const todayStr = now.toLocaleDateString('en-CA', { timeZone: timezone })
+  const { date: start } = getDayAndMidnightInTimezone(todayStr, timezone)
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1000)
   return { start, end }
 }
 
-function daysAgo(days: number) {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  d.setHours(0, 0, 0, 0)
-  return d
+function daysAgo(days: number, timezone: string) {
+  const now = new Date()
+  const todayStr = now.toLocaleDateString('en-CA', { timeZone: timezone })
+  const { date: todayMidnight } = getDayAndMidnightInTimezone(todayStr, timezone)
+  return new Date(todayMidnight.getTime() - days * 24 * 60 * 60 * 1000)
 }
 
-function daysAgoRange(days: number) {
-  const start = daysAgo(days)
+function daysAgoRange(days: number, timezone: string) {
+  const start = daysAgo(days, timezone)
   const end = new Date()
   return { start, end }
 }
 
+async function getTenantTimezone(tenantId: mongoose.Types.ObjectId): Promise<string> {
+  const location = await Location.findOne({ tenantId }).select('timezone').lean() as any
+  return location?.timezone || DEFAULT_TIMEZONE
+}
+
 export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetricsData> {
   const tid = new mongoose.Types.ObjectId(tenantId)
-  const { start: todayStart, end: todayEnd } = todayRange()
-  const sevenDaysAgo = daysAgo(7)
-  const thirtyDaysAgo = daysAgo(30)
-  const fourteenDaysAgo = daysAgo(14)
+  const timezone = await getTenantTimezone(tid)
+  const { start: todayStart, end: todayEnd } = todayRange(timezone)
+  const sevenDaysAgo = daysAgo(7, timezone)
+  const thirtyDaysAgo = daysAgo(30, timezone)
+  const fourteenDaysAgo = daysAgo(14, timezone)
 
   const [
     todayOrders,
@@ -306,7 +317,7 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     LoyaltyMember.countDocuments({ tenantId: tid, joinedAt: { $gte: thirtyDaysAgo } }),
 
     // Members created in previous 30 days
-    LoyaltyMember.countDocuments({ tenantId: tid, joinedAt: { $gte: daysAgo(60), $lt: thirtyDaysAgo } }),
+    LoyaltyMember.countDocuments({ tenantId: tid, joinedAt: { $gte: daysAgo(60, timezone), $lt: thirtyDaysAgo } }),
   ])
 
   // Top products (most sold)
@@ -333,13 +344,13 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
   // Daily historical (last 30 days)
   const dailyOrders = await Order.aggregate([
     { $match: { tenantId: tid, deletedAt: null, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } } },
-    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 }, revenue: { $sum: '$total' } } },
+    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone } }, count: { $sum: 1 }, revenue: { $sum: '$total' } } },
     { $sort: { _id: 1 } },
   ])
 
   const dailyMembers = await LoyaltyMember.aggregate([
     { $match: { tenantId: tid, joinedAt: { $gte: thirtyDaysAgo } } },
-    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$joinedAt' } }, count: { $sum: 1 } } },
+    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$joinedAt', timezone } }, count: { $sum: 1 } } },
     { $sort: { _id: 1 } },
   ])
 
@@ -348,9 +359,9 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
 
   const historical: HistoricalData = { orders: [], revenue: [], members: [] }
   for (let i = 29; i >= 0; i--) {
-    const d = daysAgo(i)
-    const label = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
-    const key = d.toISOString().split('T')[0]
+    const d = daysAgo(i, timezone)
+    const label = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', timeZone: timezone })
+    const key = d.toLocaleDateString('en-CA', { timeZone: timezone })
     const dayData = ordersMap.get(key)
     const memberData = membersMap.get(key)
     historical.orders.push({ label, value: dayData?.count ?? 0 })
