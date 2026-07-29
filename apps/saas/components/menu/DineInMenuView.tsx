@@ -433,7 +433,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
       {translating && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
-          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl font-semibold text-md text-white"
+          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl font-semibold text-base text-white"
             style={{ backgroundColor: branding.primaryColor }}>
             <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -609,7 +609,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
               ref={el => { sectionRefs.current[cat._id] = el }}
               className="mb-12 scroll-mt-20">
               <div className="text-center mb-8">
-                <h3 className="text-4xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
+                <h3 className="text-xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
                   {tn(cat, 'name', locale)}
                 </h3>
                 <div className="flex items-center justify-center gap-3">
@@ -654,10 +654,10 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
 
                               <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
                                 <div className="flex items-start justify-between gap-2">
-                                  <p className="font-bold text-md tracking-wide" style={{ color: text }}>
+                                  <p className="font-bold text-base tracking-wide" style={{ color: text }}>
                                     {tn(item, 'name', locale)}
                                   </p>
-                                  <p className="font-bold text-md flex-shrink-0" style={{ color: branding.primaryColor }}>
+                                  <p className="font-bold text-base flex-shrink-0" style={{ color: branding.primaryColor }}>
                                     ${(() => {
                                       const hasVariants = (item.variants ?? []).length > 0
                                       if (hasVariants) {
@@ -669,7 +669,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                   </p>
                                 </div>
                                 {item.description && (
-                                  <p className={cn('leading-relaxed', isGrid ? 'text-xs mt-1 line-clamp-2' : 'text-md mt-1')} style={{ color: mutedText }}>
+                                  <p className={cn('leading-relaxed', isGrid ? 'text-sm mt-1 line-clamp-2' : 'text-sm mt-1')} style={{ color: mutedText }}>
                                     {tn(item, 'description', locale)}
                                   </p>
                                 )}
@@ -698,7 +698,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                           <div key={sub._id} className={isGrid ? 'col-span-2 grid grid-cols-2 gap-3' : ''}>
                             <div className={isGrid ? 'col-span-full flex items-center gap-3 my-4' : 'flex items-center gap-3 my-4'}>
                               <div className="h-px flex-1" style={{ backgroundColor: branding.primaryColor + '25' }} />
-                              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: branding.primaryColor }}>
+                              <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: branding.primaryColor }}>
                                 {tn(sub, 'name', locale)}
                               </span>
                               <div className="h-px flex-1" style={{ backgroundColor: branding.primaryColor + '25' }} />
@@ -729,10 +729,10 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
 
                                 <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
                                   <div className="flex items-start justify-between gap-2">
-                                    <p className="font-bold text-md tracking-wide" style={{ color: text }}>
+                                    <p className="font-bold text-base tracking-wide" style={{ color: text }}>
                                       {tn(item, 'name', locale)}
                                     </p>
-                                    <p className="font-bold text-md flex-shrink-0" style={{ color: branding.primaryColor }}>
+                                    <p className="font-bold text-base flex-shrink-0" style={{ color: branding.primaryColor }}>
                                       ${(() => {
                                         const hasVariants = (item.variants ?? []).length > 0
                                         if (hasVariants) {
@@ -744,7 +744,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                     </p>
                                   </div>
                                   {item.description && (
-                                    <p className={cn('leading-relaxed', isGrid ? 'text-xs mt-1 line-clamp-2' : 'text-md mt-1')} style={{ color: mutedText }}>
+                                    <p className={cn('leading-relaxed', isGrid ? 'text-sm mt-1 line-clamp-2' : 'text-sm mt-1')} style={{ color: mutedText }}>
                                       {tn(item, 'description', locale)}
                                     </p>
                                   )}
@@ -794,10 +794,10 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
 
                         <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
                           <div className="flex items-start justify-between gap-2">
-                            <p className="font-bold text-md tracking-wide" style={{ color: text }}>
+                            <p className="font-bold text-base tracking-wide" style={{ color: text }}>
                               {tn(item, 'name', locale)}
                             </p>
-                            <p className="font-bold text-md flex-shrink-0" style={{ color: branding.primaryColor }}>
+                            <p className="font-bold text-base flex-shrink-0" style={{ color: branding.primaryColor }}>
                               ${(() => {
                                 const hasVariants = (item.variants ?? []).length > 0
                                 if (hasVariants) {
@@ -809,7 +809,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                             </p>
                           </div>
                           {item.description && (
-                            <p className={cn('leading-relaxed', isGrid ? 'text-xs mt-1 line-clamp-2' : 'text-md mt-1')} style={{ color: mutedText }}>
+                            <p className={cn('leading-relaxed', isGrid ? 'text-sm mt-1 line-clamp-2' : 'text-sm mt-1')} style={{ color: mutedText }}>
                               {tn(item, 'description', locale)}
                             </p>
                           )}
@@ -846,7 +846,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                 <div className="w-1 h-1 rounded-full" style={{ backgroundColor: branding.primaryColor }} />
                 <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
               </div>
-              <p className="text-md max-w-sm mx-auto" style={{ color: '#94a3b8' }}>
+              <p className="text-sm max-w-sm mx-auto" style={{ color: '#94a3b8' }}>
                 {t.featuredSubtitle}
               </p>
             </div>
@@ -912,19 +912,19 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                 {location.address && (
                   <div className="flex items-start gap-2">
                     <MapPin size={14} style={{ color: branding.primaryColor, marginTop: 2, flexShrink: 0 }} />
-                    <p className="text-md" style={{ color: '#94a3b8' }}>{location.address}</p>
+                    <p className="text-sm" style={{ color: '#94a3b8' }}>{location.address}</p>
                   </div>
                 )}
                 {location.phone && (
                   <div className="flex items-center gap-2">
                     <Phone size={14} style={{ color: branding.primaryColor, flexShrink: 0 }} />
-                    <p className="text-md" style={{ color: '#94a3b8' }}>{location.phone}</p>
+                    <p className="text-sm" style={{ color: '#94a3b8' }}>{location.phone}</p>
                   </div>
                 )}
                 {location.hours && (
                   <div className="flex items-center gap-2">
                     <Clock size={14} style={{ color: branding.primaryColor, flexShrink: 0 }} />
-                    <p className="text-md" style={{ color: '#94a3b8' }}>{location.hours}</p>
+                    <p className="text-sm" style={{ color: '#94a3b8' }}>{location.hours}</p>
                   </div>
                 )}
               </div>
@@ -932,7 +932,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
             {profile.about && (
               <div>
                 <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>{t.ourStory}</h4>
-                <p className="text-md leading-relaxed" style={{ color: '#94a3b8' }}>{profile.about}</p>
+                <p className="text-sm leading-relaxed" style={{ color: '#94a3b8' }}>{profile.about}</p>
               </div>
             )}
             {(profile.social?.instagram || profile.social?.facebook || profile.social?.twitter) && (
@@ -946,7 +946,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                         <Instagram size={18} className="text-white" />
                       </div>
                       <div>
-                        <p className="text-md font-medium text-white">{tenant.name}</p>
+                        <p className="text-sm font-medium text-white">{tenant.name}</p>
                         <p className="text-xs" style={{ color: branding.primaryColor }}>{t.followIG}</p>
                       </div>
                     </a>
@@ -958,7 +958,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                         <Facebook size={18} className="text-white" />
                       </div>
                       <div>
-                        <p className="text-md font-medium text-white">{tenant.name}</p>
+                        <p className="text-sm font-medium text-white">{tenant.name}</p>
                         <p className="text-xs" style={{ color: branding.primaryColor }}>{t.followFB}</p>
                       </div>
                     </a>
@@ -970,7 +970,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                         <Twitter size={18} className="text-white" />
                       </div>
                       <div>
-                        <p className="text-md font-medium text-white">{tenant.name}</p>
+                        <p className="text-sm font-medium text-white">{tenant.name}</p>
                         <p className="text-xs" style={{ color: branding.primaryColor }}>{t.followTW}</p>
                       </div>
                     </a>
@@ -1051,7 +1051,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
             <div className="p-4">
               <p className="font-bold uppercase tracking-wide" style={{ color: text }}>{tn(modalItem, 'name', locale)}</p>
               {modalItem.description && (
-                <p className="text-md mt-1" style={{ color: mutedText }}>{tn(modalItem, 'description', locale)}</p>
+                <p className="text-sm mt-1" style={{ color: mutedText }}>{tn(modalItem, 'description', locale)}</p>
               )}
               <p className="font-bold text-lg mt-2" style={{ color: branding.primaryColor }}>
                 ${(() => {
