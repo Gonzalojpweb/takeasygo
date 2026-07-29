@@ -18,8 +18,12 @@ import Order from '@/models/Order'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Consumer from '@/models/Consumer'
 import CustomerProfile from '@/models/CustomerProfile'
+import Location from '@/models/Location'
+import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 import type { CustomerMetrics } from '@/types/cis'
 import { fetchCustomerEngagement, fetchBatchEngagement } from './posthog-bridge'
+
+const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,11 +31,16 @@ function daysBetween(a: Date, b: Date): number {
   return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24))
 }
 
-function daysAgo(days: number): Date {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  d.setHours(0, 0, 0, 0)
-  return d
+function daysAgo(days: number, timezone: string): Date {
+  const now = new Date()
+  const todayStr = now.toLocaleDateString('en-CA', { timeZone: timezone })
+  const { date: todayMidnight } = getDayAndMidnightInTimezone(todayStr, timezone)
+  return new Date(todayMidnight.getTime() - days * 24 * 60 * 60 * 1000)
+}
+
+async function getTenantTimezone(tenantId: mongoose.Types.ObjectId): Promise<string> {
+  const location = await Location.findOne({ tenantId }).select('timezone').lean() as any
+  return location?.timezone || DEFAULT_TIMEZONE
 }
 
 // ── Agregación: métricas base desde órdenes ──────────────────────────────────
@@ -63,7 +72,8 @@ export async function computeBaseMetrics(
   const daysSinceFirstOrder = firstOrderAt ? daysBetween(firstOrderAt, now) : null
 
   // visitFrequency: órdenes por mes (últimos 90 días)
-  const ninetyDaysAgo = daysAgo(90)
+  const timezone = await getTenantTimezone(tid)
+  const ninetyDaysAgo = daysAgo(90, timezone)
   const recentOrders = await Order.countDocuments({
     tenantId: tid,
     'customer.phoneHash': consumer.phoneHash,

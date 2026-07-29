@@ -1,13 +1,22 @@
 import mongoose from 'mongoose'
 import Order from '@/models/Order'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import Location from '@/models/Location'
+import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 import type { BenchmarkItem, BenchmarkMetric, BenchmarkStatus, BenchmarkData } from './types'
 
-function daysAgo(days: number) {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  d.setHours(0, 0, 0, 0)
-  return d
+const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
+
+function daysAgo(days: number, timezone: string) {
+  const now = new Date()
+  const todayStr = now.toLocaleDateString('en-CA', { timeZone: timezone })
+  const { date: todayMidnight } = getDayAndMidnightInTimezone(todayStr, timezone)
+  return new Date(todayMidnight.getTime() - days * 24 * 60 * 60 * 1000)
+}
+
+async function getTenantTimezone(tenantId: mongoose.Types.ObjectId): Promise<string> {
+  const location = await Location.findOne({ tenantId }).select('timezone').lean() as any
+  return location?.timezone || DEFAULT_TIMEZONE
 }
 
 type PeerMetrics = Record<BenchmarkMetric, number>
@@ -84,6 +93,7 @@ function percentileAt(arr: number[], p: number): number {
 
 export async function computeBenchmarks(tenantId: string): Promise<BenchmarkData> {
   const tid = new mongoose.Types.ObjectId(tenantId)
+  const timezone = await getTenantTimezone(tid)
 
   const Tenant = (await import('@/models/Tenant')).default
   const peers = await Tenant.find({
@@ -98,7 +108,7 @@ export async function computeBenchmarks(tenantId: string): Promise<BenchmarkData
     return { benchmarks: [], generatedAt: new Date().toISOString() }
   }
 
-  const sevenDaysAgo = daysAgo(7)
+  const sevenDaysAgo = daysAgo(7, timezone)
 
   // Aggregate orders per tenant (last 7 days)
   const ordersAgg = await Order.aggregate([
