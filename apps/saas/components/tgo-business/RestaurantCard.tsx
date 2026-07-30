@@ -30,6 +30,8 @@ import {
 } from '@/lib/restaurant-card-helpers'
 import { useHaptic } from '@/components/tgo/useHaptic'
 
+const PLACEHOLDER_COLORS = ['#2D2A4B', '#0F6E56', '#B03A2E', '#5A3A26', '#262625']
+
 // ── Static Style Constants ──────────────────────────────────────────────────
 
 // Badge styles
@@ -331,9 +333,7 @@ function HeroLayout({
           <div
             className="w-full h-full"
             style={{
-              background: isNetwork
-                ? `linear-gradient(135deg, var(--tgo-surface-0) 0%, ${r.primaryColor || 'var(--tgo-surface-2)'} 50%, var(--tgo-surface-0) 100%)`
-                : `linear-gradient(135deg, var(--tgo-surface-1) 0%, var(--tgo-surface-2) 100%)`,
+              background: PLACEHOLDER_COLORS[index % 5],
             }}
           />
         )}
@@ -440,8 +440,8 @@ function ListLayout({
   const isOperational = r.isOperational !== false
   const accentColor = isOperational ? 'var(--tgo-state-activity)' : 'var(--tgo-state-discovery)'
   const cardBg = isOperational
-    ? 'linear-gradient(135deg, rgba(47,191,113,0.07), var(--tgo-card) 55%)'
-    : 'linear-gradient(135deg, rgba(250,179,0,0.09), var(--tgo-card) 55%)'
+    ? 'rgba(47,191,113,0.07)'
+    : 'rgba(250,179,0,0.09)'
 
   return (
     <motion.div
@@ -482,8 +482,8 @@ function ListLayout({
             className="w-full h-full"
             style={{
               background: r.primaryColor
-                ? `linear-gradient(135deg, ${r.primaryColor}33, ${r.primaryColor}11)`
-                : 'linear-gradient(135deg, var(--tgo-surface-1), var(--tgo-surface-2))',
+                ? `${r.primaryColor}22`
+                : PLACEHOLDER_COLORS[index % 5],
             }}
           />
         )}

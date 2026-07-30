@@ -54,7 +54,7 @@ export default function LiveCityMetrics({
         margin: '0 var(--tgo-page-padding)',
         padding: '18px 16px',
         borderRadius: 22,
-        background: 'linear-gradient(135deg, #2D2A4B 0%, #1F1D38 100%)',
+        background: '#2D2A4B',
         boxShadow: '0 8px 24px rgba(45, 42, 75, 0.35)',
       }}
     >
