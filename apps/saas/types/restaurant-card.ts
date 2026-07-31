@@ -26,6 +26,8 @@ export interface RestaurantCardData {
   logoUrl?: string
   primaryColor?: string
   isOpenNow: boolean | null
+  isDeliveryOpen?: boolean | null
+  deliveryEnabled?: boolean
   isOperational: boolean
   acceptsOrders: boolean
   estimatedPickupTime: number
@@ -36,7 +38,7 @@ export interface RestaurantCardData {
   isNew?: boolean
   createdAt?: string | null
   // Detail page fields (optional, only populated by nearby endpoint)
-  serviceHours?: { takeaway: ServiceSlot[] }
+  serviceHours?: { takeaway: ServiceSlot[]; delivery?: ServiceSlot[] }
   openingHours?: string
   externalMenuUrl?: string
   loyaltyInfo?: {

@@ -232,7 +232,7 @@ export default function DiscoveryFeed({
         return nearbyTenants.filter((r: any) => r.isOpenNow === true || r.isOpenNow === null)
       case 'delivery':
         return nearbyTenants.filter((r: any) =>
-          r.type === 'listed' || (r.orderModes && r.orderModes.includes('delivery'))
+          r.deliveryEnabled === true && (r.isDeliveryOpen === true || r.isDeliveryOpen === null)
         )
       case 'cercanos':
         return [...nearbyTenants].sort((a: any, b: any) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity))

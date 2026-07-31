@@ -30,7 +30,9 @@ export interface NearbyRestaurant {
   cuisineTypes: string[]
   openingHours: string
   isOpenNow: boolean | null    // null = sin horarios estructurados (directorio)
-  serviceHours?: { takeaway: ServiceSlot[] }
+  isDeliveryOpen?: boolean | null
+  deliveryEnabled?: boolean
+  serviceHours?: { takeaway: ServiceSlot[]; delivery?: ServiceSlot[] }
   // Solo en type = 'network'
   tenantSlug?: string
   tenantName?: string
@@ -76,6 +78,8 @@ function toRestaurantCardData(r: NearbyRestaurant): RestaurantCardData {
     logoUrl: r.logoUrl,
     primaryColor: r.primaryColor,
     isOpenNow: r.isOpenNow,
+    isDeliveryOpen: r.isDeliveryOpen,
+    deliveryEnabled: r.deliveryEnabled,
     isOperational: r.isOperational ?? true,
     acceptsOrders: r.acceptsOrders ?? true,
     estimatedPickupTime: r.estimatedPickupTime ?? 20,
@@ -165,6 +169,7 @@ export async function GET(request: NextRequest) {
             'settings.acceptsOrders': 1,
             'settings.estimatedPickupTime': 1,
             'settings.orderModes': 1,
+            deliveryConfig: 1,
             'tenant._id': 1,
             'tenant.name': 1,
             'tenant.slug': 1,
@@ -225,6 +230,7 @@ export async function GET(request: NextRequest) {
               'settings.acceptsOrders': 1,
               'settings.estimatedPickupTime': 1,
               'settings.orderModes': 1,
+              deliveryConfig: 1,
               'tenant._id': 1,
               'tenant.name': 1,
               'tenant.slug': 1,
@@ -321,6 +327,10 @@ export async function GET(request: NextRequest) {
         ?? checkIsOpenNow(loc.serviceHours, 'delivery', tz)
         ?? null
 
+      const isDeliveryOpen = checkIsOpenNow(loc.serviceHours, 'delivery', tz)
+      const orderModes = loc.settings?.orderModes ?? ['takeaway']
+      const deliveryEnabled = loc.deliveryConfig?.enabled === true || orderModes.includes('delivery')
+
       // ── Visibility Algorithm (Etapa 17) ──────────────────────────────────────
       // Score ∈ [0, 1], higher = shown first
       // Weights: distance 0.35 | prep_time 0.30 | capacity 0.20 | ICO 0.15
@@ -353,6 +363,8 @@ export async function GET(request: NextRequest) {
         cuisineTypes: loc.cuisineTypes ?? [],
         openingHours: '',
         isOpenNow,
+        isDeliveryOpen,
+        deliveryEnabled,
         serviceHours: loc.serviceHours,
         tenantSlug: loc.tenant?.slug,
         tenantName: loc.tenant?.name,
