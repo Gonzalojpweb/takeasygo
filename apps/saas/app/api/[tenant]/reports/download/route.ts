@@ -1,10 +1,14 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import { requireAuth } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { safeDecrypt } from '@/lib/crypto'
+import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
+
+const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
@@ -32,10 +36,11 @@ function fmt(n: number) {
   return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function fmtDate(d: Date) {
+function fmtDate(d: Date, timezone?: string) {
   return new Date(d).toLocaleDateString('es-AR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
+    timeZone: timezone || DEFAULT_TIMEZONE,
   })
 }
 
@@ -56,12 +61,30 @@ export async function GET(
     const sp = request.nextUrl.searchParams
     const format = sp.get('format') || 'excel'
 
+    const location = await Location.findOne({ tenantId: tenant._id }).select('timezone').lean() as any
+    const timezone = location?.timezone || DEFAULT_TIMEZONE
+
     const now = new Date()
     const fromRaw = sp.get('from')
     const toRaw = sp.get('to')
-    const from = fromRaw ? new Date(fromRaw) : new Date(now.getFullYear(), now.getMonth(), 1)
-    const to = toRaw ? new Date(toRaw) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-    to.setHours(23, 59, 59, 999)
+
+    let from: Date
+    let to: Date
+
+    if (fromRaw && toRaw) {
+      from = new Date(fromRaw)
+      to = new Date(toRaw)
+      to.setHours(23, 59, 59, 999)
+    } else {
+      const thisMonthStr = now.toLocaleDateString('en-CA', { timeZone: timezone })
+      const [y, m] = thisMonthStr.split('-').map(Number)
+      const nextMonthM = m === 12 ? 1 : m + 1
+      const nextMonthY = m === 12 ? y + 1 : y
+      const { date: startOfMonth } = getDayAndMidnightInTimezone(`${y}-${String(m).padStart(2, '0')}-01`, timezone)
+      const { date: startOfNextMonth } = getDayAndMidnightInTimezone(`${nextMonthY}-${String(nextMonthM).padStart(2, '0')}-01`, timezone)
+      from = startOfMonth
+      to = new Date(startOfNextMonth.getTime() - 1000)
+    }
 
     const rawOrders = await Order.find({
       tenantId: tenant._id,
@@ -96,7 +119,7 @@ export async function GET(
     // Daily breakdown
     const dailyMap: Record<string, { count: number; total: number }> = {}
     active.forEach(o => {
-      const day = new Date(o.createdAt).toLocaleDateString('es-AR')
+      const day = new Date(o.createdAt).toLocaleDateString('es-AR', { timeZone: timezone })
       if (!dailyMap[day]) dailyMap[day] = { count: 0, total: 0 }
       dailyMap[day].count++
       dailyMap[day].total += o.total
@@ -163,7 +186,7 @@ export async function GET(
 
     ws1.addRow([])
 
-    const periodoRow = ws1.addRow(['Período analizado', `${from.toLocaleDateString('es-AR')} → ${to.toLocaleDateString('es-AR')}`])
+    const periodoRow = ws1.addRow(['Período analizado', `${from.toLocaleDateString('es-AR', { timeZone: timezone })} → ${to.toLocaleDateString('es-AR', { timeZone: timezone })}`])
     periodoRow.getCell(1).font = { bold: true, color: { argb: '666666' }, italic: true }
 
     ws1.addRow([])
@@ -228,7 +251,7 @@ export async function GET(
       const row = ws2.addRow({
         n: idx + 1,
         orderNumber: order.orderNumber,
-        date: fmtDate(order.createdAt as Date),
+        date: fmtDate(order.createdAt as Date, timezone),
         customer: order.customer.name,
         phone: order.customer.phone || '—',
         email: order.customer.email || '—',

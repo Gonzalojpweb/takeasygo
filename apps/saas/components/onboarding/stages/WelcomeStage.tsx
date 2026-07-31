@@ -1,7 +1,6 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import Image from 'next/image'
 import { ChevronRight } from 'lucide-react'
 
 interface WelcomeStageProps {
@@ -22,26 +21,8 @@ export default function WelcomeStage({ onComplete }: WelcomeStageProps) {
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col items-center justify-center px-8"
-      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)', paddingTop: 110 }}
     >
-      {/* Logo */}
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="mb-12"
-      >
-        <Image
-          src="/tgoicon-512.png"
-          alt="TGO"
-          width={72}
-          height={72}
-          className="drop-shadow-xl"
-          unoptimized
-          priority
-        />
-      </motion.div>
-
       {/* Title */}
       <motion.h1
         initial={{ opacity: 0, y: 20 }}

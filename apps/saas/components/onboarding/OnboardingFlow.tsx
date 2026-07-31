@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useSession } from 'next-auth/react'
 import {
   OnboardingStep,
@@ -15,6 +15,8 @@ import AuthStage from './stages/AuthStage'
 import GreetingStage from './stages/GreetingStage'
 import NotificationStage from './stages/NotificationStage'
 import ManifestStage from './stages/ManifestStage'
+import OnboardingMascot from './OnboardingMascot'
+import type { MascotStep } from './OnboardingMascot'
 
 interface OnboardingFlowProps {
   onComplete: () => void
@@ -28,6 +30,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome')
   const [data, setData] = useState<OnboardingData>(INITIAL_ONBOARDING_DATA)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [wizardStep, setWizardStep] = useState(0)
   const syncedRef = useRef(false)
 
   // ── Restore pending data from localStorage on mount ────────────────────
@@ -218,7 +221,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   return (
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center overflow-hidden"
-      style={{ backgroundColor: '#0d0b0a' }}
+      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       {/* Phone frame for desktop */}
       <div
@@ -226,9 +229,21 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         style={{
           maxWidth: '100vw',
           maxHeight: '100vh',
-          borderColor: 'rgba(255,255,255,0.08)',
+          borderColor: 'var(--tgo-border)',
         }}
-      >
+        >
+        {/* Pin mascot — visible during Welcome, Name, Age */}
+        {(() => {
+          const showMascot = currentStep === 'welcome' ||
+            (currentStep === 'conocerte' && wizardStep <= 1)
+          const mascotStep: MascotStep = currentStep === 'welcome'
+            ? 'welcome'
+            : wizardStep === 0 ? 'name' : 'age'
+          return showMascot ? (
+            <OnboardingMascot step={mascotStep} />
+          ) : null
+        })()}
+
         <AnimatePresence mode="wait">
           {currentStep === 'welcome' && (
             <WelcomeStage key="welcome" onComplete={handleWelcomeComplete} />
@@ -239,6 +254,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               key="conocerte"
               initialData={data}
               onComplete={handleWizardComplete}
+              onStepChange={setWizardStep}
             />
           )}
 

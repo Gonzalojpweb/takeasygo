@@ -15,13 +15,12 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTenant } from '@/contexts/TenantContext'
 import { useLocation } from './LocationContext'
-import { Share2, Users } from 'lucide-react'
+import { Share2, Users, Sun, Moon } from 'lucide-react'
 import { toast } from 'sonner'
 import { captureHomeShared } from '@/lib/tia/events'
 
 // TGO Primitives
-import { Section } from '@/components/tgo'
-import { LiveCityMetrics } from '@/components/tgo'
+import { Section, LiveCityMetrics, SolidIconPill } from '@/components/tgo'
 import PullToRefresh from '@/components/tgo/PullToRefresh'
 
 // Components
@@ -77,10 +76,7 @@ function QuickFiltersModule({
 }) {
   const haptic = useHaptic()
   return (
-    <div
-      className="flex gap-2 justify-center"
-      style={{ paddingInline: 'var(--tgo-page-padding)' }}
-    >
+    <div className="flex gap-2">
       {QUICK_FILTERS.map((f) => {
         const Icon = f.icon
         const isActive = activeFilter === f.query
@@ -96,18 +92,22 @@ function QuickFiltersModule({
               fontSize: 'var(--tgo-type-body-sm)',
               fontWeight: isActive ? 600 : 400,
               backgroundColor: isActive
+<<<<<<< HEAD
                 ? 'var(--tgo-state-trust-soft)'
                 : 'var(--tgo-card)',
               color: isActive
+=======
+>>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
                 ? 'var(--tgo-state-trust)'
-                : 'var(--tgo-state-trust)',
+                : 'var(--tgo-card)',
+              color: isActive
+                ? '#FFFFFF'
+                : 'var(--tgo-text-primary)',
               border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
               transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
             }}
           >
-            <span style={{ color: isActive ? undefined : f.iconColor }}>
-              <Icon size={14} />
-            </span>
+            <Icon size={14} />
             {f.label}
           </button>
         )
@@ -271,69 +271,100 @@ export default function DiscoveryFeed({
         className="h-full overflow-y-auto no-scrollbar pb-32"
         style={{ backgroundColor: 'var(--tgo-surface-0)' }}
       >
-      {/* 1. Smart Greeting + Avatar */}
+      {/* 0. Top Nav Bar */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '14px',
-          padding: 'var(--tgo-space-5) var(--tgo-page-padding) var(--tgo-space-3)',
+          justifyContent: 'space-between',
+          padding: '12px var(--tgo-page-padding)',
         }}
       >
-        {/* Avatar */}
-        <div
+        <Image src="/tgoicon.png" alt="TGO" width={28} height={28} unoptimized />
+        <button
+          onClick={() => router.push('/app/profile')}
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: 'var(--tgo-radius-xl)',
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
             overflow: 'hidden',
-            flexShrink: 0,
-            background: session?.user?.image ? 'transparent' : 'var(--tgo-brand-primary)',
+            border: '2px solid var(--tgo-border)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+            background: session?.user?.image ? 'transparent' : 'var(--tgo-state-trust)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: session?.user?.image ? 'none' : '0 2px 8px rgba(247, 66, 17, 0.25)',
+            cursor: 'pointer',
+            padding: 0,
           }}
         >
           {session?.user?.image ? (
             <Image
               src={session.user.image}
               alt={userName || ''}
-              width={52}
-              height={52}
+              width={36}
+              height={36}
               className="object-cover"
               unoptimized
             />
           ) : (
-            <span
-              style={{
-                color: '#FFFFFF',
-                fontSize: 22,
-                fontWeight: 700,
-                lineHeight: 1,
-              }}
-            >
-              {userName ? userName.charAt(0).toUpperCase() : <User size={24} />}
+            <span style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, lineHeight: 1 }}>
+              {userName ? userName.charAt(0).toUpperCase() : <User size={16} />}
             </span>
           )}
-        </div>
-
-        {/* Smart Greeting — frase contextual animada */}
-        <SmartGreeting
-          userName={userName || session?.user?.name?.split(' ')[0] || ''}
-          interval={10000}
-        />
+        </button>
       </div>
 
-      {/* 2. Brand Block */}
+      {/* 1. Greeting Card */}
+      {(() => {
+        const hour = new Date().getHours()
+        const isDay = hour >= 6 && hour < 19
+        return (
+          <div
+            style={{
+              backgroundColor: 'var(--tgo-card)',
+              borderRadius: 'var(--tgo-radius-lg)',
+              padding: '16px var(--tgo-page-padding)',
+              margin: '0 var(--tgo-page-padding) 16px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ paddingTop: 2, flexShrink: 0 }}>
+                {isDay ? (
+                  <Sun size={20} style={{ color: 'var(--tgo-state-discovery)' }} />
+                ) : (
+                  <Moon size={20} style={{ color: 'var(--tgo-state-trust)' }} />
+                )}
+              </div>
+              <SmartGreeting
+                userName={userName || session?.user?.name?.split(' ')[0] || ''}
+                interval={10000}
+              />
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* 2. Brand Block — Pills */}
       <div
         style={{
-          padding: '4px var(--tgo-page-padding) 16px',
+          padding: '0 var(--tgo-page-padding) 20px',
         }}
       >
-        <div className="flex items-center justify-center gap-2">
-          <a
+        <div className="flex items-center justify-center gap-3">
+          <SolidIconPill
+            bgColor="var(--tgo-state-trust)"
+            title="@tgo.app"
+            subtitle="Seguinos"
+            icon={
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+              </svg>
+            }
             href="https://instagram.com/tgo.app"
+<<<<<<< HEAD
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5"
@@ -372,11 +403,21 @@ export default function DiscoveryFeed({
             <Share2 size={12} />
             Compartí
           </button>
+=======
+          />
+          <SolidIconPill
+            bgColor="var(--tgo-state-discovery)"
+            title="Compartí"
+            subtitle="Conocidos"
+            icon={<Share2 size={14} />}
+            onClick={() => { haptic.impact('light'); handleShare() }}
+          />
+>>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
         </div>
       </div>
 
       {/* 3. QuickFilters */}
-      <div>
+      <div style={{ paddingInline: 'var(--tgo-page-padding)', marginBottom: 'var(--tgo-space-4)' }}>
         <QuickFiltersModule
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
@@ -417,11 +458,10 @@ export default function DiscoveryFeed({
         </Section>
       )}
 
-      {/* 6. Está pasando cerca tuyo (lazy) */}
+      {/* 6. Cerca de vos — Nearby */}
       <Section
         title={microcopy.discovery.sections.nearYou}
-        subtitle={microcopy.discovery.sections.nearYouSub}
-        href="/explore"
+        subtitle={filteredNearby.length > 0 ? `${filteredNearby.length} lugares cerca` : microcopy.discovery.sections.nearYouSub}
         verticalPadding="var(--tgo-space-4)"
       >
         <NearbyModule
@@ -430,7 +470,7 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 7. Recién llegaron a la red (lazy) */}
+      {/* 7. Recién llegados a la red (lazy) */}
       <Section
         title={microcopy.discovery.sections.newInNetwork}
         subtitle={microcopy.discovery.sections.newInNetworkSub}

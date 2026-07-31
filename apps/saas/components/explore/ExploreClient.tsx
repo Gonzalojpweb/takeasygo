@@ -14,9 +14,9 @@ import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
 import { GpsLoading, FetchOverlay } from './ExploreLoadingSkeleton'
 import SelfReportModal from '@/components/consumer/SelfReportModal'
-import LoadingScreen from './LoadingScreen'
+import { AnimatedLogoLoader } from '@/components/tgo'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useTenant } from '@/contexts/TenantContext'
 import { Button } from '@/components/ui/button'
 import { useHaptic } from '@/components/tgo/useHaptic'
@@ -147,15 +147,10 @@ function ExploreClientInner() {
     setHasSeenOnboarding(seen)
   }, [])
 
-  // Dynamic splash: wait for data + minimum 600ms
+  // Dynamic splash: wait for data + animation full cycle (~4.5s)
   useEffect(() => {
-    if (sessionStorage.getItem(SPLASH_CACHE_KEY)) {
-      setShowSplash(false)
-      setSplashReady(true)
-      return
-    }
-
-    const minDelay = new Promise((resolve) => setTimeout(resolve, 600))
+    // Animation is the app's hook — always play on first session visit
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 4500))
     const dataLoad = Promise.allSettled([
       fetch('/api/auth/session').then(() => {}).catch(() => {}),
       fetch('/api/explore/nearby?lat=-34.6037&lng=-58.3816&radius=2000').then(() => {}).catch(() => {}),
@@ -328,7 +323,17 @@ function ExploreClientInner() {
       style={{ backgroundColor: 'var(--tgo-surface-0)' }}
     >
       <AnimatePresence mode="wait">
-        {showSplash && <LoadingScreen key="splash" />}
+        {showSplash && (
+          <motion.div
+            key="splash"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <AnimatedLogoLoader />
+          </motion.div>
+        )}
         {showOnboarding && <OnboardingFlow key="onboarding" onComplete={handleOnboardingComplete} />}
       </AnimatePresence>
 

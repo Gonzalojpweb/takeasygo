@@ -69,9 +69,9 @@ export default function ZoneStage({ value, onChange, onNext }: ZoneStageProps) {
         onClick={handleUseLocation}
         className="w-full h-12 rounded-xl flex items-center justify-center gap-2 font-medium text-sm mb-4 transition-all duration-150"
         style={{
-          backgroundColor: useLocation ? 'rgba(247, 66, 17, 0.1)' : 'rgba(255,255,255,0.03)',
+          backgroundColor: useLocation ? 'rgba(247, 66, 17, 0.1)' : 'var(--tgo-card)',
           color: useLocation ? 'var(--tgo-brand-primary)' : 'var(--tgo-text-muted)',
-          border: `1px solid ${useLocation ? 'rgba(247, 66, 17, 0.3)' : 'rgba(255,255,255,0.06)'}`,
+          border: `1px solid ${useLocation ? 'rgba(247, 66, 17, 0.3)' : 'var(--tgo-border)'}`,
         }}
       >
         <MapPin size={16} />
@@ -80,9 +80,9 @@ export default function ZoneStage({ value, onChange, onNext }: ZoneStageProps) {
 
       {/* Divider */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+        <div className="flex-1 h-px" style={{ backgroundColor: 'var(--tgo-border)' }} />
         <span className="text-xs" style={{ color: 'var(--tgo-surface-3)' }}>o elegí tu barrio</span>
-        <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+        <div className="flex-1 h-px" style={{ backgroundColor: 'var(--tgo-border)' }} />
       </div>
 
       {/* Barrios grid */}
@@ -106,9 +106,9 @@ export default function ZoneStage({ value, onChange, onNext }: ZoneStageProps) {
                 backgroundColor:
                   selected === barrio
                     ? 'rgba(247, 66, 17, 0.1)'
-                    : 'rgba(255,255,255,0.03)',
+                    : 'var(--tgo-card)',
                 color: selected === barrio ? 'var(--tgo-brand-primary)' : 'var(--tgo-text-muted)',
-                border: `1px solid ${selected === barrio ? 'rgba(247, 66, 17, 0.3)' : 'rgba(255,255,255,0.06)'}`,
+                border: `1px solid ${selected === barrio ? 'rgba(247, 66, 17, 0.3)' : 'var(--tgo-border)'}`,
               }}
             >
               {barrio}

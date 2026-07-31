@@ -4,6 +4,8 @@ import { HorizontalScroller } from '@/components/tgo'
 import { MapPin } from 'lucide-react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 
+const PLACEHOLDER_COLORS = ['#2D2A4B', '#0F6E56', '#B03A2E', '#5A3A26', '#262625']
+
 interface Props {
   restaurants: RestaurantCardData[]
   onNavigate: (r: RestaurantCardData) => void
@@ -20,7 +22,7 @@ export function NewInNetworkModule({ restaurants, onNavigate }: Props) {
 
   return (
     <HorizontalScroller gap="12px" padding="var(--tgo-page-padding)">
-      {newRestaurants.slice(0, 6).map((r) => (
+      {newRestaurants.slice(0, 6).map((r, i) => (
         <button
           key={r.id}
           onClick={() => onNavigate(r)}
@@ -47,7 +49,7 @@ export function NewInNetworkModule({ restaurants, onNavigate }: Props) {
               style={{
                 width: '100%',
                 height: '100%',
-                background: 'linear-gradient(135deg, var(--tgo-surface-1) 0%, var(--tgo-surface-2) 100%)',
+                background: PLACEHOLDER_COLORS[i % 5],
               }}
             />
           )}
