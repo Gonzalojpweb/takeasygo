@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
           'settings.acceptsOrders': 1,
           'settings.estimatedPickupTime': 1,
           'settings.orderModes': 1,
+          deliveryConfig: 1,
         },
       },
     ])
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
           isActive: true,
           tenantId: { $in: alwaysVisibleTenantIds },
           _id: { $nin: [...nearbyLocationIds] },
-        }).select('_id tenantId name address phone cuisineTypes distanceM geo serviceHours timezone createdAt settings.acceptsOrders settings.estimatedPickupTime settings.orderModes').limit(30).lean()
+        }).select('_id tenantId name address phone cuisineTypes distanceM geo serviceHours timezone createdAt settings.acceptsOrders settings.estimatedPickupTime settings.orderModes deliveryConfig').limit(30).lean()
       : []
 
     // 1c. Merge
@@ -236,6 +237,13 @@ export async function GET(request: NextRequest) {
         ?? checkIsOpenNow(loc.serviceHours, 'delivery', tz)
         ?? null
 
+      // isDeliveryOpen: delivery específico
+      const isDeliveryOpen = checkIsOpenNow(loc.serviceHours, 'delivery', tz)
+
+      // deliveryEnabled: deliveryConfig.enabled + orderModes
+      const orderModes = loc.settings?.orderModes ?? ['takeaway']
+      const deliveryEnabled = loc.deliveryConfig?.enabled === true || orderModes.includes('delivery')
+
       // capacityScore: desde cachedScores del tenant
       const capacityScore = t.cachedScores?.capacityScore ?? null
 
@@ -263,6 +271,8 @@ export async function GET(request: NextRequest) {
         cuisineTypes: loc.cuisineTypes || [],
         openingHours: '',
         isOpenNow,
+        isDeliveryOpen,
+        deliveryEnabled,
         logoUrl: t.branding?.logoUrl,
         heroImage: t.branding?.logoUrl ?? '',
         primaryColor: t.branding?.primaryColor,
