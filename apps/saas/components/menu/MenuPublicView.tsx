@@ -800,7 +800,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       {translating && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
-          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl font-semibold text-sm text-white"
+          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl font-semibold text-base text-white"
             style={{ backgroundColor: primary }}>
             <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -844,7 +844,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               <button
                 ref={cartBtnRef}
                 onClick={() => setShowCart(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-semibold text-sm"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-semibold text-base"
                 style={{ backgroundColor: primary, color: bg }}>
                 <ShoppingCart size={15} />
                 <motion.span
@@ -980,7 +980,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         {featuredItems.length > 0 && (
           <section className="mb-8 rounded-2xl overflow-hidden border" style={{ borderColor: primary + '25' }}>
             <div className="px-4 py-3 border-b" style={{ borderColor: primary + '25', backgroundColor: primary + '10' }}>
-              <p className="text-md font-semibold uppercase tracking-widest" style={{ color: primary }}>
+              <p className="text-base font-semibold uppercase tracking-widest" style={{ color: primary }}>
                 {t.featured}
               </p>
             </div>
@@ -999,8 +999,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         </div>
                     }
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{tn(item, 'name', locale)}</p>
-                      {item.description && <p className="text-md opacity-50 truncate">{tn(item, 'description', locale)}</p>}
+                      <p className="font-semibold text-base truncate">{tn(item, 'name', locale)}</p>
+                      {item.description && <p className="text-sm opacity-70 truncate">{tn(item, 'description', locale)}</p>}
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className="font-bold text-sm" style={{ color: primary }}>
                           ${getItemPrice(item).toLocaleString('es-AR')}
@@ -1058,11 +1058,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               ref={el => { sectionRefs.current[category._id] = el }}
               className="mb-8 scroll-mt-44">
               <div className="mb-3 pb-2 border-b" style={{ borderColor: primary + '30' }}>
-                <h2 className="text-sm font-bold tracking-widest uppercase" style={{ color: primary }}>
+                <h2 className="text-xl font-bold tracking-widest uppercase" style={{ color: primary }}>
                   {tn(category, 'name', locale)}
                 </h2>
                 {tn(category, 'description', locale) && (
-                  <p className="text-xs mt-1 italic" style={{ color: primary + 'aa' }}>
+                  <p className="text-sm mt-1 italic" style={{ color: primary + 'aa' }}>
                     {tn(category, 'description', locale)}
                   </p>
                 )}
@@ -1105,10 +1105,10 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                       {veg
                                         ? <Leaf size={11} className="flex-shrink-0" style={{ color: '#22c55e' }} />
                                         : <UtensilsCrossed size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
-                                      <p className="font-semibold text-xs leading-tight">{tn(item, 'name', locale)}</p>
+                                      <p className="font-semibold text-base leading-tight">{tn(item, 'name', locale)}</p>
                                     </div>
                                     {item.description && (
-                                      <p className="text-xs opacity-40 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
+                                      <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
                                     )}
                                     <div className="flex items-center justify-between">
                                       <p className="font-bold text-sm" style={{ color: primary }}>
@@ -1142,9 +1142,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                     </div>
                                 }
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-sm">{tn(item, 'name', locale)}</p>
+                                  <p className="font-semibold text-base">{tn(item, 'name', locale)}</p>
                                   {item.description && (
-                                    <p className="text-xs opacity-50 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
+                                    <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
                                   )}
                                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                     <span className="font-bold text-sm" style={{ color: primary }}>
@@ -1186,7 +1186,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                           <div key={subcategory._id} className={isGridForTakeaway ? 'col-span-2 grid grid-cols-2 gap-3' : ''}>
                             <div className={isGridForTakeaway ? 'col-span-full flex items-center gap-2 mb-2 mt-4' : 'flex items-center gap-2 mb-2 mt-4'}>
                               <div className="h-px flex-1" style={{ backgroundColor: primary + '15' }} />
-                              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: primary + 'cc' }}>
+                              <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: primary + 'cc' }}>
                                 {tn(subcategory, 'name', locale)}
                               </span>
                               <div className="h-px flex-1" style={{ backgroundColor: primary + '15' }} />
@@ -1211,10 +1211,10 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                         {veg
                                           ? <Leaf size={11} className="flex-shrink-0" style={{ color: '#22c55e' }} />
                                           : <UtensilsCrossed size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
-                                        <p className="font-semibold text-xs leading-tight">{tn(item, 'name', locale)}</p>
+                                        <p className="font-semibold text-base leading-tight">{tn(item, 'name', locale)}</p>
                                       </div>
                                       {item.description && (
-                                        <p className="text-xs opacity-40 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
+                                        <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
                                       )}
                                       <div className="flex items-center justify-between">
                                         <p className="font-bold text-sm" style={{ color: primary }}>
@@ -1248,9 +1248,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                       </div>
                                   }
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-semibold text-sm">{tn(item, 'name', locale)}</p>
+                                    <p className="font-semibold text-base">{tn(item, 'name', locale)}</p>
                                     {item.description && (
-                                      <p className="text-xs opacity-50 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
+                                      <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
                                     )}
                                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                       <span className="font-bold text-sm" style={{ color: primary }}>
@@ -1306,10 +1306,10 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 {veg
                                   ? <Leaf size={11} className="flex-shrink-0" style={{ color: '#22c55e' }} />
                                   : <UtensilsCrossed size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
-                                <p className="font-semibold text-xs leading-tight">{tn(item, 'name', locale)}</p>
+                                <p className="font-semibold text-base leading-tight">{tn(item, 'name', locale)}</p>
                               </div>
                               {item.description && (
-                                <p className="text-xs opacity-40 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
+                                <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
                               )}
                               <div className="flex items-center justify-between">
                                 <p className="font-bold text-sm" style={{ color: primary }}>
@@ -1343,9 +1343,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                               </div>
                           }
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm">{tn(item, 'name', locale)}</p>
+                            <p className="font-semibold text-base">{tn(item, 'name', locale)}</p>
                             {item.description && (
-                              <p className="text-xs opacity-50 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
+                              <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
                             )}
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                               <span className="font-bold text-sm" style={{ color: primary }}>
@@ -1405,16 +1405,16 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3"
                       style={{ backgroundColor: primary + '20', border: `1px solid ${primary}30` }}>
-                      <p className="text-xs font-bold text-center leading-tight" style={{ color: primary }}>
+                      <p className="text-sm font-bold text-center leading-tight" style={{ color: primary }}>
                         {tn(item, 'name', locale)}
                       </p>
-                      <p className="text-xs font-bold" style={{ color: primary }}>
+                      <p className="text-sm font-bold" style={{ color: primary }}>
                         ${getItemPrice(item).toLocaleString('es-AR')}
                       </p>
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                    <p className="text-white text-xs font-bold text-left">{tn(item, 'name', locale)}</p>
+                    <p className="text-white text-sm font-bold text-left">{tn(item, 'name', locale)}</p>
                   </div>
                 </div>
               ))}

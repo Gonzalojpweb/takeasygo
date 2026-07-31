@@ -2,39 +2,37 @@
 
 // ── LiveCityMetrics ───────────────────────────────────────────────────────────
 //
-// Reemplaza el CityNowModule estático con métricas vivas.
+// Card oscura con gradiente navy que muestra métricas vivas de la ciudad.
+// El único bloque oscuro de la Home — tiene que saltar a la vista.
 //
-// Responsabilidades:
-//   1. Mostrar métricas de ciudad (abiertos, promos, nuevos, espera promedio)
-//   2. Animar cambios en los números con transiciones suaves
-//   3. Actualizar datos periódicamente (polling)
-//
-// Dependencias:
-//   - AnimatedNumber (componente atómico)
-//   - tokens --tgo-*
+// Estructura:
+//   - Header: dot verde pulsante + "LA CIUDAD AHORA MISMO"
+//   - Stats grid: 4 columnas con números grandes de color funcional
 //
 // Uso:
 //   <LiveCityMetrics openCount={18} promoCount={4} newCount={3} avgPickup={11} />
 
-import { Users, Tag, Sparkles, Coffee } from 'lucide-react'
 import AnimatedNumber from '@/components/tgo/AnimatedNumber'
 
-interface CityMetric {
-  label: string
-  value: number
-  suffix?: string
-  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>
+interface LiveCityMetricsProps {
+  openCount: number
+  promoCount: number
+  newCount: number
+  avgPickup: number | null
 }
 
-interface LiveCityMetricsProps {
-  /** Cantidad de locales abiertos */
-  openCount: number
-  /** Cantidad de promociones activas */
-  promoCount: number
-  /** Cantidad de locales nuevos */
-  newCount: number
-  /** Tiempo promedio de espera en minutos (null si no hay datos) */
-  avgPickup: number | null
+const STATS = [
+  { key: 'abiertos', color: '#34D399' },
+  { key: 'promos', color: '#FAB300' },
+  { key: 'nuevos', color: '#7A5AF8' },
+  { key: 'espera', color: '#38BDF8' },
+] as const
+
+const LABELS: Record<string, string> = {
+  abiertos: 'abiertos',
+  promos: 'promos',
+  nuevos: 'nuevos',
+  espera: 'espera prom.',
 }
 
 export default function LiveCityMetrics({
@@ -43,69 +41,95 @@ export default function LiveCityMetrics({
   newCount,
   avgPickup,
 }: LiveCityMetricsProps) {
-  const metrics: CityMetric[] = [
-    { label: 'abiertos', value: openCount, icon: Users },
-    { label: 'promos', value: promoCount, icon: Tag },
-    { label: 'nuevos', value: newCount, icon: Sparkles },
-    ...(avgPickup !== null
-      ? [{ label: 'espera promedio', value: avgPickup, suffix: 'min', icon: Coffee }]
-      : []),
-  ]
+  const values: Record<string, number | null> = {
+    abiertos: openCount,
+    promos: promoCount,
+    nuevos: newCount,
+    espera: avgPickup,
+  }
 
   return (
     <div
-      className="flex gap-3 overflow-x-auto no-scrollbar"
-      style={{ paddingInline: 'var(--tgo-page-padding)' }}
+      style={{
+        margin: '0 var(--tgo-page-padding)',
+        padding: '18px 16px',
+        borderRadius: 22,
+        background: '#2D2A4B',
+        boxShadow: '0 8px 24px rgba(45, 42, 75, 0.35)',
+      }}
     >
-      {metrics.map((m) => {
-        const Icon = m.icon
-        return (
-          <div
-            key={m.label}
-            className="flex items-center gap-2 shrink-0"
-            style={{
-              padding: '10px 14px',
-              borderRadius: 'var(--tgo-radius-md)',
-              backgroundColor: 'var(--tgo-surface-1)',
-              border: '1px solid var(--tgo-border)',
-            }}
-          >
-            <Icon
-              size={14}
-              style={{ color: 'var(--tgo-text-muted)' }}
-            />
-            <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        {/* Pulsing green dot */}
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            backgroundColor: '#34D399',
+            flexShrink: 0,
+            animation: 'tgo-pulse-dot 1.8s ease-in-out infinite',
+          }}
+        />
+        <span
+          style={{
+            fontSize: 11.5,
+            fontWeight: 700,
+            color: '#FFFFFF',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase' as const,
+          }}
+        >
+          La ciudad ahora mismo
+        </span>
+      </div>
+
+      {/* Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+        {STATS.map((s) => {
+          const val = values[s.key]
+          if (val === null && s.key === 'espera') return null
+          return (
+            <div key={s.key} style={{ textAlign: 'center' }}>
               <AnimatedNumber
-                value={m.value}
-                suffix={m.suffix}
+                value={val ?? 0}
+                suffix={s.key === 'espera' ? 'min' : undefined}
                 numberStyle={{
-                  color: 'var(--tgo-text-primary)',
-                  fontSize: 'var(--tgo-type-body-sm)',
+                  color: s.color,
+                  fontSize: 22,
                   fontWeight: 700,
                   lineHeight: 1,
                 }}
                 suffixStyle={{
-                  color: 'var(--tgo-text-primary)',
-                  fontSize: 'var(--tgo-type-body-sm)',
+                  color: s.color,
+                  fontSize: 13,
                   fontWeight: 700,
                   lineHeight: 1,
-                  marginLeft: 2,
+                  marginLeft: 1,
                 }}
               />
               <p
                 style={{
-                  color: 'var(--tgo-text-muted)',
-                  fontSize: 10,
+                  color: 'rgba(255, 255, 255, 0.65)',
+                  fontSize: 9.5,
                   lineHeight: 1,
-                  marginTop: 2,
+                  marginTop: 4,
+                  textTransform: 'lowercase' as const,
                 }}
               >
-                {m.label}
+                {LABELS[s.key]}
               </p>
             </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
+
+      <style>{`
+        @keyframes tgo-pulse-dot {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.6; }
+        }
+      `}</style>
     </div>
   )
 }

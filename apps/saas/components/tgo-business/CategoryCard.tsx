@@ -30,8 +30,8 @@ export default function CategoryCard({
       <div
         className="flex items-center justify-center group-active:scale-90"
         style={{
-          width: 56,
-          height: 56,
+          width: 58,
+          height: 58,
           borderRadius: 'var(--tgo-radius-lg)',
           backgroundColor: bg,
           boxShadow: 'var(--shadow-card)',

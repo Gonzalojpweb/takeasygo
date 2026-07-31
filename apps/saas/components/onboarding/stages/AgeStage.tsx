@@ -45,6 +45,7 @@ export default function AgeStage({ value, onChange, onNext }: AgeStageProps) {
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col items-center justify-center px-8"
+      style={{ paddingTop: 104 }}
     >
       {/* Title */}
       <motion.h2
@@ -74,7 +75,7 @@ export default function AgeStage({ value, onChange, onNext }: AgeStageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
         className="relative w-full max-w-[200px] h-[132px] mb-8 overflow-hidden rounded-2xl"
-        style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+        style={{ backgroundColor: 'var(--tgo-card)' }}
       >
         {/* Selection indicator */}
         <div

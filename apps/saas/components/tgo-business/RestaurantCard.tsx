@@ -30,6 +30,8 @@ import {
 } from '@/lib/restaurant-card-helpers'
 import { useHaptic } from '@/components/tgo/useHaptic'
 
+const PLACEHOLDER_COLORS = ['#2D2A4B', '#0F6E56', '#B03A2E', '#5A3A26', '#262625']
+
 // ── Static Style Constants ──────────────────────────────────────────────────
 
 // Badge styles
@@ -82,11 +84,12 @@ const DOT_CLOSED: React.CSSProperties = {
 }
 
 // Image containers
-const IMAGE_64: React.CSSProperties = {
-  width: 64,
-  height: 64,
-  borderRadius: 'var(--tgo-radius-md)',
+const IMAGE_60: React.CSSProperties = {
+  width: 60,
+  height: 60,
+  borderRadius: 16,
   backgroundColor: 'var(--tgo-surface-1)',
+  flexShrink: 0,
 }
 const IMAGE_48: React.CSSProperties = {
   width: 48,
@@ -178,15 +181,14 @@ const CTA_ACTIVE: React.CSSProperties = {
   backgroundColor: 'var(--tgo-state-action)',
   color: 'var(--tgo-text-inverse)',
 }
-const CTA_DISABLED: React.CSSProperties = {
+const CTA_CATALOG: React.CSSProperties = {
   padding: '8px 16px',
   borderRadius: 'var(--tgo-radius-md)',
   fontSize: 'var(--tgo-type-caption)',
   fontWeight: 600,
-  backgroundColor: 'var(--tgo-state-inactive)',
-  color: 'var(--tgo-text-inverse)',
-  cursor: 'not-allowed',
-  boxShadow: 'none',
+  backgroundColor: 'transparent',
+  color: '#854F0B',
+  border: '1.5px solid var(--tgo-state-discovery)',
 }
 const TEXT_OPEN: React.CSSProperties = {
   color: 'var(--tgo-state-success)',
@@ -235,21 +237,21 @@ function StatusBadge({ r }: { r: RestaurantCardData }) {
   if (r.isNew) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5" style={BADGE_NUEVO}>
-        NUEVO
+        ✦ NUEVO
       </span>
     )
   }
   if (r.isOpenNow === true) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5" style={BADGE_ABIERTO}>
-        ABIERTO
+        ● ABIERTO
       </span>
     )
   }
   if (r.isOpenNow === false) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5" style={BADGE_CERRADO}>
-        CERRADO
+        ● CERRADO
       </span>
     )
   }
@@ -314,7 +316,10 @@ function HeroLayout({
         borderRadius: 'var(--tgo-radius-lg)',
         backgroundColor: 'var(--tgo-card)',
         border: '1px solid var(--tgo-border)',
+<<<<<<< HEAD
         borderLeft: `4px solid ${r.isOpenNow ? 'var(--tgo-state-activity)' : 'var(--tgo-state-inactive)'}`,
+=======
+>>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
         boxShadow: 'var(--shadow-card)',
         transition: `transform var(--tgo-duration-base) var(--tgo-ease-standard)`,
         animationDelay: `${index * 80}ms`,
@@ -333,9 +338,7 @@ function HeroLayout({
           <div
             className="w-full h-full"
             style={{
-              background: isNetwork
-                ? `linear-gradient(135deg, var(--tgo-surface-0) 0%, ${r.primaryColor || 'var(--tgo-surface-2)'} 50%, var(--tgo-surface-0) 100%)`
-                : `linear-gradient(135deg, var(--tgo-surface-1) 0%, var(--tgo-surface-2) 100%)`,
+              background: PLACEHOLDER_COLORS[index % 5],
             }}
           />
         )}
@@ -401,7 +404,18 @@ function HeroLayout({
           className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
           style={{ ...HOVER_OVERLAY, transition: `opacity var(--tgo-duration-fast) var(--tgo-ease-standard)` }}
         >
-          <span className="px-5 py-2.5" style={HOVER_CTA_PILL}>
+          <span className="px-5 py-2.5 flex items-center gap-1.5" style={HOVER_CTA_PILL}>
+            Pedir
+          </span>
+        </div>
+      )}
+      {isNetwork && r.isOperational === false && (
+        <div
+          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
+          style={{ ...HOVER_OVERLAY, transition: `opacity var(--tgo-duration-fast) var(--tgo-ease-standard)` }}
+        >
+          <span className="px-5 py-2.5 flex items-center gap-1.5" style={HOVER_CTA_PILL}>
+            <span style={{ fontSize: 14 }}>📋</span>
             Ver carta
           </span>
         </div>
@@ -410,7 +424,7 @@ function HeroLayout({
   )
 }
 
-// ── LIST (imagen 64x64 + badge + señal operativa) ────────────────────────────
+// ── LIST (accent bar + gradient bg + 60px logo + señal operativa) ─────────────
 
 function ListLayout({
   r,
@@ -427,42 +441,67 @@ function ListLayout({
   const proximity = getProximityLabel(r.distanceM, walkingMinutes(r.distanceM) ?? undefined)
   const opportunity = getOpportunityLabel(r.loyaltyInfo)
 
+  // Accent bar + gradient by operational status
+  const isOperational = r.isOperational !== false
+  const accentColor = isOperational ? 'var(--tgo-state-activity)' : 'var(--tgo-state-discovery)'
+  const cardBg = isOperational
+    ? 'rgba(47,191,113,0.07)'
+    : 'rgba(250,179,0,0.09)'
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
       onClick={() => { haptic.impact('light'); onNavigate?.() }}
-      className="relative flex items-center gap-4 cursor-pointer group active:scale-[0.99]"
+      className="relative flex items-center cursor-pointer group active:scale-[0.99]"
       style={{
-        padding: 'var(--tgo-card-padding)',
+        paddingLeft: 4,
         borderRadius: 'var(--tgo-radius-lg)',
+<<<<<<< HEAD
         backgroundColor: 'var(--tgo-card)',
         border: '1px solid var(--tgo-border)',
         borderLeft: `4px solid ${r.isOpenNow ? 'var(--tgo-state-activity)' : 'var(--tgo-state-inactive)'}`,
+=======
+        background: cardBg,
+        border: '1px solid var(--tgo-border)',
+        borderLeft: `4px solid ${accentColor}`,
+>>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
         boxShadow: 'var(--shadow-card)',
         transition: `all var(--tgo-duration-base) var(--tgo-ease-standard)`,
         animationDelay: `${index * 80}ms`,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = 'var(--tgo-border-active)'
+        e.currentTarget.style.borderLeftColor = accentColor
         e.currentTarget.style.boxShadow = 'var(--tgo-elevation-floating)'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = 'var(--tgo-border)'
+<<<<<<< HEAD
+=======
+        e.currentTarget.style.borderLeftColor = accentColor
+>>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
         e.currentTarget.style.boxShadow = 'var(--shadow-card)'
       }}
     >
-      {/* Image */}
-      <div className="relative shrink-0 overflow-hidden flex items-center justify-center" style={IMAGE_64}>
+      {/* Logo — 60px with gradient placeholder */}
+      <div className="relative shrink-0 overflow-hidden flex items-center justify-center" style={IMAGE_60}>
         {isNetwork && r.logoUrl ? (
           <img src={r.logoUrl} alt={r.name} className="w-full h-full object-cover" />
         ) : r.heroImage ? (
           <img src={r.heroImage} alt={r.name} className="w-full h-full object-cover" />
         ) : (
-          <Utensils size={20} style={{ color: 'var(--tgo-text-muted)' }} />
+          <div
+            className="w-full h-full"
+            style={{
+              background: r.primaryColor
+                ? `${r.primaryColor}22`
+                : PLACEHOLDER_COLORS[index % 5],
+            }}
+          />
         )}
-        {/* Badge overlay */}
+        {/* Badge overlay — bottom right */}
         <div className="absolute -bottom-0.5 -right-0.5">
           {r.isNew ? (
             <span className="flex items-center justify-center" style={BADGE_N}>N</span>
@@ -475,7 +514,7 @@ function ListLayout({
       </div>
 
       {/* Info */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0" style={{ padding: '12px 12px 12px 12px' }}>
         <div className="flex items-center gap-2">
           <h3 className="truncate leading-tight" style={{ ...TEXT_PRIMARY, fontSize: 'var(--tgo-type-body-sm)' }}>
             {r.name}
@@ -484,7 +523,7 @@ function ListLayout({
         </div>
 
         {/* Operational signal — inline */}
-        {r.isOpenNow === true && r.isOperational !== false && (
+        {r.isOpenNow === true && isOperational && (
           <div className="mt-1">
             <OperationalSignalBox r={r} />
           </div>
@@ -498,7 +537,7 @@ function ListLayout({
               {proximity.label}
             </span>
           )}
-          {r.estimatedPickupTime && isNetwork && r.isOperational !== false && (
+          {r.estimatedPickupTime && isNetwork && isOperational && (
             <>
               <span style={DOT_SEPARATOR}>·</span>
               <span className="flex items-center gap-1" style={TEXT_PICKUP}>
@@ -529,22 +568,30 @@ function ListLayout({
       </div>
 
       {/* CTA */}
-      <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-        {isNetwork ? (
+      <div className="shrink-0" style={{ paddingRight: 12 }} onClick={(e) => e.stopPropagation()}>
+        {isOperational ? (
           <Link
             href={`/${r.tenantSlug}/menu/${r.id}/takeaway`}
             className="flex items-center gap-1.5"
             style={{
-              ...(r.isOperational === false ? CTA_DISABLED : CTA_ACTIVE),
+              ...CTA_ACTIVE,
               transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
             }}
           >
-            {r.isOperational === false ? 'Ver carta' : 'Pedir'}
+            Pedir
           </Link>
         ) : (
-          <span style={r.isOpenNow === true ? TEXT_PICKUP : { color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-caption)', fontWeight: 600 }}>
-            {r.isOpenNow === true ? 'Abierto' : r.isOpenNow === false ? 'Cerrado' : ''}
-          </span>
+          <Link
+            href={`/${r.tenantSlug}/menu/${r.id}/takeaway`}
+            className="flex items-center gap-1.5"
+            style={{
+              ...CTA_CATALOG,
+              transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
+            }}
+          >
+            <span style={{ fontSize: 12 }}>📋</span>
+            Ver carta
+          </Link>
         )}
       </div>
     </motion.div>

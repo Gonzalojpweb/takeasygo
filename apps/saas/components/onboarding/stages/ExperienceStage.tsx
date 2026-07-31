@@ -80,8 +80,8 @@ export default function ExperienceStage({ value, onChange, onNext }: ExperienceS
                 style={{
                   backgroundColor: isSelected
                     ? 'rgba(247, 66, 17, 0.1)'
-                    : 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${isSelected ? 'rgba(247, 66, 17, 0.3)' : 'rgba(255,255,255,0.06)'}`,
+                    : 'var(--tgo-card)',
+                  border: `1px solid ${isSelected ? 'rgba(247, 66, 17, 0.3)' : 'var(--tgo-border)'}`,
                 }}
               >
                 <span

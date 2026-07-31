@@ -1,13 +1,16 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
+import Location from '@/models/Location'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import ReportsDashboard from '@/components/admin/ReportsDashboard'
+import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 import { Lock } from 'lucide-react'
 
+const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 const UPSELL_SOURCES = ['upsell_sheet', 'checkout_banner']
 
 export default async function ReportsPage() {
@@ -47,10 +50,17 @@ export default async function ReportsPage() {
   const tenantId = tenant._id
   const isFullPlan = plan === 'full'
 
+  const location = await Location.findOne({ tenantId }).select('timezone').lean() as any
+  const timezone = location?.timezone || DEFAULT_TIMEZONE
+
   const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+  const thisMonthStr = now.toLocaleDateString('en-CA', { timeZone: timezone })
+  const [thisY, thisM] = thisMonthStr.split('-').map(Number)
+  const { date: startOfMonth } = getDayAndMidnightInTimezone(`${thisY}-${String(thisM).padStart(2, '0')}-01`, timezone)
+  const lastMonthM = thisM === 1 ? 12 : thisM - 1
+  const lastMonthY = thisM === 1 ? thisY - 1 : thisY
+  const { date: startOfLastMonth } = getDayAndMidnightInTimezone(`${lastMonthY}-${String(lastMonthM).padStart(2, '0')}-01`, timezone)
+  const endOfLastMonth = new Date(startOfMonth.getTime() - 1000)
   const last90days = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
 
   const [
@@ -117,7 +127,7 @@ export default async function ReportsPage() {
     // Distribución horaria completa — solo full
     isFullPlan ? Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
-      { $group: { _id: { $hour: '$createdAt' }, count: { $sum: 1 } } },
+      { $group: { _id: { $hour: { date: '$createdAt', timezone } }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]) : Promise.resolve([]),
     // TPP — solo full
@@ -210,7 +220,7 @@ export default async function ReportsPage() {
     isFullPlan ? Order.aggregate([
       { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
       { $group: {
-        _id: { $dayOfMonth: '$createdAt' },
+        _id: { $dayOfMonth: { date: '$createdAt', timezone } },
         revenue: { $sum: '$total' },
         orders: { $sum: 1 },
       }},
@@ -334,7 +344,11 @@ export default async function ReportsPage() {
     }))
 
   // Tendencia diaria — rellena días sin pedidos con 0
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const nextMonthM = thisM === 12 ? 1 : thisM + 1
+  const nextMonthY = thisM === 12 ? thisY + 1 : thisY
+  const nextMonthStr = `${nextMonthY}-${String(nextMonthM).padStart(2, '0')}-01`
+  const { date: startOfNextMonth } = getDayAndMidnightInTimezone(nextMonthStr, timezone)
+  const daysInMonth = Math.round((startOfNextMonth.getTime() - startOfMonth.getTime()) / (24 * 60 * 60 * 1000))
   const dailyMap = Object.fromEntries(
     (dailyTrendData as any[]).map(d => [d._id, { revenue: d.revenue as number, orders: d.orders as number }])
   )

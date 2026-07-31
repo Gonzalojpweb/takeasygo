@@ -37,6 +37,7 @@ export default function NameStage({ value, onChange, onNext }: NameStageProps) {
       exit={{ opacity: 0, x: -40 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="absolute inset-0 flex flex-col items-center justify-center px-8"
+      style={{ paddingTop: 96 }}
     >
       {/* Title */}
       <motion.h2
@@ -77,15 +78,15 @@ export default function NameStage({ value, onChange, onNext }: NameStageProps) {
           maxLength={30}
           className="w-full h-14 rounded-2xl px-5 text-base font-medium outline-none transition-all duration-150"
           style={{
-            backgroundColor: 'rgba(255,255,255,0.05)',
+            backgroundColor: 'var(--tgo-card)',
             color: 'var(--tgo-text-primary)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid var(--tgo-border)',
           }}
           onFocus={(e) => {
             e.currentTarget.style.borderColor = 'var(--tgo-brand-primary)'
           }}
           onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+            e.currentTarget.style.borderColor = 'var(--tgo-border)'
           }}
         />
       </motion.div>
