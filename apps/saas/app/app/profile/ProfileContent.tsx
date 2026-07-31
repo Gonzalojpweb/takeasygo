@@ -701,7 +701,7 @@ export default function ProfileContent() {
                             Todavía no generaste impacto
                           </p>
                           <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
-                            Hacé tu primer pedido para empezar
+                            Descubrí tu primer comercio local para empezar
                           </p>
                         </div>
                       </div>
