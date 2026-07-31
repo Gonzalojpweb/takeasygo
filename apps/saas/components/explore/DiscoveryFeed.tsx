@@ -95,9 +95,6 @@ function QuickFiltersModule({
                 ? 'var(--tgo-state-trust-soft)'
                 : 'var(--tgo-card)',
               color: isActive
-                ? 'var(--tgo-state-trust)'
-                : 'var(--tgo-card)',
-              color: isActive
                 ? '#FFFFFF'
                 : 'var(--tgo-text-primary)',
               border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
