@@ -51,6 +51,8 @@ export interface NearbyRestaurant {
   status?: string
   // Algoritmo de visibilidad (solo network, interno)
   visibilityScore?: number
+  // isNew: tenant creado en últimos 30 días
+  isNew?: boolean
   // Layer 4 — Loyalty Discovery
   loyaltyInfo?: {
     hasClub: boolean
@@ -93,6 +95,7 @@ function toRestaurantCardData(r: NearbyRestaurant): RestaurantCardData {
       ...r.loyaltyInfo,
       promoTypes: r.loyaltyInfo.promoTypes ?? [],
     } : undefined,
+    isNew: r.isNew ?? false,
   }
 }
 
@@ -180,6 +183,7 @@ export async function GET(request: NextRequest) {
             'tenant.cachedScores.icoScore': 1,
             'tenant.cachedScores.capacityScore': 1,
             'tenant.isOperational': 1,
+            'tenant.createdAt': 1,
           },
         },
       ])
@@ -241,6 +245,7 @@ export async function GET(request: NextRequest) {
               'tenant.cachedScores.icoScore': 1,
               'tenant.cachedScores.capacityScore': 1,
               'tenant.isOperational': 1,
+              'tenant.createdAt': 1,
             },
           },
         ])
@@ -317,6 +322,9 @@ export async function GET(request: NextRequest) {
 
     // ── Normalizar a NearbyRestaurant ────────────────────────────────────────
 
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
     const networkResults: NearbyRestaurant[] = mergedNetworkRaw.map(loc => {
       const distanceM = Math.round(loc.distanceM)
       const estimatedPickupTime: number = loc.settings?.estimatedPickupTime ?? 20
@@ -384,6 +392,7 @@ export async function GET(request: NextRequest) {
           hasActivePromo: tenantPromo?.hasPromo ?? false,
           promoTypes: tenantPromo?.types,
         } : undefined,
+        isNew: loc.tenant?.createdAt ? new Date(loc.tenant.createdAt) >= thirtyDaysAgo : false,
       }
     })
 
