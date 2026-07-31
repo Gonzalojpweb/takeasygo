@@ -28,6 +28,7 @@ import { sendWhatsApp } from '@/lib/whatsapp'
 import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
 import { calculateFinalTotal } from '@/lib/pricing'
 import PlatformConfig from '@/models/PlatformConfig'
+import { registerImpactEvent } from '@/lib/impact'
 import { calculateDeliveryCost } from '@/lib/geocode'
 import PushSubscription from '@/models/PushSubscription'
 import Rating from '@/models/Rating'
@@ -1259,6 +1260,32 @@ export async function POST(
         deliveryRangeApplied,
       } : {}),
     })
+
+    // Register impact event (never fails the order)
+    try {
+      if (encryptedCustomer.phoneHash) {
+        const locationDoc = await Location.findById(body.locationId).select('name').lean() as any
+        const cuisineTypes = resolvedItems.map((i: any) => i.categoryName).filter(Boolean)
+        const sessionUser = await auth()
+        let userId: mongoose.Types.ObjectId | null = null
+        if (sessionUser?.user?.email) {
+          const u = await User.findOne({ email: sessionUser.user.email }).select('_id').lean() as any
+          if (u) userId = u._id
+        }
+        await registerImpactEvent({
+          userId,
+          tenantId: tenant._id,
+          locationId: new mongoose.Types.ObjectId(body.locationId),
+          orderId: order._id as mongoose.Types.ObjectId,
+          phoneHash: encryptedCustomer.phoneHash,
+          orderTotal: total,
+          businessName: locationDoc?.name ?? tenant.name,
+          cuisineTypes: [...new Set(cuisineTypes)] as string[],
+        })
+      }
+    } catch (e) {
+      console.error('[impact] register error:', e)
+    }
 
     // Sync consumer registry (never fails the order)
     if (body.customer?.name || body.customer?.phone || body.customer?.email) {

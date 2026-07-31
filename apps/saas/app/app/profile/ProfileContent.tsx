@@ -3,7 +3,7 @@
 import { signIn, signOut, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle, MapPin, X, Loader2 } from 'lucide-react'
+import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle, MapPin, X, Loader2, Globe } from 'lucide-react'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { BorderBeam } from '@/components/ui/border-beam'
@@ -55,6 +55,13 @@ export default function ProfileContent() {
   const [suggestedClubs, setSuggestedClubs] = useState<SuggestedClub[]>([])
   const [clubsLoading, setClubsLoading] = useState(false)
 
+  // Impact system
+  const [impactSummary, setImpactSummary] = useState<{
+    commercesSupported: number
+    discoveredBusinesses: number
+    badges: { id: string; unlockedAt: string }[]
+  } | null>(null)
+
   useEffect(() => {
     if (callbackUrl && callbackUrl !== '/') {
       localStorage.setItem('auth_pending_redirect', callbackUrl)
@@ -80,6 +87,16 @@ export default function ProfileContent() {
         .finally(() => setClubsLoading(false))
     }
   }, [session])
+
+  // Fetch impact summary
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetch(`/api/${tenantSlug}/impact/summary?userId=${encodeURIComponent(session.user.id)}`)
+        .then(res => res.json())
+        .then(data => setImpactSummary(data))
+        .catch(() => {})
+    }
+  }, [session, tenantSlug])
 
   if (loading) {
     return (
@@ -600,6 +617,71 @@ export default function ProfileContent() {
                   </p>
                 </div>
               </div>
+            )}
+
+            {/* ── Impacto y Progresión ─────────────────────────────── */}
+            {impactSummary && (
+              <>
+                <div className="h-4" />
+                <h3 className="ml-1 mb-2" style={sectionTitle}>Tu Impacto</h3>
+                <div className="w-full p-4" style={cardStyle}>
+                  <div className="flex items-center gap-4 mb-3">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center"
+                      style={{
+                        backgroundColor: 'var(--tgo-state-success-soft, #d1fae5)',
+                        color: 'var(--tgo-state-success, #10b981)',
+                      }}
+                    >
+                      <Globe size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+                        {impactSummary.commercesSupported === 1
+                          ? 'Apoyaste 1 comercio local'
+                          : `Apoyaste ${impactSummary.commercesSupported} comercios locales`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex-1 text-center p-2" style={{ backgroundColor: 'var(--tgo-surface-1)', borderRadius: 'var(--tgo-radius-md)' }}>
+                      <p className="text-lg font-black tabular-nums" style={{ color: 'var(--tgo-text-primary)' }}>
+                        {impactSummary.discoveredBusinesses}
+                      </p>
+                      <p className="text-[9px] font-bold" style={{ color: 'var(--tgo-text-muted)' }}>
+                        {impactSummary.discoveredBusinesses === 1 ? 'lugar descubierto' : 'lugares descubiertos'}
+                      </p>
+                    </div>
+                    <div className="flex-1 text-center p-2" style={{ backgroundColor: 'var(--tgo-surface-1)', borderRadius: 'var(--tgo-radius-md)' }}>
+                      <p className="text-lg font-black tabular-nums" style={{ color: 'var(--tgo-text-primary)' }}>
+                        {impactSummary.badges.length}
+                      </p>
+                      <p className="text-[9px] font-bold" style={{ color: 'var(--tgo-text-muted)' }}>
+                        insignias
+                      </p>
+                    </div>
+                  </div>
+                  {impactSummary.badges.length > 0 && (
+                    <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+                      {impactSummary.badges.map(badge => (
+                        <div
+                          key={badge.id}
+                          className="shrink-0 flex items-center gap-1.5 px-2 py-1"
+                          style={{
+                            backgroundColor: 'var(--tgo-state-success-soft, #d1fae5)',
+                            borderRadius: 'var(--tgo-radius-full)',
+                          }}
+                        >
+                          <span className="text-xs">🌱</span>
+                          <span className="text-[10px] font-bold" style={{ color: 'var(--tgo-state-success, #10b981)' }}>
+                            {badge.id.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             <div className="h-4" />
