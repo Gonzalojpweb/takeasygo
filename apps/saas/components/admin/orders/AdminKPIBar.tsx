@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { ShoppingBag, TrendingUp, Users, DollarSign, Eye, EyeOff } from 'lucide-react'
+import { ShoppingBag, TrendingUp, Users, DollarSign, Eye, EyeOff, Package, Truck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface TiaMetrics {
   todayOrders: number
   todayRevenue: number
   todayNewMembers: number
+  todayTakeawayOrders: number
+  todayDeliveryOrders: number
 }
 
 interface SatisfactionData {
@@ -49,6 +51,8 @@ export default function AdminKPIBar({ userName }: { userName: string }) {
             todayOrders: summary.todayOrders ?? 0,
             todayRevenue: summary.todayRevenue ?? 0,
             todayNewMembers: summary.todayNewMembers ?? 0,
+            todayTakeawayOrders: summary.todayTakeawayOrders ?? 0,
+            todayDeliveryOrders: summary.todayDeliveryOrders ?? 0,
           })
         }
         if (satRes.ok) {
@@ -106,7 +110,33 @@ export default function AdminKPIBar({ userName }: { userName: string }) {
           </div>
         </div>
 
-        {/* Card 3: Club hoy */}
+        {/* Card 3: Takeaway */}
+        <div className="hidden md:flex items-center gap-2 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5">
+          <div className="h-6 w-6 rounded-md bg-sky-50 flex items-center justify-center shrink-0">
+            <Package size={12} className="text-sky-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-foreground tabular-nums leading-none">
+              {metrics ? metrics.todayTakeawayOrders : '—'}
+            </p>
+            <p className="text-[9px] font-semibold text-muted-foreground/60 leading-none mt-0.5">Takeaway</p>
+          </div>
+        </div>
+
+        {/* Card 4: Delivery */}
+        <div className="hidden lg:flex items-center gap-2 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5">
+          <div className="h-6 w-6 rounded-md bg-orange-50 flex items-center justify-center shrink-0">
+            <Truck size={12} className="text-orange-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-foreground tabular-nums leading-none">
+              {metrics ? metrics.todayDeliveryOrders : '—'}
+            </p>
+            <p className="text-[9px] font-semibold text-muted-foreground/60 leading-none mt-0.5">Delivery</p>
+          </div>
+        </div>
+
+        {/* Card 5: Club hoy */}
         <div className="hidden lg:flex items-center gap-2 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5">
           <div className="h-6 w-6 rounded-md bg-amber-50 flex items-center justify-center shrink-0">
             <Users size={12} className="text-amber-500" />
@@ -119,7 +149,7 @@ export default function AdminKPIBar({ userName }: { userName: string }) {
           </div>
         </div>
 
-        {/* Card 4: Ventas del día */}
+        {/* Card 6: Ventas del día */}
         <div className="hidden lg:flex items-center gap-2 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5">
           <div className="h-6 w-6 rounded-md bg-purple-50 flex items-center justify-center shrink-0">
             <DollarSign size={12} className="text-purple-500" />

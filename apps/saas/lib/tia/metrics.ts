@@ -102,6 +102,8 @@ export interface DailySummaryData {
   todayRewardsRedeemed: number
   pendingOrders: number
   avgOrderValue: number
+  todayTakeawayOrders: number
+  todayDeliveryOrders: number
 }
 
 export interface ConversionFunnelData {
@@ -225,6 +227,8 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     todayMembers,
     todayRewards,
     pendingOrders,
+    todayTakeawayOrders,
+    todayDeliveryOrders,
     orders7d,
     orders30d,
     ordersPrev7d,
@@ -258,6 +262,12 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
 
     // Pending orders (not delivered/cancelled)
     Order.countDocuments({ tenantId: tid, deletedAt: null, status: { $in: ['confirmed', 'preparing', 'pending'] } }),
+
+    // Today's takeaway orders
+    Order.countDocuments({ tenantId: tid, deletedAt: null, orderMode: 'takeaway', createdAt: { $gte: todayStart, $lte: todayEnd }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
+
+    // Today's delivery orders
+    Order.countDocuments({ tenantId: tid, deletedAt: null, orderMode: 'delivery', createdAt: { $gte: todayStart, $lte: todayEnd }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
 
     // Orders last 7 days
     Order.countDocuments({ tenantId: tid, deletedAt: null, createdAt: { $gte: sevenDaysAgo }, status: { $nin: ['cancelled', 'open', 'awaiting_payment'] } }),
@@ -388,6 +398,8 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
       todayRewardsRedeemed: todayRewards,
       pendingOrders,
       avgOrderValue,
+      todayTakeawayOrders,
+      todayDeliveryOrders,
     },
     conversionFunnel: {
       menuOpened: funnel?.menuOpened ?? menuOpenedCount,
