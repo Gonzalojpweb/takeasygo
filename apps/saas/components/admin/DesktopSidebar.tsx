@@ -29,7 +29,7 @@ export default function DesktopSidebar(props: DesktopSidebarProps) {
       <aside
         className={cn(
           'fixed left-0 top-0 h-full flex flex-col border-r border-border overflow-x-hidden z-50 transition-all duration-200 hidden lg:block no-scrollbar',
-          isExpanded ? 'w-[288px] overflow-y-auto' : 'w-[68px] overflow-y-hidden'
+          isExpanded ? 'w-[288px] overflow-y-auto' : 'w-[68px] overflow-y-auto'
         )}
         data-lenis-prevent
         onMouseEnter={handleMouseEnter}
