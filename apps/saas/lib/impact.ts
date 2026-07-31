@@ -57,7 +57,6 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
     category: 'community',
     condition: (impact) => impact.totalOrders >= 10,
   },
-  // barrio_descubierto — Phase 2 (requiere polígonos OSM)
 ]
 
 // ── Impact Calculation ───────────────────────────────────────────────────────
