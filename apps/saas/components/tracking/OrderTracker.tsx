@@ -322,6 +322,19 @@ export default function OrderTracker({
       )
       playNotification()
       if (navigator.vibrate) navigator.vibrate([100, 50, 100])
+
+      // Impact toast — delayed 2s so server has time to register the event
+      setTimeout(() => {
+        toast(
+          <StatusNotificationCard
+            icon="🌍"
+            iconBg="#10b981"
+            title="Generaste impacto"
+            description="Tu orden apoya comercios locales"
+          />,
+          { duration: 4000, position: 'bottom-center' }
+        )
+      }, 2000)
     }
     if (status === 'ready' && prevStatusRef.current !== 'ready') {
       toast(

@@ -49,6 +49,17 @@ export interface ILoyaltyMember extends Document {
     lastRedemptionAt?: Date | null
   }
 
+  // Sistema de Impacto y Progresión
+  userImpact: {
+    commercesSupported: number      // comercios apoyados (compras únicas por comercio)
+    nearbyPurchases: number         // compras de cercanía (orden within delivery range)
+    discoveredBusinesses: number    // comercios descubiertos (primera compra)
+    discoveredBusinessesList: mongoose.Types.ObjectId[]
+    discoveredNeighborhoods: string[]
+    badges: { id: string; unlockedAt: Date }[]
+    lastImpactAt: Date | null
+  }
+
   // FASE WALLET: Integración Google & Apple Wallet
   wallet: {
     /** ID único público para QR (no expone ObjectId de Mongo) */
@@ -155,6 +166,20 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
       totalRedemptions: { type: Number, default: 0 },
       totalPointsSpent: { type: Number, default: 0 },
       lastRedemptionAt: { type: Date, default: null },
+    },
+
+    // Sistema de Impacto y Progresión
+    userImpact: {
+      commercesSupported: { type: Number, default: 0 },
+      nearbyPurchases: { type: Number, default: 0 },
+      discoveredBusinesses: { type: Number, default: 0 },
+      discoveredBusinessesList: [{ type: Schema.Types.ObjectId, ref: 'Location' }],
+      discoveredNeighborhoods: [{ type: String }],
+      badges: [{
+        id: { type: String, required: true },
+        unlockedAt: { type: Date, default: Date.now },
+      }],
+      lastImpactAt: { type: Date, default: null },
     },
 
     // FASE WALLET: Schema para integración con billeteras
