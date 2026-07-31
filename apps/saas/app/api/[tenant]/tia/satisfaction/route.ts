@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
   }
 
-  const [result] = await Feedback.aggregate([
+  const result = await Feedback.aggregate([
     { $match: { tenantId: tenant._id, satisfaction: { $exists: true, $ne: null } } },
     { $group: { _id: '$satisfaction', count: { $sum: 1 } } },
   ])
@@ -21,12 +21,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   const counts = { excelente: 0, buena: 0, mejorable: 0 }
   let total = 0
 
-  if (result) {
-    for (const row of result) {
-      if (row._id in counts) {
-        counts[row._id as keyof typeof counts] = row.count
-        total += row.count
-      }
+  for (const row of result) {
+    if (row._id in counts) {
+      counts[row._id as keyof typeof counts] = row.count
+      total += row.count
     }
   }
 
