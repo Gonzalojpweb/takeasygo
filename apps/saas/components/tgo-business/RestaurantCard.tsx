@@ -316,10 +316,7 @@ function HeroLayout({
         borderRadius: 'var(--tgo-radius-lg)',
         backgroundColor: 'var(--tgo-card)',
         border: '1px solid var(--tgo-border)',
-<<<<<<< HEAD
         borderLeft: `4px solid ${r.isOpenNow ? 'var(--tgo-state-activity)' : 'var(--tgo-state-inactive)'}`,
-=======
->>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
         boxShadow: 'var(--shadow-card)',
         transition: `transform var(--tgo-duration-base) var(--tgo-ease-standard)`,
         animationDelay: `${index * 80}ms`,
@@ -458,15 +455,9 @@ function ListLayout({
       style={{
         paddingLeft: 4,
         borderRadius: 'var(--tgo-radius-lg)',
-<<<<<<< HEAD
-        backgroundColor: 'var(--tgo-card)',
-        border: '1px solid var(--tgo-border)',
-        borderLeft: `4px solid ${r.isOpenNow ? 'var(--tgo-state-activity)' : 'var(--tgo-state-inactive)'}`,
-=======
         background: cardBg,
         border: '1px solid var(--tgo-border)',
         borderLeft: `4px solid ${accentColor}`,
->>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
         boxShadow: 'var(--shadow-card)',
         transition: `all var(--tgo-duration-base) var(--tgo-ease-standard)`,
         animationDelay: `${index * 80}ms`,
@@ -478,10 +469,7 @@ function ListLayout({
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = 'var(--tgo-border)'
-<<<<<<< HEAD
-=======
         e.currentTarget.style.borderLeftColor = accentColor
->>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
         e.currentTarget.style.boxShadow = 'var(--shadow-card)'
       }}
     >
