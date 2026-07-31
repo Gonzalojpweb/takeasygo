@@ -205,7 +205,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
           </div>
 
           {/* Nav — Vertical: icon + text below */}
-          <nav className="flex-1 px-2 py-2 overflow-y-auto min-h-0 flex flex-col items-center gap-1 no-scrollbar">
+          <nav className="flex-1 px-2 py-2 overflow-y-auto min-h-0 flex flex-col items-center gap-1 admin-nav-scroll">
             {groups.map((group, groupIdx) => {
               const visibleItems = group.items.filter(item => item.roles.includes(effectiveRole))
               if (visibleItems.length === 0) return null
@@ -310,7 +310,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
           </div>
 
           {/* Nav — Full with groups and separators */}
-          <nav className="flex-1 px-3 overflow-y-auto min-h-0 max-h-[calc(100dvh-200px)] no-scrollbar">
+          <nav className="flex-1 px-3 overflow-y-auto min-h-0 admin-nav-scroll">
             {groups.map((group, groupIdx) => {
               const visibleItems = group.items.filter(item => item.roles.includes(effectiveRole))
               if (visibleItems.length === 0) return null
