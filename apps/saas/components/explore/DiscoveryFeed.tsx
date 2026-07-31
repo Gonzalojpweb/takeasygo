@@ -92,12 +92,9 @@ function QuickFiltersModule({
               fontSize: 'var(--tgo-type-body-sm)',
               fontWeight: isActive ? 600 : 400,
               backgroundColor: isActive
-<<<<<<< HEAD
                 ? 'var(--tgo-state-trust-soft)'
                 : 'var(--tgo-card)',
               color: isActive
-=======
->>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
                 ? 'var(--tgo-state-trust)'
                 : 'var(--tgo-card)',
               color: isActive
@@ -364,46 +361,6 @@ export default function DiscoveryFeed({
               </svg>
             }
             href="https://instagram.com/tgo.app"
-<<<<<<< HEAD
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--tgo-radius-pill)',
-              fontSize: 'var(--tgo-type-caption)',
-              fontWeight: 600,
-              color: 'var(--tgo-text-inverse)',
-              backgroundColor: 'var(--tgo-state-trust)',
-              border: '0.5px solid var(--tgo-state-trust)',
-              textDecoration: 'none',
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-            </svg>
-            @tgo.app
-          </a>
-          <button
-            onClick={() => { haptic.impact('light'); handleShare() }}
-            className="flex items-center gap-1.5"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--tgo-radius-pill)',
-              fontSize: 'var(--tgo-type-caption)',
-              fontWeight: 600,
-              color: 'var(--tgo-text-inverse)',
-              backgroundColor: 'var(--tgo-state-discovery)',
-              border: '0.5px solid var(--tgo-state-discovery)',
-              cursor: 'pointer',
-            }}
-          >
-            <Share2 size={12} />
-            Compartí
-          </button>
-=======
           />
           <SolidIconPill
             bgColor="var(--tgo-state-discovery)"
@@ -412,7 +369,6 @@ export default function DiscoveryFeed({
             icon={<Share2 size={14} />}
             onClick={() => { haptic.impact('light'); handleShare() }}
           />
->>>>>>> d20e1c74cddac36743d1cc3570848922a339ab9d
         </div>
       </div>
 
