@@ -1,6 +1,8 @@
 import mongoose from 'mongoose'
 import ImpactEvent from '@/models/ImpactEvent'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import Location from '@/models/Location'
+import { haversineDistance } from '@/lib/geocode'
 
 // ── Badge Catalog ────────────────────────────────────────────────────────────
 
@@ -64,6 +66,7 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
 
 const BASE_IMPACT_PER_ORDER = 10
 const FIRST_VISIT_BONUS = 15
+const NEARBY_THRESHOLD_KM = 1.5
 
 /**
  * Calculate impact value for an order.
@@ -108,8 +111,10 @@ export async function registerImpactEvent(params: {
   orderTotal: number
   businessName: string
   cuisineTypes?: string[]
+  /** Coordenadas del usuario (solo delivery con dirección geocodificada) */
+  userLocation?: { lat: number; lng: number }
 }): Promise<{ impactValue: number; isFirstVisit: boolean; newBadges: string[] }> {
-  const { userId, tenantId, locationId, orderId, phoneHash, orderTotal, businessName, cuisineTypes } = params
+  const { userId, tenantId, locationId, orderId, phoneHash, orderTotal, businessName, cuisineTypes, userLocation } = params
 
   // 1. Calculate impact
   const { impactValue, isFirstVisit } = await calculateImpact({ tenantId, locationId, phoneHash })
@@ -130,11 +135,29 @@ export async function registerImpactEvent(params: {
     },
   })
 
-  // 3. Update loyalty member — human metrics, no abstract score
+  // 3. Determine nearbyPurchase — haversine distance < 1.5km
+  // Solo se incrementa para delivery con dirección geocodificada.
+  // Takeaway/dine-in: nearbyPurchases queda en 0 (pendiente Phase 2)
+  let isNearbyPurchase = false
+  if (userLocation) {
+    const locationDoc = await Location.findById(locationId).select('geo').lean() as any
+    if (locationDoc?.geo?.coordinates) {
+      // GeoJSON coordinates are [longitude, latitude]
+      const businessCoords = {
+        lat: locationDoc.geo.coordinates[1],
+        lng: locationDoc.geo.coordinates[0],
+      }
+      const distanceKm = haversineDistance(userLocation, businessCoords)
+      isNearbyPurchase = distanceKm < NEARBY_THRESHOLD_KM
+    }
+  }
+
+  // 4. Update loyalty member — human metrics, no abstract score
   const updateOps: any = {
     $inc: {
       'userImpact.commercesSupported': 1,
       ...(isFirstVisit ? { 'userImpact.discoveredBusinesses': 1 } : {}),
+      ...(isNearbyPurchase ? { 'userImpact.nearbyPurchases': 1 } : {}),
     },
     $set: { 'userImpact.lastImpactAt': new Date() },
   }
@@ -150,7 +173,7 @@ export async function registerImpactEvent(params: {
     updateOps
   )
 
-  // 4. Check for new badges
+  // 5. Check for new badges
   const memberAfter = await LoyaltyMember.findOne({
     tenantId,
     phoneHash,
@@ -158,7 +181,7 @@ export async function registerImpactEvent(params: {
 
   const currentImpact: UserImpactSummary = {
     commercesSupported: memberAfter?.userImpact?.commercesSupported ?? 1,
-    nearbyPurchases: memberAfter?.userImpact?.nearbyPurchases ?? 0,
+    nearbyPurchases: memberAfter?.userImpact?.nearbyPurchases ?? (isNearbyPurchase ? 1 : 0),
     discoveredBusinesses: memberAfter?.userImpact?.discoveredBusinesses ?? (isFirstVisit ? 1 : 0),
     discoveredNeighborhoods: memberAfter?.userImpact?.discoveredNeighborhoods ?? [],
     badges: memberAfter?.userImpact?.badges ?? [],
@@ -174,7 +197,7 @@ export async function registerImpactEvent(params: {
     }
   }
 
-  // 5. Award new badges
+  // 6. Award new badges
   if (newBadges.length > 0) {
     await LoyaltyMember.updateOne(
       { tenantId, phoneHash },

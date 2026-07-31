@@ -2,6 +2,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import ImpactEvent from '@/models/ImpactEvent'
 import { decrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -80,6 +81,8 @@ export async function GET(
 
     // Si es transferencia, no verificar MP — el flujo es manual
     if (order.payment?.method === 'transfer') {
+      // Check if impact was registered for this order
+      const impactExists = await ImpactEvent.exists({ orderId: order._id })
       return NextResponse.json({
         status: currentStatus,
         orderNumber: order.orderNumber,
@@ -89,6 +92,7 @@ export async function GET(
         orderTiming: order.orderTiming ?? 'immediate',
         scheduledPickupAt: order.scheduledPickupAt ?? null,
         scheduledStatus: order.scheduledStatus ?? null,
+        impactRegistered: !!impactExists,
         deliveryAddress: order.deliveryAddress ? {
           street: order.deliveryAddress.street,
           number: order.deliveryAddress.number,
@@ -149,6 +153,9 @@ export async function GET(
       }
     }
 
+    // Check if impact was registered for this order
+    const impactExists = await ImpactEvent.exists({ orderId: order._id })
+
     return NextResponse.json({
       status:              currentStatus,
       orderNumber:         order.orderNumber,
@@ -159,6 +166,7 @@ export async function GET(
       orderTiming:         order.orderTiming ?? 'immediate',
       scheduledPickupAt:   order.scheduledPickupAt ?? null,
       scheduledStatus:     order.scheduledStatus ?? null,
+      impactRegistered:    !!impactExists,
       deliveryAddress: order.deliveryAddress ? {
         street: order.deliveryAddress.street,
         number: order.deliveryAddress.number,

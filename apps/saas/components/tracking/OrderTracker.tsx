@@ -186,6 +186,7 @@ export default function OrderTracker({
   const [surchargePercent, setSurchargePercent] = useState(initialSurchargePercent || 0)
   const [surchargeAmount, setSurchargeAmount] = useState(initialSurchargeAmount || 0)
   const [transferConfirmed, setTransferConfirmed] = useState(initialTransferConfirmed || false)
+  const [impactRegistered, setImpactRegistered] = useState(false)
   const [transferData, setTransferData] = useState(initialTransferData || null)
   const [whatsAppPhone] = useState(initialWhatsAppPhone || null)
   const [confirmTransferLoading, setConfirmTransferLoading] = useState(false)
@@ -232,6 +233,7 @@ export default function OrderTracker({
         setSurchargeAmount(data.payment.surchargeAmount || 0)
         setTransferConfirmed(data.payment.transferConfirmed || false)
       }
+      if (data.impactRegistered) setImpactRegistered(true)
       setLastChecked(new Date())
     } catch { /* ignora errores de red */ }
   }, [tenantSlug, orderId])
@@ -309,6 +311,7 @@ export default function OrderTracker({
 
   // Momento 06 + 07: Sonido + notificación + haptic en cambios de estado clave
   const prevStatusRef = useRef(status)
+  const impactToastShown = useRef(false)
   useEffect(() => {
     if (status === 'confirmed' && prevStatusRef.current !== 'confirmed') {
       toast(
@@ -322,19 +325,6 @@ export default function OrderTracker({
       )
       playNotification()
       if (navigator.vibrate) navigator.vibrate([100, 50, 100])
-
-      // Impact toast — delayed 2s so server has time to register the event
-      setTimeout(() => {
-        toast(
-          <StatusNotificationCard
-            icon="🌍"
-            iconBg="#10b981"
-            title="Generaste impacto"
-            description="Tu orden apoya comercios locales"
-          />,
-          { duration: 4000, position: 'bottom-center' }
-        )
-      }, 2000)
     }
     if (status === 'ready' && prevStatusRef.current !== 'ready') {
       toast(
@@ -412,6 +402,24 @@ export default function OrderTracker({
       )
     }
   }, [rewardAdvanceApplied, rewardAdvanceConsolidated, playNotification])
+
+  // Impact toast — only when server confirms impact was registered
+  useEffect(() => {
+    if (impactRegistered && !impactToastShown.current) {
+      impactToastShown.current = true
+      setTimeout(() => {
+        toast(
+          <StatusNotificationCard
+            icon="🌍"
+            iconBg="#10b981"
+            title="Generaste impacto"
+            description="Tu orden apoya comercios locales"
+          />,
+          { duration: 4000, position: 'bottom-center' }
+        )
+      }, 2000)
+    }
+  }, [impactRegistered])
 
   // Momento 03: Notificar puntos ganados al cargar la página de tracking
   const pointsShownRef = useRef(false)

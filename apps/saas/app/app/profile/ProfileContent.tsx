@@ -620,69 +620,96 @@ export default function ProfileContent() {
             )}
 
             {/* ── Impacto y Progresión ─────────────────────────────── */}
-            {impactSummary && (
-              <>
-                <div className="h-4" />
-                <h3 className="ml-1 mb-2" style={sectionTitle}>Tu Impacto</h3>
-                <div className="w-full p-4" style={cardStyle}>
-                  <div className="flex items-center gap-4 mb-3">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{
-                        backgroundColor: 'var(--tgo-state-success-soft, #d1fae5)',
-                        color: 'var(--tgo-state-success, #10b981)',
-                      }}
-                    >
-                      <Globe size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
-                        {impactSummary.commercesSupported === 1
-                          ? 'Apoyaste 1 comercio local'
-                          : `Apoyaste ${impactSummary.commercesSupported} comercios locales`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex-1 text-center p-2" style={{ backgroundColor: 'var(--tgo-surface-1)', borderRadius: 'var(--tgo-radius-md)' }}>
-                      <p className="text-lg font-black tabular-nums" style={{ color: 'var(--tgo-text-primary)' }}>
-                        {impactSummary.discoveredBusinesses}
-                      </p>
-                      <p className="text-[9px] font-bold" style={{ color: 'var(--tgo-text-muted)' }}>
-                        {impactSummary.discoveredBusinesses === 1 ? 'lugar descubierto' : 'lugares descubiertos'}
-                      </p>
-                    </div>
-                    <div className="flex-1 text-center p-2" style={{ backgroundColor: 'var(--tgo-surface-1)', borderRadius: 'var(--tgo-radius-md)' }}>
-                      <p className="text-lg font-black tabular-nums" style={{ color: 'var(--tgo-text-primary)' }}>
-                        {impactSummary.badges.length}
-                      </p>
-                      <p className="text-[9px] font-bold" style={{ color: 'var(--tgo-text-muted)' }}>
-                        insignias
-                      </p>
-                    </div>
-                  </div>
-                  {impactSummary.badges.length > 0 && (
-                    <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
-                      {impactSummary.badges.map(badge => (
+            {impactSummary && (() => {
+              const hasImpact = (impactSummary.commercesSupported > 0 || impactSummary.discoveredBusinesses > 0)
+              return (
+                <>
+                  <div className="h-4" />
+                  <h3 className="ml-1 mb-2" style={sectionTitle}>Tu Impacto</h3>
+                  <div className="w-full p-4" style={cardStyle}>
+                    {hasImpact ? (
+                      <>
+                        <div className="flex items-center gap-4 mb-3">
+                          <div
+                            className="w-12 h-12 rounded-xl flex items-center justify-center"
+                            style={{
+                              backgroundColor: 'var(--tgo-state-success-soft, #d1fae5)',
+                              color: 'var(--tgo-state-success, #10b981)',
+                            }}
+                          >
+                            <Globe size={24} />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+                              {impactSummary.commercesSupported === 1
+                                ? 'Apoyaste 1 comercio local'
+                                : `Apoyaste ${impactSummary.commercesSupported} comercios locales`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-4">
+                          <div className="flex-1 text-center p-2" style={{ backgroundColor: 'var(--tgo-surface-1)', borderRadius: 'var(--tgo-radius-md)' }}>
+                            <p className="text-lg font-black tabular-nums" style={{ color: 'var(--tgo-text-primary)' }}>
+                              {impactSummary.discoveredBusinesses}
+                            </p>
+                            <p className="text-[9px] font-bold" style={{ color: 'var(--tgo-text-muted)' }}>
+                              {impactSummary.discoveredBusinesses === 1 ? 'lugar descubierto' : 'lugares descubiertos'}
+                            </p>
+                          </div>
+                          <div className="flex-1 text-center p-2" style={{ backgroundColor: 'var(--tgo-surface-1)', borderRadius: 'var(--tgo-radius-md)' }}>
+                            <p className="text-lg font-black tabular-nums" style={{ color: 'var(--tgo-text-primary)' }}>
+                              {impactSummary.badges.length}
+                            </p>
+                            <p className="text-[9px] font-bold" style={{ color: 'var(--tgo-text-muted)' }}>
+                              insignias
+                            </p>
+                          </div>
+                        </div>
+                        {impactSummary.badges.length > 0 && (
+                          <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+                            {impactSummary.badges.map(badge => (
+                              <div
+                                key={badge.id}
+                                className="shrink-0 flex items-center gap-1.5 px-2 py-1"
+                                style={{
+                                  backgroundColor: 'var(--tgo-state-success-soft, #d1fae5)',
+                                  borderRadius: 'var(--tgo-radius-full)',
+                                }}
+                              >
+                                <span className="text-xs">🌱</span>
+                                <span className="text-[10px] font-bold" style={{ color: 'var(--tgo-state-success, #10b981)' }}>
+                                  {badge.id.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-4">
                         <div
-                          key={badge.id}
-                          className="shrink-0 flex items-center gap-1.5 px-2 py-1"
+                          className="w-12 h-12 rounded-xl flex items-center justify-center"
                           style={{
-                            backgroundColor: 'var(--tgo-state-success-soft, #d1fae5)',
-                            borderRadius: 'var(--tgo-radius-full)',
+                            backgroundColor: 'var(--tgo-surface-1)',
+                            color: 'var(--tgo-text-muted)',
                           }}
                         >
-                          <span className="text-xs">🌱</span>
-                          <span className="text-[10px] font-bold" style={{ color: 'var(--tgo-state-success, #10b981)' }}>
-                            {badge.id.replace(/_/g, ' ')}
-                          </span>
+                          <Globe size={24} />
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+                        <div className="flex-1">
+                          <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>
+                            Todavía no generaste impacto
+                          </p>
+                          <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
+                            Hacé tu primer pedido para empezar
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )
+            })()}
 
             <div className="h-4" />
             <h3 className="ml-1 mb-2" style={sectionTitle}>

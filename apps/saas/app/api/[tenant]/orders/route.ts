@@ -1281,6 +1281,11 @@ export async function POST(
           orderTotal: total,
           businessName: locationDoc?.name ?? tenant.name,
           cuisineTypes: [...new Set(cuisineTypes)] as string[],
+          // nearbyPurchases: solo delivery con dirección geocodificada
+          // Takeaway/dine-in: nearbyPurchases queda en 0 (pendiente Phase 2)
+          ...(isDeliveryOrder && deliveryAddressData?.coordinates ? {
+            userLocation: deliveryAddressData.coordinates,
+          } : {}),
         })
       }
     } catch (e) {
