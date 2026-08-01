@@ -263,12 +263,6 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     try {
       const body: Record<string, any> = { serviceHours: serviceHoursMap[locationId] }
 
-      // Auto-enable delivery when delivery slots are configured
-      const deliverySlots = serviceHoursMap[locationId]?.delivery
-      if (deliverySlots && deliverySlots.length > 0) {
-        body.deliveryConfig = { enabled: true }
-      }
-
       const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

@@ -46,9 +46,23 @@ export async function PUT(
 
     const body = await request.json()
 
+    // Merge profundo: preservar subdocumentos existentes (deliveryConfig, settings, serviceHours)
+    // cuando el body solo trae parciales
+    const existing = await Location.findOne({ _id: locationId, tenantId: tenant._id }).lean() as Record<string, any> | null
+    const merged: Record<string, any> = {}
+    const subdocKeys = ['deliveryConfig', 'settings', 'serviceHours', 'scheduledOrdersConfig', 'reservationConfig', 'hero']
+
+    for (const [key, value] of Object.entries(body)) {
+      if (subdocKeys.includes(key) && typeof value === 'object' && value !== null && !Array.isArray(value) && existing?.[key]) {
+        merged[key] = { ...existing[key], ...value }
+      } else {
+        merged[key] = value
+      }
+    }
+
     const location = await Location.findOneAndUpdate(
       { _id: locationId, tenantId: tenant._id },
-      { $set: body },
+      { $set: merged },
       { returnDocument: 'after', runValidators: true }
     )
 
