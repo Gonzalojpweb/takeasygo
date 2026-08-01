@@ -422,7 +422,7 @@ function HeroLayout({
   )
 }
 
-// ── LIST (accent bar + gradient bg + 60px logo + señal operativa) ─────────────
+// ── LIST (accent bar + solid bg + 60px logo + señal operativa) ─────────────
 
 function ListLayout({
   r,
@@ -439,7 +439,7 @@ function ListLayout({
   const proximity = getProximityLabel(r.distanceM, walkingMinutes(r.distanceM) ?? undefined)
   const opportunity = getOpportunityLabel(r.loyaltyInfo)
 
-  // Accent bar + gradient by operational status
+  // Accent bar + background by operational status
   const isOperational = r.isOperational !== false
   const accentColor = isOperational ? 'var(--tgo-state-activity)' : 'var(--tgo-state-discovery)'
   const cardBg = isOperational
@@ -474,7 +474,7 @@ function ListLayout({
         e.currentTarget.style.boxShadow = 'var(--shadow-card)'
       }}
     >
-      {/* Logo — 60px with gradient placeholder */}
+      {/* Logo — 60px with color placeholder */}
       <div className="relative shrink-0 overflow-hidden flex items-center justify-center" style={IMAGE_60}>
         {isNetwork && r.logoUrl ? (
           <img src={r.logoUrl} alt={r.name} className="w-full h-full object-cover" />
