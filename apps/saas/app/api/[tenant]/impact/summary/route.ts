@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import mongoose from 'mongoose'
 import Tenant from '@/models/Tenant'
 import User from '@/models/User'
+import LoyaltyMember from '@/models/LoyaltyMember'
 import { hashPhone } from '@/lib/crypto'
 import { getImpactSummary } from '@/lib/impact'
 
@@ -23,35 +24,96 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
   }
 
-  let phoneHash: string
+  // ── Cascading identity resolution ──────────────────────────────────────
+  // Priority: phone → userId via phone → userId via LoyaltyMember.userId → email
+
+  let phoneHash: string | null = null
 
   if (phone) {
+    // Direct phone path
     phoneHash = hashPhone(phone)
-  } else {
-    const user = await User.findById(userId).select('phone').lean() as any
-    if (!user?.phone) {
-      return NextResponse.json({ error: 'Usuario sin teléfono vinculado' }, { status: 404 })
+  } else if (userId) {
+    // Resolve from userId
+    const user = await User.findById(userId).select('phone email').lean() as any
+
+    if (user?.phone) {
+      // User has phone → hash it
+      phoneHash = hashPhone(user.phone)
+    } else {
+      // No phone on User → try LoyaltyMember lookup by userId, then by email
+      const member = await LoyaltyMember.findOne({
+        tenantId: tenant._id,
+        userId: userId,
+      }).select('userImpact cache.totalOrders phoneHash').lean() as any
+
+      if (member) {
+        // Found by userId on LoyaltyMember
+        const impact = member.userImpact || {}
+        return NextResponse.json({
+          commercesSupported: impact.commercesSupported || 0,
+          nearbyPurchases: impact.nearbyPurchases || 0,
+          discoveredBusinesses: impact.discoveredBusinesses || 0,
+          discoveredNeighborhoods: impact.discoveredNeighborhoods || [],
+          badges: (impact.badges || []).map((b: any) => ({
+            id: b.id,
+            unlockedAt: b.unlockedAt,
+          })),
+          totalOrders: member.cache?.totalOrders || 0,
+        }, {
+          headers: { 'Cache-Control': 'private, max-age=30' },
+        })
+      }
+
+      // Try by email (LoyaltyMember stores email as plain text)
+      if (user?.email) {
+        const memberByEmail = await LoyaltyMember.findOne({
+          tenantId: tenant._id,
+          email: user.email.toLowerCase().trim(),
+        }).select('userImpact cache.totalOrders phoneHash').lean() as any
+
+        if (memberByEmail) {
+          const impact = memberByEmail.userImpact || {}
+          return NextResponse.json({
+            commercesSupported: impact.commercesSupported || 0,
+            nearbyPurchases: impact.nearbyPurchases || 0,
+            discoveredBusinesses: impact.discoveredBusinesses || 0,
+            discoveredNeighborhoods: impact.discoveredNeighborhoods || [],
+            badges: (impact.badges || []).map((b: any) => ({
+              id: b.id,
+              unlockedAt: b.unlockedAt,
+            })),
+            totalOrders: memberByEmail.cache?.totalOrders || 0,
+          }, {
+            headers: { 'Cache-Control': 'private, max-age=30' },
+          })
+        }
+      }
     }
-    phoneHash = hashPhone(user.phone)
   }
 
-  const summary = await getImpactSummary({
-    tenantId: tenant._id,
-    phoneHash,
-  })
-
-  if (!summary) {
-    return NextResponse.json({
-      commercesSupported: 0,
-      nearbyPurchases: 0,
-      discoveredBusinesses: 0,
-      discoveredNeighborhoods: [],
-      badges: [],
-      totalOrders: 0,
+  // If we have a phoneHash, use the standard path
+  if (phoneHash) {
+    const summary = await getImpactSummary({
+      tenantId: tenant._id,
+      phoneHash,
     })
+
+    if (summary) {
+      return NextResponse.json(summary, {
+        headers: { 'Cache-Control': 'private, max-age=30' },
+      })
+    }
   }
 
-  return NextResponse.json(summary, {
+  // No impact data found — return zeros (not 404)
+  return NextResponse.json({
+    commercesSupported: 0,
+    nearbyPurchases: 0,
+    discoveredBusinesses: 0,
+    discoveredNeighborhoods: [],
+    badges: [],
+    totalOrders: 0,
+  }, {
     headers: { 'Cache-Control': 'private, max-age=30' },
   })
 }
