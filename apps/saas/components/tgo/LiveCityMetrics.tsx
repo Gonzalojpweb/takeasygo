@@ -2,7 +2,7 @@
 
 // ── LiveCityMetrics ───────────────────────────────────────────────────────────
 //
-// Card oscura con gradiente navy que muestra métricas vivas de la ciudad.
+// Card oscura con color sólido navy que muestra métricas vivas de la ciudad.
 // El único bloque oscuro de la Home — tiene que saltar a la vista.
 //
 // Estructura:

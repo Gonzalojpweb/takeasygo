@@ -72,7 +72,7 @@ export function TimeBasedModule({ restaurants, onNavigate }: Props) {
               />
             )}
 
-            {/* Bottom gradient for text readability */}
+            {/* Bottom overlay for text readability */}
             <div
               style={{
                 position: 'absolute',
