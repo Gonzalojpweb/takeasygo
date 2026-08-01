@@ -16,6 +16,7 @@ import { GpsLoading, FetchOverlay } from './ExploreLoadingSkeleton'
 import SelfReportModal from '@/components/consumer/SelfReportModal'
 import { AnimatedLogoLoader } from '@/components/tgo'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
+import NetworkDiscoveryOnboarding from './NetworkDiscoveryOnboarding'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useTenant } from '@/contexts/TenantContext'
 import { Button } from '@/components/ui/button'
@@ -186,6 +187,52 @@ function ExploreClientInner() {
     setShowOnboarding(false)
   }, [])
 
+  // ── Network Discovery Onboarding ──────────────────────────────────────
+  const [showNetworkOnboarding, setShowNetworkOnboarding] = useState(false)
+  const [networkData, setNetworkData] = useState<{
+    tenantName: string
+    tenantLogoUrl?: string | null
+    totalOrders: number
+    hasClub: boolean
+    nearbyCount: number | null
+    nearbyWithin15min: number | null
+    case: 'A' | 'B' | 'C'
+  } | null>(null)
+
+  useEffect(() => {
+    if (splashReady && hasSeenOnboarding && !showNetworkOnboarding) {
+      fetch('/api/user/onboarding/network-discovery')
+        .then(r => r.json())
+        .then(data => {
+          if (data.show) {
+            setNetworkData(data)
+            setShowNetworkOnboarding(true)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [splashReady, hasSeenOnboarding])
+
+  const handleNetworkDismiss = useCallback(async () => {
+    setShowNetworkOnboarding(false)
+    fetch('/api/user/onboarding/network-discovery', { method: 'POST' }).catch(() => {})
+  }, [])
+
+  const handleNetworkExplore = useCallback(() => {
+    handleNetworkDismiss()
+    // Request GPS if not available, then navigate to home with location
+    if (!coords && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+          setGpsResolved(true)
+        },
+        () => {},
+        { timeout: 5000 }
+      )
+    }
+  }, [coords, handleNetworkDismiss, setCoords, setGpsResolved])
+
   // ── Sync View with URL + track view changes ──────────────────────
   useEffect(() => {
     const v = searchParams.get('view')
@@ -336,6 +383,22 @@ function ExploreClientInner() {
         )}
         {showOnboarding && <OnboardingFlow key="onboarding" onComplete={handleOnboardingComplete} />}
       </AnimatePresence>
+
+      {/* Network Discovery Onboarding — shown after onboarding v1 */}
+      {networkData && (
+        <NetworkDiscoveryOnboarding
+          show={showNetworkOnboarding}
+          tenantName={networkData.tenantName}
+          tenantLogoUrl={networkData.tenantLogoUrl}
+          totalOrders={networkData.totalOrders}
+          hasClub={networkData.hasClub}
+          nearbyCount={networkData.nearbyCount}
+          nearbyWithin15min={networkData.nearbyWithin15min}
+          caseType={networkData.case}
+          onExplore={handleNetworkExplore}
+          onDismiss={handleNetworkDismiss}
+        />
+      )}
 
       <div className={`flex flex-col h-full transition-opacity duration-1000 ${showSplash || showOnboarding ? 'opacity-0' : 'opacity-100'}`}>
         {/* ── Banners ────────────────────────────────────────────────── */}
