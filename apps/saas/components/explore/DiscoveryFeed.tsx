@@ -345,7 +345,7 @@ export default function DiscoveryFeed({
           padding: '0 var(--tgo-page-padding) 20px',
         }}
       >
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-5">
           <SolidIconPill
             bgColor="var(--tgo-state-trust)"
             title="@tgo.app"

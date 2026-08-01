@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import 'leaflet/dist/leaflet.css'
-import { ShoppingBag, MapPinIcon, X, Clock, Phone, ExternalLink } from 'lucide-react'
+import { ShoppingBag, MapPinIcon, X, Clock, Phone, ExternalLink, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import Supercluster from 'supercluster'
@@ -282,21 +282,30 @@ function BottomSheet({ r, onClose, onNavigate }: {
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               {isNetwork ? (
-                <button
-                  onClick={onNavigate}
-                  className="col-span-2 flex items-center justify-center gap-2.5 py-4 rounded-2xl text-white font-bold transition-transform active:scale-95"
-                  style={{
-                    backgroundColor: r.isOperational === false ? 'var(--tgo-state-inactive)' : 'var(--tgo-state-action)',
-                    color: r.isOperational === false ? 'var(--tgo-text-inverse)' : 'var(--tgo-text-inverse)',
-                    boxShadow: r.isOperational === false ? 'none' : '0 4px 16px var(--tgo-state-action-soft)',
-                  }}
-                >
-                  {r.isOperational === false ? (
-                    <>Ver carta (Proximamente)</>
-                  ) : (
-                    <><ShoppingBag size={18} /> Ver menu y pedir</>
-                  )}
-                </button>
+                r.isOperational === false ? (
+                  <button
+                    onClick={onNavigate}
+                    className="col-span-2 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold active:scale-95 transition-transform"
+                    style={{
+                      backgroundColor: 'transparent',
+                      color: '#854F0B',
+                      border: '1.5px solid var(--tgo-state-discovery)',
+                    }}
+                  >
+                    <BookOpen size={16} /> Ver carta
+                  </button>
+                ) : (
+                  <button
+                    onClick={onNavigate}
+                    className="col-span-2 flex items-center justify-center gap-2.5 py-4 rounded-2xl text-white font-bold transition-transform active:scale-95"
+                    style={{
+                      backgroundColor: 'var(--tgo-state-action)',
+                      boxShadow: '0 4px 16px var(--tgo-state-action-soft)',
+                    }}
+                  >
+                    <ShoppingBag size={18} /> Ver menú y pedir
+                  </button>
+                )
               ) : (
                 <>
                   {r.phone && (

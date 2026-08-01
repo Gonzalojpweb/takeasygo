@@ -135,15 +135,6 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
           </div>
         )}
 
-        {/* Gradient overlay */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to top, rgba(26,26,26,0.64) 0%, transparent 60%)',
-          }}
-        />
-
         {/* Top: Tenant logo */}
         {e.tenantLogo && (
           <div
@@ -189,6 +180,7 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
               color: 'var(--tgo-text-inverse)',
               fontSize: 'var(--tgo-type-title)',
               fontWeight: 600,
+              textShadow: '0 1px 6px rgba(0,0,0,0.5)',
             }}
           >
             {e.title}

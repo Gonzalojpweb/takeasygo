@@ -22,10 +22,10 @@ interface LiveCityMetricsProps {
 }
 
 const STATS = [
-  { key: 'abiertos', color: '#34D399' },
-  { key: 'promos', color: '#FAB300' },
-  { key: 'nuevos', color: '#7A5AF8' },
-  { key: 'espera', color: '#38BDF8' },
+  { key: 'abiertos', color: 'var(--tgo-state-activity)' },
+  { key: 'promos', color: 'var(--tgo-state-discovery)' },
+  { key: 'nuevos', color: 'var(--tgo-state-reward)' },
+  { key: 'espera', color: 'var(--tgo-state-proximity)' },
 ] as const
 
 const LABELS: Record<string, string> = {
@@ -54,7 +54,7 @@ export default function LiveCityMetrics({
         margin: '0 var(--tgo-page-padding)',
         padding: '18px 16px',
         borderRadius: 22,
-        background: '#2D2A4B',
+        background: 'var(--tgo-state-trust)',
         boxShadow: '0 8px 24px rgba(45, 42, 75, 0.35)',
       }}
     >
@@ -66,7 +66,7 @@ export default function LiveCityMetrics({
             width: 8,
             height: 8,
             borderRadius: '50%',
-            backgroundColor: '#34D399',
+            backgroundColor: 'var(--tgo-state-activity)',
             flexShrink: 0,
             animation: 'tgo-pulse-dot 1.8s ease-in-out infinite',
           }}

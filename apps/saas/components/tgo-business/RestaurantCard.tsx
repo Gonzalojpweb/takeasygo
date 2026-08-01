@@ -21,6 +21,7 @@ import {
   Star,
   Bookmark,
   Footprints,
+  BookOpen,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -577,7 +578,7 @@ function ListLayout({
               transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
             }}
           >
-            <span style={{ fontSize: 12 }}>📋</span>
+            <BookOpen size={14} />
             Ver carta
           </Link>
         )}
