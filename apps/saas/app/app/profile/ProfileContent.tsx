@@ -83,7 +83,7 @@ export default function ProfileContent() {
           setMyClubs(data.myClubs || [])
           setSuggestedClubs(data.suggestedClubs || [])
         })
-        .catch(() => {})
+        .catch((err) => console.error('[Profile] Error fetching clubs:', err))
         .finally(() => setClubsLoading(false))
     }
   }, [session])
@@ -94,7 +94,7 @@ export default function ProfileContent() {
       fetch(`/api/${tenantSlug}/impact/summary?userId=${encodeURIComponent(session.user.id)}`)
         .then(res => res.json())
         .then(data => setImpactSummary(data))
-        .catch(() => {})
+        .catch((err) => console.error('[Profile] Error fetching impact:', err))
     }
   }, [session, tenantSlug])
 

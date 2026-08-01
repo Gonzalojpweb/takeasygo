@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import User from '@/models/User'
+import LoyaltyMember from '@/models/LoyaltyMember'
 import { hashPhone } from '@/lib/crypto'
 import { getBadgesWithStatus } from '@/lib/impact'
 
@@ -22,24 +23,68 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
   }
 
-  let phoneHash: string
+  // ── Cascading identity resolution ──────────────────────────────────────
+  let phoneHash: string | null = null
 
   if (phone) {
     phoneHash = hashPhone(phone)
-  } else {
-    const user = await User.findById(userId).select('phone').lean() as any
-    if (!user?.phone) {
-      return NextResponse.json({ error: 'Usuario sin teléfono vinculado' }, { status: 404 })
+  } else if (userId) {
+    const user = await User.findById(userId).select('phone email').lean() as any
+
+    if (user?.phone) {
+      phoneHash = hashPhone(user.phone)
+    } else {
+      // No phone → try LoyaltyMember by userId, then by email
+      const member = await LoyaltyMember.findOne({
+        tenantId: tenant._id,
+        userId: userId,
+      }).select('userImpact').lean() as any
+
+      if (member) {
+        return NextResponse.json({
+          badges: (member.userImpact?.badges || []).map((b: any) => ({
+            id: b.id,
+            unlockedAt: b.unlockedAt,
+          })),
+        }, {
+          headers: { 'Cache-Control': 'private, max-age=30' },
+        })
+      }
+
+      if (user?.email) {
+        const memberByEmail = await LoyaltyMember.findOne({
+          tenantId: tenant._id,
+          email: user.email.toLowerCase().trim(),
+        }).select('userImpact').lean() as any
+
+        if (memberByEmail) {
+          return NextResponse.json({
+            badges: (memberByEmail.userImpact?.badges || []).map((b: any) => ({
+              id: b.id,
+              unlockedAt: b.unlockedAt,
+            })),
+          }, {
+            headers: { 'Cache-Control': 'private, max-age=30' },
+          })
+        }
+      }
     }
-    phoneHash = hashPhone(user.phone)
   }
 
-  const badges = await getBadgesWithStatus({
-    tenantId: tenant._id,
-    phoneHash,
-  })
+  // Standard path via phoneHash
+  if (phoneHash) {
+    const badges = await getBadgesWithStatus({
+      tenantId: tenant._id,
+      phoneHash,
+    })
 
-  return NextResponse.json({ badges }, {
+    return NextResponse.json({ badges }, {
+      headers: { 'Cache-Control': 'private, max-age=30' },
+    })
+  }
+
+  // No data found — return empty badges (not 404)
+  return NextResponse.json({ badges: [] }, {
     headers: { 'Cache-Control': 'private, max-age=30' },
   })
 }

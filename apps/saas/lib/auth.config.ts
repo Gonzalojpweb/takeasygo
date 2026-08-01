@@ -15,6 +15,7 @@ export const authConfig = {
       if (account?.provider === 'google' || account?.provider === 'nodemailer') {
         const { connectDB } = await import('@/lib/mongoose')
         const User = (await import('@/models/User')).default
+        const LoyaltyMember = (await import('@/models/LoyaltyMember')).default
         await connectDB()
         const existingUser = await User.findOne({ email: user.email })
         if (existingUser) {
@@ -32,6 +33,14 @@ export const authConfig = {
             needsSave = true
           }
           if (needsSave) await existingUser.save()
+
+          // Link orphan LoyaltyMembers (userId: null) matching this email
+          if (user.email) {
+            await LoyaltyMember.updateMany(
+              { userId: null, email: user.email.toLowerCase().trim() },
+              { $set: { userId: existingUser._id } }
+            ).catch(() => {})
+          }
         }
       }
       return true
