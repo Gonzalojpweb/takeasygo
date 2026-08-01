@@ -8,6 +8,7 @@ export interface IUserPreferences extends Document {
   cuisinePreferences: string[]
   experiencePreferences: string[]
   onboardingCompleted: boolean
+  hasSeenNetworkOnboarding: boolean
   notificationPermission: 'granted' | 'denied' | 'default'
   createdAt: Date
   updatedAt: Date
@@ -45,6 +46,10 @@ const UserPreferencesSchema = new Schema<IUserPreferences>(
       default: [],
     },
     onboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    hasSeenNetworkOnboarding: {
       type: Boolean,
       default: false,
     },
