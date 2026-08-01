@@ -191,7 +191,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           name: editForm.name,
           address: editForm.address,
           phone: editForm.phone,
-          settings: { orderModes: editForm.orderModes },
+          'settings.orderModes': editForm.orderModes,
           networkVisible: editForm.networkVisible,
           cuisineTypes: editForm.cuisineTypes,
           ...(geo ? { geo } : { $unset: { geo: '' } }),
