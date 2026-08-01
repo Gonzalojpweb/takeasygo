@@ -54,15 +54,6 @@ export function NewInNetworkModule({ restaurants, onNavigate }: Props) {
             />
           )}
 
-          {/* Gradient overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)',
-            }}
-          />
-
           {/* Badge NUEVO */}
           <span
             style={{
@@ -98,7 +89,7 @@ export function NewInNetworkModule({ restaurants, onNavigate }: Props) {
                 fontSize: 'var(--tgo-type-subtitle)',
                 lineHeight: 1.2,
                 marginBottom: 4,
-                textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                textShadow: '0 1px 6px rgba(0,0,0,0.6)',
               }}
             >
               {r.name}

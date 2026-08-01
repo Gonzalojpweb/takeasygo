@@ -83,6 +83,29 @@ export function TimeBasedModule({ restaurants, onNavigate }: Props) {
               }}
             />
 
+            {/* Logo in circle */}
+            {r.logoUrl && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  left: 6,
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  backgroundColor: 'var(--tgo-card)',
+                  boxShadow: 'var(--tgo-elevation-floating)',
+                }}
+              >
+                <img
+                  src={r.logoUrl}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            )}
+
             {/* Text */}
             <div
               style={{

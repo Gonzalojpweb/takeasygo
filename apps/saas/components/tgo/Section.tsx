@@ -29,6 +29,8 @@ interface SectionProps {
   title: string
   /** Subtítulo — contexto opcional */
   subtitle?: string
+  /** Ícono opcional al lado del título */
+  icon?: ReactNode
   /** Link de "Ver todo" */
   href?: string
   /** Label del CTA */
@@ -44,6 +46,7 @@ interface SectionProps {
 export default function Section({
   title,
   subtitle,
+  icon,
   href,
   ctaLabel = 'Ver todo',
   children,
@@ -65,6 +68,7 @@ export default function Section({
       >
         <div>
           <h2
+            className="flex items-center gap-1.5"
             style={{
               color: 'var(--tgo-text-primary)',
               fontSize: 'var(--tgo-type-section)',
@@ -73,6 +77,7 @@ export default function Section({
               lineHeight: 1.2,
             }}
           >
+            {icon && <span className="flex-shrink-0">{icon}</span>}
             {title}
           </h2>
           {subtitle && (

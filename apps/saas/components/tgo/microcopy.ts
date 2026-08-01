@@ -94,10 +94,10 @@ export const microcopy = {
       benefits: 'Beneficios',
       trending: 'Tendencia',
       now: 'Ahora mismo',
-      newInNetwork: 'Recién llegaron a la red',
+      newInNetwork: '✨ Recién llegaron a la red',
       newInNetworkSub: 'Nuevos en TGO esta semana',
-      timeBased: 'Para este momento',
-      experiences: 'Hoy podés aprovechar',
+      timeBased: '🌙 Para este momento',
+      experiences: '🎁 Hoy podés aprovechar',
     },
     empty: {
       noResults: 'No encontramos lo que buscás',
