@@ -8,6 +8,8 @@ import OrderStatusButton from './OrderStatusButton'
 import { cn } from '@/lib/utils'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
+import { getLocationColor } from '@/lib/location-colors'
 
 interface Props {
   orders: any[]
@@ -101,7 +103,8 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
   const [isPending, startTransition] = useTransition()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilter, setActiveFilter] = useState('pending')
-  const [activeLocation, setActiveLocation] = useState('all')
+  const { activeLocationId, locations: contextLocations, setActiveLocation } = useAdminLocation()
+  const activeLocation = activeLocationId ?? 'all'
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
   // ── Delay Announcement ──────────────────────────────────────────
@@ -113,9 +116,11 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
   const hasDelayActive = Object.values(delayConfigs).some(c => c?.enabled ?? false)
 
   const isAdmin = userAssignedLocations.length === 0
-  const availableLocations = isAdmin
-    ? locations
-    : locations.filter(l => userAssignedLocations.includes(l._id))
+  const availableLocations = (contextLocations.length > 0 ? contextLocations : locations).map(l => ({
+    _id: l._id,
+    name: l.name,
+    colorIndex: (l as any).colorIndex ?? 0,
+  }))
 
   useEffect(() => {
     setLastUpdated(new Date())
@@ -599,7 +604,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
       {availableLocations.length > 0 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
-            onClick={() => setActiveLocation('all')}
+            onClick={() => setActiveLocation(null)}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 border',
               activeLocation === 'all'
@@ -609,20 +614,30 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
           >
             Todas las sedes
           </button>
-          {availableLocations.map(loc => (
-            <button
-              key={loc._id}
-              onClick={() => setActiveLocation(loc._id)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 border',
-                activeLocation === loc._id
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'bg-background text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground'
-              )}
-            >
-              {loc.name}
-            </button>
-          ))}
+          {availableLocations.map(loc => {
+            const color = loc.colorIndex !== undefined ? getLocationColor(loc.colorIndex) : null
+            const isActive = activeLocation === loc._id
+            return (
+              <button
+                key={loc._id}
+                onClick={() => setActiveLocation(loc._id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 border"
+                style={isActive && color ? {
+                  backgroundColor: color.bg,
+                  color: color.text,
+                  borderColor: color.bg,
+                } : undefined}
+              >
+                {color && (
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={isActive ? { backgroundColor: 'rgba(255,255,255,0.6)' } : { backgroundColor: color.bg }}
+                  />
+                )}
+                {loc.name}
+              </button>
+            )
+          })}
         </div>
       )}
 

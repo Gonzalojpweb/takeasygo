@@ -3,12 +3,13 @@
 import { type ReactNode } from 'react'
 import { Search, RefreshCw, Radio, Volume2, VolumeX, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getLocationColor } from '@/lib/location-colors'
 
 interface BoardToolbarProps {
   searchTerm: string
   onSearchChange: (value: string) => void
   searchPlaceholder?: string
-  locations?: { _id: string; name: string }[]
+  locations?: { _id: string; name: string; colorIndex?: number }[]
   activeLocation?: string
   onLocationChange?: (locationId: string) => void
   soundEnabled: boolean
@@ -75,20 +76,30 @@ export default function BoardToolbar({
           >
             Todas
           </button>
-          {locations.map(loc => (
-            <button
-              key={loc._id}
-              onClick={() => onLocationChange(loc._id)}
-              className={cn(
-                'px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all border shrink-0',
-                activeLocation === loc._id
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border/60 hover:bg-muted'
-              )}
-            >
-              {loc.name}
-            </button>
-          ))}
+          {locations.map(loc => {
+            const color = loc.colorIndex !== undefined ? getLocationColor(loc.colorIndex) : null
+            const isActive = activeLocation === loc._id
+            return (
+              <button
+                key={loc._id}
+                onClick={() => onLocationChange(loc._id)}
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all border shrink-0 flex items-center gap-1.5"
+                style={isActive && color ? {
+                  backgroundColor: color.bg,
+                  color: color.text,
+                  borderColor: color.bg,
+                } : undefined}
+              >
+                {color && (
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={isActive ? { backgroundColor: 'rgba(255,255,255,0.6)' } : { backgroundColor: color.bg }}
+                  />
+                )}
+                {loc.name}
+              </button>
+            )
+          })}
         </div>
       )}
 

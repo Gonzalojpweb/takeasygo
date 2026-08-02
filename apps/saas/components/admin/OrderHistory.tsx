@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
 
 const inputCls =
   'h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
@@ -92,20 +93,27 @@ export default function OrderHistory({
   userAssignedLocations?: string[]
   userRole?: string
 }) {
+  const { activeLocationId, locations: contextLocations } = useAdminLocation()
   const [data, setData] = useState<HistoryResponse | null>(null)
   const [loading, setLoading] = useState(false)
 
   const isAdmin = userRole === 'admin' || userRole === 'superadmin'
-  const availableLocations = isAdmin
-    ? locations
-    : locations.filter(l => userAssignedLocations.includes(l._id))
+  const availableLocations = (contextLocations.length > 0 ? contextLocations : locations).map(l => ({
+    _id: l._id,
+    name: l.name,
+  }))
 
   const [page, setPage] = useState(1)
-  const [locationId, setLocationId] = useState('')
+  const [locationId, setLocationId] = useState(activeLocationId ?? '')
   const [status, setStatus] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [q, setQ] = useState('')
+
+  // Sync with context
+  useEffect(() => {
+    setLocationId(activeLocationId ?? '')
+  }, [activeLocationId])
 
   const load = useCallback(
     async (p: number, loc: string, st: string, frm: string, t: string, query: string) => {

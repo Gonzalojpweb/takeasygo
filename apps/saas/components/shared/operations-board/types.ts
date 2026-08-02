@@ -33,7 +33,7 @@ export interface BoardLocationConfig {
   /** Field name on item that holds the location ID. Default: 'locationId' */
   locationIdField?: string
   /** Available locations */
-  locations: { _id: string; name: string }[]
+  locations: { _id: string; name: string; colorIndex?: number }[]
   /** User's assigned location IDs (empty = admin, sees all) */
   userAssignedLocations?: string[]
 }
@@ -73,6 +73,8 @@ export interface OperationsBoardProps<T extends BoardItem> {
   searchConfig?: BoardSearchConfig<T>
   /** Location filtering configuration */
   locationConfig?: BoardLocationConfig
+  /** Controlled active location (from context). When provided, overrides internal state. */
+  controlledActiveLocation?: string
   /** Callback when the active location filter changes. Receives the location _id or 'all'. */
   onLocationChange?: (locationId: string) => void
   /** Render function for each card in a column */

@@ -19,6 +19,7 @@ export default function OperationsBoard<T extends BoardItem>({
   alertStatuses,
   searchConfig,
   locationConfig,
+  controlledActiveLocation,
   renderCard,
   renderContextPanel,
   renderInsights,
@@ -30,12 +31,15 @@ export default function OperationsBoard<T extends BoardItem>({
 }: OperationsBoardProps<T>) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeLocation, setActiveLocation] = useState('all')
+  const [internalActiveLocation, setInternalActiveLocation] = useState('all')
   const [selectedItem, setSelectedItem] = useState<T | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
 
+  // Use controlled location if provided, otherwise use internal state
+  const activeLocation = controlledActiveLocation ?? internalActiveLocation
+
   const handleLocationChange = useCallback((loc: string) => {
-    setActiveLocation(loc)
+    setInternalActiveLocation(loc)
     onLocationChange?.(loc)
   }, [onLocationChange])
 

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { cn } from '@/lib/utils'
 import PromoPickerPreview from '@/components/admin/PromoPickerPreview'
 
@@ -103,6 +104,7 @@ interface Props {
 type CardStyle = 'modern' | 'classic' | 'minimal'
 
 export default function PromotionsManager({ tenantSlug, locations, promotions: initialPromotions }: Props) {
+  const { activeLocationId, locations: contextLocations, setActiveLocation } = useAdminLocation()
   const [promotions, setPromotions] = useState<Promotion[]>(initialPromotions)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
@@ -110,7 +112,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [uploading, setUploading] = useState(false)
 
-  const [selectedLocation, setSelectedLocation] = useState(locations[0]?._id || '')
+  const selectedLocation = activeLocationId ?? locations[0]?._id ?? ''
   const [categories, setCategories] = useState<MenuCategory[]>([])
   const [menuLoading, setMenuLoading] = useState(false)
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
@@ -420,7 +422,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
 
   function openEditModal(promotion: Promotion) {
     setEditingPromotion(promotion)
-    setSelectedLocation(promotion.locationId || locations[0]?._id || '')
+    setActiveLocation(promotion.locationId || locations[0]?._id || '')
     setForm({
       type: promotion.type || 'sale',
       title: promotion.title,
