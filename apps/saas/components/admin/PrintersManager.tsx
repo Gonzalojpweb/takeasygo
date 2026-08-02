@@ -284,6 +284,30 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
     }
   }
 
+  async function togglePrinterMode(printer: PrinterData, role: PrinterRole) {
+    const currentMode = printer.printSettings?.[role]?.mode || 'text'
+    const newMode = currentMode === 'image' ? 'text' : 'image'
+    const newSettings = {
+      ...printer.printSettings,
+      [role]: {
+        ...printer.printSettings?.[role],
+        mode: newMode,
+      },
+    }
+    try {
+      const res = await fetch(`/api/${tenantSlug}/printers/${printer._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ printSettings: newSettings }),
+      })
+      if (!res.ok) throw new Error()
+      setPrinters(prev => prev.map(p => p._id === printer._id ? { ...p, printSettings: newSettings as PrinterData['printSettings'] } : p))
+      toast.success(`Modo ${newMode === 'image' ? 'imagen' : 'texto'} activado para ${ROLE_LABELS[role]}`)
+    } catch {
+      toast.error('Error al cambiar modo de impresión')
+    }
+  }
+
   const inputCls = 'w-full bg-muted/30 border-2 border-border/80 focus:border-primary/40 text-foreground text-sm rounded-xl px-4 py-2.5 outline-none transition-all'
   const labelCls = 'text-[10px] uppercase font-bold tracking-[0.15em] text-muted-foreground/60 mb-1.5 block'
 
@@ -548,19 +572,42 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
                     </Badge>
                   </div>
 
-                  {/* Roles */}
-                  <div className="flex gap-1.5 flex-wrap">
-                    {printer.roles.map(role => (
-                      <span
-                        key={role}
-                        className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider"
-                      >
-                        {ROLE_LABELS[role]}
+                  {/* Roles + Modo */}
+                  <div className="space-y-1.5">
+                    <div className="flex gap-1.5 flex-wrap">
+                      {printer.roles.map(role => (
+                        <span
+                          key={role}
+                          className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider"
+                        >
+                          {ROLE_LABELS[role]}
+                        </span>
+                      ))}
+                      <span className="px-3 py-1 rounded-lg bg-muted text-muted-foreground text-[10px] font-bold">
+                        {printer.paperWidth}mm
                       </span>
-                    ))}
-                    <span className="px-3 py-1 rounded-lg bg-muted text-muted-foreground text-[10px] font-bold">
-                      {printer.paperWidth}mm
-                    </span>
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {printer.roles.map(role => {
+                        const mode = printer.printSettings?.[role]?.mode || 'text'
+                        return (
+                          <button
+                            key={role}
+                            type="button"
+                            onClick={() => togglePrinterMode(printer, role)}
+                            className={cn(
+                              'px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border transition-all',
+                              mode === 'image'
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20'
+                                : 'bg-muted text-muted-foreground border-border/40 hover:bg-muted/80'
+                            )}
+                            title={`Modo ${mode === 'image' ? 'imagen' : 'texto'} — click para cambiar`}
+                          >
+                            {mode === 'image' ? '🖼' : '📝'} {ROLE_LABELS[role]}: {mode === 'image' ? 'Imagen' : 'Texto'}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
 
                   {/* Error message */}
