@@ -160,13 +160,21 @@ export async function runSilAnalysis(
   regular.sort((a, b) => severityRank[b.severity] - severityRank[a.severity])
   anomalies.sort((a, b) => severityRank[b.severity] - severityRank[a.severity])
 
+  const executionTimeMs = Date.now() - start
+  console.log(
+    `[DailyInsight] SIL tenant=${tenantId} ` +
+    `analyzers=${seriesConfigs.length + 5} ` +
+    `insights=${regular.length} anomalies=${anomalies.length} ` +
+    `sampleRejected=${sampleRejected} time=${executionTimeMs}ms`
+  )
+
   return {
     insights: regular,
     anomalies,
     metadata: {
       totalAnalyzers: seriesConfigs.length + 5,
       sampleRejected,
-      executionTimeMs: Date.now() - start,
+      executionTimeMs,
     },
   }
 }

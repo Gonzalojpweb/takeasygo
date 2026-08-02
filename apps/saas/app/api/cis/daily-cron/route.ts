@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
           `profiles=${result.profilesProcessed} segments_changed=${result.segmentsChanged} ` +
           `signals=${result.signalsDetected} health_scores=${result.healthScoresCalculated} ` +
           `events=${result.eventsCreated} ` +
-          `tenant=${result.executionTimeMs}ms cumulative=${Date.now() - globalStart}ms`
+          `processTenant=${result.executionTimeMs}ms cumulative=${Date.now() - globalStart}ms`
         )
 
         results.push({

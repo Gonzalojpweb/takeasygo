@@ -88,9 +88,14 @@ export async function GET(request: NextRequest) {
 
         const elapsed = Date.now() - globalStart
         const tenantElapsed = Date.now() - tenantStart
+        const metricsTime = metrics._timing?.totalMs ?? '?'
+        const silTime = result.metadata.executionTimeMs
         console.log(
           `[DailyInsight] OK tenant=${tenant.slug} plan=${tenant.plan} ` +
           `insights=${docs.length} ` +
+          `metrics=${metricsTime}ms` +
+          (metrics._timing ? ` (parallel=${metrics._timing.parallelMs}ms seq=${metrics._timing.sequentialMs}ms posthog=${metrics._timing.posthogMs}ms)` : '') +
+          ` sil=${silTime}ms ` +
           `tenant=${tenantElapsed}ms cumulative=${elapsed}ms`
         )
         results.push({
