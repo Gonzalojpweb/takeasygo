@@ -16,6 +16,8 @@ New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 # Archivos a copiar
 $files = @(
     'agent.js',
+    'ticket-renderer.js',
+    'raster-encoder.js',
     'setup.js',
     'config.json',
     'package.json',
@@ -23,6 +25,7 @@ $files = @(
     'send-raw.ps1',
     'SETUP.bat',
     'start.bat',
+    'UPDATE.bat',
     'INSTALAR_SERVICIO.bat',
     'install_service.js',
     'uninstall_service.js',

@@ -30,6 +30,7 @@ export interface PrintSettings {
 }
 
 export interface RolePrintSettings {
+  mode?: 'text' | 'image'
   fontSize: 'normal' | 'large' | 'double' | 'triple'
   lineSpacing: number
   showDescriptions: boolean
@@ -110,6 +111,7 @@ const PrinterSchema = new Schema<IPrinter>(
       type: {
         kitchen: {
           type: {
+            mode: { type: String, enum: ['text', 'image'], default: 'text' },
             fontSize: { type: String, enum: ['normal', 'large', 'double', 'triple'], default: 'large' },
             lineSpacing: { type: Number, default: 48 },
             showDescriptions: { type: Boolean, default: false },
@@ -125,6 +127,7 @@ const PrinterSchema = new Schema<IPrinter>(
         },
         bar: {
           type: {
+            mode: { type: String, enum: ['text', 'image'], default: 'text' },
             fontSize: { type: String, enum: ['normal', 'large', 'double', 'triple'], default: 'large' },
             lineSpacing: { type: Number, default: 48 },
             showDescriptions: { type: Boolean, default: false },
@@ -140,6 +143,7 @@ const PrinterSchema = new Schema<IPrinter>(
         },
         cashier: {
           type: {
+            mode: { type: String, enum: ['text', 'image'], default: 'text' },
             fontSize: { type: String, enum: ['normal', 'large', 'double', 'triple'], default: 'normal' },
             lineSpacing: { type: Number, default: 36 },
             showDescriptions: { type: Boolean, default: true },
@@ -156,6 +160,7 @@ const PrinterSchema = new Schema<IPrinter>(
       },
       default: {
         kitchen: {
+          mode: 'text',
           fontSize: 'large',
           lineSpacing: 48,
           showDescriptions: false,
@@ -166,6 +171,7 @@ const PrinterSchema = new Schema<IPrinter>(
           showTotal: false,
         },
         bar: {
+          mode: 'text',
           fontSize: 'large',
           lineSpacing: 48,
           showDescriptions: false,
@@ -176,6 +182,7 @@ const PrinterSchema = new Schema<IPrinter>(
           showTotal: false,
         },
         cashier: {
+          mode: 'text',
           fontSize: 'normal',
           lineSpacing: 36,
           showDescriptions: true,
