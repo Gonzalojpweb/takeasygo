@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Location from '@/models/Location'
+import Tenant from '@/models/Tenant'
 import Menu from '@/models/Menu'
 import type { ILocation } from '@/models/Location'
 import type { AvailabilitySlot } from '@/lib/availability'
@@ -264,7 +265,15 @@ export async function activateScheduledOrders(): Promise<{ activated: number; ex
 
   const now = new Date()
 
-  const locations = await Location.find({ 'scheduledOrdersConfig.enabled': true }).lean() as ILocation[]
+  const activeTenantIds = await Tenant.find({ isActive: true })
+    .select('_id').lean()
+    .then(ts => ts.map(t => t._id))
+
+  const locations = await Location.find({
+    'scheduledOrdersConfig.enabled': true,
+    isActive: true,
+    tenantId: { $in: activeTenantIds },
+  }).lean() as ILocation[]
 
   let activated = 0
   let expired = 0

@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     await connectDB()
 
     const tenants = await Tenant.find({
+      isActive: true,
       'mercadopago.isConfigured': true,
       'mercadopago.accessToken': { $exists: true, $ne: null },
     }).lean() as any[]
