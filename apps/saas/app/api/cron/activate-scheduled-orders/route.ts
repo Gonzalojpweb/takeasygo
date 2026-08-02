@@ -10,7 +10,6 @@
 
 import { connectDB } from '@/lib/mongoose'
 import { activateScheduledOrders } from '@/lib/scheduled-orders'
-import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 
 const CRON_SECRET = process.env.CRON_SECRET
