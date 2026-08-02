@@ -8,6 +8,7 @@ import OrderInsights from './OrderInsights'
 import DelayAnnouncementPopover from './DelayAnnouncementPopover'
 import { toast } from 'sonner'
 import { Star } from 'lucide-react'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
 
 interface OrderItem extends BoardItem {
   orderNumber: string
@@ -55,10 +56,17 @@ interface Props {
 }
 
 export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [], userAssignedLocations = [], recentRatings = [] }: Props) {
+  const { activeLocationId, locations: contextLocations } = useAdminLocation()
   const isAdmin = userAssignedLocations.length === 0
-  const availableLocations = isAdmin ? locations : locations.filter(l => userAssignedLocations.includes(l._id))
-  const [selectedLocationId, setSelectedLocationId] = useState('all')
+  const availableLocations = (contextLocations.length > 0 ? contextLocations : locations).map(l => ({
+    _id: l._id,
+    name: l.name,
+    colorIndex: (l as any).colorIndex ?? 0,
+  }))
   const lastRatingIdRef = useRef<string | null>(null)
+
+  // Convert context location ID to 'all' when null
+  const boardActiveLocation = activeLocationId ?? 'all'
 
   // Review toast: detect new ratings from piggybacked data
   useEffect(() => {
@@ -102,17 +110,17 @@ export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [],
         locations: availableLocations,
         userAssignedLocations,
       }}
+      controlledActiveLocation={boardActiveLocation}
       renderCard={(props) => <OrderCard {...props} />}
       renderContextPanel={(props) => <OrderContextPanel {...props} />}
       renderInsights={(props) => <OrderInsights {...props} />}
       onCleanup={handleCleanup}
       soundSrc="/LLAMADA.mp3"
-      onLocationChange={setSelectedLocationId}
       toolbarActions={
         <DelayAnnouncementPopover
           tenantSlug={tenantSlug}
           locations={availableLocations}
-          activeLocationId={selectedLocationId}
+          activeLocationId={boardActiveLocation}
         />
       }
       getNewItemToast={(items) => ({

@@ -63,6 +63,8 @@ export interface ILocation extends Document {
   }
   cuisineTypes: string[]
   timezone: string
+  /** Índice de color para identificación visual de sede en el admin (0-7) */
+  colorIndex: number
   serviceHours?: {
     takeaway: Array<{ days: number[]; open: string; close: string }>
     dineIn: Array<{ days: number[]; open: string; close: string }>
@@ -226,6 +228,7 @@ settings: {
     },
     cuisineTypes: { type: [String], default: [] },
     timezone: { type: String, required: true, default: 'America/Argentina/Buenos_Aires' },
+    colorIndex: { type: Number, default: 0, min: 0, max: 7 },
     serviceHours: {
       takeaway: { type: [{ days: [Number], open: String, close: String }], default: [] },
       dineIn: { type: [{ days: [Number], open: String, close: String }], default: [] },

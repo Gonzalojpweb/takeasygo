@@ -8,6 +8,8 @@ import { GripVertical, Truck } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
+import { getLocationColor } from '@/lib/location-colors'
 import {
   ChevronDown, Plus, Pencil, Trash2, Check, X,
   Star, Upload, Camera, Settings2, Image as ImageIcon,
@@ -122,7 +124,8 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
 }
 
 export default function MenuManager({ locations, menus, tenantSlug }: Props) {
-  const [selectedLocation, setSelectedLocation] = useState(locations[0]?._id || '')
+  const { activeLocationId, locations: contextLocations, setActiveLocation } = useAdminLocation()
+  const selectedLocation = activeLocationId ?? locations[0]?._id ?? ''
   const [expandedCategories, setExpandedCategories] = useState<string[]>([])
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
@@ -788,20 +791,28 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       {/* Sede Selector */}
       {locations.length > 1 && (
         <div className="flex items-center gap-3 p-1.5 bg-muted/50 border border-border/60 rounded-2xl w-fit">
-          {locations.map((loc: any) => (
-            <button
-              key={loc._id}
-              onClick={() => setSelectedLocation(loc._id)}
-              className={cn(
-                "px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300",
-                selectedLocation === loc._id
-                  ? "bg-primary text-white shadow-lg shadow-primary/25"
-                  : "text-muted-foreground hover:bg-muted font-semibold"
-              )}
-            >
-              {loc.name}
-            </button>
-          ))}
+          {locations.map((loc: any) => {
+            const color = getLocationColor(loc.colorIndex ?? 0)
+            const isActive = selectedLocation === loc._id
+            return (
+              <button
+                key={loc._id}
+                onClick={() => setActiveLocation(loc._id)}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2"
+                style={isActive ? {
+                  backgroundColor: color.bg,
+                  color: color.text,
+                  boxShadow: `0 4px 12px ${color.bg}40`,
+                } : undefined}
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={isActive ? { backgroundColor: 'rgba(255,255,255,0.6)' } : { backgroundColor: color.bg }}
+                />
+                {loc.name}
+              </button>
+            )
+          })}
         </div>
       )}
 

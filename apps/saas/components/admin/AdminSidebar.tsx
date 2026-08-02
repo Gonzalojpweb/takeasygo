@@ -38,6 +38,8 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import type { Plan, Feature } from '@/lib/plans'
 import { canAccess, requiredPlanFor, PLAN_LABELS } from '@/lib/plans'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
+import { getLocationColor } from '@/lib/location-colors'
 
 interface Props {
   tenantSlug: string
@@ -50,7 +52,7 @@ interface Props {
   businessEnabled?: boolean
   crmEnabled?: boolean
   assignedLocations?: string[]
-  locations?: { _id: string; name: string }[]
+  locations?: { _id: string; name: string; colorIndex?: number }[]
 }
 
 interface NavItem {
@@ -114,6 +116,7 @@ function NavLink({
 export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [] }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
+  const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
 
   const groups: NavGroup[] = [
     {
@@ -374,23 +377,64 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
             })}
           </nav>
 
-          {/* Locations */}
+          {/* Locations — Interactive Selector */}
           {locations.length > 0 && (
             <div className="px-4 py-3 border-t border-sidebar-border/30">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/30 mb-2">
-                {userRole === 'admin' || userRole === 'superadmin' ? 'Todas las sedes' : 'Mis sedes'}
+                Sede activa
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-col gap-1">
+                {/* "Todas las sedes" option (admin only) */}
+                {(userRole === 'admin' || userRole === 'superadmin') && locations.length > 1 && (
+                  <button
+                    onClick={() => setActiveLocation(null)}
+                    className={cn(
+                      'flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-[11px] font-medium transition-all duration-150 w-full',
+                      isAllLocations
+                        ? 'bg-white/10 text-white'
+                        : 'text-sidebar-foreground/50 hover:text-sidebar-foreground/80 hover:bg-white/5'
+                    )}
+                  >
+                    <span className={cn(
+                      'w-2 h-2 rounded-full shrink-0 border',
+                      isAllLocations ? 'bg-white border-white' : 'bg-transparent border-sidebar-foreground/20'
+                    )} />
+                    <span className="flex-1 truncate">Todas las sedes</span>
+                    {isAllLocations && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                    )}
+                  </button>
+                )}
+
+                {/* Individual locations */}
                 {locations
                   .filter(l => userRole === 'admin' || userRole === 'superadmin' || assignedLocations.includes(l._id))
-                  .map(l => (
-                    <span
-                      key={l._id}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 text-sidebar-foreground/70 text-[10px] font-semibold border border-sidebar-border/20"
-                    >
-                      {l.name}
-                    </span>
-                  ))}
+                  .map(l => {
+                    const color = getLocationColor(l.colorIndex)
+                    const isActive = activeLocationId === l._id
+                    return (
+                      <button
+                        key={l._id}
+                        onClick={() => setActiveLocation(l._id)}
+                        className={cn(
+                          'flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-[11px] font-medium transition-all duration-150 w-full',
+                          isActive
+                            ? 'text-white'
+                            : 'text-sidebar-foreground/50 hover:text-sidebar-foreground/80 hover:bg-white/5'
+                        )}
+                        style={isActive ? { backgroundColor: color.bg } : undefined}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={isActive
+                            ? { backgroundColor: 'rgba(255,255,255,0.6)' }
+                            : { backgroundColor: color.bg }
+                          }
+                        />
+                        <span className="flex-1 truncate">{l.name}</span>
+                      </button>
+                    )
+                  })}
               </div>
             </div>
           )}

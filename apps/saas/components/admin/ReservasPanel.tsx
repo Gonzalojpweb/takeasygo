@@ -7,6 +7,8 @@ import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
+import { getLocationColor } from '@/lib/location-colors'
 import {
   CalendarDays,
   Users,
@@ -88,9 +90,10 @@ function getDatesInRange(from: Date, to: Date): string[] {
 
 export default function ReservasPanel({ reservations: initialReservations, locations, tenantSlug }: Props) {
   const router = useRouter()
+  const { activeLocationId, locations: contextLocations, setActiveLocation } = useAdminLocation()
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations)
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0])
-  const [selectedLocation, setSelectedLocation] = useState<string>('all')
+  const selectedLocation = activeLocationId ?? 'all'
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const { play: playSound } = useNotificationSound('/pop.mp3')
   const knownIdsRef = useRef<Set<string>>(new Set(initialReservations.map(r => r._id)))
@@ -168,7 +171,7 @@ export default function ReservasPanel({ reservations: initialReservations, locat
       {locations.length > 1 && (
         <div className="flex gap-2 flex-wrap">
           <button
-            onClick={() => setSelectedLocation('all')}
+            onClick={() => setActiveLocation(null)}
             className={cn(
               'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border',
               selectedLocation === 'all'
@@ -178,20 +181,29 @@ export default function ReservasPanel({ reservations: initialReservations, locat
           >
             Todas las sedes
           </button>
-          {locations.map(loc => (
-            <button
-              key={loc._id}
-              onClick={() => setSelectedLocation(loc._id)}
-              className={cn(
-                'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border',
-                selectedLocation === loc._id
-                  ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-                  : 'border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground'
-              )}
-            >
-              {loc.name}
-            </button>
-          ))}
+          {locations.map(loc => {
+            const color = getLocationColor((loc as any).colorIndex ?? 0)
+            const isActive = selectedLocation === loc._id
+            return (
+              <button
+                key={loc._id}
+                onClick={() => setActiveLocation(loc._id)}
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border flex items-center gap-2"
+                style={isActive ? {
+                  backgroundColor: color.bg,
+                  color: color.text,
+                  borderColor: color.bg,
+                  boxShadow: `0 4px 12px ${color.bg}40`,
+                } : undefined}
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={isActive ? { backgroundColor: 'rgba(255,255,255,0.6)' } : { backgroundColor: color.bg }}
+                />
+                {loc.name}
+              </button>
+            )
+          })}
         </div>
       )}
 

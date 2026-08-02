@@ -4,11 +4,13 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import DesktopSidebar from '@/components/admin/DesktopSidebar'
+import AdminTopBar from '@/components/admin/AdminTopBar'
 import AdminPWAProvider from '@/components/admin/AdminPWAProvider'
 import AdminPushBanner from '@/components/admin/AdminPushBanner'
 import { SystemAnnouncementBanner } from '@/components/admin/SystemAnnouncementBanner'
 import MobileNav from '@/components/MobileNav'
 import PosReturnBarWrapper from '@/components/PosReturnBarWrapper'
+import AdminLocationProviderWrapper from './AdminLocationProviderWrapper'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
@@ -83,17 +85,18 @@ export default async function AdminLayout({
 
   // Determine if tenant operates in dine-in only mode (no takeaway at any location)
   let dineInOnly = false
-  let sidebarLocations: { _id: string; name: string }[] = []
+  let sidebarLocations: { _id: string; name: string; colorIndex: number }[] = []
   if (tenantDoc) {
     const [hasAny, hasTakeaway, locs] = await Promise.all([
       Location.exists({ tenantId: tenantDoc._id, isActive: true }),
       Location.exists({ tenantId: tenantDoc._id, isActive: true, 'settings.orderModes': 'takeaway' }),
-      Location.find({ tenantId: tenantDoc._id, isActive: true }).select('name').lean(),
+      Location.find({ tenantId: tenantDoc._id, isActive: true }).select('name colorIndex').lean(),
     ])
     dineInOnly = !!hasAny && !hasTakeaway
-    sidebarLocations = (locs as any[]).map(l => ({
+    sidebarLocations = (locs as any[]).map((l, idx) => ({
       _id: l._id.toString(),
       name: l.name,
+      colorIndex: l.colorIndex ?? idx % 8,
     }))
   }
 
@@ -122,42 +125,51 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <PosReturnBarWrapper />
+    <AdminLocationProviderWrapper
+      locations={sidebarLocations}
+      assignedLocations={(session.user.assignedLocations ?? []) as string[]}
+      userRole={session.user.role ?? 'staff'}
+    >
+      <div className="flex h-screen bg-background overflow-hidden">
+        <PosReturnBarWrapper />
 
-      {/* Desktop Sidebar — Fixed overlay, does not push workspace */}
-      <DesktopSidebar {...sidebarProps} />
+        {/* Desktop Sidebar — Fixed overlay, does not push workspace */}
+        <DesktopSidebar {...sidebarProps} />
 
-      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative z-20">
-        {/* Mobile Header */}
-        <MobileNav>
-          <AdminSidebar {...sidebarProps} isExpanded={true} />
-        </MobileNav>
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative z-20">
+          {/* Mobile Header */}
+          <MobileNav>
+            <AdminSidebar {...sidebarProps} isExpanded={true} />
+          </MobileNav>
 
-        {/* Main Content */}
-        <main className="flex-1 min-h-0 overflow-hidden bg-background flex flex-col" data-lenis-prevent>
-          {tenantId && canAccess(plan, 'adminPushNotifications') && <AdminPushBanner tenantId={tenantId} />}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 lg:p-10 flex flex-col">
-            <div className="w-full flex-1 min-h-0 flex flex-col">
-              {children}
+          {/* Top Bar — sede selector + section title */}
+          <AdminTopBar />
+
+          {/* Main Content */}
+          <main className="flex-1 min-h-0 overflow-hidden bg-background flex flex-col" data-lenis-prevent>
+            {tenantId && canAccess(plan, 'adminPushNotifications') && <AdminPushBanner tenantId={tenantId} />}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 lg:p-10 flex flex-col">
+              <div className="w-full flex-1 min-h-0 flex flex-col">
+                {children}
+              </div>
             </div>
-          </div>
-          {/* Footer — stays at bottom, doesn't eat into board space */}
-          <div className="shrink-0 py-3 border-t border-border/40 flex justify-center">
-            <PoweredByTakeasy variant="light" label="network" />
-          </div>
-        </main>
+            {/* Footer — stays at bottom, doesn't eat into board space */}
+            <div className="shrink-0 py-3 border-t border-border/40 flex justify-center">
+              <PoweredByTakeasy variant="light" label="network" />
+            </div>
+          </main>
+        </div>
+        {tenantDoc && (
+          <AdminPWAProvider
+            primaryColor={primaryColor}
+            bgColor={bgColor}
+            textColor={textColor}
+            manifestUrl={`/${tenant}/admin/manifest.json`}
+          />
+        )}
+        <Toaster />
+        <SystemAnnouncementBanner tenantSlug={tenant} />
       </div>
-      {tenantDoc && (
-        <AdminPWAProvider
-          primaryColor={primaryColor}
-          bgColor={bgColor}
-          textColor={textColor}
-          manifestUrl={`/${tenant}/admin/manifest.json`}
-        />
-      )}
-      <Toaster />
-      <SystemAnnouncementBanner tenantSlug={tenant} />
-    </div>
+    </AdminLocationProviderWrapper>
   )
 }
