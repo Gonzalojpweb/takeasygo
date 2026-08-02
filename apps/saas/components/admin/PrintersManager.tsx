@@ -37,6 +37,7 @@ interface PrinterData {
 }
 
 interface RolePrintSettings {
+  mode?: 'text' | 'image'
   fontSize: 'normal' | 'large' | 'double' | 'triple'
   lineSpacing: number
   showDescriptions: boolean
@@ -84,6 +85,7 @@ const EMPTY_FORM = {
   paperWidth: 80 as 58 | 80,
   printSettings: {
     kitchen: {
+      mode: 'text',
       fontSize: 'large',
       lineSpacing: 48,
       showDescriptions: false,
@@ -96,6 +98,7 @@ const EMPTY_FORM = {
       footerTemplate: '',
     },
     bar: {
+      mode: 'text',
       fontSize: 'large',
       lineSpacing: 48,
       showDescriptions: false,
@@ -108,6 +111,7 @@ const EMPTY_FORM = {
       footerTemplate: '',
     },
     cashier: {
+      mode: 'text',
       fontSize: 'normal',
       lineSpacing: 36,
       showDescriptions: true,
@@ -638,6 +642,19 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Modo de impresión */}
+                  <div>
+                    <label className={labelCls}>Modo de impresión</label>
+                    <select
+                      value={editingPrintSettings.printSettings?.[role]?.mode || 'text'}
+                      onChange={e => updatePrintSettings(role, 'mode', e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="text">Texto (ESC/POS)</option>
+                      <option value="image">Imagen (GS v 0)</option>
+                    </select>
+                  </div>
+
                   {/* Tamaño de fuente */}
                   <div>
                     <label className={labelCls}>Tamaño de fuente</label>

@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFile, spawn } = require('child_process');
+const { renderTicketToCanvas } = require('./ticket-renderer');
+const { canvasToEscPos } = require('./raster-encoder');
 
 // --- LEER VERSIÓN LOCAL ---
 let LOCAL_VERSION = '0.0.0';
@@ -577,9 +579,9 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                 const dots = '.'.repeat(Math.max(2, columns - line.length - price.length));
                 chunks.push(buf(`${line}${dots}${price}\n`));
             } else {
-                chunks.push(ESC_POS.BOLD_ON);
+                chunks.push(ESC_POS.TEXT_SIZE_DOUBLE_HEIGHT, ESC_POS.BOLD_ON);
                 chunks.push(buf(`${line}\n`));
-                chunks.push(ESC_POS.BOLD_OFF);
+                chunks.push(ESC_POS.BOLD_OFF, getFontSizeCommand(settings.fontSize));
             }
 
             if (settings.showDescriptions && item.description) {
@@ -631,9 +633,9 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                 const dots = '.'.repeat(Math.max(2, columns - headerLine.length - headerPrice.length));
                 chunks.push(buf(`${headerLine}${dots}${headerPrice}\n`));
             } else {
-                chunks.push(ESC_POS.BOLD_ON);
+                chunks.push(ESC_POS.TEXT_SIZE_DOUBLE_HEIGHT, ESC_POS.BOLD_ON);
                 chunks.push(buf(`${totalQty}x ${promoTitle}\n`));
-                chunks.push(ESC_POS.BOLD_OFF);
+                chunks.push(ESC_POS.BOLD_OFF, getFontSizeCommand(settings.fontSize));
             }
 
             // Descripción corta de la promo
@@ -784,7 +786,20 @@ async function poll() {
                     let ticketBuffer;
                     try {
                         const settings = printer.printSettings?.[role] || null;
-                        ticketBuffer = generateTicket(order, role, printer.paperWidth === 80 ? 48 : 32, settings);
+                        const paperWidthDots = printer.paperWidth === 80 ? 576 : 384;
+
+                        if (settings?.mode === 'image') {
+                            const canvas = renderTicketToCanvas(order, role, paperWidthDots, settings, {
+                                restaurantName: order.location?.locationName || '',
+                            });
+                            if (!canvas) {
+                                console.log(`[SKIP] Orden ${order.orderNumber} no tiene items para ${printer.name} (${role})`);
+                                continue;
+                            }
+                            ticketBuffer = canvasToEscPos(canvas, paperWidthDots);
+                        } else {
+                            ticketBuffer = generateTicket(order, role, printer.paperWidth === 80 ? 48 : 32, settings);
+                        }
                     } catch (err) {
                         console.error(`[ERROR] generateTicket falló: ${err.message}`);
                         continue;
