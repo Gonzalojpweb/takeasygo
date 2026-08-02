@@ -185,6 +185,12 @@ export interface TiaMetricsData {
   trends: TrendsData
   historical: HistoricalData
   sil: SilData
+  _timing?: {
+    parallelMs: number
+    sequentialMs: number
+    posthogMs: number
+    totalMs: number
+  }
 }
 
 function todayRange(timezone: string) {
@@ -221,6 +227,7 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
   const thirtyDaysAgo = daysAgo(30, timezone)
   const fourteenDaysAgo = daysAgo(14, timezone)
 
+  const t0 = Date.now()
   const [
     todayOrders,
     todayRevenue,
@@ -330,6 +337,8 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     LoyaltyMember.countDocuments({ tenantId: tid, joinedAt: { $gte: daysAgo(60, timezone), $lt: thirtyDaysAgo } }),
   ])
 
+  const t1 = Date.now()
+
   // Top products (most sold)
   const topSold = await Order.aggregate([
     { $match: { tenantId: tid, deletedAt: null, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled'] } } },
@@ -367,6 +376,8 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
   const ordersMap = new Map(dailyOrders.map((d: any) => [d._id, d]))
   const membersMap = new Map(dailyMembers.map((d: any) => [d._id, d]))
 
+  const t2 = Date.now()
+
   const historical: HistoricalData = { orders: [], revenue: [], members: [] }
   for (let i = 29; i >= 0; i--) {
     const d = daysAgo(i, timezone)
@@ -384,6 +395,8 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     fetchFunnel(tenantId),
     fetchMenuOpened(tenantId),
   ])
+
+  const t3 = Date.now()
 
   const totalOrders7d = orders7d || 1
   const totalOrdersPrev7d = ordersPrev7d || 1
@@ -442,6 +455,12 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
         revenue: c.revenue,
         conversion: 0,
       })),
+    },
+    _timing: {
+      parallelMs: t1 - t0,
+      sequentialMs: t2 - t1,
+      posthogMs: t3 - t2,
+      totalMs: t3 - t0,
     },
   }
 }
