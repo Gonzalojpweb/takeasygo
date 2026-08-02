@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import {
   Printer, Plus, Trash2, RefreshCw, CheckCircle2,
@@ -619,9 +620,9 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
         </div>
       )}
 
-      {/* Print Settings Modal */}
-      {showPrintSettings && editingPrintSettings && (
-        <Card className="border-2 border-primary/20 rounded-[2rem] shadow-xl bg-card animate-in fade-in slide-in-from-top-2 duration-300 fixed inset-4 z-50 overflow-auto">
+      {/* Print Settings Modal — portal to body to escape workspace z-20 stacking context */}
+      {showPrintSettings && editingPrintSettings && createPortal(
+        <Card className="border-2 border-primary/20 rounded-[2rem] shadow-xl bg-card animate-in fade-in slide-in-from-top-2 duration-300 fixed inset-4 z-[60] overflow-auto">
           <CardHeader className="p-6 border-b border-border/40 sticky top-0 bg-card z-10">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold">
@@ -789,7 +790,8 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </Card>,
+        document.body
       )}
 
       {/* Agent instructions */}
