@@ -157,6 +157,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     imageUrl?: string
   } | null>(null)
   const cartBtnRef = useRef<HTMLButtonElement>(null)
+  const navigatingRef = useRef(false)
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
   const applyGridToTakeaway = !branding.menuLayoutApplyTo || branding.menuLayoutApplyTo === 'both' || branding.menuLayoutApplyTo === 'takeaway'
@@ -722,13 +723,19 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   }
 
   function goToCheckout() {
+    if (navigatingRef.current) return
+    navigatingRef.current = true
+
     if (!isOperational) {
       toast.info('Este local está en modo catálogo. Próximamente habilitaremos pedidos.')
+      navigatingRef.current = false
       return
     }
 
     // Group session: don't go to checkout, items are added directly to session
     if (groupSessionToken) {
+      toast.info('Estás en un pedido grupal. Los items se agregan directamente al pedido grupal.')
+      navigatingRef.current = false
       return
     }
 
@@ -1548,7 +1555,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       </footer>
 
       {/* ── Fixed bottom cart bar ── */}
-      {totalItems > 0 && !showCart && !likesOrderId && (
+      {totalItems > 0 && !showCart && !likesOrderId && !customizingItem && upsellSuggestions.length === 0 && !promoSlotSelection && !translating && (
         <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-2">
           <button
             onClick={goToCheckout}

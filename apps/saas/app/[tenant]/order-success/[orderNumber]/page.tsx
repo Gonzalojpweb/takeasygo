@@ -14,6 +14,10 @@ export default function OrderSuccessPage() {
   const [state, setState] = useState<VerifyState>('verifying')
 
   useEffect(() => {
+    sessionStorage.removeItem(`cart_${tenantSlug}`)
+  }, [tenantSlug])
+
+  useEffect(() => {
     let cancelled = false
     let retries = 0
     const MAX_RETRIES = 8
