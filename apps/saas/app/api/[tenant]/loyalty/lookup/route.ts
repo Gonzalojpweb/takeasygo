@@ -13,6 +13,7 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const phone = searchParams.get('phone')
     const publicId = searchParams.get('publicId')
+    const locationId = searchParams.get('locationId')
 
     await connectDB()
 
@@ -28,19 +29,23 @@ export async function GET(
       return NextResponse.json({ error: 'Club de fidelización no activo' }, { status: 400 })
     }
 
+    const perLocation = tenant.loyalty?.perLocation === true
+
     let member: any = null
 
     if (publicId) {
       member = await LoyaltyMember.findOne({
         'wallet.publicId': publicId,
         tenantId: tenant._id,
-        status: 'active'
+        status: 'active',
+        ...(perLocation && locationId ? { locationId } : {})
       }).lean()
     } else if (phone) {
       member = await LoyaltyMember.findOne({
         phoneHash: hashPhone(phone),
         tenantId: tenant._id,
-        status: 'active'
+        status: 'active',
+        ...(perLocation && locationId ? { locationId } : {})
       }).lean()
     }
 
@@ -51,7 +56,8 @@ export async function GET(
         member = await LoyaltyMember.findOne({
           email: email.toLowerCase().trim(),
           tenantId: tenant._id,
-          status: 'active'
+          status: 'active',
+          ...(perLocation && locationId ? { locationId } : {})
         }).lean()
       }
     }

@@ -5,6 +5,7 @@ export type StoreItemTier = 'none' | 'bronze' | 'silver' | 'gold'
 
 export interface IStoreItem extends Document {
   tenantId?: mongoose.Types.ObjectId
+  locationId?: mongoose.Types.ObjectId | null  // Per-location store: null = available at all locations
   scope: 'tenant' | 'global'
   targetTenants?: mongoose.Types.ObjectId[]
   
@@ -50,6 +51,12 @@ const StoreItemSchema = new Schema<IStoreItem>(
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
       required: false,
+      index: true,
+    },
+    locationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Location',
+      default: null,
       index: true,
     },
     scope: {
@@ -167,9 +174,9 @@ const StoreItemSchema = new Schema<IStoreItem>(
 )
 
 // Índices compuestos
-StoreItemSchema.index({ tenantId: 1, isActive: 1, sortOrder: 1 })
-StoreItemSchema.index({ tenantId: 1, category: 1, isActive: 1 })
-StoreItemSchema.index({ tenantId: 1, isFeatured: 1, isActive: 1 })
+StoreItemSchema.index({ tenantId: 1, locationId: 1, isActive: 1, sortOrder: 1 })
+StoreItemSchema.index({ tenantId: 1, locationId: 1, category: 1, isActive: 1 })
+StoreItemSchema.index({ tenantId: 1, locationId: 1, isFeatured: 1, isActive: 1 })
 
 // Middleware pre-save para validar stock
 StoreItemSchema.pre('save', function () {

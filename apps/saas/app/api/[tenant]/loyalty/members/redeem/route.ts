@@ -22,7 +22,7 @@ export async function POST(
     if (authError) return authError
 
     const body = await request.json()
-    const { memberPublicId, points } = body
+    const { memberPublicId, points, locationId } = body
 
     if (!memberPublicId) {
       return NextResponse.json({ error: 'Se requiere el ID del miembro' }, { status: 400 })
@@ -31,10 +31,19 @@ export async function POST(
       return NextResponse.json({ error: 'Ingresá una cantidad de puntos válida' }, { status: 400 })
     }
 
-    const member = await LoyaltyMember.findOne({
+    if (tenant.loyalty?.perLocation && !locationId) {
+      return NextResponse.json({ error: 'Se requiere el ID de la ubicación' }, { status: 400 })
+    }
+
+    const memberQuery: Record<string, unknown> = {
       'wallet.publicId': memberPublicId,
       tenantId: tenant._id,
-    })
+    }
+    if (tenant.loyalty?.perLocation && locationId) {
+      memberQuery.locationId = locationId
+    }
+
+    const member = await LoyaltyMember.findOne(memberQuery)
 
     if (!member) {
       return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })

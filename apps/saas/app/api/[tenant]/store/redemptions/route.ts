@@ -40,7 +40,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { memberId, storeItemId } = body
+    const { memberId, storeItemId, locationId } = body
 
     if (!memberId || !storeItemId) {
       return NextResponse.json({ error: 'Faltan memberId y storeItemId' }, { status: 400 })
@@ -183,6 +183,7 @@ export async function POST(
         cashValue: item.cashValue,
         status: 'pending',
         expiresAt,
+        ...(locationId ? { locationId } : {}),
       })
       await redemption.save({ session })
 
@@ -299,6 +300,7 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const memberId = searchParams.get('memberId')
     const status = searchParams.get('status')
+    const locationId = searchParams.get('locationId')
 
     if (!memberId) {
       return NextResponse.json({ error: 'Se requiere memberId' }, { status: 400 })
@@ -306,6 +308,7 @@ export async function GET(
 
     const query: any = { tenantId: tenant._id, memberId }
     if (status) query.status = status
+    if (locationId) query.locationId = locationId
 
     const redemptions = await StoreRedemption.find(query)
       .populate('storeItemId')

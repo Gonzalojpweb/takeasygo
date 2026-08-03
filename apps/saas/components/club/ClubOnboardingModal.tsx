@@ -20,6 +20,7 @@ export default function ClubOnboardingModal({
   restaurantName,
   tenantLogo,
   promotionId,
+  locationId,
   title,
   ctaText,
   accentColor = '#10b981',
@@ -107,6 +108,7 @@ export default function ClubOnboardingModal({
           email: formData.email,
           phone: `${formData.countryCode} ${formData.phone}`,
           promotionId,
+          ...(locationId ? { locationId } : {}),
         }),
       })
       const data = await res.json()

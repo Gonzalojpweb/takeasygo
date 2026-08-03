@@ -82,7 +82,7 @@ interface Promotion {
   maxRedemptions?: number
   redemptionsCount: number
   sortOrder: number
-  locationId?: string
+  locationId?: string | null
   slots?: Slot[]
   allowCustomization?: boolean
   overrideCustomizationGroups?: OverrideGroup[]
@@ -117,7 +117,40 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
   const [menuLoading, setMenuLoading] = useState(false)
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    type: PromotionType
+    title: string
+    description: string
+    shortDescription: string
+    imageUrl: string
+    price: number
+    originalPrice: string
+    currency: string
+    conditions: string
+    details: string
+    ctaText: string
+    ctaLink: string
+    visibility: 'both' | 'takeaway' | 'dine-in'
+    isActive: boolean
+    isFeatured: boolean
+    scheduledStart: string
+    scheduledEnd: string
+    activeTimeStart: string
+    activeTimeEnd: string
+    maxRedemptions: string
+    locationId: string | null
+    slots: Slot[]
+    allowCustomization: boolean
+    overrideCustomizationGroups: OverrideGroup[]
+    customStyles: {
+      backgroundColor: string
+      textColor: string
+      accentColor: string
+      badgeColor: string
+      borderRadius: string
+      cardStyle: CardStyle
+    }
+  }>({
     type: 'sale' as PromotionType,
     title: '',
     description: '',
@@ -444,7 +477,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       activeTimeStart: promotion.activeTimeStart || '',
       activeTimeEnd: promotion.activeTimeEnd || '',
       maxRedemptions: promotion.maxRedemptions?.toString() || '',
-      locationId: promotion.locationId || locations[0]?._id || '',
+      locationId: promotion.locationId ?? locations[0]?._id ?? '',
       slots: (promotion as any).slots || [],
       allowCustomization: promotion.allowCustomization ?? true,
       overrideCustomizationGroups: promotion.overrideCustomizationGroups || [],
@@ -750,7 +783,11 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       <button
                         key={value}
                         type="button"
-                        onClick={() => setForm({ ...form, type: value })}
+                        onClick={() => setForm({
+                          ...form,
+                          type: value,
+                          locationId: value === 'loyalty' ? null : (form.locationId || selectedLocation),
+                        })}
                         className={cn(
                           'flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 font-bold text-xs transition-all',
                           form.type === value
@@ -939,7 +976,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                     {locations.length > 1 && (
                       <div className="mb-3">
                         <select
-                          value={form.locationId}
+                          value={form.locationId ?? ''}
                           onChange={e => setForm({ ...form, locationId: e.target.value, slots: [] })}
                           className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm"
                         >

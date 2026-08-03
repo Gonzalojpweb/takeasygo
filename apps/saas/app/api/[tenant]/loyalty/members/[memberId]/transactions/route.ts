@@ -34,7 +34,7 @@ export async function GET(
     const skip = (page - 1) * limit
 
     const member = await LoyaltyMember.findById(memberId)
-      .select('phoneHash phone email name')
+      .select('phoneHash phone email name locationId')
       .lean()
     if (!member) {
       return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
@@ -77,6 +77,10 @@ export async function GET(
     }
     if (orIdentity.length > 0) {
       orderQuery.$and = [{ $or: orIdentity }]
+    }
+
+    if (member.locationId) {
+      orderQuery.locationId = member.locationId
     }
 
     const [redemptions, orders] = await Promise.all([

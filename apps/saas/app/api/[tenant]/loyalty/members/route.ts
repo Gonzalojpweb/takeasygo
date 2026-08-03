@@ -26,9 +26,11 @@ export async function GET(
 
     await connectDB()
 
+    const locationId = searchParams.get('locationId')
+
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan }>()
+      .select('_id plan loyalty')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty?: { perLocation?: boolean } }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -41,7 +43,12 @@ export async function GET(
       return NextResponse.json({ error: 'Tu plan no incluye el Club de Fidelización' }, { status: 403 })
     }
 
+    const perLocation = tenant.loyalty?.perLocation === true
     const filter: Record<string, any> = { tenantId: tenant._id }
+
+    if (perLocation && locationId) {
+      filter.locationId = locationId
+    }
 
     if (status && ['active', 'inactive', 'blocked'].includes(status)) {
       filter.status = status
@@ -108,8 +115,8 @@ export async function POST(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan }>()
+      .select('_id plan loyalty')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty?: { perLocation?: boolean } }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -123,7 +130,13 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { name, phone, email, birthDate, notes } = body
+    const { name, phone, email, birthDate, notes, locationId } = body
+
+    const perLocation = tenant.loyalty?.perLocation === true
+
+    if (perLocation && !locationId) {
+      return NextResponse.json({ error: 'El locationId es requerido cuando la fidelización es por ubicación' }, { status: 400 })
+    }
 
     if (!name?.trim()) {
       return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 })
@@ -158,6 +171,7 @@ export async function POST(
       const existing = await LoyaltyMember.findOne({
         tenantId:  tenant._id,
         phoneHash,
+        ...(perLocation && locationId ? { locationId } : {}),
       }).lean()
 
       if (existing) {
@@ -170,6 +184,7 @@ export async function POST(
 
     const member = await LoyaltyMember.create({
       tenantId:  tenant._id,
+      ...(perLocation && locationId ? { locationId } : {}),
       name:      cleanName,
       phone:     cleanPhone,
       email:     cleanEmail,

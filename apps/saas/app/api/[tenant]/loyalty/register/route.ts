@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import User from '@/models/User'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { hashPhone } from '@/lib/crypto'
+import { requireLocationId } from '@/lib/loyalty-location'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(
@@ -20,9 +21,16 @@ export async function POST(
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id pointsConfig.welcomePoints')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id pointsConfig.welcomePoints loyalty.perLocation')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    }
+
+    let locationId: import('mongoose').Types.ObjectId | null = null
+    try {
+      locationId = await requireLocationId(tenant._id, body.locationId, 'loyalty register')
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 400 })
     }
 
     const phoneHash = hashPhone(phone)
@@ -30,7 +38,8 @@ export async function POST(
     // Verificar si ya existe
     const existing = await LoyaltyMember.findOne({
       tenantId: tenant._id,
-      phoneHash
+      phoneHash,
+      ...(locationId ? { locationId } : {})
     })
 
     if (existing) {
@@ -75,6 +84,7 @@ export async function POST(
       status: 'active',
       joinedAt: new Date(),
       'loyalty.points': welcomePoints,
+      ...(locationId ? { locationId } : {})
     })
 
     return NextResponse.json({ 

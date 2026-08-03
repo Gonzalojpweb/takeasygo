@@ -20,6 +20,7 @@ export interface ClubOnboardingProps {
   restaurantName?: string
   tenantLogo?: string
   promotionId: string
+  locationId?: string | null
   title?: string
   ctaText?: string
   accentColor?: string

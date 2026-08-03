@@ -51,6 +51,8 @@ export async function GET(
       ],
     }
 
+    const locationId = searchParams.get('locationId')
+
     if (isAdmin) {
       const category = searchParams.get('category')
       const isActive = searchParams.get('isActive')
@@ -70,6 +72,11 @@ export async function GET(
     } else {
       tenantQuery.isActive = true
       globalQuery.isActive = true
+    }
+
+    if (locationId) {
+      tenantQuery.locationId = locationId
+      globalQuery.locationId = locationId
     }
 
     const items = await StoreItem.find({
@@ -117,6 +124,7 @@ export async function POST(
       tags,
       sortOrder,
       isFeatured,
+      locationId,
     } = body
 
     if (!name || !description || !imageUrl || !pointsCost || !category) {
@@ -140,6 +148,7 @@ export async function POST(
       tags: tags || [],
       sortOrder: sortOrder || 0,
       isFeatured: isFeatured || false,
+      locationId: locationId || null,
     })
 
     return NextResponse.json({ item }, { status: 201 })

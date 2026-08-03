@@ -29,16 +29,19 @@ export async function GET(
 
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
+    const locationId = searchParams.get('locationId')
 
     if (!code) {
       return NextResponse.json({ error: 'Se requiere el código' }, { status: 400 })
     }
 
-    // Buscar redención por código
-    const redemption = await StoreRedemption.findOne({ 
+    const query: any = {
       tenantId: tenant._id,
-      redemptionCode: code.toUpperCase().trim()
-    })
+      redemptionCode: code.toUpperCase().trim(),
+    }
+    if (locationId) query.locationId = locationId
+
+    const redemption = await StoreRedemption.findOne(query)
     .populate('memberId', 'name email loyalty')
     .populate('storeItemId', 'name imageUrl pointsCost cashValue')
     .lean()

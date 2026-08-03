@@ -1166,6 +1166,7 @@ export async function POST(
           const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
           const member = new LoyaltyMember({
             tenantId:  tenant._id,
+            locationId: body.locationId,
             ...(userId ? { userId } : {}),
             name:      body.customer.name,
             phone:     body.customer.phone,

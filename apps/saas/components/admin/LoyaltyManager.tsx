@@ -55,6 +55,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import MemberTransactions from './MemberTransactions'
 
 interface Member {
@@ -129,6 +130,7 @@ const SOURCE_ICONS: Record<string, string> = {
 }
 
 export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
+  const { activeLocationId: locationId } = useAdminLocation()
   const [members, setMembers]       = useState<Member[]>([])
   const [stats, setStats]           = useState<Stats | null>(null)
   const [loading, setLoading]       = useState(true)
@@ -174,6 +176,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
         limit: '15',
         search,
       })
+      if (locationId) params.set('locationId', locationId)
       const res = await fetch(`/api/${tenantSlug}/loyalty/members?${params}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -184,12 +187,14 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [tenantSlug, page, search])
+  }, [tenantSlug, page, search, locationId])
 
   const fetchStats = useCallback(async () => {
     setStatsLoading(true)
     try {
-      const res = await fetch(`/api/${tenantSlug}/loyalty/stats?days=30`)
+      const params = new URLSearchParams({ days: '30' })
+      if (locationId) params.set('locationId', locationId)
+      const res = await fetch(`/api/${tenantSlug}/loyalty/stats?${params}`)
       const data = await res.json()
       if (res.ok) setStats(data)
     } catch (err) {
@@ -197,16 +202,18 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
     } finally {
       setStatsLoading(false)
     }
-  }, [tenantSlug])
+  }, [tenantSlug, locationId])
 
   useEffect(() => { fetchMembers() }, [fetchMembers])
   useEffect(() => { fetchStats() }, [fetchStats])
   useEffect(() => {
-    fetch(`/api/${tenantSlug}/loyalty/settings`)
+    const params = new URLSearchParams()
+    if (locationId) params.set('locationId', locationId)
+    fetch(`/api/${tenantSlug}/loyalty/settings?${params}`)
       .then(r => r.json())
       .then(d => setPointsConfig(d.pointsConfig))
       .catch(() => {})
-  }, [tenantSlug])
+  }, [tenantSlug, locationId])
 
   async function handleAddMember(e: React.FormEvent) {
     e.preventDefault()
@@ -215,7 +222,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
       const res = await fetch(`/api/${tenantSlug}/loyalty/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(addForm),
+        body: JSON.stringify({ ...addForm, ...(locationId ? { locationId } : {}) }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -299,7 +306,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
       const res = await fetch(`/api/${tenantSlug}/loyalty/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv: importText }),
+        body: JSON.stringify({ csv: importText, ...(locationId ? { locationId } : {}) }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -317,7 +324,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
     if (!scanId.trim()) return
     setScanLoading(true)
     try {
-      const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?publicId=${scanId.trim()}`)
+      const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?publicId=${scanId.trim()}${locationId ? `&locationId=${locationId}` : ''}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setScannedMember(data.member)
@@ -335,7 +342,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
     if (!scanPhone.trim()) return
     setScanLoading(true)
     try {
-      const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?phone=${encodeURIComponent(scanPhone.trim())}`)
+      const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?phone=${encodeURIComponent(scanPhone.trim())}${locationId ? `&locationId=${locationId}` : ''}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setScannedMember(data.member)
@@ -401,7 +408,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const handleScanById = async (publicId: string) => {
     setScanLoading(true)
     try {
-      const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?publicId=${publicId.trim()}`)
+      const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?publicId=${publicId.trim()}${locationId ? `&locationId=${locationId}` : ''}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setScannedMember(data.member)
@@ -430,6 +437,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
         body: JSON.stringify({
           memberPublicId: scannedMember.publicId,
           points: redeemPoints,
+          ...(locationId ? { locationId } : {}),
         }),
       })
       const data = await res.json()
@@ -482,7 +490,12 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
       const res = await fetch(`/api/${tenantSlug}/loyalty/wallet/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          publicId: scannedMember.publicId,
+          action: 'earn',
+          ...(locationId ? { locationId } : {}),
+          ...(isDirect ? { pointsToAdd: earnDirectPoints } : { orderTotal: earnOrderTotal }),
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -551,7 +564,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.location.href = `/api/${tenantSlug}/loyalty/export?format=csv`}
+              onClick={() => window.location.href = `/api/${tenantSlug}/loyalty/export?format=csv${locationId ? `&locationId=${locationId}` : ''}`}
               className="rounded-xl h-10 px-4 font-bold text-sm"
             >
               <Download size={16} className="mr-2 stroke-[2.5px]" /> Exportar
@@ -717,7 +730,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                             <DropdownMenuItem onClick={async () => {
                               if (!m.phone) { toast.error('Este miembro no tiene teléfono registrado'); return }
                               try {
-                                const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?phone=${encodeURIComponent(m.phone)}`)
+                                const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?phone=${encodeURIComponent(m.phone)}${locationId ? `&locationId=${locationId}` : ''}`)
                                 const data = await res.json()
                                 if (!res.ok) throw new Error(data.error)
                                 setScannedMember(data.member)
