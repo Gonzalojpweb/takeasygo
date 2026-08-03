@@ -83,13 +83,17 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
     } else if (status === 'authenticated' && !tenantSlug) {
       router.push('/app')
     }
-  }, [status, tenantSlug, router])
+  }, [status, tenantSlug, router, locationId])
 
   const handleJoinClub = async () => {
     setJoining(true)
     setJoinError(null)
     try {
-      const res = await fetch(`/api/${tenantSlug}/loyalty/join`, { method: 'POST' })
+      const res = await fetch(`/api/${tenantSlug}/loyalty/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(locationId ? { locationId } : {}) }),
+      })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Error al unirse al club')
@@ -105,7 +109,9 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
   const fetchClubData = async () => {
     try {
       setLoading(true)
-      const res = await fetch(`/api/${tenantSlug}/loyalty/me`)
+      const params = new URLSearchParams()
+      if (locationId) params.set('locationId', locationId)
+      const res = await fetch(`/api/${tenantSlug}/loyalty/me?${params}`)
       const data = await res.json()
 
       if (!res.ok) {

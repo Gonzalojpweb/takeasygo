@@ -62,7 +62,9 @@ export async function POST(
     if (authError) return authError
 
     const body = await request.json()
-    const { publicId, action, pointsToAdd, orderTotal } = body
+    const { publicId, action, pointsToAdd, orderTotal, locationId } = body
+
+    const perLocation = tenant.loyalty?.perLocation === true
 
     if (!publicId) {
       return NextResponse.json(
@@ -74,7 +76,8 @@ export async function POST(
     // Buscar miembro por publicId
     const member = await LoyaltyMember.findOne({
       'wallet.publicId': publicId,
-      tenantId: tenant._id
+      tenantId: tenant._id,
+      ...(perLocation && locationId ? { locationId } : {})
     }).lean()
 
     if (!member) {
@@ -214,6 +217,7 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     const { searchParams } = new URL(request.url)
     const publicId = searchParams.get('publicId')
+    const locationId = searchParams.get('locationId')
 
     if (!publicId) {
       return NextResponse.json(
@@ -229,12 +233,15 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    const perLocation = tenant.loyalty?.perLocation === true
+
     // Autenticación opcional para previsualización pública
     // (el QR escaneado por el cliente puede mostrar info básica)
 
     const member = await LoyaltyMember.findOne({
       'wallet.publicId': publicId,
-      tenantId: tenant._id
+      tenantId: tenant._id,
+      ...(perLocation && locationId ? { locationId } : {})
     }).select('name loyalty.points loyalty.tier wallet.publicId status').lean()
 
     if (!member) {

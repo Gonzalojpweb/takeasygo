@@ -238,7 +238,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     captureMenuOpened(location._id)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const clubMembership = useClubMembership(tenant.slug)
+  const clubMembership = useClubMembership(tenant.slug, location._id)
 
   // Sincronizar memberPoints desde el hook para StoreCarousel
   useEffect(() => {
@@ -962,6 +962,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               promotions={[...featuredPromotions, ...regularPromotions]}
               tenantSlug={tenant.slug}
               restaurantName={tenant.name}
+              locationId={location._id}
               onAdd={addPromotionToCart}
               primary={primary}
               bg={bg}

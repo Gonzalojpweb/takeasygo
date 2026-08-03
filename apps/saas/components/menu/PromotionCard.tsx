@@ -61,6 +61,7 @@ interface PromotionCardProps {
   }
   tenantSlug?: string
   restaurantName?: string
+  locationId?: string | null
   onAdd?: (promotion: any) => void
   primary?: string
   bg?: string
@@ -85,6 +86,7 @@ export function PromotionCard({
   promotion,
   tenantSlug,
   restaurantName,
+  locationId,
   onAdd,
   primary,
   bg,
@@ -304,6 +306,7 @@ export function PromotionCard({
             tenantSlug={tenantSlug}
             restaurantName={restaurantName}
             promotionId={promotion._id}
+            locationId={locationId}
             title={promotion.title}
             ctaText={promotion.ctaText}
             accentColor={accent}
@@ -459,6 +462,7 @@ export function PromotionCard({
           tenantSlug={tenantSlug}
           restaurantName={restaurantName}
           promotionId={promotion._id}
+          locationId={locationId}
           title={promotion.title}
           ctaText={promotion.ctaText}
           accentColor={accent}
@@ -480,6 +484,7 @@ interface PromotionCarouselProps {
   promotions: any[]
   tenantSlug?: string
   restaurantName?: string
+  locationId?: string | null
   onAdd?: (promotion: any) => void
   primary?: string
   bg?: string
@@ -507,6 +512,7 @@ export function PromotionCarousel({
   promotions,
   tenantSlug,
   restaurantName,
+  locationId,
   onAdd,
   primary,
   bg,
@@ -642,6 +648,7 @@ export function PromotionCarousel({
                 promotion={promo}
                 tenantSlug={tenantSlug}
                 restaurantName={restaurantName}
+                locationId={locationId}
                 onAdd={onAdd}
                 primary={primary}
                 bg={bg}

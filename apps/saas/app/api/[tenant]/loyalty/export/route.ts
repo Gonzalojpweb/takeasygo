@@ -15,6 +15,7 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     const { searchParams } = request.nextUrl
     const format = searchParams.get('format') ?? 'csv'
+    const locationId = searchParams.get('locationId')
 
     await connectDB()
 
@@ -36,7 +37,12 @@ export async function GET(
       )
     }
 
-    const members = await LoyaltyMember.find({ tenantId: tenant._id })
+    const query: Record<string, any> = { tenantId: tenant._id }
+    if (tenant.loyalty?.perLocation && locationId) {
+      query.locationId = locationId
+    }
+
+    const members = await LoyaltyMember.find(query)
       .sort({ joinedAt: -1 })
       .lean<any[]>()
 

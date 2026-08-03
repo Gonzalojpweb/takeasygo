@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import User from '@/models/User'
 import { auth } from '@/lib/auth'
+import { requireLocationId } from '@/lib/loyalty-location'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(
@@ -32,21 +33,40 @@ export async function POST(
       return NextResponse.json({ error: 'El club de fidelización no está activo' }, { status: 400 })
     }
 
+    const body = await request.json().catch(() => ({}))
+    const { locationId: rawLocationId } = body
+
+    let locationId: import('mongoose').Types.ObjectId | null = null
+    try {
+      locationId = await requireLocationId(tenant._id, rawLocationId, 'loyalty join')
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 400 })
+    }
+
     // ── Deduplicación: buscar por userId o email ─────────────────────────
-    const existing = await LoyaltyMember.findOne({
+    const memberQuery: Record<string, unknown> = {
       tenantId: tenant._id,
       $or: [
         { userId: user._id },
         { email: session.user.email },
       ],
-    }).lean()
+    }
+    if (locationId) {
+      memberQuery.locationId = locationId
+    }
+
+    const existing = await LoyaltyMember.findOne(memberQuery).lean()
 
     if (existing) {
       // Si existe por email pero sin userId vinculado → actualizar (dedup)
       if (!existing.userId) {
+        const linkUpdate: Record<string, unknown> = { userId: user._id, source: 'explore' }
+        if (locationId) {
+          linkUpdate.locationId = locationId
+        }
         await LoyaltyMember.updateOne(
           { _id: existing._id },
-          { $set: { userId: user._id, source: 'explore' } }
+          { $set: linkUpdate }
         )
         return NextResponse.json({
           success: true,
@@ -64,9 +84,7 @@ export async function POST(
       }, { status: 409 })
     }
 
-    const body = await request.json().catch(() => ({}))
-
-    const member = await LoyaltyMember.create({
+    const memberData: Record<string, unknown> = {
       tenantId: tenant._id,
       userId: user._id,
       name: body.name || session.user.name || 'Consumidor',
@@ -76,7 +94,12 @@ export async function POST(
       source: 'explore',
       status: 'active',
       joinedAt: new Date(),
-    })
+    }
+    if (locationId) {
+      memberData.locationId = locationId
+    }
+
+    const member = await LoyaltyMember.create(memberData)
 
     return NextResponse.json({
       success: true,

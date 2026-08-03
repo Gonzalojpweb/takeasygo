@@ -17,12 +17,13 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     const { searchParams } = request.nextUrl
     const days = Math.min(365, Math.max(7, parseInt(searchParams.get('days') ?? '30', 10)))
+    const locationId = searchParams.get('locationId') ?? undefined
 
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan }>()
+      .select('_id plan loyalty.perLocation')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty?: { perLocation?: boolean } }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -33,6 +34,12 @@ export async function GET(
 
     if (!canAccess(tenant.plan, 'loyaltyClub')) {
       return NextResponse.json({ error: 'Tu plan no incluye el Club de Fidelización' }, { status: 403 })
+    }
+
+    const perLocationActive = tenant.loyalty?.perLocation === true
+    const memberFilter: Record<string, any> = { tenantId: tenant._id }
+    if (perLocationActive && locationId) {
+      memberFilter.locationId = locationId
     }
 
     const dateFrom = new Date()
@@ -52,20 +59,20 @@ export async function GET(
       sharesThisWeek,
       sharesThisMonth,
     ] = await Promise.all([
-      LoyaltyMember.countDocuments({ tenantId: tenant._id }),
-      LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }),
-      LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'inactive' }),
-      LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'blocked' }),
-      LoyaltyMember.find({ tenantId: tenant._id, joinedAt: { $gte: dateFrom } })
+      LoyaltyMember.countDocuments({ ...memberFilter }),
+      LoyaltyMember.countDocuments({ ...memberFilter, status: 'active' }),
+      LoyaltyMember.countDocuments({ ...memberFilter, status: 'inactive' }),
+      LoyaltyMember.countDocuments({ ...memberFilter, status: 'blocked' }),
+      LoyaltyMember.find({ ...memberFilter, joinedAt: { $gte: dateFrom } })
         .sort({ joinedAt: -1 })
         .limit(10)
         .select('name phone email joinedAt source')
         .lean<any[]>(),
       LoyaltyMember.aggregate([
-        { $match: { tenantId: tenant._id } },
+        { $match: { ...memberFilter } },
         { $group: { _id: '$source', count: { $sum: 1 } } },
       ]),
-      LoyaltyMember.find({ tenantId: tenant._id, status: 'active' })
+      LoyaltyMember.find({ ...memberFilter, status: 'active' })
         .sort({ 'cache.totalSpent': -1 })
         .limit(5)
         .select('name phone cache.totalOrders cache.totalSpent')
@@ -95,7 +102,7 @@ export async function GET(
     })
 
     const customersWithOrders = await LoyaltyMember.distinct('_id', {
-      tenantId: tenant._id,
+      ...memberFilter,
       'cache.totalOrders': { $gt: 0 },
     })
 

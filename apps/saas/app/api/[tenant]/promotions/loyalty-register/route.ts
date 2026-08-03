@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import User from '@/models/User'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import LocationLoyaltyConfig from '@/models/LocationLoyaltyConfig'
 import { hashPhone } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
@@ -13,7 +14,7 @@ export async function POST(
   try {
     const { tenant: tenantSlug } = await params
     const body = await request.json()
-    const { name, email, phone, promotionId } = body
+    const { name, email, phone, promotionId, locationId } = body
 
     if (!name || !email || !phone) {
       return NextResponse.json({ error: 'Nombre, correo y teléfono son obligatorios' }, { status: 400 })
@@ -21,9 +22,14 @@ export async function POST(
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id pointsConfig.welcomePoints')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id pointsConfig.welcomePoints loyalty.perLocation')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    }
+
+    const perLocation = (tenant as any).loyalty?.perLocation
+    if (perLocation && !locationId) {
+      return NextResponse.json({ error: 'Se requiere locationId para este tenant' }, { status: 400 })
     }
 
     const phoneHash = hashPhone(phone)
@@ -56,6 +62,7 @@ export async function POST(
     const existing = await LoyaltyMember.findOne({
       tenantId: tenant._id,
       phoneHash,
+      ...(perLocation && locationId ? { locationId } : {})
     })
 
     if (existing) {
@@ -65,7 +72,14 @@ export async function POST(
       }, { status: 409 })
     }
 
-    const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
+    let welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
+
+    if (perLocation && locationId) {
+      const locConfig = await LocationLoyaltyConfig.findOne({ locationId }).lean()
+      if (locConfig?.pointsConfig?.welcomePoints != null) {
+        welcomePoints = locConfig.pointsConfig.welcomePoints
+      }
+    }
 
     // Crear nuevo miembro vinculado al User de TakeasyGo
     const member = await LoyaltyMember.create({
@@ -80,6 +94,7 @@ export async function POST(
       joinedAt: new Date(),
       promotionId: promotionId || null,
       'loyalty.points': welcomePoints,
+      ...(perLocation && locationId ? { locationId } : {})
     })
 
     return NextResponse.json({

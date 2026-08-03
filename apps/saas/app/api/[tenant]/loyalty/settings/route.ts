@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
 import { logAudit } from '@/lib/audit'
+import LocationLoyaltyConfig from '@/models/LocationLoyaltyConfig'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
 export async function GET(
@@ -26,6 +27,32 @@ export async function GET(
     if (!canAccess(tenant.plan, 'loyaltyClub')) {
       return NextResponse.json({
         loyalty: { enabled: false },
+        plan: tenant.plan,
+      })
+    }
+
+    const locationId = request.nextUrl.searchParams.get('locationId')
+
+    if (locationId && tenant.loyalty?.perLocation) {
+      const locConfig = await LocationLoyaltyConfig.findOne({ locationId }).lean()
+      if (!locConfig) {
+        return NextResponse.json({ error: 'Configuración de ubicación no encontrada' }, { status: 404 })
+      }
+      return NextResponse.json({
+        locationId: locConfig.locationId.toString(),
+        loyalty: {
+          enabled: locConfig.enabled,
+          clubName: locConfig.clubName,
+          welcomeMessage: locConfig.welcomeMessage,
+          createdAt: locConfig.createdAt,
+        },
+        wallet: tenant.wallet ?? {
+          enabled: false,
+          cardColor: tenant.branding?.primaryColor || '#f74211',
+          labelColor: tenant.branding?.textColor || '#FFFFFF',
+          logoUrl: tenant.branding?.logoUrl || '',
+        },
+        pointsConfig: locConfig.pointsConfig,
         plan: tenant.plan,
       })
     }
@@ -91,7 +118,53 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { enabled, clubName, welcomeMessage, wallet, pointsConfig, sosLimit } = body
+    const { enabled, clubName, welcomeMessage, wallet, pointsConfig, sosLimit, locationId } = body
+
+    // Per-location mode: upsert LocationLoyaltyConfig instead of updating tenant
+    if (locationId && tenant.loyalty?.perLocation) {
+      const updateData: Record<string, any> = {}
+      if (typeof enabled === 'boolean') updateData.enabled = enabled
+      if (clubName !== undefined) updateData.clubName = String(clubName).trim().slice(0, 80)
+      if (welcomeMessage !== undefined) updateData.welcomeMessage = String(welcomeMessage).trim().slice(0, 300)
+      if (pointsConfig) {
+        updateData.pointsConfig = {}
+        if (typeof pointsConfig.enabled === 'boolean') updateData.pointsConfig.enabled = pointsConfig.enabled
+        if (pointsConfig.mode !== undefined) updateData.pointsConfig.mode = pointsConfig.mode
+        if (pointsConfig.pointsPerCurrency !== undefined) updateData.pointsConfig.pointsPerCurrency = parseFloat(pointsConfig.pointsPerCurrency)
+        if (pointsConfig.pointsPercentage !== undefined) updateData.pointsConfig.pointsPercentage = parseFloat(pointsConfig.pointsPercentage)
+        if (pointsConfig.pointsPerOrder !== undefined) updateData.pointsConfig.pointsPerOrder = parseInt(pointsConfig.pointsPerOrder)
+        if (pointsConfig.minOrderForPoints !== undefined) updateData.pointsConfig.minOrderForPoints = parseFloat(pointsConfig.minOrderForPoints)
+        if (pointsConfig.pointsRedemptionValue !== undefined) updateData.pointsConfig.pointsRedemptionValue = parseInt(pointsConfig.pointsRedemptionValue)
+        if (pointsConfig.redemptionEnabled !== undefined) updateData.pointsConfig.redemptionEnabled = pointsConfig.redemptionEnabled === true || pointsConfig.redemptionEnabled === 'true'
+        if (pointsConfig.welcomePoints !== undefined) updateData.pointsConfig.welcomePoints = parseInt(pointsConfig.welcomePoints) || 0
+      }
+
+      const locConfig = await LocationLoyaltyConfig.findOneAndUpdate(
+        { locationId },
+        { $set: updateData },
+        { new: true, upsert: true }
+      ).lean()
+
+      logAudit({
+        tenantId: tenant._id.toString(),
+        action:   'loyalty.settings.updated',
+        entity:   'location',
+        entityId: locationId,
+        details:  { locationId, ...updateData },
+        request,
+      })
+
+      return NextResponse.json({
+        locationId: locConfig.locationId.toString(),
+        loyalty: {
+          enabled: locConfig.enabled,
+          clubName: locConfig.clubName,
+          welcomeMessage: locConfig.welcomeMessage,
+          createdAt: locConfig.createdAt,
+        },
+        pointsConfig: locConfig.pointsConfig,
+      })
+    }
 
     const update: Record<string, any> = {}
     const changes: Record<string, { from: any; to: any }> = {}

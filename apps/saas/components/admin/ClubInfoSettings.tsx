@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Eye, EyeOff, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { FieldHint } from '@/components/ui/inline-guide'
 import type { Plan } from '@/lib/plans'
 
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export default function ClubInfoSettings({ tenantSlug, initial, plan }: Props) {
+  const { activeLocationId: locationId } = useAdminLocation()
   const [enabled, setEnabled] = useState(initial?.enabled ?? false)
   const [clubName, setClubName] = useState(initial?.clubName ?? '')
   const [welcomeMsg, setWelcomeMsg] = useState(initial?.welcomeMessage ?? '')
@@ -35,7 +37,7 @@ export default function ClubInfoSettings({ tenantSlug, initial, plan }: Props) {
       const res = await fetch(`/api/${tenantSlug}/loyalty/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled, clubName, welcomeMessage: welcomeMsg }),
+        body: JSON.stringify({ enabled, clubName, welcomeMessage: welcomeMsg, ...(locationId ? { locationId } : {}) }),
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Error al guardar')
       toast.success('Club actualizado')

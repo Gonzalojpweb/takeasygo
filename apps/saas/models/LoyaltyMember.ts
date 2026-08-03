@@ -6,6 +6,7 @@ export type LoyaltyTier = 'none' | 'bronze' | 'silver' | 'gold'
 
 export interface ILoyaltyMember extends Document {
   tenantId:  mongoose.Types.ObjectId
+  locationId?: mongoose.Types.ObjectId | null  // Per-location club: null = legacy (pre-migration)
 
   // Vinculación con User (autenticación)
   userId?: mongoose.Types.ObjectId | null  // ID del usuario autenticado (opcional)
@@ -87,6 +88,13 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
       type:     Schema.Types.ObjectId,
       ref:      'Tenant',
       required: true,
+      index:    true,
+    },
+
+    locationId: {
+      type:     Schema.Types.ObjectId,
+      ref:      'Location',
+      default:  null,
       index:    true,
     },
 
@@ -223,14 +231,15 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
 )
 
 // ── Índices compuestos ────────────────────────────────────────────────────────
-// Unicidad por tenant + teléfono: solo aplica cuando phoneHash es un string real
+// Unicidad por tenant + sede + teléfono: solo aplica cuando phoneHash es un string real
+// Cuando perLocation está activo, locationId es requerido; cuando no, se comporta como null (legacy)
 LoyaltyMemberSchema.index(
-  { tenantId: 1, phoneHash: 1 },
+  { tenantId: 1, locationId: 1, phoneHash: 1 },
   { unique: true, partialFilterExpression: { phoneHash: { $type: 'string', $gt: '' } } }
 )
-LoyaltyMemberSchema.index({ tenantId: 1, email: 1 })
-LoyaltyMemberSchema.index({ tenantId: 1, status: 1, joinedAt: -1 })
-LoyaltyMemberSchema.index({ tenantId: 1, source: 1 })
+LoyaltyMemberSchema.index({ tenantId: 1, locationId: 1, email: 1 })
+LoyaltyMemberSchema.index({ tenantId: 1, locationId: 1, status: 1, joinedAt: -1 })
+LoyaltyMemberSchema.index({ tenantId: 1, locationId: 1, source: 1 })
 // Índice para buscar membresía por usuario autenticado (no unique — la unicidad se garantiza con tenantId_1_phoneHash_1)
 LoyaltyMemberSchema.index({ userId: 1, tenantId: 1 }, { sparse: true })
 
@@ -286,11 +295,10 @@ const LoyaltyMember =
   mongoose.models.LoyaltyMember ||
   mongoose.model<ILoyaltyMember>('LoyaltyMember', LoyaltyMemberSchema)
 
-// ── One‑time schema migration ─────────────────────────────────────────────
-// The existing `userId_1_tenantId_1` index was created without `sparse: true`,
-// causing E11000 when two unauthenticated customers checkout for the same tenant.
-// The schema now defines it as non‑unique + sparse. Drop the old unique index
-// so Mongoose can recreate it correctly on next model init.
+// ── One-time schema migration ─────────────────────────────────────────────
+// 1. Drop old unique `userId_1_tenantId_1` index (was created without sparse)
+// 2. Drop old unique `tenantId_1_phoneHash_1` index (replaced by per-location version)
+// The schema now defines the correct indexes; Mongoose will recreate them.
 let _idxMigrated = false
 async function _migrateUserIdIndex() {
   if (_idxMigrated) return
@@ -299,10 +307,19 @@ async function _migrateUserIdIndex() {
     const db = mongoose.connection.db
     if (!db) return
     const indexes = await db.collection('loyaltymembers').indexes()
-    const oldIdx = indexes.find(i => i.name === 'userId_1_tenantId_1')
-    if (oldIdx && oldIdx.unique) {
-      console.log('[LoyaltyMember] Dropping old unique userId_1_tenantId_1 index – will be recreated as non‑unique sparse')
+
+    // Drop old unique userId_1_tenantId_1
+    const oldUserIdIdx = indexes.find(i => i.name === 'userId_1_tenantId_1')
+    if (oldUserIdIdx && oldUserIdIdx.unique) {
+      console.log('[LoyaltyMember] Dropping old unique userId_1_tenantId_1 index – will be recreated as non-unique sparse')
       await db.collection('loyaltymembers').dropIndex('userId_1_tenantId_1')
+    }
+
+    // Drop old unique tenantId_1_phoneHash_1 (replaced by tenantId_1_locationId_1_phoneHash_1)
+    const oldPhoneHashIdx = indexes.find(i => i.name === 'tenantId_1_phoneHash_1')
+    if (oldPhoneHashIdx && oldPhoneHashIdx.unique) {
+      console.log('[LoyaltyMember] Dropping old unique tenantId_1_phoneHash_1 index – will be recreated as tenantId_1_locationId_1_phoneHash_1')
+      await db.collection('loyaltymembers').dropIndex('tenantId_1_phoneHash_1')
     }
   } catch (err) {
     console.warn('[LoyaltyMember] Index migration skipped:', (err as Error).message)

@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import LocationLoyaltyConfig from '@/models/LocationLoyaltyConfig'
 import User from '@/models/User'
 import mongoose from 'mongoose'
 
@@ -68,9 +69,13 @@ export async function GET(
     }
 
     // Buscar membresía del usuario en este tenant
+    const locationId = request.nextUrl.searchParams.get('locationId')
+    const perLocation = tenant.loyalty?.perLocation === true
+
     let member = await LoyaltyMember.findOne({
       userId: user._id,
-      tenantId: tenant._id
+      tenantId: tenant._id,
+      ...(perLocation && locationId ? { locationId } : {}),
     }).lean()
 
     // Fallback: si no se encontró por userId (ej: se registró en checkout sin auth),
@@ -79,7 +84,8 @@ export async function GET(
       const emailLower = session.user.email.toLowerCase().trim()
       member = await LoyaltyMember.findOne({
         email: emailLower,
-        tenantId: tenant._id
+        tenantId: tenant._id,
+        ...(perLocation && locationId ? { locationId } : {}),
       }).lean()
 
       if (member) {
@@ -132,6 +138,17 @@ export async function GET(
     const pointsPendingToConsolidate = hasAdvanceActive ? (member.sosConfig?.sosUsed ?? 0) : 0
     const uiPointsDisplay = Math.max(0, rawPoints)
 
+    // Get club name from per-location config if available
+    let clubName = tenant.loyalty.clubName || `Club ${tenant.name}`
+    let welcomeMessage = tenant.loyalty.welcomeMessage || ''
+    if (perLocation && locationId) {
+      const locConfig = await LocationLoyaltyConfig.findOne({ locationId }).lean()
+      if (locConfig) {
+        clubName = locConfig.clubName || clubName
+        welcomeMessage = locConfig.welcomeMessage || welcomeMessage
+      }
+    }
+
     // Devolver datos completos del miembro activo
     return NextResponse.json({
       member: {
@@ -148,13 +165,14 @@ export async function GET(
         publicId: member.wallet.publicId,
         totalOrders: member.cache.totalOrders,
         totalSpent: member.cache.totalSpent,
-        lastOrderAt: member.cache.lastOrderAt
+        lastOrderAt: member.cache.lastOrderAt,
+        locationId: member.locationId?.toString() || null,
       },
       clubEnabled: true,
       walletEnabled: tenant.wallet?.enabled ?? false,
       appleWalletAvailable: !!(tenant.wallet?.appleTeamIdentifier),
-      clubName: tenant.loyalty.clubName || `Club ${tenant.name}`,
-      welcomeMessage: tenant.loyalty.welcomeMessage || '',
+      clubName,
+      welcomeMessage,
       branding: {
         primaryColor: tenant.branding?.primaryColor || '#f14722',
         secondaryColor: tenant.branding?.secondaryColor || '#1a1816',

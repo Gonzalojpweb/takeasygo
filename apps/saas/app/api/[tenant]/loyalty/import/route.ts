@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { requireAuth } from '@/lib/apiAuth'
+import { requireLocationId } from '@/lib/loyalty-location'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { hashPhone } from '@/lib/crypto'
@@ -49,8 +50,8 @@ export async function POST(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan }>()
+      .select('_id plan loyalty')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty?: { perLocation?: boolean } }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -64,10 +65,17 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { csv } = body
+    const { csv, locationId: rawLocationId } = body
 
     if (!csv || typeof csv !== 'string') {
       return NextResponse.json({ error: 'CSV requerido' }, { status: 400 })
+    }
+
+    let locationId: mongoose.Types.ObjectId | null = null
+    try {
+      locationId = await requireLocationId(tenant._id, rawLocationId, 'loyalty import')
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 400 })
     }
 
     const rows = parseCSV(csv)
@@ -79,7 +87,12 @@ export async function POST(
       )
     }
 
-    const existingHashes = await LoyaltyMember.find({ tenantId: tenant._id })
+    const existingQuery: Record<string, any> = { tenantId: tenant._id }
+    if (locationId) {
+      existingQuery.locationId = locationId
+    }
+
+    const existingHashes = await LoyaltyMember.find(existingQuery)
       .select('phoneHash')
       .lean<{ phoneHash: string }[]>()
 
@@ -108,6 +121,7 @@ export async function POST(
         phoneHash: pHash,
         status:    'active',
         source:    'manual_import',
+        ...(locationId ? { locationId } : {}),
       })
       existingSet.add(pHash)
     }

@@ -1,8 +1,26 @@
 import mongoose from 'mongoose'
 import LoyaltyMember from '@/models/LoyaltyMember'
+import LocationLoyaltyConfig from '@/models/LocationLoyaltyConfig'
 import Order from '@/models/Order'
 import StoreItem from '@/models/StoreItem'
 import { syncWalletPoints } from '@/lib/walletService'
+
+/**
+ * Get the loyalty points config for a specific location.
+ * When perLocation is enabled on the tenant, returns the LocationLoyaltyConfig.
+ * Otherwise falls back to tenant.pointsConfig.
+ */
+export async function getPointsConfigForLocation(
+  tenant: any,
+  locationId?: mongoose.Types.ObjectId | string | null
+): Promise<any> {
+  const perLocation = tenant.loyalty?.perLocation === true
+  if (!perLocation || !locationId) {
+    return tenant.pointsConfig
+  }
+  const config = await LocationLoyaltyConfig.findOne({ locationId }).lean()
+  return config?.pointsConfig || tenant.pointsConfig
+}
 
 export function calculatePointsBreakdown(orderTotal: number, pointsConfig: any): { basePoints: number; microBonus: number; total: number } {
   if (!pointsConfig) {
@@ -77,6 +95,10 @@ export async function validateCheckoutRewards(
     _id: { $in: rewardItemIds },
     tenantId: tenant._id,
     isActive: true,
+    $or: [
+      { locationId: null },
+      { locationId: { $exists: false } },
+    ],
   }).lean()
 
   if (items.length !== rewardItemIds.length) {
@@ -163,6 +185,12 @@ export async function processRewardDeduction(
     status: 'active',
   }
 
+  // Per-location: scope member lookup by locationId from the order
+  const perLocation = tenant.loyalty?.perLocation === true
+  if (perLocation && order.locationId) {
+    query.locationId = order.locationId
+  }
+
   const member = await LoyaltyMember.findOne(query).session(session || null)
   if (!member) return null
 
@@ -210,6 +238,9 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
     return null
   }
 
+  const locationId = order.locationId || null
+  const pointsConfig = await getPointsConfigForLocation(tenant, locationId)
+
   // B11: Si no hay phoneHash (usuario solo email), no rendirse — buscar por email
   if (!order.customer?.phoneHash && !forceMemberId) {
     if (!order.customer?.email) return null
@@ -218,17 +249,24 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
       const emailRaw = safeDecrypt(order.customer.email).toLowerCase().trim()
       if (!emailRaw) return null
 
-      const member = await LoyaltyMember.findOne({
+      const memberQuery: any = {
         tenantId: tenant._id,
         email: emailRaw,
         status: 'active',
-      }).session(session || null)
+      }
+      // Per-location: scope by locationId
+      const perLocation = tenant.loyalty?.perLocation === true
+      if (perLocation && locationId) {
+        memberQuery.locationId = locationId
+      }
+
+      const member = await LoyaltyMember.findOne(memberQuery).session(session || null)
 
       if (!member) return null
 
       const pointsToAdd = calculatePoints(
         order.items?.filter((i: any) => i.itemType !== 'reward')?.reduce((sum: number, i: any) => sum + (i.subtotal || 0), 0) ?? order.total ?? 0,
-        tenant.pointsConfig,
+        pointsConfig,
       )
       if (pointsToAdd <= 0) return null
 
@@ -260,7 +298,7 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
     ?.filter((i: any) => i.itemType !== 'reward')
     ?.reduce((sum: number, i: any) => sum + (i.subtotal || 0), 0) ?? order.total ?? 0
 
-  const breakdown = calculatePointsBreakdown(saleItemsTotal, tenant.pointsConfig)
+  const breakdown = calculatePointsBreakdown(saleItemsTotal, pointsConfig)
   const pointsToAdd = breakdown.total
   if (pointsToAdd <= 0) return null
 
@@ -269,6 +307,12 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
   const query: any = {
     tenantId: tenant._id,
     status: 'active',
+  }
+
+  // Per-location: scope member lookup by locationId
+  const perLocation = tenant.loyalty?.perLocation === true
+  if (perLocation && locationId) {
+    query.locationId = locationId
   }
 
   if (forceMemberId) {
@@ -444,6 +488,12 @@ export async function reconcileMissingPoints(member: any, tenant: any, explicitl
         ]
       }
     ]
+  }
+
+  // Per-location: scope order query by member's locationId
+  const perLocation = tenant.loyalty?.perLocation === true
+  if (perLocation && member.locationId) {
+    query.locationId = member.locationId
   }
 
   const orders = await Order.find({ ...query, deletedAt: null })

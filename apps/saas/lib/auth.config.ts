@@ -34,10 +34,23 @@ export const authConfig = {
           }
           if (needsSave) await existingUser.save()
 
-          // Link orphan LoyaltyMembers (userId: null) matching this email
+          // Link orphan LoyaltyMembers (userId: null) matching this email.
+          // When the user has a tenantId (admin/operator), scope by tenant to avoid
+          // cross-tenant linking. For consumers (no tenantId), we link across all tenants
+          // as a legacy fallback — this means a consumer with the same email at two
+          // locations within the same tenant will still have memberships linked.
+          // TODO(per-location): If signIn can receive locationId (e.g. via callbackUrl),
+          // filter by locationId when loyalty.perLocation is true to fully isolate memberships.
           if (user.email) {
+            const linkFilter: Record<string, unknown> = {
+              userId: null,
+              email: user.email.toLowerCase().trim(),
+            }
+            if (existingUser.tenantId) {
+              linkFilter.tenantId = existingUser.tenantId
+            }
             await LoyaltyMember.updateMany(
-              { userId: null, email: user.email.toLowerCase().trim() },
+              linkFilter,
               { $set: { userId: existingUser._id } }
             ).catch(() => {})
           }

@@ -83,6 +83,7 @@ export async function PUT(
       allowOnlineRedemption,
       enableCheckoutRedemption,
       redemptionExpiryHours,
+      locationId,
     } = body
 
     const updateData: any = {}
@@ -93,6 +94,7 @@ export async function PUT(
     if (allowOnlineRedemption !== undefined) updateData['store.allowOnlineRedemption'] = allowOnlineRedemption
     if (enableCheckoutRedemption !== undefined) updateData['store.enableCheckoutRedemption'] = enableCheckoutRedemption
     if (redemptionExpiryHours !== undefined) updateData['store.redemptionExpiryHours'] = redemptionExpiryHours
+    if (locationId !== undefined) updateData['store.locationId'] = locationId
 
     const updatedTenant = await Tenant.findOneAndUpdate(
       { _id: tenant._id },

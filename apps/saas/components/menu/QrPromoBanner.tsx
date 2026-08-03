@@ -48,6 +48,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   const [error, setError] = useState('')
   const [loyaltyMsg, setLoyaltyMsg] = useState<LoyaltyMessaging | null>(null)
   const resolvedSlug = useRef<string>('')
+  const resolvedLocationId = useRef<string | null>(null)
 
   useEffect(() => {
     checkPromo()
@@ -57,11 +58,13 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
 
   const checkPromo = async () => {
     let effectiveSource = source
+    let effectiveLocationId: string | null = null
     if (!effectiveSource && typeof window !== 'undefined') {
       const pathParts = window.location.pathname.split('/')
       const locationId = pathParts[3]
       if (locationId && locationId.length === 24) {
         effectiveSource = 'qr-auto'
+        effectiveLocationId = locationId
       }
     }
     if (!effectiveSource) {
@@ -75,6 +78,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       if (data.show && data.promo) {
         const slug = data.resolvedSlug || promoSlug
         resolvedSlug.current = slug
+        resolvedLocationId.current = effectiveLocationId
 
         setPromo(data.promo)
         setShow(true)
@@ -121,6 +125,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
           email: form.email,
           phone: `${form.countryCode} ${form.phone}`,
           source: 'qr_scan',
+          ...(resolvedLocationId.current ? { locationId: resolvedLocationId.current } : {}),
         }),
       })
       const data = await res.json()

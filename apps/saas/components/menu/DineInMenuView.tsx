@@ -157,7 +157,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
     captureDishViewed({ _id: modalItem._id, name: tn(modalItem, 'name', locale), price: modalItem.price })
   }, [modalItem]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const clubMembership = useClubMembership(tenant.slug)
+  const clubMembership = useClubMembership(tenant.slug, location._id)
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
@@ -587,6 +587,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
             <PromotionCarousel
               promotions={[...featuredPromotions, ...regularPromotions]}
               tenantSlug={tenant.slug}
+              locationId={location._id}
               onAdd={addPromotionToCart}
               primary={branding.primaryColor}
               bg={bg}

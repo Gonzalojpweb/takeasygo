@@ -104,6 +104,8 @@ export interface ITenant extends Document {
     enabled:        boolean
     clubName:       string   // nombre del club (por defecto 'Club [nombre restaurante]')
     welcomeMessage: string   // mensaje de bienvenida editable
+    /** Per-location club: cuando es true, cada sede tiene su propio club, puntos y config independiente */
+    perLocation:    boolean
     createdAt:      Date | null
     /** Límite SOS configurable por el admin (perilla deslizadora). 0 = desactivado */
     sosLimit:       number
@@ -224,6 +226,8 @@ export interface ITenant extends Document {
     redemptionExpiryHours?: number  // Horas para expirar código de canje
     /** Permitir canje de ítems de la tienda durante el checkout */
     enableCheckoutRedemption: boolean
+    /** Ubicación asociada a la config de store (null = todas) */
+    locationId?: string | null
   }
   notifications: {
     whatsappPhone: string | null
@@ -438,6 +442,7 @@ const TenantSchema = new Schema<ITenant>(
       enabled:        { type: Boolean, default: false },
       clubName:       { type: String,  default: '' },
       welcomeMessage: { type: String,  default: '' },
+      perLocation:    { type: Boolean, default: false },
       createdAt:      { type: Date,    default: null },
       sosLimit:       { type: Number,  default: 0, min: 0 },
       sosMaxLimit:    { type: Number,  default: 0, min: 0 },
@@ -558,6 +563,7 @@ const TenantSchema = new Schema<ITenant>(
       allowOnlineRedemption: { type: Boolean, default: false },
       redemptionExpiryHours: { type: Number, default: 24, min: 1, max: 168 }, // 1 hora a 7 días
       enableCheckoutRedemption: { type: Boolean, default: false },
+      locationId: { type: String, default: null },
     },
     // ── Transferencia bancaria ─────────────────────────────────────────────
     transfer: {

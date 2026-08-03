@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Package, ToggleLeft, ToggleRight, Edit, Trash2, Image as ImageIcon, Search, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import ImageUpload from './ImageUpload'
+import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { FieldHint } from '@/components/ui/inline-guide'
 
 interface StoreItem {
@@ -48,6 +49,7 @@ const TIER_LABELS: Record<string, string> = {
 }
 
 export default function StoreManager({ tenantSlug }: Props) {
+  const { activeLocationId: locationId } = useAdminLocation()
   const [items, setItems] = useState<StoreItem[]>([])
   const [loading, setLoading] = useState(true)
   const [filterCategory, setFilterCategory] = useState<string>('all')
@@ -57,7 +59,7 @@ export default function StoreManager({ tenantSlug }: Props) {
 
   useEffect(() => {
     fetchItems()
-  }, [filterCategory, showInactive])
+  }, [filterCategory, showInactive, locationId])
 
   async function fetchItems() {
     setLoading(true)
@@ -66,6 +68,7 @@ export default function StoreManager({ tenantSlug }: Props) {
       if (filterCategory !== 'all') params.append('category', filterCategory)
       if (showInactive) params.append('isActive', 'false')
       else params.append('isActive', 'true')
+      if (locationId) params.append('locationId', locationId)
 
       const res = await fetch(`/api/${tenantSlug}/store/items?${params}`)
       const data = await res.json()
@@ -112,6 +115,7 @@ export default function StoreManager({ tenantSlug }: Props) {
       <StoreItemForm
         tenantSlug={tenantSlug}
         item={editingItem}
+        locationId={locationId}
         onCancel={() => {
           setShowForm(false)
           setEditingItem(null)
@@ -311,11 +315,13 @@ interface MenuCategory {
 function StoreItemForm({
   tenantSlug,
   item,
+  locationId,
   onCancel,
   onSave,
 }: {
   tenantSlug: string
   item: StoreItem | null
+  locationId?: string | null
   onCancel: () => void
   onSave: () => void
 }) {
@@ -402,6 +408,7 @@ function StoreItemForm({
         minItemPurchases: parseInt(formData.minItemPurchases.toString()),
         sortOrder: parseInt(formData.sortOrder.toString()),
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+        ...(locationId ? { locationId } : {}),
       }
 
       const res = await fetch(url, {

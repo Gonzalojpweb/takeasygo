@@ -20,8 +20,8 @@ export async function GET(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan }>()
+      .select('_id plan loyalty.perLocation')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty?: { perLocation?: boolean } }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -38,9 +38,13 @@ export async function GET(
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
+    const locationId = request.nextUrl.searchParams.get('locationId')
+    const perLocation = tenant.loyalty?.perLocation === true
+
     const member = await LoyaltyMember.findOne({
       _id:      new mongoose.Types.ObjectId(memberId),
       tenantId: tenant._id,
+      ...(perLocation && locationId ? { locationId } : {}),
     }).lean<any>()
 
     if (!member) {
@@ -64,8 +68,8 @@ export async function PATCH(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan }>()
+      .select('_id plan loyalty.perLocation')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty?: { perLocation?: boolean } }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -83,7 +87,8 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { name, email, status, notes } = body
+    const { name, email, status, notes, locationId } = body
+    const perLocation = tenant.loyalty?.perLocation === true
 
     const updateFields: Record<string, any> = {}
     const changes: Record<string, { from: any; to: any }> = {}
@@ -102,6 +107,7 @@ export async function PATCH(
       const current = await LoyaltyMember.findOne({
         _id:      new mongoose.Types.ObjectId(memberId),
         tenantId: tenant._id,
+        ...(perLocation && locationId ? { locationId } : {}),
       }).select('status').lean()
 
       if (current) {
@@ -119,7 +125,7 @@ export async function PATCH(
     }
 
     const member = await LoyaltyMember.findOneAndUpdate(
-      { _id: new mongoose.Types.ObjectId(memberId), tenantId: tenant._id },
+      { _id: new mongoose.Types.ObjectId(memberId), tenantId: tenant._id, ...(perLocation && locationId ? { locationId } : {}) },
       { $set: updateFields },
       { new: true, runValidators: true }
     ).lean<any>()
@@ -156,8 +162,8 @@ export async function DELETE(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id plan')
-      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan }>()
+      .select('_id plan loyalty.perLocation')
+      .lean<{ _id: mongoose.Types.ObjectId; plan: Plan; loyalty?: { perLocation?: boolean } }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -174,9 +180,14 @@ export async function DELETE(
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
+    const body = await request.json().catch(() => ({}))
+    const { locationId } = body
+    const perLocation = tenant.loyalty?.perLocation === true
+
     const member = await LoyaltyMember.findOneAndDelete({
       _id:      new mongoose.Types.ObjectId(memberId),
       tenantId: tenant._id,
+      ...(perLocation && locationId ? { locationId } : {}),
     }).lean()
 
     if (!member) {
