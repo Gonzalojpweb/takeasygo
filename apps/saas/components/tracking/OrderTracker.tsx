@@ -238,6 +238,11 @@ export default function OrderTracker({
     } catch { /* ignora errores de red */ }
   }, [tenantSlug, orderId])
 
+  // Limpiar carrito al llegar al tracking (pedido ya confirmado/pagado)
+  useEffect(() => {
+    sessionStorage.removeItem(`cart_${tenantSlug}`)
+  }, [tenantSlug])
+
   // Verificar inmediatamente si está esperando pago al cargar
   useEffect(() => {
     if (initialStatus === 'awaiting_payment') {

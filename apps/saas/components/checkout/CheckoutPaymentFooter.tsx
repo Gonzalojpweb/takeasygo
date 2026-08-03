@@ -141,7 +141,7 @@ export default function CheckoutPaymentFooter() {
         captureRewardAdvanceAccepted(missingPoints)
       }
 
-      sessionStorage.removeItem('cart')
+      sessionStorage.removeItem(`cart_${tenantSlug}`)
 
       // Save customer identity for personalization (cosmetic only, never source of truth)
       try {
