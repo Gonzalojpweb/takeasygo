@@ -149,6 +149,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
   const [scanDialog, setScanDialog] = useState(false)
   const [scanId, setScanId] = useState('')
+  const [scanPhone, setScanPhone] = useState('')
   const [scanLoading, setScanLoading] = useState(false)
   const [scannedMember, setScannedMember] = useState<any | null>(null)
   const [cameraActive, setCameraActive] = useState(false)
@@ -158,7 +159,9 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [redeemPoints, setRedeemPoints] = useState(0)
   const [redeemLoading, setRedeemLoading] = useState(false)
   const [earnDialog, setEarnDialog] = useState(false)
+  const [earnMode, setEarnMode] = useState<'orderTotal' | 'directPoints'>('orderTotal')
   const [earnOrderTotal, setEarnOrderTotal] = useState(0)
+  const [earnDirectPoints, setEarnDirectPoints] = useState(0)
   const [earnLoading, setEarnLoading] = useState(false)
   const [pointsConfig, setPointsConfig] = useState<any>(null)
   const [historyMember, setHistoryMember] = useState<{ memberId: string; memberName: string } | null>(null)
@@ -328,6 +331,24 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
     }
   }
 
+  async function handleScanByPhone() {
+    if (!scanPhone.trim()) return
+    setScanLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?phone=${encodeURIComponent(scanPhone.trim())}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setScannedMember(data.member)
+      if (cameraActive) {
+        stopCamera()
+      }
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setScanLoading(false)
+    }
+  }
+
   const startCamera = async () => {
     setCameraError(null)
     try {
@@ -443,27 +464,38 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   }
 
   async function handleEarn() {
-    if (!scannedMember || earnOrderTotal <= 0) return
+    if (!scannedMember) return
+    const isDirect = earnMode === 'directPoints'
+    if (isDirect && earnDirectPoints <= 0) return
+    if (!isDirect && earnOrderTotal <= 0) return
     setEarnLoading(true)
     try {
+      const body: Record<string, any> = {
+        publicId: scannedMember.publicId,
+        action: 'earn',
+      }
+      if (isDirect) {
+        body.pointsToAdd = earnDirectPoints
+      } else {
+        body.orderTotal = earnOrderTotal
+      }
       const res = await fetch(`/api/${tenantSlug}/loyalty/wallet/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          publicId: scannedMember.publicId,
-          action: 'earn',
-          orderTotal: earnOrderTotal,
-        }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      toast.success(`Se sumaron ${data.earnedPoints} puntos por compra de $${earnOrderTotal.toLocaleString()}`)
+      const label = isDirect ? `${earnDirectPoints} puntos directos` : `compra de $${earnOrderTotal.toLocaleString()}`
+      toast.success(`Se sumaron ${data.earnedPoints} puntos (${label})`)
       setScannedMember((prev: any) => ({
         ...prev,
         points: data.newTotal,
       }))
       setEarnDialog(false)
       setEarnOrderTotal(0)
+      setEarnDirectPoints(0)
+      setEarnMode('orderTotal')
       fetchMembers()
     } catch (err: any) {
       toast.error(err.message)
@@ -682,6 +714,23 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                             <DropdownMenuItem onClick={() => setHistoryMember({ memberId: m._id, memberName: m.name })}>
                               <History size={14} className="mr-2" /> Historial de Puntos
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={async () => {
+                              if (!m.phone) { toast.error('Este miembro no tiene teléfono registrado'); return }
+                              try {
+                                const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?phone=${encodeURIComponent(m.phone)}`)
+                                const data = await res.json()
+                                if (!res.ok) throw new Error(data.error)
+                                setScannedMember(data.member)
+                                setEarnOrderTotal(0)
+                                setEarnDirectPoints(0)
+                                setEarnMode('orderTotal')
+                                setEarnDialog(true)
+                              } catch (err: any) {
+                                toast.error(err.message)
+                              }
+                            }}>
+                              <TrendingUp size={14} className="mr-2" /> Asignar puntos
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {m.status === 'active' && (
                               <DropdownMenuItem onClick={() => handleUpdateStatus(m._id, 'inactive')}>
@@ -825,6 +874,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
         setScanDialog(open)
         if (!open) {
           setScanId('')
+          setScanPhone('')
           setScannedMember(null)
           stopCamera()
         } else {
@@ -876,7 +926,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                   </Button>
                 </div>
 
-                {/* Input manual */}
+                {/* Input manual por ID */}
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500">ID de Miembro (TGO-XXXX...)</label>
                   <div className="flex gap-2">
@@ -890,6 +940,33 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                       onClick={handleScan}
                       disabled={scanLoading || !scanId.trim()}
                       className="bg-amber-400 hover:bg-amber-500 text-zinc-950 font-black rounded-xl px-6 h-12 transition-all active:scale-95"
+                    >
+                      {scanLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'BUSCAR'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-zinc-800" />
+                  <span className="text-[10px] uppercase font-black tracking-widest text-zinc-600">o</span>
+                  <div className="flex-1 h-px bg-zinc-800" />
+                </div>
+
+                {/* Input manual por teléfono */}
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500">Teléfono del cliente</label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={scanPhone}
+                      onChange={e => setScanPhone(e.target.value)}
+                      placeholder="+541160019734"
+                      onKeyDown={e => e.key === 'Enter' && handleScanByPhone()}
+                      className="bg-zinc-900 border-zinc-800 focus:border-amber-500/50 h-12 rounded-xl text-center font-mono tracking-widest"
+                    />
+                    <Button
+                      onClick={handleScanByPhone}
+                      disabled={scanLoading || !scanPhone.trim()}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl px-6 h-12 transition-all active:scale-95"
                     >
                       {scanLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'BUSCAR'}
                     </Button>
@@ -948,6 +1025,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                       onClick={() => {
                         setScannedMember(null)
                         setScanId('')
+                        setScanPhone('')
                         requestAnimationFrame(() => startCamera())
                       }}
                       className="w-full text-zinc-500 hover:text-white hover:bg-white/5 font-bold"
@@ -1022,7 +1100,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
       {/* Diálogo de acumular puntos por compra presencial */}
       <Dialog open={earnDialog} onOpenChange={(open) => {
         setEarnDialog(open)
-        if (!open) setEarnOrderTotal(0)
+        if (!open) { setEarnOrderTotal(0); setEarnDirectPoints(0); setEarnMode('orderTotal') }
       }}>
         <DialogContent className="max-w-sm rounded-[2rem]">
           <DialogHeader>
@@ -1042,21 +1120,61 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                 </p>
               </div>
             )}
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">
-                Monto de la compra ($)
-              </label>
-              <Input
-                type="number"
-                min={1}
-                step="0.01"
-                value={earnOrderTotal || ''}
-                onChange={e => setEarnOrderTotal(Math.max(0, parseFloat(e.target.value) || 0))}
-                placeholder="Ej: 1500"
-                className="h-12 rounded-xl text-lg font-bold text-center"
-              />
+
+            {/* Toggle de modo */}
+            <div className="flex rounded-xl bg-muted/40 border border-border/60 p-1">
+              <button
+                onClick={() => setEarnMode('orderTotal')}
+                className={cn(
+                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                  earnMode === 'orderTotal' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"
+                )}
+              >
+                Por monto ($)
+              </button>
+              <button
+                onClick={() => setEarnMode('directPoints')}
+                className={cn(
+                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                  earnMode === 'directPoints' ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"
+                )}
+              >
+                Puntos directos
+              </button>
             </div>
-            {earnOrderTotal > 0 && pointsConfig?.enabled && (
+
+            {earnMode === 'orderTotal' ? (
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">
+                  Monto de la compra ($)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  step="0.01"
+                  value={earnOrderTotal || ''}
+                  onChange={e => setEarnOrderTotal(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="Ej: 1500"
+                  className="h-12 rounded-xl text-lg font-bold text-center"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">
+                  Cantidad de puntos
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={earnDirectPoints || ''}
+                  onChange={e => setEarnDirectPoints(Math.max(0, parseInt(e.target.value) || 0))}
+                  placeholder="Ej: 100"
+                  className="h-12 rounded-xl text-lg font-bold text-center"
+                />
+              </div>
+            )}
+
+            {earnMode === 'orderTotal' && earnOrderTotal > 0 && pointsConfig?.enabled && (
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-semibold text-emerald-800">Puntos a sumar:</span>
@@ -1071,7 +1189,17 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                 )}
               </div>
             )}
-            {!pointsConfig?.enabled && (
+            {earnMode === 'directPoints' && earnDirectPoints > 0 && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold text-emerald-800">Puntos a sumar:</span>
+                  <span className="text-2xl font-black text-emerald-600">
+                    +{earnDirectPoints}
+                  </span>
+                </div>
+              </div>
+            )}
+            {!pointsConfig?.enabled && earnMode === 'orderTotal' && (
               <p className="text-sm text-muted-foreground text-center">
                 El sistema de puntos no está activado
               </p>
@@ -1080,14 +1208,14 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
           <DialogFooter className="gap-2">
             <Button
               variant="ghost"
-              onClick={() => { setEarnDialog(false); setEarnOrderTotal(0) }}
+              onClick={() => { setEarnDialog(false); setEarnOrderTotal(0); setEarnDirectPoints(0); setEarnMode('orderTotal') }}
               className="flex-1 rounded-xl h-11 font-bold"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleEarn}
-              disabled={earnLoading || earnOrderTotal <= 0 || !pointsConfig?.enabled}
+              disabled={earnLoading || (earnMode === 'orderTotal' && (earnOrderTotal <= 0 || !pointsConfig?.enabled)) || (earnMode === 'directPoints' && earnDirectPoints <= 0)}
               className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest rounded-xl h-11"
             >
               {earnLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Acumular'}
