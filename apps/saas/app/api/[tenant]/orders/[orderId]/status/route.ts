@@ -80,6 +80,7 @@ export async function PATCH(
     // Si POS está activo y la orden fue sincronizada con éxito, el estado
     // solo se actualiza via webhooks del POS para evitar conflictos.
     if (
+      !isInternalAuth(request) &&
       tenant.posIntegration?.enabled &&
       tenant.posIntegration.provider !== 'none' &&
       order.posSync?.status === 'synced'
