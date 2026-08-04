@@ -345,19 +345,19 @@ async function main() {
       if (col.collection === 'consumers') {
         result = await db.collection(col.collection).updateMany(
           { tenantIds: tenantId },
-          { $pull: { tenantIds: tenantId } }
+          { $pull: { tenantIds: tenantId } } as any
         )
       } else if (col.collection === 'systemannouncements') {
         result = await db.collection(col.collection).updateMany(
           { targetTenantIds: tenantId },
-          { $pull: { targetTenantIds: tenantId } }
+          { $pull: { targetTenantIds: tenantId } } as any
         )
       }
     } else if (col.type === 'nullable') {
       if (col.collection === 'users') {
         result = await db.collection(col.collection).updateMany(
           { $or: [{ tenantId }, { assignedTenants: tenantId }] },
-          { $set: { tenantId: null }, $pull: { assignedTenants: tenantId } }
+          { $set: { tenantId: null }, $pull: { assignedTenants: tenantId } } as any
         )
       } else if (col.collection === 'restaurantdirectories') {
         result = await db.collection(col.collection).updateMany(
