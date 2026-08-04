@@ -27,6 +27,7 @@ export async function POST(
     const authHeader = request.headers.get('authorization') ?? ''
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
     const expectedSecret = process.env.SYNC_LAYER_SECRET ?? ''
+    console.log(`[confirm-internal] token length: ${token.length}, expectedSecret length: ${expectedSecret.length}, token == expected: ${token === expectedSecret}`)
     if (!expectedSecret || token !== expectedSecret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
