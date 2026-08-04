@@ -6,8 +6,12 @@ import { toast } from 'sonner'
 import {
   Plus, Edit2, Trash2, Eye, EyeOff, Star,
   Tag, Upload, Palette, X, DollarSign,
-  Info, Megaphone, Heart, Search,
+  Info, Megaphone, Heart, Search, GripVertical,
+  ArrowUpDown,
 } from 'lucide-react'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -185,6 +189,33 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     },
   })
 
+  // ── DnD Sensors ──
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setPromotions((items) => {
+        const oldIndex = items.findIndex((item) => item._id === active.id)
+        const newIndex = items.findIndex((item) => item._id === over.id)
+        const newArray = arrayMove(items, oldIndex, newIndex)
+
+        fetch(`/api/${tenantSlug}/promotions/reorder`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderedIds: newArray.map((p) => p._id) }),
+        }).then(res => {
+          if (res.ok) toast.success('Orden actualizado')
+        })
+
+        return newArray
+      })
+    }
+  }
+
   useEffect(() => {
     if (isModalOpen && form.type === 'sale' && form.locationId) {
       setMenuLoading(true)
@@ -211,11 +242,13 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     }
   }, [isModalOpen, form.type, form.locationId, tenantSlug])
 
-  const filteredPromotions = promotions.filter(p => {
-    if (filter === 'active') return p.isActive
-    if (filter === 'inactive') return !p.isActive
-    return true
-  })
+  const filteredPromotions = promotions
+    .filter(p => {
+      if (filter === 'active') return p.isActive
+      if (filter === 'inactive') return !p.isActive
+      return true
+    })
+    .sort((a, b) => a.sortOrder - b.sortOrder)
 
   // ── Slot management ──
 
@@ -588,6 +621,122 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     )
   )
 
+  function SortablePromotionCard({ promotion }: { promotion: Promotion }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: promotion._id })
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      zIndex: isDragging ? 50 : 1,
+      opacity: isDragging ? 0.5 : 1,
+    }
+
+    return (
+      <div ref={setNodeRef} style={style} className="flex items-start gap-2 relative">
+        <div
+          {...attributes}
+          {...listeners}
+          className="mt-5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary p-2 transition-colors touch-none"
+        >
+          <GripVertical size={20} />
+        </div>
+        <Card className="flex-1 bg-card border-border/60 overflow-hidden group hover:border-primary/30 transition-all">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-4">
+              {promotion.imageUrl && (
+                <div className="w-20 h-20 rounded-lg bg-muted relative overflow-hidden shrink-0">
+                  <img src={promotion.imageUrl} alt={promotion.title} className="w-full h-full object-cover" />
+                  {promotion.isFeatured && (
+                    <span className="absolute top-1 left-1 bg-yellow-500 text-white text-[8px] font-black uppercase tracking-wider px-1 py-0.5 rounded-full flex items-center gap-0.5">
+                      <Star size={8} fill="white" /> Destacada
+                    </span>
+                  )}
+                </div>
+              )}
+              {!promotion.imageUrl && promotion.type !== 'sale' && (
+                <div className="w-20 h-20 rounded-lg bg-muted relative overflow-hidden shrink-0 flex items-center justify-center">
+                  {promotion.type === 'info' && <Info size={24} className="text-purple-400/50" />}
+                  {promotion.type === 'announcement' && <Megaphone size={24} className="text-amber-400/50" />}
+                  {promotion.type === 'loyalty' && <Heart size={24} className="text-emerald-400/50" />}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={cn(
+                    'text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded',
+                    promotion.type === 'sale' && 'bg-blue-500/10 text-blue-500',
+                    promotion.type === 'info' && 'bg-purple-500/10 text-purple-500',
+                    promotion.type === 'announcement' && 'bg-amber-500/10 text-amber-500',
+                    promotion.type === 'loyalty' && 'bg-emerald-500/10 text-emerald-500',
+                  )}>
+                    {promotion.type === 'sale' ? '💰 Venta' :
+                      promotion.type === 'info' ? 'ℹ️ Info' :
+                        promotion.type === 'announcement' ? '📢 Anuncio' :
+                          '⭐ Club'}
+                  </span>
+                  {promotion.isFeatured && (
+                    <span className="text-yellow-500 text-[10px] font-black">★ Destacada</span>
+                  )}
+                  <div className={cn(
+                    'w-2 h-2 rounded-full ml-auto shrink-0',
+                    promotion.isActive ? 'bg-emerald-500' : 'bg-muted'
+                  )} />
+                </div>
+                <h3 className="font-bold text-foreground truncate">{promotion.title}</h3>
+                {promotion.shortDescription && (
+                  <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{promotion.shortDescription}</p>
+                )}
+                <div className="flex items-center gap-3 mt-2">
+                  {promotion.type === 'sale' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-black text-primary">${promotion.price}</span>
+                      {promotion.originalPrice && (
+                        <>
+                          <span className="text-xs text-muted-foreground line-through">${promotion.originalPrice}</span>
+                          <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            -{getDiscountPercent(promotion)}%
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {(promotion.type === 'sale' || promotion.type === 'info') && (
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                      {promotion.visibility === 'both' ? '🍽️🚀' : promotion.visibility === 'dine-in' ? '🍽️' : '🚀'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button size="sm" variant="ghost" onClick={() => openEditModal(promotion)}>
+                  <Edit2 size={14} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={promotion.isActive ? 'text-amber-500' : 'text-emerald-500'}
+                  onClick={() => handleToggleActive(promotion)}
+                >
+                  {promotion.isActive ? <EyeOff size={14} /> : <Eye size={14} />}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={promotion.isFeatured ? 'text-yellow-500' : 'text-muted-foreground'}
+                  onClick={() => handleToggleFeatured(promotion)}
+                >
+                  <Star size={14} className={promotion.isFeatured ? 'fill-yellow-500' : ''} />
+                </Button>
+                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(promotion)}>
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
 
   return (
     <div>
@@ -626,126 +775,22 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
           <p className="text-sm">Crea tu primera promoción</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPromotions.map(promotion => (
-            <Card key={promotion._id} className="bg-card border-border/60 overflow-hidden group hover:border-primary/30 transition-all">
-              {promotion.imageUrl && (
-                <div className="aspect-video bg-muted relative overflow-hidden">
-                  <img src={promotion.imageUrl} alt={promotion.title} className="w-full h-full object-cover" />
-                  {promotion.isFeatured && (
-                    <span className="absolute top-3 left-3 bg-yellow-500 text-white text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full flex items-center gap-1">
-                      <Star size={10} fill="white" /> Destacada
-                    </span>
-                  )}
-                </div>
-              )}
-              {!promotion.imageUrl && promotion.type !== 'sale' && (
-                <div className="aspect-video bg-muted relative overflow-hidden flex items-center justify-center">
-                  {promotion.type === 'info' && <Info size={32} className="text-purple-400/50" />}
-                  {promotion.type === 'announcement' && <Megaphone size={32} className="text-amber-400/50" />}
-                  {promotion.type === 'loyalty' && <Heart size={32} className="text-emerald-400/50" />}
-                </div>
-              )}
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={cn(
-                        'text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded',
-                        promotion.type === 'sale' && 'bg-blue-500/10 text-blue-500',
-                        promotion.type === 'info' && 'bg-purple-500/10 text-purple-500',
-                        promotion.type === 'announcement' && 'bg-amber-500/10 text-amber-500',
-                        promotion.type === 'loyalty' && 'bg-emerald-500/10 text-emerald-500',
-                      )}>
-                        {promotion.type === 'sale' ? '💰 Venta' :
-                          promotion.type === 'info' ? 'ℹ️ Info' :
-                            promotion.type === 'announcement' ? '📢 Anuncio' :
-                              '⭐ Club'}
-                      </span>
-                      {promotion.isFeatured && (
-                        <span className="text-yellow-500 text-[10px] font-black">★ Destacada</span>
-                      )}
-                    </div>
-                    <h3 className="font-bold text-foreground truncate">{promotion.title}</h3>
-                    {promotion.shortDescription && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{promotion.shortDescription}</p>
-                    )}
-                  </div>
-                  <div className={cn(
-                    'w-2 h-2 rounded-full ml-2 shrink-0',
-                    promotion.isActive ? 'bg-emerald-500' : 'bg-muted'
-                  )} />
-                </div>
-
-                {promotion.type === 'sale' && (
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xl font-black text-primary">${promotion.price}</span>
-                    {promotion.originalPrice && (
-                      <>
-                        <span className="text-sm text-muted-foreground line-through">${promotion.originalPrice}</span>
-                        <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
-                          -{getDiscountPercent(promotion)}%
-                        </span>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {promotion.type === 'loyalty' && promotion.ctaText && (
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-                      🔗 {promotion.ctaText}
-                    </span>
-                  </div>
-                )}
-
-                {promotion.type === 'announcement' && promotion.ctaText && (
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
-                      🔗 {promotion.ctaText}
-                    </span>
-                  </div>
-                )}
-
-                {(promotion.type === 'sale' || promotion.type === 'info') && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
-                    {promotion.visibility === 'both' ? (
-                      <span className="bg-muted px-2 py-1 rounded-full">🍽️ Dine-in + 🚀 Takeaway</span>
-                    ) : promotion.visibility === 'dine-in' ? (
-                      <span className="bg-muted px-2 py-1 rounded-full">🍽️ Dine-in</span>
-                    ) : (
-                      <span className="bg-muted px-2 py-1 rounded-full">🚀 Takeaway</span>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 pt-3 border-t border-border/40">
-                  <Button size="sm" variant="ghost" className="flex-1" onClick={() => openEditModal(promotion)}>
-                    <Edit2 size={14} className="mr-1" /> Editar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={promotion.isActive ? 'text-amber-500' : 'text-emerald-500'}
-                    onClick={() => handleToggleActive(promotion)}
-                  >
-                    {promotion.isActive ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={promotion.isFeatured ? 'text-yellow-500' : 'text-muted-foreground'}
-                    onClick={() => handleToggleFeatured(promotion)}
-                  >
-                    <Star size={14} className={promotion.isFeatured ? 'fill-yellow-500' : ''} />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(promotion)}>
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div>
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <ArrowUpDown size={14} className="text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              Arrastrá las promociones para reordenarlas
+            </p>
+          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={filteredPromotions.map(p => p._id)} strategy={verticalListSortingStrategy}>
+              <div className="flex flex-col gap-3">
+                {filteredPromotions.map(promotion => (
+                  <SortablePromotionCard key={promotion._id} promotion={promotion} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 
