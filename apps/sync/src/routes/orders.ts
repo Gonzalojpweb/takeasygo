@@ -141,6 +141,56 @@ export function ordersRouter(
     }
   })
 
+  // POST /orders/:orderId/status — POS reports status change, forwards to SaaS
+  router.post("/:orderId/status", async (req, res) => {
+    try {
+      const auth = req.auth!
+      const { orderId } = req.params
+      const { status } = req.body
+
+      if (!status) {
+        res.status(400).json({ error: "status required" })
+        return
+      }
+
+      const updated = await updateOrderStatus(orderId, auth.tenantId, status)
+      if (!updated) {
+        res.status(404).json({ error: "Order not found" })
+        return
+      }
+
+      io.to(`tenant:${auth.tenantId}`).emit("order:status_updated", {
+        orderId,
+        tenantId: auth.tenantId,
+        externalStatus: status,
+        timestamp: new Date().toISOString(),
+      })
+
+      // Forward to SaaS via outbox
+      const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
+      const syncOrder = await SyncOrderModel.findOne({
+        tenantId: auth.tenantId,
+        $or: [
+          ...(isObjectId ? [{ _id: orderId }] : []),
+          { externalOrderId: orderId },
+        ],
+      }).lean()
+      if (syncOrder?.externalOrderId) {
+        await enqueueConfirmForward(confirmForwardQueue, {
+          tenantId: auth.tenantId,
+          orderId,
+          externalOrderId: syncOrder.externalOrderId,
+          status,
+        })
+      }
+
+      res.json({ status })
+    } catch (err) {
+      console.error("[orders] status update error:", err)
+      res.status(500).json({ error: "Internal server error" })
+    }
+  })
+
   router.patch("/:orderId/confirm", async (req, res) => {
     try {
       const auth = req.auth!
