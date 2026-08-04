@@ -17,6 +17,12 @@ export default async function DirectoryPage() {
       openingHours: string
       takeawayConfirmed: boolean
       externalMenuUrl: string
+      logoUrl: string
+      heroImageUrl: string
+      description: string
+      website: string
+      instagram: string
+      facebook: string
       status: 'listed' | 'claimed' | 'converted'
       notes: string
     }>
@@ -33,6 +39,12 @@ export default async function DirectoryPage() {
     openingHours: e.openingHours ?? '',
     takeawayConfirmed: e.takeawayConfirmed ?? true,
     externalMenuUrl: e.externalMenuUrl ?? '',
+    logoUrl: e.logoUrl ?? '',
+    heroImageUrl: e.heroImageUrl ?? '',
+    description: e.description ?? '',
+    website: e.website ?? '',
+    instagram: e.instagram ?? '',
+    facebook: e.facebook ?? '',
     status: e.status ?? 'listed',
     notes: e.notes ?? '',
   }))

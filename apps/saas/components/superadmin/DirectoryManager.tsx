@@ -23,6 +23,12 @@ export interface DirectoryEntry {
   openingHours: string
   takeawayConfirmed: boolean
   externalMenuUrl: string
+  logoUrl: string
+  heroImageUrl: string
+  description: string
+  website: string
+  instagram: string
+  facebook: string
   status: DirectoryStatus
   notes: string
 }
@@ -63,6 +69,12 @@ type FormState = {
   openingHours: string
   takeawayConfirmed: boolean
   externalMenuUrl: string
+  logoUrl: string
+  heroImageUrl: string
+  description: string
+  website: string
+  instagram: string
+  facebook: string
   notes: string
 }
 
@@ -100,12 +112,43 @@ function FormFields({ f, setF }: { f: FormState; setF: React.Dispatch<React.SetS
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className={labelClass}>Horario</label>
+          <label className={labelClass}>Horario (texto)</label>
           <input value={f.openingHours} onChange={e => setF(p => ({ ...p, openingHours: e.target.value }))} className={inputClass} placeholder="Lun-Vie 12-23hs" />
         </div>
         <div>
           <label className={labelClass}>Link carta externa</label>
           <input value={f.externalMenuUrl} onChange={e => setF(p => ({ ...p, externalMenuUrl: e.target.value }))} className={inputClass} placeholder="https://..." />
+        </div>
+      </div>
+
+      <div>
+        <label className={labelClass}>Descripción</label>
+        <textarea value={f.description} onChange={e => setF(p => ({ ...p, description: e.target.value }))} rows={2} className={`${inputClass} resize-none`} placeholder="Parrilla argentina con más de 20 años de tradición..." />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={labelClass}>URL Logo</label>
+          <input value={f.logoUrl} onChange={e => setF(p => ({ ...p, logoUrl: e.target.value }))} className={inputClass} placeholder="https://..." />
+        </div>
+        <div>
+          <label className={labelClass}>URL Imagen portada</label>
+          <input value={f.heroImageUrl} onChange={e => setF(p => ({ ...p, heroImageUrl: e.target.value }))} className={inputClass} placeholder="https://..." />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label className={labelClass}>Sitio web</label>
+          <input value={f.website} onChange={e => setF(p => ({ ...p, website: e.target.value }))} className={inputClass} placeholder="https://..." />
+        </div>
+        <div>
+          <label className={labelClass}>Instagram</label>
+          <input value={f.instagram} onChange={e => setF(p => ({ ...p, instagram: e.target.value }))} className={inputClass} placeholder="@usuario" />
+        </div>
+        <div>
+          <label className={labelClass}>Facebook</label>
+          <input value={f.facebook} onChange={e => setF(p => ({ ...p, facebook: e.target.value }))} className={inputClass} placeholder="https://..." />
         </div>
       </div>
 
@@ -137,6 +180,12 @@ const EMPTY_FORM: FormState = {
   openingHours: '',
   takeawayConfirmed: true,
   externalMenuUrl: '',
+  logoUrl: '',
+  heroImageUrl: '',
+  description: '',
+  website: '',
+  instagram: '',
+  facebook: '',
   notes: '',
 }
 
@@ -201,6 +250,12 @@ export default function DirectoryManager({ initialEntries, initialStats }: Props
           openingHours: form.openingHours,
           takeawayConfirmed: form.takeawayConfirmed,
           externalMenuUrl: form.externalMenuUrl,
+          logoUrl: form.logoUrl,
+          heroImageUrl: form.heroImageUrl,
+          description: form.description,
+          website: form.website,
+          instagram: form.instagram,
+          facebook: form.facebook,
           notes: form.notes,
           ...(geoResult && { geo: geoResult }),
         }),
@@ -221,6 +276,12 @@ export default function DirectoryManager({ initialEntries, initialStats }: Props
         openingHours: entry.openingHours,
         takeawayConfirmed: entry.takeawayConfirmed,
         externalMenuUrl: entry.externalMenuUrl,
+        logoUrl: entry.logoUrl ?? '',
+        heroImageUrl: entry.heroImageUrl ?? '',
+        description: entry.description ?? '',
+        website: entry.website ?? '',
+        instagram: entry.instagram ?? '',
+        facebook: entry.facebook ?? '',
         status: entry.status,
         notes: entry.notes,
       }
@@ -250,6 +311,12 @@ export default function DirectoryManager({ initialEntries, initialStats }: Props
       openingHours: e.openingHours,
       takeawayConfirmed: e.takeawayConfirmed,
       externalMenuUrl: e.externalMenuUrl,
+      logoUrl: e.logoUrl ?? '',
+      heroImageUrl: e.heroImageUrl ?? '',
+      description: e.description ?? '',
+      website: e.website ?? '',
+      instagram: e.instagram ?? '',
+      facebook: e.facebook ?? '',
       notes: e.notes,
     })
   }
@@ -273,6 +340,12 @@ export default function DirectoryManager({ initialEntries, initialStats }: Props
           openingHours: editForm.openingHours,
           takeawayConfirmed: editForm.takeawayConfirmed,
           externalMenuUrl: editForm.externalMenuUrl,
+          logoUrl: editForm.logoUrl,
+          heroImageUrl: editForm.heroImageUrl,
+          description: editForm.description,
+          website: editForm.website,
+          instagram: editForm.instagram,
+          facebook: editForm.facebook,
           notes: editForm.notes,
           ...(geoResult ? { geo: geoResult } : { $unset: { geo: '' } }),
         }),
@@ -296,6 +369,12 @@ export default function DirectoryManager({ initialEntries, initialStats }: Props
               openingHours: editForm.openingHours,
               takeawayConfirmed: editForm.takeawayConfirmed,
               externalMenuUrl: editForm.externalMenuUrl,
+              logoUrl: editForm.logoUrl,
+              heroImageUrl: editForm.heroImageUrl,
+              description: editForm.description,
+              website: editForm.website,
+              instagram: editForm.instagram,
+              facebook: editForm.facebook,
               notes: editForm.notes,
             }
           : e
@@ -445,6 +524,38 @@ export default function DirectoryManager({ initialEntries, initialStats }: Props
                         <span className="text-zinc-600 text-xs flex items-center gap-1">
                           <UtensilsCrossed size={10} /> {entry.cuisineTypes.join(', ')}
                         </span>
+                      )}
+                    </div>
+
+                    {entry.description && (
+                      <p className="text-zinc-500 text-xs mt-1 line-clamp-2">{entry.description}</p>
+                    )}
+
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {entry.logoUrl && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          Logo
+                        </span>
+                      )}
+                      {entry.heroImageUrl && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                          Portada
+                        </span>
+                      )}
+                      {entry.website && (
+                        <a href={entry.website} target="_blank" rel="noopener noreferrer" className="text-xs px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:text-purple-300">
+                          Web
+                        </a>
+                      )}
+                      {entry.instagram && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-pink-500/10 text-pink-400 border border-pink-500/20">
+                          IG: {entry.instagram}
+                        </span>
+                      )}
+                      {entry.facebook && (
+                        <a href={entry.facebook} target="_blank" rel="noopener noreferrer" className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:text-blue-300">
+                          FB
+                        </a>
                       )}
                     </div>
 

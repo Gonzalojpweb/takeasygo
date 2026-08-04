@@ -41,6 +41,12 @@ export interface RestaurantCardData {
   serviceHours?: { takeaway: ServiceSlot[]; delivery?: ServiceSlot[] }
   openingHours?: string
   externalMenuUrl?: string
+  // Directory enrichment fields
+  description?: string
+  heroImageUrl?: string
+  website?: string
+  instagram?: string
+  facebook?: string
   loyaltyInfo?: {
     hasClub: boolean
     clubName?: string | null

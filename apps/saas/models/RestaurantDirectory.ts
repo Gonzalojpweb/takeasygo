@@ -2,6 +2,8 @@ import mongoose, { Schema, Document } from 'mongoose'
 
 export type DirectoryStatus = 'listed' | 'claimed' | 'converted'
 
+export type ServiceSlot = { days: number[]; open: string; close: string }
+
 export interface IRestaurantDirectory extends Document {
   name: string
   address: string
@@ -12,8 +14,15 @@ export interface IRestaurantDirectory extends Document {
   phone: string
   cuisineTypes: string[]          // ["pizza", "sushi", "hamburgesas", ...]
   openingHours: string            // texto libre para MVP: "Lun-Vie 12-23hs"
+  serviceHours: ServiceSlot[]     // horarios estructurados (takeaway)
   takeawayConfirmed: boolean      // confirmado que acepta takeaway
   externalMenuUrl: string         // link a carta propia (si tienen)
+  logoUrl: string                 // logo del comercio
+  heroImageUrl: string            // imagen de portada
+  description: string             // descripción breve del comercio
+  website: string                 // sitio web oficial
+  instagram: string               // usuario de Instagram
+  facebook: string                // URL de Facebook
   status: DirectoryStatus         // listed → claimed → converted
   addedBy: 'superadmin' | 'self_reported'
   convertedToTenantId: mongoose.Types.ObjectId | null  // si se hicieron tenant
@@ -57,11 +66,49 @@ const RestaurantDirectorySchema = new Schema<IRestaurantDirectory>(
       trim: true,
       default: '',
     },
+    serviceHours: {
+      type: [{
+        days: { type: [Number], default: [] },
+        open: { type: String, default: '' },
+        close: { type: String, default: '' },
+      }],
+      default: [],
+    },
     takeawayConfirmed: {
       type: Boolean,
       default: true,
     },
     externalMenuUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    logoUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    heroImageUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    description: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    website: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    instagram: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    facebook: {
       type: String,
       trim: true,
       default: '',

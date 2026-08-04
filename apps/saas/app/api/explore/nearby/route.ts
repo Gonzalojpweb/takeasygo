@@ -8,6 +8,7 @@ import Promotion from '@/models/Promotion'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkIsOpenNow } from '@/lib/service-hours'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
+import { rateLimit } from '@/lib/rateLimit'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 
 const DEFAULT_RADIUS_M = 20000 // 20 km
@@ -49,6 +50,11 @@ export interface NearbyRestaurant {
   // Solo en type = 'listed'
   externalMenuUrl?: string
   status?: string
+  description?: string
+  heroImageUrl?: string
+  website?: string
+  instagram?: string
+  facebook?: string
   // Algoritmo de visibilidad (solo network, interno)
   visibilityScore?: number
   // isNew: tenant creado en últimos 30 días
@@ -91,6 +97,11 @@ function toRestaurantCardData(r: NearbyRestaurant): RestaurantCardData {
     serviceHours: r.serviceHours,
     openingHours: r.openingHours,
     externalMenuUrl: r.externalMenuUrl,
+    description: r.description,
+    heroImageUrl: r.heroImageUrl,
+    website: r.website,
+    instagram: r.instagram,
+    facebook: r.facebook,
     loyaltyInfo: r.loyaltyInfo ? {
       ...r.loyaltyInfo,
       promoTypes: r.loyaltyInfo.promoTypes ?? [],
@@ -103,6 +114,15 @@ function toRestaurantCardData(r: NearbyRestaurant): RestaurantCardData {
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const rl = await rateLimit(`explore-nearby:${ip}`, 30, 60_000)
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'Demasiadas solicitudes. Intentá de nuevo en un minuto.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
 
     const lat    = parseFloat(searchParams.get('lat') ?? '')
@@ -310,7 +330,14 @@ export async function GET(request: NextRequest) {
             phone: 1,
             cuisineTypes: 1,
             openingHours: 1,
+            serviceHours: 1,
             externalMenuUrl: 1,
+            logoUrl: 1,
+            heroImageUrl: 1,
+            description: 1,
+            website: 1,
+            instagram: 1,
+            facebook: 1,
             status: 1,
             'geo.coordinates': 1,
           },
@@ -396,21 +423,37 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const directoryResults: NearbyRestaurant[] = directoryRaw.map(entry => ({
-      id: entry._id.toString(),
-      type: 'listed',
-      name: entry.name,
-      address: entry.address,
-      lat: entry.geo?.coordinates?.[1] ?? lat,
-      lng: entry.geo?.coordinates?.[0] ?? lng,
-      distanceM: Math.round(entry.distanceM),
-      phone: entry.phone ?? '',
-      cuisineTypes: entry.cuisineTypes ?? [],
-      openingHours: entry.openingHours ?? '',
-      isOpenNow: null, // horarios en texto libre, no parseable
-      externalMenuUrl: entry.externalMenuUrl ?? '',
-      status: entry.status,
-    }))
+    const directoryResults: NearbyRestaurant[] = directoryRaw.map(entry => {
+      const tz = 'America/Argentina/Buenos_Aires'
+      const hasStructuredHours = entry.serviceHours && entry.serviceHours.length > 0
+      const isOpenNow = hasStructuredHours
+        ? checkIsOpenNow({ takeaway: entry.serviceHours }, 'takeaway', tz) ?? null
+        : null
+
+      return {
+        id: entry._id.toString(),
+        type: 'listed',
+        name: entry.name,
+        address: entry.address,
+        lat: entry.geo?.coordinates?.[1] ?? lat,
+        lng: entry.geo?.coordinates?.[0] ?? lng,
+        distanceM: Math.round(entry.distanceM),
+        phone: entry.phone ?? '',
+        cuisineTypes: entry.cuisineTypes ?? [],
+        openingHours: entry.openingHours ?? '',
+        isOpenNow,
+        serviceHours: hasStructuredHours ? { takeaway: entry.serviceHours } : undefined,
+        externalMenuUrl: entry.externalMenuUrl ?? '',
+        logoUrl: entry.logoUrl ?? '',
+        heroImage: entry.heroImageUrl ?? entry.logoUrl ?? '',
+        heroImageUrl: entry.heroImageUrl ?? '',
+        description: entry.description ?? '',
+        website: entry.website ?? '',
+        instagram: entry.instagram ?? '',
+        facebook: entry.facebook ?? '',
+        status: entry.status,
+      }
+    })
 
     // ── Merge + ordenar por Visibility Algorithm ─────────────────────────────
     // Network: ordenado por visibilityScore (desc), directorio: por distancia (asc)

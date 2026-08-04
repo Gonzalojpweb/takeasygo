@@ -7,12 +7,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 import { checkIsOpenNow } from '@/lib/service-hours'
 import { getNowInTimezone } from '@/lib/restaurant-time'
+import { rateLimit } from '@/lib/rateLimit'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 
 const SEARCH_RADIUS_M = 20000 // 20 km
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const rl = await rateLimit(`explore-home:${ip}`, 30, 60_000)
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'Demasiadas solicitudes. Intentá de nuevo en un minuto.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const lat = parseFloat(searchParams.get('lat') ?? '')
     const lng = parseFloat(searchParams.get('lng') ?? '')
