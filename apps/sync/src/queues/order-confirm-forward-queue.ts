@@ -14,7 +14,7 @@ export async function enqueueConfirmForward(
   data: ConfirmForwardJobData
 ): Promise<void> {
   await queue.add(QUEUE_CONFIRM_FORWARD, data, {
-    jobId: `confirm_forward-${data.orderId}`,
+    jobId: `confirm_forward-${data.orderId}-${data.status || "confirm"}`,
     delay: 2000,
   })
 }
