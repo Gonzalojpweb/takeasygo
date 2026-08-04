@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
+import { escapeRegex } from '@takeasygo/business'
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,8 +18,8 @@ export async function POST(req: NextRequest) {
 
     // Evitar duplicados por nombre + dirección
     const exists = await RestaurantDirectory.findOne({
-      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
-      address: { $regex: new RegExp(address.trim().slice(0, 20), 'i') },
+      name: { $regex: `^${escapeRegex(name.trim())}$`, $options: 'i' },
+      address: { $regex: escapeRegex(address.trim().slice(0, 20)), $options: 'i' },
     })
 
     if (exists) {

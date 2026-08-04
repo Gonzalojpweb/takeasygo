@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import StoreRedemption from '@/models/StoreRedemption'
 import Tenant from '@/models/Tenant'
 import { requireAdminRole } from '@/lib/apiAuth'
+import { escapeRegex } from '@takeasygo/business'
 
 export async function GET(
   request: NextRequest,
@@ -37,7 +38,7 @@ export async function GET(
     }
     if (search) {
       query.$or = [
-        { redemptionCode: { $regex: search, $options: 'i' } },
+        { redemptionCode: { $regex: escapeRegex(search), $options: 'i' } },
       ]
     }
 

@@ -5,6 +5,7 @@ import Tenant from '@/models/Tenant'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
 import { safeDecrypt } from '@/lib/crypto'
+import { escapeRegex } from '@takeasygo/business'
 
 const PAGE_SIZE = 25
 
@@ -63,7 +64,7 @@ export async function GET(
 
     if (q) {
       // Solo busca por orderNumber — customer.name está cifrado en DB
-      filter.orderNumber = { $regex: q, $options: 'i' }
+      filter.orderNumber = { $regex: escapeRegex(q), $options: 'i' }
     }
 
     const [orders, total, locations] = await Promise.all([

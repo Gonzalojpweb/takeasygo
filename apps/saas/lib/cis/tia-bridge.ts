@@ -21,6 +21,7 @@ import mongoose from 'mongoose'
 import CustomerProfile from '@/models/CustomerProfile'
 import Order from '@/models/Order'
 import Consumer from '@/models/Consumer'
+import { escapeRegex } from '@takeasygo/business'
 
 // ── Clientes que compraron cierto item pero no otro ──────────────────────────
 
@@ -32,7 +33,7 @@ export async function findCustomersWhoBoughtWithout(
   // Órdenes que tienen el item comprado
   const ordersWithBought = await Order.find({
     tenantId,
-    'items.name': { $regex: boughtItem, $options: 'i' },
+    'items.name': { $regex: escapeRegex(boughtItem), $options: 'i' },
     status: { $nin: ['cancelled'] },
   }).select('customer.phoneHash').lean()
 
@@ -41,7 +42,7 @@ export async function findCustomersWhoBoughtWithout(
   // Órdenes que tienen el item faltante
   const ordersWithMissing = await Order.find({
     tenantId,
-    'items.name': { $regex: missingItem, $options: 'i' },
+    'items.name': { $regex: escapeRegex(missingItem), $options: 'i' },
     status: { $nin: ['cancelled'] },
   }).select('customer.phoneHash').lean()
 

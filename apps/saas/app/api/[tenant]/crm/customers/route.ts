@@ -5,6 +5,7 @@ import Consumer from '@/models/Consumer'
 import CustomerProfile from '@/models/CustomerProfile'
 import { safeDecrypt } from '@/lib/crypto'
 import { canAccess } from '@/lib/plans'
+import { escapeRegex } from '@takeasygo/business'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/[tenant]/crm/customers — Lista enriquecida con filtros CIS
@@ -97,10 +98,10 @@ export async function GET(
 
     if (search) {
       consumerFilter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phoneHash: { $regex: search, $options: 'i' } },
+        { name: { $regex: escapeRegex(search), $options: 'i' } },
+        { phone: { $regex: escapeRegex(search), $options: 'i' } },
+        { email: { $regex: escapeRegex(search), $options: 'i' } },
+        { phoneHash: { $regex: escapeRegex(search), $options: 'i' } },
       ]
     }
 

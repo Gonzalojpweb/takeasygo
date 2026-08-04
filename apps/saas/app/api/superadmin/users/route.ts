@@ -3,6 +3,7 @@ import User from '@/models/User'
 import bcrypt from 'bcryptjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
+import { escapeRegex } from '@takeasygo/business'
 import { superadminCreateUserSchema } from '@/lib/schemas'
 
 export async function GET(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     else if (status === 'inactive') filter.isActive = false
 
     if (search.trim()) {
-      const re = new RegExp(search.trim(), 'i')
+      const re = new RegExp(escapeRegex(search.trim()), 'i')
       filter.$or = [
         { name: re },
         { email: re },
