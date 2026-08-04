@@ -243,7 +243,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
     // Detener loop si todas las órdenes sonando fueron procesadas
     if (ringingIdsRef.current.size > 0) {
       const stillUnprocessed = new Set(
-        orders.filter(o => o.status === 'pending' || o.status === 'confirmed').map(o => o._id)
+        orders.filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'awaiting_confirmation').map(o => o._id)
       )
       const stillRinging = new Set([...ringingIdsRef.current].filter(id => stillUnprocessed.has(id)))
       if (stillRinging.size === 0) {
