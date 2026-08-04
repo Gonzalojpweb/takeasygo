@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { hashPhone } from '@/lib/crypto'
+import { escapeRegex } from '@takeasygo/business'
 import mongoose from 'mongoose'
 
 export async function GET(
@@ -57,7 +58,7 @@ export async function GET(
       filter.source = source
     }
     if (search.trim()) {
-      const re = new RegExp(search.trim(), 'i')
+      const re = new RegExp(escapeRegex(search.trim()), 'i')
       filter.$or = [
         { name: re },
         { phone: re },

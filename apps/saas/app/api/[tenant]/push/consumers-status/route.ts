@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import Consumer from '@/models/Consumer'
 import PushSubscription from '@/models/PushSubscription'
 import { requireAuth } from '@/lib/apiAuth'
+import { escapeRegex } from '@takeasygo/business'
 
 export async function GET(
   request: NextRequest,
@@ -31,7 +32,7 @@ export async function GET(
     }
 
     if (search) {
-      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      const regex = new RegExp(escapeRegex(search), 'i')
       query.$or = [
         { name: regex },
         { phone: regex },

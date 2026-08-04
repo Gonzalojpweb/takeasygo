@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import AuditLog from '@/models/AuditLog'
 import Tenant from '@/models/Tenant'
 import { requireAdminRole } from '@/lib/apiAuth'
+import { escapeRegex } from '@takeasygo/business'
 import { NextRequest, NextResponse } from 'next/server'
 
 const PAGE_SIZE = 50
@@ -32,7 +33,7 @@ export async function GET(
 
     const filter: Record<string, any> = { tenantId: tenant._id }
     if (entity) filter.entity = entity
-    if (action) filter.action = { $regex: action, $options: 'i' }
+    if (action) filter.action = { $regex: escapeRegex(action), $options: 'i' }
     if (userId) filter.userId = userId
 
     const [entries, total] = await Promise.all([

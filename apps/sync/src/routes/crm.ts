@@ -1,5 +1,6 @@
 import { Router } from "express"
 import mongoose from "mongoose"
+import { escapeRegex } from "@takeasygo/business"
 
 // ============================================================================
 // CRM Router — customer search for POS
@@ -28,7 +29,7 @@ export function crmRouter(): Router {
       const orders = db.collection("orders")
 
       // Build match conditions — search name, phone, or email
-      const queryRegex = { $regex: query, $options: "i" }
+      const queryRegex = { $regex: escapeRegex(query), $options: "i" }
       const matchStage = {
         tenantId,
         status: { $nin: ["cancelled"] },

@@ -57,7 +57,7 @@ async function verifyPaymentStatus(order: any, accessToken: string, tenantId: st
   }
 }
 
-export async function GET(
+export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ tenant: string; orderId: string }> }
 ) {

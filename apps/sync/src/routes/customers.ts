@@ -9,7 +9,7 @@
 import { Router, type Request, type Response } from "express"
 import { ConsumerModel } from "@takeasygo/db"
 import { TenantModel } from "@takeasygo/db"
-import { canAccess, normalizeForSearch, type Plan } from "@takeasygo/business"
+import { canAccess, normalizeForSearch, escapeRegex, type Plan } from "@takeasygo/business"
 import { decryptNames, encryptFields } from "../services/internal-api"
 import crypto from "crypto"
 
@@ -30,10 +30,6 @@ interface CustomerSearchResult {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
 
 function hashPhoneForSearch(phone: string): string {
   const digits = phone.replace(/\D/g, "")

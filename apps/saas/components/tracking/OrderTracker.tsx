@@ -213,7 +213,7 @@ export default function OrderTracker({
 
   const poll = useCallback(async () => {
     try {
-      const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/track`, { cache: 'no-store' })
+      const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/track`, { method: 'POST', cache: 'no-store' })
       if (!res.ok) return
       const data = await res.json()
       setStatus(data.status)

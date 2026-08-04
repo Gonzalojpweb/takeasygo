@@ -3,6 +3,7 @@ import User from '@/models/User'
 import UserPreferences from '@/models/UserPreferences'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
+import { escapeRegex } from '@takeasygo/business'
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (search.trim()) {
-      const re = new RegExp(search.trim(), 'i')
+      const re = new RegExp(escapeRegex(search.trim()), 'i')
       userFilter.$or = [{ name: re }, { email: re }]
     }
 
