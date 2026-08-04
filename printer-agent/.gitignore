@@ -2,3 +2,9 @@ node_modules/
 dist/
 *.exe
 .env
+
+/docs
+docs
+docs*
+
+/docs*
