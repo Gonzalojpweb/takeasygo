@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
-import { MapPin, Clock, Phone, Utensils, ExternalLink, ArrowLeft, ShoppingBag, Share2, Navigation, Star, ClockAlert, Heart } from 'lucide-react'
+import { MapPin, Clock, Phone, Utensils, ExternalLink, ArrowLeft, ShoppingBag, Share2, Navigation, Star, ClockAlert, Heart, Globe, Instagram, Facebook } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import WeeklySchedule from './WeeklySchedule'
@@ -86,9 +86,9 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
       {/* Hero */}
       <div className="relative shrink-0">
-        {r.heroImage ? (
+        {(r.heroImage || r.heroImageUrl) ? (
           <div className="relative" style={{ height: 280 }}>
-            <img src={r.heroImage} alt={r.name} className="w-full h-full object-cover" />
+            <img src={r.heroImageUrl || r.heroImage} alt={r.name} className="w-full h-full object-cover" />
             <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, var(--tgo-surface-0) 0%, rgba(26,26,26,0.6) 40%, transparent 100%)' }} />
           </div>
         ) : (
@@ -113,7 +113,7 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
         {/* Logo + Name */}
         <div className="absolute bottom-0 left-0 right-0" style={{ padding: '0 var(--tgo-page-padding) var(--tgo-space-4)' }}>
           <div className="flex items-end gap-3">
-            {isNetwork && r.logoUrl && (
+            {r.logoUrl && (
               <div className="shrink-0 overflow-hidden" style={{ width: 56, height: 56, borderRadius: 'var(--tgo-radius-md)', border: '3px solid var(--tgo-surface-0)', boxShadow: 'var(--tgo-elevation-floating)' }}>
                 <img src={r.logoUrl} alt={r.name} className="w-full h-full object-cover" />
               </div>
@@ -153,6 +153,9 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
         {/* Info card */}
         <div style={{ padding: 'var(--tgo-card-padding)', borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-card)', border: '1px solid var(--tgo-border)', boxShadow: 'var(--shadow-card)', marginBottom: 'var(--tgo-space-4)' }}>
           <div className="space-y-3">
+            {r.description && (
+              <p style={{ color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', lineHeight: 1.5 }}>{r.description}</p>
+            )}
             <InfoRow icon={<MapPin size={14} />} color="var(--tgo-text-muted)">{r.address}</InfoRow>
             {r.isOpenNow === true && r.serviceHours && (
               <InfoRow icon={<Clock size={14} />} color="var(--tgo-state-success)">
@@ -177,6 +180,21 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
             )}
             {r.phone && (
               <InfoRow icon={<Phone size={14} />} color="var(--tgo-text-muted)">{r.phone}</InfoRow>
+            )}
+            {r.website && (
+              <InfoRow icon={<Globe size={14} />} color="var(--tgo-text-muted)">
+                <a href={r.website} target="_blank" rel="noopener noreferrer" className="hover:underline">{r.website.replace(/^https?:\/\//, '')}</a>
+              </InfoRow>
+            )}
+            {r.instagram && (
+              <InfoRow icon={<Instagram size={14} />} color="var(--tgo-text-muted)">
+                <a href={`https://instagram.com/${r.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{r.instagram}</a>
+              </InfoRow>
+            )}
+            {r.facebook && (
+              <InfoRow icon={<Facebook size={14} />} color="var(--tgo-text-muted)">
+                <a href={r.facebook} target="_blank" rel="noopener noreferrer" className="hover:underline">Facebook</a>
+              </InfoRow>
             )}
             {isNetwork && r.estimatedPickupTime && (
               <InfoRow icon={<Clock size={14} />} color="var(--tgo-state-success)">
@@ -230,7 +248,13 @@ export default function RestaurantDetail({ restaurant: r }: Props) {
                 {microcopy.restaurant.viewCard}
               </a>
             )}
-            {!r.phone && !r.externalMenuUrl && (
+            {r.website && (
+              <a href={r.website} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 active:scale-[0.98]" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-card)', border: '1px solid var(--tgo-border)', color: 'var(--tgo-text-primary)', fontSize: 'var(--tgo-type-body-sm)', fontWeight: 700, boxShadow: 'var(--shadow-card)' }}>
+                <Globe size={16} />
+                Sitio web
+              </a>
+            )}
+            {!r.phone && !r.externalMenuUrl && !r.website && (
               <div className="flex-1 text-center" style={{ padding: '16px 24px', borderRadius: 'var(--tgo-radius-lg)', backgroundColor: 'var(--tgo-surface-2)', color: 'var(--tgo-text-muted)', fontSize: 'var(--tgo-type-body-sm)' }}>
                 {microcopy.restaurant.noContact}
               </div>

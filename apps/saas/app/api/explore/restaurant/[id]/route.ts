@@ -126,7 +126,15 @@ export async function GET(
       phone: e.phone ?? '',
       cuisineTypes: e.cuisineTypes ?? [],
       openingHours: e.openingHours ?? '',
+      serviceHours: e.serviceHours?.length > 0 ? { takeaway: e.serviceHours } : undefined,
       externalMenuUrl: e.externalMenuUrl ?? '',
+      logoUrl: e.logoUrl ?? '',
+      heroImage: e.heroImageUrl ?? e.logoUrl ?? '',
+      heroImageUrl: e.heroImageUrl ?? '',
+      description: e.description ?? '',
+      website: e.website ?? '',
+      instagram: e.instagram ?? '',
+      facebook: e.facebook ?? '',
       status: e.status,
     })
   } catch (error) {
