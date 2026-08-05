@@ -44,7 +44,7 @@ const STATUS_ORDER: Record<string, number> = {
 }
 
 function isForwardStatus(current: string | undefined, next: string): boolean {
-  return (STATUS_ORDER[next] ?? 0) >= (STATUS_ORDER[current ?? "awaiting_payment"] ?? 0)
+  return (STATUS_ORDER[next] ?? -1) >= (STATUS_ORDER[current ?? "awaiting_payment"] ?? -1)
 }
 
 interface PersistExternalOrderParams {
