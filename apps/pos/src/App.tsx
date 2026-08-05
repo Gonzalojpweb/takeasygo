@@ -5,8 +5,7 @@ import { LoginScreen } from "./components/LoginScreen"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
 import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
 import { IncomingOrdersDashboard } from "./components/IncomingOrders/IncomingOrdersDashboard"
-import { FlotaDashboard } from "./components/Flota/FlotaDashboard"
-import { CustomersDashboard } from "./components/Customers/CustomersDashboard"
+import { FlotaWidget } from "./components/Flota/FlotaWidget"
 import { SalesDashboard } from "./components/Sales/SalesDashboard"
 import { CashDashboard } from "./components/Cash/CashDashboard"
 import { Header } from "./components/layout/Header"
@@ -16,7 +15,7 @@ import { ActionBar } from "./components/layout/ActionBar"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
 import { QuickAccessPanel } from "./components/shared/QuickAccessPanel"
 import {
-  LayoutGrid, Users, Utensils, ShoppingBag, Bike, Banknote, BarChart3,
+  LayoutGrid, Utensils, ShoppingBag, Bike, Banknote, BarChart3,
 } from "lucide-react"
 import {
   startConnectivityMonitoring,
@@ -42,7 +41,7 @@ import { playOrderNotification } from "./services/notification-sound"
 import type { Order } from "@takeasygo/types"
 import "./styles/pos.css"
 
-type Context = "counter" | "customers" | "waiter" | "incoming" | "flota" | "caja" | "ventas"
+type Context = "counter" | "waiter" | "incoming" | "flota" | "caja" | "ventas"
 
 interface NavItem {
   id: string
@@ -52,7 +51,6 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "counter", icon: LayoutGrid, label: "Counter" },
-  { id: "customers", icon: Users, label: "Clientes" },
   { id: "waiter", icon: Utensils, label: "Waiter" },
   { id: "incoming", icon: ShoppingBag, label: "Pedidos" },
   { id: "flota", icon: Bike, label: "Flota" },
@@ -74,7 +72,7 @@ function App() {
 
     // ── Connect socket at root level (CRITICAL) ──
     // Previously, connectSocket() was only called in child components
-    // (IncomingOrdersDashboard, FlotaDashboard). This meant the socket
+    // (IncomingOrdersDashboard). This meant the socket
     // never connected if the user was on Counter/Caja/Ventas — all
     // order:created events were lost silently.
     connectSocket(state.jwt.accessToken)
@@ -306,22 +304,24 @@ function AppShell({
 
   return (
     <div className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-      <Header tenantName={tenantName} userName="Operador" />
+      <Header
+        tenantName={tenantName}
+        userName="Operador"
+        onQuickAccess={() => setShowQuickAccess(!showQuickAccess)}
+      />
 
       <Navigation
         items={NAV_ITEMS}
         activeId={activeContext}
         onSelect={(id) => setActiveContext(id as Context)}
         onLogout={logout}
-        onQuickAccess={() => setShowQuickAccess(!showQuickAccess)}
       />
 
       <main className="workspace">
         {activeContext === "counter" && <CounterDashboard />}
-        {activeContext === "customers" && <CustomersDashboard />}
         {activeContext === "waiter" && <WaiterDashboard />}
         {activeContext === "incoming" && <IncomingOrdersDashboard />}
-        {activeContext === "flota" && <FlotaDashboard />}
+        {activeContext === "flota" && <FlotaWidget />}
         {activeContext === "caja" && <CashDashboard />}
         {activeContext === "ventas" && <SalesDashboard />}
       </main>

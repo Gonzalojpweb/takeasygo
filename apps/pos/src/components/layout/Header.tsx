@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react"
+import { Zap } from "lucide-react"
 import { getSocket } from "../../services/socket-client"
 
 interface HeaderProps {
   tenantName: string
   userName: string
+  onQuickAccess?: () => void
 }
 
-export function Header({ tenantName, userName }: HeaderProps) {
+export function Header({ tenantName, userName, onQuickAccess }: HeaderProps) {
   const [time, setTime] = useState(new Date())
   const [connected, setConnected] = useState(() => getSocket()?.connected ?? false)
 
@@ -57,6 +59,23 @@ export function Header({ tenantName, userName }: HeaderProps) {
         </div>
       </div>
       <div className="header-right">
+        {onQuickAccess && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={onQuickAccess}
+            title="Accesos rápidos"
+            style={{
+              fontSize: "var(--font-size-xs)",
+              padding: "4px 8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            <Zap size={14} />
+            Accesos
+          </button>
+        )}
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => window.location.reload()}
