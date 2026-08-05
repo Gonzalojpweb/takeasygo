@@ -1,5 +1,5 @@
 import type { ComponentType } from "react"
-import { Zap, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { useLayout } from "./LayoutContext"
 
 interface NavigationItem {
@@ -14,10 +14,9 @@ interface NavigationProps {
   activeId: string
   onSelect: (id: string) => void
   onLogout: () => void
-  onQuickAccess?: () => void
 }
 
-export function Navigation({ items, activeId, onSelect, onLogout, onQuickAccess }: NavigationProps) {
+export function Navigation({ items, activeId, onSelect, onLogout }: NavigationProps) {
   const { sidebarCollapsed, toggleSidebar } = useLayout()
 
   return (
@@ -49,15 +48,6 @@ export function Navigation({ items, activeId, onSelect, onLogout, onQuickAccess 
       })}
 
       <div className="nav-spacer" />
-
-      {onQuickAccess && (
-        <div className="nav-item" onClick={onQuickAccess}>
-          <div className="nav-item-icon">
-            <Zap size={26} className="nav-item-svg" />
-          </div>
-          <span>Accesos</span>
-        </div>
-      )}
 
       <div className="nav-item" onClick={onLogout}>
         <div className="nav-item-icon">

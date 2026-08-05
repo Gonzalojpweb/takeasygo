@@ -15,7 +15,6 @@ const SSO_LINKS: SsoLink[] = [
   { id: "ico",       label: "ICO",       icon: "🎯", route: "/ico",       roles: ["admin", "manager"] },
   { id: "tia",       label: "TIA",       icon: "🤖", route: "/tia",       roles: ["admin", "manager"] },
   { id: "cis",       label: "CIS",       icon: "🏢", route: "/cis",       roles: ["admin", "manager"] },
-  { id: "crm",       label: "CRM",       icon: "👥", route: "/crm",       roles: ["admin", "manager", "cashier"] },
 ]
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
