@@ -20,7 +20,7 @@ import { formatCurrency, timeAgo } from "../../utils/format"
 import { prepareOrder, markReady, deliverOrder, setEnRuta, setArrived } from "../../services/order"
 import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
-import { UtensilsCrossed, Store, Package, Calendar } from "lucide-react"
+import { UtensilsCrossed, Store, Package, Calendar, ClipboardList } from "lucide-react"
 import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
 import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus } from "../../services/external-orders"
 import { OrderCard } from "../IncomingOrders/OrderCard"
@@ -32,8 +32,8 @@ import { AutoConfirmToggle } from "../IncomingOrders/AutoConfirmToggle"
 import { SocketStatus } from "../IncomingOrders/SocketStatus"
 import type { FilterOption } from "../IncomingOrders/GatewayFilters"
 
-type CounterView = "salon" | "mostrador" | "entrantes" | "reservaciones"
-type Scene = "salon" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "reservaciones"
+type CounterView = "salon" | "mostrador" | "entrantes" | "mis_pedidos" | "reservaciones"
+type Scene = "salon" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "mis_pedidos" | "reservaciones"
 type EntrantesSubView = "gateway" | "kanban"
 type GatewayScene = "queue" | "validation" | "transform"
 
@@ -47,6 +47,7 @@ const COUNTER_VIEWS: ViewDef[] = [
   { id: "salon", label: "Salón", icon: UtensilsCrossed },
   { id: "mostrador", label: "Mostrador", icon: Store },
   { id: "entrantes", label: "Pedidos Entrantes", icon: Package },
+  { id: "mis_pedidos", label: "Mis Pedidos", icon: ClipboardList },
   { id: "reservaciones", label: "Reservaciones", icon: Calendar },
 ]
 
@@ -158,6 +159,22 @@ export function CounterDashboard() {
     [tenantId]
   ) ?? []
 
+  // ── Mis Pedidos: pedidos creados en el POS (source: "pos") ─────────
+  const posOrders = useLiveQuery(
+    () => (tenantId
+      ? db.orders
+          .where("tenantId")
+          .equals(tenantId)
+          .and((o) =>
+            o.source === "pos" &&
+            o.status !== "delivered" &&
+            o.status !== "cancelled"
+          )
+          .toArray()
+      : []),
+    [tenantId]
+  ) ?? []
+
   // ── Detectar nuevos pedidos y reproducir audio ───────────────────
   useEffect(() => {
     const newOrders = gatewayOrders.filter((o) => !seenOrderIds.has(o.id))
@@ -170,6 +187,21 @@ export function CounterDashboard() {
       })
     }
   }, [gatewayOrders, seenOrderIds])
+
+  // ── Detectar nuevos pedidos POS y reproducir audio ──────────────
+  const [seenPosOrderIds, setSeenPosOrderIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    const newOrders = posOrders.filter((o) => !seenPosOrderIds.has(o.id))
+    if (newOrders.length > 0) {
+      NEW_ORDER_AUDIO.play().catch((err) => console.error("Error playing audio:", err))
+      showToast(`Nuevo pedido POS: #${newOrders[0].id.slice(0, 8)}`, "info")
+      setSeenPosOrderIds((prev) => {
+        const updated = new Set(prev)
+        newOrders.forEach((o) => updated.add(o.id))
+        return updated
+      })
+    }
+  }, [posOrders, seenPosOrderIds])
 
   // ============================================================================
   // GATEWAY HANDLERS
@@ -334,6 +366,51 @@ export function CounterDashboard() {
   }, [tenantId, state.jwt?.accessToken])
 
   // ============================================================================
+  // POS ORDER HANDLERS (Mis Pedidos kanban)
+  // ============================================================================
+
+  const handleConfirmPosOrder = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      const { confirmOrder } = await import("../../services/order")
+      await confirmOrder(tenantId, orderId)
+      showToast("Pedido confirmado", "success")
+    } catch {
+      showToast("Error al confirmar pedido", "error")
+    }
+  }, [tenantId])
+
+  const handlePreparePosOrder = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await prepareOrder(tenantId, orderId, state.jwt?.accessToken)
+      showToast("Pedido en preparación", "success")
+    } catch {
+      showToast("Error al iniciar preparación", "error")
+    }
+  }, [tenantId, state.jwt?.accessToken])
+
+  const handleMarkReadyPosOrder = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await markReady(tenantId, orderId, state.jwt?.accessToken)
+      showToast("Pedido listo", "success")
+    } catch {
+      showToast("Error al marcar listo", "error")
+    }
+  }, [tenantId, state.jwt?.accessToken])
+
+  const handleDeliverPosOrder = useCallback(async (orderId: string) => {
+    if (!tenantId) return
+    try {
+      await deliverOrder(tenantId, orderId, state.jwt?.accessToken)
+      showToast("Pedido entregado", "success")
+    } catch {
+      showToast("Error al entregar", "error")
+    }
+  }, [tenantId, state.jwt?.accessToken])
+
+  // ============================================================================
   // CART + TABLE HANDLERS (existing)
   // ============================================================================
 
@@ -362,6 +439,7 @@ export function CounterDashboard() {
       salon: "salon",
       mostrador: "mostrador_rapido",
       entrantes: "entrantes",
+      mis_pedidos: "mis_pedidos",
       reservaciones: "reservaciones",
     }
     setScene(defaults[viewId] ?? "salon")
@@ -1641,6 +1719,162 @@ export function CounterDashboard() {
       )}
 
       {/* ================================================ */}
+      {/* VIEW: MIS PEDIDS (POS-created orders kanban) */}
+      {/* ================================================ */}
+      {view === "mis_pedidos" && (
+        <>
+          <div className="workspace-header">
+            <div>
+              <div className="workspace-title">Mis Pedidos</div>
+              <div className="workspace-subtitle">Pedidos creados en el POS</div>
+            </div>
+          </div>
+          <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            {posOrders.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon">📋</span>
+                <span className="empty-state-text">No hay pedidos activos</span>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--sp-3)", height: "100%" }}>
+                {/* Columna: Pendientes */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                  <div style={{
+                    padding: "var(--sp-2)",
+                    background: "var(--surface-secondary)",
+                    borderRadius: "var(--radius)",
+                    fontWeight: 600,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span>Pendientes</span>
+                    <span style={{
+                      background: "var(--warning-bg, #fff3cd)",
+                      color: "var(--warning)",
+                      padding: "2px 8px",
+                      borderRadius: 12,
+                      fontSize: "var(--font-size-xs)"
+                    }}>
+                      {posOrders.filter((o) => o.status === "pending").length}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {posOrders.filter((o) => o.status === "pending").map((order) => (
+                      <PosOrderCard
+                        key={order.id}
+                        order={order}
+                        onConfirm={handleConfirmPosOrder}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Columna: Por preparar */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                  <div style={{
+                    padding: "var(--sp-2)",
+                    background: "var(--surface-secondary)",
+                    borderRadius: "var(--radius)",
+                    fontWeight: 600,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span>Por preparar</span>
+                    <span style={{
+                      background: "var(--info-bg, #e3f2fd)",
+                      color: "var(--info)",
+                      padding: "2px 8px",
+                      borderRadius: 12,
+                      fontSize: "var(--font-size-xs)"
+                    }}>
+                      {posOrders.filter((o) => o.status === "confirmed").length}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {posOrders.filter((o) => o.status === "confirmed").map((order) => (
+                      <PosOrderCard
+                        key={order.id}
+                        order={order}
+                        onPrepare={handlePreparePosOrder}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Columna: Preparando */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                  <div style={{
+                    padding: "var(--sp-2)",
+                    background: "var(--surface-secondary)",
+                    borderRadius: "var(--radius)",
+                    fontWeight: 600,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span>Preparando</span>
+                    <span style={{
+                      background: "var(--warning-bg, #fff3cd)",
+                      color: "var(--warning)",
+                      padding: "2px 8px",
+                      borderRadius: 12,
+                      fontSize: "var(--font-size-xs)"
+                    }}>
+                      {posOrders.filter((o) => o.status === "preparing").length}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {posOrders.filter((o) => o.status === "preparing").map((order) => (
+                      <PosOrderCard
+                        key={order.id}
+                        order={order}
+                        onMarkReady={handleMarkReadyPosOrder}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Columna: Listos */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                  <div style={{
+                    padding: "var(--sp-2)",
+                    background: "var(--surface-secondary)",
+                    borderRadius: "var(--radius)",
+                    fontWeight: 600,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <span>Listos</span>
+                    <span style={{
+                      background: "var(--success-bg, #e6f7e6)",
+                      color: "var(--success)",
+                      padding: "2px 8px",
+                      borderRadius: 12,
+                      fontSize: "var(--font-size-xs)"
+                    }}>
+                      {posOrders.filter((o) => o.status === "ready").length}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+                    {posOrders.filter((o) => o.status === "ready").map((order) => (
+                      <PosOrderCard
+                        key={order.id}
+                        order={order}
+                        onDeliver={handleDeliverPosOrder}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ================================================ */}
       {/* VIEW: RESERVACIONES */}
       {/* ================================================ */}
       {view === "reservaciones" && (
@@ -1749,6 +1983,93 @@ function KanbanOrderCard({ order, onClick, onPrepare, onMarkReady, onSetEnRuta, 
                 {order.status === "ready" && "Listo"}
                 {order.status === "en_ruta" && "En Ruta"}
                 {order.status === "arrived" && "Llegó"}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="order-card-items">
+          {order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
+        </div>
+        {nextAction.action && (
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ marginTop: "var(--sp-2)" }}
+            onClick={() => nextAction.action?.(order.id)}
+          >
+            {nextAction.label}
+          </button>
+        )}
+      </div>
+      <div className="order-card-right">
+        <span className={`order-card-time ${isUrgent ? "urgent" : ""}`}>
+          {isUrgent ? `⚠ ${minutes} min` : timeAgo(order.createdAt)}
+        </span>
+        <span className="order-card-total">{formatCurrency(order.total)}</span>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// PosOrderCard - Componente para pedidos creados en el POS (Mis Pedidos)
+// ============================================================================
+
+interface PosOrderCardProps {
+  order: Order
+  onConfirm?: (orderId: string) => void
+  onPrepare?: (orderId: string) => void
+  onMarkReady?: (orderId: string) => void
+  onDeliver?: (orderId: string) => void
+}
+
+function PosOrderCard({ order, onConfirm, onPrepare, onMarkReady, onDeliver }: PosOrderCardProps) {
+  const minutes = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)
+  const isUrgent = minutes > 5
+
+  function getNextAction() {
+    switch (order.status) {
+      case "pending":
+        return { label: "Confirmar", action: onConfirm }
+      case "confirmed":
+        return { label: "Iniciar Preparación", action: onPrepare }
+      case "preparing":
+        return { label: "Marcar Listo", action: onMarkReady }
+      case "ready":
+        return { label: "Entregado", action: onDeliver }
+      default:
+        return { label: null, action: null }
+    }
+  }
+
+  const nextAction = getNextAction()
+
+  return (
+    <div className={`order-card ${isUrgent ? "urgent" : ""}`} style={{ cursor: "default" }}>
+      <div className="order-card-left">
+        <div className="order-card-header">
+          <div className="order-card-source pickup">
+            🍽️
+          </div>
+          <div>
+            <div className="order-card-title">
+              #{order.id.slice(0, 8)}
+            </div>
+            <div className="order-card-meta">
+              <span>Mesa {order.tableId ?? "—"}</span>
+              <span style={{
+                fontSize: "var(--font-size-xs)",
+                color: order.status === "pending" ? "var(--text-muted)" :
+                       order.status === "confirmed" ? "var(--info)" :
+                       order.status === "preparing" ? "var(--warning)" :
+                       order.status === "ready" ? "var(--success)" : "var(--text-muted)",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}>
+                {order.status === "pending" && "Pendiente"}
+                {order.status === "confirmed" && "Por preparar"}
+                {order.status === "preparing" && "Preparando"}
+                {order.status === "ready" && "Listo"}
               </span>
             </div>
           </div>
