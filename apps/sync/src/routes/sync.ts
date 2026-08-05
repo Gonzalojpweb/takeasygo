@@ -46,8 +46,11 @@ export function syncRouter(
       for (const event of events) {
         if (event.type?.startsWith("order.") && event.payload?.orderId) {
           const statusMap: Record<string, string> = {
+            "order.confirmed": "confirmed",
             "order.preparing": "preparing",
-            "order.ready": "ready",
+            "order.ready":     "ready",
+            "order.en_ruta":   "en_ruta",
+            "order.arrived":   "arrived",
             "order.delivered": "delivered",
             "order.cancelled": "cancelled",
           }
