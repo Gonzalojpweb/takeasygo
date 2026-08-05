@@ -38,7 +38,11 @@ export const config = {
 
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
 
-  internalApiSecret: process.env.INTERNAL_API_SECRET ?? "",
+  internalApiSecret: (() => {
+    const val = process.env.INTERNAL_API_SECRET ?? ""
+    console.log(`[config] INTERNAL_API_SECRET loaded: length=${val.length}, first4="${val.slice(0, 4)}", last4="${val.slice(-4)}"`)
+    return val
+  })(),
   saasBaseUrl: process.env.SAAS_BASE_URL ?? "http://localhost:3000",
 
   rateLimitToken: parseInt(process.env.RATE_LIMIT_TOKEN ?? "100", 10),
