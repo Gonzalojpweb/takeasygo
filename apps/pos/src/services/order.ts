@@ -349,7 +349,8 @@ export async function deliverOrder(
 
 export async function setEnRuta(
   tenantId: string,
-  orderId: string
+  orderId: string,
+  jwt?: string
 ): Promise<void> {
   const order = await db.orders.get(orderId)
   if (!order) throw new Error(`[order] Order ${orderId} not found`)
@@ -367,11 +368,16 @@ export async function setEnRuta(
     tableId: order.tableId,
     source: order.source,
   })
+
+  if (jwt) {
+    notifyStatusToSyncLayer(orderId, "en_ruta", jwt).catch(() => {})
+  }
 }
 
 export async function setArrived(
   tenantId: string,
-  orderId: string
+  orderId: string,
+  jwt?: string
 ): Promise<void> {
   const order = await db.orders.get(orderId)
   if (!order) throw new Error(`[order] Order ${orderId} not found`)
@@ -389,6 +395,10 @@ export async function setArrived(
     tableId: order.tableId,
     source: order.source,
   })
+
+  if (jwt) {
+    notifyStatusToSyncLayer(orderId, "arrived", jwt).catch(() => {})
+  }
 }
 
 // ============================================================================

@@ -53,6 +53,7 @@ export function syncRouter(
           }
           const newStatus = statusMap[event.type]
           if (newStatus) {
+            console.log(`[sync/replay] event=${event.type}, orderId=${event.payload?.orderId}, newStatus=${newStatus}`)
             const updated = await updateOrderStatus(
               event.payload.orderId,
               auth.tenantId,
@@ -76,6 +77,7 @@ export function syncRouter(
                     { externalOrderId: event.payload.orderId },
                   ],
                 }).lean()
+                console.log(`[sync/replay] syncOrder found=${!!syncOrder}, externalOrderId=${syncOrder?.externalOrderId ?? "UNDEFINED"}`)
                 if (syncOrder?.externalOrderId) {
                   await enqueueConfirmForward(confirmForwardQueue, {
                     tenantId: auth.tenantId,
@@ -83,6 +85,9 @@ export function syncRouter(
                     externalOrderId: syncOrder.externalOrderId,
                     status: newStatus,
                   })
+                  console.log(`[sync/replay] enqueueConfirmForward CALLED for ${event.payload.orderId}`)
+                } else {
+                  console.warn(`[sync/replay] SKIPPED enqueueConfirmForward — syncOrder=${!!syncOrder}, externalOrderId=${syncOrder?.externalOrderId ?? "UNDEFINED"}`)
                 }
               }
             }
