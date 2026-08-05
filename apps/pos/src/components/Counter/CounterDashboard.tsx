@@ -316,22 +316,22 @@ export function CounterDashboard() {
   const handleSetEnRutaExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await setEnRuta(tenantId, orderId)
+      await setEnRuta(tenantId, orderId, state.jwt?.accessToken)
       showToast("Pedido en ruta", "success")
     } catch {
       showToast("Error al marcar en ruta", "error")
     }
-  }, [tenantId])
+  }, [tenantId, state.jwt?.accessToken])
 
   const handleSetArrivedExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await setArrived(tenantId, orderId)
+      await setArrived(tenantId, orderId, state.jwt?.accessToken)
       showToast("Pedido llegó", "success")
     } catch {
       showToast("Error al marcar llegó", "error")
     }
-  }, [tenantId])
+  }, [tenantId, state.jwt?.accessToken])
 
   // ============================================================================
   // CART + TABLE HANDLERS (existing)

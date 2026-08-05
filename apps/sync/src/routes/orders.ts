@@ -153,8 +153,11 @@ export function ordersRouter(
         return
       }
 
+      console.log(`[orders/status] orderId=${orderId}, isObjectId=${mongoose.Types.ObjectId.isValid(orderId)}, tenantId=${auth.tenantId}, status=${status}`)
+
       const updated = await updateOrderStatus(orderId, auth.tenantId, status)
       if (!updated) {
+        console.warn(`[orders/status] ORDER NOT FOUND: orderId=${orderId}, tenantId=${auth.tenantId}`)
         res.status(404).json({ error: "Order not found" })
         return
       }
@@ -175,6 +178,7 @@ export function ordersRouter(
           { externalOrderId: orderId },
         ],
       }).lean()
+      console.log(`[orders/status] syncOrder found=${!!syncOrder}, externalOrderId=${syncOrder?.externalOrderId ?? "UNDEFINED"}`)
       if (syncOrder?.externalOrderId) {
         await enqueueConfirmForward(confirmForwardQueue, {
           tenantId: auth.tenantId,
@@ -182,6 +186,9 @@ export function ordersRouter(
           externalOrderId: syncOrder.externalOrderId,
           status,
         })
+        console.log(`[orders/status] enqueueConfirmForward CALLED for ${orderId}`)
+      } else {
+        console.warn(`[orders/status] SKIPPED enqueueConfirmForward — syncOrder=${!!syncOrder}, externalOrderId=${syncOrder?.externalOrderId ?? "UNDEFINED"}`)
       }
 
       res.json({ status })

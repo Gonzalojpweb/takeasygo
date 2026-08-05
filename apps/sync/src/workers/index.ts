@@ -125,6 +125,8 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
     async (job) => {
       const { tenantId, orderId, externalOrderId, status } = job.data
 
+      console.log(`[worker/confirm-forward] JOB RECEIVED: orderId=${orderId}, status=${status}, externalOrderId=${externalOrderId}, tenantId=${tenantId}`)
+
       const saasTenantSlug = await getSaaSslug(tenantId)
       if (!saasTenantSlug) {
         console.error(`[worker/confirm-forward] tenant slug not found for ${tenantId}`)
