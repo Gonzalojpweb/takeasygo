@@ -91,7 +91,7 @@ export async function PATCH(
     }
 
     const allowedTransitions = VALID_TRANSITIONS[order.status]
-    if (!allowedTransitions.includes(status)) {
+    if (!isInternalAuth(request) && !allowedTransitions.includes(status)) {
       return NextResponse.json(
         { error: `No se puede pasar de "${order.status}" a "${status}"` },
         { status: 400 }
