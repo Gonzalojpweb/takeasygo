@@ -23,12 +23,10 @@ export async function POST(
   try {
     const { tenant: tenantSlug, orderId } = await params
 
-    // Auth: Bearer token = SYNC_LAYER_SECRET
-    const authHeader = request.headers.get('authorization') ?? ''
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+    // Auth: X-Internal-Secret header = SYNC_LAYER_SECRET
+    const internalSecret = request.headers.get('x-internal-secret') ?? ''
     const expectedSecret = process.env.SYNC_LAYER_SECRET ?? ''
-    console.log(`[confirm-internal] token length: ${token.length}, expectedSecret length: ${expectedSecret.length}, token == expected: ${token === expectedSecret}`)
-    if (!expectedSecret || token !== expectedSecret) {
+    if (!expectedSecret || internalSecret !== expectedSecret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

@@ -44,11 +44,9 @@ const STATUS_TIMESTAMP: Record<string, keyof import('@/models/Order').IStatusTim
 
 /** Check if request uses internal secret auth (SyncLayer → SaaS) */
 function isInternalAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization') ?? ''
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+  const internalSecret = request.headers.get('x-internal-secret') ?? ''
   const expectedSecret = process.env.SYNC_LAYER_SECRET ?? ''
-  console.log(`[isInternalAuth] token length: ${token.length}, expectedSecret length: ${expectedSecret.length}, token == expected: ${token === expectedSecret}`)
-  return !!expectedSecret && token === expectedSecret
+  return !!expectedSecret && internalSecret === expectedSecret
 }
 
 export async function PATCH(
