@@ -152,7 +152,7 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
         method: isStatusUpdate ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${config.internalApiSecret}`,
+          "X-Internal-Secret": config.internalApiSecret,
         },
         body,
       })

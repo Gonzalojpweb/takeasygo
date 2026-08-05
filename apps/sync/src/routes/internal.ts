@@ -10,9 +10,8 @@ import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queu
 import { SyncOrderModel } from "@takeasygo/db"
 
 function internalAuth(req: any, res: any, next: any) {
-  const header = req.headers.authorization ?? ""
-  const token = header.startsWith("Bearer ") ? header.slice(7) : ""
-  if (token !== config.internalApiSecret) {
+  const header = req.headers["x-internal-secret"] ?? ""
+  if (header !== config.internalApiSecret) {
     return res.status(401).json({ error: "Unauthorized" })
   }
   next()

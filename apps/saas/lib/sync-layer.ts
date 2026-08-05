@@ -26,7 +26,7 @@ export async function pushOrderToSyncLayer(payload: SyncOrderPayload): Promise<v
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SYNC_LAYER_SECRET}`,
+        "X-Internal-Secret": SYNC_LAYER_SECRET,
       },
       body: JSON.stringify(payload),
     })
@@ -58,7 +58,7 @@ export async function confirmOrderInSyncLayer(
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${SYNC_LAYER_SECRET}`,
+          "X-Internal-Secret": SYNC_LAYER_SECRET,
         },
         body: JSON.stringify({ tenantId }),
       })
@@ -103,7 +103,7 @@ export async function notifyCashSale(payload: CashSalePayload): Promise<void> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SYNC_LAYER_SECRET}`,
+        "X-Internal-Secret": SYNC_LAYER_SECRET,
       },
       body: JSON.stringify(payload),
     })
@@ -248,7 +248,7 @@ export async function notifySyncLayerStatus(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SYNC_LAYER_SECRET}`,
+        "X-Internal-Secret": SYNC_LAYER_SECRET,
       },
       body: JSON.stringify({ tenantId, status, skipForward: true }),
     })
