@@ -13,7 +13,6 @@ import { Navigation } from "./components/layout/Navigation"
 import { ContextPanel } from "./components/layout/ContextPanel"
 import { ActionBar } from "./components/layout/ActionBar"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
-import { QuickAccessPanel } from "./components/shared/QuickAccessPanel"
 import {
   LayoutGrid, Utensils, ShoppingBag, Bike, Banknote, BarChart3,
 } from "lucide-react"
@@ -61,7 +60,6 @@ const NAV_ITEMS: NavItem[] = [
 function App() {
   const { state, login, logout } = useAuth()
   const [activeContext, setActiveContext] = useState<Context>("counter")
-  const [showQuickAccess, setShowQuickAccess] = useState(false)
 
   useEffect(() => {
     if (state.status !== "authenticated" || !state.tenantId || !state.jwt) {
@@ -278,8 +276,6 @@ function App() {
         activeContext={activeContext}
         setActiveContext={setActiveContext}
         logout={logout}
-        showQuickAccess={showQuickAccess}
-        setShowQuickAccess={setShowQuickAccess}
       />
     </LayoutProvider>
   )
@@ -290,25 +286,17 @@ function AppShell({
   activeContext,
   setActiveContext,
   logout,
-  showQuickAccess,
-  setShowQuickAccess,
 }: {
   tenantName: string
   activeContext: Context
   setActiveContext: (ctx: Context) => void
   logout: () => void
-  showQuickAccess: boolean
-  setShowQuickAccess: (show: boolean) => void
 }) {
   const { sidebarCollapsed } = useLayout()
 
   return (
     <div className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-      <Header
-        tenantName={tenantName}
-        userName="Operador"
-        onQuickAccess={() => setShowQuickAccess(!showQuickAccess)}
-      />
+      <Header tenantName={tenantName} userName="Operador" />
 
       <Navigation
         items={NAV_ITEMS}
@@ -328,11 +316,6 @@ function AppShell({
 
       <ContextPanel />
       <ActionBar />
-
-      <QuickAccessPanel
-        isOpen={showQuickAccess}
-        onClose={() => setShowQuickAccess(false)}
-      />
     </div>
   )
 }
