@@ -7,7 +7,7 @@ import { getPayment } from '@/lib/kripton'
 import { decrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
-import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
+import { addPointsFromOrder, processRewardDeduction, revertRewardRedemptions } from '@/lib/loyalty'
 
 const KRIPTON_CONFIRMED_STATES = ['confirmed', 'payed', 'pre_confirmed', 'completing']
 const KRIPTON_FAILED_STATES = ['expired', 'cancel', 'cancelled', 'rejected']
@@ -131,6 +131,7 @@ export async function POST(
           }
         } else if (isFailed) {
           order.status = 'cancelled'
+          await revertRewardRedemptions(order, tenant, session)
         }
 
         await order.save({ session })

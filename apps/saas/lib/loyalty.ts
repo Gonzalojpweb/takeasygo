@@ -3,6 +3,7 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import LocationLoyaltyConfig from '@/models/LocationLoyaltyConfig'
 import Order from '@/models/Order'
 import StoreItem from '@/models/StoreItem'
+import StoreRedemption from '@/models/StoreRedemption'
 import { syncWalletPoints } from '@/lib/walletService'
 
 /**
@@ -230,6 +231,74 @@ export async function processRewardDeduction(
   }
 
   return member
+}
+
+/**
+ * Revert reward redemptions when an order is cancelled or payment fails.
+ * - Cancels pending StoreRedemption records (matched by memberId + storeItemId)
+ * - Restores StoreItem stock
+ * - If points were already deducted (rewardDeductionProcessed), restores them
+ */
+export async function revertRewardRedemptions(order: any, tenant: any, session?: mongoose.ClientSession) {
+  if (!order.rewardItems || order.rewardItems.length === 0) return
+
+  // Find the loyalty member to match pending redemptions
+  if (!order.customer?.phoneHash) return
+
+  const query: any = {
+    tenantId: tenant._id,
+    phoneHash: order.customer.phoneHash,
+    status: 'active',
+  }
+  const perLocation = tenant.loyalty?.perLocation === true
+  if (perLocation && order.locationId) {
+    query.locationId = order.locationId
+  }
+  const member = await LoyaltyMember.findOne(query).session(session || null)
+  if (!member) return
+
+  // 1. Cancel pending StoreRedemptions for this member + store items
+  const storeItemIds = order.rewardItems.map((r: any) => r.storeItemId).filter(Boolean)
+  if (storeItemIds.length > 0) {
+    const redemptionResult = await StoreRedemption.updateMany(
+      {
+        memberId: member._id,
+        storeItemId: { $in: storeItemIds },
+        status: 'pending',
+      },
+      { $set: { status: 'cancelled' } },
+      { session }
+    )
+    if (redemptionResult.modifiedCount > 0) {
+      console.log(`[Loyalty] Reverted ${redemptionResult.modifiedCount} StoreRedemptions for order ${order.orderNumber}`)
+    }
+  }
+
+  // 2. Restore StoreItem stock
+  for (const reward of order.rewardItems) {
+    if (reward.storeItemId) {
+      await StoreItem.updateOne(
+        { _id: reward.storeItemId },
+        { $inc: { stock: 1, totalRedemptions: -1 } },
+        { session }
+      )
+    }
+  }
+
+  // 3. If points were already deducted, restore them
+  if (order.rewardDeductionProcessed) {
+    const pointsToRestore = order.rewardItems.reduce(
+      (sum: number, r: any) => sum + (r.pointsCost || 0), 0
+    )
+    member.loyalty.points = (member.loyalty.points ?? 0) + pointsToRestore
+    member.store.totalRedemptions = Math.max(0, (member.store.totalRedemptions || 0) - order.rewardItems.length)
+    member.store.totalPointsSpent = Math.max(0, (member.store.totalPointsSpent || 0) - pointsToRestore)
+    await member.save({ session })
+    console.log(`[Loyalty] Restored ${pointsToRestore} points to member ${member._id} for cancelled order ${order.orderNumber}`)
+
+    order.rewardDeductionProcessed = false
+    await order.save({ session })
+  }
 }
 
 export async function addPointsFromOrder(order: any, tenant: any, session?: mongoose.ClientSession, forceMemberId?: any) {

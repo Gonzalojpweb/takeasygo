@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import { revertRewardRedemptions } from '@/lib/loyalty'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(
@@ -30,6 +31,7 @@ export async function POST(
 
     order.status = 'cancelled'
     order.statusTimestamps.cancelledAt = new Date()
+    await revertRewardRedemptions(order, tenant)
     await order.save()
 
     return NextResponse.json({ ok: true })
