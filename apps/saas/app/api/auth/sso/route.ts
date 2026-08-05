@@ -19,11 +19,12 @@ const LOGIN_ERRORS = {
 } as const
 
 // POS roles → allowed SaaS routes (server-side guard)
+// '/' = SaaS home (accessible from "Ir al SaaS" POS button)
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
-  admin:    ['/analytics', '/ico', '/tia', '/cis', '/crm'],
-  manager:  ['/analytics', '/ico', '/tia', '/cis', '/crm'],
-  cashier:  ['/crm'],
-  waiter:   [],
+  admin:    ['/', '/analytics', '/ico', '/tia', '/cis'],
+  manager:  ['/', '/analytics', '/ico', '/tia', '/cis'],
+  cashier:  ['/'],
+  waiter:   ['/'],
 }
 
 function redirectToLogin(req: NextRequest, errorKey: keyof typeof LOGIN_ERRORS) {
