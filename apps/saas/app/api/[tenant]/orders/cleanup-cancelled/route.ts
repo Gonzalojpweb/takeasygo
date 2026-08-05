@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import { revertRewardRedemptions } from '@/lib/loyalty'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 
@@ -28,6 +29,22 @@ export async function POST(
   }
 
   const cutoffDate = new Date(Date.now() - MAX_AGE_HOURS * 60 * 60 * 1000)
+
+  // Revert reward redemptions before deleting
+  const orphanedOrders = await Order.find({
+    tenantId: tenant._id,
+    status: 'cancelled',
+    updatedAt: { $lt: cutoffDate },
+    rewardItems: { $exists: true, $ne: [] },
+  }).lean()
+
+  for (const orphanedOrder of orphanedOrders) {
+    try {
+      await revertRewardRedemptions(orphanedOrder, tenant)
+    } catch (e) {
+      console.error(`[cleanup] Failed to revert rewards for order ${orphanedOrder.orderNumber}:`, e)
+    }
+  }
 
   const result = await Order.deleteMany({
     tenantId: tenant._id,

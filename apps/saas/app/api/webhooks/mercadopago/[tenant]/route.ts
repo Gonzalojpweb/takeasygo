@@ -10,7 +10,7 @@ import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
-import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
+import { addPointsFromOrder, processRewardDeduction, revertRewardRedemptions } from '@/lib/loyalty'
 import { confirmOrderPayment } from '@/lib/sync-layer'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import PushSubscription from '@/models/PushSubscription'
@@ -208,6 +208,7 @@ export async function POST(
               })
             } else if (['rejected', 'cancelled'].includes(paymentData.status!)) {
               order.status = 'cancelled'
+              await revertRewardRedemptions(order, tenant, session)
             }
 
             await order.save({ session })
