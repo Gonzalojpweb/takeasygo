@@ -144,6 +144,7 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
         : JSON.stringify({ tenantId })
 
       console.log(`[worker/confirm-forward] forwarding ${isStatusUpdate ? `status→${status}` : "confirm"} for order ${orderId} (external: ${externalOrderId}, tenant: ${tenantId})`)
+      console.log(`[worker/confirm-forward] token length=${config.internalApiSecret.length}, first4="${config.internalApiSecret.slice(0, 4)}"`)
 
       const res = await fetch(endpoint, {
         method: isStatusUpdate ? "PATCH" : "POST",

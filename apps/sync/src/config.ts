@@ -36,7 +36,14 @@ export const config = {
     "JWT_PUBLIC_KEY"
   ),
 
-  corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+  corsOrigin: (() => {
+    const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean)
+    console.log(`[config] CORS_ORIGIN loaded: ${JSON.stringify(origins)}`)
+    return origins
+  })(),
 
   internalApiSecret: (() => {
     const val = process.env.INTERNAL_API_SECRET ?? ""
