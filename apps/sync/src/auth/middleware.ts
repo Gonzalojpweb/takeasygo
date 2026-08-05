@@ -26,6 +26,7 @@ export function authMiddleware(
 ): void {
   const header = req.headers.authorization
   if (!header?.startsWith("Bearer ")) {
+    console.warn(`[auth] Missing/invalid header | path=${req.path} header="${header ?? "(none)"}"`)
     res.status(401).json({
       error: "Missing or invalid authorization header",
       requestId: req.id,
@@ -36,6 +37,7 @@ export function authMiddleware(
   const token = header.slice(7)
   const payload = verifyJwt(token, config.jwtPublicKey)
   if (!payload) {
+    console.warn(`[auth] JWT verification failed | path=${req.path} tokenLen=${token.length} tokenFirst4="${token.slice(0, 4)}" pubKeyLen=${config.jwtPublicKey.length}`)
     res.status(401).json({
       error: "Invalid or expired token",
       requestId: req.id,
@@ -45,6 +47,7 @@ export function authMiddleware(
 
   const posRole = SAAS_TO_POS_ROLE[payload.role]
   if (!posRole) {
+    console.warn(`[auth] Role not allowed | path=${req.path} role="${payload.role}" sub=${payload.sub} tenantId=${payload.tenantId}`)
     res.status(403).json({
       error: "Access denied",
       code: "ROLE_NOT_ALLOWED",
@@ -54,6 +57,7 @@ export function authMiddleware(
   }
 
   if (!VALID_DEVICE_ROLES[payload.deviceType]?.includes(posRole)) {
+    console.warn(`[auth] Device/role mismatch | path=${req.path} deviceType="${payload.deviceType}" posRole="${posRole}"`)
     res.status(403).json({
       error: "deviceType/role mismatch",
       code: "DEVICE_ROLE_MISMATCH",
