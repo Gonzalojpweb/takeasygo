@@ -73,6 +73,14 @@ export interface PendingStatusUpdateRecord {
   createdAt: Date
 }
 
+export interface MenuSnapshotRecord {
+  tenantId: string
+  products: unknown[]
+  categories: unknown[]
+  version: number
+  updatedAt: Date
+}
+
 export class PosDatabase extends Dexie {
   tenantConfig!: Dexie.Table<TenantConfigRecord, string>
   session!: Dexie.Table<SessionRecord, string>
@@ -84,6 +92,7 @@ export class PosDatabase extends Dexie {
   cashRegister!: Dexie.Table<CashRegisterRecord, string>
   pendingMovements!: Dexie.Table<PendingMovementRecord, string>
   pendingStatusUpdates!: Dexie.Table<PendingStatusUpdateRecord, string>
+  menuSnapshot!: Dexie.Table<MenuSnapshotRecord, string>
 
   constructor() {
     super("TakeasyGoPOS")
@@ -168,6 +177,19 @@ export class PosDatabase extends Dexie {
       pendingMovements: "id, tenantId, relatedOrderId, createdAt",
       // PK = orderId → upsert (segundo evento sobreescribe al primero)
       pendingStatusUpdates: "orderId, tenantId, createdAt",
+    })
+    this.version(10).stores({
+      tenantConfig: "tenantId",
+      session: "tenantId",
+      pendingEvents: "++id, tenantId, status, timestamp",
+      pairedSpokes: "deviceId, tenantId, pairedAt",
+      diningTable: "id, tenantId, status, section, number",
+      orders: "id, tenantId, status, tableId, createdAt, source, externalStatus",
+      commands: "id, tenantId, status, createdAt",
+      cashRegister: "id, tenantId, status, openedAt",
+      pendingMovements: "id, tenantId, relatedOrderId, createdAt",
+      pendingStatusUpdates: "orderId, tenantId, createdAt",
+      menuSnapshot: "tenantId",
     })
   }
 }
