@@ -110,6 +110,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [transferEnabled, setTransferEnabled] = useState(false)
   const [transferData, setTransferData] = useState<{ alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null>(null)
   const [paymentSurcharges, setPaymentSurcharges] = useState<Record<string, number>>({})
+  const [paymentTotalFees, setPaymentTotalFees] = useState<Record<string, number>>({})
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'mercadopago' | 'kripton' | 'transfer' | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
@@ -225,10 +226,13 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
           return
         }
         const surcharges: Record<string, number> = {}
+        const totalFees: Record<string, number> = {}
         for (const m of data.methods) {
           surcharges[m.id] = m.surchargePercent || 0
+          totalFees[m.id] = m.totalFees || 0
         }
         setPaymentSurcharges(surcharges)
+        setPaymentTotalFees(totalFees)
 
         const mpAvailable = data.methods.find((m: any) => m.id === 'mercadopago')?.enabled
         const krAvailable = data.methods.find((m: any) => m.id === 'kripton')?.enabled
@@ -332,7 +336,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const qrEligibleSubtotal = cart
     .filter(i => i.type !== 'promotion')
     .reduce((sum, i) => sum + i.price * i.quantity, 0)
-  const discountAmount = activeQrPromo ? Math.round(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100)) : 0
+  const discountAmount = activeQrPromo ? Math.floor(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100)) : 0
 
   // Calcular si el reward seleccionado necesita SOS
   const selectedRewardItem = selectedRewardItemId
@@ -406,11 +410,14 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
 
   const deliveryCost = deliveryMode && deliveryQuote.withinRange ? deliveryQuote.cost : 0
   const baseTotal = Math.max(0, subtotal - discountAmount) + deliveryCost
-  const activeSurchargePercent = selectedPaymentMethod && selectedPaymentMethod !== 'transfer'
-    ? (paymentSurcharges[selectedPaymentMethod] ?? 0)
+  const activeTotalFees = selectedPaymentMethod && selectedPaymentMethod !== 'transfer'
+    ? (paymentTotalFees[selectedPaymentMethod] ?? 0)
     : 0
-  const total = activeSurchargePercent > 0
-    ? Math.round(baseTotal * (1 + activeSurchargePercent / 100))
+  const activeSurchargePercent = activeTotalFees > 0
+    ? Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100
+    : 0
+  const total = activeTotalFees > 0
+    ? Math.ceil(baseTotal / (1 - activeTotalFees))
     : baseTotal
 
 async function handleSubmit(e: React.FormEvent) {

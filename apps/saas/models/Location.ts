@@ -40,11 +40,12 @@ export interface ILocation extends Document {
   }
   deliveryConfig?: {
     enabled: boolean
-    ranges: Array<{ fromKm: number; toKm: number; price: number }>
+    ranges: Array<{ fromKm: number; toKm: number; /** Precio del rango de delivery en centavos. @storedAs cents */ price: number }>
     maxRangeKm: number
   }
   reservationConfig: {
     enabled: boolean
+    /** Pago mínimo para reservar en centavos. @storedAs cents */
     minPayment: number
     timeSlots: string[]
     maxPartySize: number

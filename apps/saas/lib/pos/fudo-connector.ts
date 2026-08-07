@@ -23,6 +23,7 @@ import type {
   POSOrderResult,
 } from './types'
 import type { OrderStatus } from '@/models/Order'
+import { toCents, toPesos } from '@takeasygo/business'
 
 // ── Configuración ──────────────────────────────────────────────────────────────
 
@@ -137,7 +138,7 @@ export const FudoConnector: POSConnector = {
         items.push({
           posItemId:    String(item.id ?? item.product_id ?? item.posItemId),
           name:         item.name ?? item.product_name ?? '',
-          price:        Number(item.price ?? item.unit_price ?? 0),
+          price:        toCents(Number(item.price ?? item.unit_price ?? 0)),
           categoryName,
           available:    item.available !== false && item.is_available !== false,
         })
@@ -160,15 +161,15 @@ export const FudoConnector: POSConnector = {
         product_id: item.posItemId,
         name:       item.name,
         quantity:   item.quantity,
-        unit_price: item.unitPrice,
+        unit_price: toPesos(item.unitPrice),
         notes:      item.notes ?? '',
         modifiers:  (item.modifiers ?? []).map(m => ({
           name:        m.name,
-          extra_price: m.extraPrice,
+          extra_price: toPesos(m.extraPrice),
         })),
       })),
       notes:          order.notes ?? '',
-      total:          order.total,
+      total:          toPesos(order.total),
       payment_method: order.paymentMethod,
       payment_status: 'paid',  // MercadoPago ya aprobó — siempre llega como pagado
     }

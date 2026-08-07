@@ -10,6 +10,7 @@ export interface IImpactEvent extends Document {
   type: ImpactEventType
   impactValue: number
   metadata: {
+    /** Total de la orden en centavos. @storedAs cents */
     orderTotal?: number
     distanceM?: number
     businessName?: string

@@ -24,6 +24,30 @@ interface PlatformFees {
   }
 }
 
+/**
+ * Shared function: computes the combined fee rate (tenant + platform) for a payment method.
+ * Used by both calculateFinalTotal (server) and /payment-methods (API for frontend).
+ * Returns the raw decimal fraction (e.g. 0.137 for 13.7%), never rounded.
+ */
+export function getTotalFeesForMethod(
+  paymentMethod: PaymentMethod,
+  tenant: TenantFees,
+  platformConfig: PlatformFees,
+  overridePlatformFeePercent?: number
+): number {
+  if (paymentMethod === 'transfer') return 0
+
+  const tenantFeePercent = tenant.paymentSurcharges?.[paymentMethod]?.feePercent ?? 0
+  const platformFeePercent = overridePlatformFeePercent ?? (
+    (tenant.mpOAuth?.isConnected && tenant.mpOAuth?.commissionPercent != null)
+      ? tenant.mpOAuth.commissionPercent!
+      : (platformConfig.platformFees?.takeasygoCommissionPercent ?? 1)
+  )
+
+  const totalFees = tenantFeePercent / 100 + platformFeePercent / 100
+  return totalFees >= 1 ? 0 : totalFees
+}
+
 export function calculateFinalTotal(
   baseTotal: number,
   paymentMethod: PaymentMethod,
@@ -42,19 +66,8 @@ export function calculateFinalTotal(
     }
   }
 
-  const tenantFeePercent = tenant.paymentSurcharges?.[paymentMethod]?.feePercent ?? 0
-  // Apply platform commission only if MP OAuth is connected and split is configured
-  const platformFeePercent = overridePlatformFeePercent ?? (
-    (tenant.mpOAuth?.isConnected && tenant.mpOAuth?.commissionPercent != null)
-      ? tenant.mpOAuth.commissionPercent!
-      : (platformConfig.platformFees?.takeasygoCommissionPercent ?? 1)
-  )
-
-  const tenantFee = tenantFeePercent / 100
-  const platformFee = platformFeePercent / 100
-
-  const totalFees = tenantFee + platformFee
-  if (totalFees >= 1) {
+  const totalFees = getTotalFeesForMethod(paymentMethod, tenant, platformConfig, overridePlatformFeePercent)
+  if (totalFees === 0) {
     return {
       baseTotal,
       surchargePercent: 0,
@@ -64,10 +77,17 @@ export function calculateFinalTotal(
     }
   }
 
-  const finalTotal = Math.round(baseTotal / (1 - totalFees))
+  const platformFeePercent = overridePlatformFeePercent ?? (
+    (tenant.mpOAuth?.isConnected && tenant.mpOAuth?.commissionPercent != null)
+      ? tenant.mpOAuth.commissionPercent!
+      : (platformConfig.platformFees?.takeasygoCommissionPercent ?? 1)
+  )
+  const platformFee = platformFeePercent / 100
+
+  const finalTotal = Math.ceil(baseTotal / (1 - totalFees))
   const surchargeAmount = finalTotal - baseTotal
   const surchargePercent = baseTotal > 0 ? Math.round((surchargeAmount / baseTotal) * 10000) / 100 : 0
-  const platformFeeAmount = Math.round(finalTotal * platformFee)
+  const platformFeeAmount = Math.ceil(finalTotal * platformFee)
 
   return {
     baseTotal,

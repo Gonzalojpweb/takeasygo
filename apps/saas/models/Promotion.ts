@@ -42,7 +42,9 @@ export interface IPromotion {
   description: string
   shortDescription?: string
   imageUrl?: string
+  /** Precio de la promoción en centavos. @storedAs cents */
   price: number
+  /** Precio original antes del descuento en centavos. @storedAs cents */
   originalPrice?: number
   currency: string
   conditions?: string

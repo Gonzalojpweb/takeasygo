@@ -16,6 +16,7 @@ export interface ITransferConfig {
 }
 
 export interface IPaymentSurcharge {
+  /** Porcentaje de recargo (ej: 10 = 10%). Not a cents value. */
   feePercent: number
 }
 
@@ -210,7 +211,9 @@ export interface ITenant extends Document {
     pointsPerCurrency: number // puntos por cada $1 gastado (ej: 0.1 = 1 punto cada $10)
     pointsPercentage: number // % del monto que se convierte en puntos (ej: 10 = 10%)
     pointsPerOrder: number // puntos fijos por pedido (opcional)
+    /** Monto mínimo para acumular puntos en centavos. @storedAs cents */
     minOrderForPoints: number // monto mínimo para acumular puntos
+    /** Valor en centavos de cada 1 punto al canjear. @storedAs cents */
     pointsRedemptionValue: number // valor en pesos de cada 1 punto
     redemptionEnabled: boolean
     /** Puntos de bienvenida al registrarse en el club (standalone) */

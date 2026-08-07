@@ -9,7 +9,9 @@ export interface IStoreRedemption extends Document {
   storeItemId: mongoose.Types.ObjectId
   
   // Información del canje
+  /** Puntos usados en el canje. Not cents — stored as points. */
   pointsUsed: number
+  /** Valor en centavos del artículo canjeado. @storedAs cents */
   cashValue?: number
   
   // Estado

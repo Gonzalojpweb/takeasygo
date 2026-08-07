@@ -105,6 +105,7 @@ export interface CheckoutState {
   kriptonEnabled: boolean
   selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer' | null
   paymentSurcharges: Record<string, number>
+  paymentTotalFees: Record<string, number>
   transferEnabled: boolean
   transferData: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null
   estimatedTimeInfo: EstimatedTimeInfo | null
@@ -143,6 +144,7 @@ type CheckoutAction =
   | { type: 'SET_KRIPTON_ENABLED'; enabled: boolean }
   | { type: 'SET_PAYMENT_METHOD'; method: 'mercadopago' | 'kripton' | 'transfer' | null }
   | { type: 'SET_PAYMENT_SURCHARGES'; surcharges: Record<string, number> }
+  | { type: 'SET_PAYMENT_TOTAL_FEES'; totalFees: Record<string, number> }
   | { type: 'SET_TRANSFER_ENABLED'; enabled: boolean }
   | { type: 'SET_TRANSFER_DATA'; data: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null }
   | { type: 'SET_ESTIMATED_TIME'; info: EstimatedTimeInfo | null }
@@ -215,6 +217,7 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_KRIPTON_ENABLED': return { ...state, kriptonEnabled: action.enabled }
     case 'SET_PAYMENT_METHOD': return { ...state, selectedPaymentMethod: action.method }
     case 'SET_PAYMENT_SURCHARGES': return { ...state, paymentSurcharges: action.surcharges }
+    case 'SET_PAYMENT_TOTAL_FEES': return { ...state, paymentTotalFees: action.totalFees }
     case 'SET_TRANSFER_ENABLED': return { ...state, transferEnabled: action.enabled }
     case 'SET_TRANSFER_DATA': return { ...state, transferData: action.data }
     case 'SET_ESTIMATED_TIME': return { ...state, estimatedTimeInfo: action.info }
@@ -266,6 +269,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     kriptonEnabled: false,
     selectedPaymentMethod: null as any,
     paymentSurcharges: {},
+    paymentTotalFees: {},
     transferEnabled: false,
     transferData: null,
     estimatedTimeInfo: null,
@@ -371,10 +375,13 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
           return
         }
         const surcharges: Record<string, number> = {}
+        const totalFees: Record<string, number> = {}
         for (const m of data.methods) {
           surcharges[m.id] = m.surchargePercent || 0
+          totalFees[m.id] = m.totalFees || 0
         }
         dispatch({ type: 'SET_PAYMENT_SURCHARGES', surcharges })
+        dispatch({ type: 'SET_PAYMENT_TOTAL_FEES', totalFees })
 
         const trAvailable = data.methods.find((m: any) => m.id === 'transfer')?.enabled
         if (trAvailable) {
@@ -505,7 +512,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     .reduce((sum, i) => sum + i.price * i.quantity, 0)
 
   const discountAmount = state.activeQrPromo
-    ? Math.round(qrEligibleSubtotal * (state.activeQrPromo.discountPercentage / 100))
+    ? Math.floor(qrEligibleSubtotal * (state.activeQrPromo.discountPercentage / 100))
     : 0
 
   const selectedRewardItem = state.selectedRewardItemId
@@ -532,11 +539,14 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
 
   const deliveryCost = state.deliveryMode && state.deliveryQuote.withinRange ? state.deliveryQuote.cost : 0
   const baseTotal = Math.max(0, subtotal - discountAmount) + deliveryCost
-  const activeSurchargePercent = state.selectedPaymentMethod && state.selectedPaymentMethod !== 'transfer'
-    ? (state.paymentSurcharges[state.selectedPaymentMethod] ?? 0)
+  const activeTotalFees = state.selectedPaymentMethod && state.selectedPaymentMethod !== 'transfer'
+    ? (state.paymentTotalFees[state.selectedPaymentMethod] ?? 0)
     : 0
-  const total = activeSurchargePercent > 0
-    ? Math.round(baseTotal * (1 + activeSurchargePercent / 100))
+  const activeSurchargePercent = activeTotalFees > 0
+    ? Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100
+    : 0
+  const total = activeTotalFees > 0
+    ? Math.ceil(baseTotal / (1 - activeTotalFees))
     : baseTotal
 
   const increaseQty = useCallback((cartItemId: string) => {

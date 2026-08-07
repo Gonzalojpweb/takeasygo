@@ -3,6 +3,7 @@ import mongoose, { Schema, type Document } from "mongoose"
 export interface CashSaleEventDocument extends Document {
   orderId: string
   tenantId: string
+  /** Monto de la venta en centavos. @storedAs cents */
   amount: number
   paymentMethod: string
   orderMode: string

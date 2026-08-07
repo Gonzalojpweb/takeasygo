@@ -1013,7 +1013,7 @@ export async function POST(
       const qrEligibleSubtotal = resolvedItems
         .filter(item => item.itemType !== 'promotion')
         .reduce((sum, item) => sum + item.subtotal, 0)
-      discountAmount = Math.round(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100))
+      discountAmount = Math.floor(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100))
       qrPromoApplied = true
     }
 
