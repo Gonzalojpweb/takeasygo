@@ -101,6 +101,7 @@ export default function SuperAdminSidebar() {
         { href: '/superadmin/directory', label: 'Directorio', icon: BookMarked },
         { href: '/superadmin/salud', label: 'Salud de Red', icon: HeartPulse },
         { href: '/superadmin/visitas', label: 'Visitas', icon: Eye },
+        { href: '/superadmin/invite-scans', label: 'Scans QR Invite', icon: QrCode },
       ],
     },
     {
