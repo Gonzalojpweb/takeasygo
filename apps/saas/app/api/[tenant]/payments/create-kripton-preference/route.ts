@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { z } from 'zod'
 import { createPayment, getKriptonClient } from '@/lib/kripton'
+import { requireAuth } from '@/lib/apiAuth'
 
 const createKriptonPreferenceSchema = z.object({
   orderId: z.string().min(1, 'orderId es requerido'),
@@ -29,6 +30,9 @@ export async function POST(
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
+
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
 
     if (!tenant.kripton?.isConfigured || !tenant.kripton?.apiKey) {
       return NextResponse.json({ error: 'Kripton no configurado' }, { status: 400 })

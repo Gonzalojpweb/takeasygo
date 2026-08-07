@@ -1,9 +1,13 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { NextResponse } from 'next/server'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function GET() {
   try {
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
+
     await connectDB()
 
     console.log('🔄 Iniciando migración de status de tenants...')

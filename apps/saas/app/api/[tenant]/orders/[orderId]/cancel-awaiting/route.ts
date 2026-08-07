@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/apiAuth'
 
 export async function POST(
   request: NextRequest,
@@ -15,6 +16,9 @@ export async function POST(
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
+
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) {
