@@ -259,6 +259,14 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
+    const platformCfg = await PlatformConfig.findById('platform').lean() as any
+    if (platformCfg?.maintenanceMode) {
+      return NextResponse.json(
+        { error: 'Sistema en mantenimiento. Intentá nuevamente en unos minutos.', code: 'MAINTENANCE' },
+        { status: 503 }
+      )
+    }
+
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
