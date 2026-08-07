@@ -32,23 +32,18 @@ async function verifyPaymentStatus(order: any, accessToken: string, tenantId: st
     })
 
     if (!response.ok) {
-      console.log(`[track] MP API error:`, response.status)
       return order.payment.status
     }
 
     const searchResult = await response.json() as any
-    console.log(`[track] MP search for order ${order.orderNumber}:`, searchResult.paging?.total || 0, 'results')
 
     // Obtener el payment
     const paymentData = searchResult.results?.[0]
 
     if (!paymentData) {
-      console.log(`[track] No payment found for order ${order.orderNumber}`)
       return 'pending'
     }
 
-    console.log(`[track] Found payment ${paymentData.id} with status ${paymentData.status},collector ${paymentData.collector?.id}`)
-    
     mpStatusCache.set(cacheKey, { status: paymentData.status || 'pending', timestamp: Date.now() })
     return paymentData.status || 'pending'
   } catch (err) {
@@ -69,7 +64,6 @@ export async function POST(
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const hasMpConfigured = tenant.mercadopago?.isConfigured && tenant.mercadopago?.accessToken
-    console.log(`[track] Tenant ${tenantSlug}: mpConfigured=${hasMpConfigured}`)
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
       .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress')
@@ -77,7 +71,6 @@ export async function POST(
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     let currentStatus = order.status
-    console.log(`[track] Order ${order.orderNumber}:status=${order.status}, method=${order.payment?.method}`)
 
     // Si es transferencia, no verificar MP — el flujo es manual
     if (order.payment?.method === 'transfer') {
@@ -123,9 +116,7 @@ export async function POST(
     if (order.status === 'awaiting_payment' && order.payment?.mercadopagoId && hasMpConfigured && tenant.mercadopago?.accessToken) {
       const accessToken = decrypt(tenant.mercadopago.accessToken) as string
       const tenantId = (tenant as any)._id?.toString()
-      console.log(`[track] Calling MP verify for order ${order.orderNumber}, token exists=${!!accessToken}`)
       const mpStatus = await verifyPaymentStatus(order, accessToken, tenantId)
-      console.log(`[track] MP status: ${mpStatus}`)
 
       // Si MP aprobó el pago, actualizamos el pedido en DB
       if (mpStatus === 'approved') {
@@ -135,12 +126,10 @@ export async function POST(
           dbOrder.status = 'confirmed'
           await dbOrder.save()
           currentStatus = 'confirmed'
-          console.log(`[track] Order ${order.orderNumber} confirmed via MP verification`)
         } else {
           // El pedido ya fue actualizado por el webhook
           const updatedOrder = await Order.findById(order._id)
           currentStatus = updatedOrder?.status || 'confirmed'
-          console.log(`[track] Order ${order.orderNumber} status from DB: ${currentStatus}`)
         }
       } else if (['rejected', 'cancelled'].includes(mpStatus)) {
         const dbOrder = await Order.findById(order._id)

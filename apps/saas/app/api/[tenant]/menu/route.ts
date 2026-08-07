@@ -3,6 +3,7 @@ import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/apiAuth'
 
 export async function GET(
   request: NextRequest,
@@ -52,6 +53,9 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
+
     const body = await request.json()
 
     const location = await Location.findOne({ _id: body.locationId, tenantId: tenant._id })
@@ -88,6 +92,9 @@ export async function PUT(
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
+
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
 
     const body = await request.json()
     const { locationId, optionImageRegistry } = body

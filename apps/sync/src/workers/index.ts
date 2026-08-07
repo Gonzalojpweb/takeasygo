@@ -143,8 +143,6 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
         ? JSON.stringify({ status })
         : JSON.stringify({ tenantId })
 
-      console.log(`[worker/confirm-forward] forwarding ${isStatusUpdate ? `status→${status}` : "confirm"} for order ${orderId} (external: ${externalOrderId}, tenant: ${tenantId})`)
-
       const res = await fetch(endpoint, {
         method: isStatusUpdate ? "PATCH" : "POST",
         headers: {
@@ -159,7 +157,6 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
         throw new Error(`SaaS forward failed (${res.status}): ${text}`)
       }
 
-      console.log(`[worker/confirm-forward] successfully forwarded ${isStatusUpdate ? `status→${status}` : "confirm"} for ${orderId}`)
       return { status: "forwarded", orderId }
     },
     {

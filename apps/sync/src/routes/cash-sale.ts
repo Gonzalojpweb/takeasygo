@@ -126,10 +126,6 @@ export function cashSaleRouter(
         orderId,
       })
 
-      console.log(
-        `[cash-sale] event persisted and forwarded: ${orderId} (${tenantId})`
-      )
-
       return res.status(200).json({
         status: "forwarded",
         orderId,
@@ -238,10 +234,6 @@ export function cashSaleRouter(
         tenantId: event.tenantId,
         orderId: event.orderId,
       })
-
-      console.log(
-        `[cash-sale] manual retry for ${event.orderId} (${event.tenantId})`
-      )
 
       return res.status(200).json({ status: "retried", eventId })
     } catch (err) {

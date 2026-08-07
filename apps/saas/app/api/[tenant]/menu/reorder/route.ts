@@ -1,10 +1,11 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Menu from '@/models/Menu'
-import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { Types } from 'mongoose'
 import mongoose from 'mongoose'
+import { requireAuth } from '@/lib/apiAuth'
+import { NextRequest } from 'next/server'
 
 type MenuCategory = {
   _id?: Types.ObjectId
@@ -14,17 +15,12 @@ type MenuCategory = {
 }
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
     const { tenant: tenantSlug } = await params
     
-    const headerList = await headers()
-    if (headerList.get('x-tenant-slug') !== tenantSlug) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     await connectDB()
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
       .lean<{ _id: Types.ObjectId }>()
@@ -32,6 +28,9 @@ export async function PUT(
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
+
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
 
     const { 
       locationId, 
