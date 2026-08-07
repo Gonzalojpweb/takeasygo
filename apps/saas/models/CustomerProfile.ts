@@ -23,8 +23,11 @@ export interface ICustomerProfile extends Document {
 
   // Métricas CML (calculadas por cron)
   orderCount: number
+  /** Total gastado en centavos. @storedAs cents */
   totalSpent: number
+  /** Ticket promedio en centavos. @storedAs cents */
   avgTicket: number
+  /** Valor lifetime en centavos. @storedAs cents */
   lifetimeValue: number
   firstOrderAt: Date | null
   lastOrderAt: Date | null

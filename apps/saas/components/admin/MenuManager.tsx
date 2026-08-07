@@ -664,7 +664,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           if (!item.originalPrice) {
             updateBody.originalPrice = item.price
           }
-          updateBody.price = Math.round(item.price * (1 + perc / 100))
+          updateBody.price = Math.ceil(item.price * (1 + perc / 100))
         }
 
         if (target === 'takeaway' || target === 'both') {
@@ -674,7 +674,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           if (!item.takeawayOriginalPrice) {
             updateBody.takeawayOriginalPrice = currentTakeaway
           }
-          updateBody.takeawayPrice = Math.round(currentTakeaway * (1 + perc / 100))
+          updateBody.takeawayPrice = Math.ceil(currentTakeaway * (1 + perc / 100))
         }
 
         const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {

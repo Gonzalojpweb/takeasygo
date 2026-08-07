@@ -26,6 +26,7 @@ export interface ILoyaltyMember extends Document {
   // Caché de actividad (actualizada post-pedido para no calcular en cada consulta)
   cache: {
     totalOrders: number
+    /** Total gastado por el miembro en centavos. @storedAs cents */
     totalSpent: number
     lastOrderAt: Date | null
     updatedAt: Date | null
@@ -46,6 +47,7 @@ export interface ILoyaltyMember extends Document {
   // Estadísticas de Store (canjes de puntos por artículos)
   store: {
     totalRedemptions: number
+    /** Total de puntos canjeados. Not cents — stored as points. */
     totalPointsSpent: number
     lastRedemptionAt?: Date | null
   }

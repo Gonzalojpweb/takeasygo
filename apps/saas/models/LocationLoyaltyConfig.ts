@@ -15,7 +15,9 @@ export interface ILocationLoyaltyConfig extends Document {
     pointsPerCurrency: number
     pointsPercentage: number
     pointsPerOrder: number
+    /** Monto mínimo para acumular puntos en centavos. @storedAs cents */
     minOrderForPoints: number
+    /** Valor en centavos de cada 1 punto al canjear. @storedAs cents */
     pointsRedemptionValue: number
     redemptionEnabled: boolean
     welcomePoints: number

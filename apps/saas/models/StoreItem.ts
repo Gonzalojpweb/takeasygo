@@ -15,8 +15,10 @@ export interface IStoreItem extends Document {
   imageUrl: string
   
   // Configuración de puntos
-  pointsCost: number  // Puntos requeridos para canjear
-  cashValue?: number  // Valor en pesos (opcional, para referencia)
+  /** Puntos requeridos para canjear. Not cents — stored as points. */
+  pointsCost: number
+  /** Valor en centavos del artículo (opcional, para referencia). @storedAs cents */
+  cashValue?: number
   
   // Disponibilidad
   isActive: boolean
