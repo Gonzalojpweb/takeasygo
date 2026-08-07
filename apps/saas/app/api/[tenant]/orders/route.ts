@@ -388,6 +388,13 @@ export async function POST(
       return NextResponse.json({ error: 'Location no encontrada' }, { status: 404 })
     }
 
+    if (location.status === 'paused') {
+      return NextResponse.json(
+        { error: 'Este local está pausado temporalmente y no acepta pedidos.', code: 'LOCATION_PAUSED' },
+        { status: 409 }
+      )
+    }
+
     // Validar horario de atención para pedidos inmediatos
     if (body.orderTiming !== 'scheduled' && (body.mode === 'takeaway' || body.mode === 'delivery')) {
       const modeKey = body.mode === 'delivery' ? 'delivery' : 'takeaway'
