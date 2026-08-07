@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { toPesos } from '@takeasygo/business'
 import { Html5Qrcode } from 'html5-qrcode'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -543,7 +544,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   }
 
   function formatCurrency(v: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(v)
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(toPesos(v))
   }
 
   return (

@@ -1,5 +1,7 @@
 'use client'
 
+import { toPesos } from '@takeasygo/business'
+
 interface VariantInfo {
   _id?: string
   name: string
@@ -59,7 +61,7 @@ export default function VariantPills({ variants, selectedVariant, mode, primaryC
                 <span className="text-sm font-medium text-zinc-800 truncate">{v.name}</span>
               </div>
               <span className="text-sm font-bold flex-shrink-0 ml-2" style={{ color: primaryColor }}>
-                ${variantPrice.toLocaleString('es-AR')}
+                ${toPesos(variantPrice).toLocaleString('es-AR')}
               </span>
             </button>
           )

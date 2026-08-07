@@ -1,6 +1,7 @@
 'use client'
 
 import { useCheckout } from '@/contexts/CheckoutContext'
+import { toPesos } from '@takeasygo/business'
 
 export default function OrderSummaryWithUpsell() {
   const { state, subtotal, baseTotal, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, selectedRewardItem } = useCheckout()
@@ -73,7 +74,7 @@ export default function OrderSummaryWithUpsell() {
               </div>
 
               <span className="text-sm font-semibold text-zinc-800 flex-shrink-0 pt-0.5">
-                ${(item.price * item.quantity).toLocaleString('es-AR')}
+                ${toPesos(item.price * item.quantity).toLocaleString('es-AR')}
               </span>
             </div>
           )
@@ -100,7 +101,7 @@ export default function OrderSummaryWithUpsell() {
       <div className="pt-3 space-y-2">
         <div className="flex justify-between text-sm text-zinc-500">
           <span>Subtotal</span>
-          <span>${subtotal.toLocaleString('es-AR')}</span>
+          <span>${toPesos(subtotal).toLocaleString('es-AR')}</span>
         </div>
         {activeQrPromo && (
           <div className="flex justify-between text-sm text-green-600 font-semibold">
@@ -108,18 +109,18 @@ export default function OrderSummaryWithUpsell() {
               <Percent size={12} />
               {activeQrPromo.checkoutDiscountLabel || 'Descuento QR'} ({activeQrPromo.discountPercentage}%)
             </span>
-            <span>-${discountAmount.toLocaleString('es-AR')}</span>
+            <span>-${toPesos(discountAmount).toLocaleString('es-AR')}</span>
           </div>
         )}
         {deliveryMode && deliveryQuote.withinRange && (
           <div className="flex justify-between text-sm text-zinc-500">
             <span className="flex items-center gap-1">🚚 Envío</span>
-            <span>${deliveryQuote.cost.toLocaleString('es-AR')}</span>
+            <span>${toPesos(deliveryQuote.cost).toLocaleString('es-AR')}</span>
           </div>
         )}
         <div className="flex justify-between text-lg font-black text-zinc-900 border-t border-zinc-200 pt-2">
           <span>Total</span>
-          <span>${baseTotal.toLocaleString('es-AR')}</span>
+          <span>${toPesos(baseTotal).toLocaleString('es-AR')}</span>
         </div>
       </div>
 
@@ -137,7 +138,7 @@ export default function OrderSummaryWithUpsell() {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-zinc-700 truncate">{item.name}</p>
-                  <p className="text-sm font-bold text-zinc-900">${item.price.toLocaleString('es-AR')}</p>
+                  <p className="text-sm font-bold text-zinc-900">${toPesos(item.price).toLocaleString('es-AR')}</p>
                 </div>
                 <button
                   type="button"

@@ -35,6 +35,7 @@ import Rating from '@/models/Rating'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
 import { pushOrderToSyncLayer } from '@/lib/sync-layer'
+import { toPesos } from '@takeasygo/business'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -1379,7 +1380,7 @@ export async function POST(
     if (adminSubs.length > 0) {
       const payload = JSON.stringify({
         title: `🔔 Nuevo pedido en ${tenant.name}`,
-        body: `#${order.orderNumber} — $${total.toLocaleString('es-AR')} — ${customerName}`,
+        body: `#${order.orderNumber} — $${toPesos(total).toLocaleString('es-AR')} — ${customerName}`,
         icon: '/tgoicon-192.png',
         badge: '/tgoicon-192.png',
         url: `/${tenantSlug}/admin/orders`,

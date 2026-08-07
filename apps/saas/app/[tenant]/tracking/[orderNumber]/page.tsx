@@ -8,6 +8,7 @@ import TrackingAnalytics from '@/components/tracking/TrackingAnalytics'
 import { generateRatingToken } from '@/lib/rating-token'
 import { calculatePointsBreakdown } from '@/lib/loyalty'
 import { safeDecrypt } from '@/lib/crypto'
+import { toPesos } from '@takeasygo/business'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
@@ -169,14 +170,14 @@ export default async function TrackingPage({ params, searchParams }: Props) {
             {order.items.map((item: any) => (
               <div key={item._id} className="flex justify-between text-sm">
                 <span className="opacity-80">{item.quantity}x {item.name}</span>
-                <span className="font-medium">${item.subtotal.toLocaleString('es-AR')}</span>
+                <span className="font-medium">${toPesos(item.subtotal).toLocaleString('es-AR')}</span>
               </div>
             ))}
           </div>
           <div className="border-t mt-3 pt-3 flex justify-between font-bold"
             style={{ borderColor: branding.primaryColor + '20' }}>
             <span>Total</span>
-            <span style={{ color: branding.primaryColor }}>${order.total.toLocaleString('es-AR')}</span>
+            <span style={{ color: branding.primaryColor }}>${toPesos(order.total).toLocaleString('es-AR')}</span>
           </div>
         </div>
 

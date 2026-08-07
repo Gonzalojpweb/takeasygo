@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
@@ -862,7 +863,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                 >
                   {totalItems}
                 </motion.span>
-                <span className="hidden sm:inline">${totalPrice.toLocaleString('es-AR')}</span>
+                <span className="hidden sm:inline">${toPesos(totalPrice).toLocaleString('es-AR')}</span>
               </button>
             )}
           </div>
@@ -1011,7 +1012,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                       {item.description && <p className="text-sm opacity-70 truncate">{tn(item, 'description', locale)}</p>}
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className="font-bold text-sm" style={{ color: primary }}>
-                          ${getItemPrice(item).toLocaleString('es-AR')}
+                          ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
                         </span>
                         {(item.tags || []).map((tag: string) => (
                           <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
@@ -1120,7 +1121,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                     )}
                                     <div className="flex items-center justify-between">
                                       <p className="font-bold text-sm" style={{ color: primary }}>
-                                        ${getItemPrice(item).toLocaleString('es-AR')}
+                                        ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
                                       </p>
                                       {likesOrderId ? (
                                         <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
@@ -1156,7 +1157,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                   )}
                                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                     <span className="font-bold text-sm" style={{ color: primary }}>
-                                      ${getItemPrice(item).toLocaleString('es-AR')}
+                                      ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
                                     </span>
                                     {(item.tags || []).map((tag: string) => (
                                       <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
@@ -1226,7 +1227,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                       )}
                                       <div className="flex items-center justify-between">
                                         <p className="font-bold text-sm" style={{ color: primary }}>
-                                          ${getItemPrice(item).toLocaleString('es-AR')}
+                                          ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
                                         </p>
                                         {likesOrderId ? (
                                           <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
@@ -1262,7 +1263,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                     )}
                                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                       <span className="font-bold text-sm" style={{ color: primary }}>
-                                        ${getItemPrice(item).toLocaleString('es-AR')}
+                                        ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
                                       </span>
                                       {(item.tags || []).map((tag: string) => (
                                         <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
@@ -1321,7 +1322,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                               )}
                               <div className="flex items-center justify-between">
                                 <p className="font-bold text-sm" style={{ color: primary }}>
-                                  ${getItemPrice(item).toLocaleString('es-AR')}
+                                  ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
                                 </p>
                                 {likesOrderId ? (
                                   <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
@@ -1357,7 +1358,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                             )}
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                               <span className="font-bold text-sm" style={{ color: primary }}>
-                                ${getItemPrice(item).toLocaleString('es-AR')}
+                                ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
                               </span>
                               {(item.tags || []).map((tag: string) => (
                                 <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
@@ -1417,7 +1418,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         {tn(item, 'name', locale)}
                       </p>
                       <p className="text-sm font-bold" style={{ color: primary }}>
-                        ${getItemPrice(item).toLocaleString('es-AR')}
+                        ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
                       </p>
                     </div>
                   )}
@@ -1568,7 +1569,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               </span>
               <span>{t.viewOrder}</span>
             </div>
-            <span>${totalPrice.toLocaleString('es-AR')}</span>
+            <span>${toPesos(totalPrice).toLocaleString('es-AR')}</span>
           </button>
         </div>
       )}
@@ -1667,7 +1668,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                     </div>
                   </div>
                   <span className="text-sm font-bold flex-shrink-0">
-                    ${(item.price * item.quantity).toLocaleString('es-AR')}
+                    ${toPesos(item.price * item.quantity).toLocaleString('es-AR')}
                   </span>
                 </div>
               ))}
@@ -1675,7 +1676,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             <div className="border-t pt-4 mb-5" style={{ borderColor: primary + '20' }}>
               <div className="flex justify-between font-bold text-lg">
                 <span>{t.total}</span>
-                <span style={{ color: primary }}>${totalPrice.toLocaleString('es-AR')}</span>
+                <span style={{ color: primary }}>${toPesos(totalPrice).toLocaleString('es-AR')}</span>
               </div>
             </div>
             <button onClick={goToCheckout} className="w-full py-4 rounded-2xl font-bold text-base"

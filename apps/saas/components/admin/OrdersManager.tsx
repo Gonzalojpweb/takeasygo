@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2, Radio, Calendar, AlertCircle, Printer, Timer, AlertTriangle } from 'lucide-react'
 import OrderStatusButton from './OrderStatusButton'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
@@ -823,7 +824,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                   <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
                     <span className="font-bold text-sm text-foreground">{order.customer.name}</span>
                     <span className="font-black text-base text-primary tabular-nums">
-                      ${order.total.toLocaleString('es-AR')}
+                      ${toPesos(order.total).toLocaleString('es-AR')}
                     </span>
                   </div>
 
@@ -851,7 +852,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                                    <OrderItemDetails item={item} />
                               </div>
                               <span className="text-sm font-bold text-foreground/70 tabular-nums shrink-0">
-                                ${item.subtotal.toLocaleString('es-AR')}
+                                ${toPesos(item.subtotal).toLocaleString('es-AR')}
                               </span>
                             </div>
                           ))}

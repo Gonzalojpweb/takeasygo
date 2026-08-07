@@ -8,6 +8,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import ConsumerDetailModal from './ConsumerDetailModal'
+import { toPesos } from '@takeasygo/business'
 
 interface Consumer {
   _id: string
@@ -99,7 +100,7 @@ export default function ConsumersList() {
     </button>
   )
 
-  const formatCurrency = (n: number) => `$${n.toLocaleString('es-AR')}`
+  const formatCurrency = (n: number) => `$${toPesos(n).toLocaleString('es-AR')}`
 
   return (
     <div className="p-6 space-y-6">

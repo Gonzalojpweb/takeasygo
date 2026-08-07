@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 import Order from '@/models/Order'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import type { Insight, SilConfig } from '../types'
+import { toPesos } from '@takeasygo/business'
 
 interface BehavioralResult {
   clubImpact: Insight | null
@@ -114,7 +115,7 @@ async function analyzeClubImpact(
       ? 'Miembros del club gastan más que no miembros'
       : 'Clientes sin membresía gastan más que miembros del club',
     description: isPositive
-      ? `Los miembros del club gastan ${delta}% más por cliente que los no miembros ($${Math.round(memberSpendPerCustomer).toLocaleString('es-AR')} vs $${Math.round(nonMemberSpendPerCustomer).toLocaleString('es-AR')} en 90 días).`
+      ? `Los miembros del club gastan ${delta}% más por cliente que los no miembros ($${toPesos(Math.round(memberSpendPerCustomer)).toLocaleString('es-AR')} vs $${toPesos(Math.round(nonMemberSpendPerCustomer)).toLocaleString('es-AR')} en 90 días).`
       : `Los miembros del club gastan ${Math.abs(delta)}% menos por cliente que los no miembros. Revisar beneficios y comunicación del club.`,
     metric: 'club.spendPerCustomer',
     currentValue: Math.round(memberSpendPerCustomer),

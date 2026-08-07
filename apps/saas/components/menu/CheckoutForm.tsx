@@ -9,6 +9,7 @@ import LocationBar from '@/components/menu/LocationBar'
 import { motion, AnimatePresence } from 'framer-motion'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import type { CartItem } from '@/types/cart'
 import SchedulePicker from './SchedulePicker'
 import { FeedbackProvider, useFeedback } from '@/components/feedback/FeedbackContext'
@@ -721,7 +722,7 @@ async function handleSubmit(e: React.FormEvent) {
 
                     {/* Subtotal */}
                     <span className="text-sm font-semibold text-zinc-800 flex-shrink-0 pt-0.5">
-                      ${(item.price * item.quantity).toLocaleString('es-AR')}
+                      ${toPesos(item.price * item.quantity).toLocaleString('es-AR')}
                     </span>
                   </div>
                 )
@@ -747,7 +748,7 @@ async function handleSubmit(e: React.FormEvent) {
           {cart.length > 0 && (
             <div className="border-t border-zinc-200 mt-4 pt-3 flex justify-between font-bold">
               <span>Total</span>
-              <span>${baseTotal.toLocaleString('es-AR')}</span>
+              <span>${toPesos(baseTotal).toLocaleString('es-AR')}</span>
             </div>
           )}
         </div>
@@ -803,7 +804,7 @@ async function handleSubmit(e: React.FormEvent) {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-zinc-700 truncate">{item.name}</p>
-                    <p className="text-sm font-bold text-zinc-900">${item.price.toLocaleString('es-AR')}</p>
+                    <p className="text-sm font-bold text-zinc-900">${toPesos(item.price).toLocaleString('es-AR')}</p>
                   </div>
                   <button
                     type="button"
@@ -940,7 +941,7 @@ async function handleSubmit(e: React.FormEvent) {
             {deliveryConfirmed && deliveryQuote.withinRange && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
                 <p className="text-sm text-emerald-800 font-semibold flex items-center gap-2">
-                  <span>🚚</span> Envío: <span className="text-base">${deliveryQuote.cost.toLocaleString('es-AR')}</span>
+                  <span>🚚</span> Envío: <span className="text-base">${toPesos(deliveryQuote.cost).toLocaleString('es-AR')}</span>
                   <span className="text-xs text-emerald-600 font-normal">({deliveryQuote.distance} km)</span>
                 </p>
               </div>
@@ -1310,7 +1311,7 @@ async function handleSubmit(e: React.FormEvent) {
           <div className="pt-4 border-t border-zinc-100 space-y-2 mb-6">
             <div className="flex justify-between text-sm text-zinc-500">
               <span>Subtotal</span>
-              <span>${subtotal.toLocaleString('es-AR')}</span>
+              <span>${toPesos(subtotal).toLocaleString('es-AR')}</span>
             </div>
             {activeQrPromo && (
               <div className="flex justify-between text-sm text-green-600 font-semibold">
@@ -1318,7 +1319,7 @@ async function handleSubmit(e: React.FormEvent) {
                   <Percent size={12} />
                   {activeQrPromo.checkoutDiscountLabel || 'Descuento QR'} ({activeQrPromo.discountPercentage}%)
                 </span>
-                <span>-${discountAmount.toLocaleString('es-AR')}</span>
+                <span>-${toPesos(discountAmount).toLocaleString('es-AR')}</span>
               </div>
             )}
             {selectedRewardItem && (
@@ -1333,33 +1334,33 @@ async function handleSubmit(e: React.FormEvent) {
             {deliveryMode && deliveryQuote.withinRange && (
               <div className="flex justify-between text-sm text-zinc-500">
                 <span className="flex items-center gap-1">🚚 Envío</span>
-                <span>${deliveryQuote.cost.toLocaleString('es-AR')}</span>
+                <span>${toPesos(deliveryQuote.cost).toLocaleString('es-AR')}</span>
               </div>
             )}
             {selectedPaymentMethod === 'transfer' ? (
               <div className="flex justify-between text-lg font-black text-emerald-700">
                 <span>Total (precio de carta)</span>
-                <span>${total.toLocaleString('es-AR')}</span>
+                <span>${toPesos(total).toLocaleString('es-AR')}</span>
               </div>
             ) : activeSurchargePercent > 0 ? (
               <>
                 <div className="flex justify-between text-sm text-zinc-500">
                   <span>Precio de carta</span>
-                  <span>${baseTotal.toLocaleString('es-AR')}</span>
+                  <span>${toPesos(baseTotal).toLocaleString('es-AR')}</span>
                 </div>
                 <div className="flex justify-between text-sm text-amber-600 font-semibold">
                   <span>Recargo ({activeSurchargePercent}%)</span>
-                  <span>+${(total - baseTotal).toLocaleString('es-AR')}</span>
+                  <span>+${toPesos(total - baseTotal).toLocaleString('es-AR')}</span>
                 </div>
                 <div className="flex justify-between text-lg font-black text-zinc-900">
                   <span>Total</span>
-                  <span>${total.toLocaleString('es-AR')}</span>
+                  <span>${toPesos(total).toLocaleString('es-AR')}</span>
                 </div>
               </>
             ) : (
               <div className="flex justify-between text-lg font-black text-zinc-900">
                 <span>Total</span>
-                <span>${total.toLocaleString('es-AR')}</span>
+                <span>${toPesos(total).toLocaleString('es-AR')}</span>
               </div>
             )}
           </div>
@@ -1415,8 +1416,8 @@ async function handleSubmit(e: React.FormEvent) {
                     {selectedPaymentMethod === 'mercadopago' ? 'Mercado Pago' : 'Kripton'} · Precio con recargo
                   </p>
                   <p className="mt-0.5">
-                    ${(baseTotal).toLocaleString('es-AR')} + {activeSurchargePercent}% ={' '}
-                    <strong>${total.toLocaleString('es-AR')}</strong>
+                    ${toPesos(baseTotal).toLocaleString('es-AR')} + {activeSurchargePercent}% ={' '}
+                    <strong>${toPesos(total).toLocaleString('es-AR')}</strong>
                   </p>
                   <p className="mt-0.5 text-amber-600">
                     Incluye costos operativos del medio de pago.
@@ -1487,7 +1488,7 @@ async function handleSubmit(e: React.FormEvent) {
                   <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-200">
                     <p className="text-[11px] text-amber-800 font-medium flex items-center gap-1">
                       <span>⚠️</span>
-                      Transferí el monto exacto de <strong>${total.toLocaleString('es-AR')}</strong> y luego confirmá el pago en la pantalla de seguimiento.
+                      Transferí el monto exacto de <strong>${toPesos(total).toLocaleString('es-AR')}</strong> y luego confirmá el pago en la pantalla de seguimiento.
                     </p>
                   </div>
                 </div>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 
 interface Consumer {
   _id: string
@@ -71,7 +72,7 @@ export default function ConsumerDetailModal({ consumer, onClose }: Props) {
     fetchOrders()
   }, [consumer._id, page])
 
-  const formatCurrency = (n: number) => `$${n.toLocaleString('es-AR')}`
+  const formatCurrency = (n: number) => `$${toPesos(n).toLocaleString('es-AR')}`
 
   return (
     <AnimatePresence>

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import { CustomerSegmentBadge, CustomerHealthScore, CustomerInsights } from '../cis'
 import { HealthScoreTrendChart } from '../cis/charts'
 
@@ -88,7 +89,7 @@ function fmtDate(iso: string | null) {
 }
 
 function fmtCurrency(n: number) {
-  return `$${n.toLocaleString('es-AR')}`
+  return `$${toPesos(n).toLocaleString('es-AR')}`
 }
 
 const TREND_CONFIG = {

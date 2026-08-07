@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { safeDecrypt } from '@/lib/crypto'
 import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
+import { toPesos } from '@takeasygo/business'
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
@@ -33,7 +34,7 @@ const METHOD_LABELS: Record<string, string> = {
 }
 
 function fmt(n: number) {
-  return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return toPesos(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function fmtDate(d: Date, timezone?: string) {
@@ -257,9 +258,9 @@ export async function GET(
         email: order.customer.email || '—',
         items: itemsStr,
         subtotals: subtotalsStr,
-        baseTotal: order.payment?.baseTotal || order.total,
-        surcharge: order.payment?.surchargeAmount || 0,
-        total: order.total,
+        baseTotal: toPesos(order.payment?.baseTotal || order.total),
+        surcharge: toPesos(order.payment?.surchargeAmount || 0),
+        total: toPesos(order.total),
         status: STATUS_LABELS[order.status] || order.status,
         payment: PAYMENT_LABELS[order.payment?.status] || order.payment?.status,
         notes: order.notes || '',
@@ -298,7 +299,7 @@ export async function GET(
     ws3.getRow(1).height = 28
 
     topItems.forEach(([name, data], i) => {
-      const row = ws3.addRow({ rank: i + 1, name, quantity: data.quantity, revenue: data.revenue })
+      const row = ws3.addRow({ rank: i + 1, name, quantity: data.quantity, revenue: toPesos(data.revenue) })
       row.getCell('revenue').numFmt = '"$"#,##0.00'
       row.height = 22
       if (i % 2 === 0) {
@@ -325,7 +326,7 @@ export async function GET(
     )
 
     dailyEntries.forEach(([date, data], i) => {
-      const row = ws4.addRow({ date, count: data.count, total: data.total })
+      const row = ws4.addRow({ date, count: data.count, total: toPesos(data.total) })
       row.getCell('total').numFmt = '"$"#,##0.00'
       row.height = 22
       if (i % 2 === 0) {
@@ -339,7 +340,7 @@ export async function GET(
     const totalRow = ws4.addRow({
       date: 'TOTAL',
       count: active.length,
-      total: totalRevenue,
+      total: toPesos(totalRevenue),
     })
     totalRow.getCell('date').font = { bold: true, color: { argb: PRIMARY } }
     totalRow.getCell('count').font = { bold: true }
@@ -366,7 +367,7 @@ export async function GET(
     methodEntries.forEach(([method, data], i) => {
       const pct = totalRevenue > 0 ? Math.round((data.revenue / totalRevenue) * 100) : 0
       const label = METHOD_LABELS[method] || method
-      const row = ws5.addRow({ method: label, orders: data.orders, revenue: data.revenue, baseRevenue: data.baseRevenue, surcharge: data.surcharge, pct: `${pct}%` })
+      const row = ws5.addRow({ method: label, orders: data.orders, revenue: toPesos(data.revenue), baseRevenue: toPesos(data.baseRevenue), surcharge: toPesos(data.surcharge), pct: `${pct}%` })
       row.getCell('revenue').numFmt = '"$"#,##0.00'
       row.getCell('baseRevenue').numFmt = '"$"#,##0.00'
       row.getCell('surcharge').numFmt = '"$"#,##0.00'
@@ -382,9 +383,9 @@ export async function GET(
     const totalRow5 = ws5.addRow({
       method: 'TOTAL',
       orders: active.length,
-      revenue: totalRevenue,
-      baseRevenue: totalNetRevenue,
-      surcharge: totalSurcharge,
+      revenue: toPesos(totalRevenue),
+      baseRevenue: toPesos(totalNetRevenue),
+      surcharge: toPesos(totalSurcharge),
       pct: '100%',
     })
     totalRow5.getCell('method').font = { bold: true, color: { argb: PRIMARY } }

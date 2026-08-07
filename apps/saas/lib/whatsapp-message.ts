@@ -1,3 +1,5 @@
+import { toPesos } from '@takeasygo/business'
+
 interface OrderItem {
   name: string
   quantity: number
@@ -58,10 +60,10 @@ function getPaymentLabel(method: string): string {
 function formatItems(items: OrderItem[]): string {
   return items.map((item, idx) => {
     const lines: string[] = []
-    lines.push(`${idx + 1} ${item.name}  🍟 $${item.price.toLocaleString('es-AR')}`)
+    lines.push(`${idx + 1} ${item.name}  🍟 $${toPesos(item.price).toLocaleString('es-AR')}`)
 
     if (item.selectedVariant) {
-      lines.push(`  * ${item.selectedVariant.name}. $${item.selectedVariant.price.toLocaleString('es-AR')}`)
+      lines.push(`  * ${item.selectedVariant.name}. $${toPesos(item.selectedVariant.price).toLocaleString('es-AR')}`)
     }
 
     const halfFirst = (item.customizations || []).find(c => /primera mitad/i.test(c.groupName))
@@ -82,7 +84,7 @@ function formatItems(items: OrderItem[]): string {
       )
       for (const group of otherCustomizations) {
         for (const opt of group.selectedOptions) {
-          const priceStr = opt.extraPrice > 0 ? ` $${opt.extraPrice.toLocaleString('es-AR')}` : ''
+          const priceStr = opt.extraPrice > 0 ? ` $${toPesos(opt.extraPrice).toLocaleString('es-AR')}` : ''
           lines.push(`  * ${opt.name}.${priceStr}`)
         }
       }
@@ -90,12 +92,12 @@ function formatItems(items: OrderItem[]): string {
       if (item.customizations) {
         for (const group of item.customizations) {
           for (const opt of group.selectedOptions) {
-            const priceStr = opt.extraPrice > 0 ? ` $${opt.extraPrice.toLocaleString('es-AR')}` : ''
+            const priceStr = opt.extraPrice > 0 ? ` $${toPesos(opt.extraPrice).toLocaleString('es-AR')}` : ''
             lines.push(`  * ${opt.name}.${priceStr}`)
             if (opt.subGroups) {
               for (const subGroup of opt.subGroups) {
                 for (const subOpt of subGroup.selectedOptions) {
-                  const subPrice = subOpt.extraPrice > 0 ? ` $${subOpt.extraPrice.toLocaleString('es-AR')}` : ''
+                  const subPrice = subOpt.extraPrice > 0 ? ` $${toPesos(subOpt.extraPrice).toLocaleString('es-AR')}` : ''
                   lines.push(`    · ${subOpt.name}.${subPrice}`)
                 }
               }
@@ -126,7 +128,7 @@ export function buildOrderWhatsAppMessage(order: OrderData, tenant: TenantData, 
   lines.push('DETALLES DEL PEDIDO:')
   lines.push(formatItems(order.items))
   lines.push('')
-  lines.push(`$${order.total.toLocaleString('es-AR')} TOTAL (Pago ${paymentLabel})`)
+  lines.push(`$${toPesos(order.total).toLocaleString('es-AR')} TOTAL (Pago ${paymentLabel})`)
   lines.push('')
 
   if (order.notes?.trim()) {

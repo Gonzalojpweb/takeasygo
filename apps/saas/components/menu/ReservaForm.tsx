@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toPesos } from '@takeasygo/business'
 
 interface SlotItem {
   time: string
@@ -264,7 +265,7 @@ export default function ReservaForm({ tenant, location }: Props) {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '5px 14px', borderRadius: 9999, backgroundColor: primary + '15', border: `1px solid ${primary}30` }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             <span style={{ fontSize: '11px', fontWeight: 700, color: primary }}>
-              {t.deposit(minPayment.toLocaleString('es-AR'))}
+              {t.deposit(toPesos(minPayment).toLocaleString('es-AR'))}
             </span>
           </div>
         )}
@@ -420,7 +421,7 @@ export default function ReservaForm({ tenant, location }: Props) {
               boxShadow: `0 8px 24px ${primary}44`,
             }}
           >
-            {loading ? t.processing : minPayment > 0 ? t.submitPay(minPayment.toLocaleString('es-AR')) : t.submit}
+            {loading ? t.processing : minPayment > 0 ? t.submitPay(toPesos(minPayment).toLocaleString('es-AR')) : t.submit}
           </button>
         </div>
       </form>

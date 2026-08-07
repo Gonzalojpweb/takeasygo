@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocation } from '@/components/explore/LocationContext'
 import BottomNav from '@/components/explore/BottomNav'
+import { toPesos } from '@takeasygo/business'
 
 interface Promo {
   _id: string
@@ -208,11 +209,11 @@ export default function PromocionesClient() {
                       {isSale && (
                         <div className="flex items-baseline gap-2">
                           <span className="text-2xl font-black text-white tracking-tighter">
-                            ${promo.price.toLocaleString('es-AR')}
+                            ${toPesos(promo.price).toLocaleString('es-AR')}
                           </span>
                           {promo.originalPrice && (
                             <span className="text-white/60 line-through text-base">
-                              ${promo.originalPrice.toLocaleString('es-AR')}
+                              ${toPesos(promo.originalPrice).toLocaleString('es-AR')}
                             </span>
                           )}
                         </div>

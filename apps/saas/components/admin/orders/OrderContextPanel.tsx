@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import OrderStatusButton from '../OrderStatusButton'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import { toast } from 'sonner'
 import type { BoardContextPanelRenderProps } from '@/components/shared/operations-board'
 
@@ -358,7 +359,7 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
                     )}
                   </div>
                   <span className="text-xs font-bold text-foreground tabular-nums shrink-0">
-                    ${orderItem.subtotal.toLocaleString('es-AR')}
+                    ${toPesos(orderItem.subtotal).toLocaleString('es-AR')}
                   </span>
                 </div>
                 {i < (item.items?.length ?? 0) - 1 && <div className="h-px bg-border/30 mt-3" />}
@@ -395,7 +396,7 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
             )}
           </div>
           <span className="text-sm font-black text-foreground tabular-nums">
-            ${item.total.toLocaleString('es-AR')}
+            ${toPesos(item.total).toLocaleString('es-AR')}
           </span>
         </div>
 
@@ -404,13 +405,13 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
           <div className="mt-2 space-y-1 pl-6">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground/60">Precio de carta</span>
-              <span className="text-[10px] text-muted-foreground/70 tabular-nums">${item.payment.baseTotal.toLocaleString('es-AR')}</span>
+              <span className="text-[10px] text-muted-foreground/70 tabular-nums">${toPesos(item.payment.baseTotal).toLocaleString('es-AR')}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground/60">
                 Recargo MP{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
               </span>
-              <span className="text-[10px] text-amber-600 tabular-nums">+${item.payment.surchargeAmount.toLocaleString('es-AR')}</span>
+              <span className="text-[10px] text-amber-600 tabular-nums">+${toPesos(item.payment.surchargeAmount).toLocaleString('es-AR')}</span>
             </div>
           </div>
         ) : null}
@@ -423,14 +424,14 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
             {hasDiscount && (
               <div className="flex items-center gap-2 text-xs text-emerald-700">
                 <BadgePercent size={12} />
-                <span>Descuento: -${(item.discountAmount ?? 0).toLocaleString('es-AR')}</span>
+                <span>Descuento: -${toPesos(item.discountAmount ?? 0).toLocaleString('es-AR')}</span>
                 {item.promoCode && <span className="text-[10px] text-muted-foreground">({item.promoCode})</span>}
               </div>
             )}
             {hasLoyalty && (
               <div className="flex items-center gap-2 text-xs text-amber-700">
                 <Star size={12} />
-                <span>{item.loyaltyPointsUsed} puntos usados{item.loyaltyDiscountAmount ? ` (-$${item.loyaltyDiscountAmount.toLocaleString('es-AR')})` : ''}</span>
+                <span>{item.loyaltyPointsUsed} puntos usados{item.loyaltyDiscountAmount ? ` (-${toPesos(item.loyaltyDiscountAmount).toLocaleString('es-AR')})` : ''}</span>
               </div>
             )}
             {item.rewardItems && item.rewardItems.length > 0 && (
@@ -607,11 +608,11 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
           <p className="text-[9px] font-bold text-muted-foreground uppercase">Pedidos</p>
         </div>
         <div className="text-center p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
-          <p className="font-black text-lg text-emerald-700 tabular-nums">${history.totalSpent.toLocaleString('es-AR')}</p>
+          <p className="font-black text-lg text-emerald-700 tabular-nums">${toPesos(history.totalSpent).toLocaleString('es-AR')}</p>
           <p className="text-[9px] font-bold text-muted-foreground uppercase">Total</p>
         </div>
         <div className="text-center p-2.5 rounded-xl bg-amber-50 border border-amber-200">
-          <p className="font-black text-lg text-amber-700 tabular-nums">${history.avgTicket.toLocaleString('es-AR')}</p>
+          <p className="font-black text-lg text-amber-700 tabular-nums">${toPesos(history.avgTicket).toLocaleString('es-AR')}</p>
           <p className="text-[9px] font-bold text-muted-foreground uppercase">Ticket avg</p>
         </div>
       </div>
@@ -651,7 +652,7 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs font-black text-foreground tabular-nums">${order.total.toLocaleString('es-AR')}</p>
+                  <p className="text-xs font-black text-foreground tabular-nums">${toPesos(order.total).toLocaleString('es-AR')}</p>
                   <p className="text-[9px] text-muted-foreground">{fmtDate(order.createdAt)}</p>
                 </div>
                 <ChevronDown size={12} className={cn(
@@ -664,7 +665,7 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
                   {order.items.map((oi, i) => (
                     <div key={i} className="flex items-center justify-between text-[10px]">
                       <span className="text-muted-foreground">{oi.quantity}x {oi.name}</span>
-                      <span className="font-bold text-foreground/70 tabular-nums">${oi.subtotal.toLocaleString('es-AR')}</span>
+                      <span className="font-bold text-foreground/70 tabular-nums">${toPesos(oi.subtotal).toLocaleString('es-AR')}</span>
                     </div>
                   ))}
                 </div>

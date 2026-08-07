@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { toPesos } from '@takeasygo/business'
 
 interface Membership {
   tenantName: string
@@ -119,7 +120,7 @@ export default function UserDetailModal({ userId, open, onOpenChange, onUpdate }
       style: 'currency',
       currency: 'ARS',
       minimumFractionDigits: 0,
-    }).format(v)
+    }).format(toPesos(v))
   }
 
   return (
@@ -213,7 +214,7 @@ export default function UserDetailModal({ userId, open, onOpenChange, onUpdate }
                           </div>
                           <div className="text-right text-[10px] text-muted-foreground">
                             <p>{m.totalOrders} {m.totalOrders === 1 ? 'pedido' : 'pedidos'}</p>
-                            <p>${m.totalSpent.toLocaleString('es-AR')}</p>
+                            <p>${toPesos(m.totalSpent).toLocaleString('es-AR')}</p>
                           </div>
                         </div>
                       </div>
