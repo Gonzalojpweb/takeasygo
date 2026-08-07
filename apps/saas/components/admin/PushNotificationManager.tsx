@@ -10,6 +10,7 @@ import {
   AlertCircle, Search, RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { toPesos } from '@takeasygo/business'
 
 interface Props {
   tenantSlug: string
@@ -404,7 +405,7 @@ function MembersTab({ tenantSlug }: { tenantSlug: string }) {
                     }
                   </td>
                   <td className="px-4 py-3 text-center font-bold tabular-nums">{m.totalOrders}</td>
-                  <td className="px-4 py-3 text-right font-bold tabular-nums">${m.totalSpent.toLocaleString('es-AR')}</td>
+                  <td className="px-4 py-3 text-right font-bold tabular-nums">${toPesos(m.totalSpent).toLocaleString('es-AR')}</td>
                 </tr>
               ))}
             </tbody>
@@ -512,7 +513,7 @@ function ConsumersTab({ tenantSlug }: { tenantSlug: string }) {
                     }
                   </td>
                   <td className="px-4 py-3 text-center font-bold tabular-nums">{c.totalOrders}</td>
-                  <td className="px-4 py-3 text-right font-bold tabular-nums">${c.totalSpent.toLocaleString('es-AR')}</td>
+                  <td className="px-4 py-3 text-right font-bold tabular-nums">${toPesos(c.totalSpent).toLocaleString('es-AR')}</td>
                 </tr>
               ))}
             </tbody>

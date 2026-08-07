@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { CuisineSelector } from '@/components/ui/cuisine-selector'
-import { MapPin, Plus, ChevronUp, Pencil, Trash2, X, Check, Upload, Globe } from 'lucide-react'
+import { MapPin, Plus, ChevronUp, Pencil, Trash2, X, Check, Upload, Globe, Pause, Play } from 'lucide-react'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
 
 type OrderMode = 'takeaway' | 'dine-in'
@@ -23,6 +23,7 @@ interface LocationItem {
   lng: number | null
   networkVisible: boolean
   cuisineTypes: string[]
+  status: 'active' | 'paused'
 }
 
 interface Props {
@@ -77,6 +78,18 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
     const has = current.includes(mode)
     if (has && current.length === 1) return
     set(has ? current.filter(m => m !== mode) : [...current, mode])
+  }
+
+  async function handlePauseResume(loc: LocationItem) {
+    const action = loc.status === 'paused' ? 'resume' : 'pause'
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations/${loc._id}/${action}`, { method: 'PATCH' })
+      if (!res.ok) throw new Error('Error')
+      setLocations(prev => prev.map(l => l._id === loc._id ? { ...l, status: (action === 'pause' ? 'paused' : 'active') as 'active' | 'paused' } : l) as LocationItem[])
+      toast.success(action === 'pause' ? 'Sede pausada' : 'Sede reactivada')
+    } catch {
+      toast.error('No se pudo cambiar el estado de la sede')
+    }
   }
 
   // ── Create ──────────────────────────────────────────────────────────────────
@@ -148,6 +161,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           lng: location.geo?.coordinates ? location.geo.coordinates[0] : null,
           networkVisible: location.networkVisible ?? false,
           cuisineTypes: location.cuisineTypes ?? [],
+          status: (location as any).status ?? 'active',
         },
       ])
       setForm(EMPTY_FORM)
@@ -416,6 +430,11 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {loc.status === 'paused' && (
+                        <span className="text-xs px-2 py-0.5 rounded-full border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                          Pausada
+                        </span>
+                      )}
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full border ${
                           loc.hasMenu
@@ -439,6 +458,16 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                         onClick={() => setImportingLocation(loc)}
                         className="p-1.5 rounded-lg text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
                         <Upload size={13} />
+                      </button>
+                      <button
+                        title={loc.status === 'paused' ? 'Reanudar sede' : 'Pausar sede'}
+                        onClick={() => handlePauseResume(loc)}
+                        className={`p-1.5 rounded-lg text-zinc-500 transition-colors ${
+                          loc.status === 'paused'
+                            ? 'hover:text-green-400 hover:bg-green-500/10'
+                            : 'hover:text-yellow-400 hover:bg-yellow-500/10'
+                        }`}>
+                        {loc.status === 'paused' ? <Play size={13} /> : <Pause size={13} />}
                       </button>
                       <button
                         onClick={() => startEdit(loc)}

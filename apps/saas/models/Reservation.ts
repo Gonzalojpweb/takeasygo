@@ -14,6 +14,7 @@ export interface IReservation extends Document {
   clientToken?: string
   status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show'
   payment: {
+    /** Monto del pago en centavos. @storedAs cents */
     amount: number
     status: 'pending' | 'approved' | 'rejected'
     mercadopagoId: string | null

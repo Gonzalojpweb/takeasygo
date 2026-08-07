@@ -8,6 +8,7 @@ export interface IConsumer extends Document {
   emailHash: string
   tenantIds: Types.ObjectId[]
   totalOrders: number
+  /** Total gastado por el consumidor en centavos. @storedAs cents */
   totalSpent: number
   firstOrderAt: Date | null
   lastOrderAt: Date | null

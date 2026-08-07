@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag, ShoppingCart, Plus, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import { isAvailableNow } from '@/lib/availability'
 import { motion, AnimatePresence } from 'framer-motion'
 import { terminos, privacidad } from '@/lib/legal-content'
@@ -663,9 +664,9 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                       const hasVariants = (item.variants ?? []).length > 0
                                       if (hasVariants) {
                                         const prices = item.variants.map((v: any) => v.price)
-                                        return Math.min(...prices).toLocaleString('es-AR')
+                                        return toPesos(Math.min(...prices)).toLocaleString('es-AR')
                                       }
-                                      return item.price.toLocaleString('es-AR')
+                                      return toPesos(item.price).toLocaleString('es-AR')
                                     })()}
                                   </p>
                                 </div>
@@ -738,9 +739,9 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                         const hasVariants = (item.variants ?? []).length > 0
                                         if (hasVariants) {
                                           const prices = item.variants.map((v: any) => v.price)
-                                          return Math.min(...prices).toLocaleString('es-AR')
+                                          return toPesos(Math.min(...prices)).toLocaleString('es-AR')
                                         }
-                                        return item.price.toLocaleString('es-AR')
+                                        return toPesos(item.price).toLocaleString('es-AR')
                                       })()}
                                     </p>
                                   </div>
@@ -803,9 +804,9 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                 const hasVariants = (item.variants ?? []).length > 0
                                 if (hasVariants) {
                                   const prices = item.variants.map((v: any) => v.price)
-                                  return Math.min(...prices).toLocaleString('es-AR')
+                                  return toPesos(Math.min(...prices)).toLocaleString('es-AR')
                                 }
-                                return item.price.toLocaleString('es-AR')
+                                return toPesos(item.price).toLocaleString('es-AR')
                               })()}
                             </p>
                           </div>
@@ -867,9 +868,9 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                           const hasVariants = (item.variants ?? []).length > 0
                           if (hasVariants) {
                             const prices = item.variants.map((v: any) => v.price)
-                            return Math.min(...prices).toLocaleString('es-AR')
+                            return toPesos(Math.min(...prices)).toLocaleString('es-AR')
                           }
-                          return item.price.toLocaleString('es-AR')
+                          return toPesos(item.price).toLocaleString('es-AR')
                         })()}
                       </p>
                     </div>
@@ -1062,10 +1063,10 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                     const minPrice = Math.min(...prices)
                     const maxPrice = Math.max(...prices)
                     return minPrice === maxPrice
-                      ? minPrice.toLocaleString('es-AR')
-                      : `${minPrice.toLocaleString('es-AR')} - ${maxPrice.toLocaleString('es-AR')}`
+                      ? toPesos(minPrice).toLocaleString('es-AR')
+                      : `${toPesos(minPrice).toLocaleString('es-AR')} - ${toPesos(maxPrice).toLocaleString('es-AR')}`
                   }
-                  return modalItem.price.toLocaleString('es-AR')
+                  return toPesos(modalItem.price).toLocaleString('es-AR')
                 })()}
               </p>
               {modalItem.variants && modalItem.variants.length > 0 && (
@@ -1075,7 +1076,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                       style={{ backgroundColor: branding.primaryColor + '10' }}>
                       <span style={{ color: text }}>{v.name}</span>
                       <span className="font-semibold" style={{ color: branding.primaryColor }}>
-                        ${v.price.toLocaleString('es-AR')}
+                        ${toPesos(v.price).toLocaleString('es-AR')}
                       </span>
                     </div>
                   ))}
@@ -1137,7 +1138,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                 </button>
               </div>
               <p className="text-center text-sm font-semibold mb-4" style={{ color: branding.primaryColor }}>
-                ${(promotion.price * promoQtyValue).toLocaleString('es-AR')}
+                ${toPesos(promotion.price * promoQtyValue).toLocaleString('es-AR')}
               </p>
               <button
                 type="button"

@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { privacidad, canalCorporativo } from '@/lib/legal-content'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 
 interface Props {
   tenant: any
@@ -523,7 +524,7 @@ export default function CorpPortalClient({ tenant }: Props) {
               <>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-5 bg-card border-2 border-border/60 rounded-2xl shadow-sm">
-                    <p className="text-2xl font-bold">${summary.totalConsumed.toLocaleString('es-AR')}</p>
+                    <p className="text-2xl font-bold">${toPesos(summary.totalConsumed).toLocaleString('es-AR')}</p>
                     <p className="text-[10px] uppercase font-bold text-muted-foreground/50 mt-1">Total consumido</p>
                   </div>
                   <div className="p-5 bg-card border-2 border-border/60 rounded-2xl shadow-sm">
@@ -531,7 +532,7 @@ export default function CorpPortalClient({ tenant }: Props) {
                     <p className="text-[10px] uppercase font-bold text-muted-foreground/50 mt-1">Pedidos</p>
                   </div>
                   <div className="p-5 bg-card border-2 border-border/60 rounded-2xl shadow-sm">
-                    <p className="text-2xl font-bold text-amber-600">${summary.totalPending.toLocaleString('es-AR')}</p>
+                    <p className="text-2xl font-bold text-amber-600">${toPesos(summary.totalPending).toLocaleString('es-AR')}</p>
                     <p className="text-[10px] uppercase font-bold text-muted-foreground/50 mt-1">Pendiente de pago</p>
                   </div>
                   <div className="p-5 bg-card border-2 border-border/60 rounded-2xl shadow-sm">
@@ -555,7 +556,7 @@ export default function CorpPortalClient({ tenant }: Props) {
                               <p className="text-sm font-medium">{empEmail}</p>
                               <p className="text-[10px] text-muted-foreground">{data.count} items</p>
                             </div>
-                            <span className="font-bold">${data.total.toLocaleString('es-AR')}</span>
+                            <span className="font-bold">${toPesos(data.total).toLocaleString('es-AR')}</span>
                           </div>
                         ))}
                     </div>
@@ -566,12 +567,12 @@ export default function CorpPortalClient({ tenant }: Props) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-5 bg-card border-2 border-border/60 rounded-2xl shadow-sm">
                     <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-wider mb-1">Individual</p>
-                    <p className="text-2xl font-bold">${summary.byMode.individual.total.toLocaleString('es-AR')}</p>
+                    <p className="text-2xl font-bold">${toPesos(summary.byMode.individual.total).toLocaleString('es-AR')}</p>
                     <p className="text-[10px] text-muted-foreground">{summary.byMode.individual.count} pedidos</p>
                   </div>
                   <div className="p-5 bg-card border-2 border-border/60 rounded-2xl shadow-sm">
                     <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-wider mb-1">Grupal</p>
-                    <p className="text-2xl font-bold">${summary.byMode.group.total.toLocaleString('es-AR')}</p>
+                    <p className="text-2xl font-bold">${toPesos(summary.byMode.group.total).toLocaleString('es-AR')}</p>
                     <p className="text-[10px] text-muted-foreground">{summary.byMode.group.count} pedidos</p>
                   </div>
                 </div>
@@ -652,7 +653,7 @@ export default function CorpPortalClient({ tenant }: Props) {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold">${order.total.toLocaleString('es-AR')}</p>
+                        <p className="text-sm font-bold">${toPesos(order.total).toLocaleString('es-AR')}</p>
                         <p className={cn(
                           'text-[10px] font-bold',
                           order.paymentStatus === 'approved' ? 'text-emerald-600' : 'text-amber-600'
@@ -673,7 +674,7 @@ export default function CorpPortalClient({ tenant }: Props) {
                               <span className="text-muted-foreground/50 text-[9px] truncate">· {item.addedByEmail}</span>
                             )}
                           </div>
-                          <span className="font-medium flex-shrink-0">${item.subtotal.toLocaleString('es-AR')}</span>
+                          <span className="font-medium flex-shrink-0">${toPesos(item.subtotal).toLocaleString('es-AR')}</span>
                         </div>
                       ))}
                     </div>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import MenuPublicView from '@/components/menu/MenuPublicView'
 import GroupAddConfirmModal from '@/components/menu/GroupAddConfirmModal'
 
@@ -355,7 +356,7 @@ export default function GroupSessionClient({
               <p className="text-[10px] uppercase font-bold text-muted-foreground/50">Empleados</p>
             </div>
             <div className="p-3 rounded-xl bg-muted/30 border border-border/40 text-center">
-              <p className="text-2xl font-bold">${(session?.total ?? 0).toLocaleString('es-AR')}</p>
+              <p className="text-2xl font-bold">${toPesos(session?.total ?? 0).toLocaleString('es-AR')}</p>
               <p className="text-[10px] uppercase font-bold text-muted-foreground/50">Total</p>
             </div>
           </div>
@@ -390,7 +391,7 @@ export default function GroupSessionClient({
                 </div>
                 <div>
                   <p className="text-sm font-bold">{empEmail}</p>
-                  <p className="text-[10px] text-muted-foreground">{empItems.length} items · ${empItems.reduce((s, i) => s + i.subtotal, 0).toLocaleString('es-AR')}</p>
+                  <p className="text-[10px] text-muted-foreground">{empItems.length} items · ${toPesos(empItems.reduce((s, i) => s + i.subtotal, 0)).toLocaleString('es-AR')}</p>
                 </div>
               </div>
               <div className="space-y-1.5 pl-10">
@@ -406,7 +407,7 @@ export default function GroupSessionClient({
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold">${item.subtotal.toLocaleString('es-AR')}</span>
+                      <span className="text-sm font-bold">${toPesos(item.subtotal).toLocaleString('es-AR')}</span>
                       {isActive && (
                         <button
                           onClick={() => handleRemoveItem(findItemGlobalIndex(session.items, item))}
@@ -542,7 +543,7 @@ export default function GroupSessionClient({
               <p className="text-xs font-bold truncate">{companyName}</p>
               <p className="text-[10px] text-muted-foreground truncate">{email}</p>
               <p className="text-[10px] text-muted-foreground">
-                {itemCount} items · ${myTotal.toLocaleString('es-AR')}
+                {itemCount} items · ${toPesos(myTotal).toLocaleString('es-AR')}
               </p>
             </div>
           </div>
@@ -574,7 +575,7 @@ export default function GroupSessionClient({
                       <span className="text-muted-foreground ml-1">· {item.selectedVariant.name}</span>
                     )}
                   </div>
-                  <span className="font-medium ml-2 shrink-0">${item.subtotal.toLocaleString('es-AR')}</span>
+                  <span className="font-medium ml-2 shrink-0">${toPesos(item.subtotal).toLocaleString('es-AR')}</span>
                 </div>
               ))}
             </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
+import { toPesos } from '@takeasygo/business'
 
 interface OptionPhotoCardProps {
   name: string
@@ -42,7 +43,7 @@ export default function OptionPhotoCard({ name, extraPrice, imageUrl, isSelected
         </span>
         {extraPrice > 0 && (
           <span className="text-[9px] opacity-60 whitespace-nowrap">
-            +${extraPrice.toLocaleString('es-AR')}
+            +${toPesos(extraPrice).toLocaleString('es-AR')}
           </span>
         )}
       </button>
@@ -76,7 +77,7 @@ export default function OptionPhotoCard({ name, extraPrice, imageUrl, isSelected
         </p>
         {extraPrice > 0 && (
           <p className="text-[9px] opacity-60 whitespace-nowrap mt-0.5">
-            +${extraPrice.toLocaleString('es-AR')}
+            +${toPesos(extraPrice).toLocaleString('es-AR')}
           </p>
         )}
       </div>

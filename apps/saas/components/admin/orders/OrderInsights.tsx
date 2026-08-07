@@ -3,6 +3,7 @@
 import { ShoppingBag, Clock, Package, Truck, CheckCircle2 } from 'lucide-react'
 import { BoardInsightsShell } from '@/components/shared/operations-board'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import type { BoardInsightsRenderProps } from '@/components/shared/operations-board'
 
 interface OrderItem {
@@ -85,7 +86,7 @@ export default function OrderInsights({ items }: BoardInsightsRenderProps<OrderI
               </span>
             </div>
             <p className="text-xs font-semibold text-foreground/70">{lastOrder.customer.name}</p>
-            <p className="text-xs font-bold text-primary tabular-nums">${lastOrder.total.toLocaleString('es-AR')}</p>
+            <p className="text-xs font-bold text-primary tabular-nums">${toPesos(lastOrder.total).toLocaleString('es-AR')}</p>
           </div>
         </div>
       )}

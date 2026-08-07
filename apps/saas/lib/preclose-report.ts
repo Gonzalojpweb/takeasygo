@@ -1,4 +1,5 @@
 import Order from '@/models/Order'
+import { toPesos } from '@takeasygo/business'
 
 export interface PreCloseData {
   locationName: string
@@ -164,7 +165,7 @@ function buf(input: string | Buffer): Buffer {
 }
 
 function money(v: number): string {
-  return v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return toPesos(v).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function formatDateRange(isoFrom: string, isoTo: string): string {

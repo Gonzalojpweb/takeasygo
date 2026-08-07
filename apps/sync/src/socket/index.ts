@@ -47,7 +47,6 @@ export function createSocketServer(
 
   io.on("connection", (socket) => {
     const auth = (socket as any).auth
-    console.log(`[socket] connected: ${auth.sub} (${auth.tenantId}/${auth.deviceType})`)
 
     socket.emit("heartbeat", { timestamp: new Date().toISOString() })
 
@@ -68,7 +67,6 @@ export function createSocketServer(
     })
 
     socket.on("disconnect", () => {
-      console.log(`[socket] disconnected: ${auth.sub} (${auth.tenantId})`)
     })
   })
 

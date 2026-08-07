@@ -1,6 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
+import { toPesos } from '@takeasygo/business'
 
 interface OptionChipProps {
   name: string
@@ -29,7 +30,7 @@ export default function OptionChip({ name, extraPrice, isSelected, primaryColor,
       <span className="truncate">{name}</span>
       {extraPrice > 0 && (
         <span className="text-xs opacity-70 whitespace-nowrap">
-          +${extraPrice.toLocaleString('es-AR')}
+          +${toPesos(extraPrice).toLocaleString('es-AR')}
         </span>
       )}
     </button>

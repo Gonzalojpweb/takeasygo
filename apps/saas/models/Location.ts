@@ -40,11 +40,12 @@ export interface ILocation extends Document {
   }
   deliveryConfig?: {
     enabled: boolean
-    ranges: Array<{ fromKm: number; toKm: number; price: number }>
+    ranges: Array<{ fromKm: number; toKm: number; /** Precio del rango de delivery en centavos. @storedAs cents */ price: number }>
     maxRangeKm: number
   }
   reservationConfig: {
     enabled: boolean
+    /** Pago mínimo para reservar en centavos. @storedAs cents */
     minPayment: number
     timeSlots: string[]
     maxPartySize: number
@@ -70,6 +71,9 @@ export interface ILocation extends Document {
     dineIn: Array<{ days: number[]; open: string; close: string }>
     delivery: Array<{ days: number[]; open: string; close: string }>
   }
+  status: 'active' | 'paused'
+  pausedAt: Date | null
+  pausedReason: string | null
   scheduledOrdersConfig?: {
     enabled: boolean
     maxAdvanceHours: number
@@ -234,6 +238,9 @@ settings: {
       dineIn: { type: [{ days: [Number], open: String, close: String }], default: [] },
       delivery: { type: [{ days: [Number], open: String, close: String }], default: [] },
     },
+    status: { type: String, enum: ['active', 'paused'], default: 'active' },
+    pausedAt: { type: Date, default: null },
+    pausedReason: { type: String, default: null },
     scheduledOrdersConfig: {
       enabled: { type: Boolean, default: false },
       maxAdvanceHours: { type: Number, default: 24 },

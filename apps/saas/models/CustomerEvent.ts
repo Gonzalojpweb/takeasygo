@@ -26,6 +26,7 @@ export interface ICustomerEvent extends Document {
     orderId?: mongoose.Types.ObjectId
     itemName?: string
     itemCategory?: string
+    /** Monto en centavos. @storedAs cents */
     amount?: number
     rewardId?: string
     segment?: string

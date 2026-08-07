@@ -12,6 +12,7 @@ import {
     Printer, PlusCircle, CheckCircle2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import { toast } from 'sonner'
 import UpsellAnalytics from '@/components/admin/UpsellAnalytics'
 
@@ -536,11 +537,11 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                                     </div>
                                     <div>
                                         <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Ingreso</p>
-                                        <p className="font-black tabular-nums text-foreground">${precloseResult.totalRevenue?.toLocaleString('es-AR')}</p>
+                                        <p className="font-black tabular-nums text-foreground">${toPesos(precloseResult.totalRevenue ?? 0).toLocaleString('es-AR')}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Ticket prom.</p>
-                                        <p className="font-black tabular-nums text-foreground">${precloseResult.avgTicket?.toLocaleString('es-AR')}</p>
+                                        <p className="font-black tabular-nums text-foreground">${toPesos(precloseResult.avgTicket ?? 0).toLocaleString('es-AR')}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Canceladas</p>
@@ -557,8 +558,8 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="Ventas Brutas"
-                    value={`$${stats.revenue.toLocaleString('es-AR')}`}
-                    desc={stats.netRevenue ? `Neto: $${stats.netRevenue.toLocaleString('es-AR')} · ${isPositive ? '+' : ''}${stats.growth}% vs mes anterior` : `${isPositive ? '+' : ''}${stats.growth}% vs mes anterior`}
+                    value={`$${toPesos(stats.revenue).toLocaleString('es-AR')}`}
+                    desc={stats.netRevenue ? `Neto: $${toPesos(stats.netRevenue).toLocaleString('es-AR')} · ${isPositive ? '+' : ''}${stats.growth}% vs mes anterior` : `${isPositive ? '+' : ''}${stats.growth}% vs mes anterior`}
                     icon={<DollarSign size={20} />}
                     trend={isPositive ? 'up' : 'down'}
                     color="bg-primary/10 text-primary"
@@ -574,16 +575,16 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 />
                 <StatCard
                     title="Ticket Promedio"
-                    value={`$${stats.avgTicket.toLocaleString('es-AR')}`}
-                    desc={stats.avgTicketNet ? `Neto: $${stats.avgTicketNet.toLocaleString('es-AR')}` : 'Basado en pedidos confirmados'}
+                    value={`$${toPesos(stats.avgTicket).toLocaleString('es-AR')}`}
+                    desc={stats.avgTicketNet ? `Neto: $${toPesos(stats.avgTicketNet).toLocaleString('es-AR')}` : 'Basado en pedidos confirmados'}
                     icon={<TrendingUp size={20} />}
                     color="bg-amber-500/10 text-amber-500"
                     index={2}
                 />
                 <StatCard
                     title="Mes Anterior"
-                    value={`$${stats.lastMonthRevenue.toLocaleString('es-AR')}`}
-                    desc={stats.lastMonthNetRevenue ? `Neto: $${stats.lastMonthNetRevenue.toLocaleString('es-AR')} · ${stats.lastMonthOrders} pedidos` : `${stats.lastMonthOrders} pedidos`}
+                    value={`$${toPesos(stats.lastMonthRevenue).toLocaleString('es-AR')}`}
+                    desc={stats.lastMonthNetRevenue ? `Neto: $${toPesos(stats.lastMonthNetRevenue).toLocaleString('es-AR')} · ${stats.lastMonthOrders} pedidos` : `${stats.lastMonthOrders} pedidos`}
                     icon={<History size={20} />}
                     color="bg-purple-500/10 text-purple-500"
                     index={3}
@@ -866,7 +867,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-lg font-black tracking-tighter text-foreground tabular-nums">{item.total}</p>
-                                                <p className="text-[10px] font-bold text-muted-foreground/70">${item.revenue.toLocaleString('es-AR')}</p>
+                                                <p className="text-[10px] font-bold text-muted-foreground/70">${toPesos(item.revenue).toLocaleString('es-AR')}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -901,7 +902,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-sm font-black tabular-nums text-foreground">${order.total.toLocaleString('es-AR')}</p>
+                                            <p className="text-sm font-black tabular-nums text-foreground">${toPesos(order.total).toLocaleString('es-AR')}</p>
                                             <p className="text-[10px] font-bold text-primary/70 uppercase tracking-tighter">Completado</p>
                                         </div>
                                     </div>
@@ -1085,7 +1086,7 @@ function DailyTrendChart({ trend }: { trend: { day: number; revenue: number; ord
                         <div key={day} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                             {revenue > 0 && (
                                 <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                    Día {day} · ${revenue.toLocaleString('es-AR')}
+                                    Día {day} · ${toPesos(revenue).toLocaleString('es-AR')}
                                 </div>
                             )}
                             <div
@@ -1122,7 +1123,7 @@ function CategoryRevenueChart({ categories }: { categories: { category: string; 
                                 <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest">{cat.quantity} uds.</span>
                             </div>
                             <div className="text-right shrink-0 ml-4">
-                                <span className="text-sm font-black tabular-nums text-foreground">${cat.revenue.toLocaleString('es-AR')}</span>
+                                <span className="text-sm font-black tabular-nums text-foreground">${toPesos(cat.revenue).toLocaleString('es-AR')}</span>
                                 <span className="text-[10px] font-bold text-muted-foreground/60 ml-1.5">{pct}%</span>
                             </div>
                         </div>
@@ -1158,7 +1159,7 @@ function LocationRevenueChart({ locations }: { locations: { locationName: string
                                 <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest">{loc.orders} pedidos</span>
                             </div>
                             <div className="text-right shrink-0 ml-4">
-                                <span className="text-sm font-black tabular-nums text-foreground">${loc.revenue.toLocaleString('es-AR')}</span>
+                                <span className="text-sm font-black tabular-nums text-foreground">${toPesos(loc.revenue).toLocaleString('es-AR')}</span>
                                 <span className="text-[10px] font-bold text-muted-foreground/60 ml-1.5">{pct}%</span>
                             </div>
                         </div>
@@ -1194,16 +1195,16 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 rounded-2xl bg-muted/30">
                     <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Total bruto</p>
-                    <p className="text-2xl font-black tabular-nums text-foreground">${totalRevenue.toLocaleString('es-AR')}</p>
+                    <p className="text-2xl font-black tabular-nums text-foreground">${toPesos(totalRevenue).toLocaleString('es-AR')}</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-muted/30">
                     <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Total neto</p>
-                    <p className="text-2xl font-black tabular-nums text-emerald-600">${totalBaseRevenue.toLocaleString('es-AR')}</p>
+                    <p className="text-2xl font-black tabular-nums text-emerald-600">${toPesos(totalBaseRevenue).toLocaleString('es-AR')}</p>
                 </div>
                 {totalSurcharge > 0 && (
                     <div className="p-4 rounded-2xl bg-muted/30">
                         <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Recargo MP</p>
-                        <p className="text-2xl font-black tabular-nums text-amber-600">${totalSurcharge.toLocaleString('es-AR')}</p>
+                        <p className="text-2xl font-black tabular-nums text-amber-600">${toPesos(totalSurcharge).toLocaleString('es-AR')}</p>
                     </div>
                 )}
                 <div className="p-4 rounded-2xl bg-muted/30">
@@ -1225,9 +1226,9 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
                                 <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest">{d.orders} ped.</span>
                             </div>
                             <div className="text-right shrink-0 ml-4">
-                                <span className="text-sm font-black tabular-nums text-foreground">${d.revenue.toLocaleString('es-AR')}</span>
+                                <span className="text-sm font-black tabular-nums text-foreground">${toPesos(d.revenue).toLocaleString('es-AR')}</span>
                                 {d.baseRevenue > 0 && d.baseRevenue !== d.revenue && (
-                                    <span className="text-[10px] font-bold text-emerald-600 ml-1.5">neto ${d.baseRevenue.toLocaleString('es-AR')}</span>
+                                    <span className="text-[10px] font-bold text-emerald-600 ml-1.5">neto ${toPesos(d.baseRevenue).toLocaleString('es-AR')}</span>
                                 )}
                                 <span className="text-[10px] font-bold text-muted-foreground/60 ml-1.5">{pct}%</span>
                             </div>
@@ -1240,7 +1241,7 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
                                 />
                             </div>
                             <span className="text-[10px] font-bold text-muted-foreground/50 w-16 text-right shrink-0">
-                                ${avgTicket.toLocaleString('es-AR')} c/u
+                                ${toPesos(avgTicket).toLocaleString('es-AR')} c/u
                             </span>
                         </div>
                     </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
@@ -321,7 +322,7 @@ export default function ReservasPanel({ reservations: initialReservations, locat
                               'flex items-center gap-1 font-bold',
                               r.payment.status === 'approved' ? 'text-emerald-600' : 'text-amber-600'
                             )}>
-                              ${r.payment.amount.toLocaleString('es-AR')} {r.payment.status === 'approved' ? '✓' : '⏳'}
+                              ${toPesos(r.payment.amount).toLocaleString('es-AR')} {r.payment.status === 'approved' ? '✓' : '⏳'}
                             </span>
                           )}
                         </div>

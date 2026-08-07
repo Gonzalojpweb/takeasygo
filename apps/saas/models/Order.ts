@@ -7,6 +7,7 @@ export type PaymentModeSnapshot = 'cash_mp' | 'deferred' | 'mixed'
 
 export interface ISelectedCustomizationOption {
   name: string
+  /** Precio extra de esta opción en centavos. @storedAs cents */
   extraPrice: number
   subGroups?: ISelectedCustomizationGroup[]
 }
@@ -18,8 +19,11 @@ export interface ISelectedCustomizationGroup {
 
 export interface ISelectedVariant {
   name: string
+  /** Precio de esta variante en centavos. @storedAs cents */
   price: number
+  /** Precio takeaway de esta variante en centavos. @storedAs cents */
   takeawayPrice?: number
+  /** Precio business de esta variante en centavos. @storedAs cents */
   businessPrice?: number
 }
 
@@ -32,10 +36,14 @@ export interface IOrderItem {
   name: string
   description: string
   shortDescription?: string
+  /** Precio base del ítem en centavos. @storedAs cents */
   basePrice: number
+  /** Precio extra de customizaciones en centavos. @storedAs cents */
   extraPrice: number
+  /** Precio final del ítem (base + extra) en centavos. @storedAs cents */
   price: number
   quantity: number
+  /** Subtotal (price × quantity) en centavos. @storedAs cents */
   subtotal: number
   customizations: ISelectedCustomizationGroup[]
   selectedVariant?: ISelectedVariant
@@ -71,7 +79,9 @@ export interface IStatusTimestamps {
 export interface IRewardRedemption {
   storeItemId: mongoose.Types.ObjectId
   storeItemName: string
+  /** Puntos canjeados por esta recompensa. @storedAs points (not cents) */
   pointsCost: number
+  /** Valor en centavos del descuento aplicado por el canje. @storedAs cents */
   cashValue?: number
   sosApplied: boolean
 }
@@ -88,12 +98,15 @@ export interface IOrder extends Document {
   sessionExpiresAt: Date | null
   items: IOrderItem[]
   rewardItems: IRewardRedemption[]
+  /** Suma de subtotales de items en centavos. @storedAs cents */
   subtotal: number
+  /** Descuento aplicado en centavos. @storedAs cents */
   discountAmount: number
   qrPromoApplied: boolean
   promoSlug: string | null
   promoCode: string | null
   promoCreatedBy: 'superadmin' | 'admin' | null
+  /** Total de la orden en centavos. @storedAs cents */
   total: number
   customer: {
     name: string
@@ -111,9 +124,13 @@ export interface IOrder extends Document {
     kriptonToken: string | null
     kriptonData: Record<string, any> | null
     // ── Pricing dinámico ─────────────────────────────────────────────────
+    /** Base total antes de recargo en centavos. @storedAs cents */
     baseTotal: number
+    /** Porcentaje de recargo (ej: 10 = 10%). Not a cents value. */
     surchargePercent: number
+    /** Monto del recargo en centavos. @storedAs cents */
     surchargeAmount: number
+    /** Comisión de la plataforma en centavos. @storedAs cents */
     platformFeeAmount: number
     // ── Transferencia ────────────────────────────────────────────────────
     transferConfirmed: boolean
@@ -138,8 +155,10 @@ export interface IOrder extends Document {
   scheduledPickupAt: Date | null
   scheduledStatus: 'pending_schedule' | 'active' | 'expired' | null
   loyaltyPointsUsed?: number
+  /** Descuento por fidelidad en centavos. @storedAs cents */
   loyaltyDiscountAmount?: number
   rewardAdvanceApplied?: boolean
+  /** Anticipo de recompensa en centavos. @storedAs cents */
   rewardAdvanceAmount?: number
   loyaltyPointsCredited: boolean
   rewardDeductionProcessed?: boolean
@@ -166,11 +185,13 @@ export interface IOrder extends Document {
     city: string
     coordinates: { lat: number; lng: number }
   }
+  /** Costo de delivery en centavos. @storedAs cents */
   deliveryCost: number
   deliveryDistance: number
   deliveryRangeApplied?: {
     fromKm: number
     toKm: number
+    /** Precio del rango de delivery en centavos. @storedAs cents */
     price: number
   }
   createdAt: Date
@@ -188,8 +209,11 @@ const RewardRedemptionSchema = new Schema<IRewardRedemption>({
 
 const SelectedVariantSchema = new Schema<ISelectedVariant>({
   name: { type: String, required: true },
+  /** @storedAs cents */
   price: { type: Number, required: true },
+  /** @storedAs cents */
   takeawayPrice: { type: Number },
+  /** @storedAs cents */
   businessPrice: { type: Number },
 }, { _id: false })
 
@@ -230,10 +254,14 @@ const OrderItemSchema = new Schema<IOrderItem>({
   name: { type: String, required: true },
   description: { type: String, default: '' },
   shortDescription: { type: String, default: '' },
+  /** @storedAs cents */
   basePrice: { type: Number, required: true },
+  /** @storedAs cents */
   extraPrice: { type: Number, default: 0 },
+  /** @storedAs cents */
   price: { type: Number, required: true },
   quantity: { type: Number, required: true, min: 1 },
+  /** @storedAs cents */
   subtotal: { type: Number, required: true },
   customizations: {
     type: [SelectedCustomizationGroupSchema],
@@ -300,11 +328,13 @@ const OrderSchema = new Schema(
       type: [RewardRedemptionSchema],
       default: [],
     },
+    /** @storedAs cents */
     subtotal: {
       type: Number,
       required: true,
       min: 0,
     },
+    /** @storedAs cents */
     discountAmount: {
       type: Number,
       default: 0,
@@ -327,6 +357,7 @@ const OrderSchema = new Schema(
       enum: ['superadmin', 'admin', null],
       default: null,
     },
+    /** @storedAs cents */
     total: {
       type: Number,
       required: true,
@@ -352,9 +383,12 @@ const OrderSchema = new Schema(
       kriptonToken: { type: String, default: null },
       kriptonData: { type: Schema.Types.Mixed, default: null },
       // ── Pricing dinámico ────────────────────────────────────────────
+      /** @storedAs cents */
       baseTotal: { type: Number, default: 0, min: 0 },
       surchargePercent: { type: Number, default: 0, min: 0 },
+      /** @storedAs cents */
       surchargeAmount: { type: Number, default: 0, min: 0 },
+      /** @storedAs cents */
       platformFeeAmount: { type: Number, default: 0, min: 0 },
       // ── Transferencia ───────────────────────────────────────────────
       transferConfirmed: { type: Boolean, default: false },
@@ -414,6 +448,7 @@ const OrderSchema = new Schema(
       type: Number,
       default: 0,
     },
+    /** @storedAs cents */
     loyaltyDiscountAmount: {
       type: Number,
       default: 0,
@@ -422,6 +457,7 @@ const OrderSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    /** @storedAs cents */
     rewardAdvanceAmount: {
       type: Number,
       default: 0,
@@ -481,6 +517,7 @@ const OrderSchema = new Schema(
       },
       default: null,
     },
+    /** @storedAs cents */
     deliveryCost: {
       type: Number,
       default: 0,
@@ -495,6 +532,7 @@ const OrderSchema = new Schema(
       type: {
         fromKm: { type: Number, required: true },
         toKm:   { type: Number, required: true },
+        /** @storedAs cents */
         price:  { type: Number, required: true },
       },
       default: null,

@@ -16,6 +16,7 @@ import {
   Tag
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { toPesos } from '@takeasygo/business'
 
 export default function POSSettingsPage() {
   const { tenant } = useParams()
@@ -509,7 +510,7 @@ export default function POSSettingsPage() {
                             <option value="">No vinculado (Inyectar por nombre)</option>
                             {catalog.map((c) => (
                               <option key={c.posItemId} value={c.posItemId}>
-                                {c.name} - ${c.price}
+                                {c.name} - ${toPesos(c.price).toLocaleString('es-AR')}
                               </option>
                             ))}
                           </select>
@@ -539,7 +540,7 @@ export default function POSSettingsPage() {
                           <div className="flex flex-col">
                             <span className="font-medium">{promo.title}</span>
                             <span className="text-[10px] text-muted-foreground">
-                              ${promo.price.toLocaleString('es-AR')}
+                              ${toPesos(promo.price).toLocaleString('es-AR')}
                             </span>
                           </div>
                         </td>
@@ -569,7 +570,7 @@ export default function POSSettingsPage() {
                             <option value="">No vinculado (Inyectar por nombre)</option>
                             {catalog.map((c) => (
                               <option key={c.posItemId} value={c.posItemId}>
-                                {c.name} - ${c.price}
+                                {c.name} - ${toPesos(c.price).toLocaleString('es-AR')}
                               </option>
                             ))}
                           </select>

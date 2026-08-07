@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 export interface ICustomizationOption {
   _id?: mongoose.Types.ObjectId
   name: string
+  /** Precio extra de esta opción en centavos. @storedAs cents */
   extraPrice: number
   imageUrl?: string
   subGroups?: ICustomizationGroup[]  // Grupos que se activan si esta opción es elegida
@@ -26,10 +27,15 @@ export interface IMenuItemVariant {
   _id?: mongoose.Types.ObjectId
   name: string
   nameTranslations?: { en: string }
+  /** Precio de la variante en centavos. @storedAs cents */
   price: number
+  /** Precio takeaway de la variante en centavos. @storedAs cents */
   takeawayPrice?: number
+  /** Precio business de la variante en centavos. @storedAs cents */
   businessPrice?: number
+  /** Precio original antes de descuentos en centavos. @storedAs cents */
   originalPrice?: number
+  /** Precio takeaway original antes de descuentos en centavos. @storedAs cents */
   takeawayOriginalPrice?: number
   /** Grupos de customización propios de esta variante.
    *  Cuando el usuario selecciona esta variante, estos grupos se activan
@@ -47,14 +53,17 @@ export interface IMenuItem {
   _id?: mongoose.Types.ObjectId
   name: string
   description: string
+  /** Precio base del ítem en centavos. @storedAs cents */
   price: number
+  /** Precio takeaway del ítem en centavos. @storedAs cents */
   takeawayPrice?: number
+  /** Precio business del ítem en centavos. @storedAs cents */
   businessPrice?: number | null
-  /** Precio de cada mitad para promociones "mitad y mitad". Si está definido, el item aparece como opción disponible para armar mitad y mitad. */
+  /** Precio de cada mitad para promociones "mitad y mitad" en centavos. @storedAs cents */
   halfPrice?: number
-  /** Precio original de lista (antes de descuentos de categoría). Se guarda una sola vez. */
+  /** Precio original de lista (antes de descuentos de categoría) en centavos. @storedAs cents */
   originalPrice?: number
-  /** Precio takeaway original de lista (antes de descuentos de categoría). Se guarda una sola vez. */
+  /** Precio takeaway original de lista (antes de descuentos de categoría) en centavos. @storedAs cents */
   takeawayOriginalPrice?: number
   likesCount: number
   imageUrl: string
@@ -123,10 +132,15 @@ const MenuItemVariantSchema = new Schema<IMenuItemVariant>({
   nameTranslations: {
     en: { type: String, default: '' },
   },
+  /** @storedAs cents */
   price: { type: Number, required: true, min: 0 },
+  /** @storedAs cents */
   takeawayPrice: { type: Number, min: 0 },
+  /** @storedAs cents */
   businessPrice: { type: Number, min: 0 },
+  /** @storedAs cents */
   originalPrice: { type: Number, min: 0 },
+  /** @storedAs cents */
   takeawayOriginalPrice: { type: Number, min: 0 },
   customizationGroups: { type: [CustomizationGroupSchema], default: [] },
 }, { _id: true })
@@ -134,6 +148,7 @@ const MenuItemVariantSchema = new Schema<IMenuItemVariant>({
 // Se agregan los campos después de que ambos schemas existen (resuelve la referencia circular opción ↔ grupo)
 CustomizationOptionSchema.add({
   name:       { type: String, required: true, trim: true },
+  /** @storedAs cents */
   extraPrice: { type: Number, default: 0, min: 0 },
   imageUrl:   { type: String, default: '' },
   subGroups:  { type: [CustomizationGroupSchema], default: [] },
@@ -158,28 +173,34 @@ const MenuItemSchema = new Schema<IMenuItem>({
     default: '',
     trim: true,
   },
+  /** @storedAs cents */
   price: {
     type: Number,
     required: [true, 'El precio es obligatorio'],
     min: [0, 'El precio no puede ser negativo'],
   },
+  /** @storedAs cents */
   takeawayPrice: {
     type: Number,
     min: [0, 'El precio para llevar no puede ser negativo'],
   },
+  /** @storedAs cents */
   businessPrice: {
     type: Number,
     min: [0, 'El precio business no puede ser negativo'],
     default: null,
   },
+  /** @storedAs cents */
   halfPrice: {
     type: Number,
     min: [0, 'El precio de mitad no puede ser negativo'],
   },
+  /** @storedAs cents */
   originalPrice: {
     type: Number,
     min: [0, 'El precio original no puede ser negativo'],
   },
+  /** @storedAs cents */
   takeawayOriginalPrice: {
     type: Number,
     min: [0, 'El precio takeaway original no puede ser negativo'],

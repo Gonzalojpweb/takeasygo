@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import { sendEmail } from '@/lib/email'
 import webpush from 'web-push'
 import PushSubscription from '@/models/PushSubscription'
+import { toPesos } from '@takeasygo/business'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // lib/cis/notifications.ts — Servicio de notificaciones CIS
@@ -175,7 +176,7 @@ export async function notifyAtRiskCustomer(ctx: NotificationContext): Promise<vo
 
   const title = `⚠️ Cliente en riesgo: ${ctx.customerName}`
   const message = `${ctx.customerName} era un cliente ${ctx.previousSegment || 'frecuente'} pero está bajando la frecuencia. Lleva ${ctx.daysSinceLastOrder ?? '?'} días sin comprar.`
-  const details = `Gasto total: $${(ctx.totalSpent ?? 0).toLocaleString('es-AR')} · Salud: ${ctx.healthScore}/100`
+  const details = `Gasto total: ${toPesos(ctx.totalSpent ?? 0).toLocaleString('es-AR')} · Salud: ${ctx.healthScore}/100`
   const url = `https://${ctx.tenantSlug}.takeasygo.com/admin/${ctx.tenantSlug}/crm`
 
   if (emails.length > 0) {
@@ -195,7 +196,7 @@ export async function notifyDormantCustomer(ctx: NotificationContext): Promise<v
 
   const title = `😴 Cliente dormido: ${ctx.customerName}`
   const message = `${ctx.customerName} no viene hace ${ctx.daysSinceLastOrder ?? '?'} días. Su intervalo normal era cada ${ctx.avgOrderInterval ? Math.round(ctx.avgOrderInterval) : '?'} días. Es momento de intentar recuperarlo.`
-  const details = `Gasto total: $${(ctx.totalSpent ?? 0).toLocaleString('es-AR')} · Salud: ${ctx.healthScore}/100`
+  const details = `Gasto total: ${toPesos(ctx.totalSpent ?? 0).toLocaleString('es-AR')} · Salud: ${ctx.healthScore}/100`
   const url = `https://${ctx.tenantSlug}.takeasygo.com/admin/${ctx.tenantSlug}/crm`
 
   if (emails.length > 0) {
@@ -215,7 +216,7 @@ export async function notifyNewVipCustomer(ctx: NotificationContext): Promise<vo
 
   const title = `⭐ ¡Nuevo VIP: ${ctx.customerName}!`
   const message = `${ctx.customerName} acaba de ser clasificado como VIP. Gasta en promedio más que el 90% de tus clientes. ¡Hacelo sentir especial!`
-  const details = `Gasto total: $${(ctx.totalSpent ?? 0).toLocaleString('es-AR')} · Salud: ${ctx.healthScore}/100`
+  const details = `Gasto total: ${toPesos(ctx.totalSpent ?? 0).toLocaleString('es-AR')} · Salud: ${ctx.healthScore}/100`
   const url = `https://${ctx.tenantSlug}.takeasygo.com/admin/${ctx.tenantSlug}/crm`
 
   if (emails.length > 0) {

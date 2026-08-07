@@ -21,6 +21,7 @@ import {
   ShoppingBag,
 } from 'lucide-react'
 import Link from 'next/link'
+import { toPesos } from '@takeasygo/business'
 
 interface Person {
   _id: string
@@ -86,7 +87,7 @@ interface Props {
 }
 
 function formatCurrency(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(toPesos(n))
 }
 
 function formatDate(dateStr: string) {

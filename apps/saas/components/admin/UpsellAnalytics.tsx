@@ -1,6 +1,7 @@
 'use client'
 
 import { TrendingUp, ShoppingBag, Zap, DollarSign } from 'lucide-react'
+import { toPesos } from '@takeasygo/business'
 
 interface UpsellRow {
   name: string
@@ -71,7 +72,7 @@ export default function UpsellAnalytics({
         <KpiCard
           icon={<DollarSign size={16} />}
           label="Revenue upsell"
-          value={`$${totalRevenue.toLocaleString('es-AR')}`}
+          value={`$${toPesos(totalRevenue).toLocaleString('es-AR')}`}
           sub="de órdenes aprobadas"
         />
       </div>
@@ -113,7 +114,7 @@ export default function UpsellAnalytics({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Revenue</p>
-                    <p className="text-sm font-bold">${row.revenue.toLocaleString('es-AR')}</p>
+                    <p className="text-sm font-bold">${toPesos(row.revenue).toLocaleString('es-AR')}</p>
                   </div>
                 </div>
               </div>

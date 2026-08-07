@@ -294,7 +294,7 @@ async function expandUnmappedPromotions(
         posItemId: '',
         name: r.name,
         quantity: r.quantity,
-        unitPrice: Math.round(pricePerItem),
+        unitPrice: Math.ceil(pricePerItem),
         notes: `Parte de: ${item.name}`,
         modifiers: [...flattenCustomizations(item.customizations ?? [])],
       })

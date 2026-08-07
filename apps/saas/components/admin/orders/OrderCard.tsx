@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Clock, MapPin, ShoppingBag, Truck, UtensilsCrossed, Briefcase } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import type { BoardCardRenderProps } from '@/components/shared/operations-board'
 
 interface OrderItem {
@@ -110,7 +111,7 @@ export default function OrderCard({ item, isSelected, isNew, onClick }: BoardCar
           )}
         </div>
         <span className="font-black text-xs text-primary tabular-nums">
-          ${item.total.toLocaleString('es-AR')}
+          ${toPesos(item.total).toLocaleString('es-AR')}
         </span>
       </div>
 

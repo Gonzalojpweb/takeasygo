@@ -28,8 +28,6 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
 
       switch (job.name) {
         case QUEUE_ORDER_CREATED: {
-          console.log(`[worker] order timeout expired: ${orderId} (${tenantId})`)
-
           io.to(`tenant:${tenantId}`).emit("order:cancelled", {
             orderId,
             reason: "offline_timeout",
@@ -56,7 +54,7 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
   const cashSaleWorker = new Worker(
     "cash_sale",
     async (job) => {
-      const { eventId, tenantId, orderId } = job.data
+      const { eventId, tenantId } = job.data
 
       const event = await CashSaleEventModel.findById(eventId)
       if (!event) {
@@ -88,10 +86,6 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
           $set: { lastAttemptAt: new Date() },
         },
         { new: true }
-      )
-
-      console.log(
-        `[worker/cash-sale] retry #${updated?.attempts} for ${orderId} (${tenantId})`
       )
 
       return { status: "retried", attempts: updated?.attempts }
@@ -145,9 +139,6 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
         ? JSON.stringify({ status })
         : JSON.stringify({ tenantId })
 
-      console.log(`[worker/confirm-forward] forwarding ${isStatusUpdate ? `status→${status}` : "confirm"} for order ${orderId} (external: ${externalOrderId}, tenant: ${tenantId})`)
-      console.log(`[worker/confirm-forward] token length=${config.internalApiSecret.length}, first4="${config.internalApiSecret.slice(0, 4)}"`)
-
       const res = await fetch(endpoint, {
         method: isStatusUpdate ? "PATCH" : "POST",
         headers: {
@@ -162,7 +153,6 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
         throw new Error(`SaaS forward failed (${res.status}): ${text}`)
       }
 
-      console.log(`[worker/confirm-forward] successfully forwarded ${isStatusUpdate ? `status→${status}` : "confirm"} for ${orderId}`)
       return { status: "forwarded", orderId }
     },
     {
@@ -179,6 +169,4 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
       err.message
     )
   })
-
-  console.log("[worker] BullMQ workers registered")
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { toPesos } from '@takeasygo/business'
 import {
   Search,
   ChevronLeft,
@@ -307,7 +308,7 @@ export default function OrderHistory({
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-foreground">
-                        ${order.total.toLocaleString('es-AR')}
+                        ${toPesos(order.total).toLocaleString('es-AR')}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
                         {fmtDate(order.createdAt)}

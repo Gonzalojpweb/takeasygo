@@ -1,6 +1,7 @@
 'use client'
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { toPesos } from '@takeasygo/business'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LTVDistributionChart — Distribución de LTV por segmento
@@ -47,7 +48,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 }
 
 function fmtCurrency(n: number) {
-  return `$${n.toLocaleString('es-AR')}`
+  return `$${toPesos(n).toLocaleString('es-AR')}`
 }
 
 function CustomTooltip({ active, payload }: any) {

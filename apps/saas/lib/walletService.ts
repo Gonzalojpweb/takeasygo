@@ -77,9 +77,6 @@ export async function generateGoogleWalletJWT(
   try {
     await connectDB()
 
-    console.log('[WalletService] GOOGLE_WALLET_SERVICE_ACCOUNT_KEY:', !!GOOGLE_WALLET_SERVICE_ACCOUNT_KEY)
-    console.log('[WalletService] GOOGLE_WALLET_ISSUER_ID:', GOOGLE_WALLET_ISSUER_ID)
-
     if (!GOOGLE_WALLET_SERVICE_ACCOUNT_KEY || !GOOGLE_WALLET_ISSUER_ID) {
       console.warn('[WalletService] Google Wallet no configurado - faltan variables de entorno')
       return null
@@ -87,8 +84,6 @@ export async function generateGoogleWalletJWT(
 
     const member = await LoyaltyMember.findById(memberId).lean()
     const tenant = await Tenant.findById(tenantId).lean()
-
-    console.log('[WalletService] Member encontrado:', !!member, 'Tenant encontrado:', !!tenant)
 
     if (!member || !tenant) return null
 
@@ -202,8 +197,6 @@ async function ensureGoogleLoyaltyClass(
       locations: googleLocations.length > 0 ? googleLocations : undefined
     }
 
-    console.log('[WalletService] Creando LoyaltyClass:', JSON.stringify(loyaltyClass, null, 2))
-
     // Intentar crear, si ya existe ignorar el error 409
     // Si falla por permisos (403), asumir que ya existe o continuar sin crearla
     await (client as any).request({
@@ -214,7 +207,6 @@ async function ensureGoogleLoyaltyClass(
         'Content-Type': 'application/json'
       }
     }).catch((err: any) => {
-      console.log('[WalletService] Error creando LoyaltyClass:', err.code, err.message)
       // Ignorar errores 409 (ya existe) y 403 (permisos - asumir que ya existe)
       if (err.code !== 409 && err.code !== 403) throw err
     })
@@ -371,7 +363,6 @@ export async function generateAppleWalletPass(
     
     // Por ahora, retornamos el JSON del pase como Buffer
     // TODO: Implementar firma completa con certificados Apple
-    console.log('[WalletService] Generando pase Apple:', passJson)
     
     return Buffer.from(JSON.stringify(passJson, null, 2))
 
@@ -457,7 +448,6 @@ export async function syncWalletPoints(
     if (member.wallet.pushToken && member.wallet.appleDeviceLibraryIdentifier) {
       // TODO: Enviar notificación push APNs
       // results.apple = await sendApplePushNotification(member.wallet.pushToken)
-      console.log('[WalletService] Apple Push Token disponible:', member.wallet.pushToken)
     }
 
     // Actualizar timestamp de sincronización

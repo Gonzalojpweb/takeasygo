@@ -10,6 +10,7 @@ import InfoTooltip from '@/components/ui/info-tooltip'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 import AnalyticsTabBar from '@/components/superadmin/AnalyticsTabBar'
+import { toPesos } from '@takeasygo/business'
 
 export default async function SuperAdminAnalyticsPage() {
   await connectDB()
@@ -173,7 +174,7 @@ export default async function SuperAdminAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <p className="text-foreground text-3xl font-bold tracking-tighter tabular-nums">${thisMonth.total.toLocaleString('es-AR')}</p>
+              <p className="text-foreground text-3xl font-bold tracking-tighter tabular-nums">${toPesos(thisMonth.total).toLocaleString('es-AR')}</p>
               <div className={cn(
                 "flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border",
                 Number(revenueGrowth) >= 0 ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-destructive/10 text-destructive border-destructive/20"
@@ -206,7 +207,7 @@ export default async function SuperAdminAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-foreground text-3xl font-bold tracking-tighter tabular-nums">
-              ${thisMonth.count > 0 ? Math.round(thisMonth.total / thisMonth.count).toLocaleString('es-AR') : 0}
+              ${thisMonth.count > 0 ? toPesos(Math.round(thisMonth.total / thisMonth.count)).toLocaleString('es-AR') : 0}
             </p>
           </CardContent>
         </Card>
@@ -219,7 +220,7 @@ export default async function SuperAdminAnalyticsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-foreground text-3xl font-bold tracking-tighter tabular-nums">${lastMonth.total.toLocaleString('es-AR')}</p>
+            <p className="text-foreground text-3xl font-bold tracking-tighter tabular-nums">${toPesos(lastMonth.total).toLocaleString('es-AR')}</p>
             <p className="text-muted-foreground text-[10px] font-bold mt-1 uppercase tracking-tighter">{lastMonth.count} pedidos totales</p>
           </CardContent>
         </Card>
@@ -247,7 +248,7 @@ export default async function SuperAdminAnalyticsPage() {
                 <div>
                   <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Ingresos traccionados</p>
                   <p className="text-white text-4xl font-black tabular-nums tracking-tighter">
-                    ${tgoImpact.total.toLocaleString('es-AR')}
+                    ${toPesos(tgoImpact.total).toLocaleString('es-AR')}
                   </p>
                 </div>
                 <div>
@@ -462,7 +463,7 @@ export default async function SuperAdminAnalyticsPage() {
           <CardContent className="p-6 grid grid-cols-2 gap-6">
             <div>
               <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">ARPU</p>
-              <p className="text-3xl font-black tabular-nums">${arpu.toLocaleString('es-AR')}</p>
+              <p className="text-3xl font-black tabular-nums">${toPesos(arpu).toLocaleString('es-AR')}</p>
               <p className="text-[10px] text-muted-foreground/70 font-bold mt-1">revenue / tenants activos</p>
             </div>
             <div>
@@ -472,7 +473,7 @@ export default async function SuperAdminAnalyticsPage() {
             </div>
             <div>
               <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Revenue total mes</p>
-              <p className="text-xl font-black tabular-nums">${thisMonth.total.toLocaleString('es-AR')}</p>
+              <p className="text-xl font-black tabular-nums">${toPesos(thisMonth.total).toLocaleString('es-AR')}</p>
             </div>
             <div>
               <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">MoM revenue</p>
@@ -518,7 +519,7 @@ export default async function SuperAdminAnalyticsPage() {
                         <Badge variant="outline" className="text-[10px] font-bold border-primary/40 text-primary bg-primary/5 px-3 py-1 scale-90">
                           {item.totalOrders} pedidos
                         </Badge>
-                        <p className="text-foreground text-xs font-bold tabular-nums tracking-tight opacity-80">${item.totalRevenue.toLocaleString('es-AR')}</p>
+                        <p className="text-foreground text-xs font-bold tabular-nums tracking-tight opacity-80">${toPesos(item.totalRevenue).toLocaleString('es-AR')}</p>
                       </div>
                     </div>
                   )
@@ -550,7 +551,7 @@ export default async function SuperAdminAnalyticsPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-foreground text-sm font-bold tabular-nums tracking-tight">${order.total.toLocaleString('es-AR')}</p>
+                      <p className="text-foreground text-sm font-bold tabular-nums tracking-tight">${toPesos(order.total).toLocaleString('es-AR')}</p>
                       <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest opacity-50 border-0 p-0 h-auto">
                         Realizado
                       </Badge>

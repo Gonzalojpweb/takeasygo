@@ -75,12 +75,6 @@ export async function POST(request: NextRequest) {
       }
     )
 
-    console.log('[Apple Wallet] Device registered:', {
-      deviceLibraryIdentifier,
-      serialNumber,
-      memberId: member._id
-    })
-
     return NextResponse.json({}, { status: 201 })
 
   } catch (error) {
@@ -183,11 +177,6 @@ export async function DELETE(request: NextRequest) {
         }
       }
     )
-
-    console.log('[Apple Wallet] Device unregistered:', {
-      deviceLibraryIdentifier,
-      serialNumber
-    })
 
     return NextResponse.json({}, { status: 200 })
 

@@ -35,6 +35,7 @@ import Rating from '@/models/Rating'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
 import { pushOrderToSyncLayer } from '@/lib/sync-layer'
+import { toPesos } from '@takeasygo/business'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -259,6 +260,14 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
+    const platformCfg = await PlatformConfig.findById('platform').lean() as any
+    if (platformCfg?.maintenanceMode) {
+      return NextResponse.json(
+        { error: 'Sistema en mantenimiento. Intentá nuevamente en unos minutos.', code: 'MAINTENANCE' },
+        { status: 503 }
+      )
+    }
+
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -386,6 +395,13 @@ export async function POST(
     })
     if (!location) {
       return NextResponse.json({ error: 'Location no encontrada' }, { status: 404 })
+    }
+
+    if (location.status === 'paused') {
+      return NextResponse.json(
+        { error: 'Este local está pausado temporalmente y no acepta pedidos.', code: 'LOCATION_PAUSED' },
+        { status: 409 }
+      )
     }
 
     // Validar horario de atención para pedidos inmediatos
@@ -998,7 +1014,7 @@ export async function POST(
       const qrEligibleSubtotal = resolvedItems
         .filter(item => item.itemType !== 'promotion')
         .reduce((sum, item) => sum + item.subtotal, 0)
-      discountAmount = Math.round(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100))
+      discountAmount = Math.floor(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100))
       qrPromoApplied = true
     }
 
@@ -1364,7 +1380,7 @@ export async function POST(
     if (adminSubs.length > 0) {
       const payload = JSON.stringify({
         title: `🔔 Nuevo pedido en ${tenant.name}`,
-        body: `#${order.orderNumber} — $${total.toLocaleString('es-AR')} — ${customerName}`,
+        body: `#${order.orderNumber} — $${toPesos(total).toLocaleString('es-AR')} — ${customerName}`,
         icon: '/tgoicon-192.png',
         badge: '/tgoicon-192.png',
         url: `/${tenantSlug}/admin/orders`,

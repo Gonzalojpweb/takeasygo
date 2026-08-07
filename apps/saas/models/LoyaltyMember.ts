@@ -26,6 +26,7 @@ export interface ILoyaltyMember extends Document {
   // Caché de actividad (actualizada post-pedido para no calcular en cada consulta)
   cache: {
     totalOrders: number
+    /** Total gastado por el miembro en centavos. @storedAs cents */
     totalSpent: number
     lastOrderAt: Date | null
     updatedAt: Date | null
@@ -46,6 +47,7 @@ export interface ILoyaltyMember extends Document {
   // Estadísticas de Store (canjes de puntos por artículos)
   store: {
     totalRedemptions: number
+    /** Total de puntos canjeados. Not cents — stored as points. */
     totalPointsSpent: number
     lastRedemptionAt?: Date | null
   }
@@ -311,14 +313,12 @@ async function _migrateUserIdIndex() {
     // Drop old unique userId_1_tenantId_1
     const oldUserIdIdx = indexes.find(i => i.name === 'userId_1_tenantId_1')
     if (oldUserIdIdx && oldUserIdIdx.unique) {
-      console.log('[LoyaltyMember] Dropping old unique userId_1_tenantId_1 index – will be recreated as non-unique sparse')
       await db.collection('loyaltymembers').dropIndex('userId_1_tenantId_1')
     }
 
     // Drop old unique tenantId_1_phoneHash_1 (replaced by tenantId_1_locationId_1_phoneHash_1)
     const oldPhoneHashIdx = indexes.find(i => i.name === 'tenantId_1_phoneHash_1')
     if (oldPhoneHashIdx && oldPhoneHashIdx.unique) {
-      console.log('[LoyaltyMember] Dropping old unique tenantId_1_phoneHash_1 index – will be recreated as tenantId_1_locationId_1_phoneHash_1')
       await db.collection('loyaltymembers').dropIndex('tenantId_1_phoneHash_1')
     }
   } catch (err) {

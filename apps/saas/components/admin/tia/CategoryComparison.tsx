@@ -2,6 +2,7 @@
 
 import InfoTooltip from './InfoTooltip'
 import type { CategoryData } from '@/lib/tia/metrics'
+import { toPesos } from '@takeasygo/business'
 
 interface Props {
   data: CategoryData[]
@@ -25,7 +26,7 @@ export default function CategoryComparison({ data }: Props) {
             <div key={item.category}>
               <div className="flex items-center justify-between text-xs mb-1">
                 <span className="text-zinc-700 font-medium truncate">{item.category}</span>
-                <span className="text-zinc-900 font-semibold">${item.revenue.toLocaleString('es-AR')}</span>
+                <span className="text-zinc-900 font-semibold">${toPesos(item.revenue).toLocaleString('es-AR')}</span>
               </div>
               <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                 <div
