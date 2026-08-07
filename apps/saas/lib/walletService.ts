@@ -207,7 +207,6 @@ async function ensureGoogleLoyaltyClass(
         'Content-Type': 'application/json'
       }
     }).catch((err: any) => {
-      console.log('[WalletService] Error creando LoyaltyClass:', err.code, err.message)
       // Ignorar errores 409 (ya existe) y 403 (permisos - asumir que ya existe)
       if (err.code !== 409 && err.code !== 403) throw err
     })

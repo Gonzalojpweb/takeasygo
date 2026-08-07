@@ -21,8 +21,6 @@ export async function GET(
     await connectDB()
 
     const locationId = request.nextUrl.searchParams.get('locationId')
-    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
-    console.log(`[PRINT-JOBS] GET tenant=${tenantSlug} locationId=${locationId} ip=${ip}`)
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -92,8 +90,6 @@ export async function POST(
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
     const body = await request.json()
-    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
-    console.log(`[PRINT-JOBS] POST tenant=${tenantSlug} printer=${body.printerName} success=${body.success} ip=${ip}`)
     const { printerName, success, errorMsg } = body
     const preCloseJobId = body.preCloseJobId
 

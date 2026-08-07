@@ -99,7 +99,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=error`)
     }
 
-    console.log(`[MP OAuth] Tenant ${tenantSlug} connected to marketplace split payments`)
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=success`)
   } catch (err) {
     console.error('[MP OAuth] unhandled error:', err)

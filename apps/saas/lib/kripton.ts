@@ -36,7 +36,6 @@ async function kriptonFetch(
   })
 
   const text = await res.text()
-  console.log(`[kriptonFetch] status=${res.status}`)
 
   if (!text) {
     throw new KriptonError(`Respuesta vacía de Kripton (status ${res.status})`, res.status)

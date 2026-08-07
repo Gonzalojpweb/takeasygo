@@ -22,8 +22,6 @@ export async function POST(
     await connectDB()
     const body = await request.json()
 
-    console.log('[Webhook Kripton] Recibido event:', body?.event ?? 'unknown')
-
     const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
     if (!tenant?.kripton?.apiKey) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -88,7 +86,6 @@ export async function POST(
         }).session(session)
 
         if (existing) {
-          console.log(`[Webhook Kripton] Duplicado ignorado: ${externalCode}`)
           return
         }
 

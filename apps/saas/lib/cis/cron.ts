@@ -198,13 +198,6 @@ export async function processTenant(
   }
 
   const executionTimeMs = Date.now() - start
-  console.log(
-    `[CisCron] processTenant tenant=${tenantId} ` +
-    `consumers=${consumers.length} ` +
-    `profiles=${healthScoresCalculated} segments_changed=${segmentsChanged} ` +
-    `signals=${signalsDetected} events=${eventsCreated} ` +
-    `time=${executionTimeMs}ms`
-  )
 
   return {
     profilesProcessed: consumers.length,
