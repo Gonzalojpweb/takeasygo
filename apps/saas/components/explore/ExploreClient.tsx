@@ -142,6 +142,23 @@ function ExploreClientInner() {
     sidRef.current = getOrCreateSessionId()
   }, [])
 
+  // ── Track invite QR scans (source=invitacion) ────────────────────────
+  useEffect(() => {
+    const source = searchParams.get('source')
+    if (source === 'invitacion') {
+      const tracked = sessionStorage.getItem('tgo_invite_tracked')
+      if (!tracked) {
+        trackExploreEvent({
+          eventType: 'pageview',
+          source: 'invitacion',
+          view: 'home',
+          metadata: { referrer: document.referrer || null, landingPath: window.location.pathname },
+        })
+        sessionStorage.setItem('tgo_invite_tracked', '1')
+      }
+    }
+  }, [searchParams])
+
   // Check onboarding status client-side only (avoids hydration mismatch)
   useEffect(() => {
     const seen = localStorage.getItem(ONBOARDING_CACHE_KEY) === 'true'
