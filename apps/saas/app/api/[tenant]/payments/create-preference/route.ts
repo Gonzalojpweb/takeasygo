@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { createPaymentPreferenceSchema } from '@/lib/schemas'
 import { calculateFinalTotal } from '@/lib/pricing'
-import { requireAuth } from '@/lib/apiAuth'
 import { toPesos } from '@takeasygo/business'
 
 export async function POST(
@@ -26,9 +25,6 @@ if (!success) {
 
     const tenant = await Tenant.findOne({ slug: tenantSlug })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-
-    const authError = await requireAuth(request, tenant._id.toString())
-    if (authError) return authError
 
     if (!tenant.mercadopago.isConfigured || !tenant.mercadopago.accessToken) {
       return NextResponse.json({ error: 'MercadoPago no configurado' }, { status: 400 })
