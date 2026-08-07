@@ -8,7 +8,7 @@ import {
   Target, CheckCircle2, Star, HelpCircle, ArrowRight,
   Sparkles, ShieldCheck, Lock, Database, Clock,
   Gift, Globe, Smartphone, Zap, QrCode,
-  BrainCircuit, Truck
+  BrainCircuit, Truck, Tag
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Plan } from '@/lib/plans'
@@ -765,6 +765,56 @@ const SECTIONS: Section[] = [
       'Compartí el resumen diario con tu equipo de cocina para alinear objetivos.',
     ],
   },
+  {
+    id: 'promociones',
+    icon: Tag,
+    label: 'Promociones',
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-500/10',
+    plan: 'inicial',
+    roles: ['admin', 'gerente'],
+    objective: 'Crear ofertas, anuncios e informativas que se muestren a los clientes en tu menú, con control total sobre qué productos incluir, cómo se personalizan y cuándo se activan.',
+    description: 'Las promociones son tarjetas visuales que aparecen en el menú de tu restaurante. Pueden ser ofertas de venta (combos, descuentos), avisos importantes (cambio de horario, evento), informativas (nuevo plato, carta del día) o para el Club de Fidelización. Cada tipo tiene campos específicos y se personaliza desde el panel sin tocar código.',
+    features: [
+      { title: '4 tipos de promoción', desc: 'Venta (ofertas con precio y slots), Info (informativa sin precio), Anuncio (con botón de acción) y Club (para el programa de fidelización). Cada tipo tiene campos diferentes.' },
+      { title: 'Sistema de Slots (solo Venta)', desc: 'Los Slots definen qué productos componen la promo. Ej: Slot 1 = "Hamburguesa" (1 unidad), Slot 2 = "Bebida" (1 unidad). El cliente elige uno de cada slot para armar el combo.' },
+      { title: 'Poda de variantes por producto', desc: 'Para cada producto dentro de un Slot, podés ocultar tamaños o variantes específicas. Ej: en la promo "Combo personal", ocultar la opción "XL" para que solo se pueda elegir individual o doble.' },
+      { title: 'Modos de personalización', desc: 'Sin personalización (producto tal cual), Solo variante (elegir tamaño, sin extras), o Personalización completa (variantes + todos los grupos de extras). Configurable por promo o por Slot individual.' },
+      { title: 'Programación por fecha y horario', desc: 'Definí fecha de inicio y fin, y opcionalmente un horario diario (ej: "Solo de 12:00 a 15:00"). La promo se activa y desactiva automáticamente.' },
+      { title: 'Visibilidad por canal', desc: 'Elegí si la promo se muestra en Dine-in, Takeaway o ambos. Ideal para ofertas exclusivas de delivery o para comer en el local.' },
+      { title: 'Destacada', desc: 'Marcá una promo como "Destacada" con una estrella. Las destacadas se muestran con prioridad en el menú del cliente.' },
+      { title: 'Reordenamiento con drag-and-drop', desc: 'Arrastrá las promociones para cambiar el orden en que aparecen. El orden se persiste automáticamente.' },
+      { title: 'Estilos personalizables', desc: 'Colores de fondo, texto y acento, radio de bordes y estilo de tarjeta. Todo configurable desde el editor con vista previa en vivo.' },
+      { title: 'Límite de canjes', desc: 'Definí una cantidad máxima de veces que la promo puede canjearse. Ideal para ofertas limitadas ("Solo las primeras 50 personas").' },
+      { title: 'Preview en tiempo real', desc: 'Al editar, ves una tarjeta de preview con los estilos aplicados y, para tipo Venta, un picker de productos simulando la experiencia del cliente.' },
+      { title: 'Upload de imagen', desc: 'Subí una imagen para la promo. Recomendado: 800x1000px (vertical) o 1000x800px (horizontal). Se muestra en la tarjeta del menú.' },
+    ],
+    steps: [
+      { action: 'Entrá a Promociones en el panel', detail: 'En el menú principal, sección Marketing. Vas a ver la lista de promociones existentes (si hay) y el botón "Nueva promo".' },
+      { action: 'Elegí el tipo de promoción', detail: 'Venta (oferta con precio y productos), Info (aviso informativo), Anuncio (con botón de acción) o Club (para fidelización). Los campos cambian según el tipo.' },
+      { action: 'Completá los datos básicos', detail: 'Título (obligatorio), descripción, descripción corta, imagen y, para tipo Venta, el precio de la oferta y el precio original (para mostrar el descuento).' },
+      { action: 'Configurá los Slots (solo tipo Venta)', detail: 'Un Slot es un grupo de productos. Creá un Slot, asignale categorías o productos específicos del menú, y definí cuántos debe elegir el cliente (ej: 1 hamburguesa + 1 bebida). Podés agregar múltiples Slots.' },
+      { action: 'Configurá la poda por producto (opcional)', detail: 'Si necesitás ocultar variantes o extras específicos dentro de un producto de la promo, expandí el producto y desmarcá las opciones que no querés que aparezcan. Ej: ocultar tamaño "XL" en una promo de precio fijo.' },
+      { action: 'Elegí el modo de personalización', detail: 'Sin personalización (producto tal cual), Solo variante (solo elegir tamaño) o Personalización completa (variantes + extras). Configurable a nivel de promo o por Slot individual.' },
+      { action: 'Programá la vigencia (opcional)', detail: 'Si la promo es temporal, definí fecha de inicio y fin. Para horarios específicos (ej: "happy hour"), usá el horario diario.' },
+      { action: 'Configurá la visibilidad', detail: 'Elegí si se muestra en Dine-in, Takeaway o ambos. Los anuncios y promos de Club se muestran en todos los canales.' },
+      { action: 'Personalizá los estilos (opcional)', detail: 'Cambiar colores, radio de bordes y estilo de tarjeta. Vista previa en vivo en la parte inferior del editor.' },
+      { action: 'Activá la promo', detail: 'Usá el toggle para habilitarla. Solo las promos activas se muestran a los clientes. También podés marcarla como "Destacada" con la estrella.' },
+      { action: 'Reordená si es necesario', detail: 'Arrastrá las promociones por el ícono de agarre (izquierda) para cambiar el orden de aparición en el menú.' },
+    ],
+    tips: [
+      'Para combos (ej: "Hamburguesa + Bebida"), usá tipo Venta con 2 Slots: uno para hamburguesas y otro para bebidas.',
+      'Si querés ocultar la opción "Grande" en una promo de precio fijo, usá la poda de variantes — no necesitás duplicar el producto en el menú.',
+      'Las promos de tipo Info son ideales para avisar cambios de horario, nuevos platos o eventos especiales sin ofrecer descuento.',
+      'Las promos de tipo Club se muestran solo a miembros del programa de fidelización. Úsalas para ofrecer beneficios exclusivos.',
+      'Usá la programación por horario para ofertas de "almuerzo ejecutivo" (12:00-15:00) o "happy hour" (18:00-20:00).',
+      'El límite de canjes es ideal para ofertas de lanzamiento: "Solo las primeras 100 personas". Se actualiza en tiempo real.',
+      'La imagen es clave: las promos con imagen tienen mucho más engagement. Usá fotos reales de tus platos.',
+      'El orden de las promociones importa: poné las más importantes o temporales primero. Arrastrá para reordenar.',
+      'Si una promo no se ve en el menú del cliente, verificá: 1) Está activa, 2) Está dentro del rango de fechas, 3) La visibilidad coincide con el canal (dine-in/takeaway).',
+      'El campo "Precio original" es solo para mostrar el descuento visualmente. El precio que cobrás es el que configurás en el Slot o en el menú.',
+    ],
+  },
 ]
 
 // ── Visibility per plan ────────────────────────────────────────────────────────
@@ -796,6 +846,7 @@ const VISIBILITY: Record<string, Record<Plan, SectionVisibility>> = {
   tienda:  { anfitrion: 'hidden', trial: 'hidden', try: 'hook',  buy: 'full', full: 'full' },
   trafico: { anfitrion: 'hidden', trial: 'hook',   try: 'hook',  buy: 'full', full: 'full' },
   'marketing-qr': { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full' },
+  promociones:    { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full' },
   delivery: { anfitrion: 'hidden', trial: 'full',   try: 'hook',  buy: 'hook', full: 'full' },
   demora:   { anfitrion: 'hidden', trial: 'full',   try: 'full', buy: 'full', full: 'full' },
   tia:      { anfitrion: 'hidden', trial: 'hidden', try: 'hook', buy: 'full', full: 'full' },
