@@ -69,7 +69,13 @@ const ImpactEventSchema = new Schema<IImpactEvent>(
 
 ImpactEventSchema.index({ userId: 1, createdAt: -1 })
 ImpactEventSchema.index({ userId: 1, tenantId: 1, type: 1 })
-ImpactEventSchema.index({ userId: 1, locationId: 1 }, { unique: true, partialFilterExpression: { type: 'discovery' } })
+ImpactEventSchema.index(
+  { userId: 1, locationId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { type: 'discovery', userId: { $type: 'objectId' } },
+  }
+)
 
 const ImpactEvent =
   mongoose.models.ImpactEvent ||
