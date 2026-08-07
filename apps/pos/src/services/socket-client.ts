@@ -44,13 +44,11 @@ export function connectSocket(jwt: string): Socket {
   }
 
   socket.on("connect", () => {
-    console.log("[socket] connected")
     registeredOnSocket.clear()
     attachListeners()
   })
 
-  socket.on("disconnect", (reason: string) => {
-    console.log("[socket] disconnected:", reason)
+  socket.on("disconnect", (_reason: string) => {
   })
 
   socket.on("connect_error", (err: Error) => {

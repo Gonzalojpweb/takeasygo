@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toPesos } from '@takeasygo/business'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Package, ChevronRight, Clock, CheckCircle2, XCircle, Loader2, ShoppingBag, AlertCircle, ArrowRight, LogIn } from 'lucide-react'
@@ -203,7 +204,7 @@ export default function OrdersView() {
                   {/* Right: total + date + chevron */}
                   <div className="shrink-0 text-right flex flex-col items-end gap-1">
                     <span className="font-black text-sm" style={{ color: 'var(--tgo-text-primary)' }}>
-                      ${order.total.toLocaleString('es-AR')}
+                      ${toPesos(order.total).toLocaleString('es-AR')}
                     </span>
                     <span className="text-[9px] font-medium" style={{ color: 'var(--tgo-text-muted)' }}>
                       {formatDate(order.createdAt)}

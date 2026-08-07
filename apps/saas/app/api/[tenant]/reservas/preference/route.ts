@@ -5,6 +5,7 @@ import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
+import { toPesos } from '@takeasygo/business'
 
 export async function POST(
   request: NextRequest,
@@ -54,7 +55,7 @@ export async function POST(
           id: reservation._id.toString(),
           title: `Reserva ${reservation.reservationNumber} — ${tenant.name}`,
           quantity: 1,
-          unit_price: reservation.payment.amount,
+          unit_price: toPesos(reservation.payment.amount),
           currency_id: 'ARS',
         }],
         payer: {

@@ -36,8 +36,6 @@ export async function pushOrderToSyncLayer(payload: SyncOrderPayload): Promise<v
       console.error(`[sync-layer] push failed (${res.status}): ${text}`)
       return
     }
-
-    console.log("[sync-layer] order pushed successfully")
   } catch (err) {
     console.error("[sync-layer] push error:", err)
   }
@@ -64,7 +62,6 @@ export async function confirmOrderInSyncLayer(
       })
 
       if (res.ok) {
-        console.log(`[sync-layer] order ${orderId} confirmed in sync layer`)
         return true
       }
 
@@ -113,8 +110,6 @@ export async function notifyCashSale(payload: CashSalePayload): Promise<void> {
       console.error(`[sync-layer] cash-sale notify failed (${res.status}): ${text}`)
       return
     }
-
-    console.log(`[sync-layer] cash-sale notified for order ${payload.orderId}`)
   } catch (err) {
     console.error("[sync-layer] cash-sale notify error:", err)
   }
@@ -258,8 +253,6 @@ export async function notifySyncLayerStatus(
       console.error(`[sync-layer] notify status failed (${res.status}): ${text}`)
       return
     }
-
-    console.log(`[sync-layer] order ${orderId} status ${status} notified to SyncLayer`)
   } catch (err) {
     console.error("[sync-layer] notify status error:", err)
   }

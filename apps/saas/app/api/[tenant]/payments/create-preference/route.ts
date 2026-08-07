@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { createPaymentPreferenceSchema } from '@/lib/schemas'
 import { calculateFinalTotal } from '@/lib/pricing'
+import { toPesos } from '@takeasygo/business'
 
 export async function POST(
   request: NextRequest,
@@ -99,9 +100,9 @@ if (!success) {
         if (isLast) {
           // Ajuste fino para que coincida exactamente con el total esperado
           const remaining = eligibleTarget - computedEligibleTotal
-          discountedPrice = Math.round(remaining / item.quantity)
+          discountedPrice = Math.ceil(remaining / item.quantity)
         } else {
-          discountedPrice = Math.round(item.price * ratio)
+          discountedPrice = Math.ceil(item.price * ratio)
           computedEligibleTotal += discountedPrice * item.quantity
         }
         mpItems.push({
@@ -157,12 +158,20 @@ if (!success) {
         const mpItem = mpItems[i]
         if (i === mpItems.length - 1) {
           const remaining = order.total - accumulated
-          mpItem.unit_price = Math.max(1, Math.round(remaining / mpItem.quantity))
+          mpItem.unit_price = Math.max(1, Math.ceil(remaining / mpItem.quantity))
         } else {
           mpItem.unit_price = Math.max(1, Math.round(mpItem.unit_price * surchargeRatio))
           accumulated += mpItem.unit_price * mpItem.quantity
         }
       }
+    }
+
+    // ── Convertir a PESOS para MercadoPago ───────────────────────────────
+    // La DB almacena centavos enteros; MP recibe unit_price/marketplace_fee
+    // en pesos ARS. La conversión se hace UNA vez al final, con el recargo ya
+    // distribuido, para que todo el cálculo interno siga en centavos.
+    for (const mpItem of mpItems) {
+      mpItem.unit_price = toPesos(mpItem.unit_price)
     }
 
     const result = await preference.create({
@@ -183,7 +192,7 @@ if (!success) {
         // Marketplace split — only when OAuth authorized
         ...(marketplaceFee !== undefined ? {
           marketplace: 'takeasygo',
-          marketplace_fee: marketplaceFee,
+          marketplace_fee: toPesos(marketplaceFee),
         } : {}),
       }
     })

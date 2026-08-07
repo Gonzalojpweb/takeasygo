@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
     }).select('_id plan name slug').lean() as any[]
 
     const globalStart = Date.now()
-    console.log(`[DailyInsight] START — ${tenants.length} tenants to process`)
 
     const results: {
       tenantSlug: string
@@ -88,16 +87,6 @@ export async function GET(request: NextRequest) {
 
         const elapsed = Date.now() - globalStart
         const tenantElapsed = Date.now() - tenantStart
-        const metricsTime = metrics._timing?.totalMs ?? '?'
-        const silTime = result.metadata.executionTimeMs
-        console.log(
-          `[DailyInsight] OK tenant=${tenant.slug} plan=${tenant.plan} ` +
-          `insights=${docs.length} ` +
-          `metrics=${metricsTime}ms` +
-          (metrics._timing ? ` (parallel=${metrics._timing.parallelMs}ms seq=${metrics._timing.sequentialMs}ms posthog=${metrics._timing.posthogMs}ms)` : '') +
-          ` sil=${silTime}ms ` +
-          `tenant=${tenantElapsed}ms cumulative=${elapsed}ms`
-        )
         results.push({
           tenantSlug: tenant.slug,
           tenantName: tenant.name,
@@ -124,10 +113,6 @@ export async function GET(request: NextRequest) {
 
     const ok = results.filter(r => !r.errors).length
     const failed = results.filter(r => r.errors).length
-    console.log(
-      `[DailyInsight] END — ${tenants.length} tenants, ${ok} ok, ${failed} errors, ` +
-      `total=${Date.now() - globalStart}ms`
-    )
 
     return NextResponse.json({
       success: true,

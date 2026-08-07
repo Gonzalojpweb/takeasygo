@@ -88,14 +88,11 @@ export async function PUT(
     const body = await request.json()
     const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice } = body
 
-    console.log('[PUT items] BODY:', { tenantSlug, categoryId, locationId: locationId?.toString(), itemId: itemId?.toString() })
-
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) {
       console.error('[PUT items] Menú no encontrado:', { tenantId: tenant._id.toString(), locationId: locationId?.toString() })
       return NextResponse.json({ error: 'Menú no encontrado', tenantId: tenant._id.toString(), locationId }, { status: 404 })
     }
-    console.log('[PUT items] Menú encontrado:', { menuId: menu._id.toString(), categoriesCount: menu.categories.length })
 
     const category = menu.categories.id(categoryId)
     if (!category) {
@@ -166,11 +163,6 @@ export async function PUT(
       const verifyMenu = await Menu.findOne({ tenantId: tenant._id, locationId })
       const verifyCategory = verifyMenu?.categories.id(categoryId)
       const verifyItem = verifyCategory?.items.id(itemId)
-      console.log('[PUT items] Verificación post-save:', { 
-        itemId, 
-        price: verifyItem?.price, 
-        takeawayPrice: verifyItem?.takeawayPrice 
-      })
     } catch (saveError: any) {
       console.error('[PUT items] Error guardando menú:', saveError)
       return NextResponse.json({ 

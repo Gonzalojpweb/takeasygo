@@ -4,6 +4,7 @@ import { TrendingUp, Star } from 'lucide-react'
 import InfoTooltip from './InfoTooltip'
 import type { TopProductsData } from '@/lib/tia/metrics'
 import type { ProductReport } from '@/lib/tia/reporting/types'
+import { toPesos } from '@takeasygo/business'
 
 interface Props {
   data: TopProductsData
@@ -60,7 +61,7 @@ export default function TopProducts({ data, report, narrative }: Props) {
                 <div className="flex items-center gap-3 text-[11px] text-zinc-500 mt-0.5">
                   <span className="flex items-center gap-1"><TrendingUp size={11} /> {item.sales} vendidos</span>
                   <span className="font-semibold text-zinc-700">{item.share}%</span>
-                  <span>${item.revenue.toLocaleString('es-AR')}</span>
+                  <span>${toPesos(item.revenue).toLocaleString('es-AR')}</span>
                 </div>
               </div>
             </div>

@@ -526,7 +526,7 @@ export function CounterDashboard() {
       }
 
       for (const method of methods) {
-        await processPayment(order.id, Math.round(cartTotal / methods.length), `Pedido ${selectedTable ? `M${selectedTable.number}` : "mostrador"}`, method)
+        await processPayment(order.id, Math.ceil(cartTotal / methods.length), `Pedido ${selectedTable ? `M${selectedTable.number}` : "mostrador"}`, method)
       }
 
       setScene("cierre")

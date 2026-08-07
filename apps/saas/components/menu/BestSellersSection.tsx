@@ -3,6 +3,7 @@
 import { useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import type { BestSellerItem } from '@/lib/tia/bestSellers'
 
 interface BestSellersStyles {
@@ -123,7 +124,7 @@ export default function BestSellersSection({
 
                 <div className="flex items-center justify-between mt-5">
                   <span className="text-xl font-bold" style={{ color: accent }}>
-                    ${item.price.toLocaleString('es-AR')}
+                    ${toPesos(item.price).toLocaleString('es-AR')}
                   </span>
 
                   <button

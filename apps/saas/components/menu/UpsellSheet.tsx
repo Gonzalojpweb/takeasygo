@@ -2,6 +2,7 @@
 
 import { X, Plus } from 'lucide-react'
 import { ensureContrast } from '@/lib/color-utils'
+import { toPesos } from '@takeasygo/business'
 
 function tn(obj: any, field: 'name' | 'description', locale: 'es' | 'en'): string {
   if (locale === 'en') {
@@ -140,7 +141,7 @@ export default function UpsellSheet({
 
                   <div className="flex items-center justify-between mt-3">
                     <p className="font-bold text-xl" style={{ color: safePrice }}>
-                      ${item.price.toLocaleString('es-AR')}
+                      ${toPesos(item.price).toLocaleString('es-AR')}
                     </p>
 
                     <button

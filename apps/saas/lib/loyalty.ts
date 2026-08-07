@@ -173,7 +173,6 @@ export async function processRewardDeduction(
   if (!order.rewardItems || order.rewardItems.length === 0) return null
 
   if (order.rewardDeductionProcessed) {
-    console.log(`[Loyalty] Reward deduction ya procesado para la orden ${order.orderNumber}`)
     return null
   }
 
@@ -302,10 +301,7 @@ export async function revertRewardRedemptions(order: any, tenant: any, session?:
 }
 
 export async function addPointsFromOrder(order: any, tenant: any, session?: mongoose.ClientSession, forceMemberId?: any) {
-  if (order.loyaltyPointsCredited) {
-    console.log(`[Loyalty] Puntos ya acreditados para la orden ${order.orderNumber}`)
-    return null
-  }
+  if (order.loyaltyPointsCredited) return null
 
   const locationId = order.locationId || null
   const pointsConfig = await getPointsConfigForLocation(tenant, locationId)
@@ -370,8 +366,6 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
   const breakdown = calculatePointsBreakdown(saleItemsTotal, pointsConfig)
   const pointsToAdd = breakdown.total
   if (pointsToAdd <= 0) return null
-
-  console.log(`[Loyalty] Agregando ${pointsToAdd} puntos (base:${breakdown.basePoints}, bonus:${breakdown.microBonus}) a orden ${order.orderNumber}`)
 
   const query: any = {
     tenantId: tenant._id,

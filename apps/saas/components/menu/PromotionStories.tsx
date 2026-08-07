@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, ShoppingCart, Gift } from 'lucide-react'
 import Link from 'next/link'
+import { toPesos } from '@takeasygo/business'
 
 interface StoryPromotion {
   _id: string
@@ -27,7 +28,7 @@ interface Props {
 }
 
 function formatPrice(n: number): string {
-  return '$' + n.toLocaleString('es-AR')
+  return '$' + toPesos(n).toLocaleString('es-AR')
 }
 
 export default function PromotionStories({ promotions, onClose, primaryColor = '#000', onAddToCart, tenantSlug }: Props) {

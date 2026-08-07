@@ -5,6 +5,7 @@ import ConfirmPickupButton from './ConfirmPickupButton'
 import DeliveryCodeDisplay from './DeliveryCodeDisplay'
 import LiveTrackingBadge from './LiveTrackingBadge'
 import { Calendar, Lock, Copy, Check, Banknote, Loader2 } from 'lucide-react'
+import { toPesos } from '@takeasygo/business'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
@@ -118,7 +119,7 @@ function buildWhatsAppLink(phone: string, opts: {
   const modeLabel = orderMode === 'delivery' ? '🚚 DELIVERY' : '🥡 TAKE AWAY'
 
   let msg = `Hola soy ${customerName} y tengo el pedido #${orderNumber}.
-Te envío el comprobante de pago por $${amount.toLocaleString('es-AR')}.
+Te envío el comprobante de pago por $${toPesos(amount).toLocaleString('es-AR')}.
 
 ${modeLabel}`
 
@@ -697,7 +698,7 @@ export default function OrderTracker({
             <div className="space-y-1.5 text-xs text-amber-800">
               <p className="flex items-start gap-2">
                 <span className="font-bold bg-amber-200 text-amber-900 w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px]">1</span>
-                <span>Hacé la transferencia por <strong>${(baseTotal || 0).toLocaleString('es-AR')}</strong> desde tu banco usando el <strong>Alias</strong> o <strong>CBU</strong> de arriba.</span>
+                <span>Hacé la transferencia por <strong>${toPesos(baseTotal || 0).toLocaleString('es-AR')}</strong> desde tu banco usando el <strong>Alias</strong> o <strong>CBU</strong> de arriba.</span>
               </p>
               <p className="flex items-start gap-2">
                 <span className="font-bold bg-amber-200 text-amber-900 w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px]">2</span>

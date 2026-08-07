@@ -11,6 +11,7 @@
 // Se siente como una oportunidad, no como publicidad.
 
 import Link from 'next/link'
+import { toPesos } from '@takeasygo/business'
 
 export type ExperienceType =
   | 'promo'
@@ -206,7 +207,7 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
                   letterSpacing: 'var(--tgo-tracking-tight)',
                 }}
               >
-                ${e.price!.toLocaleString('es-AR')}
+                ${toPesos(e.price!).toLocaleString('es-AR')}
               </span>
               {e.originalPrice && (
                 <span
@@ -216,7 +217,7 @@ export default function ExperienceCard({ experience: e }: { experience: Experien
                     textDecoration: 'line-through',
                   }}
                 >
-                  ${e.originalPrice.toLocaleString('es-AR')}
+                  ${toPesos(e.originalPrice).toLocaleString('es-AR')}
                 </span>
               )}
             </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { ShoppingBag, TrendingUp, Users, DollarSign, Eye, EyeOff, Package, Truck } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 
 interface TiaMetrics {
   todayOrders: number
@@ -160,7 +161,7 @@ export default function AdminKPIBar({ userName }: { userName: string }) {
                 'text-sm font-black text-foreground tabular-nums leading-none',
                 revenueHidden && 'blur-md select-none'
               )}>
-                {metrics ? `$${metrics.todayRevenue.toLocaleString('es-AR')}` : '—'}
+                {metrics ? `$${toPesos(metrics.todayRevenue).toLocaleString('es-AR')}` : '—'}
               </p>
               <button
                 onClick={() => setRevenueHidden(v => !v)}

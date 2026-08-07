@@ -1,7 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import PlatformConfig from '@/models/PlatformConfig'
-import { calculateFinalTotal } from '@/lib/pricing'
+import { calculateFinalTotal, getTotalFeesForMethod } from '@/lib/pricing'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
@@ -34,27 +34,32 @@ export async function GET(
       description: string
       enabled: boolean
       surchargePercent: number
+      totalFees: number
     }> = []
 
     {
       const mpSurcharge = calculateFinalTotal(10000, 'mercadopago', tenant, platformConfig)
+      const mpTotalFees = getTotalFeesForMethod('mercadopago', tenant, platformConfig)
       methods.push({
         id: 'mercadopago',
         label: 'Mercado Pago',
         description: 'Tarjeta, efectivo, transferencia',
         enabled: mpEnabled && tenant.paymentMethodsVisibility?.mercadopago !== false,
         surchargePercent: mpSurcharge.surchargePercent,
+        totalFees: mpTotalFees,
       })
     }
 
     if (kriptonEnabled) {
       const krSurcharge = calculateFinalTotal(10000, 'kripton', tenant, platformConfig)
+      const krTotalFees = getTotalFeesForMethod('kripton', tenant, platformConfig)
       methods.push({
         id: 'kripton',
         label: 'Kripton',
         description: 'USDT, BTC, ETH y más',
         enabled: tenant.paymentMethodsVisibility?.kripton !== false,
         surchargePercent: krSurcharge.surchargePercent,
+        totalFees: krTotalFees,
       })
     }
 
@@ -64,6 +69,7 @@ export async function GET(
       description: 'Precio de carta sin recargo',
       enabled: transferEnabled,
       surchargePercent: 0,
+      totalFees: 0,
     })
 
     return NextResponse.json({

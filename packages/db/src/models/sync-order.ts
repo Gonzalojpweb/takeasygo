@@ -9,12 +9,17 @@ export interface SyncOrderDocument extends Document {
     productId?: string
     name: string
     quantity: number
+    /** Precio unitario en centavos. @storedAs cents */
     unitPrice: number
+    /** Total del ítem en centavos. @storedAs cents */
     total: number
-    modifiers?: Array<{ name: string; price: number }>
+    modifiers?: Array<{ name: string; /** @storedAs cents */ price: number }>
   }>
+  /** Total de la orden en centavos. @storedAs cents */
   total: number
+  /** Base total antes de recargo en centavos. @storedAs cents */
   baseTotal?: number
+  /** Monto del recargo en centavos. @storedAs cents */
   surchargeAmount?: number
   menuVersion: number
   externalOrderId?: string

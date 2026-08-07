@@ -15,6 +15,7 @@ export interface ConsumerDocument extends Document {
   nameSearchToken: string  // en claro — hash de búsqueda, no dato sensible
   tenantIds: mongoose.Types.ObjectId[]
   totalOrders: number
+  /** Total gastado en centavos. @storedAs cents */
   totalSpent: number
   firstOrderAt: Date | null
   lastOrderAt: Date | null

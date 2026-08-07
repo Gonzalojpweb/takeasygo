@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { safeDecrypt } from '@/lib/crypto'
+import { toPesos } from '@takeasygo/business'
 
 export async function PATCH(
   request: NextRequest,
@@ -40,7 +41,7 @@ export async function PATCH(
       const customerName = safeDecrypt(order.customer?.name) || 'Cliente'
       const amount = order.payment?.baseTotal || order.total || 0
       const waMessage =
-`🔔 *${customerName}* reportó una transferencia de *$${amount.toLocaleString('es-AR')}* (pedido #${order.orderNumber}).
+`🔔 *${customerName}* reportó una transferencia de *$${toPesos(amount).toLocaleString('es-AR')}* (pedido #${order.orderNumber}).
 
 Ingresá al panel para confirmar el pago:
 ${baseUrl}/${tenantSlug}/admin/orders`

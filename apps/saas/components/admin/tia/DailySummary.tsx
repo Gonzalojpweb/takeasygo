@@ -3,6 +3,7 @@
 import { ShoppingBag, DollarSign, Users, Gift, Clock, TrendingUp } from 'lucide-react'
 import InfoTooltip from './InfoTooltip'
 import type { DailySummaryData } from '@/lib/tia/metrics'
+import { toPesos } from '@takeasygo/business'
 
 interface Props {
   data: DailySummaryData
@@ -19,14 +20,14 @@ export default function DailySummary({ data }: Props) {
     },
     {
       label: 'Ingresos hoy',
-      value: `$${data.todayRevenue.toLocaleString('es-AR')}`,
+      value: `$${toPesos(data.todayRevenue).toLocaleString('es-AR')}`,
       icon: DollarSign,
       color: 'text-green-600 bg-green-100',
       tooltip: 'Suma total de todos los pedidos completados hoy, incluyendo impuestos y costos de envío.',
     },
     {
       label: 'Ticket promedio',
-      value: `$${data.avgOrderValue.toLocaleString('es-AR')}`,
+      value: `$${toPesos(data.avgOrderValue).toLocaleString('es-AR')}`,
       icon: TrendingUp,
       color: 'text-violet-600 bg-violet-100',
       tooltip: 'Valor promedio por pedido. Se calcula como ingresos totales / cantidad de pedidos del día.',

@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import ScheduleEditor, { type ScheduleSlot } from '@/components/admin/ScheduleEditor'
 
 interface Props {
@@ -664,7 +665,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           if (!item.originalPrice) {
             updateBody.originalPrice = item.price
           }
-          updateBody.price = Math.round(item.price * (1 + perc / 100))
+          updateBody.price = Math.ceil(item.price * (1 + perc / 100))
         }
 
         if (target === 'takeaway' || target === 'both') {
@@ -674,7 +675,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           if (!item.takeawayOriginalPrice) {
             updateBody.takeawayOriginalPrice = currentTakeaway
           }
-          updateBody.takeawayPrice = Math.round(currentTakeaway * (1 + perc / 100))
+          updateBody.takeawayPrice = Math.ceil(currentTakeaway * (1 + perc / 100))
         }
 
         const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
@@ -1541,12 +1542,12 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                                 <div className="flex-1 min-w-0">
                                                                   <p className="text-sm font-bold text-foreground">{item.name}</p>
                                                                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                                                    <span className="text-xs font-bold tabular-nums" style={{color: 'var(--primary)'}}>${item.price.toLocaleString('es-AR')}</span>
+                                                                    <span className="text-xs font-bold tabular-nums" style={{color: 'var(--primary)'}}>${toPesos(item.price).toLocaleString('es-AR')}</span>
                                                                     {item.takeawayPrice && item.takeawayPrice !== item.price && (
-                                                                      <span className="text-[10px] font-bold text-orange-600">TA ${item.takeawayPrice.toLocaleString('es-AR')}</span>
+                                                                      <span className="text-[10px] font-bold text-orange-600">TA ${toPesos(item.takeawayPrice).toLocaleString('es-AR')}</span>
                                                                     )}
                                                                     {item.businessPrice != null && (
-                                                                      <span className="text-[10px] font-bold text-primary">Corp ${item.businessPrice.toLocaleString('es-AR')}</span>
+                                                                      <span className="text-[10px] font-bold text-primary">Corp ${toPesos(item.businessPrice).toLocaleString('es-AR')}</span>
                                                                     )}
                                                                   </div>
                                                                 </div>
@@ -1721,18 +1722,18 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                                 <div className="flex items-center gap-1.5">
                                                   <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest">Dine-in:</span>
-                                                  <span className="text-foreground font-bold tabular-nums text-sm">${item.price.toLocaleString('es-AR')}</span>
+                                                  <span className="text-foreground font-bold tabular-nums text-sm">${toPesos(item.price).toLocaleString('es-AR')}</span>
                                                 </div>
                                                 {item.takeawayPrice && item.takeawayPrice !== item.price && (
                                                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-orange-50 border border-orange-200">
                                                     <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest leading-none">Takeaway:</span>
-                                                    <span className="text-orange-600 font-bold tabular-nums text-sm leading-none">${item.takeawayPrice.toLocaleString('es-AR')}</span>
+                                                    <span className="text-orange-600 font-bold tabular-nums text-sm leading-none">${toPesos(item.takeawayPrice).toLocaleString('es-AR')}</span>
                                                   </div>
                                                 )}
                                                 {item.businessPrice != null && (
                                                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20">
                                                     <span className="text-[9px] font-black text-primary uppercase tracking-widest leading-none">Corp:</span>
-                                                    <span className="text-primary font-bold tabular-nums text-sm leading-none">${item.businessPrice.toLocaleString('es-AR')}</span>
+                                                    <span className="text-primary font-bold tabular-nums text-sm leading-none">${toPesos(item.businessPrice).toLocaleString('es-AR')}</span>
                                                   </div>
                                                 )}
                                                 <div className="flex gap-1 flex-wrap">

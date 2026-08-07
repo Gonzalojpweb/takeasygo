@@ -2,6 +2,7 @@
 
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { toast } from 'sonner'
+import { toPesos } from '@takeasygo/business'
 
 export default function DeliveryAddressForm() {
   const { state, dispatch } = useCheckout()
@@ -100,7 +101,7 @@ export default function DeliveryAddressForm() {
       {deliveryConfirmed && deliveryQuote.withinRange && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
           <p className="text-sm text-emerald-800 font-semibold flex items-center gap-2">
-            <span>🚚</span> Envío: <span className="text-base">${deliveryQuote.cost.toLocaleString('es-AR')}</span>
+            <span>🚚</span> Envío: <span className="text-base">${toPesos(deliveryQuote.cost).toLocaleString('es-AR')}</span>
             <span className="text-xs text-emerald-600 font-normal">({deliveryQuote.distance} km)</span>
           </p>
         </div>

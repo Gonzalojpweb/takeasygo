@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { CustomerSegmentBadge, CustomerHealthScore } from './cis'
 import { SegmentDistributionChart } from './cis/charts'
 import ConsumerDetailModal from './crm/ConsumerDetailModal'
+import { toPesos } from '@takeasygo/business'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CRMView — Tabla de clientes con filtros CIS integrados
@@ -67,7 +68,7 @@ function fmtDate(iso: string | null) {
 }
 
 function fmtCurrency(n: number) {
-  return `$${n.toLocaleString('es-AR')}`
+  return `$${toPesos(n).toLocaleString('es-AR')}`
 }
 
 export default function CRMView({ tenantSlug }: Props) {

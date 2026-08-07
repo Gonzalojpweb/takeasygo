@@ -37,6 +37,8 @@ export interface IPlatformConfig {
   sosConfig: {
     globalSosLimit: number
   }
+  /** Maintenance mode — when true, POST /orders returns 503 */
+  maintenanceMode: boolean
   updatedAt: Date
 }
 
@@ -77,6 +79,7 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
     sosConfig: {
       globalSosLimit: { type: Number, default: 250, min: 0 },
     },
+    maintenanceMode: { type: Boolean, default: false },
   },
   { timestamps: true }
 )

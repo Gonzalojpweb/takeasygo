@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 /**
  * Migración: convierte delayAnnouncement plano (v1) → per-mode (v2)
@@ -13,6 +14,9 @@ import { NextRequest, NextResponse } from 'next/server'
  */
 export async function POST(_request: NextRequest) {
   try {
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
+
     await connectDB()
 
     const locations = await Location.find({

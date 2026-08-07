@@ -10,10 +10,15 @@ export interface IMenuItemVariant {
   _id?: mongoose.Types.ObjectId
   name: string
   nameTranslations?: { en: string }
+  /** @storedAs cents */
   price: number
+  /** @storedAs cents */
   takeawayPrice?: number
+  /** @storedAs cents */
   businessPrice?: number
+  /** @storedAs cents */
   originalPrice?: number
+  /** @storedAs cents */
   takeawayOriginalPrice?: number
   customizationGroups?: ICustomizationGroup[]
 }
@@ -21,6 +26,7 @@ export interface IMenuItemVariant {
 export interface ICustomizationOption {
   _id?: mongoose.Types.ObjectId
   name: string
+  /** @storedAs cents */
   extraPrice: number
   imageUrl?: string
   subGroups?: ICustomizationGroup[]
@@ -39,11 +45,17 @@ export interface IMenuItem {
   _id?: mongoose.Types.ObjectId
   name: string
   description: string
+  /** @storedAs cents */
   price: number
+  /** @storedAs cents */
   takeawayPrice?: number
+  /** @storedAs cents */
   businessPrice?: number | null
+  /** @storedAs cents */
   halfPrice?: number
+  /** @storedAs cents */
   originalPrice?: number
+  /** @storedAs cents */
   takeawayOriginalPrice?: number
   imageUrl: string
   isAvailable: boolean

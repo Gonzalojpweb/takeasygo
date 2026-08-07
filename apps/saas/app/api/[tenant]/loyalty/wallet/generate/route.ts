@@ -103,9 +103,7 @@ export async function POST(
 
     // Google Wallet
     if (walletType === 'google' || walletType === 'both') {
-      console.log('[Wallet API] Generando Google Wallet para miembro:', member._id)
       result.google = await generateGoogleWalletJWT(member._id, tenant._id)
-      console.log('[Wallet API] Google Wallet generado:', result.google ? 'YES' : 'NO')
     }
 
     // Apple Wallet
