@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import { ChevronLeft } from 'lucide-react'
 
 export default function CheckoutMiniHeader() {
@@ -79,13 +80,13 @@ export default function CheckoutMiniHeader() {
                       )}
                     </div>
                     <span className="text-sm font-semibold text-zinc-800 shrink-0 pt-0.5">
-                      ${(item.price * item.quantity).toLocaleString('es-AR')}
+                      ${toPesos(item.price * item.quantity).toLocaleString('es-AR')}
                     </span>
                   </div>
                 ))}
                 <div className="border-t border-zinc-100 pt-3 flex justify-between font-bold text-base">
                   <span>Total</span>
-                  <span>${total.toLocaleString('es-AR')}</span>
+                  <span>${toPesos(total).toLocaleString('es-AR')}</span>
                 </div>
               </div>
             </SheetContent>

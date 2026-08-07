@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react'
 import InfoTooltip from './InfoTooltip'
 import type { BenchmarkComparison } from '@/lib/tia/reporting/types'
+import { toPesos } from '@takeasygo/business'
 
 interface ApiProps {
   tenantSlug: string
@@ -28,8 +29,8 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; icon: 'up' | 'do
 }
 
 function formatValue(metric: string, value: number): string {
-  if (metric === 'revenue7d') return `$${value.toLocaleString('es-AR')}`
-  if (metric === 'avgOrderValue') return `$${value.toLocaleString('es-AR')}`
+  if (metric === 'revenue7d') return `$${toPesos(value).toLocaleString('es-AR')}`
+  if (metric === 'avgOrderValue') return `$${toPesos(value).toLocaleString('es-AR')}`
   if (metric === 'conversionRate') return `${value}%`
   return value.toLocaleString('es-AR')
 }

@@ -4,6 +4,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
 import { CheckCircle, Clock, ShoppingBag } from 'lucide-react'
+import { toPesos } from '@takeasygo/business'
 
 interface Props {
   open: boolean
@@ -49,7 +50,7 @@ export default function GroupAddConfirmModal({
         <div className="bg-muted/40 rounded-xl p-4 mt-2 space-y-2 text-left">
           <div className="flex items-center gap-2 text-sm">
             <ShoppingBag size={16} className="text-muted-foreground" />
-            <span className="text-muted-foreground">Tus items: <strong>{myItemsCount}</strong> · <strong>${myTotal.toLocaleString('es-AR')}</strong></span>
+            <span className="text-muted-foreground">Tus items: <strong>{myItemsCount}</strong> · <strong>${toPesos(myTotal).toLocaleString('es-AR')}</strong></span>
           </div>
           {sessionExpiresAt && (
             <div className="flex items-center gap-2 text-sm">

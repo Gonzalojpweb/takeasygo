@@ -12,6 +12,7 @@ import type {
 import type { Insight, Recommendation, BenchmarkItem } from '../types'
 import type { TiaMetricsData } from '../metrics'
 import { translateMetricShort } from './metric-names'
+import { toPesos } from '@takeasygo/business'
 
 // ─── Classification ──────────────────────────────────────────
 
@@ -40,7 +41,7 @@ function pctChange(current: number, previous: number): number | null {
 }
 
 function fmt$(n: number): string {
-  return `$${n.toLocaleString('es-AR')}`
+  return `$${toPesos(n).toLocaleString('es-AR')}`
 }
 
 // ─── Trend Classification ───────────────────────────────────
@@ -92,8 +93,8 @@ const TREND_MESSAGES: Record<TrendLabel, TrendMsgFn[]> = {
 
 function trendNarrative(metric: string, change: number | null, current?: number, previous?: number): string {
   if (change === null && current !== undefined && previous !== undefined) {
-    const currentFmt = current >= 1_000_000 ? `${(current / 1_000_000).toFixed(1)}M` : current.toLocaleString('es-AR')
-    const previousFmt = previous >= 1_000_000 ? `${(previous / 1_000_000).toFixed(1)}M` : previous.toLocaleString('es-AR')
+    const currentFmt = current >= 100_000_000 ? `${(toPesos(current) / 1_000_000).toFixed(1)}M` : toPesos(current).toLocaleString('es-AR')
+    const previousFmt = previous >= 100_000_000 ? `${(toPesos(previous) / 1_000_000).toFixed(1)}M` : toPesos(previous).toLocaleString('es-AR')
     const isUp = current > previous
     const messages = isUp
       ? [
@@ -291,8 +292,8 @@ function extractAnomalyFindings(ctx: ReportContext): Finding[] {
 
   const isPositive = (topAnomaly.changePercent ?? 0) > 0
   const metricName = translateMetricShort(topAnomaly.metric)
-  const value = topAnomaly.currentValue.toLocaleString('es-AR')
-  const expected = topAnomaly.previousValue?.toLocaleString('es-AR') ?? '~'
+  const value = toPesos(topAnomaly.currentValue).toLocaleString('es-AR')
+  const expected = topAnomaly.previousValue ? toPesos(topAnomaly.previousValue).toLocaleString('es-AR') : '~'
 
   const messages = isPositive
     ? [

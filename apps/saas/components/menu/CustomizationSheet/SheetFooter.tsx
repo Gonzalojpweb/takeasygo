@@ -1,6 +1,7 @@
 'use client'
 
 import { Minus, Plus } from 'lucide-react'
+import { toPesos } from '@takeasygo/business'
 
 interface SheetFooterProps {
   quantity: number
@@ -33,8 +34,8 @@ export default function SheetFooter({
 
   const buttonLabel = isValid
     ? unitLabel
-      ? `Confirmar · $${totalPrice.toLocaleString('es-AR')}`
-      : `Agregar al carrito · $${totalPrice.toLocaleString('es-AR')}`
+      ? `Confirmar · $${toPesos(totalPrice).toLocaleString('es-AR')}`
+      : `Agregar al carrito · $${toPesos(totalPrice).toLocaleString('es-AR')}`
     : hasVariants && !hasSelectedVariant
       ? 'Personalizá tu Pedido!'
       : 'Completá las opciones obligatorias'

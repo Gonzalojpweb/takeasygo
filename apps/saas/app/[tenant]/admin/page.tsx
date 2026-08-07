@@ -18,6 +18,7 @@ import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 import OnboardingChecklist from '@/components/admin/OnboardingChecklist'
 import RatingsWidget from '@/components/admin/RatingsWidget'
+import { toPesos } from '@takeasygo/business'
 import LikesWidget from '@/components/admin/LikesWidget'
 import Link from 'next/link'
 
@@ -437,7 +438,7 @@ export default async function AdminDashboard() {
                     </div>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1.5">
-                    <p className="text-foreground text-base font-semibold tracking-tight tabular-nums">${order.total.toLocaleString('es-AR')}</p>
+                    <p className="text-foreground text-base font-semibold tracking-tight tabular-nums">${toPesos(order.total).toLocaleString('es-AR')}</p>
                     <Badge variant="outline" className={cn("text-[10px] font-medium uppercase tracking-wide px-2 py-0.5", STATUS_COLORS[order.status] || 'border-border text-muted-foreground')}>
                       {order.status}
                     </Badge>

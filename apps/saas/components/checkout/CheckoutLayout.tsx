@@ -13,6 +13,7 @@ import CheckoutPaymentFooter from './CheckoutPaymentFooter'
 import CheckoutMiniHeader from './CheckoutMiniHeader'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import { Clock, AlertTriangle, Star, Gift, X } from 'lucide-react'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { captureRewardRedeemed } from '@/lib/tia/events'
@@ -551,8 +552,8 @@ function PaymentConfirmation(props: {
               {selectedPaymentMethod === 'mercadopago' ? 'Mercado Pago' : 'Kripton'} · Precio con recargo
             </p>
             <p className="mt-0.5">
-              ${baseTotal.toLocaleString('es-AR')} + {activeSurchargePercent}% ={' '}
-              <strong>${total.toLocaleString('es-AR')}</strong>
+              ${toPesos(baseTotal).toLocaleString('es-AR')} + {activeSurchargePercent}% ={' '}
+              <strong>${toPesos(total).toLocaleString('es-AR')}</strong>
             </p>
             <p className="mt-0.5 text-amber-600">
               Incluye costos operativos del medio de pago.
@@ -621,7 +622,7 @@ function PaymentConfirmation(props: {
           <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-200">
             <p className="text-[11px] text-amber-800 font-medium flex items-center gap-1">
               <span>⚠️</span>
-              Transferí el monto exacto de <strong>${total.toLocaleString('es-AR')}</strong> y luego confirmá el pago en la pantalla de seguimiento.
+              Transferí el monto exacto de <strong>${toPesos(total).toLocaleString('es-AR')}</strong> y luego confirmá el pago en la pantalla de seguimiento.
             </p>
           </div>
         </div>
@@ -631,7 +632,7 @@ function PaymentConfirmation(props: {
       <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4 space-y-2">
         <div className="flex justify-between text-sm text-zinc-500">
           <span>Subtotal</span>
-          <span>${subtotal.toLocaleString('es-AR')}</span>
+          <span>${toPesos(subtotal).toLocaleString('es-AR')}</span>
         </div>
         {activeQrPromo && (
           <div className="flex justify-between text-sm text-green-600 font-semibold">
@@ -639,7 +640,7 @@ function PaymentConfirmation(props: {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 5L5 19M6.5 9a2.5 2.5 0 110-5 2.5 2.5 0 010 5zM17.5 20a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg>
               {activeQrPromo.checkoutDiscountLabel || 'Descuento QR'} ({activeQrPromo.discountPercentage}%)
             </span>
-            <span>-${discountAmount.toLocaleString('es-AR')}</span>
+            <span>-${toPesos(discountAmount).toLocaleString('es-AR')}</span>
           </div>
         )}
         {selectedRewardItem && (
@@ -654,33 +655,33 @@ function PaymentConfirmation(props: {
         {isDelivery && deliveryQuote.withinRange && (
           <div className="flex justify-between text-sm text-zinc-500">
             <span className="flex items-center gap-1">🚚 Envío</span>
-            <span>${deliveryQuote.cost.toLocaleString('es-AR')}</span>
+            <span>${toPesos(deliveryQuote.cost).toLocaleString('es-AR')}</span>
           </div>
         )}
         {selectedPaymentMethod === 'transfer' ? (
           <div className="flex justify-between text-lg font-black text-emerald-700 pt-2 border-t border-zinc-200">
             <span>Total (precio de carta)</span>
-            <span>${total.toLocaleString('es-AR')}</span>
+            <span>${toPesos(total).toLocaleString('es-AR')}</span>
           </div>
         ) : activeSurchargePercent > 0 ? (
           <>
             <div className="flex justify-between text-sm text-zinc-500 pt-2 border-t border-zinc-200">
               <span>Precio de carta</span>
-              <span>${baseTotal.toLocaleString('es-AR')}</span>
+              <span>${toPesos(baseTotal).toLocaleString('es-AR')}</span>
             </div>
             <div className="flex justify-between text-sm text-amber-600 font-semibold">
               <span>Recargo ({activeSurchargePercent}%)</span>
-              <span>+${(total - baseTotal).toLocaleString('es-AR')}</span>
+              <span>+${toPesos(total - baseTotal).toLocaleString('es-AR')}</span>
             </div>
             <div className="flex justify-between text-lg font-black text-zinc-900">
               <span>Total</span>
-              <span>${total.toLocaleString('es-AR')}</span>
+              <span>${toPesos(total).toLocaleString('es-AR')}</span>
             </div>
           </>
         ) : (
           <div className="flex justify-between text-lg font-black text-zinc-900 pt-2 border-t border-zinc-200">
             <span>Total</span>
-            <span>${total.toLocaleString('es-AR')}</span>
+            <span>${toPesos(total).toLocaleString('es-AR')}</span>
           </div>
         )}
       </div>

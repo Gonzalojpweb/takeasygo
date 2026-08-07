@@ -6,6 +6,7 @@ import { verifyRatingToken } from '@/lib/rating-token'
 import { safeDecrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { ImageResponse } from 'next/og'
+import { toPesos } from '@takeasygo/business'
 
 export const runtime = 'nodejs'
 
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
                   {item.quantity}x {item.name}
                 </span>
                 <span style={{ fontWeight: 600 }}>
-                  ${item.subtotal.toLocaleString('es-AR')}
+                  ${toPesos(item.subtotal).toLocaleString('es-AR')}
                 </span>
               </div>
             ))}
@@ -111,7 +112,7 @@ export async function GET(request: NextRequest) {
             }}
           >
             <span>Total</span>
-            <span>${total.toLocaleString('es-AR')}</span>
+            <span>${toPesos(total).toLocaleString('es-AR')}</span>
           </div>
 
           <div style={{ marginTop: 32, textAlign: 'center' }}>

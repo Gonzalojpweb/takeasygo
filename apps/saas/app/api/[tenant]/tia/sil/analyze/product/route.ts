@@ -4,6 +4,7 @@ import { fetchDashboardMetrics } from '@/lib/tia/metrics'
 import type { Insight, SilConfig } from '@/lib/tia/types'
 import { detectAnomaliesInSeries } from '@/lib/tia/sil/anomaly'
 import { analyzeTrend } from '@/lib/tia/sil/trend'
+import { toPesos } from '@takeasygo/business'
 
 const CONFIG: SilConfig = {
   minSampleSize: 10,
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
           severity: 'info',
           category: 'products',
           title: `${productName} concentra el ${revenueShare.toFixed(0)}% de ingresos`,
-          description: `Representa $${productData.revenue.toLocaleString('es-AR')} de $${metrics.trends.revenue30d.toLocaleString('es-AR')} totales (30d).`,
+          description: `Representa $${toPesos(productData.revenue).toLocaleString('es-AR')} de $${toPesos(metrics.trends.revenue30d).toLocaleString('es-AR')} totales (30d).`,
           metric: `product.${productName}.revenueShare`,
           currentValue: productData.revenue,
           previousValue: metrics.trends.revenue30d,

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { DollarSign, Users, TrendingUp, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { CustomerSegmentBadge } from '../cis'
+import { toPesos } from '@takeasygo/business'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LTVDashboard — Dashboard consolidado de Lifetime Value
@@ -83,7 +84,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 }
 
 function fmtCurrency(n: number) {
-  return `$${n.toLocaleString('es-AR')}`
+  return `$${toPesos(n).toLocaleString('es-AR')}`
 }
 
 export default function LTVDashboard({ tenantSlug }: Props) {

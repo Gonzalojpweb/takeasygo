@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Tag, Plus, Percent, Info, Megaphone, Heart, ExternalLink, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toPesos } from '@takeasygo/business'
 import { capturePromotionViewed, capturePromotionClicked, capturePromotionApplied } from '@/lib/tia/events'
 import ClubOnboardingModal from '../club/ClubOnboardingModal'
 import { toast } from 'sonner'
@@ -212,11 +213,11 @@ export function PromotionCard({
               {promoType === 'sale' && promotion.price > 0 && (
                 <div className="flex items-baseline gap-1">
                   <span className="text-base font-black text-white">
-                    ${promotion.price.toLocaleString('es-AR')}
+                    ${toPesos(promotion.price).toLocaleString('es-AR')}
                   </span>
                   {promotion.originalPrice && (
                     <span className="text-xs line-through opacity-60 text-white">
-                      ${promotion.originalPrice.toLocaleString('es-AR')}
+                      ${toPesos(promotion.originalPrice).toLocaleString('es-AR')}
                     </span>
                   )}
                 </div>
@@ -421,11 +422,11 @@ export function PromotionCard({
               <>
                 <div className="flex items-baseline gap-1">
                   <span className="text-base font-black tracking-tight" style={{ color: accent }}>
-                    ${promotion.price.toLocaleString('es-AR')}
+                    ${toPesos(promotion.price).toLocaleString('es-AR')}
                   </span>
                   {promotion.originalPrice && (
                     <span className="text-xs line-through" style={{ color: subtitleColor }}>
-                      ${promotion.originalPrice.toLocaleString('es-AR')}
+                      ${toPesos(promotion.originalPrice).toLocaleString('es-AR')}
                     </span>
                   )}
                 </div>

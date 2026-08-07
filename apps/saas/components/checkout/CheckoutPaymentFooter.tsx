@@ -2,6 +2,7 @@
 
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { toast } from 'sonner'
+import { toPesos } from '@takeasygo/business'
 import { useRouter } from 'next/navigation'
 import { captureCheckoutStarted, captureRewardAdvanceAccepted } from '@/lib/tia/events'
 
@@ -237,7 +238,7 @@ export default function CheckoutPaymentFooter() {
           {!isLastStep && (
             <div className="flex justify-between items-center mb-2 px-1">
               <span className="text-sm text-zinc-500">Total parcial</span>
-              <span className="text-lg font-black text-zinc-900">${baseTotal.toLocaleString('es-AR')}</span>
+              <span className="text-lg font-black text-zinc-900">${toPesos(baseTotal).toLocaleString('es-AR')}</span>
             </div>
           )}
 
