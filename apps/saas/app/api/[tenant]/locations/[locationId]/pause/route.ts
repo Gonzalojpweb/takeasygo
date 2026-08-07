@@ -6,17 +6,18 @@ import Location from '@/models/Location'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { tenant: string; locationId: string } }
+  { params }: { params: Promise<{ tenant: string; locationId: string }> }
 ) {
   await connectDB()
-  const tenant = await Tenant.findOne({ slug: params.tenant }).lean<{ _id: any }>()
+  const { tenant: tenantSlug, locationId } = await params
+  const tenant = await Tenant.findOne({ slug: tenantSlug }).lean<{ _id: any }>()
   if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
 
   const authError = await requireAuth(request, tenant._id.toString())
   if (authError) return authError
 
   const location = await Location.findOne({
-    _id: params.locationId,
+    _id: locationId,
     tenantId: tenant._id,
   })
 
