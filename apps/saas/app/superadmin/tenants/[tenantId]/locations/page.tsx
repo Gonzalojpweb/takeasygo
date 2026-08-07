@@ -35,6 +35,7 @@ export default async function TenantLocationsPage({ params }: Props) {
       networkVisible: boolean
       cuisineTypes: string[]
       settings: { orderModes: ('takeaway' | 'dine-in')[] }
+      status?: 'active' | 'paused'
     }>
   >()
 
@@ -54,6 +55,7 @@ export default async function TenantLocationsPage({ params }: Props) {
     lng: loc.geo?.coordinates ? loc.geo.coordinates[0] : null,
     networkVisible: loc.networkVisible ?? false,
     cuisineTypes: loc.cuisineTypes ?? [],
+    status: (loc as any).status ?? 'active',
   }))
 
   return (
