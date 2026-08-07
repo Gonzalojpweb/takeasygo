@@ -47,7 +47,6 @@ export const config = {
 
   internalApiSecret: (() => {
     const val = process.env.INTERNAL_API_SECRET ?? ""
-    console.log(`[config] INTERNAL_API_SECRET loaded: length=${val.length}, first4="${val.slice(0, 4)}", last4="${val.slice(-4)}"`)
     return val
   })(),
   saasBaseUrl: process.env.SAAS_BASE_URL ?? "http://localhost:3000",
