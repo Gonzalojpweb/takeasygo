@@ -311,14 +311,12 @@ async function _migrateUserIdIndex() {
     // Drop old unique userId_1_tenantId_1
     const oldUserIdIdx = indexes.find(i => i.name === 'userId_1_tenantId_1')
     if (oldUserIdIdx && oldUserIdIdx.unique) {
-      console.log('[LoyaltyMember] Dropping old unique userId_1_tenantId_1 index – will be recreated as non-unique sparse')
       await db.collection('loyaltymembers').dropIndex('userId_1_tenantId_1')
     }
 
     // Drop old unique tenantId_1_phoneHash_1 (replaced by tenantId_1_locationId_1_phoneHash_1)
     const oldPhoneHashIdx = indexes.find(i => i.name === 'tenantId_1_phoneHash_1')
     if (oldPhoneHashIdx && oldPhoneHashIdx.unique) {
-      console.log('[LoyaltyMember] Dropping old unique tenantId_1_phoneHash_1 index – will be recreated as tenantId_1_locationId_1_phoneHash_1')
       await db.collection('loyaltymembers').dropIndex('tenantId_1_phoneHash_1')
     }
   } catch (err) {

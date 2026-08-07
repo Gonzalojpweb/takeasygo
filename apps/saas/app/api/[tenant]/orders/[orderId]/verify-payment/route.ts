@@ -39,8 +39,6 @@ export async function GET(
     const paymentClient = new Payment(client)
     const paymentData = await paymentClient.get({ id: order.payment.mercadopagoId })
 
-    console.log(`[verify-payment] Order ${order.orderNumber}, MP status: ${paymentData.status}`)
-
     // Actualizar el status según la respuesta de Mercado Pago
     order.payment.status = paymentData.status as any
     order.payment.mercadopagoData = paymentData as any
@@ -48,7 +46,6 @@ export async function GET(
     if (paymentData.status === 'approved') {
       if (order.status === 'awaiting_payment') {
         order.status = 'confirmed'
-        console.log(`[verify-payment] Orden ${order.orderNumber} actualizada a confirmed`)
       }
     } else if (['rejected', 'cancelled'].includes(paymentData.status!)) {
       order.status = 'cancelled'

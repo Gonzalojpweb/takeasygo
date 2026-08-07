@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
     }).select('_id plan name slug').lean() as any[]
 
     const globalStart = Date.now()
-    console.log(`[CisCron] START — ${tenants.length} tenants to process`)
 
     const results: {
       tenantSlug: string
@@ -46,14 +45,6 @@ export async function GET(request: NextRequest) {
       const tenantStart = Date.now()
       try {
         const result = await processTenant(tenant._id)
-
-        console.log(
-          `[CisCron] OK tenant=${tenant.slug} plan=${tenant.plan} ` +
-          `profiles=${result.profilesProcessed} segments_changed=${result.segmentsChanged} ` +
-          `signals=${result.signalsDetected} health_scores=${result.healthScoresCalculated} ` +
-          `events=${result.eventsCreated} ` +
-          `processTenant=${result.executionTimeMs}ms cumulative=${Date.now() - globalStart}ms`
-        )
 
         results.push({
           tenantSlug: tenant.slug,
@@ -84,10 +75,6 @@ export async function GET(request: NextRequest) {
 
     const ok = results.filter(r => !r.errors).length
     const failed = results.filter(r => r.errors).length
-    console.log(
-      `[CisCron] END — ${tenants.length} tenants, ${ok} ok, ${failed} errors, ` +
-      `total=${Date.now() - globalStart}ms`
-    )
 
     return NextResponse.json({
       success: true,

@@ -65,11 +65,8 @@ export async function POST(
     await connectDB()
     const body = await request.json()
 
-    console.log(`[Webhook MP][${traceId}] Recibido:`, body.type, 'ID:', body.data?.id, 'tenant:', tenantSlug)
-
     // Solo nos interesan pagos por ahora
     if (body.type !== 'payment') {
-      console.log('[Webhook MP] Ignorando evento tipo:', body.type)
       return NextResponse.json({ received: true })
     }
 

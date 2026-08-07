@@ -136,11 +136,6 @@ export function triggerBackgroundAdjustment(
 ): void {
   // Ejecutar en background sin await (no bloquear respuesta HTTP)
   maybeAdjustEstimatedTime(locationId, tenantId)
-    .then(result => {
-      if (result.adjusted) {
-        console.log(`[AutoAdjust] Location ${locationId}: ${result.reason}`)
-      }
-    })
     .catch(err => {
       console.error(`[AutoAdjust] Location ${locationId} failed:`, err)
     })
