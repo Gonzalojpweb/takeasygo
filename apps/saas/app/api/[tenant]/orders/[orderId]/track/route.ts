@@ -1,14 +1,18 @@
 // Endpoint público — no requiere auth — solo expone datos seguros del estado del pedido
+// Seguridad: requiere header x-tracking-token (bearer del pedido). Nunca se envía por query string.
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import ImpactEvent from '@/models/ImpactEvent'
 import { decrypt } from '@/lib/crypto'
+import { rateLimit } from '@/lib/rateLimit'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
 const MP_CHECK_CACHE_TTL = 30_000 // 30 seg caching
+
+const TRACKING_HEADER = 'x-tracking-token'
 
 async function verifyPaymentStatus(order: any, accessToken: string, tenantId: string) {
   if (!order.payment.mercadopagoId || !accessToken) return order.status
@@ -23,7 +27,7 @@ async function verifyPaymentStatus(order: any, accessToken: string, tenantId: st
   try {
     // Buscar payments por external_reference (orderNumber) - el más reciente primero
     const searchUrl = `https://api.mercadopago.com/v1/payments/search?external_reference=${order.orderNumber}&sort=date_created&criteria=desc&limit=1`
-    
+
     const response = await fetch(searchUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -53,11 +57,19 @@ async function verifyPaymentStatus(order: any, accessToken: string, tenantId: st
 }
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ tenant: string; orderId: string }> }
 ) {
   try {
     const { tenant: tenantSlug, orderId } = await params
+
+    // Rate limit por IP + orderId (Vercel sanea x-forwarded-for en edge)
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
+    const { success } = await rateLimit(`track:${tenantSlug}:${orderId}:${ip}`, 30, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
@@ -66,9 +78,28 @@ export async function POST(
     const hasMpConfigured = tenant.mercadopago?.isConfigured && tenant.mercadopago?.accessToken
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress')
+      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress trackingToken trackingTokenUsedAt')
       .lean() as any
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    // Validación estricta del tracking token (solo por header)
+    const suppliedToken = request.headers.get(TRACKING_HEADER)
+    if (!order.trackingToken) {
+      console.warn(`[track] 403: orden ${order.orderNumber} sin trackingToken (sin backfill) ip=${ip}`)
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    if (!suppliedToken || suppliedToken !== order.trackingToken) {
+      console.warn(`[track] 403: token inválido para orden ${order.orderNumber} ip=${ip}`)
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Registrar primer uso (auditoría de abuso — no invalida el token)
+    if (!order.trackingTokenUsedAt) {
+      Order.updateOne(
+        { _id: order._id, trackingTokenUsedAt: null },
+        { $set: { trackingTokenUsedAt: new Date() } }
+      ).catch(() => {})
+    }
 
     let currentStatus = order.status
 
