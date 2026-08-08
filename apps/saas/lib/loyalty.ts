@@ -5,6 +5,7 @@ import Order from '@/models/Order'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
 import { syncWalletPoints } from '@/lib/walletService'
+import { toPesos } from '@takeasygo/business'
 
 /**
  * Get the loyalty points config for a specific location.
@@ -38,7 +39,11 @@ export function calculatePointsBreakdown(orderTotal: number, pointsConfig: any):
   const isEnabled = pointsConfig?.enabled === true || pointsConfig?.enabled === 'true'
   if (!isEnabled) return { basePoints: 0, microBonus: 0, total: 0 }
 
-  if (orderTotal < (pointsConfig.minOrderForPoints || 0)) {
+  // orderTotal llega en centavos (post money-migration); la config y los
+  // puntos se manejan en pesos, así que convertimos antes de calcular.
+  const orderTotalPesos = toPesos(orderTotal)
+
+  if (orderTotalPesos < (pointsConfig.minOrderForPoints || 0)) {
     return { basePoints: 0, microBonus: 0, total: 0 }
   }
 
@@ -48,11 +53,11 @@ export function calculatePointsBreakdown(orderTotal: number, pointsConfig: any):
 
   let rawBase = 0
   if (mode === 'fixed_per_currency') {
-    rawBase = orderTotal * pointsPerCurrency
+    rawBase = orderTotalPesos * pointsPerCurrency
   } else if (mode === 'percentage') {
-    rawBase = orderTotal * pointsPercentage / 100
+    rawBase = orderTotalPesos * pointsPercentage / 100
   } else if (mode === 'hybrid') {
-    rawBase = (orderTotal * pointsPerCurrency) + (orderTotal * pointsPercentage / 100)
+    rawBase = (orderTotalPesos * pointsPerCurrency) + (orderTotalPesos * pointsPercentage / 100)
   }
 
   const basePoints = Math.floor(rawBase)
