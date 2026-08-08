@@ -29,7 +29,7 @@ export async function getSessionUser(request?: NextRequest) {
 export async function requireAuth(request: NextRequest, tenantId: string) {
   const user = await getSessionUser(request)
 
-  if (!user) {
+  if (!user || !user.role) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
@@ -46,7 +46,7 @@ export async function requireAuth(request: NextRequest, tenantId: string) {
 export async function requireSuperAdmin() {
   const session = await auth()
 
-  if (!session || session.user.role !== 'superadmin') {
+  if (!session || !session.user || session.user.role !== 'superadmin') {
     return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
   }
 
@@ -56,7 +56,7 @@ export async function requireSuperAdmin() {
 export async function requireAdminRole(request: NextRequest, tenantId: string) {
   const user = await getSessionUser(request)
 
-  if (!user) {
+  if (!user || !user.role) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
@@ -73,7 +73,7 @@ export async function requireAdminRole(request: NextRequest, tenantId: string) {
 
 export async function getSessionForTenant(tenantId: string, request?: NextRequest) {
   const user = await getSessionUser(request)
-  if (!user) return null
+  if (!user || !user.role) return null
 
   const isSuperAdmin = user.role === 'superadmin'
   const belongsToTenant = user.tenantId === tenantId
