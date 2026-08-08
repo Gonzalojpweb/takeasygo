@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { toCents, toPesos } from '@takeasygo/business'
 
 interface Promotion {
   _id: string
@@ -111,8 +112,8 @@ export default function GlobalPromotionsPage() {
       setShortDescription(promo.shortDescription || '')
       setImageUrl(promo.imageUrl || '')
       setType(promo.type)
-      setPrice(promo.price)
-      setOriginalPrice(promo.originalPrice ?? null)
+      setPrice(toPesos(promo.price))
+      setOriginalPrice(promo.originalPrice != null ? toPesos(promo.originalPrice) : null)
       setCurrency(promo.currency)
       setConditions(promo.conditions || '')
       setDetails(promo.details || '')
@@ -160,7 +161,7 @@ export default function GlobalPromotionsPage() {
 
     const payload: any = {
       title, description, shortDescription, imageUrl,
-      type, price, originalPrice, currency, conditions, details,
+      type, price: toCents(price), originalPrice: originalPrice != null ? toCents(originalPrice) : null, currency, conditions, details,
       ctaText, ctaLink, visibility, isActive, isFeatured,
       scheduledStart: scheduledStart ? new Date(scheduledStart).toISOString() : null,
       scheduledEnd: scheduledEnd ? new Date(scheduledEnd).toISOString() : null,
