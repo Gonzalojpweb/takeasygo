@@ -1257,6 +1257,8 @@ export async function POST(
       'payment.surchargeAmount': pricing.surchargeAmount,
       'payment.platformFeeAmount': pricing.platformFeeAmount,
       notes: body.notes || '',
+      trackingToken: crypto.randomUUID(),
+      trackingTokenUsedAt: null,
       clientToken: body.clientToken ?? null,
       orderTiming: body.orderTiming,
       scheduledPickupAt,

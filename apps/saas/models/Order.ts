@@ -138,6 +138,10 @@ export interface IOrder extends Document {
     transferConfirmedBy: string | null
   }
   notes: string
+  /** Token bearer del endpoint de tracking. Se envía por header x-tracking-token, nunca por query string. */
+  trackingToken: string | null
+  /** Primer uso del trackingToken (auditoría de abuso, NO invalida el token). */
+  trackingTokenUsedAt: Date | null
   clientToken: string | null
   printed: boolean
   printLog: IPrintLogEntry[]
@@ -396,6 +400,8 @@ const OrderSchema = new Schema(
       transferConfirmedBy: { type: String, default: null },
     },
     notes: { type: String, default: '', trim: true },
+    trackingToken: { type: String, default: null, index: true },
+    trackingTokenUsedAt: { type: Date, default: null },
     // Token del dispositivo consumer para enviar push cuando el pedido esté listo
     clientToken: { type: String, default: null, index: true },
     printed: { type: Boolean, default: false },

@@ -47,6 +47,7 @@ interface Props {
   textColor: string
   orderNumber: string
   ratingToken: string | null
+  trackingToken: string | null
   initialOrderTiming?: string
   initialScheduledPickupAt?: string | null
   initialScheduledStatus?: string | null
@@ -145,6 +146,7 @@ export default function OrderTracker({
   textColor,
   orderNumber,
   ratingToken,
+  trackingToken,
   initialOrderTiming = 'immediate',
   initialScheduledPickupAt = null,
   initialScheduledStatus = null,
@@ -214,7 +216,11 @@ export default function OrderTracker({
 
   const poll = useCallback(async () => {
     try {
-      const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/track`, { method: 'POST', cache: 'no-store' })
+      const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/track`, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: trackingToken ? { 'x-tracking-token': trackingToken } : {},
+      })
       if (!res.ok) return
       const data = await res.json()
       setStatus(data.status)
@@ -237,7 +243,7 @@ export default function OrderTracker({
       if (data.impactRegistered) setImpactRegistered(true)
       setLastChecked(new Date())
     } catch { /* ignora errores de red */ }
-  }, [tenantSlug, orderId])
+  }, [tenantSlug, orderId, trackingToken])
 
   // Limpiar carrito al llegar al tracking (pedido ya confirmado/pagado)
   useEffect(() => {
