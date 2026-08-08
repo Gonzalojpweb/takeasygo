@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { cn } from '@/lib/utils'
+import { toCents, toPesos } from '@takeasygo/business'
 import PromoPickerPreview from '@/components/admin/PromoPickerPreview'
 
 type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
@@ -495,8 +496,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       description: promotion.description,
       shortDescription: promotion.shortDescription || '',
       imageUrl: promotion.imageUrl || '',
-      price: promotion.price,
-      originalPrice: promotion.originalPrice?.toString() || '',
+      price: toPesos(promotion.price),
+      originalPrice: promotion.originalPrice ? toPesos(promotion.originalPrice).toString() : '',
       currency: promotion.currency,
       conditions: promotion.conditions || '',
       details: promotion.details || '',
@@ -531,7 +532,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     try {
       const cleanForm = { ...form }
       const payload: any = { ...cleanForm }
-      payload.originalPrice = payload.originalPrice ? parseFloat(payload.originalPrice) : null
+      payload.price = toCents(form.price)
+      payload.originalPrice = payload.originalPrice ? toCents(parseFloat(payload.originalPrice)) : null
       payload.maxRedemptions = payload.maxRedemptions ? parseInt(payload.maxRedemptions) : null
       payload.scheduledStart = payload.scheduledStart ? new Date(payload.scheduledStart) : null
       payload.scheduledEnd = payload.scheduledEnd ? new Date(payload.scheduledEnd) : null
@@ -688,10 +690,10 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                 <div className="flex items-center gap-3 mt-2">
                   {promotion.type === 'sale' && (
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-black text-primary">${promotion.price}</span>
+                      <span className="text-lg font-black text-primary">${toPesos(promotion.price).toLocaleString('es-AR')}</span>
                       {promotion.originalPrice && (
                         <>
-                          <span className="text-xs text-muted-foreground line-through">${promotion.originalPrice}</span>
+                          <span className="text-xs text-muted-foreground line-through">${toPesos(promotion.originalPrice).toLocaleString('es-AR')}</span>
                           <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                             -{getDiscountPercent(promotion)}%
                           </span>
