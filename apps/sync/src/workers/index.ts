@@ -16,12 +16,17 @@ async function getSaaSslug(tenantId: string): Promise<string | null> {
   }
 }
 
-export function registerWorkers(redisUrl: string, io: SocketServer): void {
+export interface WorkerSet {
+  workers: Worker[]
+  redisConnections: InstanceType<typeof Redis>[]
+}
+
+export function registerWorkers(redisUrl: string, io: SocketServer): WorkerSet {
   const connection = new Redis(redisUrl, { maxRetriesPerRequest: null }) as any;
   connection.on("error", (err: Error) => console.error("[worker/redis] error:", err.message));
 
   // ── Order timeout worker ──────────────────────────────────────────
-  new Worker(
+  const orderWorker = new Worker(
     "orders",
     async (job) => {
       const { tenantId, orderId, eventId } = job.data
@@ -169,4 +174,9 @@ export function registerWorkers(redisUrl: string, io: SocketServer): void {
       err.message
     )
   })
+
+  return {
+    workers: [orderWorker, cashSaleWorker, confirmForwardWorker],
+    redisConnections: [connection, cashSaleConnection, confirmForwardConnection],
+  }
 }
