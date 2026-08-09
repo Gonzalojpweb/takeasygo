@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Users, Heart, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react'
+import { toPesos } from '@takeasygo/business'
 import SegmentDistributionChart from './charts/SegmentDistributionChart'
 import LTVDashboard from './LTVDashboard'
 
@@ -131,7 +132,7 @@ export default function CISDashboard({ tenantId, tenantSlug, plan }: Props) {
             <StatCard
               icon={Users}
               label="Total Clientes"
-              value={metrics.totalCustomers.toLocaleString('es-CL')}
+              value={metrics.totalCustomers.toLocaleString('es-AR')}
               color="text-blue-600"
               bg="bg-blue-50"
             />
@@ -205,7 +206,7 @@ export default function CISDashboard({ tenantId, tenantSlug, plan }: Props) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div>
                 <p className="text-2xl font-bold text-zinc-900">
-                  ${metrics.avgTicket.toLocaleString('es-CL')}
+                  ${toPesos(metrics.avgTicket).toLocaleString('es-AR')}
                 </p>
                 <p className="text-xs text-zinc-500 mt-1">Ticket Promedio</p>
               </div>

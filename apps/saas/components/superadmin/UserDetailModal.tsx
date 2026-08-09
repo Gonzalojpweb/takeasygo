@@ -204,7 +204,7 @@ export default function UserDetailModal({ userId, open, onOpenChange, onUpdate }
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <p className="text-lg font-black text-amber-500 tabular-nums">{m.points} pts</p>
+                            <p className="text-lg font-black text-amber-500 tabular-nums">{m.points.toLocaleString('es-AR')} pts</p>
                             <Badge className={cn(
                               'text-[8px] font-bold border',
                               TIER_BADGES[m.tier]?.className ?? TIER_BADGES.none.className

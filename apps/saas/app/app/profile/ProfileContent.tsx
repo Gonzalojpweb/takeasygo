@@ -541,7 +541,7 @@ export default function ProfileContent() {
                         className="text-[9px] font-black tabular-nums"
                         style={{ color: 'var(--tgo-state-reward)' }}
                       >
-                        {club.points} pts
+                        {club.points.toLocaleString('es-AR')} pts
                       </p>
                     </button>
                   ))}

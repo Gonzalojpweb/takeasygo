@@ -1,10 +1,12 @@
+import { toPesos } from "@takeasygo/business"
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
     currency: "ARS",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
+  }).format(toPesos(amount))
 }
 
 export function timeAgo(date: Date): string {

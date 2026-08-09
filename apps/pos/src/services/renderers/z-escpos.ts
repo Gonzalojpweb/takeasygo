@@ -1,4 +1,5 @@
 import type { ZReport, PaymentMethod } from "@takeasygo/types"
+import { toPesos } from "@takeasygo/business"
 
 // ============================================================================
 // Z Report — Renderer ESC/POS (impresión térmica 80mm)
@@ -120,7 +121,7 @@ function center(text: string, width: number): string {
 }
 
 function formatCurrency(amount: number, _width: number): string {
-  return `$${amount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `$${toPesos(amount).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function formatDate(date: Date): string {

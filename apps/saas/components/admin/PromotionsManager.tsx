@@ -1209,7 +1209,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                                                         />
                                                         {v.name}
                                                         {v.price != null && v.price !== 0 && (
-                                                          <span className="text-muted-foreground/60">+${v.price}</span>
+                                                          <span className="text-muted-foreground/60">+${toPesos(v.price).toLocaleString('es-AR')}</span>
                                                         )}
                                                       </label>
                                                     )
@@ -1315,7 +1315,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                                                                 />
                                                                 {o.name}
                                                                 {o.extraPrice != null && o.extraPrice !== 0 && (
-                                                                  <span className="text-muted-foreground/60">+${o.extraPrice}</span>
+                                                                  <span className="text-muted-foreground/60">+${toPesos(o.extraPrice).toLocaleString('es-AR')}</span>
                                                                 )}
                                                               </label>
                                                             )
