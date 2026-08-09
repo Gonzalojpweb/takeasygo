@@ -34,7 +34,7 @@ export default function PointsEarnedToast({ pointsEarned, totalPoints, progressT
         />
       </div>
       <p className="text-xs text-zinc-500">
-        {totalPoints} pts totales
+        {totalPoints.toLocaleString('es-AR')} pts totales
         {clubName && ` en ${clubName}`}
         {progress >= 100 ? ' — ¡Podés canjear!' : ` — ${100 - Math.round(progress)}% para tu próximo canje`}
       </p>

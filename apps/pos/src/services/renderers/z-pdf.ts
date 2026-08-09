@@ -1,4 +1,5 @@
 import type { ZReport, PaymentMethod } from "@takeasygo/types"
+import { toPesos } from "@takeasygo/business"
 
 // ============================================================================
 // Z Report — Renderer PDF (client-side)
@@ -124,7 +125,7 @@ export function renderZPdfHtml(zReport: ZReport, options: RenderOptions): string
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function formatCurrency(amount: number): string {
-  return `$${amount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `$${toPesos(amount).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function formatDate(date: Date): string {

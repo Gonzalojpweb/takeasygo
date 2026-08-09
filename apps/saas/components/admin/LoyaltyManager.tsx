@@ -687,7 +687,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                          <p className="text-xs text-muted-foreground">{m.email || '—'}</p>
                        </TableCell>
                        <TableCell>
-                        <span className="font-bold text-sm text-amber-600">{m.loyalty?.points ?? 0}</span>
+                        <span className="font-bold text-sm text-amber-600">{(m.loyalty?.points ?? 0).toLocaleString('es-AR')}</span>
                       </TableCell>
                       <TableCell>
                          <span className="text-sm text-muted-foreground">
@@ -1007,7 +1007,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
                       <p className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Puntos</p>
-                      <p className="text-2xl font-black text-amber-400 tabular-nums">{scannedMember.points}</p>
+                      <p className="text-2xl font-black text-amber-400 tabular-nums">{scannedMember.points.toLocaleString('es-AR')}</p>
                     </div>
                     <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
                       <p className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Total pedidos</p>

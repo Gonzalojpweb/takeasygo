@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Star, TrendingUp, Lock, Package } from 'lucide-react'
+import { toPesos } from '@takeasygo/business'
 import { toast } from 'sonner'
 import confetti from 'canvas-confetti'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
@@ -122,7 +123,7 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
             }}
           >
             <Star size={14} className="fill-white" />
-            {item.pointsCost} pts
+            {item.pointsCost.toLocaleString('es-AR')} pts
           </div>
         </div>
 
@@ -161,7 +162,7 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
               style={{ color: 'var(--tgo-text-muted)' }}
             >
               <span>Tus puntos</span>
-              <span>{memberPoints} / {item.pointsCost}</span>
+              <span>{memberPoints.toLocaleString('es-AR')} / {item.pointsCost.toLocaleString('es-AR')}</span>
             </div>
             <div
               className="h-2 rounded-full overflow-hidden"
@@ -224,7 +225,7 @@ export default function StoreItemCard({ item, memberPoints, memberTier, onRedeem
         {/* Cash Value */}
         {item.cashValue && (
           <div className="mb-4 text-xs" style={{ color: 'var(--tgo-text-muted)' }}>
-            Valor estimado: ${item.cashValue}
+            Valor estimado: ${toPesos(item.cashValue).toLocaleString('es-AR')}
           </div>
         )}
 

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { toPesos } from '@takeasygo/business'
 import { 
   QrCode, 
   Search, 
@@ -349,7 +350,7 @@ export default function MemberScanner({ tenantSlug }: MemberScannerProps) {
               </div>
               <div className="p-3 bg-zinc-50 rounded-lg">
                 <p className="text-zinc-500 text-xs">Total gastado</p>
-                <p className="font-semibold">${member.totalSpent?.toFixed(2) || '0.00'}</p>
+                <p className="font-semibold">${toPesos(member.totalSpent || 0).toLocaleString('es-AR')}</p>
               </div>
             </div>
 

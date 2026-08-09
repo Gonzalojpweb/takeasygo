@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { QrCode, Search, Loader2, Smartphone, CreditCard } from 'lucide-react'
+import { toPesos } from '@takeasygo/business'
 import { toast } from 'sonner'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 
@@ -147,7 +148,7 @@ export default function ClubLookupPage({ params }: { params: Promise<{ tenant: s
                     <p className="text-xs text-gray-500 uppercase tracking-wider">Pedidos</p>
                   </div>
                   <div className="bg-muted/30 rounded-xl p-4 text-center">
-                    <p className="text-2xl font-bold text-gray-900">${member.totalSpent.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-gray-900">${toPesos(member.totalSpent).toLocaleString('es-AR')}</p>
                     <p className="text-xs text-gray-500 uppercase tracking-wider">Gastado</p>
                   </div>
                 </div>

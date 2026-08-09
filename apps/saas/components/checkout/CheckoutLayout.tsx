@@ -270,7 +270,7 @@ function LoyaltySection(props: {
             </div>
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="text-2xl font-black tabular-nums">{loyaltyMember.points}</p>
+                <p className="text-2xl font-black tabular-nums">{loyaltyMember.points.toLocaleString('es-AR')}</p>
                 <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-500">Tus puntos acumulados</p>
               </div>
               {loyaltyMember.hasAdvanceActive && (
