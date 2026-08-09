@@ -11,6 +11,7 @@ import KriptonSettings from './KriptonSettings'
 import TransferSettings from './TransferSettings'
 import PaymentSurchargeSettings from './PaymentSurchargeSettings'
 import { motion, AnimatePresence } from 'framer-motion'
+import { toCents, toPesos } from '@takeasygo/business'
 import {
   Palette, User, MapPin,
   Settings as SettingsIcon,
@@ -2123,7 +2124,9 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
   initialConfig: { enabled: boolean; ranges: Array<{ fromKm: number; toKm: number; price: number }>; maxRangeKm: number }
 }) {
   const [enabled, setEnabled] = useState(initialConfig?.enabled ?? false)
-  const [ranges, setRanges] = useState(initialConfig?.ranges ?? [])
+  const [ranges, setRanges] = useState(() =>
+    (initialConfig?.ranges ?? []).map(r => ({ ...r, price: toPesos(r.price) }))
+  )
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
@@ -2146,10 +2149,12 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
         }
       }
 
+      const centsRanges = sortedRanges.map(r => ({ ...r, price: toCents(r.price) }))
+
       const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deliveryConfig: { enabled, ranges: sortedRanges, maxRangeKm } }),
+        body: JSON.stringify({ deliveryConfig: { enabled, ranges: centsRanges, maxRangeKm } }),
       })
       if (!res.ok) throw new Error()
       toast.success('Configuración de delivery guardada')
