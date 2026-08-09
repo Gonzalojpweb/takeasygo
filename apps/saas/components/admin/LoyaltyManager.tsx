@@ -78,6 +78,9 @@ interface Member {
     points: number
     tier: string
   }
+  wallet?: {
+    publicId: string
+  }
   notes: string
 }
 
