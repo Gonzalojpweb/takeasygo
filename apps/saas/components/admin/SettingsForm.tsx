@@ -1775,6 +1775,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                 <PaymentSurchargeSettings
                   tenantSlug={tenantSlug}
                   initialSurcharges={tenant.paymentSurcharges}
+                  takeasygoFeePercent={tenant.mpOAuth?.commissionPercent ?? 1}
                 />
               </div>
             </TabsContent>
