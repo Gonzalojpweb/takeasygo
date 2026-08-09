@@ -101,18 +101,18 @@ export default async function AdminDashboard() {
 
   const [total, pending, confirmed, cancelled, cancData, recentOrders, trialOrderCount, icoHistory, feedbackErrors] =
     await Promise.all([
-      Order.countDocuments({ tenantId }),
-      Order.countDocuments({ tenantId, status: 'pending' }),
-      Order.countDocuments({ tenantId, status: 'confirmed' }),
-      Order.countDocuments({ tenantId, status: 'cancelled' }),
+      Order.countDocuments({ tenantId, deletedAt: null }),
+      Order.countDocuments({ tenantId, deletedAt: null, status: 'pending' }),
+      Order.countDocuments({ tenantId, deletedAt: null, status: 'confirmed' }),
+      Order.countDocuments({ tenantId, deletedAt: null, status: 'cancelled' }),
       // Cancelación últimos 30d para alertas
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: start30 } } },
+        { $match: { tenantId, deletedAt: null, createdAt: { $gte: start30 } } },
         { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
       ]),
-      Order.find({ tenantId }).sort({ createdAt: -1 }).limit(5).lean(),
+      Order.find({ tenantId, deletedAt: null }).sort({ createdAt: -1 }).limit(5).lean(),
       plan === 'trial'
-        ? Order.countDocuments({ tenantId, status: { $nin: ['cancelled'] } })
+        ? Order.countDocuments({ tenantId, deletedAt: null, status: { $nin: ['cancelled'] } })
         : Promise.resolve(undefined),
       // Últimos 8 snapshots ICO para sparkline
       ICOSnapshot.find({ tenantId }).sort({ date: -1 }).limit(8).lean<
