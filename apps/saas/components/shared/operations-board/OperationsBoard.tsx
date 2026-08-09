@@ -64,12 +64,19 @@ export default function OperationsBoard<T extends BoardItem>({
   })
 
   const effectiveAlertStatuses = alertStatuses || activeStatuses
-  const { newItemIds } = useBoardNewItemDetector({
+
+  const handleAttend = useCallback(() => {
+    const first = items.find(i => effectiveAlertStatuses.includes(i.status))
+    if (first) setSelectedItem(first)
+  }, [items, effectiveAlertStatuses])
+
+  const { newItemIds, escalatedIds, markAttended } = useBoardNewItemDetector({
     items,
     alertStatuses: effectiveAlertStatuses,
     soundEnabled,
     soundSrc,
     getNewItemToast,
+    onAttend: handleAttend,
   })
 
   // Cleanup
@@ -150,7 +157,11 @@ export default function OperationsBoard<T extends BoardItem>({
                 items={itemsByStatus[col.status] || []}
                 selectedItemId={selectedItem?._id || null}
                 newItemIds={newItemIds}
-                onSelectItem={setSelectedItem}
+                escalatedIds={escalatedIds}
+                onSelectItem={(item) => {
+                  setSelectedItem(item)
+                  markAttended(item._id)
+                }}
                 renderCard={renderCard}
               />
             ))}

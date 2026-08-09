@@ -56,7 +56,7 @@ function useElapsed(createdAt: string): string {
   return elapsed
 }
 
-export default function OrderCard({ item, isSelected, isNew, onClick }: BoardCardRenderProps<OrderItem>) {
+export default function OrderCard({ item, isSelected, isNew, isEscalated, onClick }: BoardCardRenderProps<OrderItem>) {
   const mode = MODE_CONFIG[item.orderMode || 'takeaway'] || MODE_CONFIG.takeaway
   const ModeIcon = mode.icon
   const statusColor = STATUS_COLORS[item.status] || 'bg-zinc-400'
@@ -71,7 +71,8 @@ export default function OrderCard({ item, isSelected, isNew, onClick }: BoardCar
       onClick={onClick}
       className={cn(
         'w-full text-left rounded-xl border p-3 transition-all duration-150 hover:shadow-md group/card',
-        isNew && 'ring-2 ring-emerald-400/50 shadow-emerald-100 shadow-lg animate-pulse',
+        isEscalated && 'ring-2 ring-red-400/70 shadow-red-100 shadow-lg animate-pulse',
+        !isEscalated && isNew && 'ring-2 ring-emerald-400/50 shadow-emerald-100 shadow-lg animate-pulse',
         isSelected
           ? 'border-primary bg-primary/5 shadow-md'
           : 'border-border/60 bg-card hover:border-primary/30'
@@ -120,6 +121,14 @@ export default function OrderCard({ item, isSelected, isNew, onClick }: BoardCar
         <div className="mt-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[9px] font-bold">
           <Clock size={8} />
           Programado {new Date(item.scheduledPickupAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      )}
+
+      {/* Escalated: "Sin atender" badge */}
+      {isEscalated && (
+        <div className="mt-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 text-red-600 text-[9px] font-bold animate-pulse">
+          <Clock size={8} />
+          Sin atender · {computedElapsed}
         </div>
       )}
     </button>

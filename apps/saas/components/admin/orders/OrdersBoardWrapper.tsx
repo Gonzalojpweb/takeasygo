@@ -123,7 +123,7 @@ export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [],
           activeLocationId={boardActiveLocation}
         />
       }
-      getNewItemToast={(items) => ({
+      getNewItemToast={(items, onAttend) => ({
         title: items.length === 1 ? 'Nuevo pedido' : `${items.length} nuevos pedidos`,
         description: items.map(o => `#${o.orderNumber} · ${o.customer.name}`).join(' — '),
       })}
