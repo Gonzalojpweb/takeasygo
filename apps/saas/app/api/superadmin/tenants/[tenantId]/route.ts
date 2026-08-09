@@ -25,10 +25,13 @@ export async function PUT(
     }
 
     // 2. Extraer campos anidados que no están en el body plano
-    const { sosMaxLimit, business, promotionLabels, loyaltyMessaging, commissionPercent, ...flatBody } = body
+    const { sosMaxLimit, business, promotionLabels, loyaltyMessaging, commissionPercent, transferEnabled, ...flatBody } = body
 
     // 3. Construir update con dot-notation
     const updateSet: Record<string, any> = { ...flatBody }
+    if (transferEnabled !== undefined) {
+      updateSet['transfer.enabled'] = !!transferEnabled
+    }
     if (sosMaxLimit !== undefined) {
       updateSet['loyalty.sosMaxLimit'] = Math.max(0, Math.min(5000, parseInt(sosMaxLimit) || 0))
     }
