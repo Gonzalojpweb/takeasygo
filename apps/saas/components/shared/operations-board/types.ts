@@ -43,6 +43,7 @@ export interface BoardCardRenderProps<T extends BoardItem> {
   item: T
   isSelected: boolean
   isNew: boolean
+  isEscalated: boolean
   onClick: () => void
 }
 
@@ -87,8 +88,8 @@ export interface OperationsBoardProps<T extends BoardItem> {
   toolbarActions?: ReactNode
   /** Callback when user clicks "cleanup" button. If not provided, button is hidden. */
   onCleanup?: () => void | Promise<void>
-  /** Custom toast content for new items */
-  getNewItemToast?: (items: T[]) => { title: string; description: string }
+  /** Custom toast content for new items. onAttend selects the first item in the board. */
+  getNewItemToast?: (items: T[], onAttend: () => void) => { title: string; description: string }
   /** Sound file path for new item alerts. Default: no sound. */
   soundSrc?: string
 }

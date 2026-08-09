@@ -9,8 +9,9 @@ interface BoardColumnProps<T extends BoardItem> {
   items: T[]
   selectedItemId: string | null
   newItemIds: Set<string>
+  escalatedIds: Set<string>
   onSelectItem: (item: T) => void
-  renderCard: (props: { item: T; isSelected: boolean; isNew: boolean; onClick: () => void }) => ReactNode
+  renderCard: (props: { item: T; isSelected: boolean; isNew: boolean; isEscalated: boolean; onClick: () => void }) => ReactNode
 }
 
 export default function BoardColumn<T extends BoardItem>({
@@ -18,6 +19,7 @@ export default function BoardColumn<T extends BoardItem>({
   items,
   selectedItemId,
   newItemIds,
+  escalatedIds,
   onSelectItem,
   renderCard,
 }: BoardColumnProps<T>) {
@@ -52,6 +54,7 @@ export default function BoardColumn<T extends BoardItem>({
                 item,
                 isSelected: selectedItemId === item._id,
                 isNew: newItemIds.has(item._id),
+                isEscalated: escalatedIds.has(item._id),
                 onClick: () => onSelectItem(item),
               })}
             </div>

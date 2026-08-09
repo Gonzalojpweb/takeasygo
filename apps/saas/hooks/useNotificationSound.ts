@@ -33,5 +33,15 @@ export function useNotificationSound(src = '/LLAMADA.mp3') {
     }
   }, [])
 
-  return { play, stop }
+  const playOnce = useCallback(() => {
+    try {
+      const once = new Audio(src)
+      once.volume = 0.8
+      once.play().catch(() => {})
+    } catch {
+      // SSR or unsupported environment
+    }
+  }, [src])
+
+  return { play, stop, playOnce }
 }
