@@ -11,9 +11,10 @@ interface Props {
     kripton: { feePercent: number }
     transfer: { feePercent: number }
   }
+  takeasygoFeePercent: number
 }
 
-export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges }: Props) {
+export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges, takeasygoFeePercent }: Props) {
   const sc = initialSurcharges || { mercadopago: { feePercent: 0 }, kripton: { feePercent: 0 }, transfer: { feePercent: 0 } }
   const [mpFee, setMpFee] = useState(sc.mercadopago?.feePercent ?? 0)
   const [krFee, setKrFee] = useState(sc.kripton?.feePercent ?? 0)
@@ -89,7 +90,7 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
             <div className="bg-zinc-50 rounded-lg p-2.5">
               <p className="text-xs text-zinc-600">
                 Ejemplo: precio de carta $10.000 → cliente paga{' '}
-                <strong className="text-zinc-900">${(10000 * (1 + mpFee / 100)).toLocaleString('es-AR')}</strong>
+                <strong className="text-zinc-900">${Math.ceil(10000 / (1 - (mpFee + takeasygoFeePercent) / 100)).toLocaleString('es-AR')}</strong>
               </p>
             </div>
           )}
