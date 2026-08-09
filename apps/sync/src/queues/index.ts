@@ -7,6 +7,7 @@ export interface QueueServer {
   orderQueue: BullQueue
   cashSaleQueue: BullQueue<CashSaleJobData>
   confirmForwardQueue: BullQueue<ConfirmForwardJobData>
+  redisConnections: InstanceType<typeof Redis>[]
 }
 
 export function createQueueServer(redisUrl: string): QueueServer {
@@ -58,5 +59,5 @@ export function createQueueServer(redisUrl: string): QueueServer {
     },
   })
 
-  return { orderQueue, cashSaleQueue, confirmForwardQueue }
+  return { orderQueue, cashSaleQueue, confirmForwardQueue, redisConnections: [connection, cashSaleConnection, confirmForwardConnection] }
 }
