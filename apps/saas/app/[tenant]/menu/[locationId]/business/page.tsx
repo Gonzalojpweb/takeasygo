@@ -1,5 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
-import Tenant from '@/models/Tenant'
+import Tenant, { type ITenant } from '@/models/Tenant'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { notFound } from 'next/navigation'
