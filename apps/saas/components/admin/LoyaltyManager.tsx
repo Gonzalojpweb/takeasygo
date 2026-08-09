@@ -729,9 +729,9 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                               <History size={14} className="mr-2" /> Historial de Puntos
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={async () => {
-                              if (!m.phone) { toast.error('Este miembro no tiene teléfono registrado'); return }
+                              if (!m.wallet?.publicId) { toast.error('Este miembro no tiene ID de cartera'); return }
                               try {
-                                const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?phone=${encodeURIComponent(m.phone)}${locationId ? `&locationId=${locationId}` : ''}`)
+                                const res = await fetch(`/api/${tenantSlug}/loyalty/lookup?publicId=${encodeURIComponent(m.wallet.publicId)}${locationId ? `&locationId=${locationId}` : ''}`)
                                 const data = await res.json()
                                 if (!res.ok) throw new Error(data.error)
                                 setScannedMember(data.member)

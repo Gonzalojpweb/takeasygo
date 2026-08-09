@@ -49,9 +49,8 @@ export default async function OrdersPage() {
 
   const tenantId = tenant._id
 
-  const orders = await Order.find({ tenantId, deletedAt: null, status: { $ne: 'awaiting_payment' } })
+  const orders = await Order.find({ tenantId, deletedAt: null })
     .sort({ createdAt: -1 })
-    .limit(100)
     .lean()
 
   const locations = await Location.find({ tenantId }).lean()
