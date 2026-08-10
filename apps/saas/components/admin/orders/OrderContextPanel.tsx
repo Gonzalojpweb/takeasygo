@@ -407,6 +407,12 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
               <span className="text-[10px] text-muted-foreground/60">Precio de carta</span>
               <span className="text-[10px] text-muted-foreground/70 tabular-nums">${toPesos(item.payment.baseTotal).toLocaleString('es-AR')}</span>
             </div>
+            {item.orderMode === 'delivery' && (item.deliveryCost ?? 0) > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground/60">🚚 Envío</span>
+                <span className="text-[10px] text-muted-foreground/70 tabular-nums">${toPesos(item.deliveryCost!).toLocaleString('es-AR')}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground/60">
                 Recargo MP{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
