@@ -159,26 +159,28 @@ export async function PATCH(
         const sub = await PushSubscription.findOne({ clientToken: (order as any).clientToken })
         if (sub) {
           const isDelivery = order.orderMode === 'delivery'
+          const orderId = order._id.toString()
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
             JSON.stringify({
-              title: isDelivery ? '🛍️ ¡Tu pedido está listo!' : '🛍️ ¡Tu pedido está listo!',
+              title: '🛍️ ¡Tu pedido está listo!',
               body: isDelivery
                 ? `Pedido #${order.orderNumber} — el delivery está por pasar a buscarlo.`
                 : `Pedido #${order.orderNumber} — podés pasar a retirarlo.`,
               icon: '/tgoicon-192.png',
               badge: '/tgoicon-192.png',
               url: '/app',
+              tag: `order-${orderId}`,
+              orderId,
             })
           )
+          console.log(`[push] Customer notified: ready order=${order.orderNumber}`)
         }
       } catch (pushErr: any) {
-        // Si el endpoint expiró, limpiar la suscripción
         if (pushErr?.statusCode === 410) {
           await PushSubscription.deleteOne({ clientToken: (order as any).clientToken })
         }
-        // No fallar el endpoint por un error de push
-        console.warn('[push] Error enviando notificación:', pushErr?.message)
+        console.warn('[push] Error customer ready:', pushErr?.message)
       }
     }
 
@@ -186,13 +188,17 @@ export async function PATCH(
     if (status === 'ready' && order.orderMode === 'delivery') {
       try {
         const subs = await DeliveryPushSubscription.find({ tenantId: tenant._id }).lean()
+        const orderId = order._id.toString()
         const payload = JSON.stringify({
           title: '📦 Nuevo pedido listo',
           body: `Pedido #${order.orderNumber} — listo para entregar.`,
           icon: '/tgoicon-192.png',
           badge: '/tgoicon-192.png',
           url: `/app`,
+          tag: `order-${orderId}`,
+          orderId,
         })
+        console.log(`[push] Sending to ${subs.length} delivery subscribers`)
         for (const sub of subs) {
           try {
             await webpush.sendNotification(
@@ -228,6 +234,7 @@ export async function PATCH(
             const ratingToken = generateRatingToken(order._id.toString())
             const ratingUrl = `/${tenantSlug}/rate/${order.orderNumber}?token=${ratingToken}`
             const isDelivery = order.orderMode === 'delivery'
+            const orderId = order._id.toString()
             await webpush.sendNotification(
               { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
               JSON.stringify({
@@ -238,8 +245,11 @@ export async function PATCH(
                 icon: '/tgoicon-192.png',
                 badge: '/tgoicon-192.png',
                 url: ratingUrl,
+                tag: `order-${orderId}`,
+                orderId,
               })
             )
+            console.log(`[push] Customer notified: delivered order=${order.orderNumber}`)
           }
         } catch (pushErr: any) {
           if (pushErr?.statusCode === 410) {

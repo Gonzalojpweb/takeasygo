@@ -78,10 +78,21 @@ self.addEventListener('fetch', (e) => {
 
 // ── Push notifications ────────────────────────────────────────────────────────
 self.addEventListener('push', (e) => {
-  if (!e.data) return
+  console.log('[SW] push event received')
+
+  if (!e.data) {
+    console.warn('[SW] push event with no data')
+    return
+  }
 
   let data = {}
-  try { data = e.data.json() } catch { data = { title: 'TGO', body: e.data.text() } }
+  try {
+    data = e.data.json()
+    console.log('[SW] push payload:', JSON.stringify(data))
+  } catch (err) {
+    console.warn('[SW] push payload not JSON, text fallback:', err)
+    data = { title: 'TGO', body: e.data.text() }
+  }
 
   const {
     title = 'TGO',
@@ -89,32 +100,58 @@ self.addEventListener('push', (e) => {
     icon = '/tgoicon-192.png',
     badge = '/tgoicon-192.png',
     url = '/app',
+    tag = undefined,
+    orderId = undefined,
   } = data
 
+  const notificationTag = tag || (orderId ? `order-${orderId}` : `tgo-${Date.now()}`)
+
+  const notificationOptions = {
+    body,
+    icon,
+    badge,
+    data: { url, orderId },
+    vibrate: [300, 100, 300, 100, 300],
+    requireInteraction: true,
+    silent: false,
+    tag: notificationTag,
+    renotify: true,
+    actions: [
+      { action: 'attend', title: 'Atender pedido' },
+      { action: 'dismiss', title: 'Cerrar' },
+    ],
+  }
+
+  console.log('[SW] showNotification:', title, notificationOptions)
+
   e.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon,
-      badge,
-      data: { url },
-      vibrate: [200, 100, 200],
-      requireInteraction: true,
-    })
+    self.registration.showNotification(title, notificationOptions)
+      .then(() => console.log('[SW] showNotification OK'))
+      .catch(err => console.error('[SW] showNotification FAILED:', err))
   )
 })
 
 self.addEventListener('notificationclick', (e) => {
+  console.log('[SW] notificationclick action:', e.action, 'data:', e.notification.data)
   e.notification.close()
+
   const url = e.notification.data?.url ?? '/app'
+  const orderId = e.notification.data?.orderId
+
+  const targetUrl = e.action === 'attend' && orderId
+    ? `${url}?attend=${orderId}`
+    : url
 
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       const existing = clients.find((c) => c.url.includes(self.location.origin))
       if (existing) {
         existing.focus()
-        return existing.navigate(url)
+        return existing.navigate(targetUrl).catch(() =>
+          self.clients.openWindow(targetUrl)
+        )
       }
-      return self.clients.openWindow(url)
+      return self.clients.openWindow(targetUrl)
     })
   )
 })

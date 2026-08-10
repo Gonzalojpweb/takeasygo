@@ -64,6 +64,7 @@ export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [],
     colorIndex: (l as any).colorIndex ?? 0,
   }))
   const lastRatingIdRef = useRef<string | null>(null)
+  const autoAttendedRef = useRef(false)
 
   // Convert context location ID to 'all' when null
   const boardActiveLocation = activeLocationId ?? 'all'
@@ -83,6 +84,20 @@ export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [],
     }
     lastRatingIdRef.current = latestId
   }, [recentRatings])
+
+  // Auto-attend: read ?attend={orderId} from URL on mount (triggered by SW notification action)
+  const [autoAttendId, setAutoAttendId] = useState<string | null>(null)
+  useEffect(() => {
+    if (autoAttendedRef.current) return
+    const params = new URLSearchParams(window.location.search)
+    const attendId = params.get('attend')
+    if (attendId) {
+      autoAttendedRef.current = true
+      setAutoAttendId(attendId)
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   const handleCleanup = async () => {
     const res = await fetch(`/api/${tenantSlug}/orders/cleanup-cancelled`, { method: 'POST' })
@@ -127,6 +142,7 @@ export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [],
         title: items.length === 1 ? 'Nuevo pedido' : `${items.length} nuevos pedidos`,
         description: items.map(o => `#${o.orderNumber} · ${o.customer.name}`).join(' — '),
       })}
+      autoSelectId={autoAttendId}
     />
   )
 }

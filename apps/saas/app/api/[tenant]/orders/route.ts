@@ -1380,24 +1380,29 @@ export async function POST(
       ? await PushSubscription.find({ tenantId: tenant._id }).lean()
       : []
     if (adminSubs.length > 0) {
+      const orderId = order._id.toString()
       const payload = JSON.stringify({
         title: `🔔 Nuevo pedido en ${tenant.name}`,
         body: `#${order.orderNumber} — $${toPesos(total).toLocaleString('es-AR')} — ${customerName}`,
         icon: '/tgoicon-192.png',
         badge: '/tgoicon-192.png',
         url: `/${tenantSlug}/admin/orders`,
+        tag: `order-${orderId}`,
+        orderId,
       })
+      console.log(`[push] Sending to ${adminSubs.length} admin subscribers for tenant ${tenant.slug}`)
       for (const sub of adminSubs) {
         try {
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
             payload
           )
+          console.log(`[push] OK clientToken=${sub.clientToken}`)
         } catch (pushErr: any) {
+          console.error(`[push] FAILED clientToken=${sub.clientToken} status=${pushErr?.statusCode}:`, pushErr?.message)
           if (pushErr?.statusCode === 410) {
             await PushSubscription.deleteOne({ _id: sub._id }).catch(() => {})
           }
-          console.warn('[push] Error notificando admin:', pushErr?.message)
         }
       }
     }

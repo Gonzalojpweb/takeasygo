@@ -94,4 +94,6 @@ export interface OperationsBoardProps<T extends BoardItem> {
   getNewItemToast?: (items: T[], onAttend: () => void) => { title: string; description: string }
   /** Sound file path for new item alerts. Default: no sound. */
   soundSrc?: string
+  /** Auto-select an item by _id on mount (e.g. from notification action button). */
+  autoSelectId?: string | null
 }
