@@ -27,7 +27,7 @@ interface OrderItem extends BoardItem {
 }
 
 const ORDER_COLUMNS: BoardColumnDef[] = [
-  { status: 'awaiting_confirmation', title: 'Transferencias', dotColor: 'bg-amber-500', color: 'bg-amber-100 text-amber-700' },
+  { status: 'awaiting_confirmation', statuses: ['awaiting_payment', 'awaiting_confirmation'], title: 'Transferencias', dotColor: 'bg-amber-500', color: 'bg-amber-100 text-amber-700' },
   { status: 'pending',    title: 'Pendientes',   dotColor: 'bg-amber-400',  color: 'bg-amber-100 text-amber-700' },
   { status: 'confirmed',  title: 'Confirmados',  dotColor: 'bg-blue-500',   color: 'bg-blue-100 text-blue-700' },
   { status: 'preparing',  title: 'Preparando',    dotColor: 'bg-orange-400', color: 'bg-orange-100 text-orange-700' },
@@ -36,8 +36,8 @@ const ORDER_COLUMNS: BoardColumnDef[] = [
   { status: 'delivered',  title: 'Entregados',    dotColor: 'bg-zinc-400',  color: 'bg-zinc-100 text-zinc-600' },
 ]
 
-const ACTIVE_STATUSES = ['awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta']
-const ALERT_STATUSES = ['awaiting_confirmation', 'pending', 'confirmed']
+const ACTIVE_STATUSES = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta']
+const ALERT_STATUSES = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed']
 
 interface RecentRating {
   _id: string
