@@ -28,6 +28,7 @@ export default function OperationsBoard<T extends BoardItem>({
   getNewItemToast,
   soundSrc,
   onLocationChange,
+  autoSelectId,
 }: OperationsBoardProps<T>) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
@@ -50,6 +51,14 @@ export default function OperationsBoard<T extends BoardItem>({
       if (fresh) setSelectedItem(fresh)
     }
   }, [items])
+
+  // Auto-select from notification action (e.g. ?attend=orderId from SW click)
+  useEffect(() => {
+    if (autoSelectId) {
+      const target = items.find(i => i._id === autoSelectId)
+      if (target) setSelectedItem(target)
+    }
+  }, [autoSelectId, items])
   const [cleanupLoading, setCleanupLoading] = useState(false)
 
   // Zoom
