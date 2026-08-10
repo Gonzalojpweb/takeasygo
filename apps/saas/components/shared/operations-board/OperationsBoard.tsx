@@ -112,11 +112,20 @@ export default function OperationsBoard<T extends BoardItem>({
 
   // Group by status
   const itemsByStatus = columns.reduce((acc, col) => {
-    acc[col.status] = filteredItems.filter(o => o.status === col.status)
+    const matchStatuses = col.statuses ?? [col.status]
+    acc[col.status] = filteredItems.filter(o => matchStatuses.includes(o.status))
     return acc
   }, {} as Record<string, T[]>)
 
-  const activeCount = activeStatuses.reduce((sum, s) => sum + (itemsByStatus[s]?.length || 0), 0)
+  // Count active items — use column key to avoid double-counting multi-status columns
+  const countedColumnKeys = new Set<string>()
+  const activeCount = activeStatuses.reduce((sum, s) => {
+    const matchingCol = columns.find(col => col.statuses?.includes(s) || col.status === s)
+    if (!matchingCol) return sum
+    if (countedColumnKeys.has(matchingCol.status)) return sum // already counted this column
+    countedColumnKeys.add(matchingCol.status)
+    return sum + (itemsByStatus[matchingCol.status]?.length || 0)
+  }, 0)
 
   return (
     <div className="flex h-full min-h-0 gap-0 relative">

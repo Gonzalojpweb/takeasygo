@@ -241,6 +241,12 @@ export default function CheckoutPaymentFooter() {
               <span className="text-lg font-black text-zinc-900">${toPesos(baseTotal).toLocaleString('es-AR')}</span>
             </div>
           )}
+          {!isLastStep && deliveryMode && deliveryQuote.withinRange && deliveryCost > 0 && (
+            <div className="flex justify-between items-center mb-1 px-1">
+              <span className="text-xs text-zinc-400 flex items-center gap-1">🚚 Envío</span>
+              <span className="text-xs text-zinc-500">${toPesos(deliveryCost).toLocaleString('es-AR')}</span>
+            </div>
+          )}
 
           <div className="flex gap-3">
             {currentStep > 0 && (

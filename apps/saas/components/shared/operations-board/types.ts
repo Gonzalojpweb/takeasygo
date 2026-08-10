@@ -12,8 +12,10 @@ export interface BoardItem {
 // ─── Column Definition ──────────────────────────────────────
 // Defines a single column in the board.
 export interface BoardColumnDef {
-  /** Status string that matches item.status */
+  /** Status string that matches item.status (used when `statuses` is not set) */
   status: string
+  /** Multiple statuses that map to this column (e.g. awaiting_payment + awaiting_confirmation → Transferencias) */
+  statuses?: string[]
   /** Display label for the column header */
   title: string
   /** Tailwind class for the dot indicator, e.g. 'bg-amber-400' */

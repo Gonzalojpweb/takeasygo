@@ -204,6 +204,18 @@ export async function calculateDeliveryCost(
     }
   }
 
+  if (!range.price || range.price <= 0) {
+    return {
+      withinRange: false,
+      distance,
+      cost: 0,
+      range: null,
+      maxRangeKm,
+      coordinates,
+      error: 'El costo de envío no está configurado correctamente.',
+    }
+  }
+
   return {
     withinRange: true,
     distance: Math.round(distance * 100) / 100,
