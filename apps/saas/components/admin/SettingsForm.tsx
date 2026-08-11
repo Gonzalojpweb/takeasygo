@@ -2133,6 +2133,12 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
   async function handleSave() {
     setSaving(true)
     try {
+      if (enabled && ranges.length === 0) {
+        toast.error('Agregá al menos un rango de delivery')
+        setSaving(false)
+        return
+      }
+
       const sortedRanges = [...ranges].sort((a, b) => a.fromKm - b.fromKm)
       const maxRangeKm = sortedRanges.length > 0 ? sortedRanges[sortedRanges.length - 1].toKm : 0
 
@@ -2176,7 +2182,6 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
   }
 
   function removeRange(idx: number) {
-    if (ranges.length <= 1) return toast.error('Debe haber al menos un rango')
     setRanges(prev => prev.filter((_, i) => i !== idx))
   }
 
@@ -2259,16 +2264,16 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
               Agregar rango
             </button>
           </div>
-
-          <Button
-            className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? 'Guardando...' : 'Guardar configuración de delivery'}
-          </Button>
         </div>
       )}
+
+      <Button
+        className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
+        onClick={handleSave}
+        disabled={saving}
+      >
+        {saving ? 'Guardando...' : 'Guardar configuración de delivery'}
+      </Button>
     </div>
   )
 }
