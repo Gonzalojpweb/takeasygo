@@ -497,6 +497,17 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
         chunks.push(buf(`Tipo: ${modeLabel}\n`));
     }
 
+    // Dirección de delivery
+    if (order.orderMode === 'delivery' && order.deliveryAddress) {
+        const addr = order.deliveryAddress;
+        chunks.push(ESC_POS.BOLD_ON);
+        let addrLine = `Dir: ${addr.street} ${addr.number}`;
+        if (addr.apt) addrLine += ` (${addr.apt})`;
+        chunks.push(buf(`${addrLine}\n`));
+        chunks.push(buf(`${addr.city}\n`));
+        chunks.push(ESC_POS.BOLD_OFF);
+    }
+
     // Hora programada (destacado en negrita)
     if (order.orderTiming === 'scheduled' && order.scheduledPickupAt) {
         const schedDate = new Date(order.scheduledPickupAt);

@@ -181,6 +181,15 @@ class TicketRenderer {
             this.addLine(`Tipo: ${modeLabel}`, this.fontSize.info);
         }
 
+        // Dirección de delivery
+        if (order.orderMode === 'delivery' && order.deliveryAddress) {
+            const addr = order.deliveryAddress;
+            let addrLine = `Dir: ${addr.street} ${addr.number}`;
+            if (addr.apt) addrLine += ` (${addr.apt})`;
+            this.addLine(addrLine, this.fontSize.info, { bold: true });
+            this.addLine(addr.city, this.fontSize.info);
+        }
+
         if (order.orderTiming === 'scheduled' && order.scheduledPickupAt) {
             const schedDate = new Date(order.scheduledPickupAt);
             const time = schedDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
