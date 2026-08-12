@@ -75,6 +75,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     promotionLabelLoyalty: tenant.promotionLabels?.loyalty ?? 'CLUB',
     commissionPercent: tenant.mpOAuth?.commissionPercent ?? '',
     takeasygoCommissionOverride: tenant.takeasygoCommissionOverride ?? '',
+    transferCommissionPercent: tenant.transfer?.commissionPercent ?? '',
     transferEnabled: tenant.transfer?.enabled ?? false,
     // Mensajes del modal de Club
     loyaltyModalSubtitle: tenant.loyaltyMessaging?.modalSubtitle ?? 'Completá tus datos para unirte al club y comenzar a sumar puntos',
@@ -102,6 +103,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           sosMaxLimit: form.sosMaxLimit,
           commissionPercent: form.commissionPercent === '' ? null : Number(form.commissionPercent),
           takeasygoCommissionOverride: form.takeasygoCommissionOverride === '' ? null : Number(form.takeasygoCommissionOverride),
+          transferCommissionPercent: form.transferCommissionPercent === '' ? null : Number(form.transferCommissionPercent),
           transferEnabled: form.transferEnabled,
           promotionLabels: {
             sale: form.promotionLabelSale,
@@ -319,7 +321,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
             </div>
 
             {/* ── Transferencia bancaria ────────────────────────────── */}
-            <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
+            <div className="flex flex-col items-start gap-4 p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] max-w-sm">
               <div className="flex items-center gap-3">
                 <Banknote size={16} className="text-muted-foreground/50" />
                 <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Transferencia bancaria</span>
@@ -336,6 +338,20 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                   form.transferEnabled ? 'translate-x-6' : 'translate-x-0.5'
                 )} />
               </button>
+              <div className="flex flex-col gap-2 w-full max-w-[200px]">
+                <label className="text-[10px] font-bold text-muted-foreground/60">Comisión transferencia %</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={form.transferCommissionPercent}
+                  onChange={e => setForm(p => ({ ...p, transferCommissionPercent: e.target.value }))}
+                  placeholder="Global"
+                  className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-mono text-center focus:outline-none focus:border-primary/40 transition-all"
+                />
+                <p className="text-[10px] text-muted-foreground/60">Vacío = usar valor global de PlatformConfig</p>
+              </div>
             </div>
 
             {/* Estado del tenant + Features */}

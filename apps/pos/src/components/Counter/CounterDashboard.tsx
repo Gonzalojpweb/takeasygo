@@ -936,7 +936,7 @@ export function CounterDashboard() {
                         <span style={{ fontWeight: 500 }}>{formatCurrency(selectedKanbanOrder.baseTotal ?? selectedKanbanOrder.total - selectedKanbanOrder.surchargeAmount)}</span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--warning)" }}>
-                        <span>Recargo MP</span>
+                        <span>Costos operativos y/o comerciales</span>
                         <span style={{ fontWeight: 500 }}>+{formatCurrency(selectedKanbanOrder.surchargeAmount)}</span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>

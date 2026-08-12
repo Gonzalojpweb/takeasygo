@@ -390,6 +390,7 @@ export default async function ReportsPage() {
     revenue: thisMonth.total,
     netRevenue: thisMonth.baseTotal,
     surcharge: thisMonth.surcharge,
+    platformFee: thisMonth.platformFee,
     orders: thisMonth.count,
     avgTicket: thisMonth.count > 0 ? Math.round(thisMonth.total / thisMonth.count) : 0,
     avgTicketNet: thisMonth.count > 0 ? Math.round(thisMonth.baseTotal / thisMonth.count) : 0,

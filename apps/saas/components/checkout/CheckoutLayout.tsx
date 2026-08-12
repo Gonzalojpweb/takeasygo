@@ -658,9 +658,27 @@ function PaymentConfirmation(props: {
             <span>${toPesos(deliveryQuote.cost).toLocaleString('es-AR')}</span>
           </div>
         )}
-        {selectedPaymentMethod === 'transfer' ? (
+        {selectedPaymentMethod === 'transfer' && activeSurchargePercent > 0 ? (
+          <>
+            <div className="flex justify-between text-sm text-zinc-500 pt-2 border-t border-zinc-200">
+              <span>Precio de carta</span>
+              <span>${toPesos(baseTotal).toLocaleString('es-AR')}</span>
+            </div>
+            <div className="flex justify-between text-sm text-amber-600 font-semibold">
+              <span className="flex items-center gap-1.5">
+                Costos operativos y/o comerciales
+                <span className="text-xs opacity-80">({activeSurchargePercent}%)</span>
+              </span>
+              <span>+${toPesos(total - baseTotal).toLocaleString('es-AR')}</span>
+            </div>
+            <div className="flex justify-between text-lg font-black text-zinc-900">
+              <span>Total</span>
+              <span>${toPesos(total).toLocaleString('es-AR')}</span>
+            </div>
+          </>
+        ) : selectedPaymentMethod === 'transfer' ? (
           <div className="flex justify-between text-lg font-black text-emerald-700 pt-2 border-t border-zinc-200">
-            <span>Total (precio de carta)</span>
+            <span>Total</span>
             <span>${toPesos(total).toLocaleString('es-AR')}</span>
           </div>
         ) : activeSurchargePercent > 0 ? (

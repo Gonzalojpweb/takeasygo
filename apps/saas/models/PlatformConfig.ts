@@ -23,7 +23,8 @@ export interface IPlatformConfig {
   }
   /** Comisiones globales de la plataforma */
   platformFees: {
-    takeasygoCommissionPercent: number   // % que cobra TakeasyGO (default: 1)
+    takeasygoCommissionPercent: number         // % que cobra TakeasyGO (default: 1)
+    takeasygoTransferCommissionPercent: number // % por transferencia (default: 0)
   }
   /** Configuración de estilos estándar para promoción QR de takeaway */
   qrPromoStyles: {
@@ -65,7 +66,8 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
     },
     /** Comisiones globales de la plataforma */
     platformFees: {
-      takeasygoCommissionPercent: { type: Number, default: 1, min: 0, max: 100 },
+      takeasygoCommissionPercent:         { type: Number, default: 1, min: 0, max: 100 },
+      takeasygoTransferCommissionPercent: { type: Number, default: 0, min: 0, max: 100 },
     },
     /** Configuración de estilos estándar para promoción QR de takeaway */
     qrPromoStyles: {

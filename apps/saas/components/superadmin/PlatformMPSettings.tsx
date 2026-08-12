@@ -20,6 +20,7 @@ interface Props {
   }
   platformFees?: {
     takeasygoCommissionPercent: number
+    takeasygoTransferCommissionPercent?: number
   }
 }
 
@@ -64,6 +65,9 @@ export default function PlatformMPSettings({
   const [takeasygoCommissionPercent, setTakeasygoCommissionPercent] = useState(
     initialPlatformFees?.takeasygoCommissionPercent ?? 1
   )
+  const [takeasygoTransferCommissionPercent, setTakeasygoTransferCommissionPercent] = useState(
+    initialPlatformFees?.takeasygoTransferCommissionPercent ?? 0
+  )
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -95,6 +99,7 @@ export default function PlatformMPSettings({
 
       body.platformFees = {
         takeasygoCommissionPercent,
+        takeasygoTransferCommissionPercent,
       }
 
       const res = await fetch('/api/superadmin/platform-config', {
@@ -140,7 +145,7 @@ export default function PlatformMPSettings({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          platformFees: { takeasygoCommissionPercent },
+          platformFees: { takeasygoCommissionPercent, takeasygoTransferCommissionPercent },
         }),
       })
       const data = await res.json()
@@ -445,12 +450,31 @@ export default function PlatformMPSettings({
               </p>
             </div>
           </div>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Comisión por transferencia global (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={takeasygoTransferCommissionPercent}
+                onChange={e => setTakeasygoTransferCommissionPercent(parseFloat(e.target.value) || 0)}
+                className="w-full mt-1.5 bg-muted/30 border border-border/60 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Se aplica a pagos por transferencia bancaria. Default 0 = desactivado.
+              </p>
+            </div>
+          </div>
           <button
             type="submit"
             disabled={loading}
             className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-emerald-700 transition-colors"
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : 'Guardar comisión'}
+            {loading ? <Loader2 size={16} className="animate-spin" /> : 'Guardar comisiones'}
           </button>
         </form>
       </div>

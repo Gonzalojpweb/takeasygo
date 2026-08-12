@@ -16,7 +16,6 @@ import {
   Users,
   Eye,
   Gift,
-  Megaphone,
   ChevronRight,
   MessageSquare,
   Building2,
@@ -27,6 +26,7 @@ import {
   BookOpen,
   Printer,
   Smartphone,
+  DollarSign,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -110,6 +110,7 @@ export default function SuperAdminSidebar() {
         { href: '/superadmin/analytics', label: 'Analytics', icon: BarChart3 },
         { href: '/superadmin/auditoria', label: 'Auditoría', icon: Shield },
         { href: '/superadmin/feedback', label: 'Feedback UX', icon: MessageSquare },
+        { href: '/superadmin/comisiones', label: 'Comisiones', icon: DollarSign },
       ],
     },
     {

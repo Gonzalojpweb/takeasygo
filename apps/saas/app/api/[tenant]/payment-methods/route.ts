@@ -63,14 +63,18 @@ export async function GET(
       })
     }
 
-    methods.push({
-      id: 'transfer',
-      label: 'Transferencia',
-      description: 'Precio de carta sin recargo',
-      enabled: transferEnabled,
-      surchargePercent: 0,
-      totalFees: 0,
-    })
+    {
+      const trSurcharge = calculateFinalTotal(10000, 'transfer', tenant, platformConfig)
+      const trTotalFees = getTotalFeesForMethod('transfer', tenant, platformConfig)
+      methods.push({
+        id: 'transfer',
+        label: 'Transferencia',
+        description: 'Pago por transferencia bancaria',
+        enabled: transferEnabled,
+        surchargePercent: trSurcharge.surchargePercent,
+        totalFees: trTotalFees,
+      })
+    }
 
     return NextResponse.json({
       methods,

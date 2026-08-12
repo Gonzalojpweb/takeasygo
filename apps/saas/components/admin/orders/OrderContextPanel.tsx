@@ -415,7 +415,7 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
             )}
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground/60">
-                Recargo MP{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
+                Costos operativos y/o comerciales{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
               </span>
               <span className="text-[10px] text-amber-600 tabular-nums">+${toPesos(item.payment.surchargeAmount).toLocaleString('es-AR')}</span>
             </div>
