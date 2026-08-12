@@ -39,7 +39,7 @@ export async function PATCH(
     if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
       const baseUrl = process.env.NEXT_PUBLIC_URL || request.nextUrl.origin
       const customerName = safeDecrypt(order.customer?.name) || 'Cliente'
-      const amount = order.payment?.baseTotal || order.total || 0
+      const amount = order.total || 0
       const waMessage =
 `🔔 *${customerName}* reportó una transferencia de *$${toPesos(amount).toLocaleString('es-AR')}* (pedido #${order.orderNumber}).
 

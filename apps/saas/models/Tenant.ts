@@ -13,6 +13,8 @@ export interface ITransferConfig {
   cvu: string | null
   bankName: string | null
   holderName: string | null
+  /** Comisión de plataforma por transferencia (null = usar global) */
+  commissionPercent?: number | null
 }
 
 export interface IPaymentSurcharge {
@@ -570,12 +572,13 @@ const TenantSchema = new Schema<ITenant>(
     },
     // ── Transferencia bancaria ─────────────────────────────────────────────
     transfer: {
-      enabled: { type: Boolean, default: false },
-      alias: { type: String, default: null },
-      cbu: { type: String, default: null },
-      cvu: { type: String, default: null },
-      bankName: { type: String, default: null },
-      holderName: { type: String, default: null },
+      enabled:         { type: Boolean, default: false },
+      alias:           { type: String, default: null },
+      cbu:             { type: String, default: null },
+      cvu:             { type: String, default: null },
+      bankName:        { type: String, default: null },
+      holderName:      { type: String, default: null },
+      commissionPercent: { type: Number, default: null, min: 0, max: 100 },
     },
     // ── Recargos por método de pago ──────────────────────────────────────
     paymentSurcharges: {

@@ -21,6 +21,7 @@ interface Props {
         revenue: number
         netRevenue: number
         surcharge: number
+        platformFee: number
         orders: number
         avgTicket: number
         avgTicketNet: number
@@ -589,6 +590,21 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                     color="bg-purple-500/10 text-purple-500"
                     index={3}
                 />
+            </div>
+
+            {/* ── Comisiones a pagar a TakeasyGO ────────────────────────────── */}
+            <div className="mb-4">
+              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">
+                Comisiones a pagar a TakeasyGO
+              </p>
+              <StatCard
+                title="Comisión acumulada"
+                value={`$${toPesos(stats.platformFee ?? 0).toLocaleString('es-AR')}`}
+                desc="Comisión de plataforma (MP split + transfer) en el período seleccionado"
+                icon={<CreditCard size={20} />}
+                color="bg-emerald-500/10 text-emerald-500"
+                index={4}
+              />
             </div>
 
             {/* ── KPIs Operativos ─────────────────────────────────────── */}

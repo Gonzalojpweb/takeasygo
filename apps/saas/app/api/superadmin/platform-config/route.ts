@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     platformFees: {
-      takeasygoCommissionPercent: platformFees.takeasygoCommissionPercent ?? 1,
+      takeasygoCommissionPercent:        platformFees.takeasygoCommissionPercent ?? 1,
+      takeasygoTransferCommissionPercent: platformFees.takeasygoTransferCommissionPercent ?? 0,
     },
     mercadopago: {
       isConfigured: !!mp.isConfigured,
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
     }
     platformFees?: {
       takeasygoCommissionPercent?: number
+      takeasygoTransferCommissionPercent?: number
     }
   }
 
@@ -110,6 +112,9 @@ export async function POST(request: NextRequest) {
   if (platformFees) {
     if (platformFees.takeasygoCommissionPercent !== undefined) {
       update['platformFees.takeasygoCommissionPercent'] = platformFees.takeasygoCommissionPercent
+    }
+    if (platformFees.takeasygoTransferCommissionPercent !== undefined) {
+      update['platformFees.takeasygoTransferCommissionPercent'] = platformFees.takeasygoTransferCommissionPercent
     }
   }
 

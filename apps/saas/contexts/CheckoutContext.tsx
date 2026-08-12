@@ -539,7 +539,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
 
   const deliveryCost = state.deliveryMode && state.deliveryQuote.withinRange ? state.deliveryQuote.cost : 0
   const baseTotal = Math.max(0, subtotal - discountAmount) + deliveryCost
-  const activeTotalFees = state.selectedPaymentMethod && state.selectedPaymentMethod !== 'transfer'
+  const activeTotalFees = state.selectedPaymentMethod
     ? (state.paymentTotalFees[state.selectedPaymentMethod] ?? 0)
     : 0
   const activeSurchargePercent = activeTotalFees > 0
