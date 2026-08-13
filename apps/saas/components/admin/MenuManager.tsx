@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toCents, toPesos } from '@takeasygo/business'
 import ScheduleEditor, { type ScheduleSlot } from '@/components/admin/ScheduleEditor'
 
 interface Props {
@@ -80,7 +80,7 @@ function serializeGroups(groups: CustomizationGroupForm[]): any[] {
     ...(g.priceRule && g.priceRule !== 'sum' ? { priceRule: g.priceRule } : {}),
     options: g.options.map((o: CustomizationOptionForm) => ({
       name: o.name,
-      extraPrice: parseFloat(o.extraPrice) || 0,
+      extraPrice: toCents(parseFloat(o.extraPrice) || 0),
       imageUrl: o.imageUrl || undefined,
       subGroups: serializeGroups(o.subGroups ?? []),
     })),
@@ -90,9 +90,9 @@ function serializeGroups(groups: CustomizationGroupForm[]): any[] {
 function serializeVariants(variants: VariantForm[]): any[] {
   return (variants || []).map(v => ({
     name: v.name,
-    price: parseFloat(v.price) || 0,
-    takeawayPrice: v.takeawayPrice ? parseFloat(v.takeawayPrice) : undefined,
-    businessPrice: v.businessPrice !== '' ? parseFloat(v.businessPrice) : null,
+    price: toCents(parseFloat(v.price) || 0),
+    takeawayPrice: v.takeawayPrice ? toCents(parseFloat(v.takeawayPrice)) : undefined,
+    businessPrice: v.businessPrice !== '' ? toCents(parseFloat(v.businessPrice)) : null,
     nameTranslations: v.nameTranslations ? { en: v.nameTranslations } : undefined,
     customizationGroups: serializeGroups(v.customizationGroups ?? []),
   }))
@@ -101,9 +101,9 @@ function serializeVariants(variants: VariantForm[]): any[] {
 function deserializeVariants(variants: any[]): VariantForm[] {
   return (variants || []).map((v: any) => ({
     name: v.name || '',
-    price: v.price?.toString() ?? '',
-    takeawayPrice: v.takeawayPrice?.toString() ?? '',
-    businessPrice: v.businessPrice?.toString() ?? '',
+    price: toPesos(v.price ?? 0).toString(),
+    takeawayPrice: v.takeawayPrice != null ? toPesos(v.takeawayPrice).toString() : '',
+    businessPrice: v.businessPrice != null ? toPesos(v.businessPrice).toString() : '',
     nameTranslations: v.nameTranslations?.en ?? '',
     customizationGroups: deserializeGroups(v.customizationGroups ?? []),
   }))
@@ -117,7 +117,7 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
     priceRule: g.priceRule ?? 'sum',
     options: (g.options || []).map((o: any) => ({
       name: o.name,
-      extraPrice: o.extraPrice?.toString() ?? '0',
+      extraPrice: toPesos(o.extraPrice ?? 0).toString(),
       imageUrl: o.imageUrl || '',
       subGroups: deserializeGroups(o.subGroups ?? []),
     })),
@@ -453,10 +453,10 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           locationId: selectedLocation,
           name: newItem.name,
           description: newItem.description,
-          price: parseFloat(newItem.price),
-          takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
-          businessPrice: newItem.businessPrice !== '' ? parseFloat(newItem.businessPrice) : null,
-          halfPrice: newItem.halfPrice ? parseFloat(newItem.halfPrice) : undefined,
+          price: toCents(parseFloat(newItem.price)),
+          takeawayPrice: newItem.takeawayPrice ? toCents(parseFloat(newItem.takeawayPrice)) : undefined,
+          businessPrice: newItem.businessPrice !== '' ? toCents(parseFloat(newItem.businessPrice)) : null,
+          halfPrice: newItem.halfPrice ? toCents(parseFloat(newItem.halfPrice)) : undefined,
           isBusinessAvailable: newItem.isBusinessAvailable,
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
@@ -490,10 +490,10 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           itemId,
           name: editingItemData.name,
           description: editingItemData.description,
-          price: parseFloat(editingItemData.price),
-          takeawayPrice: editingItemData.takeawayPrice ? parseFloat(editingItemData.takeawayPrice) : undefined,
-          businessPrice: editingItemData.businessPrice !== '' ? parseFloat(editingItemData.businessPrice) : null,
-          halfPrice: editingItemData.halfPrice ? parseFloat(editingItemData.halfPrice) : undefined,
+          price: toCents(parseFloat(editingItemData.price)),
+          takeawayPrice: editingItemData.takeawayPrice ? toCents(parseFloat(editingItemData.takeawayPrice)) : undefined,
+          businessPrice: editingItemData.businessPrice !== '' ? toCents(parseFloat(editingItemData.businessPrice)) : null,
+          halfPrice: editingItemData.halfPrice ? toCents(parseFloat(editingItemData.halfPrice)) : undefined,
           isBusinessAvailable: editingItemData.isBusinessAvailable,
           tags: parseTags(editingItemData.tags),
           isFeatured: editingItemData.isFeatured,
@@ -1559,10 +1559,10 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                                     setEditingItemData({
                                                                       name: item.name,
                                                                       description: item.description || '',
-                                                                      price: item.price.toString(),
-                                                                      takeawayPrice: item.takeawayPrice?.toString() ?? '',
-                                                                      businessPrice: item.businessPrice?.toString() ?? '',
-                                                                      halfPrice: item.halfPrice?.toString() ?? '',
+                                                                      price: toPesos(item.price).toString(),
+                                                                      takeawayPrice: item.takeawayPrice != null ? toPesos(item.takeawayPrice).toString() : '',
+                                                                      businessPrice: item.businessPrice != null ? toPesos(item.businessPrice).toString() : '',
+                                                                      halfPrice: item.halfPrice != null ? toPesos(item.halfPrice).toString() : '',
                                                                       tags: (item.tags || []).join(', '),
                                                                       isFeatured: item.isFeatured ?? false,
                                                                       imageUrl: item.imageUrl || '',
@@ -1610,10 +1610,10 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                               subcategoryId: subcategory._id,
                                                               name: newItem.name,
                                                               description: newItem.description,
-                                                              price: parseFloat(newItem.price),
-                                                              takeawayPrice: newItem.takeawayPrice ? parseFloat(newItem.takeawayPrice) : undefined,
-                                                              businessPrice: newItem.businessPrice !== '' ? parseFloat(newItem.businessPrice) : null,
-                                                              halfPrice: newItem.halfPrice ? parseFloat(newItem.halfPrice) : undefined,
+                                                              price: toCents(parseFloat(newItem.price)),
+                                                              takeawayPrice: newItem.takeawayPrice ? toCents(parseFloat(newItem.takeawayPrice)) : undefined,
+                                                              businessPrice: newItem.businessPrice !== '' ? toCents(parseFloat(newItem.businessPrice)) : null,
+                                                              halfPrice: newItem.halfPrice ? toCents(parseFloat(newItem.halfPrice)) : undefined,
                                                               isBusinessAvailable: newItem.isBusinessAvailable,
                                                               tags: parseTags(newItem.tags),
                                                               isFeatured: newItem.isFeatured,
@@ -1815,10 +1815,10 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                       setEditingItemData({
                                                         name: item.name,
                                                         description: item.description || '',
-                                                        price: item.price.toString(),
-                                                        takeawayPrice: item.takeawayPrice?.toString() ?? '',
-                                                        businessPrice: item.businessPrice?.toString() ?? '',
-                                                        halfPrice: item.halfPrice?.toString() ?? '',
+                                                        price: toPesos(item.price).toString(),
+                                                        takeawayPrice: item.takeawayPrice != null ? toPesos(item.takeawayPrice).toString() : '',
+                                                        businessPrice: item.businessPrice != null ? toPesos(item.businessPrice).toString() : '',
+                                                        halfPrice: item.halfPrice != null ? toPesos(item.halfPrice).toString() : '',
                                                         tags: (item.tags || []).join(', '),
                                                         isFeatured: item.isFeatured ?? false,
                                                         imageUrl: item.imageUrl || '',
@@ -1848,10 +1848,10 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                 setEditingItemData({
                                                   name: item.name,
                                                   description: item.description || '',
-                                                  price: item.price.toString(),
-                                                  takeawayPrice: item.takeawayPrice?.toString() ?? '',
-                                                  businessPrice: item.businessPrice?.toString() ?? '',
-                                                  halfPrice: item.halfPrice?.toString() ?? '',
+                                                  price: toPesos(item.price).toString(),
+                                                  takeawayPrice: item.takeawayPrice != null ? toPesos(item.takeawayPrice).toString() : '',
+                                                  businessPrice: item.businessPrice != null ? toPesos(item.businessPrice).toString() : '',
+                                                  halfPrice: item.halfPrice != null ? toPesos(item.halfPrice).toString() : '',
                                                   tags: (item.tags || []).join(', '),
                                                   isFeatured: item.isFeatured ?? false,
                                                   imageUrl: item.imageUrl || '',

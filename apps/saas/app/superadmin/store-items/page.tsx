@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { toCents, toPesos } from '@takeasygo/business'
 
 interface StoreItem {
   _id: string
@@ -106,7 +107,7 @@ export default function GlobalStoreItemsPage() {
       setDescription(item.description)
       setImageUrl(item.imageUrl)
       setPointsCost(item.pointsCost)
-      setCashValue(item.cashValue ?? null)
+      setCashValue(item.cashValue != null ? toPesos(item.cashValue) : null)
       setIsActive(item.isActive)
       setStock(item.stock ?? null)
       setMaxPerMember(item.maxPerMember ?? null)
@@ -144,7 +145,8 @@ export default function GlobalStoreItemsPage() {
 
     const payload: any = {
       name, description, imageUrl, pointsCost,
-      cashValue, isActive, stock, maxPerMember,
+      cashValue: cashValue != null ? toCents(cashValue) : null,
+      isActive, stock, maxPerMember,
       tierRequirement, category,
       tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
       sortOrder, isFeatured,
