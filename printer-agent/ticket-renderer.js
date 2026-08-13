@@ -249,7 +249,7 @@ class TicketRenderer {
 
         if (!halfFirst && !halfSecond) return false;
 
-        this.addLine(`${indent}━━━ MITAD Y MITAD ━━━`, this.fontSize.customization);
+        this.addLine(`${indent}=== MITAD Y MITAD ===`, this.fontSize.customization);
 
         if (halfFirst) {
             const opt = halfFirst.selectedOptions?.[0]?.name || '';
