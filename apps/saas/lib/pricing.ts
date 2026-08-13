@@ -86,6 +86,22 @@ export function calculateFinalTotal(
   const platformFeePercent = getPlatformFeePercent(paymentMethod, tenant, platformConfig, overridePlatformFeePercent)
   const platformFee = platformFeePercent / 100
 
+  // Transferencia: la comisión se cobra al restaurante (no vía split MP), así que
+  // el recargo es un markup simple sobre el precio de carta (no división inversa).
+  if (paymentMethod === 'transfer') {
+    const surchargeAmount = Math.round(baseTotal * totalFees)
+    const finalTotal = baseTotal + surchargeAmount
+    const surchargePercent = Math.round(totalFees * 10000) / 100
+    const platformFeeAmount = Math.ceil(baseTotal * platformFee)
+    return {
+      baseTotal,
+      surchargePercent,
+      surchargeAmount,
+      finalTotal,
+      platformFeeAmount,
+    }
+  }
+
   const finalTotal = Math.ceil(baseTotal / (1 - totalFees))
   const surchargeAmount = finalTotal - baseTotal
   const surchargePercent = baseTotal > 0 ? Math.round((surchargeAmount / baseTotal) * 10000) / 100 : 0

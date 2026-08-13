@@ -543,10 +543,14 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     ? (state.paymentTotalFees[state.selectedPaymentMethod] ?? 0)
     : 0
   const activeSurchargePercent = activeTotalFees > 0
-    ? Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100
+    ? (state.selectedPaymentMethod === 'transfer'
+      ? Math.round(activeTotalFees * 10000) / 100
+      : Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100)
     : 0
   const total = activeTotalFees > 0
-    ? Math.ceil(baseTotal / (1 - activeTotalFees))
+    ? (state.selectedPaymentMethod === 'transfer'
+      ? baseTotal + Math.round(baseTotal * activeTotalFees)
+      : Math.ceil(baseTotal / (1 - activeTotalFees)))
     : baseTotal
 
   const increaseQty = useCallback((cartItemId: string) => {
