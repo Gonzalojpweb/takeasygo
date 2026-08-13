@@ -411,7 +411,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
 
   const deliveryCost = deliveryMode && deliveryQuote.withinRange ? deliveryQuote.cost : 0
   const baseTotal = Math.max(0, subtotal - discountAmount) + deliveryCost
-  const activeTotalFees = selectedPaymentMethod && selectedPaymentMethod !== 'transfer'
+  const activeTotalFees = selectedPaymentMethod
     ? (paymentTotalFees[selectedPaymentMethod] ?? 0)
     : 0
   const activeSurchargePercent = activeTotalFees > 0

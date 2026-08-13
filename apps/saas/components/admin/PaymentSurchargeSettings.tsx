@@ -18,6 +18,7 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
   const sc = initialSurcharges || { mercadopago: { feePercent: 0 }, kripton: { feePercent: 0 }, transfer: { feePercent: 0 } }
   const [mpFee, setMpFee] = useState(sc.mercadopago?.feePercent ?? 0)
   const [krFee, setKrFee] = useState(sc.kripton?.feePercent ?? 0)
+  const [trFee, setTrFee] = useState(sc.transfer?.feePercent ?? 0)
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
@@ -29,7 +30,7 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
         body: JSON.stringify({
           mercadopago: { feePercent: mpFee },
           kripton: { feePercent: krFee },
-          transfer: { feePercent: 0 },
+          transfer: { feePercent: trFee },
         }),
       })
       if (!res.ok) {
@@ -62,7 +63,7 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
         <Info size={14} className="text-blue-600 mt-0.5 shrink-0" />
         <p className="text-xs text-blue-800">
           Estos porcentajes se suman al precio de carta cuando el cliente elige ese método de pago.
-          La transferencia bancaria siempre es precio de carta (0% de recargo).
+          La comisión de plataforma por transferencia la define el superadmin por tenant.
         </p>
       </div>
 
@@ -117,16 +118,28 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
           </div>
         </div>
 
-        <div className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/50">
+        <div className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/50 space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-emerald-800">Transferencia bancaria</p>
-              <p className="text-xs text-emerald-600">Precio de carta — sin recargo</p>
+              <p className="text-xs text-emerald-600">Recargo propio del comercio (opcional)</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-emerald-600">0%</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={trFee}
+                onChange={e => setTrFee(parseFloat(e.target.value) || 0)}
+                className="w-20 border border-emerald-200 rounded-xl px-3 py-2 text-sm font-mono text-center focus:outline-none focus:border-emerald-400"
+              />
+              <span className="text-sm font-bold text-emerald-600">%</span>
             </div>
           </div>
+          <p className="text-xs text-emerald-700">
+            La comisión de plataforma por transferencia la define el superadmin por tenant y no se edita aquí.
+          </p>
         </div>
       </div>
 
