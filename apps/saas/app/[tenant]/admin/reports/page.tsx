@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import ReportsDashboard from '@/components/admin/ReportsDashboard'
 import ReportsDateRange from '@/components/admin/ReportsDateRange'
 import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
+import { buildTransferBreakdown } from '@/lib/reports'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 import { Lock } from 'lucide-react'
@@ -110,6 +111,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     upsellAddsData,
     upsellConversionsData,
     paymentMethodData,
+    transferCommissionData,
   ] = await Promise.all([
     // Revenue y count del mes actual (sin cancelados)
     Order.aggregate([
@@ -298,6 +300,19 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       }},
       { $sort: { revenue: -1 } },
     ]),
+      // Desglose diario de comisión por transferencia — todos los planes
+    Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' }, 'payment.method': 'transfer' } },
+      { $group: {
+        _id: { $dayOfMonth: { date: '$createdAt', timezone } },
+        revenue: { $sum: '$total' },
+        baseRevenue: { $sum: '$payment.baseTotal' },
+        surcharge: { $sum: '$payment.surchargeAmount' },
+        platformFee: { $sum: '$payment.platformFeeAmount' },
+        orders: { $sum: 1 },
+      }},
+      { $sort: { _id: 1 } },
+    ]),
   ])
 
   const thisMonth = ordersThisMonth[0] || { total: 0, baseTotal: 0, surcharge: 0, platformFee: 0, count: 0 }
@@ -387,6 +402,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       orders: dailyMap[i + 1]?.orders ?? 0,
     }))
 
+  // Desglose de comisión por transferencia
+  const { summary: transferSummary, daily: transferDailyBreakdown } = buildTransferBreakdown(transferCommissionData as any[], daysInMonth)
+
   // Revenue por sede
   const revenueByLocation: { locationName: string; revenue: number; orders: number }[] =
     (locationRevenueData as any[]).map(l => ({
@@ -460,6 +478,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       surcharge: (d.surcharge as number) || 0,
       platformFee: (d.platformFee as number) || 0,
     })),
+    // Comisión por transferencia
+    transferSummary,
+    transferDailyBreakdown,
     isCustomRange: hasRange,
     rangeLabel,
     // Upselling analytics

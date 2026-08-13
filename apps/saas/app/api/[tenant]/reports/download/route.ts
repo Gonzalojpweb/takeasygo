@@ -202,7 +202,7 @@ export async function GET(
       ['Órdenes canceladas', cancelled.length],
       ['Ventas brutas (con recargos)', totalRevenue],
       ['Ventas netas (real restaurante)', totalNetRevenue],
-      ['Recargos MP (costo operativo)', totalSurcharge],
+      ['Recargos (costo operativo)', totalSurcharge],
       ['Ticket promedio bruto', avgTicket],
       ['Ticket promedio neto', avgTicketNet],
       ['Mes anterior (comparativo)', '—'],
@@ -357,7 +357,7 @@ export async function GET(
       { header: 'Órdenes', key: 'orders', width: 12 },
       { header: 'Bruto', key: 'revenue', width: 18 },
       { header: 'Neto', key: 'baseRevenue', width: 18 },
-      { header: 'Recargo MP', key: 'surcharge', width: 14 },
+      { header: 'Recargo', key: 'surcharge', width: 14 },
       { header: '% del total', key: 'pct', width: 14 },
     ]
 
