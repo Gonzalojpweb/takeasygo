@@ -8,6 +8,7 @@ import { decrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, processRewardDeduction, revertRewardRedemptions } from '@/lib/loyalty'
+import { sendAdminPushNotification } from '@/lib/push'
 
 const KRIPTON_CONFIRMED_STATES = ['confirmed', 'payed', 'pre_confirmed', 'completing']
 const KRIPTON_FAILED_STATES = ['expired', 'cancel', 'cancelled', 'rejected']
@@ -146,18 +147,37 @@ export async function POST(
         await notification.save({ session })
       })
 
-      // 5. Inyección POS (fire-and-forget, fuera de la transacción)
+      // 5. Inyección POS + Push a admins (fire-and-forget, fuera de la transacción)
       if (isConfirmed) {
         const order = await Order.findOne({
           'payment.kriptonExternalCode': externalCode,
           tenantId: tenant._id,
         }).lean()
 
-        if (order && tenant.posIntegration?.enabled) {
-          setImmediate(() => {
-            injectOrderToPOS(order._id.toString(), tenant).catch(err =>
-              console.error('[POS inject Kripton] Error asíncrono:', err)
-            )
+        if (order) {
+          if (tenant.posIntegration?.enabled) {
+            setImmediate(() => {
+              injectOrderToPOS(order._id.toString(), tenant).catch(err =>
+                console.error('[POS inject Kripton] Error asíncrono:', err)
+              )
+            })
+          }
+
+          // Push a admins: el pedido confirmado aparece en el workspace
+          setImmediate(async () => {
+            try {
+              await sendAdminPushNotification(
+                tenant._id.toString(),
+                tenant.plan ?? 'trial',
+                tenant.name,
+                tenant.slug,
+                order.orderNumber,
+                order.payment.baseTotal ?? 0,
+                order.customer?.name ?? 'Cliente'
+              )
+            } catch (err) {
+              console.error('[webhook] Admin push error:', (err as Error)?.message)
+            }
           })
         }
       }

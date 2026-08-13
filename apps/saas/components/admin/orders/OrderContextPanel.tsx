@@ -233,6 +233,7 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
           currentStatus={item.status}
           tenantSlug={tenantSlug}
           orderMode={item.orderMode}
+          paymentMethod={item.payment?.method}
           posSyncStatus={item.posSync?.status}
         />
       </div>

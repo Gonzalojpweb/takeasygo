@@ -15,6 +15,7 @@ import { confirmOrderPayment } from '@/lib/sync-layer'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
+import { sendAdminPushNotification } from '@/lib/push'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -230,16 +231,36 @@ export async function POST(
                       })
                     )
                   }
-                } catch (err) {
-                  if ((err as any)?.statusCode === 410) {
-                    await PushSubscription.deleteOne({ clientToken }).catch(() => {})
-                  }
-                  console.error('[webhook] Consumer push error:', (err as Error)?.message)
+              } catch (err) {
+                if ((err as any)?.statusCode === 410) {
+                  await PushSubscription.deleteOne({ clientToken }).catch(() => {})
                 }
-              })
-            }
+                console.error('[webhook] Consumer push error:', (err as Error)?.message)
+              }
+            })
+          }
 
-            notification.orderId = order._id as any
+          // ── Push notification a admins (fire-and-forget) ──────────
+          // Solo cuando el pago online se confirma: el pedido aparece en el workspace
+          if (paymentData.status === 'approved') {
+            setImmediate(async () => {
+              try {
+                await sendAdminPushNotification(
+                  tenant._id.toString(),
+                  tenant.plan ?? 'trial',
+                  tenant.name,
+                  tenant.slug,
+                  order.orderNumber,
+                  order.payment.baseTotal ?? 0,
+                  order.customer?.name ?? 'Cliente'
+                )
+              } catch (err) {
+                console.error('[webhook] Admin push error:', (err as Error)?.message)
+              }
+            })
+          }
+
+          notification.orderId = order._id as any
           }
         }
 

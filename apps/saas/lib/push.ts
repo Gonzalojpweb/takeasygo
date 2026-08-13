@@ -4,6 +4,8 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import PushNotificationLog from '@/models/PushNotificationLog'
 import type { PushTargetType } from '@/models/PushNotificationLog'
 import { connectDB } from '@/lib/mongoose'
+import { canAccess, type Plan } from '@/lib/plans'
+import { toPesos } from '@takeasygo/business'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -91,6 +93,51 @@ export async function sendBulkPush(
   }
 
   return { successCount, failCount, failedTokens }
+}
+
+/**
+ * Envía una notificación push a todos los admins suscriptos de un tenant.
+ * Se usa cuando un pedido pasa a ser visible en el workspace (pago online
+ * confirmado por webhook, o transferencia confirmada por el cliente).
+ * El tag `order-{orderNumber}` consolida notificaciones del mismo pedido.
+ */
+export async function sendAdminPushNotification(
+  tenantId: string,
+  plan: string,
+  tenantName: string,
+  tenantSlug: string,
+  orderNumber: string,
+  total: number, // en centavos
+  customerName: string
+): Promise<void> {
+  // Solo disponible en Trial, Crecimiento y Premium
+  const adminSubs = canAccess(plan as Plan, 'adminPushNotifications')
+    ? await PushSubscription.find({ tenantId }).lean()
+    : []
+  if (adminSubs.length === 0) return
+
+  const payload = JSON.stringify({
+    title: `🔔 Nuevo pedido en ${tenantName}`,
+    body: `#${orderNumber} — $${toPesos(total).toLocaleString('es-AR')} — ${customerName}`,
+    icon: '/tgoicon-192.png',
+    badge: '/tgoicon-192.png',
+    url: `/${tenantSlug}/admin/orders`,
+    tag: `order-${orderNumber}`,
+    orderNumber,
+  })
+
+  for (const sub of adminSubs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload
+      )
+    } catch (err: any) {
+      if (err?.statusCode === 410) {
+        await PushSubscription.deleteOne({ _id: sub._id }).catch(() => {})
+      }
+    }
+  }
 }
 
 export async function getSubscribersByPhoneHashes(

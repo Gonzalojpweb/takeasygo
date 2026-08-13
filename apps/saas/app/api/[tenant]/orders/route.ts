@@ -27,6 +27,7 @@ import QrPromo from '@/models/QrPromo'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
 import { calculateFinalTotal } from '@/lib/pricing'
+import { sendAdminPushNotification } from '@/lib/push'
 import PlatformConfig from '@/models/PlatformConfig'
 import { registerImpactEvent } from '@/lib/impact'
 import { calculateDeliveryCost } from '@/lib/geocode'
@@ -35,7 +36,6 @@ import Rating from '@/models/Rating'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
 import { pushOrderToSyncLayer } from '@/lib/sync-layer'
-import { toPesos } from '@takeasygo/business'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -1372,37 +1372,26 @@ export async function POST(
         .catch(e => console.error('[whapi] order notification error:', e))
     }
 
-    // ── Push notification a admins suscriptos ────────────────────────────────
-    // Solo disponible en Trial, Crecimiento y Premium
-    const adminSubs = canAccess(tenant.plan ?? 'trial', 'adminPushNotifications')
-      ? await PushSubscription.find({ tenantId: tenant._id }).lean()
-      : []
-    if (adminSubs.length > 0) {
-      const orderId = order._id.toString()
-      const payload = JSON.stringify({
-        title: `🔔 Nuevo pedido en ${tenant.name}`,
-        body: `#${order.orderNumber} — $${toPesos(total).toLocaleString('es-AR')} — ${customerName}`,
-        icon: '/tgoicon-192.png',
-        badge: '/tgoicon-192.png',
-        url: `/${tenantSlug}/admin/orders`,
-        tag: `order-${orderId}`,
-        orderId,
-      })
-      console.log(`[push] Sending to ${adminSubs.length} admin subscribers for tenant ${tenant.slug}`)
-      for (const sub of adminSubs) {
+    // ── Push a admins SOLO para transferencias ─────────────────────────
+    // El cajero necesita ver el pedido en la columna "Transferencias" mientras
+    // espera el comprobante, así que se notifica al crearse. Los pagos online
+    // (MP/KR) NO suenan aquí: quedan ocultos hasta que el webhook confirma.
+    if (paymentMethod === 'transfer') {
+      setImmediate(async () => {
         try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            payload
+          await sendAdminPushNotification(
+            tenant._id.toString(),
+            tenant.plan ?? 'trial',
+            tenant.name,
+            tenantSlug,
+            order.orderNumber,
+            pricing.finalTotal,
+            customerName
           )
-          console.log(`[push] OK clientToken=${sub.clientToken}`)
-        } catch (pushErr: any) {
-          console.error(`[push] FAILED clientToken=${sub.clientToken} status=${pushErr?.statusCode}:`, pushErr?.message)
-          if (pushErr?.statusCode === 410) {
-            await PushSubscription.deleteOne({ _id: sub._id }).catch(() => {})
-          }
+        } catch (err) {
+          console.error('[orders] Admin push error:', (err as Error)?.message)
         }
-      }
+      })
     }
 
     // ── Bridge al Sync Layer (no blocking, logs y sigue) ──────────────
