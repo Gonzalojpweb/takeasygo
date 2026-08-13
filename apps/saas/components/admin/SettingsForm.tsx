@@ -123,7 +123,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
       l._id,
       {
         enabled: l.reservationConfig?.enabled ?? false,
-        minPayment: l.reservationConfig?.minPayment ?? 0,
+        minPayment: toPesos(l.reservationConfig?.minPayment ?? 0),
         timeSlots: l.reservationConfig?.timeSlots ?? [],
         maxPartySize: l.reservationConfig?.maxPartySize ?? 10,
         slotConfig: {
@@ -206,10 +206,15 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   async function handleSaveReservationConfig(locationId: string) {
     setReservationSaving(locationId)
     try {
+      const config = reservationMap[locationId]
+      const payload = {
+        ...config,
+        minPayment: toCents(config.minPayment),
+      }
       const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reservationConfig: reservationMap[locationId] }),
+        body: JSON.stringify({ reservationConfig: payload }),
       })
       if (!res.ok) throw new Error()
       toast.success('Configuración de reservas guardada')
