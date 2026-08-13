@@ -38,8 +38,8 @@ export function renderZEscPos(zReport: ZReport, options: RenderOptions): string 
   const w = ticketWidth
   const lines: string[] = []
 
-  const hr = "═".repeat(w)
-  const hrThin = "─".repeat(w)
+  const hr = "=".repeat(w)
+  const hrThin = "-".repeat(w)
 
   // ── Encabezado ───────────────────────────────────────────────────
   lines.push(center(tenantName, w))

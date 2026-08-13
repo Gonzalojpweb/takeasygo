@@ -489,7 +489,7 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
 
     chunks.push(buf(`${lineStr}\n`));
     chunks.push(ESC_POS.ALIGN_LEFT);
-    chunks.push(buf(`Fecha: ${new Date(order.createdAt).toLocaleString()}\n`));
+    chunks.push(buf(`Fecha: ${new Date(order.createdAt).toLocaleString('es-AR')}\n`));
 
     // Tipo de entrega
     if (order.orderMode) {
@@ -610,7 +610,7 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
             const halfSecond = (item.customizations || []).find(c => /segunda mitad/i.test(c.groupName));
 
             if (halfFirst || halfSecond) {
-                chunks.push(buf('  ━━━ MITAD Y MITAD ━━━\n'));
+                chunks.push(buf('  === MITAD Y MITAD ===\n'));
                 if (halfFirst) {
                     const opt = halfFirst.selectedOptions?.[0]?.name || '';
                     chunks.push(buf(`    1ra mitad: ${opt.toUpperCase()}\n`));
@@ -674,7 +674,7 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                 const promoHalfSecond = (item.customizations || []).find(c => /segunda mitad/i.test(c.groupName));
 
                 if (promoHalfFirst || promoHalfSecond) {
-                    chunks.push(buf('    ━━━ MITAD Y MITAD ━━━\n'));
+                    chunks.push(buf('    === MITAD Y MITAD ===\n'));
                     if (promoHalfFirst) {
                         const opt = promoHalfFirst.selectedOptions?.[0]?.name || '';
                         chunks.push(buf(`      1ra mitad: ${opt.toUpperCase()}\n`));

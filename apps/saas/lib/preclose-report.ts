@@ -138,6 +138,7 @@ export async function aggregateOrdersForRange(
 
 const ESC_POS = {
   INIT:          Buffer.from([0x1b, 0x40]),
+  CODE_PAGE:     Buffer.from([0x1b, 0x74, 43]), // CP858 (Latin-1 + Euro)
   CUT:           Buffer.from([0x1d, 0x56, 0x01]),
   BOLD_ON:       Buffer.from([0x1b, 0x45, 0x01]),
   BOLD_OFF:      Buffer.from([0x1b, 0x45, 0x00]),
@@ -155,13 +156,16 @@ const SANITIZE_MAP: Record<string, string> = {
   '¿': '', '¡': '', '€': 'EUR', 'º': 'o', 'ª': 'a',
 }
 
+const NON_LATIN1_RE = /[^\x00-\xFF]/g
+
 function sanitize(str: string): string {
-  return str.replace(/[áéíóúÁÉÍÓÚñÑüÜ¿¡€ºª]/g, c => SANITIZE_MAP[c] || c)
+  return str.replace(NON_LATIN1_RE, '')
+    .replace(/[áéíóúÁÉÍÓÚñÑüÜ¿¡€ºª]/g, c => SANITIZE_MAP[c] || c)
 }
 
 function buf(input: string | Buffer): Buffer {
   if (Buffer.isBuffer(input)) return input
-  return Buffer.from(sanitize(input))
+  return Buffer.from(sanitize(input), 'latin1')
 }
 
 function money(v: number): string {
@@ -172,7 +176,7 @@ function formatDateRange(isoFrom: string, isoTo: string): string {
   const f = new Date(isoFrom)
   const t = new Date(isoTo)
   const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' }
-  return `${f.toLocaleDateString('es-AR', opts)} → ${t.toLocaleDateString('es-AR', opts)}`
+  return `${f.toLocaleDateString('es-AR', opts)} -> ${t.toLocaleDateString('es-AR', opts)}`
 }
 
 function formatTime(iso: string): string {
@@ -182,7 +186,7 @@ function formatTime(iso: string): string {
 export function buildPreCloseBuffer(data: PreCloseData, columns: number = 32): string {
   const chunks: Buffer[] = []
 
-  chunks.push(ESC_POS.INIT)
+  chunks.push(ESC_POS.INIT, ESC_POS.CODE_PAGE)
   chunks.push(ESC_POS.ALIGN_CENTER)
 
   // Line spacing
