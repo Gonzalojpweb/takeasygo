@@ -415,10 +415,14 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     ? (paymentTotalFees[selectedPaymentMethod] ?? 0)
     : 0
   const activeSurchargePercent = activeTotalFees > 0
-    ? Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100
+    ? (selectedPaymentMethod === 'transfer'
+      ? Math.round(activeTotalFees * 10000) / 100
+      : Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100)
     : 0
   const total = activeTotalFees > 0
-    ? Math.ceil(baseTotal / (1 - activeTotalFees))
+    ? (selectedPaymentMethod === 'transfer'
+      ? baseTotal + Math.round(baseTotal * activeTotalFees)
+      : Math.ceil(baseTotal / (1 - activeTotalFees)))
     : baseTotal
 
 async function handleSubmit(e: React.FormEvent) {
