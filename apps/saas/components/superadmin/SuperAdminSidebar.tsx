@@ -16,6 +16,7 @@ import {
   Users,
   Eye,
   Gift,
+  Megaphone,
   ChevronRight,
   MessageSquare,
   Building2,

@@ -28,23 +28,31 @@ interface Props {
   orderMode?: string
   compact?: boolean
   posSyncStatus?: string
+  paymentMethod?: string
 }
 
-export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, orderMode, compact, posSyncStatus }: Props) {
+export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, orderMode, compact, posSyncStatus, paymentMethod }: Props) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const posLocked = posSyncStatus === 'synced'
 
+  const isTransferConfirm =
+    paymentMethod === 'transfer' &&
+    (currentStatus === 'awaiting_payment' || currentStatus === 'awaiting_confirmation')
+
   const statusKey = currentStatus === 'ready' && orderMode === 'delivery' ? 'ready_delivery' : currentStatus
-  const next = NEXT_STATUS[statusKey]
+  const next = isTransferConfirm
+    ? { label: 'Confirmar transferencia', value: 'confirmed', color: 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700' }
+    : NEXT_STATUS[statusKey]
 
   if (!next) return null
 
   async function handleClick() {
     setLoading(true)
     try {
-      const isTransferConfirm = currentStatus === 'awaiting_confirmation'
-      const endpoint = isTransferConfirm
+      const isTransferConfirmLocal = paymentMethod === 'transfer' &&
+        (currentStatus === 'awaiting_payment' || currentStatus === 'awaiting_confirmation')
+      const endpoint = isTransferConfirmLocal
         ? `/api/${tenantSlug}/orders/${orderId}/confirm-transfer-admin`
         : `/api/${tenantSlug}/orders/${orderId}/status`
       const res = await fetch(endpoint, {

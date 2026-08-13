@@ -964,6 +964,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                         currentStatus={order.status}
                         tenantSlug={tenantSlug}
                         orderMode={order.orderMode}
+                        paymentMethod={order.payment?.method}
                         compact
                         posSyncStatus={order.posSync?.status}
                       />

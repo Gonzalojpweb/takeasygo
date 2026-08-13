@@ -47,7 +47,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Esta orden no es de tipo transferencia' }, { status: 400 })
     }
 
-    if (order.status !== 'awaiting_confirmation') {
+    if (order.status !== 'awaiting_confirmation' && order.status !== 'awaiting_payment') {
       return NextResponse.json({ error: 'El pedido no está esperando confirmación' }, { status: 400 })
     }
 

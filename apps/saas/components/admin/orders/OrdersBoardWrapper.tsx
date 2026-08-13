@@ -9,6 +9,7 @@ import DelayAnnouncementPopover from './DelayAnnouncementPopover'
 import { toast } from 'sonner'
 import { Star } from 'lucide-react'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
+import { filterVisibleOrders } from '@/lib/order-visibility'
 
 interface OrderItem extends BoardItem {
   orderNumber: string
@@ -24,6 +25,7 @@ interface OrderItem extends BoardItem {
   notes?: string
   statusTimestamps?: Record<string, string>
   posSync?: { status?: string }
+  payment?: { method?: string }
 }
 
 const ORDER_COLUMNS: BoardColumnDef[] = [
@@ -107,9 +109,14 @@ export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [],
     toast.success(data.message || 'Limpieza completada')
   }
 
+  // Los pagos online (MP, KR, etc.) quedan ocultos en el workspace hasta que el
+  // webhook confirma el cobro. Solo las transferencias se muestran en
+  // awaiting_payment (esperando la confirmación del cliente).
+  const visibleOrders = filterVisibleOrders(orders)
+
   return (
     <OperationsBoard
-      items={orders}
+      items={visibleOrders}
       columns={ORDER_COLUMNS}
       tenantSlug={tenantSlug}
       activeStatuses={ACTIVE_STATUSES}

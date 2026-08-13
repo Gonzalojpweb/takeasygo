@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { safeDecrypt } from '@/lib/crypto'
 import { toPesos } from '@takeasygo/business'
+import { sendAdminPushNotification } from '@/lib/push'
 
 export async function PATCH(
   request: NextRequest,
@@ -49,6 +50,26 @@ ${baseUrl}/${tenantSlug}/admin/orders`
       sendWhatsApp(tenant.notifications.whatsappPhone, waMessage)
         .catch(e => console.error('[whapi] transfer notification error:', e))
     }
+
+    // ── Push a admins (fire-and-forget) ───────────────────────────
+    // El pedido pasa a ser visible en el workspace (awaiting_confirmation) y
+    // el admin debe ser notificado una sola vez, en este momento accionable.
+    const customerName = safeDecrypt(order.customer?.name) || 'Cliente'
+    setImmediate(async () => {
+      try {
+        await sendAdminPushNotification(
+          tenant._id.toString(),
+          tenant.plan ?? 'trial',
+          tenant.name,
+          tenant.slug,
+          order.orderNumber,
+          order.payment?.baseTotal ?? order.total ?? 0,
+          customerName
+        )
+      } catch (err) {
+        console.error('[transfer-client] Admin push error:', (err as Error)?.message)
+      }
+    })
 
     return NextResponse.json({ status: order.status })
   } catch (error) {
