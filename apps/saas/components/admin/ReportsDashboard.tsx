@@ -55,7 +55,10 @@ interface Props {
         dailyTrend: { day: number; revenue: number; orders: number }[]
         revenueByLocation: { locationName: string; revenue: number; orders: number }[]
         // Ventas por método de pago
-        paymentMethodBreakdown: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number }[]
+        paymentMethodBreakdown: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number; platformFee: number }[]
+        // Rango de fechas activo
+        isCustomRange: boolean
+        rangeLabel: string
         // Upselling analytics
         upsellRows: { name: string; source: string; adds: number; conversions: number; conversionRate: number; revenue: number }[]
         upsellTotalAdds: number
@@ -560,7 +563,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 <StatCard
                     title="Ventas Brutas"
                     value={`$${toPesos(stats.revenue).toLocaleString('es-AR')}`}
-                    desc={stats.netRevenue ? `Neto: $${toPesos(stats.netRevenue).toLocaleString('es-AR')} · ${isPositive ? '+' : ''}${stats.growth}% vs mes anterior` : `${isPositive ? '+' : ''}${stats.growth}% vs mes anterior`}
+                    desc={stats.netRevenue ? `Neto: $${toPesos(stats.netRevenue).toLocaleString('es-AR')} · ${isPositive ? '+' : ''}${stats.growth}% vs ${stats.isCustomRange ? 'período ant.' : 'mes anterior'}` : `${isPositive ? '+' : ''}${stats.growth}% vs ${stats.isCustomRange ? 'período ant.' : 'mes anterior'}`}
                     icon={<DollarSign size={20} />}
                     trend={isPositive ? 'up' : 'down'}
                     color="bg-primary/10 text-primary"
@@ -569,7 +572,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 <StatCard
                     title="Pedidos Totales"
                     value={stats.orders.toString()}
-                    desc={`${stats.lastMonthOrders} el mes pasado`}
+                    desc={`${stats.lastMonthOrders} el ${stats.isCustomRange ? 'período anterior' : 'mes pasado'}`}
                     icon={<ShoppingBag size={20} />}
                     color="bg-blue-500/10 text-blue-500"
                     index={1}
@@ -583,7 +586,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                     index={2}
                 />
                 <StatCard
-                    title="Mes Anterior"
+                    title={stats.isCustomRange ? "Período Anterior" : "Mes Anterior"}
                     value={`$${toPesos(stats.lastMonthRevenue).toLocaleString('es-AR')}`}
                     desc={stats.lastMonthNetRevenue ? `Neto: $${toPesos(stats.lastMonthNetRevenue).toLocaleString('es-AR')} · ${stats.lastMonthOrders} pedidos` : `${stats.lastMonthOrders} pedidos`}
                     icon={<History size={20} />}
@@ -593,19 +596,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             </div>
 
             {/* ── Comisiones a pagar a TakeasyGO ────────────────────────────── */}
-            <div className="mb-4">
-              <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">
-                Comisiones a pagar a TakeasyGO
-              </p>
-              <StatCard
-                title="Comisión acumulada"
-                value={`$${toPesos(stats.platformFee ?? 0).toLocaleString('es-AR')}`}
-                desc="Comisión de plataforma (MP split + transfer) en el período seleccionado"
-                icon={<CreditCard size={20} />}
-                color="bg-emerald-500/10 text-emerald-500"
-                index={4}
-              />
-            </div>
+            <CommissionCard stats={stats} />
 
             {/* ── KPIs Operativos ─────────────────────────────────────── */}
             {plan !== 'full' && (
@@ -696,7 +687,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                                 </div>
                                 <div>
                                     <CardTitle className="text-xl font-bold tracking-tight">Ventas por método de pago</CardTitle>
-                                    <p className="text-xs text-muted-foreground font-medium">Distribución de ingresos del mes actual</p>
+                                    <p className="text-xs text-muted-foreground font-medium">Distribución de ingresos · {stats.rangeLabel}</p>
                                 </div>
                             </div>
                         </CardHeader>
@@ -739,7 +730,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             )}
 
             {/* ── Tendencia Diaria ─────────────────────────────────────── */}
-            {plan === 'full' && stats.dailyTrend.some(d => d.orders > 0) && (
+            {plan === 'full' && !stats.isCustomRange && stats.dailyTrend.some(d => d.orders > 0) && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.40 }}>
                     <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
@@ -1263,6 +1254,76 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
                     </div>
                 )
             })}
+        </div>
+    )
+}
+
+function CommissionCard({ stats }: { stats: Props['stats'] }) {
+    const byMethod = Object.fromEntries(stats.paymentMethodBreakdown.map(d => [d.method, d]))
+    const mpFee = byMethod.mercadopago?.platformFee ?? 0
+    const trFee = byMethod.transfer?.platformFee ?? 0
+    const krFee = byMethod.kripton?.platformFee ?? 0
+    const totalFee = stats.paymentMethodBreakdown.reduce((s, d) => s + (d.platformFee || 0), 0)
+
+    const rows = [
+        { key: 'mercadopago', label: METHOD_LABELS.mercadopago, sub: 'Cobro automático (split MP)', amount: mpFee, color: 'text-primary', highlight: false },
+        { key: 'transfer', label: METHOD_LABELS.transfer, sub: 'Cobro manual · pendiente de liquidación', amount: trFee, color: 'text-amber-500', highlight: true },
+        { key: 'kripton', label: METHOD_LABELS.kripton, sub: 'Cobro automático', amount: krFee, color: 'text-purple-500', highlight: false },
+    ]
+
+    return (
+        <div className="mb-4">
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">
+                Comisiones a pagar a TakeasyGO · {stats.rangeLabel}
+            </p>
+            <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+                <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                                <CreditCard size={24} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <CardTitle className="text-xl font-bold tracking-tight">Comisiones de plataforma</CardTitle>
+                                <p className="text-xs text-muted-foreground font-medium">
+                                    MP se cobra automático por split · Transferencia se cobra manualmente
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-muted-foreground font-medium">Total comisión</p>
+                            <p className="text-2xl font-black tabular-nums text-emerald-600">
+                                ${toPesos(totalFee).toLocaleString('es-AR')}
+                            </p>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-8">
+                    <div className="space-y-3">
+                        {rows.map(r => (
+                            <div
+                                key={r.key}
+                                className={cn(
+                                    'flex items-center justify-between p-4 rounded-2xl',
+                                    r.highlight ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-muted/30'
+                                )}
+                            >
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-foreground">{r.label}</span>
+                                    <span className={cn('text-[11px] font-medium', r.highlight ? 'text-amber-600' : 'text-muted-foreground')}>
+                                        {r.sub}
+                                    </span>
+                                </div>
+                                <div className="text-right">
+                                    <span className={cn('text-lg font-black tabular-nums', r.color)}>
+                                        ${toPesos(r.amount).toLocaleString('es-AR')}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     )
 }
