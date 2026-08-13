@@ -9,7 +9,7 @@ import {
     History, ArrowUpRight, ArrowDownRight, Award,
     Package, FileSpreadsheet, FileText, Loader2, Calendar,
     Clock, XCircle, Zap, RefreshCw, CreditCard, AlertCircle,
-    Printer, PlusCircle, CheckCircle2
+    Printer, PlusCircle, CheckCircle2, Banknote
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
@@ -56,6 +56,9 @@ interface Props {
         revenueByLocation: { locationName: string; revenue: number; orders: number }[]
         // Ventas por método de pago
         paymentMethodBreakdown: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number; platformFee: number }[]
+        // Comisión por transferencia (pago manual a TakeasyGO)
+        transferSummary: { totalRevenue: number; totalBaseRevenue: number; totalSurcharge: number; totalPlatformFee: number; orders: number }
+        transferDailyBreakdown: { day: number; revenue: number; baseRevenue: number; surcharge: number; platformFee: number; orders: number }[]
         // Rango de fechas activo
         isCustomRange: boolean
         rangeLabel: string
@@ -597,6 +600,9 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
 
             {/* ── Comisiones a pagar a TakeasyGO ────────────────────────────── */}
             <CommissionCard stats={stats} />
+
+            {/* ── Comisión por Transferencia (pago manual) ─────────────────── */}
+            <TransferCommissionCard stats={stats} />
 
             {/* ── KPIs Operativos ─────────────────────────────────────── */}
             {plan !== 'full' && (
@@ -1210,7 +1216,7 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
                 </div>
                 {totalSurcharge > 0 && (
                     <div className="p-4 rounded-2xl bg-muted/30">
-                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Recargo MP</p>
+                        <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Recargos totales</p>
                         <p className="text-2xl font-black tabular-nums text-amber-600">${toPesos(totalSurcharge).toLocaleString('es-AR')}</p>
                     </div>
                 )}
@@ -1261,13 +1267,11 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
 function CommissionCard({ stats }: { stats: Props['stats'] }) {
     const byMethod = Object.fromEntries(stats.paymentMethodBreakdown.map(d => [d.method, d]))
     const mpFee = byMethod.mercadopago?.platformFee ?? 0
-    const trFee = byMethod.transfer?.platformFee ?? 0
     const krFee = byMethod.kripton?.platformFee ?? 0
     const totalFee = stats.paymentMethodBreakdown.reduce((s, d) => s + (d.platformFee || 0), 0)
 
     const rows = [
         { key: 'mercadopago', label: METHOD_LABELS.mercadopago, sub: 'Cobro automático (split MP)', amount: mpFee, color: 'text-primary', highlight: false },
-        { key: 'transfer', label: METHOD_LABELS.transfer, sub: 'Cobro manual · pendiente de liquidación', amount: trFee, color: 'text-amber-500', highlight: true },
         { key: 'kripton', label: METHOD_LABELS.kripton, sub: 'Cobro automático', amount: krFee, color: 'text-purple-500', highlight: false },
     ]
 
@@ -1322,6 +1326,86 @@ function CommissionCard({ stats }: { stats: Props['stats'] }) {
                             </div>
                         ))}
                     </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+function TransferCommissionCard({ stats }: { stats: Props['stats'] }) {
+    const tr = stats.transferSummary
+    const daily = stats.transferDailyBreakdown.filter(d => d.orders > 0)
+    const hasData = tr.orders > 0
+
+    return (
+        <div className="mb-4">
+            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">
+                Comisión por Transferencia · {stats.rangeLabel}
+            </p>
+            <Card className="bg-card border-amber-500/30 shadow-xl rounded-[2.5rem] overflow-hidden">
+                <CardHeader className="p-8 border-b border-border/40 bg-amber-500/5">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                                <Banknote size={24} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <CardTitle className="text-xl font-bold tracking-tight">Comisión por Transferencia</CardTitle>
+                                <p className="text-xs text-muted-foreground font-medium">
+                                    Pago manual · depositar a TakeasyGO
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-muted-foreground font-medium">A depositar</p>
+                            <p className="text-3xl font-black tabular-nums text-amber-600">
+                                ${toPesos(tr.totalPlatformFee).toLocaleString('es-AR')}
+                            </p>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-8">
+                    {/* Resumen */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                        <div className="p-4 rounded-2xl bg-muted/30">
+                            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Total cobrado</p>
+                            <p className="text-xl font-black tabular-nums text-foreground">${toPesos(tr.totalRevenue).toLocaleString('es-AR')}</p>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-muted/30">
+                            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Órdenes</p>
+                            <p className="text-xl font-black tabular-nums text-foreground">{tr.orders}</p>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                            <p className="text-[10px] uppercase font-black tracking-widest text-amber-600/70">Comisión a pagar</p>
+                            <p className="text-xl font-black tabular-nums text-amber-600">${toPesos(tr.totalPlatformFee).toLocaleString('es-AR')}</p>
+                        </div>
+                    </div>
+
+                    {/* Desglose diario */}
+                    {!stats.isCustomRange && hasData && daily.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-2">Desglose diario de comisión</p>
+                            {daily.map(d => (
+                                <div key={d.day} className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
+                                    <span className="text-sm font-bold text-foreground">Día {d.day}</span>
+                                    <div className="text-right">
+                                        <span className="text-sm font-black tabular-nums text-amber-600">${toPesos(d.platformFee).toLocaleString('es-AR')}</span>
+                                        <span className="text-[10px] font-bold text-muted-foreground/60 ml-2">{d.orders} ped.</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {stats.isCustomRange && hasData && (
+                        <p className="text-xs text-muted-foreground font-medium italic">
+                            El desglose diario está disponible en la vista de mes. El total a depositar corresponde al rango seleccionado.
+                        </p>
+                    )}
+                    {!hasData && (
+                        <p className="text-sm text-muted-foreground font-medium">
+                            No hay órdenes pagadas por transferencia en este período.
+                        </p>
+                    )}
                 </CardContent>
             </Card>
         </div>
