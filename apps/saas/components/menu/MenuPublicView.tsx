@@ -685,9 +685,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   }
 
   function buildHalfPriceContext(item: any): typeof halfPriceContext {
-    // Check if this item has a "Grande" variant — prerequisite for half-and-half
-    const hasGrande = item.variants?.some((v: any) => v.name.toLowerCase() === 'grande' && v.price > 0)
-    if (!hasGrande) return null
+    // Check if this item has a "Mitad y Mitad" variant — prerequisite for half-and-half
+    const hasMitad = item.variants?.some((v: any) => v.name.toLowerCase() === 'mitad y mitad')
+    if (!hasMitad) return null
 
     // Find the category containing this item
     const itemCategoryId = item.categoryId ?? item._id
@@ -703,9 +703,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       }
     }
 
-    // Collect all items in the category that have a Grande variant with price > 0
+    // Collect all items in the category that have a "Mitad y Mitad" variant AND a Grande variant for pricing
     const hpItems = siblingItems
-      .filter((i: any) => i.variants?.some((v: any) => v.name.toLowerCase() === 'grande' && v.price > 0))
+      .filter((i: any) => {
+        const hasMitadVariant = i.variants?.some((v: any) => v.name.toLowerCase() === 'mitad y mitad')
+        const grande = i.variants?.find((v: any) => v.name.toLowerCase() === 'grande')
+        return hasMitadVariant && grande && grande.price > 0
+      })
       .map((i: any) => {
         const grande = i.variants.find((v: any) => v.name.toLowerCase() === 'grande')
         return { _id: i._id, name: i.name, grandePrice: grande.price as number }
