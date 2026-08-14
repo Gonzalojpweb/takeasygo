@@ -44,6 +44,9 @@ export interface ILoyaltyMember extends Document {
     sosUsed: number // Deuda acumulada actual (cuántos puntos debe en total)
   }
 
+  /** Última vez que el admin intentó contactar por WhatsApp Reward Advance */
+  lastRewardAdvanceAttemptedAt?: Date | null
+
   // Estadísticas de Store (canjes de puntos por artículos)
   store: {
     totalRedemptions: number
@@ -169,6 +172,11 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
       maxSosAllowed: { type: Number, default: 100 },
       hasPendingSos: { type: Boolean, default: false },
       sosUsed:       { type: Number, default: 0, min: 0 },
+    },
+
+    lastRewardAdvanceAttemptedAt: {
+      type:    Date,
+      default: null,
     },
 
     // Estadísticas de Store
