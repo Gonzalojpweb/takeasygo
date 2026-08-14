@@ -56,6 +56,8 @@ export default function StoreManager({ tenantSlug }: Props) {
   const [showInactive, setShowInactive] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingItem, setEditingItem] = useState<StoreItem | null>(null)
+  const [editingStockId, setEditingStockId] = useState<string | null>(null)
+  const [editingStockValue, setEditingStockValue] = useState<string>('')
 
   useEffect(() => {
     fetchItems()
@@ -104,6 +106,28 @@ export default function StoreManager({ tenantSlug }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al eliminar item')
       toast.success('Item eliminado')
+      fetchItems()
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  async function handleStockSave(item: StoreItem) {
+    const newStock = editingStockValue === '' ? null : parseInt(editingStockValue)
+    if (editingStockValue !== '' && (isNaN(newStock!) || newStock! < 0)) {
+      toast.error('Stock debe ser un número positivo')
+      return
+    }
+    try {
+      const res = await fetch(`/api/${tenantSlug}/store/items/${item._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock: newStock }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al actualizar stock')
+      toast.success('Stock actualizado')
+      setEditingStockId(null)
       fetchItems()
     } catch (err: any) {
       toast.error(err.message)
@@ -256,8 +280,58 @@ export default function StoreManager({ tenantSlug }: Props) {
                     {item.description}
                   </p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
-                    {item.stock !== null && (
-                      <span>Stock: {item.stock}</span>
+                    {item.stock !== null ? (
+                      editingStockId === item._id ? (
+                        <div className="flex items-center gap-1">
+                          <span>Stock:</span>
+                          <input
+                            type="number"
+                            value={editingStockValue}
+                            onChange={e => setEditingStockValue(e.target.value)}
+                            className="w-16 px-2 py-1 rounded border border-border/60 bg-muted/40 text-xs"
+                            min="0"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleStockSave(item)
+                              if (e.key === 'Escape') setEditingStockId(null)
+                            }}
+                          />
+                          <button
+                            onClick={() => handleStockSave(item)}
+                            className="text-primary hover:text-primary/80 font-bold"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={() => setEditingStockId(null)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setEditingStockId(item._id)
+                            setEditingStockValue(item.stock?.toString() || '')
+                          }}
+                          className="hover:text-primary hover:underline cursor-pointer"
+                          title="Click para editar stock"
+                        >
+                          Stock: {item.stock}
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingStockId(item._id)
+                          setEditingStockValue('')
+                        }}
+                        className="hover:text-primary hover:underline cursor-pointer"
+                        title="Click para agregar stock"
+                      >
+                        Stock: ∞
+                      </button>
                     )}
                     {item.maxPerMember && (
                       <span>Max: {item.maxPerMember}/miembro</span>
