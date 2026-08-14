@@ -20,7 +20,9 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const authError = await requireAdminRole(request, tenant._id.toString())
+    const authError = await requireAdminRole(request, tenant._id.toString()).catch(() =>
+      NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    )
     if (authError) return authError
 
     const { searchParams } = new URL(request.url)
@@ -66,8 +68,8 @@ export async function GET(
         pages: Math.ceil(total / limit),
       },
     })
-  } catch (error) {
-    console.error('[Admin Redemptions GET] Error:', error)
-    return NextResponse.json({ error: 'Error al obtener canjes' }, { status: 500 })
+  } catch (error: any) {
+    console.error('[Admin Redemptions GET] Error:', error?.message || error)
+    return NextResponse.json({ error: 'Error al obtener canjes', detail: error?.message }, { status: 500 })
   }
 }

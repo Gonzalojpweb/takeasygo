@@ -78,8 +78,8 @@ export async function GET(
     }
 
     if (locationId) {
-      tenantQuery.locationId = locationId
-      globalQuery.locationId = locationId
+      tenantQuery.locationId = { $in: [locationId, null] }
+      globalQuery.locationId = { $in: [locationId, null] }
     }
 
     const items = await StoreItem.find({
