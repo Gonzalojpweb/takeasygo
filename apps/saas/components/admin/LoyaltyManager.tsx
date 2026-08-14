@@ -53,6 +53,10 @@ import {
   Camera,
   CameraOff,
   History,
+  MessageCircle,
+  Copy,
+  Check,
+  Send,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -171,6 +175,141 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [earnLoading, setEarnLoading] = useState(false)
   const [pointsConfig, setPointsConfig] = useState<any>(null)
   const [historyMember, setHistoryMember] = useState<{ memberId: string; memberName: string } | null>(null)
+  const [sosDialog, setSosDialog] = useState(false)
+  const [sosMembers, setSosMembers] = useState<any[]>([])
+  const [sosLoading, setSosLoading] = useState(false)
+  const [sosMessage, setSosMessage] = useState('')
+  const [sosSending, setSosSending] = useState(false)
+  const [sosCurrentIndex, setSosCurrentIndex] = useState(0)
+  const [sosSelectedIds, setSosSelectedIds] = useState<Set<string>>(new Set())
+  const [sosResult, setSosResult] = useState<{ sent: number; skipped: number; failed: number } | null>(null)
+  const [sosSendingActive, setSosSendingActive] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [sosClubName, setSosClubName] = useState('')
+  const [sosLimit, setSosLimit] = useState(0)
+
+  const fetchSosData = useCallback(async () => {
+    setSosLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/club/whatsapp-reward-advance`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setSosMembers(data.members)
+      setSosClubName(data.clubName)
+      setSosLimit(data.sosLimit)
+      setSosSelectedIds(new Set(data.members.map((m: any) => m._id)))
+      if (data.members.length > 0) {
+        const first = data.members[0]
+        const items = first.eligibleItems.map((i: any) => `• ${i.name}`).join('\n')
+        setSosMessage(
+          `¡Hola ${first.name}! 🎉\n\nDesde ${data.clubName} te informamos que con tus ${first.points} puntos y tu Reward Advance de ${data.sosLimit} puntos, ya podés canjear:\n${items}\n\n¡Te esperamos!`
+        )
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error al cargar elegibles')
+    } finally {
+      setSosLoading(false)
+    }
+  }, [tenantSlug])
+
+  const buildWhatsAppLink = (phone: string, name: string, message: string): string | null => {
+    const clean = phone.replace(/[^\d]/g, '')
+    if (!clean) return null
+    return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(message)}`
+  }
+
+  const buildMemberMessage = (member: any): string => {
+    const items = member.eligibleItems.map((i: any) => `• ${i.name}`).join('\n')
+    return sosMessage
+      .replace(/¡Hola [^!]+!/, `¡Hola ${member.name}!`)
+      .replace(/con tus \d+ puntos/, `con tus ${member.points} puntos`)
+      .replace(/canjear:\n[\s\S]*?\n\n/, `canjear:\n${items}\n\n`)
+  }
+
+  const handleCopyMessage = async (member: any) => {
+    const msg = buildMemberMessage(member)
+    await navigator.clipboard.writeText(msg)
+    setCopiedId(member._id)
+    toast.success('Mensaje copiado al portapapeles')
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const handleSendSingle = async (member: any) => {
+    const msg = buildMemberMessage(member)
+    const link = buildWhatsAppLink(member.phone, member.name, msg)
+    if (!link) {
+      toast.error('Teléfono inválido')
+      return
+    }
+    try {
+      const res = await fetch(`/api/${tenantSlug}/club/whatsapp-reward-advance`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId: member._id }),
+      })
+      const data = await res.json()
+      if (data.ok === false) {
+        toast.warning(data.reason || 'Ya no es elegible')
+        setSosMembers(prev => prev.filter(m => m._id !== member._id))
+        return
+      }
+      window.open(link, '_blank')
+      setSosMembers(prev =>
+        prev.map(m => m._id === member._id ? { ...m, lastAttemptedAt: data.lastAttemptedAt } : m)
+      )
+      toast.success(`Mensaje enviado a ${member.name}`)
+    } catch {
+      toast.error('Error al registrar intento')
+    }
+  }
+
+  const handleStartBulkSend = () => {
+    const selected = sosMembers.filter(m => sosSelectedIds.has(m._id))
+    if (selected.length === 0) {
+      toast.error('Seleccioná al menos un miembro')
+      return
+    }
+    setSosSendingActive(true)
+    setSosCurrentIndex(0)
+    setSosResult(null)
+    handleSendFromBulk(selected, 0, { sent: 0, skipped: 0, failed: 0 })
+  }
+
+  const handleSendFromBulk = async (members: any[], index: number, acc: { sent: number; skipped: number; failed: number }) => {
+    if (index >= members.length) {
+      setSosResult(acc)
+      setSosSendingActive(false)
+      return
+    }
+    setSosCurrentIndex(index)
+    const member = members[index]
+    const msg = buildMemberMessage(member)
+    const link = buildWhatsAppLink(member.phone, member.name, msg)
+    if (!link) {
+      handleSendFromBulk(members, index + 1, { ...acc, failed: acc.failed + 1 })
+      return
+    }
+    try {
+      const res = await fetch(`/api/${tenantSlug}/club/whatsapp-reward-advance`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId: member._id }),
+      })
+      const data = await res.json()
+      if (data.ok === false) {
+        setSosMembers(prev => prev.filter(m => m._id !== member._id))
+        handleSendFromBulk(members, index + 1, { ...acc, skipped: acc.skipped + 1 })
+        return
+      }
+      window.open(link, '_blank')
+      setSosMembers(prev =>
+        prev.map(m => m._id === member._id ? { ...m, lastAttemptedAt: data.lastAttemptedAt } : m)
+      )
+      handleSendFromBulk(members, index + 1, { ...acc, sent: acc.sent + 1 })
+    } catch {
+      handleSendFromBulk(members, index + 1, { ...acc, failed: acc.failed + 1 })
+    }
+  }
 
   const fetchMembers = useCallback(async () => {
     setLoading(true)
@@ -589,6 +728,14 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
             className="rounded-xl h-10 px-4 font-bold text-sm"
           >
             <Upload size={16} className="mr-2 stroke-[2.5px]" /> Importar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setSosDialog(true); fetchSosData() }}
+            className="rounded-xl h-10 px-4 font-bold text-sm bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20"
+          >
+            <MessageCircle size={16} className="mr-2 stroke-[2.5px]" /> Reward Advance
           </Button>
           <Button
             onClick={() => setShowAddForm(true)}
@@ -1240,6 +1387,148 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── WhatsApp Reward Advance Dialog ─────────────────────────── */}
+      {sosDialog && (
+        <Dialog open onOpenChange={(open) => { if (!open) { setSosDialog(false); setSosSendingActive(false); setSosResult(null) } }}>
+          <DialogContent className="max-w-lg rounded-[2rem] max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <DialogTitle className="flex items-center gap-2">
+                  <MessageCircle size={18} className="text-emerald-500" />
+                  Reward Advance — WhatsApp
+                </DialogTitle>
+                <Button variant="ghost" size="icon" onClick={() => { setSosDialog(false); setSosSendingActive(false); setSosResult(null) }} className="rounded-xl h-8 w-8">
+                  <X size={16} />
+                </Button>
+              </div>
+            </DialogHeader>
+
+            {sosLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+              </div>
+            ) : sosMembers.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">
+                No hay miembros elegibles para Reward Advance
+              </div>
+            ) : (
+              <>
+                {/* Message preview */}
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">
+                    Mensaje (editable)
+                  </label>
+                  <textarea
+                    value={sosMessage}
+                    onChange={(e) => setSosMessage(e.target.value)}
+                    rows={5}
+                    className="w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all resize-none"
+                  />
+                </div>
+
+                {/* Members list */}
+                <div className="flex-1 overflow-y-auto space-y-2 min-h-0 max-h-60">
+                  {sosMembers.map((member) => {
+                    const isSelected = sosSelectedIds.has(member._id)
+                    const waLink = buildWhatsAppLink(member.phone, member.name, buildMemberMessage(member))
+                    return (
+                      <div key={member._id} className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-card hover:bg-muted/30 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            setSosSelectedIds(prev => {
+                              const next = new Set(prev)
+                              if (e.target.checked) next.add(member._id)
+                              else next.delete(member._id)
+                              return next
+                            })
+                          }}
+                          className="h-4 w-4 rounded border-border"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold truncate">{member.name}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">
+                              {member.points.toLocaleString('es-AR')} pts
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {member.eligibleItems.length} item{member.eligibleItems.length !== 1 ? 's' : ''} con SOS
+                            {member.lastAttemptedAt && (
+                              <span className="ml-2 text-amber-600">
+                                · enviado {new Date(member.lastAttemptedAt).toLocaleDateString('es-AR')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSendSingle(member)}
+                            disabled={!waLink || sosSendingActive}
+                            className="h-8 px-2 text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10"
+                          >
+                            <Send size={12} className="mr-1" /> Enviar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyMessage(member)}
+                            disabled={sosSendingActive}
+                            className="h-8 px-2 text-[10px] font-bold text-muted-foreground hover:bg-muted/50"
+                          >
+                            {copiedId === member._id ? <Check size={12} className="mr-1 text-emerald-500" /> : <Copy size={12} className="mr-1" />}
+                            {copiedId === member._id ? 'Copiado' : 'Copiar'}
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Bulk send result */}
+                {sosResult && (
+                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3 text-sm">
+                    <span className="font-bold text-emerald-700">Envío completado:</span>{' '}
+                    {sosResult.sent} enviado{sosResult.sent !== 1 ? 's' : ''}
+                    {sosResult.skipped > 0 && `, ${sosResult.skipped} ya no elegible`}
+                    {sosResult.failed > 0 && `, ${sosResult.failed} fallido${sosResult.failed !== 1 ? 's' : ''}`}
+                  </div>
+                )}
+
+                {/* Footer actions */}
+                <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSosSelectedIds(new Set(sosMembers.map(m => m._id)))
+                    }}
+                    className="rounded-xl h-9 text-xs font-bold"
+                  >
+                    Seleccionar todos
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleStartBulkSend}
+                    disabled={sosSendingActive || sosSelectedIds.size === 0}
+                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl h-9 text-xs"
+                  >
+                    {sosSendingActive ? (
+                      <><Loader2 className="animate-spin h-4 w-4 mr-2" /> Enviando {sosCurrentIndex + 1}/{sosMembers.filter(m => sosSelectedIds.has(m._id)).length}...</>
+                    ) : (
+                      <><Send size={14} className="mr-2" /> Iniciar envío ({sosSelectedIds.size})</>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
