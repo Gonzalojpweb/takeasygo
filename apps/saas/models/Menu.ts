@@ -59,8 +59,6 @@ export interface IMenuItem {
   takeawayPrice?: number
   /** Precio business del ítem en centavos. @storedAs cents */
   businessPrice?: number | null
-  /** Precio de cada mitad para promociones "mitad y mitad" en centavos. @storedAs cents */
-  halfPrice?: number
   /** Precio original de lista (antes de descuentos de categoría) en centavos. @storedAs cents */
   originalPrice?: number
   /** Precio takeaway original de lista (antes de descuentos de categoría) en centavos. @storedAs cents */
@@ -189,11 +187,6 @@ const MenuItemSchema = new Schema<IMenuItem>({
     type: Number,
     min: [0, 'El precio business no puede ser negativo'],
     default: null,
-  },
-  /** @storedAs cents */
-  halfPrice: {
-    type: Number,
-    min: [0, 'El precio de mitad no puede ser negativo'],
   },
   /** @storedAs cents */
   originalPrice: {

@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import CorporateAccount from '@/models/CorporateAccount'
 import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
+import { resolveHalfPriceCustomizations } from '@takeasygo/business'
 
 export async function POST(
   request: NextRequest,
@@ -138,57 +139,16 @@ export async function POST(
       if (Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
         // Check for half-price "mitad y mitad" customizations first
         const allMenuItems = [...menuItemMap.values()]
-        const hasFirstHalf = clientItem.customizations.some((g: any) => g.groupName === 'Primera mitad')
-        const hasSecondHalf = clientItem.customizations.some((g: any) => g.groupName === 'Segunda mitad')
+        let halfResult: ReturnType<typeof resolveHalfPriceCustomizations> = null
+        try {
+          halfResult = resolveHalfPriceCustomizations(clientItem.customizations, allMenuItems)
+        } catch (err: any) {
+          return NextResponse.json({ error: err.message }, { status: 400 })
+        }
 
-        if (hasFirstHalf || hasSecondHalf) {
-          // Half-price validation
-          if (!hasFirstHalf || !hasSecondHalf) {
-            return NextResponse.json(
-              { error: 'Para pizza mitad y mitad, debés seleccionar ambas mitades' },
-              { status: 400 }
-            )
-          }
-          const firstGroup = clientItem.customizations.find((g: any) => g.groupName === 'Primera mitad')
-          const secondGroup = clientItem.customizations.find((g: any) => g.groupName === 'Segunda mitad')
-          const firstFlavor = firstGroup?.selectedOptions?.[0]?.name
-          const secondFlavor = secondGroup?.selectedOptions?.[0]?.name
-
-          if (!firstFlavor || !secondFlavor) {
-            return NextResponse.json({ error: 'Falta seleccionar una de las mitades' }, { status: 400 })
-          }
-          if (firstFlavor === secondFlavor) {
-            return NextResponse.json(
-              { error: 'No podés elegir el mismo sabor para ambas mitades' },
-              { status: 400 }
-            )
-          }
-
-          const firstItem = allMenuItems.find(
-            (i: any) => i.name === firstFlavor && i.halfPrice != null && i.halfPrice > 0
-          )
-          const secondItem = allMenuItems.find(
-            (i: any) => i.name === secondFlavor && i.halfPrice != null && i.halfPrice > 0
-          )
-          if (!firstItem) {
-            return NextResponse.json(
-              { error: `"${firstFlavor}" no está disponible para mitad y mitad` },
-              { status: 400 }
-            )
-          }
-          if (!secondItem) {
-            return NextResponse.json(
-              { error: `"${secondFlavor}" no está disponible para mitad y mitad` },
-              { status: 400 }
-            )
-          }
-
-          const halfExtra = (firstItem.halfPrice as number) + (secondItem.halfPrice as number)
-          resolvedCustomizations.push(
-            { groupName: 'Primera mitad', selectedOptions: [{ name: firstFlavor, extraPrice: firstItem.halfPrice }] },
-            { groupName: 'Segunda mitad', selectedOptions: [{ name: secondFlavor, extraPrice: secondItem.halfPrice }] },
-          )
-          extraPrice += halfExtra
+        if (halfResult) {
+          resolvedCustomizations.push(...halfResult.resolved)
+          extraPrice += halfResult.extraPrice
           basePrice = 0
         } else {
         // Combinar grupos del item + grupos de la variante

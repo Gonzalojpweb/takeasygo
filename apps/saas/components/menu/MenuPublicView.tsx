@@ -141,7 +141,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [customizingItem, setCustomizingItem] = useState<any | null>(null)
   const [halfPriceContext, setHalfPriceContext] = useState<{
     isHalfAndHalf: boolean
-    halfPriceItems: Array<{ _id: string; name: string; halfPrice: number }>
+    halfPriceItems: Array<{ _id: string; name: string; grandePrice: number }>
   } | null>(null)
   const [upsellSuggestions, setUpsellSuggestions] = useState<any[]>([])
   const [upsellSource, setUpsellSource] = useState<UpsellSource>('static')
@@ -685,7 +685,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   }
 
   function buildHalfPriceContext(item: any): typeof halfPriceContext {
-    if (item.halfPrice == null || item.halfPrice <= 0) return null
+    // Check if this item has a "Grande" variant — prerequisite for half-and-half
+    const hasGrande = item.variants?.some((v: any) => v.name.toLowerCase() === 'grande' && v.price > 0)
+    if (!hasGrande) return null
 
     // Find the category containing this item
     const itemCategoryId = item.categoryId ?? item._id
@@ -701,10 +703,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       }
     }
 
-    // Collect all items in the category with halfPrice > 0
+    // Collect all items in the category that have a Grande variant with price > 0
     const hpItems = siblingItems
-      .filter((i: any) => i.halfPrice != null && i.halfPrice > 0)
-      .map((i: any) => ({ _id: i._id, name: i.name, halfPrice: i.halfPrice as number }))
+      .filter((i: any) => i.variants?.some((v: any) => v.name.toLowerCase() === 'grande' && v.price > 0))
+      .map((i: any) => {
+        const grande = i.variants.find((v: any) => v.name.toLowerCase() === 'grande')
+        return { _id: i._id, name: i.name, grandePrice: grande.price as number }
+      })
 
     if (hpItems.length < 2) return null
     return { isHalfAndHalf: true, halfPriceItems: hpItems }
@@ -1760,8 +1765,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         else if (hasVariants) effectiveSlotMode = 'variant'
                       }
                       const slotHpItems = (currentSlot.resolvedItems ?? [])
-                        .filter((i: any) => i.halfPrice != null && i.halfPrice > 0)
-                        .map((i: any) => ({ _id: i._id, name: i.name, halfPrice: i.halfPrice as number }))
+                        .filter((i: any) => i.variants?.some((v: any) => v.name.toLowerCase() === 'grande' && v.price > 0))
+                        .map((i: any) => {
+                          const grande = i.variants.find((v: any) => v.name.toLowerCase() === 'grande')
+                          return { _id: i._id, name: i.name, grandePrice: grande.price as number }
+                        })
                       const isHalfSlot = slotHpItems.length >= 2
                       const halfCtx = isHalfSlot
                         ? { isHalfAndHalf: true, halfPriceItems: slotHpItems }

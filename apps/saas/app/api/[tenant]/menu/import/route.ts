@@ -41,7 +41,6 @@ interface ImportItem {
   price: number
   takeawayPrice?: number
   businessPrice?: number
-  halfPrice?: number
   originalPrice?: number
   takeawayOriginalPrice?: number
   tags?: string[]
@@ -174,7 +173,6 @@ export async function POST(
         price: item.price,
         takeawayPrice: item.takeawayPrice,
         businessPrice: item.businessPrice,
-        halfPrice: item.halfPrice,
         originalPrice: item.originalPrice,
         takeawayOriginalPrice: item.takeawayOriginalPrice,
         tags: Array.isArray(item.tags) ? item.tags.map((t: string) => t.trim()).filter(Boolean) : [],
@@ -209,7 +207,6 @@ export async function POST(
           price: item.price,
           takeawayPrice: item.takeawayPrice,
           businessPrice: item.businessPrice,
-          halfPrice: item.halfPrice,
           originalPrice: item.originalPrice,
           takeawayOriginalPrice: item.takeawayOriginalPrice,
           tags: Array.isArray(item.tags) ? item.tags.map((t: string) => t.trim()).filter(Boolean) : [],

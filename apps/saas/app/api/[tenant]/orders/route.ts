@@ -17,6 +17,7 @@ import { upsertConsumerFromOrder } from '@/lib/consumer'
 import crypto from 'crypto'
 import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
+import { resolveHalfPriceCustomizations } from '@takeasygo/business'
 import { auth } from '@/lib/auth'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 import { isServiceOpen } from '@/lib/availability'
@@ -109,77 +110,6 @@ class ValidationError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'ValidationError'
-  }
-}
-
-/**
- * Detects and validates "Primera mitad" / "Segunda mitad" half-price customizations.
- * Returns null if the customizations don't contain half-price groups (normal flow).
- */
-function resolveHalfPriceCustomizations(
-  clientCustomizations: any[],
-  allMenuItems: any[],
-): { resolved: any[]; extraPrice: number; isHalfPrice: true } | null {
-  const firstGroup = clientCustomizations.find((g: any) => g.groupName === 'Primera mitad')
-  const secondGroup = clientCustomizations.find((g: any) => g.groupName === 'Segunda mitad')
-
-  if (!firstGroup && !secondGroup) return null
-
-  // Both must be present
-  if (!firstGroup || !secondGroup) {
-    throw new ValidationError(
-      'Para pizza mitad y mitad, debés seleccionar ambas mitades'
-    )
-  }
-
-  const firstFlavor = firstGroup.selectedOptions?.[0]?.name
-  const secondFlavor = secondGroup.selectedOptions?.[0]?.name
-
-  if (!firstFlavor || !secondFlavor) {
-    throw new ValidationError('Falta seleccionar una de las mitades')
-  }
-
-  // Prevent duplicate
-  if (firstFlavor === secondFlavor) {
-    throw new ValidationError(
-      'No podés elegir el mismo sabor para ambas mitades'
-    )
-  }
-
-  // Lookup flavors in menu
-  const firstItem = allMenuItems.find(
-    (i: any) => i.name === firstFlavor && i.halfPrice != null && i.halfPrice > 0
-  )
-  const secondItem = allMenuItems.find(
-    (i: any) => i.name === secondFlavor && i.halfPrice != null && i.halfPrice > 0
-  )
-
-  if (!firstItem) {
-    throw new ValidationError(
-      `"${firstFlavor}" no está disponible para mitad y mitad`
-    )
-  }
-  if (!secondItem) {
-    throw new ValidationError(
-      `"${secondFlavor}" no está disponible para mitad y mitad`
-    )
-  }
-
-  const extraPrice = (firstItem.halfPrice as number) + (secondItem.halfPrice as number)
-
-  return {
-    resolved: [
-      {
-        groupName: 'Primera mitad',
-        selectedOptions: [{ name: firstFlavor, extraPrice: firstItem.halfPrice }],
-      },
-      {
-        groupName: 'Segunda mitad',
-        selectedOptions: [{ name: secondFlavor, extraPrice: secondItem.halfPrice }],
-      },
-    ],
-    extraPrice,
-    isHalfPrice: true,
   }
 }
 
@@ -798,11 +728,16 @@ export async function POST(
         if (slotMode === 'full' && Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
           // Check for half-price "mitad y mitad" first
           const slotItems = (slot?.resolvedItems ?? [])
-          const halfResult = resolveHalfPriceCustomizations(clientItem.customizations, slotItems)
+          let halfResult: ReturnType<typeof resolveHalfPriceCustomizations> = null
+          try {
+            halfResult = resolveHalfPriceCustomizations(clientItem.customizations, slotItems)
+          } catch (err: any) {
+            return NextResponse.json({ error: err.message }, { status: 400 })
+          }
           if (halfResult) {
             resolvedCustomizations.push(...halfResult.resolved)
             extraPrice += halfResult.extraPrice
-            // Override promo price for mitad y mitad: use sum of halfPrices
+            // Override promo price for mitad y mitad: use MAX of Grande prices
             price = halfResult.extraPrice
           } else if (validationGroups.length > 0) {
             try {
@@ -943,7 +878,7 @@ export async function POST(
             if (halfResult) {
               resolvedCustomizations.push(...halfResult.resolved)
               extraPrice += halfResult.extraPrice
-              // Override basePrice: mitad y mitad uses halfPrice sum, not basePrice
+              // Override basePrice: mitad y mitad uses MAX of Grande prices, not basePrice
               basePrice = 0
             } else {
               // Normal customization flow
@@ -957,7 +892,7 @@ export async function POST(
               extraPrice += result.extraPrice
             }
           } catch (err: any) {
-            if (err.name === 'ValidationError') {
+            if (err.name === 'ValidationError' || err instanceof Error) {
               return NextResponse.json({ error: err.message }, { status: 400 })
             }
             throw err
