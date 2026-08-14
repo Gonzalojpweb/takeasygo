@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { captureDishViewed } from '@/lib/tia/events'
+import { calculateHalfHalfPrice } from '@takeasygo/business'
 import type { CartItem, SelectedCustomization, SelectedCustomizationOption, SelectedVariant } from '@/types/cart'
 
 import SheetHeader from './SheetHeader'
@@ -50,7 +51,7 @@ interface Props {
   unitLabel?: string
   optionImageRegistry?: Record<string, string>
   isHalfAndHalf?: boolean
-  halfPriceItems?: Array<{ _id: string; name: string; halfPrice: number }>
+  halfPriceItems?: Array<{ _id: string; name: string; grandePrice: number }>
 }
 
 function computeActiveGroups(
@@ -110,9 +111,7 @@ export default function CustomizationSheet({
   const isHalfMode = halfAvailable && halfTypeSelection === 'Mitad y mitad'
 
   const halfFirstItems: CustomizationOption[] = halfAvailable
-    ? halfPriceItems
-        .filter(hp => hp.halfPrice > 0)
-        .map(hp => ({ name: hp.name, extraPrice: hp.halfPrice, _id: hp._id }))
+    ? halfPriceItems.map(hp => ({ name: hp.name, extraPrice: hp.grandePrice, _id: hp._id }))
     : []
 
   const firstHalfSelection = selections['__half_first']?.[0] ?? null
@@ -189,7 +188,15 @@ export default function CustomizationSheet({
       const secondHalfName = selections['__half_second']?.[0]
       const secondHalf = halfSecondItems.find(opt => opt.name === secondHalfName)
       if (firstHalf && secondHalf) {
-        return firstHalf.extraPrice + secondHalf.extraPrice
+        const firstFull = halfPriceItems.find(hp => hp.name === firstHalfSelection)
+        const secondFull = halfPriceItems.find(hp => hp.name === secondHalfName)
+        if (firstFull && secondFull) {
+          return calculateHalfHalfPrice(
+            { name: firstFull.name, variants: [{ name: 'Grande', price: firstFull.grandePrice }], price: firstFull.grandePrice },
+            { name: secondFull.name, variants: [{ name: 'Grande', price: secondFull.grandePrice }], price: secondFull.grandePrice }
+          )
+        }
+        return Math.max(firstHalf.extraPrice, secondHalf.extraPrice)
       }
       return 0
     }
@@ -345,16 +352,21 @@ export default function CustomizationSheet({
       customizations = [
         {
           groupName: 'Primera mitad',
-          selectedOptions: [{ name: firstHalfSelection, extraPrice: firstHalfItem?.halfPrice ?? 0 }],
+          selectedOptions: [{ name: firstHalfSelection, extraPrice: firstHalfItem?.grandePrice ?? 0 }],
         },
         {
           groupName: 'Segunda mitad',
-          selectedOptions: [{ name: secondHalfName, extraPrice: secondHalfItem?.halfPrice ?? 0 }],
+          selectedOptions: [{ name: secondHalfName, extraPrice: secondHalfItem?.grandePrice ?? 0 }],
         },
       ]
       customizationSummary = `Mitad ${firstHalfSelection} / Mitad ${secondHalfName}`
       finalBasePrice = 0
-      finalExtraPrice = (firstHalfItem?.halfPrice ?? 0) + (secondHalfItem?.halfPrice ?? 0)
+      finalExtraPrice = (firstHalfItem && secondHalfItem)
+        ? calculateHalfHalfPrice(
+            { name: firstHalfItem.name, variants: [{ name: 'Grande', price: firstHalfItem.grandePrice }], price: firstHalfItem.grandePrice },
+            { name: secondHalfItem.name, variants: [{ name: 'Grande', price: secondHalfItem.grandePrice }], price: secondHalfItem.grandePrice }
+          )
+        : 0
     } else {
       customizations = activeGroups
         .filter(g => (selections[g._id] ?? []).length > 0)

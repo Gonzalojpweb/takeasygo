@@ -61,7 +61,7 @@ const EMPTY_VARIANT: VariantForm = {
 }
 
 const EMPTY_ITEM = {
-  name: '', description: '', price: '', takeawayPrice: '', businessPrice: '', halfPrice: '', tags: '', isFeatured: false, imageUrl: '',
+  name: '', description: '', price: '', takeawayPrice: '', businessPrice: '', tags: '', isFeatured: false, imageUrl: '',
   isBusinessAvailable: false,
   suggestWith: [] as string[],
   customizationGroups: [] as CustomizationGroupForm[],
@@ -456,7 +456,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           price: toCents(parseFloat(newItem.price)),
           takeawayPrice: newItem.takeawayPrice ? toCents(parseFloat(newItem.takeawayPrice)) : undefined,
           businessPrice: newItem.businessPrice !== '' ? toCents(parseFloat(newItem.businessPrice)) : null,
-          halfPrice: newItem.halfPrice ? toCents(parseFloat(newItem.halfPrice)) : undefined,
           isBusinessAvailable: newItem.isBusinessAvailable,
           tags: parseTags(newItem.tags),
           isFeatured: newItem.isFeatured,
@@ -493,7 +492,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           price: toCents(parseFloat(editingItemData.price)),
           takeawayPrice: editingItemData.takeawayPrice ? toCents(parseFloat(editingItemData.takeawayPrice)) : undefined,
           businessPrice: editingItemData.businessPrice !== '' ? toCents(parseFloat(editingItemData.businessPrice)) : null,
-          halfPrice: editingItemData.halfPrice ? toCents(parseFloat(editingItemData.halfPrice)) : undefined,
           isBusinessAvailable: editingItemData.isBusinessAvailable,
           tags: parseTags(editingItemData.tags),
           isFeatured: editingItemData.isFeatured,
@@ -1562,7 +1560,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                                       price: toPesos(item.price).toString(),
                                                                       takeawayPrice: item.takeawayPrice != null ? toPesos(item.takeawayPrice).toString() : '',
                                                                       businessPrice: item.businessPrice != null ? toPesos(item.businessPrice).toString() : '',
-                                                                      halfPrice: item.halfPrice != null ? toPesos(item.halfPrice).toString() : '',
                                                                       tags: (item.tags || []).join(', '),
                                                                       isFeatured: item.isFeatured ?? false,
                                                                       imageUrl: item.imageUrl || '',
@@ -1613,7 +1610,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                               price: toCents(parseFloat(newItem.price)),
                                                               takeawayPrice: newItem.takeawayPrice ? toCents(parseFloat(newItem.takeawayPrice)) : undefined,
                                                               businessPrice: newItem.businessPrice !== '' ? toCents(parseFloat(newItem.businessPrice)) : null,
-                                                              halfPrice: newItem.halfPrice ? toCents(parseFloat(newItem.halfPrice)) : undefined,
                                                               isBusinessAvailable: newItem.isBusinessAvailable,
                                                               tags: parseTags(newItem.tags),
                                                               isFeatured: newItem.isFeatured,
@@ -1818,7 +1814,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                         price: toPesos(item.price).toString(),
                                                         takeawayPrice: item.takeawayPrice != null ? toPesos(item.takeawayPrice).toString() : '',
                                                         businessPrice: item.businessPrice != null ? toPesos(item.businessPrice).toString() : '',
-                                                        halfPrice: item.halfPrice != null ? toPesos(item.halfPrice).toString() : '',
                                                         tags: (item.tags || []).join(', '),
                                                         isFeatured: item.isFeatured ?? false,
                                                         imageUrl: item.imageUrl || '',
@@ -1851,7 +1846,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                   price: toPesos(item.price).toString(),
                                                   takeawayPrice: item.takeawayPrice != null ? toPesos(item.takeawayPrice).toString() : '',
                                                   businessPrice: item.businessPrice != null ? toPesos(item.businessPrice).toString() : '',
-                                                  halfPrice: item.halfPrice != null ? toPesos(item.halfPrice).toString() : '',
                                                   tags: (item.tags || []).join(', '),
                                                   isFeatured: item.isFeatured ?? false,
                                                   imageUrl: item.imageUrl || '',
@@ -2533,20 +2527,6 @@ function ItemForm({
                 />
               </div>
               <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">Si no tiene precio corporativo, no aparece en el menú Business</p>
-            </div>
-            <div>
-              <label className={labelCls}>Precio Mitad y mitad (Opcional)</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">$</span>
-                <input
-                  className={cn(inputCls, "pl-8 tabular-nums font-bold text-rose-600")}
-                  placeholder="Sin mitad y mitad"
-                  type="number"
-                  value={data.halfPrice}
-                  onChange={e => onChange({ ...data, halfPrice: e.target.value })}
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">Precio de cada mitad. Si se carga, este sabor aparece como opción para mitad y mitad.</p>
             </div>
           </div>
 
