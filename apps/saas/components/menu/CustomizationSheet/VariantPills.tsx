@@ -31,6 +31,7 @@ export default function VariantPills({ variants, selectedVariant, mode, primaryC
 
       <div className="grid grid-cols-2 gap-2">
         {variants.map((v) => {
+          const isMitadVariant = v.name.toLowerCase() === 'mitad y mitad'
           const variantPrice = mode === 'takeaway'
             ? (Number(v.takeawayPrice ?? v.price) || 0)
             : mode === 'business'
@@ -60,9 +61,11 @@ export default function VariantPills({ variants, selectedVariant, mode, primaryC
                 </div>
                 <span className="text-sm font-medium text-zinc-800 truncate">{v.name}</span>
               </div>
-              <span className="text-sm font-bold flex-shrink-0 ml-2" style={{ color: primaryColor }}>
-                ${toPesos(variantPrice).toLocaleString('es-AR')}
-              </span>
+              {!isMitadVariant && (
+                <span className="text-sm font-bold flex-shrink-0 ml-2" style={{ color: primaryColor }}>
+                  ${toPesos(variantPrice).toLocaleString('es-AR')}
+                </span>
+              )}
             </button>
           )
         })}
