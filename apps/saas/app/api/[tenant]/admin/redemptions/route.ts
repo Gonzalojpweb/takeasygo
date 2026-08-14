@@ -1,6 +1,8 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import StoreRedemption from '@/models/StoreRedemption'
+import StoreItem from '@/models/StoreItem'
+import LoyaltyMember from '@/models/LoyaltyMember'
 import Tenant from '@/models/Tenant'
 import { requireAdminRole } from '@/lib/apiAuth'
 import { escapeRegex } from '@takeasygo/business'

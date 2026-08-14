@@ -39,8 +39,11 @@ export async function GET(
 
     const tenantId = tenant._id
 
-    // Tenant-specific items
-    const tenantQuery: any = { scope: 'tenant', tenantId }
+    // Tenant-specific items (also handles legacy docs without scope field)
+    const tenantQuery: any = {
+      tenantId,
+      $or: [{ scope: 'tenant' }, { scope: { $exists: false } }],
+    }
 
     // Global items targeting this tenant (or all tenants)
     const globalQuery: any = {
