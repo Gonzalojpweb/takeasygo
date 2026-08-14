@@ -18,8 +18,6 @@ interface HalfAndHalfStepProps {
   textColor: string
   onToggleType: (type: 'Un sabor' | 'Mitad y mitad') => void
   onSelectSecondHalf: (name: string) => void
-  /** When true, skip the Tipo de pizza toggle (variant is already "Mitad y Mitad") */
-  skipToggle?: boolean
 }
 
 export default function HalfAndHalfStep({
@@ -32,34 +30,31 @@ export default function HalfAndHalfStep({
   textColor,
   onToggleType,
   onSelectSecondHalf,
-  skipToggle = false,
 }: HalfAndHalfStepProps) {
   return (
     <div>
-      {/* Toggle: Un sabor / Mitad y mitad — hidden when variant is already "Mitad y Mitad" */}
-      {!skipToggle && (
-        <div className="mb-4">
-          <span className="text-sm font-semibold text-zinc-900 mb-2 block">Tipo de pizza</span>
-          <div className="flex rounded-full bg-zinc-100 p-0.5">
-            {(['Un sabor', 'Mitad y mitad'] as const).map((label) => {
-              const isActive = halfTypeSelection === label
-              return (
-                <button
-                  key={label}
-                  onClick={() => onToggleType(label)}
-                  className="flex-1 py-2 rounded-full text-sm font-semibold transition-all"
-                  style={{
-                    backgroundColor: isActive ? primaryColor : 'transparent',
-                    color: isActive ? 'white' : '#71717a',
-                  }}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
+      {/* Toggle: Un sabor / Mitad y mitad */}
+      <div className="mb-4">
+        <span className="text-sm font-semibold text-zinc-900 mb-2 block">Tipo de pizza</span>
+        <div className="flex rounded-full bg-zinc-100 p-0.5">
+          {(['Un sabor', 'Mitad y mitad'] as const).map((label) => {
+            const isActive = halfTypeSelection === label
+            return (
+              <button
+                key={label}
+                onClick={() => onToggleType(label)}
+                className="flex-1 py-2 rounded-full text-sm font-semibold transition-all"
+                style={{
+                  backgroundColor: isActive ? primaryColor : 'transparent',
+                  color: isActive ? 'white' : '#71717a',
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
         </div>
-      )}
+      </div>
 
       {/* Mitad y mitad: two mini-steps */}
       {halfTypeSelection === 'Mitad y mitad' && (

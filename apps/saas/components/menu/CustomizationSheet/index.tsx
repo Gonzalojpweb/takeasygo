@@ -106,9 +106,8 @@ export default function CustomizationSheet({
 
   // ── Half-and-half (mitad y mitad) ──────────────────────────────────────────
   const isGrandeVariant = selectedVariant?.name?.toLowerCase() === 'grande'
-  const isMitadVariant = selectedVariant?.name?.toLowerCase() === 'mitad y mitad'
-  const halfAvailable = isHalfAndHalf && halfPriceItems.length >= 2 && (isGrandeVariant || isMitadVariant)
-  const halfTypeSelection = isMitadVariant ? 'Mitad y mitad' : (selections['__half_type']?.[0] ?? null)
+  const halfAvailable = isHalfAndHalf && halfPriceItems.length >= 2 && isGrandeVariant
+  const halfTypeSelection = selections['__half_type']?.[0] ?? null
   const isHalfMode = halfAvailable && halfTypeSelection === 'Mitad y mitad'
 
   const halfFirstItems: CustomizationOption[] = halfAvailable
@@ -122,19 +121,16 @@ export default function CustomizationSheet({
 
   const halfSyntheticGroups: CustomizationGroup[] = halfAvailable
     ? [
-        // Skip toggle when variant is already "Mitad y Mitad" — user chose it directly
-        ...(!isMitadVariant
-          ? [{
-              _id: '__half_type',
-              name: 'Tipo de pizza',
-              type: 'single' as const,
-              required: true,
-              options: [
-                { name: 'Un sabor', extraPrice: 0 },
-                { name: 'Mitad y mitad', extraPrice: 0 },
-              ],
-            }]
-          : []),
+        {
+          _id: '__half_type',
+          name: 'Tipo de pizza',
+          type: 'single',
+          required: true,
+          options: [
+            { name: 'Un sabor', extraPrice: 0 },
+            { name: 'Mitad y mitad', extraPrice: 0 },
+          ],
+        },
         ...(isHalfMode
           ? [
               {
@@ -491,7 +487,6 @@ export default function CustomizationSheet({
               textColor={textColor}
               onToggleType={handleToggleHalfType}
               onSelectSecondHalf={handleSelectSecondHalf}
-              skipToggle={isMitadVariant}
             />
           )}
 
