@@ -301,8 +301,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       { $sort: { revenue: -1 } },
     ]),
       // Desglose diario de comisión por transferencia — todos los planes
+    // Solo pedidos delivery: takeaway+transferencia no genera comisión de plataforma
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' }, 'payment.method': 'transfer' } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' }, 'payment.method': 'transfer', orderMode: 'delivery' } },
       { $group: {
         _id: { $dayOfMonth: { date: '$createdAt', timezone } },
         revenue: { $sum: '$total' },

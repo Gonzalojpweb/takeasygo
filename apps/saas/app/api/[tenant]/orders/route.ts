@@ -1167,7 +1167,7 @@ export async function POST(
 
     // ── Calcular pricing dinámico ────────────────────────────────────
     const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean() as any
-    const pricing = calculateFinalTotal(total, paymentMethod as any, tenant, platformConfig || {})
+    const pricing = calculateFinalTotal(total, paymentMethod as any, tenant, platformConfig || {}, undefined, body.mode)
 
     const order = await Order.create({
       tenantId: tenant._id,

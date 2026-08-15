@@ -10,6 +10,10 @@ export async function GET(
 ) {
   try {
     const { tenant: tenantSlug } = await params
+    // El mode del pedido determina si se cobra comisión de transferencia.
+    // Fallback intencional a 'takeaway': si el caller no manda el parámetro,
+    // el sistema falla al lado seguro (no cobra comisión de más).
+    const mode = _request.nextUrl.searchParams.get('mode') || 'takeaway'
     await connectDB()
 
     const [tenant, platformConfig] = await Promise.all([
@@ -64,8 +68,9 @@ export async function GET(
     }
 
     {
-      const trSurcharge = calculateFinalTotal(10000, 'transfer', tenant, platformConfig)
-      const trTotalFees = getTotalFeesForMethod('transfer', tenant, platformConfig)
+      // Transfer: se pasa el mode para que la comisión de plataforma solo aplique en delivery
+      const trSurcharge = calculateFinalTotal(10000, 'transfer', tenant, platformConfig, undefined, mode)
+      const trTotalFees = getTotalFeesForMethod('transfer', tenant, platformConfig, undefined, mode)
       methods.push({
         id: 'transfer',
         label: 'Transferencia',

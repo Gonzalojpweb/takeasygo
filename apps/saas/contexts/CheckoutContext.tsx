@@ -363,7 +363,10 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
       .catch(() => {})
 
     // Fetch payment methods + surcharges + transfer data
-    fetch(`/api/${tenantSlug}/payment-methods`)
+    // Se pasa el mode efectivo para que el precio de transferencia mostrado al cliente
+    // coincida exactamente con lo que el servidor va a calcular (comisión solo en delivery).
+    const effectiveMode = stateRef.current.deliveryMode ? 'delivery' : mode
+    fetch(`/api/${tenantSlug}/payment-methods?mode=${effectiveMode}`)
       .then(r => r.json())
       .then(data => {
         if (data?.error) {
@@ -390,7 +393,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
         }
       })
       .catch((err) => { console.error('payment-methods fetch error:', err) })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tenantSlug, state.deliveryMode, mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // QR promo from sessionStorage
   useEffect(() => {
