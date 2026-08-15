@@ -13,7 +13,8 @@ import { getLocationColor } from '@/lib/location-colors'
 import {
   ChevronDown, Plus, Pencil, Trash2, Check, X,
   Star, Upload, Camera, Settings2, Image as ImageIcon,
-  MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff, Clock, Sparkles, Building2
+  MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff, Clock, Sparkles, Building2,
+  Search
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -164,6 +165,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [editingSubcategoryName, setEditingSubcategoryName] = useState('')
   const [editingSubcategoryDescription, setEditingSubcategoryDescription] = useState('')
   const [showAddItemInSubcategory, setShowAddItemInSubcategory] = useState<string | null>(null)
+  const [globalSearch, setGlobalSearch] = useState('')
+  const expandedBeforeSearchRef = useRef<string[]>([])
 
   // Load optionImageRegistry from current menu
   useEffect(() => {
@@ -177,6 +180,31 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       setOptionImageRegistry({})
     }
   }, [menus, selectedLocation])
+
+  // Auto-expand categories when searching
+  useEffect(() => {
+    if (!globalSearch) return
+    const q = globalSearch.toLowerCase()
+    const matchingIds: string[] = []
+    for (const cat of localCategories) {
+      if (cat.name.toLowerCase().includes(q)) {
+        matchingIds.push(cat._id)
+        continue
+      }
+      const hasMatchingItem = (cat.items || []).some((item: any) =>
+        item.name.toLowerCase().includes(q) || (item.tags || []).some((t: string) => t.toLowerCase().includes(q))
+      )
+      const hasMatchingSubcatItem = (cat.subcategories || []).some((sub: any) =>
+        (sub.items || []).some((item: any) =>
+          item.name.toLowerCase().includes(q) || (item.tags || []).some((t: string) => t.toLowerCase().includes(q))
+        )
+      )
+      if (hasMatchingItem || hasMatchingSubcatItem) {
+        matchingIds.push(cat._id)
+      }
+    }
+    setExpandedCategories(matchingIds)
+  }, [globalSearch, localCategories])
 
   async function handleRegistryImageUpload(e: React.ChangeEvent<HTMLInputElement>, name: string) {
     const file = e.target.files?.[0]
@@ -847,6 +875,62 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
         </div>
       </div>
 
+      {/* Global Search */}
+      {currentMenu && (
+        <div className="relative">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Buscar producto, categoría o tag..."
+            value={globalSearch}
+            onChange={e => {
+              if (e.target.value === '' && globalSearch !== '') {
+                setExpandedCategories(expandedBeforeSearchRef.current)
+              }
+              setGlobalSearch(e.target.value)
+            }}
+            onFocus={() => {
+              if (globalSearch === '') {
+                expandedBeforeSearchRef.current = [...expandedCategories]
+              }
+            }}
+            className="w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-2xl pl-12 pr-12 py-3.5 outline-none shadow-sm transition-all"
+          />
+          {globalSearch && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setExpandedCategories(expandedBeforeSearchRef.current)
+                  setGlobalSearch('')
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs p-1"
+              >
+                ✕
+              </button>
+              <span className="absolute right-12 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest tabular-nums">
+                {(() => {
+                  const q = globalSearch.toLowerCase()
+                  let count = 0
+                  for (const cat of localCategories) {
+                    if (cat.name.toLowerCase().includes(q)) { count++; continue }
+                    for (const item of (cat.items || [])) {
+                      if (item.name.toLowerCase().includes(q) || (item.tags || []).some((t: string) => t.toLowerCase().includes(q))) count++
+                    }
+                    for (const sub of (cat.subcategories || [])) {
+                      for (const item of (sub.items || [])) {
+                        if (item.name.toLowerCase().includes(q) || (item.tags || []).some((t: string) => t.toLowerCase().includes(q))) count++
+                      }
+                    }
+                  }
+                  return count
+                })()} resultados
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Add Category Form */}
       <AnimatePresence>
         {showAddCategory && (
@@ -908,6 +992,21 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
             <div className="space-y-6">
               {localCategories.map((category: any) => {
                 const isExpanded = expandedCategories.includes(category._id)
+                const q = globalSearch.toLowerCase()
+                const isSearching = q.length > 0
+                const categoryMatches = isSearching && category.name.toLowerCase().includes(q)
+                const filterItem = (item: any) => {
+                  if (!isSearching) return true
+                  return item.name.toLowerCase().includes(q) || (item.tags || []).some((t: string) => t.toLowerCase().includes(q))
+                }
+                const filteredItems = isSearching ? (category.items || []).filter(filterItem) : category.items
+                const filteredSubcategories = isSearching
+                  ? (category.subcategories || []).map((sub: any) => ({
+                      ...sub,
+                      items: (sub.items || []).filter(filterItem),
+                    })).filter((sub: any) => sub.items.length > 0 || sub.name.toLowerCase().includes(q))
+                  : category.subcategories
+                if (isSearching && !categoryMatches && filteredItems.length === 0 && filteredSubcategories.length === 0) return null
                 return (
                   <SortableCategoryWrapper key={category._id} id={category._id}>
                     <Card
@@ -1386,7 +1485,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                           <div className="mb-6 space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70">
-                                Subcategorías {((category.subcategories || []).length > 0) && `(${(category.subcategories || []).length})`}
+                                Subcategorías {((filteredSubcategories || []).length > 0) && `(${(filteredSubcategories || []).length})`}
                               </h4>
                               <Button
                                 variant="ghost"
@@ -1430,8 +1529,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 
                               {/* Subcategory list */}
                               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEndSubCategory(category._id, e)}>
-                                <SortableContext items={(category.subcategories || []).map((s: any) => s._id)} strategy={verticalListSortingStrategy}>
-                                  {(category.subcategories || [])
+                                <SortableContext items={(filteredSubcategories || []).map((s: any) => s._id)} strategy={verticalListSortingStrategy}>
+                                  {(filteredSubcategories || [])
                                     .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
                                     .map((subcategory: any) => {
                                       const isSubExpanded = (expandedSubcategories[category._id] || []).includes(subcategory._id)
@@ -1658,15 +1757,17 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                             </div>
 
                           <div className="space-y-4 mb-8">
-                            {category.items.length === 0 && !showAddItem && (category.subcategories || []).length === 0 && (
+                            {filteredItems.length === 0 && !showAddItem && filteredSubcategories.length === 0 && (
                               <div className="py-12 text-center bg-muted/20 border-2 border-dashed border-border/40 rounded-3xl">
-                                <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest opacity-60">No hay items en esta categoría</p>
+                                <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest opacity-60">
+                                  {isSearching ? 'Sin resultados en esta categoría' : 'No hay items en esta categoría'}
+                                </p>
                               </div>
                             )}
 
                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEndItem(category._id, e)}>
-                              <SortableContext items={(category.items || []).map((i: any) => i._id)} strategy={verticalListSortingStrategy}>
-                                {category.items.map((item: any) => (
+                              <SortableContext items={(filteredItems || []).map((i: any) => i._id)} strategy={verticalListSortingStrategy}>
+                                {filteredItems.map((item: any) => (
                                   <SortableItemWrapper key={item._id} id={item._id} isEditing={editingItem === item._id}>
                                     <motion.div
                                       layout
