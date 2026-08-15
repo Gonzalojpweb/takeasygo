@@ -953,7 +953,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       </header>
 
       {/* ── Main menu content ── */}
-      <main className="max-w-2xl mx-auto px-4 pt-6 pb-10">
+      <main className="max-w-2xl mx-auto px-4 pt-6 pb-28">
 
         {likesOrderId && (
           <div className="mb-6 p-4 rounded-2xl text-center" style={{ backgroundColor: primary + '12' }}>
@@ -1560,13 +1560,20 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         </div>
       </footer>
 
-      {/* ── Fixed bottom cart bar ── */}
+      {/* ── Bottom cart bar (anchored, not floating) ── */}
       {totalItems > 0 && !showCart && !likesOrderId && !customizingItem && upsellSuggestions.length === 0 && !promoSlotSelection && !translating && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-6 pt-2">
+        <div className="fixed bottom-0 left-0 right-0 z-[60]">
           <button
             onClick={goToCheckout}
-            className="w-full max-w-2xl mx-auto flex items-center justify-between px-5 py-4 rounded-2xl font-bold text-base shadow-2xl"
-            style={{ backgroundColor: primary, color: bg, display: 'flex' }}>
+            className="w-full max-w-2xl mx-auto flex items-center justify-between px-5 py-4 font-bold text-base"
+            style={{
+              backgroundColor: primary,
+              color: bg,
+              borderRadius: '16px 16px 0 0',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent',
+            }}>
             <div className="flex items-center gap-2">
               <span className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-black"
                 style={{ backgroundColor: bg + '30' }}>
