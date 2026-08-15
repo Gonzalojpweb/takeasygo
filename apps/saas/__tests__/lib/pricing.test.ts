@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calculateFinalTotal } from '@/lib/pricing'
+import { calculateFinalTotal, getTotalFeesForMethod } from '@/lib/pricing'
 
 const platformConfig = {
   platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 0 },
@@ -7,29 +7,40 @@ const platformConfig = {
 
 describe('calculateFinalTotal - transferencia', () => {
   const tenant = {
-    paymentSurcharges: { transfer: { feePercent: 0 } },
-    transfer: { commissionPercent: 1.5 },
+    paymentSurcharges: { transfer: { feePercent: 2 } }, // Incluso si existiera feePercent en paymentSurcharges, transferencia no cobra recargo tenant
+    transfer: { commissionPercent: 1.5 }, // 1.5% comisión de plataforma TakeasyGO
   }
 
-  it('1.5% comisión → markup simple (base × 1.015), no división inversa', () => {
-    const r = calculateFinalTotal(70000, 'transfer', tenant, platformConfig)
-    expect(r.finalTotal).toBe(71050)
+  it('Transferencia + Delivery → cobra únicamente la comisión de transferencia (1.5%)', () => {
+    const r = calculateFinalTotal(70000, 'transfer', tenant, platformConfig, undefined, 'delivery')
+    expect(r.finalTotal).toBe(71050) // 70000 * 1.015
     expect(r.surchargeAmount).toBe(1050)
     expect(r.surchargePercent).toBe(1.5)
+    expect(r.platformFeeAmount).toBe(1050) // 1.5% de 70000
   })
 
-  it('la comisión registrada es 1.5% del precio de carta (no del final)', () => {
+  it('Transferencia + Takeaway → NO cobra NINGÚN monto extra (0% recargo, 0% comisión = Precio de Carta)', () => {
+    const r = calculateFinalTotal(70000, 'transfer', tenant, platformConfig, undefined, 'takeaway')
+    expect(r.finalTotal).toBe(70000) // Precio de carta puro
+    expect(r.surchargeAmount).toBe(0)
+    expect(r.surchargePercent).toBe(0)
+    expect(r.platformFeeAmount).toBe(0)
+  })
+
+  it('Transferencia + Sin mode (fallback seguro) → NO cobra NINGÚN monto extra (0%)', () => {
     const r = calculateFinalTotal(70000, 'transfer', tenant, platformConfig)
-    expect(r.platformFeeAmount).toBe(1050)
-  })
-
-  it('0% comisión → sin recargo', () => {
-    const t = { paymentSurcharges: { transfer: { feePercent: 0 } }, transfer: { commissionPercent: 0 } }
-    const r = calculateFinalTotal(70000, 'transfer', t, platformConfig)
     expect(r.finalTotal).toBe(70000)
     expect(r.surchargeAmount).toBe(0)
     expect(r.surchargePercent).toBe(0)
     expect(r.platformFeeAmount).toBe(0)
+  })
+
+  it('getTotalFeesForMethod para transfer devuelve 0 en takeaway y commissionPercent en delivery', () => {
+    const deliveryFees = getTotalFeesForMethod('transfer', tenant, platformConfig, undefined, 'delivery')
+    const takeawayFees = getTotalFeesForMethod('transfer', tenant, platformConfig, undefined, 'takeaway')
+
+    expect(deliveryFees).toBe(0.015) // 1.5%
+    expect(takeawayFees).toBe(0) // 0%
   })
 })
 
@@ -40,11 +51,13 @@ describe('calculateFinalTotal - mercadopago (sin cambios)', () => {
   }
   const pc = { platformFees: { takeasygoCommissionPercent: 1 } }
 
-  it('MP usa división inversa (fee sobre el final, no markup simple)', () => {
-    const r = calculateFinalTotal(10000, 'mercadopago', tenant, pc)
-    // 10% recargo + 1% comisión = 11% total → 10000 / 0.89 = 11235.95 → ceil 11236
-    expect(r.finalTotal).toBe(11236)
-    // el markup sobre la base es mayor al fee raw
-    expect(r.surchargePercent).toBeGreaterThan(11)
+  it('MP cobra comisión tanto en takeaway como en delivery', () => {
+    const rTakeaway = calculateFinalTotal(10000, 'mercadopago', tenant, pc, undefined, 'takeaway')
+    const rDelivery = calculateFinalTotal(10000, 'mercadopago', tenant, pc, undefined, 'delivery')
+
+    expect(rTakeaway.platformFeeAmount).toBeGreaterThan(0)
+    expect(rDelivery.platformFeeAmount).toBeGreaterThan(0)
+    expect(rTakeaway.finalTotal).toBe(rDelivery.finalTotal)
   })
 })
+

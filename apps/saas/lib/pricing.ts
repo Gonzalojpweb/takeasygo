@@ -36,11 +36,15 @@ function getPlatformFeePercent(
   paymentMethod: PaymentMethod,
   tenant: TenantFees,
   platformConfig: PlatformFees,
-  overridePlatformFeePercent?: number
+  overridePlatformFeePercent?: number,
+  orderMode?: string
 ): number {
   if (overridePlatformFeePercent != null) return overridePlatformFeePercent
 
   if (paymentMethod === 'transfer') {
+    // La comisión de plataforma por transferencia solo aplica a pedidos de delivery.
+    // Si orderMode no llega (bug de caller), el sistema falla al lado seguro: no cobra.
+    if (orderMode !== 'delivery') return 0
     return tenant.transfer?.commissionPercent != null
       ? tenant.transfer.commissionPercent!
       : (platformConfig.platformFees?.takeasygoTransferCommissionPercent ?? 0)
@@ -55,10 +59,17 @@ export function getTotalFeesForMethod(
   paymentMethod: PaymentMethod,
   tenant: TenantFees,
   platformConfig: PlatformFees,
-  overridePlatformFeePercent?: number
+  overridePlatformFeePercent?: number,
+  orderMode?: string
 ): number {
+  if (paymentMethod === 'transfer') {
+    if (orderMode !== 'delivery') return 0
+    const platformFeePercent = getPlatformFeePercent(paymentMethod, tenant, platformConfig, overridePlatformFeePercent, orderMode)
+    return platformFeePercent / 100
+  }
+
   const tenantFeePercent = tenant.paymentSurcharges?.[paymentMethod]?.feePercent ?? 0
-  const platformFeePercent = getPlatformFeePercent(paymentMethod, tenant, platformConfig, overridePlatformFeePercent)
+  const platformFeePercent = getPlatformFeePercent(paymentMethod, tenant, platformConfig, overridePlatformFeePercent, orderMode)
 
   const totalFees = tenantFeePercent / 100 + platformFeePercent / 100
   return totalFees >= 1 ? 0 : totalFees
@@ -70,9 +81,11 @@ export function calculateFinalTotal(
   tenant: TenantFees,
   platformConfig: PlatformFees,
   /** Optional override for the platform commission percent (e.g. from tenant.mpOAuth.commissionPercent or platformConfig.mpOAuth.platformFeePercent) */
-  overridePlatformFeePercent?: number
+  overridePlatformFeePercent?: number,
+  /** Order mode (takeaway/delivery/etc). Transfer commission only applies to delivery orders. */
+  orderMode?: string
 ): PricingResult {
-  const totalFees = getTotalFeesForMethod(paymentMethod, tenant, platformConfig, overridePlatformFeePercent)
+  const totalFees = getTotalFeesForMethod(paymentMethod, tenant, platformConfig, overridePlatformFeePercent, orderMode)
   if (totalFees === 0) {
     return {
       baseTotal,
@@ -83,7 +96,7 @@ export function calculateFinalTotal(
     }
   }
 
-  const platformFeePercent = getPlatformFeePercent(paymentMethod, tenant, platformConfig, overridePlatformFeePercent)
+  const platformFeePercent = getPlatformFeePercent(paymentMethod, tenant, platformConfig, overridePlatformFeePercent, orderMode)
   const platformFee = platformFeePercent / 100
 
   // Transferencia: la comisión se cobra al restaurante (no vía split MP), así que
