@@ -181,31 +181,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }, [menus, selectedLocation])
 
-  // Auto-expand categories when searching
-  useEffect(() => {
-    if (!globalSearch) return
-    const q = globalSearch.toLowerCase()
-    const matchingIds: string[] = []
-    for (const cat of localCategories) {
-      if (cat.name.toLowerCase().includes(q)) {
-        matchingIds.push(cat._id)
-        continue
-      }
-      const hasMatchingItem = (cat.items || []).some((item: any) =>
-        item.name.toLowerCase().includes(q) || (item.tags || []).some((t: string) => t.toLowerCase().includes(q))
-      )
-      const hasMatchingSubcatItem = (cat.subcategories || []).some((sub: any) =>
-        (sub.items || []).some((item: any) =>
-          item.name.toLowerCase().includes(q) || (item.tags || []).some((t: string) => t.toLowerCase().includes(q))
-        )
-      )
-      if (hasMatchingItem || hasMatchingSubcatItem) {
-        matchingIds.push(cat._id)
-      }
-    }
-    setExpandedCategories(matchingIds)
-  }, [globalSearch, localCategories])
-
   async function handleRegistryImageUpload(e: React.ChangeEvent<HTMLInputElement>, name: string) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -281,6 +256,31 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       setLocalCategories([])
     }
   }, [currentMenu])
+
+  // Auto-expand categories when searching
+  useEffect(() => {
+    if (!globalSearch) return
+    const q = globalSearch.toLowerCase()
+    const matchingIds: string[] = []
+    for (const cat of localCategories) {
+      if (cat.name.toLowerCase().includes(q)) {
+        matchingIds.push(cat._id)
+        continue
+      }
+      const hasMatchingItem = (cat.items || []).some((item: any) =>
+        item.name.toLowerCase().includes(q) || (item.tags || []).some((t: string) => t.toLowerCase().includes(q))
+      )
+      const hasMatchingSubcatItem = (cat.subcategories || []).some((sub: any) =>
+        (sub.items || []).some((item: any) =>
+          item.name.toLowerCase().includes(q) || (item.tags || []).some((t: string) => t.toLowerCase().includes(q))
+        )
+      )
+      if (hasMatchingItem || hasMatchingSubcatItem) {
+        matchingIds.push(cat._id)
+      }
+    }
+    setExpandedCategories(matchingIds)
+  }, [globalSearch, localCategories])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
