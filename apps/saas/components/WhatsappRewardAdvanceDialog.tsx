@@ -136,9 +136,15 @@ export default function WhatsappRewardAdvanceDialog({
     fetch(baseUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId: member._id, tenantSlug }),
+      body: JSON.stringify({ memberId: String(member._id), tenantSlug }),
     })
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await res.json()
+        if (!res.ok) {
+          throw new Error(data.error || data.reason || 'Error al registrar intento')
+        }
+        return data
+      })
       .then((data) => {
         if (data.ok === false) {
           toast.warning(
@@ -200,7 +206,7 @@ export default function WhatsappRewardAdvanceDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) handleClose() }}>
-      <DialogContent className="max-w-lg rounded-[2rem] max-h-[85vh] flex flex-col">
+      <DialogContent aria-label="WhatsApp Club" className="max-w-lg rounded-[2rem] max-h-[85vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
