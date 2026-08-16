@@ -1,17 +1,13 @@
-import { connectDB } from '@/lib/mongoose'
-import Tenant from '@/models/Tenant'
-import Order from '@/models/Order'
-import CommissionSettlement from '@/models/CommissionSettlement'
-import { headers } from 'next/headers'
-import { notFound, redirect } from 'next/navigation'
-import { requireSuperAdmin } from '@/lib/apiAuth'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
-  DollarSign, Calendar, Search, Download, RefreshCw, CheckCircle2, Clock,
-  Building2, Filter, ChevronDown, ChevronUp, AlertCircle
+  DollarSign, Calendar, Search, CheckCircle2, Clock,
+  Building2, Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
@@ -43,100 +39,98 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-export default async function SuperAdminComisionesPage() {
-  const authError = await requireSuperAdmin()
-  if (authError) return redirect('/login')
+interface TenantResult {
+  tenantId: string
+  name: string
+  slug: string
+  total: number
+  pending: number
+  settled: number
+  breakdown: { transfer: number; mercadopago: number; kripton: number }
+  settledAmount: number
+}
 
-  const headersList = await headers()
-  const searchParams = headersList.get('x-search-params') || ''
-  const params = new URLSearchParams(searchParams)
+interface Settlement {
+  _id: string
+  tenantId: string
+  from: string
+  to: string
+  amountCollected: number
+  collectedAt: string
+  collectedBy: string
+  notes: string
+  status: string
+}
 
+interface TenantInfo {
+  _id: string
+  name: string
+  slug: string
+}
+
+interface ApiResponse {
+  tenantResults: TenantResult[]
+  settlements: Settlement[]
+  tenants: TenantInfo[]
+  summary: { grandTotal: number; grandSettled: number; grandPending: number }
+  error?: string
+}
+
+export default function SuperAdminComisionesPage() {
   const defaults = getDefaultDates()
-  const from = params.get('from') || defaults.from
-  const to = params.get('to') || defaults.to
+  const [from, setFrom] = useState(defaults.from)
+  const [to, setTo] = useState(defaults.to)
+  const [data, setData] = useState<ApiResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  await connectDB()
+  useEffect(() => {
+    async function fetchComisiones() {
+      setLoading(true)
+      setError(null)
+      try {
+        const params = new URLSearchParams({ from, to })
+        const res = await fetch(`/api/superadmin/comisiones?${params}`)
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || 'Error al cargar comisiones')
+        setData(json)
+      } catch (err: any) {
+        setError(err.message || 'Error al cargar comisiones')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchComisiones()
+  }, [from, to])
 
-  const tenants = await Tenant.find({ isActive: true, status: 'active' }).select('name slug').lean()
+  const tenantResults = data?.tenantResults || []
+  const settlements = data?.settlements || []
+  const tenants = data?.tenants || []
+  const grandTotal = data?.summary.grandTotal || 0
+  const grandSettled = data?.summary.grandSettled || 0
+  const grandPending = data?.summary.grandPending || 0
 
-  // Get settlements in range
-  const fromDate = new Date(from)
-  const toDate = new Date(to)
-  toDate.setHours(23, 59, 59, 999)
-
-  const settlements = await CommissionSettlement.find({
-    from: { $lte: toDate },
-    to: { $gte: fromDate },
-  }).lean()
-
-  const settlementMap = new Map<string, { settled: number; settlementIds: string[] }>()
-  for (const s of settlements) {
-    const key = s.tenantId.toString()
-    const existing = settlementMap.get(key) || { settled: 0, settlementIds: [] }
-    existing.settled += s.amountCollected
-    existing.settlementIds.push(s._id.toString())
-    settlementMap.set(key, existing)
+  if (loading && !data) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+      </div>
+    )
   }
 
-  const tenantResults = await Promise.all(
-    tenants.map(async (tenant) => {
-      const agg = await Order.aggregate([
-        {
-          $match: {
-            tenantId: tenant._id,
-            deletedAt: null,
-            status: { $ne: 'cancelled' },
-            'payment.status': 'approved',
-            createdAt: { $gte: fromDate, $lte: toDate },
-          },
-        },
-        {
-          $group: {
-            _id: '$payment.method',
-            total: { $sum: '$payment.platformFeeAmount' },
-            count: { $sum: 1 },
-          },
-        },
-      ])
-
-      let total = 0
-      let transfer = 0
-      let mercadopago = 0
-      let kripton = 0
-
-      for (const a of agg) {
-        total += a.total
-        if (a._id === 'transfer') transfer = a.total
-        if (a._id === 'mercadopago') mercadopago = a.total
-        if (a._id === 'kripton') kripton = a.total
-      }
-
-      const settled = settlementMap.get(tenant._id.toString())?.settled || 0
-      const pending = total - settled
-
-      return {
-        tenantId: tenant._id.toString(),
-        name: tenant.name,
-        slug: tenant.slug,
-        total: total,
-        pending: pending,
-        settled: settled,
-        breakdown: {
-          transfer,
-          mercadopago,
-          kripton,
-        },
-        settledAmount: settled,
-      }
-    })
-  )
-
-  // Sort by total descending
-  tenantResults.sort((a, b) => b.total - a.total)
-
-  const grandTotal = tenantResults.reduce((s, t) => s + t.total, 0)
-  const grandSettled = tenantResults.reduce((s, t) => s + t.settled, 0)
-  const grandPending = tenantResults.reduce((s, t) => s + t.pending, 0)
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold text-foreground">Comisiones por Tenant</h1>
+        <Card className="rounded-2xl border shadow-sm p-12 text-center">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" className="mt-4" onClick={() => setFrom(from)}>
+            Reintentar
+          </Button>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -153,22 +147,14 @@ export default async function SuperAdminComisionesPage() {
             <Input
               type="date"
               value={from}
-              onChange={e => {
-                const url = new URL(window.location.href)
-                url.searchParams.set('from', e.target.value)
-                window.location.href = url.toString()
-              }}
+              onChange={e => setFrom(e.target.value)}
               className="w-36 h-9 text-sm"
             />
             <span className="text-xs text-muted-foreground">→</span>
             <Input
               type="date"
               value={to}
-              onChange={e => {
-                const url = new URL(window.location.href)
-                url.searchParams.set('to', e.target.value)
-                window.location.href = url.toString()
-              }}
+              onChange={e => setTo(e.target.value)}
               className="w-36 h-9 text-sm"
             />
           </div>
@@ -264,7 +250,6 @@ export default async function SuperAdminComisionesPage() {
                             size="icon"
                             className="h-7 w-7"
                             onClick={() => {
-                              // TODO: Open settlement detail modal
                               alert(`Ver detalle de saldos para ${tenant.name}`)
                             }}
                           >
@@ -313,14 +298,14 @@ export default async function SuperAdminComisionesPage() {
                   settlements
                     .sort((a, b) => new Date(b.collectedAt).getTime() - new Date(a.collectedAt).getTime())
                     .map((s) => {
-                      const tenant = tenants.find((t) => t._id.toString() === s.tenantId.toString())
+                      const tenant = tenants.find((t) => t._id === s.tenantId)
                       return (
-                        <tr key={s._id.toString()} className="hover:bg-muted/40 transition-colors">
+                        <tr key={s._id} className="hover:bg-muted/40 transition-colors">
                           <td className="px-5 py-4 text-sm font-medium">
                             {format(new Date(s.from), 'dd/MM/yyyy', { locale: es })} –{' '}
                             {format(new Date(s.to), 'dd/MM/yyyy', { locale: es })}
                           </td>
-                          <td className="px-5 py-4 text-sm font-medium">{tenant?.name || s.tenantId.toString()}</td>
+                          <td className="px-5 py-4 text-sm font-medium">{tenant?.name || s.tenantId}</td>
                           <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(s.amountCollected)}</td>
                           <td className="px-5 py-4 text-sm">{s.collectedBy}</td>
                           <td className="px-5 py-4 text-sm text-muted-foreground">
