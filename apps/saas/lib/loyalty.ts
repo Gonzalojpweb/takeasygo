@@ -228,6 +228,23 @@ export async function processRewardDeduction(
 
   await member.save({ session })
 
+  // ─── Atribución TGO APP ─────────────────────────────────────────────
+  // Si el miembro usó reward advance y el último contacto fue del superadmin,
+  // marcar la orden como generada por TGO. Resetear el campo para que la
+  // atribución se "consume" — la próxima vez que canjee sin contacto nuevo,
+  // no se hereda una atribución vieja.
+  if (isAdvance && member.lastRewardAdvanceAttemptedBy === 'superadmin') {
+    await Order.updateOne(
+      { _id: order._id },
+      { $set: { source: 'tgo-app' } }
+    ).session(session || null)
+    await LoyaltyMember.updateOne(
+      { _id: member._id },
+      { $set: { lastRewardAdvanceAttemptedBy: null } }
+    ).session(session || null)
+  }
+  // ──────────────────────────────────────────────────────────────────────
+
   order.rewardDeductionProcessed = true
 
   if (member.wallet?.googleObjectId) {

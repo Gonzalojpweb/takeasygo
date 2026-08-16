@@ -44,8 +44,10 @@ export interface ILoyaltyMember extends Document {
     sosUsed: number // Deuda acumulada actual (cuántos puntos debe en total)
   }
 
-  /** Última vez que el admin intentó contactar por WhatsApp Reward Advance */
+  /** Última vez que se intentó contactar por WhatsApp Reward Advance */
   lastRewardAdvanceAttemptedAt?: Date | null
+  /** Quién disparó el último intento (para atribución de ventas TGO APP) */
+  lastRewardAdvanceAttemptedBy?: 'admin' | 'superadmin' | null
 
   // Estadísticas de Store (canjes de puntos por artículos)
   store: {
@@ -176,6 +178,12 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
 
     lastRewardAdvanceAttemptedAt: {
       type:    Date,
+      default: null,
+    },
+
+    lastRewardAdvanceAttemptedBy: {
+      type:    String,
+      enum:    ['admin', 'superadmin'],
       default: null,
     },
 

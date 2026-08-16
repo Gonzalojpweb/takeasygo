@@ -97,6 +97,7 @@ export interface ITenant extends Document {
   features: {
     reservations: boolean
     crm: { enabled: boolean }
+    tgoGrowthPushEnabled: boolean
   }
   business: {
     enabled: boolean
@@ -437,6 +438,7 @@ const TenantSchema = new Schema<ITenant>(
     features: {
       reservations: { type: Boolean, default: false },
       crm: { enabled: { type: Boolean, default: false } },
+      tgoGrowthPushEnabled: { type: Boolean, default: false },
     },
     business: {
       enabled: { type: Boolean, default: false },
