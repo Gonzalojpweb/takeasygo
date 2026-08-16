@@ -182,7 +182,7 @@ export async function PUT(
     const now = new Date()
     await LoyaltyMember.updateOne(
       { _id: memberId, tenantId },
-      { $set: { lastRewardAdvanceAttemptedAt: now } }
+      { $set: { lastRewardAdvanceAttemptedAt: now, lastRewardAdvanceAttemptedBy: 'admin' } }
     )
 
     return NextResponse.json({ ok: true, lastAttemptedAt: now })
