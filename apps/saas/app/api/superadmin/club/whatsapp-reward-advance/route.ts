@@ -223,7 +223,7 @@ export async function PUT(request: NextRequest) {
     // Marcar intento
     const now = new Date()
     await LoyaltyMember.updateOne(
-      { _id: memberId, tenantId },
+      { _id: oid, tenantId },
       { $set: { lastRewardAdvanceAttemptedAt: now, lastRewardAdvanceAttemptedBy: 'superadmin' } }
     )
 
