@@ -179,11 +179,11 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [sosMembers, setSosMembers] = useState<any[]>([])
   const [sosLoading, setSosLoading] = useState(false)
   const [sosMessage, setSosMessage] = useState('')
-  const [sosSending, setSosSending] = useState(false)
-  const [sosCurrentIndex, setSosCurrentIndex] = useState(0)
   const [sosSelectedIds, setSosSelectedIds] = useState<Set<string>>(new Set())
   const [sosResult, setSosResult] = useState<{ sent: number; skipped: number; failed: number } | null>(null)
   const [sosSendingActive, setSosSendingActive] = useState(false)
+  const [sosBulkQueue, setSosBulkQueue] = useState<any[]>([])
+  const [sosBulkIndex, setSosBulkIndex] = useState(0)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [sosClubName, setSosClubName] = useState('')
   const [sosLimit, setSosLimit] = useState(0)
@@ -234,81 +234,93 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  const handleSendSingle = async (member: any) => {
+  const handleSendSingle = (member: any, opts?: { advanceBulk?: boolean }) => {
     const msg = buildMemberMessage(member)
     const link = buildWhatsAppLink(member.phone, member.name, msg)
     if (!link) {
       toast.error('Teléfono inválido')
+      if (opts?.advanceBulk) {
+        bulkAccRef.current.failed++
+        handleBulkNext()
+      }
       return
     }
-    try {
-      const res = await fetch(`/api/${tenantSlug}/club/whatsapp-reward-advance`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId: member._id }),
+
+    // ✅ window.open() síncrono — dentro del handler de click, antes de cualquier await
+    window.open(link, '_blank')
+
+    // PUT fire-and-forget — no bloquea la apertura
+    fetch(`/api/${tenantSlug}/club/whatsapp-reward-advance`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId: member._id }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok === false) {
+          toast.warning(
+            `${member.name} ya no es elegible. Si enviaste el mensaje, avisale que fue un error.`
+          )
+          setSosMembers((prev) => prev.filter((m) => m._id !== member._id))
+          if (opts?.advanceBulk) {
+            bulkAccRef.current.skipped++
+            handleBulkNext()
+          }
+          return
+        }
+        setSosMembers((prev) =>
+          prev.map((m) =>
+            m._id === member._id
+              ? { ...m, lastAttemptedAt: data.lastAttemptedAt }
+              : m
+          )
+        )
+        if (opts?.advanceBulk) {
+          bulkAccRef.current.sent++
+          handleBulkNext()
+        }
       })
-      const data = await res.json()
-      if (data.ok === false) {
-        toast.warning(data.reason || 'Ya no es elegible')
-        setSosMembers(prev => prev.filter(m => m._id !== member._id))
-        return
-      }
-      window.open(link, '_blank')
-      setSosMembers(prev =>
-        prev.map(m => m._id === member._id ? { ...m, lastAttemptedAt: data.lastAttemptedAt } : m)
-      )
-      toast.success(`Mensaje enviado a ${member.name}`)
-    } catch {
-      toast.error('Error al registrar intento')
-    }
+      .catch(() => {
+        toast.error('Error al registrar intento')
+        if (opts?.advanceBulk) {
+          bulkAccRef.current.failed++
+          handleBulkNext()
+        }
+      })
   }
 
   const handleStartBulkSend = () => {
-    const selected = sosMembers.filter(m => sosSelectedIds.has(m._id))
+    const selected = sosMembers.filter((m) => sosSelectedIds.has(m._id))
     if (selected.length === 0) {
       toast.error('Seleccioná al menos un miembro')
       return
     }
+    bulkAccRef.current = { sent: 0, skipped: 0, failed: 0 }
+    bulkQueueLengthRef.current = selected.length
+    setSosBulkQueue(selected)
+    setSosBulkIndex(0)
     setSosSendingActive(true)
-    setSosCurrentIndex(0)
     setSosResult(null)
-    handleSendFromBulk(selected, 0, { sent: 0, skipped: 0, failed: 0 })
+    // Abrir WhatsApp para el primer miembro inmediatamente
+    handleSendSingle(selected[0], { advanceBulk: true })
   }
 
-  const handleSendFromBulk = async (members: any[], index: number, acc: { sent: number; skipped: number; failed: number }) => {
-    if (index >= members.length) {
-      setSosResult(acc)
-      setSosSendingActive(false)
-      return
-    }
-    setSosCurrentIndex(index)
-    const member = members[index]
-    const msg = buildMemberMessage(member)
-    const link = buildWhatsAppLink(member.phone, member.name, msg)
-    if (!link) {
-      handleSendFromBulk(members, index + 1, { ...acc, failed: acc.failed + 1 })
-      return
-    }
-    try {
-      const res = await fetch(`/api/${tenantSlug}/club/whatsapp-reward-advance`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId: member._id }),
-      })
-      const data = await res.json()
-      if (data.ok === false) {
-        setSosMembers(prev => prev.filter(m => m._id !== member._id))
-        handleSendFromBulk(members, index + 1, { ...acc, skipped: acc.skipped + 1 })
-        return
+  const bulkAccRef = useRef({ sent: 0, skipped: 0, failed: 0 })
+  const bulkQueueLengthRef = useRef(0)
+
+  const handleBulkNext = () => {
+    setSosBulkIndex((prev) => {
+      const next = prev + 1
+      if (next >= bulkQueueLengthRef.current) {
+        // Cola agotada — limpiar después del render
+        setTimeout(() => {
+          setSosSendingActive(false)
+          setSosBulkQueue([])
+          setSosResult({ ...bulkAccRef.current })
+        }, 0)
       }
-      window.open(link, '_blank')
-      setSosMembers(prev =>
-        prev.map(m => m._id === member._id ? { ...m, lastAttemptedAt: data.lastAttemptedAt } : m)
-      )
-      handleSendFromBulk(members, index + 1, { ...acc, sent: acc.sent + 1 })
-    } catch {
-      handleSendFromBulk(members, index + 1, { ...acc, failed: acc.failed + 1 })
-    }
+      return next
+    })
   }
 
   const fetchMembers = useCallback(async () => {
@@ -1390,7 +1402,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
 
       {/* ── WhatsApp Reward Advance Dialog ─────────────────────────── */}
       {sosDialog && (
-        <Dialog open onOpenChange={(open) => { if (!open) { setSosDialog(false); setSosSendingActive(false); setSosResult(null) } }}>
+        <Dialog open onOpenChange={(open) => { if (!open) { setSosDialog(false); setSosSendingActive(false); setSosBulkQueue([]); setSosBulkIndex(0); bulkQueueLengthRef.current = 0; setSosResult(null) } }}>
           <DialogContent className="max-w-lg rounded-[2rem] max-h-[85vh] flex flex-col">
             <DialogHeader>
               <div className="flex items-center justify-between">
@@ -1398,7 +1410,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                   <MessageCircle size={18} className="text-emerald-500" />
                   Reward Advance — WhatsApp
                 </DialogTitle>
-                <Button variant="ghost" size="icon" onClick={() => { setSosDialog(false); setSosSendingActive(false); setSosResult(null) }} className="rounded-xl h-8 w-8">
+                <Button variant="ghost" size="icon" onClick={() => { setSosDialog(false); setSosSendingActive(false); setSosBulkQueue([]); setSosBulkIndex(0); bulkQueueLengthRef.current = 0; setSosResult(null) }} className="rounded-xl h-8 w-8">
                   <X size={16} />
                 </Button>
               </div>
@@ -1445,6 +1457,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                               return next
                             })
                           }}
+                          disabled={sosSendingActive}
                           className="h-4 w-4 rounded border-border"
                         />
                         <div className="flex-1 min-w-0">
@@ -1501,28 +1514,50 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
 
                 {/* Footer actions */}
                 <div className="flex items-center gap-2 pt-2 border-t border-border/60">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSosSelectedIds(new Set(sosMembers.map(m => m._id)))
-                    }}
-                    className="rounded-xl h-9 text-xs font-bold"
-                  >
-                    Seleccionar todos
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleStartBulkSend}
-                    disabled={sosSendingActive || sosSelectedIds.size === 0}
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl h-9 text-xs"
-                  >
-                    {sosSendingActive ? (
-                      <><Loader2 className="animate-spin h-4 w-4 mr-2" /> Enviando {sosCurrentIndex + 1}/{sosMembers.filter(m => sosSelectedIds.has(m._id)).length}...</>
-                    ) : (
-                      <><Send size={14} className="mr-2" /> Iniciar envío ({sosSelectedIds.size})</>
-                    )}
-                  </Button>
+                  {!sosSendingActive ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSosSelectedIds(new Set(sosMembers.map(m => m._id)))
+                        }}
+                        className="rounded-xl h-9 text-xs font-bold"
+                      >
+                        Seleccionar todos
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleStartBulkSend}
+                        disabled={sosSelectedIds.size === 0}
+                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl h-9 text-xs"
+                      >
+                        <Send size={14} className="mr-2" /> Iniciar envío ({sosSelectedIds.size})
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {sosBulkIndex + 1}/{bulkQueueLengthRef.current}
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (sosBulkIndex < bulkQueueLengthRef.current) {
+                            handleSendSingle(sosBulkQueue[sosBulkIndex], { advanceBulk: true })
+                          }
+                        }}
+                        disabled={sosBulkIndex >= bulkQueueLengthRef.current}
+                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl h-9 text-xs"
+                      >
+                        {sosBulkIndex >= bulkQueueLengthRef.current ? (
+                          <><Check size={14} className="mr-2" /> Completado</>
+                        ) : (
+                          <><Send size={14} className="mr-2" /> Siguiente envío</>
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </>
             )}
