@@ -197,7 +197,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // Re-verificar elegibilidad
-    const member = await LoyaltyMember.findOne({ _id: memberId, tenantId })
+    const oid = mongoose.Types.ObjectId.isValid(memberId) ? new mongoose.Types.ObjectId(memberId) : memberId
+    const member = await LoyaltyMember.findOne({ _id: oid, tenantId })
       .select('name phone status loyalty.points sosConfig hasPendingSos')
       .lean()
 
