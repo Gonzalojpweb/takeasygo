@@ -21,6 +21,7 @@ const SOURCE_ICONS: Record<string, any> = {
   google: Search,
   direct: MousePointer,
   'tgo-explore': Globe,
+  'tgo-customer': Globe,
   other: Globe,
 }
 
@@ -32,6 +33,7 @@ const SOURCE_NAMES: Record<string, string> = {
   google: 'Google',
   direct: 'Directo',
   'tgo-explore': 'TGO Explore',
+  'tgo-customer': 'TAKEASYGO-CUSTOMER',
   other: 'Otro',
 }
 
@@ -45,6 +47,7 @@ const SOURCE_COLORS: Record<string, string> = {
   google: 'bg-red-500/10 text-red-500',
   direct: 'bg-gray-500/10 text-gray-500',
   'tgo-explore': 'bg-cyan-500/10 text-cyan-600',
+  'tgo-customer': 'bg-[#f74211]/10 text-[#f74211]',
   other: 'bg-slate-500/10 text-slate-500',
 }
 
@@ -56,6 +59,7 @@ const SOURCE_TOOLTIPS: Record<string, string> = {
   google: 'Usuarios que llegaron desde una búsqueda en Google. Se detecta por el parámetro ?source=google o por referer de google.com.',
   direct: 'Usuarios que ingresaron sin referer ni parámetro ?source=. Esto incluye: escribir la URL directamente, usar un marcador/favorito, o que el navegador no haya enviado el referer por políticas de privacidad.',
   'tgo-explore': 'Usuarios que llegaron desde el explorador de restaurantes de TakeasyGO (sección /app o /explore). Corresponde a navegación orgánica dentro de la misma plataforma.',
+  'tgo-customer': 'Clientes que llegaron a través del link compartido directamente por el fundador/superadmin de TakeasyGO. Se detecta por el parámetro ?source=tgo-customer en la URL del menú.',
   other: 'Usuarios cuyo referer no coincide con ninguna red social ni fuente conocida. Puede incluir: newsletters, enlaces desde otros sitios web, apps de mensajería no identificadas, bots, o tráfico sin clasificar.',
 }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Clock, MapPin, ShoppingBag, Truck, UtensilsCrossed, Briefcase, MessageCircle } from 'lucide-react'
+import { Clock, MapPin, ShoppingBag, Truck, UtensilsCrossed, Briefcase, MessageCircle, Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
 import type { BoardCardRenderProps } from '@/components/shared/operations-board'
@@ -138,6 +138,14 @@ export default function OrderCard({ item, isSelected, isNew, isEscalated, onClic
         <div className="mt-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 text-[9px] font-bold">
           <MessageCircle size={8} />
           RED TGO
+        </div>
+      )}
+
+      {/* TAKEASYGO-CUSTOMER: Founder link attribution */}
+      {item.source === 'tgo-customer' && (
+        <div className="mt-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#f74211]/10 text-[#f74211] text-[9px] font-bold">
+          <Globe size={8} />
+          TAKEASYGO-CUSTOMER
         </div>
       )}
     </button>
