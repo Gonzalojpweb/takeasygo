@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import StoreItem from '@/models/StoreItem'
+import Location from '@/models/Location'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
@@ -100,6 +101,14 @@ export async function GET(request: NextRequest) {
       const sosLimit = tenant.loyalty?.sosLimit ?? 0
       const clubName = tenant.loyalty?.clubName || `Club ${tenant.name}`
 
+      // Obtener locationId default para el link al menú (solo para construir URL, NO se persiste)
+      const defaultLocation = await Location.findOne({ tenantId, isActive: true })
+        .select('_id')
+        .lean<{ _id: mongoose.Types.ObjectId }>()
+      const menuBasePath = defaultLocation
+        ? `/${tenantSlug}/menu/${defaultLocation._id.toString()}`
+        : ''
+
       const storeItems = await StoreItem.find({
         tenantId,
         isActive: true,
@@ -109,7 +118,7 @@ export async function GET(request: NextRequest) {
         .lean()
 
       if (sosLimit <= 0 || storeItems.length === 0) {
-        return NextResponse.json({ sosLimit, clubName, members: [] })
+        return NextResponse.json({ sosLimit, clubName, menuBasePath, members: [] })
       }
 
       const members = await LoyaltyMember.find({
@@ -147,7 +156,7 @@ export async function GET(request: NextRequest) {
         })
         .sort((a, b) => (a.lastAttemptedAt ? 1 : 0) - (b.lastAttemptedAt ? 1 : 0))
 
-      return NextResponse.json({ sosLimit, clubName, members: eligible })
+      return NextResponse.json({ sosLimit, clubName, menuBasePath, members: eligible })
     }
 
     return NextResponse.json({ error: 'Acción no válida' }, { status: 400 })
