@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Clock, MapPin, Phone, Mail, Printer, MessageCircle,
+  Clock, MapPin, Phone, Mail, Printer, MessageCircle, Globe,
   CreditCard, Wallet, BadgePercent, Gift, Star, ChevronDown,
   Truck, UtensilsCrossed, Building2, ShoppingBag, History, FileText,
 } from 'lucide-react'
@@ -266,6 +266,11 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
               {item.source === 'tgo-app' && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-violet-200 bg-violet-50 text-violet-700 shrink-0">
                   <MessageCircle size={8} /> RED TGO
+                </span>
+              )}
+              {item.source === 'tgo-customer' && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-[#f74211]/30 bg-[#f74211]/10 text-[#f74211] shrink-0">
+                  <Globe size={8} /> TAKEASYGO-CUSTOMER
                 </span>
               )}
             </div>

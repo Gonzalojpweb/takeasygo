@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 
 const DEDUP_WINDOW_MINUTES = 5
-const VALID_SOURCES = ['instagram', 'facebook', 'qr', 'whatsapp', 'google', 'direct', 'other']
+const VALID_SOURCES = ['instagram', 'facebook', 'qr', 'whatsapp', 'google', 'tgo-customer', 'direct', 'other']
 
 function getDeviceType(userAgent: string | null): 'mobile' | 'desktop' | 'unknown' {
   if (!userAgent) return 'unknown'
