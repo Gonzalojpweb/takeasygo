@@ -40,6 +40,7 @@ interface OrderItem {
   rewardItems?: any[]
   printLog?: any[]
   locationName?: string
+  source?: string
 }
 
 type Tab = 'detalles' | 'timeline' | 'historial'
@@ -260,7 +261,14 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground truncate">{item.customer.name}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-bold text-foreground truncate">{item.customer.name}</p>
+              {item.source === 'tgo-app' && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-violet-200 bg-violet-50 text-violet-700 shrink-0">
+                  <MessageCircle size={8} /> RED TGO
+                </span>
+              )}
+            </div>
             {item.customer.phone && (
               <a
                 href={waLink || '#'}
