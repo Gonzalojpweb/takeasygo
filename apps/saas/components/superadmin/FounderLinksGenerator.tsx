@@ -10,6 +10,7 @@ interface Tenant {
   _id: string
   name: string
   slug: string
+  business?: { enabled?: boolean }
 }
 
 interface Location {
@@ -49,6 +50,9 @@ export default function FounderLinksGenerator({ tenants }: Props) {
   const selectedTenant = tenants.find(t => t._id === selectedTenantId)
   const selectedLocation = locations.find(l => l._id === selectedLocationId)
   const availableModes = selectedLocation?.settings?.orderModes ?? []
+  const allModes = selectedTenant?.business?.enabled
+    ? [...new Set([...availableModes, 'business'])]
+    : availableModes
 
   const fetchLocations = useCallback(async (tenantSlug: string) => {
     setLoadingLocations(true)
@@ -87,12 +91,12 @@ export default function FounderLinksGenerator({ tenants }: Props) {
   }, [locations])
 
   useEffect(() => {
-    if (availableModes.length === 1) {
-      setSelectedMode(availableModes[0])
+    if (allModes.length === 1) {
+      setSelectedMode(allModes[0])
     } else {
       setSelectedMode('')
     }
-  }, [availableModes])
+  }, [allModes])
 
   const generateLink = (slug: string, locationId: string, mode: string) => {
     if (!baseUrl || !slug || !locationId || !mode) return ''
@@ -177,14 +181,14 @@ export default function FounderLinksGenerator({ tenants }: Props) {
         {selectedLocationId && (
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Modo de Pedido</label>
-            {availableModes.length === 0 ? (
+            {allModes.length === 0 ? (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
                 <AlertTriangle size={14} />
                 Esta sede no tiene modos de pedido habilitados. No se puede generar el link.
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {availableModes.map((mode) => (
+                {allModes.map((mode) => (
                   <button
                     key={mode}
                     onClick={() => setSelectedMode(mode)}

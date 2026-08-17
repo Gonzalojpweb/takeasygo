@@ -10,7 +10,7 @@ export default async function SuperAdminFounderLinksPage() {
   if (!session || session.user.role !== 'superadmin') redirect('/login')
 
   await connectDB()
-  const tenants = await Tenant.find({ isActive: true }).select('_id name slug').lean()
+  const tenants = await Tenant.find({ isActive: true }).select('_id name slug business.enabled').lean()
   const serializedTenants = JSON.parse(JSON.stringify(tenants))
 
   return (
