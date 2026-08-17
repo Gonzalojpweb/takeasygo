@@ -148,7 +148,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [showImport, setShowImport] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState<string | null>(null)
   const [bulkPercentage, setBulkPercentage] = useState('')
-  const [bulkTarget, setBulkTarget] = useState<'dine-in' | 'takeaway' | 'both'>('takeaway')
+  const [bulkTarget, setBulkTarget] = useState<'dine-in' | 'takeaway' | 'business' | 'both'>('takeaway')
   const router = useRouter()
   const [uploadingOptKey, setUploadingOptKey] = useState<string | null>(null)
   const optFileRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -655,7 +655,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }
 
-  async function handleBulkPriceUpdate(categoryId: string, percentage: string, target: 'dine-in' | 'takeaway' | 'both') {
+  async function handleBulkPriceUpdate(categoryId: string, percentage: string, target: 'dine-in' | 'takeaway' | 'business' | 'both') {
     const perc = parseFloat(percentage)
     if (isNaN(perc)) return toast.error('Ingrese un número válido')
     if (!selectedLocation) return toast.error('Seleccioná una ubicación primero')
@@ -702,6 +702,14 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
             updateBody.takeawayOriginalPrice = currentTakeaway
           }
           updateBody.takeawayPrice = Math.ceil(currentTakeaway * (1 + perc / 100))
+        }
+
+        if (target === 'business' || target === 'both') {
+          const currentBusiness = item.businessPrice || item.price
+          if (!item.businessOriginalPrice) {
+            updateBody.businessOriginalPrice = currentBusiness
+          }
+          updateBody.businessPrice = Math.ceil(currentBusiness * (1 + perc / 100))
         }
 
         const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
@@ -2189,6 +2197,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                       {[
                         { id: 'dine-in', label: 'Comer acá (Dine-in)', icon: Eye },
                         { id: 'takeaway', label: 'Para llevar (Takeaway)', icon: Clock },
+                        { id: 'business', label: 'Corporativo (Business)', icon: Building2 },
                         { id: 'both', label: 'Ambos Menús', icon: Sparkles }
                       ].map((opt) => (
                         <button
