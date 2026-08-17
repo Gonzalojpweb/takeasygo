@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import Location from '@/models/Location'
+import PlatformConfig from '@/models/PlatformConfig'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import ReportsDashboard from '@/components/admin/ReportsDashboard'
@@ -26,10 +27,20 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   await connectDB()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean<{ _id: import('mongoose').Types.ObjectId; plan: Plan }>()
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+    .select('slug plan mpOAuth.commissionPercent transfer.commissionPercent')
+    .lean<{ _id: import('mongoose').Types.ObjectId; plan: Plan; mpOAuth?: { commissionPercent?: number }; transfer?: { commissionPercent?: number } }>()
   if (!tenant) notFound()
 
   const plan: Plan = tenant.plan ?? 'try'
+
+  const platformCfg = await PlatformConfig.findById('platform').lean() as any
+  const commissionPercentMp = tenant.mpOAuth?.commissionPercent
+    ?? platformCfg?.platformFees?.takeasygoCommissionPercent
+    ?? 1
+  const commissionPercentTransfer = tenant.transfer?.commissionPercent
+    ?? platformCfg?.platformFees?.takeasygoTransferCommissionPercent
+    ?? 0
 
   // try plan = locked
   if (!canAccess(plan, 'reports')) {
@@ -490,6 +501,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     upsellTotalConversions,
     upsellTotalRevenue,
     upsellOverallConvRate,
+    // Comisiones (para textos explicativos en cards)
+    commissionPercentMp,
+    commissionPercentTransfer,
   }
 
   return (
