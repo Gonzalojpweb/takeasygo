@@ -21,7 +21,7 @@ import { captureRewardRedeemed } from '@/lib/tia/events'
 interface Props {
   tenantSlug: string
   locationId: string
-  mode: 'takeaway' | 'delivery'
+  mode: 'takeaway' | 'delivery' | 'business'
 }
 
 const slideVariants = {
@@ -446,7 +446,7 @@ function PaymentMethodSelector({ selected, onChange, transferEnabled }: { select
 }
 
 function PaymentConfirmation(props: {
-  mode: 'takeaway' | 'delivery'
+  mode: 'takeaway' | 'delivery' | 'business'
   deliveryMode: boolean
   tenantName: string
   selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer' | null
