@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Loader2, MessageCircle, Copy, Check, Send, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { TGO_BRAND_NAME } from '@/lib/brand'
 
 interface Props {
   open: boolean
@@ -40,6 +41,7 @@ export default function WhatsappRewardAdvanceDialog({
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [clubName, setClubName] = useState('')
   const [sosLimit, setSosLimit] = useState(0)
+  const [menuBasePath, setMenuBasePath] = useState('')
 
   const bulkAccRef = useRef({ sent: 0, skipped: 0, failed: 0 })
   const bulkQueueLengthRef = useRef(0)
@@ -60,18 +62,20 @@ export default function WhatsappRewardAdvanceDialog({
       setMembers(data.members)
       setClubName(data.clubName)
       setSosLimit(data.sosLimit)
+      setMenuBasePath(data.menuBasePath || '')
       setSelectedIds(new Set(data.members.map((m: any) => m._id)))
       if (data.members.length > 0) {
         const first = data.members[0]
         const items = first.eligibleItems.map((i: any) => `• ${i.name}`).join('\n')
+        const menuUrl = data.menuBasePath ? `${window.location.origin}${data.menuBasePath}` : ''
 
         if (defaultMessageType === 'superadmin') {
           setMessage(
-            `¡Hola ${first.name}! 🎉\n\nDesde TakeasyGO te informamos que con tus ${first.points} puntos y tu Reward Advance de ${data.sosLimit} puntos, ya podés canjear en ${data.clubName}:\n${items}\n\n¡Te esperamos!`
+            `¡Hola ${first.name}! 🎉\n\nDesde ${TGO_BRAND_NAME} te informamos que con tus ${first.points} puntos y tu Reward Advance de ${data.sosLimit} puntos, ya podés canjear en ${data.clubName}:\n${items}\n\n${menuUrl}\n\n¡Te esperamos!`
           )
         } else {
           setMessage(
-            `¡Hola ${first.name}! 🎉\n\nDesde ${data.clubName} te informamos que con tus ${first.points} puntos y tu Reward Advance de ${data.sosLimit} puntos, ya podés canjear:\n${items}\n\n¡Te esperamos!`
+            `¡Hola ${first.name}! 🎉\n\nDesde ${data.clubName} te informamos que con tus ${first.points} puntos y tu Reward Advance de ${data.sosLimit} puntos, ya podés canjear:\n${items}\n\n${menuUrl}\n\n¡Te esperamos!`
           )
         }
       }
