@@ -14,6 +14,7 @@ export default function CheckoutPaymentFooter() {
     scheduleOrder, scheduledPickupAt, deliveryAddress, deliveryQuote, deliveryConfirmed,
     activeQrPromo, promoCode, joinClub, loyaltyConfig, selectedRewardItemId,
     kriptonEnabled, transferEnabled, selectedPaymentMethod, loading, redirectingToMp,
+    businessInfo,
   } = state
 
   const customerStepIndex = deliveryMode ? 2 : 1
@@ -86,6 +87,10 @@ export default function CheckoutPaymentFooter() {
           ? { rewardItems: [{ storeItemId: selectedRewardItemId }], loyaltyPointsRequired: selectedRewardItem.pointsCost }
           : {}),
         source: sessionStorage.getItem('tgo_attribution_source') || activeQrPromo?.source || undefined,
+        ...(mode === 'business' && businessInfo ? {
+          corporateAccountId: businessInfo.corporateAccountId,
+          paymentModeSnapshot: businessInfo.paymentMode,
+        } : {}),
         ...(deliveryMode ? {
           deliveryAddress: {
             street: deliveryAddress.street,
@@ -143,6 +148,13 @@ export default function CheckoutPaymentFooter() {
       }
 
       sessionStorage.removeItem(`cart_${tenantSlug}`)
+
+      // Business deferred: skip MP, show tracking directly
+      const skipPayment = mode === 'business' && businessInfo?.paymentMode === 'deferred'
+      if (skipPayment) {
+        router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
+        return
+      }
 
       // Save customer identity for personalization (cosmetic only, never source of truth)
       try {
