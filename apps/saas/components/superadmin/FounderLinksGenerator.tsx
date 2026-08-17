@@ -96,7 +96,7 @@ export default function FounderLinksGenerator({ tenants }: Props) {
     } else {
       setSelectedMode('')
     }
-  }, [allModes])
+  }, [allModes.join(',')])
 
   const generateLink = (slug: string, locationId: string, mode: string) => {
     if (!baseUrl || !slug || !locationId || !mode) return ''
