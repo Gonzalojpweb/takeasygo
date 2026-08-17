@@ -640,6 +640,28 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }
 
+  async function handleBulkToggleBusiness(categoryId: string, enable: boolean) {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: selectedLocation,
+          bulkUpdate: true,
+          isBusinessAvailable: enable,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      toast.success(enable
+        ? `Business habilitado en ${data.updatedCount} platos`
+        : `Business deshabilitado en ${data.updatedCount} platos`)
+      router.refresh()
+    } catch {
+      toast.error('Error al actualizar Business en lote')
+    }
+  }
+
   async function handleToggleCategoryAvailability(categoryId: string, current: boolean) {
     try {
       const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}`, {
@@ -1200,6 +1222,21 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 }}
                               >
                                 <Building2 size={16} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title={category.isBusinessAvailable ? 'Desactivar Business en todos los platos' : 'Activar Business en todos los platos'}
+                                className={cn(
+                                  "h-10 px-3 flex-shrink-0 rounded-xl transition-all text-[11px] font-bold gap-1.5",
+                                  category.isBusinessAvailable
+                                    ? "text-primary/70 hover:text-primary hover:bg-primary/10"
+                                    : "text-muted-foreground/40 hover:text-primary/70 hover:bg-primary/5"
+                                )}
+                                onClick={() => handleBulkToggleBusiness(category._id, !(category.isBusinessAvailable ?? false))}
+                              >
+                                <Building2 size={14} />
+                                {category.isBusinessAvailable ? 'Desactivar' : 'Activar'} Business
                               </Button>
                               <Button
                                 size="icon"
@@ -1894,47 +1931,19 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                             </Button>
 
                                             {(() => {
-                                              const hasBizPrice = item.businessPrice != null
                                               const isBizAvail = item.isBusinessAvailable ?? false
-                                              const title = !hasBizPrice
-                                                ? 'Sin precio Business'
-                                                : isBizAvail
-                                                  ? 'Deshabilitar Business'
-                                                  : 'Habilitar Business'
                                               return (
                                                 <Button
                                                   size="icon"
                                                   variant="ghost"
-                                                  title={title}
+                                                  title={isBizAvail ? 'Deshabilitar Business' : 'Habilitar Business'}
                                                   className={cn(
                                                     "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
-                                                    !hasBizPrice
-                                                      ? "text-muted-foreground/20 hover:text-primary/50"
-                                                      : isBizAvail
-                                                        ? "text-primary hover:bg-primary/10"
-                                                        : "text-muted-foreground/40 hover:text-primary/50"
+                                                    isBizAvail
+                                                      ? "text-primary hover:bg-primary/10"
+                                                      : "text-muted-foreground/40 hover:text-primary/50"
                                                   )}
                                                   onClick={() => {
-                                                    if (!hasBizPrice) {
-                                                      setEditingItem(item._id)
-                                                      setEditingItemData({
-                                                        name: item.name,
-                                                        description: item.description || '',
-                                                        price: toPesos(item.price).toString(),
-                                                        takeawayPrice: item.takeawayPrice != null ? toPesos(item.takeawayPrice).toString() : '',
-                                                        businessPrice: item.businessPrice != null ? toPesos(item.businessPrice).toString() : '',
-                                                        tags: (item.tags || []).join(', '),
-                                                        isFeatured: item.isFeatured ?? false,
-                                                        imageUrl: item.imageUrl || '',
-                                                        isBusinessAvailable: item.isBusinessAvailable ?? false,
-                                                        suggestWith: item.suggestWith ?? [],
-                                                        customizationGroups: deserializeGroups(item.customizationGroups || []),
-                                                        variants: deserializeVariants(item.variants || []),
-                                                        availabilityMode: item.availabilityMode ?? 'always',
-                                                        availabilitySchedule: item.availabilitySchedule ?? [],
-                                                      })
-                                                      return
-                                                    }
                                                     handleToggleBusinessAvailable(category._id, item._id, isBizAvail)
                                                   }}
                                                 >
