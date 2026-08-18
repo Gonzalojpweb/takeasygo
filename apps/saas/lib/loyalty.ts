@@ -102,8 +102,8 @@ export async function validateCheckoutRewards(
     tenantId: tenant._id,
     isActive: true,
     $or: [
-      { scope: 'tenant' },
-      { scope: { $exists: false } },
+      { locationId: null },
+      { locationId: { $exists: false } },
     ],
   }).lean()
 

@@ -148,7 +148,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [showImport, setShowImport] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState<string | null>(null)
   const [bulkPercentage, setBulkPercentage] = useState('')
-  const [bulkTarget, setBulkTarget] = useState<'dine-in' | 'takeaway' | 'business' | 'both'>('takeaway')
+  const [bulkTarget, setBulkTarget] = useState<'dine-in' | 'takeaway' | 'both'>('takeaway')
   const router = useRouter()
   const [uploadingOptKey, setUploadingOptKey] = useState<string | null>(null)
   const optFileRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -640,28 +640,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }
 
-  async function handleBulkToggleBusiness(categoryId: string, enable: boolean) {
-    try {
-      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          locationId: selectedLocation,
-          bulkUpdate: true,
-          isBusinessAvailable: enable,
-        }),
-      })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      toast.success(enable
-        ? `Business habilitado en ${data.updatedCount} platos`
-        : `Business deshabilitado en ${data.updatedCount} platos`)
-      router.refresh()
-    } catch {
-      toast.error('Error al actualizar Business en lote')
-    }
-  }
-
   async function handleToggleCategoryAvailability(categoryId: string, current: boolean) {
     try {
       const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}`, {
@@ -677,7 +655,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }
 
-  async function handleBulkPriceUpdate(categoryId: string, percentage: string, target: 'dine-in' | 'takeaway' | 'business' | 'both') {
+  async function handleBulkPriceUpdate(categoryId: string, percentage: string, target: 'dine-in' | 'takeaway' | 'both') {
     const perc = parseFloat(percentage)
     if (isNaN(perc)) return toast.error('Ingrese un número válido')
     if (!selectedLocation) return toast.error('Seleccioná una ubicación primero')
@@ -724,14 +702,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
             updateBody.takeawayOriginalPrice = currentTakeaway
           }
           updateBody.takeawayPrice = Math.ceil(currentTakeaway * (1 + perc / 100))
-        }
-
-        if (target === 'business' || target === 'both') {
-          const currentBusiness = item.businessPrice || item.price
-          if (!item.businessOriginalPrice) {
-            updateBody.businessOriginalPrice = currentBusiness
-          }
-          updateBody.businessPrice = Math.ceil(currentBusiness * (1 + perc / 100))
         }
 
         const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
@@ -1222,21 +1192,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 }}
                               >
                                 <Building2 size={16} />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                title={category.isBusinessAvailable ? 'Desactivar Business en todos los platos' : 'Activar Business en todos los platos'}
-                                className={cn(
-                                  "h-10 px-3 flex-shrink-0 rounded-xl transition-all text-[11px] font-bold gap-1.5",
-                                  category.isBusinessAvailable
-                                    ? "text-primary/70 hover:text-primary hover:bg-primary/10"
-                                    : "text-muted-foreground/40 hover:text-primary/70 hover:bg-primary/5"
-                                )}
-                                onClick={() => handleBulkToggleBusiness(category._id, !(category.isBusinessAvailable ?? false))}
-                              >
-                                <Building2 size={14} />
-                                {category.isBusinessAvailable ? 'Desactivar' : 'Activar'} Business
                               </Button>
                               <Button
                                 size="icon"
@@ -1931,19 +1886,47 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                             </Button>
 
                                             {(() => {
+                                              const hasBizPrice = item.businessPrice != null
                                               const isBizAvail = item.isBusinessAvailable ?? false
+                                              const title = !hasBizPrice
+                                                ? 'Sin precio Business'
+                                                : isBizAvail
+                                                  ? 'Deshabilitar Business'
+                                                  : 'Habilitar Business'
                                               return (
                                                 <Button
                                                   size="icon"
                                                   variant="ghost"
-                                                  title={isBizAvail ? 'Deshabilitar Business' : 'Habilitar Business'}
+                                                  title={title}
                                                   className={cn(
                                                     "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
-                                                    isBizAvail
-                                                      ? "text-primary hover:bg-primary/10"
-                                                      : "text-muted-foreground/40 hover:text-primary/50"
+                                                    !hasBizPrice
+                                                      ? "text-muted-foreground/20 hover:text-primary/50"
+                                                      : isBizAvail
+                                                        ? "text-primary hover:bg-primary/10"
+                                                        : "text-muted-foreground/40 hover:text-primary/50"
                                                   )}
                                                   onClick={() => {
+                                                    if (!hasBizPrice) {
+                                                      setEditingItem(item._id)
+                                                      setEditingItemData({
+                                                        name: item.name,
+                                                        description: item.description || '',
+                                                        price: toPesos(item.price).toString(),
+                                                        takeawayPrice: item.takeawayPrice != null ? toPesos(item.takeawayPrice).toString() : '',
+                                                        businessPrice: item.businessPrice != null ? toPesos(item.businessPrice).toString() : '',
+                                                        tags: (item.tags || []).join(', '),
+                                                        isFeatured: item.isFeatured ?? false,
+                                                        imageUrl: item.imageUrl || '',
+                                                        isBusinessAvailable: item.isBusinessAvailable ?? false,
+                                                        suggestWith: item.suggestWith ?? [],
+                                                        customizationGroups: deserializeGroups(item.customizationGroups || []),
+                                                        variants: deserializeVariants(item.variants || []),
+                                                        availabilityMode: item.availabilityMode ?? 'always',
+                                                        availabilitySchedule: item.availabilitySchedule ?? [],
+                                                      })
+                                                      return
+                                                    }
                                                     handleToggleBusinessAvailable(category._id, item._id, isBizAvail)
                                                   }}
                                                 >
@@ -2206,7 +2189,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                       {[
                         { id: 'dine-in', label: 'Comer acá (Dine-in)', icon: Eye },
                         { id: 'takeaway', label: 'Para llevar (Takeaway)', icon: Clock },
-                        { id: 'business', label: 'Corporativo (Business)', icon: Building2 },
                         { id: 'both', label: 'Ambos Menús', icon: Sparkles }
                       ].map((opt) => (
                         <button

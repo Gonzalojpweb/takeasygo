@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2, Radio, Calendar, AlertCircle, Printer, Timer, AlertTriangle, MessageCircle, Globe } from 'lucide-react'
+import { ShoppingBag, Search, RefreshCw, MapPin, Phone, Mail, Clock, CheckCircle2, Radio, Calendar, AlertCircle, Printer, Timer, AlertTriangle } from 'lucide-react'
 import OrderStatusButton from './OrderStatusButton'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
@@ -791,16 +791,6 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                       {order.promoCreatedBy === 'superadmin' && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold border border-green-200 bg-green-50 text-green-700">
                           🟢 SuperAdmin
-                        </span>
-                      )}
-                      {order.source === 'tgo-app' && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold border border-violet-200 bg-violet-50 text-violet-700">
-                          <MessageCircle size={10} /> RED TGO
-                        </span>
-                      )}
-                      {order.source === 'tgo-customer' && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold border border-[#f74211]/30 bg-[#f74211]/10 text-[#f74211]">
-                          <Globe size={10} /> TAKEASYGO-CUSTOMER
                         </span>
                       )}
                       {order.promoCode && (

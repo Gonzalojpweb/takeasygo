@@ -218,10 +218,10 @@ export default function GroupSessionClient({
     }
   }
 
-  async function handleRemoveItem(index: number) {
+  async function handleRemoveItem(itemId: string) {
     if (!confirm('¿Eliminar este item?')) return
     try {
-      const res = await fetch(`/api/${tenant.slug}/business/group-session/${token}/items/${index}`, {
+      const res = await fetch(`/api/${tenant.slug}/business/group-session/${token}/items/${itemId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -410,7 +410,7 @@ export default function GroupSessionClient({
                       <span className="text-sm font-bold">${toPesos(item.subtotal).toLocaleString('es-AR')}</span>
                       {isActive && (
                         <button
-                          onClick={() => handleRemoveItem(findItemGlobalIndex(session.items, item))}
+                          onClick={() => handleRemoveItem(item._id?.toString() ?? '')}
                           className="p-1 rounded-lg text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-all"
                         >
                           <Trash2 size={14} />
@@ -621,8 +621,4 @@ function getProgressText(completed: number, total: number): string {
   if (remaining === 0) return '¡Todos pidieron! Ya podés confirmar.'
   if (remaining === 1) return 'Falta 1 empleado'
   return `Faltan ${remaining} empleados`
-}
-
-function findItemGlobalIndex(items: any[], targetItem: any): number {
-  return items.findIndex(i => i === targetItem)
 }

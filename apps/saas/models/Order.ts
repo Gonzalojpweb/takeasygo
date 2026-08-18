@@ -4,6 +4,9 @@ export type OrderStatus = 'open' | 'awaiting_payment' | 'awaiting_confirmation' 
 export type OrderMode = 'takeaway' | 'dine-in' | 'business' | 'delivery'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 export type PaymentModeSnapshot = 'cash_mp' | 'deferred' | 'mixed'
+export type WhoPays = 'single_payer' | 'split'
+export type PaymentTiming = 'now_mp' | 'deferred_invoice'
+export type GroupPaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'refunded'
 
 export interface ISelectedCustomizationOption {
   name: string
@@ -86,6 +89,48 @@ export interface IRewardRedemption {
   sosApplied: boolean
 }
 
+export interface IGroupPayment {
+  _id: mongoose.Types.ObjectId
+  /** Consumer record for the member (stable reference, not email as key) */
+  memberConsumerId: mongoose.Types.ObjectId
+  /** Display email — NOT the primary key */
+  memberEmail: string
+  /** Resolved member name from Consumer */
+  memberName?: string
+  /** ObjectIds of subdocuments in order.items[] that this member ordered */
+  itemIds: mongoose.Types.ObjectId[]
+  /** Pricing prorrateado — @storedAs cents */
+  baseTotal: number
+  /** Not a cents value */
+  surchargePercent: number
+  /** @storedAs cents */
+  surchargeAmount: number
+  /** @storedAs cents */
+  platformFeeAmount: number
+  /** baseTotal + surchargeAmount — what this member pays. @storedAs cents */
+  total: number
+  /** Payment status for this member */
+  status: GroupPaymentStatus
+  method: 'mercadopago' | 'transfer' | 'kripton'
+  mercadopagoId?: string | null
+  mercadopagoData?: Record<string, any> | null
+  kriptonExternalCode?: string | null
+  kriptonToken?: string | null
+  kriptonData?: Record<string, any> | null
+  transferConfirmed?: boolean
+  transferConfirmedAt?: Date | null
+  transferConfirmedBy?: string | null
+  refund?: {
+    amount: number
+    reason: string
+    mpPaymentId?: string
+    processedAt: Date
+    processedBy: string
+  }
+  createdAt: Date
+  paidAt?: Date | null
+}
+
 export interface IOrder extends Document {
   tenantId: mongoose.Types.ObjectId
   locationId: mongoose.Types.ObjectId
@@ -94,6 +139,12 @@ export interface IOrder extends Document {
   orderMode: OrderMode
   corporateAccountId: mongoose.Types.ObjectId | null
   paymentModeSnapshot: PaymentModeSnapshot | null
+  /** Who pays: single_payer (admin/empresa) or split (each member pays) */
+  whoPays?: WhoPays
+  /** When single_payer pays: now_mp (MP at confirm) or deferred_invoice (later) */
+  paymentTiming?: PaymentTiming
+  /** Individual sub-payments — only when whoPays === 'split' */
+  payments?: IGroupPayment[]
   groupSessionToken: string | null
   sessionExpiresAt: Date | null
   items: IOrderItem[]
@@ -280,6 +331,40 @@ const OrderItemSchema = new Schema<IOrderItem>({
   hasCategoryDiscount: { type: Boolean, default: false },
 })
 
+const GroupPaymentSchema = new Schema<IGroupPayment>({
+  memberConsumerId: { type: Schema.Types.ObjectId, ref: 'Consumer', required: true },
+  memberEmail: { type: String, required: true },
+  memberName: { type: String, default: null },
+  itemIds: [{ type: Schema.Types.ObjectId, required: true }],
+  baseTotal: { type: Number, required: true, min: 0 },
+  surchargePercent: { type: Number, required: true, min: 0 },
+  surchargeAmount: { type: Number, required: true, min: 0 },
+  platformFeeAmount: { type: Number, required: true, min: 0 },
+  total: { type: Number, required: true, min: 0 },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected', 'cancelled', 'refunded'] as const,
+    default: 'pending',
+  },
+  method: { type: String, enum: ['mercadopago', 'transfer', 'kripton'], default: 'mercadopago' },
+  mercadopagoId: { type: String, default: null },
+  mercadopagoData: { type: Schema.Types.Mixed, default: null },
+  kriptonExternalCode: { type: String, default: null },
+  kriptonToken: { type: String, default: null },
+  kriptonData: { type: Schema.Types.Mixed, default: null },
+  transferConfirmed: { type: Boolean, default: false },
+  transferConfirmedAt: { type: Date, default: null },
+  transferConfirmedBy: { type: String, default: null },
+  refund: {
+    amount: { type: Number, min: 0 },
+    reason: { type: String },
+    mpPaymentId: { type: String },
+    processedAt: { type: Date },
+    processedBy: { type: String },
+  },
+  paidAt: { type: Date, default: null },
+}, { _id: true, timestamps: { createdAt: true, updatedAt: false } })
+
 const OrderSchema = new Schema(
   {
     tenantId: {
@@ -318,6 +403,20 @@ const OrderSchema = new Schema(
       type: String,
       enum: ['cash_mp', 'deferred', 'mixed', null],
       default: null,
+    },
+    whoPays: {
+      type: String,
+      enum: ['single_payer', 'split'] as const,
+      default: null,
+    },
+    paymentTiming: {
+      type: String,
+      enum: ['now_mp', 'deferred_invoice'] as const,
+      default: null,
+    },
+    payments: {
+      type: [GroupPaymentSchema],
+      default: [],
     },
     groupSessionToken: {
       type: String,

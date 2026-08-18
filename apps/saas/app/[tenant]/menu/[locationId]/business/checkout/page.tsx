@@ -1,4 +1,4 @@
-import CheckoutLayout from '@/components/checkout/CheckoutLayout'
+import CheckoutForm from '@/components/menu/CheckoutForm'
 
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
@@ -8,7 +8,7 @@ export default async function BusinessCheckoutPage({ params }: Props) {
   const { tenant: tenantSlug, locationId } = await params
 
   return (
-    <CheckoutLayout
+    <CheckoutForm
       tenantSlug={tenantSlug}
       locationId={locationId}
       mode="business"

@@ -37,8 +37,6 @@ export interface IMenuItemVariant {
   originalPrice?: number
   /** Precio takeaway original antes de descuentos en centavos. @storedAs cents */
   takeawayOriginalPrice?: number
-  /** Precio business original antes de descuentos en centavos. @storedAs cents */
-  businessOriginalPrice?: number
   /** Grupos de customización propios de esta variante.
    *  Cuando el usuario selecciona esta variante, estos grupos se activan
    *  además de los grupos heredados de categoría/item. */
@@ -65,8 +63,6 @@ export interface IMenuItem {
   originalPrice?: number
   /** Precio takeaway original de lista (antes de descuentos de categoría) en centavos. @storedAs cents */
   takeawayOriginalPrice?: number
-  /** Precio business original de lista (antes de descuentos de categoría) en centavos. @storedAs cents */
-  businessOriginalPrice?: number
   likesCount: number
   imageUrl: string
   isAvailable: boolean
@@ -144,8 +140,6 @@ const MenuItemVariantSchema = new Schema<IMenuItemVariant>({
   originalPrice: { type: Number, min: 0 },
   /** @storedAs cents */
   takeawayOriginalPrice: { type: Number, min: 0 },
-  /** @storedAs cents */
-  businessOriginalPrice: { type: Number, min: 0 },
   customizationGroups: { type: [CustomizationGroupSchema], default: [] },
 }, { _id: true })
 
@@ -203,11 +197,6 @@ const MenuItemSchema = new Schema<IMenuItem>({
   takeawayOriginalPrice: {
     type: Number,
     min: [0, 'El precio takeaway original no puede ser negativo'],
-  },
-  /** @storedAs cents */
-  businessOriginalPrice: {
-    type: Number,
-    min: [0, 'El precio business original no puede ser negativo'],
   },
   likesCount: {
     type: Number,

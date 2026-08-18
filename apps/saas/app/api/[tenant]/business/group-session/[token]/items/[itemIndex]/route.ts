@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import CorporateAccount from '@/models/CorporateAccount'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 
 export async function DELETE(
   request: NextRequest,
@@ -42,13 +43,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Solo el mail de empresa puede eliminar items' }, { status: 403 })
     }
 
-    const idx = parseInt(itemIndex, 10)
-    if (isNaN(idx) || idx < 0 || idx >= (order.items as any[]).length) {
-      return NextResponse.json({ error: 'Índice de item inválido' }, { status: 400 })
+    // itemIndex is now the item's _id (ObjectId string), not a numeric position
+    if (!mongoose.Types.ObjectId.isValid(itemIndex)) {
+      return NextResponse.json({ error: 'ID de item inválido' }, { status: 400 })
     }
 
     const items = order.items as any[]
-    items.splice(idx, 1)
+    const itemIdx = items.findIndex((i: any) => i._id?.toString() === itemIndex)
+    if (itemIdx === -1) {
+      return NextResponse.json({ error: 'Item no encontrado en la sesión' }, { status: 404 })
+    }
+
+    items.splice(itemIdx, 1)
     order.items = items
     order.subtotal = items.reduce((sum: number, i: any) => sum + i.subtotal, 0)
     order.total = order.subtotal

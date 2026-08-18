@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Clock, MapPin, ShoppingBag, Truck, UtensilsCrossed, Briefcase, MessageCircle, Globe } from 'lucide-react'
+import { Clock, MapPin, ShoppingBag, Truck, UtensilsCrossed, Briefcase } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
 import type { BoardCardRenderProps } from '@/components/shared/operations-board'
@@ -17,7 +17,6 @@ interface OrderItem {
   locationName?: string
   orderTiming?: string
   scheduledPickupAt?: string
-  source?: string
 }
 
 const MODE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
@@ -130,22 +129,6 @@ export default function OrderCard({ item, isSelected, isNew, isEscalated, onClic
         <div className="mt-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 text-red-600 text-[9px] font-bold animate-pulse">
           <Clock size={8} />
           Sin atender · {computedElapsed}
-        </div>
-      )}
-
-      {/* RED TGO: WhatsApp Reward Advance attribution */}
-      {item.source === 'tgo-app' && (
-        <div className="mt-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 text-[9px] font-bold">
-          <MessageCircle size={8} />
-          RED TGO
-        </div>
-      )}
-
-      {/* TAKEASYGO-CUSTOMER: Founder link attribution */}
-      {item.source === 'tgo-customer' && (
-        <div className="mt-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#f74211]/10 text-[#f74211] text-[9px] font-bold">
-          <Globe size={8} />
-          TAKEASYGO-CUSTOMER
         </div>
       )}
     </button>
