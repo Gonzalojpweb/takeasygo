@@ -29,7 +29,6 @@ import {
   Printer,
   Smartphone,
   DollarSign,
-  Link2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -105,12 +104,6 @@ export default function SuperAdminSidebar() {
         { href: '/superadmin/salud', label: 'Salud de Red', icon: HeartPulse },
         { href: '/superadmin/visitas', label: 'Visitas', icon: Eye },
         { href: '/superadmin/invite-scans', label: 'Scans QR Invite', icon: QrCode },
-      ],
-    },
-    {
-      section: 'Tracción TGO',
-      items: [
-        { href: '/superadmin/founder-links', label: 'Founder Links', icon: Link2 },
       ],
     },
     {

@@ -68,9 +68,6 @@ interface Props {
         upsellTotalConversions: number
         upsellTotalRevenue: number
         upsellOverallConvRate: number
-        // Comisiones (para textos explicativos en cards)
-        commissionPercentMp: number
-        commissionPercentTransfer: number
     }
     topItems: any[]
     recentOrders: any[]
@@ -1228,11 +1225,6 @@ function PaymentMethodChart({ data }: { data: { method: string; orders: number; 
                     <p className="text-2xl font-black tabular-nums text-foreground">{totalOrders}</p>
                 </div>
             </div>
-            {totalSurcharge > 0 && (
-                <p className="text-xs text-muted-foreground font-medium leading-relaxed -mt-2">
-                    Este recargo no es para TakeasyGO. Va directo a Mercado Pago para cubrir su comisión de procesamiento. Lo que vos recibís en tu cuenta es el precio real de tus productos — este recargo nunca pasa por TakeasyGO.
-                </p>
-            )}
             {data.map((d, i) => {
                 const pct = totalRevenue > 0 ? Math.round((d.revenue / totalRevenue) * 100) : 0
                 const barPct = Math.round((d.revenue / maxRevenue) * 100)
@@ -1297,8 +1289,8 @@ function CommissionCard({ stats }: { stats: Props['stats'] }) {
                             </div>
                             <div>
                                 <CardTitle className="text-xl font-bold tracking-tight">Comisiones de plataforma</CardTitle>
-                                <p className="text-xs text-muted-foreground font-medium mt-1 leading-relaxed">
-                                    Esto es lo único que cobra TakeasyGO: <span className="font-bold text-foreground">{stats.commissionPercentMp}%</span> sobre ventas por Mercado Pago, <span className="font-bold text-foreground">{stats.commissionPercentTransfer}%</span> sobre ventas por transferencia. Con Mercado Pago, se descuenta automáticamente al momento del pago. Con transferencia, se acumula y se paga aparte.
+                                <p className="text-xs text-muted-foreground font-medium">
+                                    MP se cobra automático por split · Transferencia se cobra manualmente
                                 </p>
                             </div>
                         </div>
@@ -1359,8 +1351,8 @@ function TransferCommissionCard({ stats }: { stats: Props['stats'] }) {
                             </div>
                             <div>
                                 <CardTitle className="text-xl font-bold tracking-tight">Comisión por Transferencia</CardTitle>
-                                <p className="text-xs text-muted-foreground font-medium mt-1 leading-relaxed">
-                                    Solo aplica a pedidos de delivery pagados por transferencia — mostrador o retiro no generan esta comisión. Como no se puede descontar en el momento, se va sumando acá y la pagás por separado. Rige desde el 16 de agosto de 2026 — los pedidos anteriores no suman nada, por eso el total puede no coincidir con un porcentaje parejo.
+                                <p className="text-xs text-muted-foreground font-medium">
+                                    Pago manual · depositar a TakeasyGO
                                 </p>
                             </div>
                         </div>

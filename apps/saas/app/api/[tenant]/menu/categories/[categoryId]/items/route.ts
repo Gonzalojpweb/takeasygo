@@ -86,7 +86,7 @@ export async function PUT(
     if (authError) return authError
 
     const body = await request.json()
-    const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice, businessOriginalPrice, bulkUpdate } = body
+    const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice } = body
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) {
@@ -98,25 +98,6 @@ export async function PUT(
     if (!category) {
       const ids = menu.categories.map((c: any) => c._id.toString())
       return NextResponse.json({ error: 'Categoría no encontrada', categoryId, availableIds: ids }, { status: 404 })
-    }
-
-    // ── Batch update: actualizar todos los items de la categoría ──
-    if (bulkUpdate && isBusinessAvailable !== undefined) {
-      let updatedCount = 0
-      for (const item of category.items) {
-        item.isBusinessAvailable = isBusinessAvailable
-        updatedCount++
-      }
-      for (const sub of category.subcategories || []) {
-        for (const item of sub.items || []) {
-          item.isBusinessAvailable = isBusinessAvailable
-          updatedCount++
-        }
-      }
-      menu.markModified('categories')
-      await menu.save()
-      logAudit({ tenantId: tenant._id.toString(), action: 'menu.items.bulk_business', entity: 'category', entityId: categoryId, details: { isBusinessAvailable, updatedCount, locationId }, request })
-      return NextResponse.json({ ok: true, updatedCount })
     }
 
     function findItemInCategory(cat: any, id: string): { item: any; subcategory: any } | null {
@@ -173,7 +154,6 @@ export async function PUT(
     // Permitir guardar explícitamente (para bulk update)
     if (originalPrice !== undefined) item.originalPrice = originalPrice
     if (takeawayOriginalPrice !== undefined) item.takeawayOriginalPrice = takeawayOriginalPrice
-    if (businessOriginalPrice !== undefined) item.businessOriginalPrice = businessOriginalPrice
 
     menu.markModified('categories')
     try {

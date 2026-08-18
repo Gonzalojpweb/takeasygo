@@ -10,7 +10,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import StoreItem from '@/models/StoreItem'
-import Location from '@/models/Location'
 import { requireAuth } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
@@ -60,14 +59,6 @@ export async function GET(
     const sosLimit = tenant.loyalty?.sosLimit ?? 0
     const clubName = tenant.loyalty?.clubName || `Club ${tenant.name}`
 
-    // Obtener locationId default para el link al menú (solo para construir URL, NO se persiste)
-    const defaultLocation = await Location.findOne({ tenantId, isActive: true })
-      .select('_id')
-      .lean<{ _id: mongoose.Types.ObjectId }>()
-    const menuBasePath = defaultLocation
-      ? `/${tenantSlug}/menu/${defaultLocation._id.toString()}`
-      : ''
-
     // Traer items activos de la tienda
     const storeItems = await StoreItem.find({
       tenantId,
@@ -78,7 +69,7 @@ export async function GET(
       .lean()
 
     if (sosLimit <= 0 || storeItems.length === 0) {
-      return NextResponse.json({ sosLimit, clubName, menuBasePath, members: [] })
+      return NextResponse.json({ sosLimit, clubName, members: [] })
     }
 
     // Traer miembros activos con teléfono
@@ -119,7 +110,7 @@ export async function GET(
       })
       .sort((a, b) => (a.lastAttemptedAt ? 1 : 0) - (b.lastAttemptedAt ? 1 : 0)) // Nunca contactados primero
 
-    return NextResponse.json({ sosLimit, clubName, menuBasePath, members: eligible })
+    return NextResponse.json({ sosLimit, clubName, members: eligible })
   } catch (error) {
     console.error('[whatsapp-reward-advance GET]', error)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })

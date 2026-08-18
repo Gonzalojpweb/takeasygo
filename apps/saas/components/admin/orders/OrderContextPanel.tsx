@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Clock, MapPin, Phone, Mail, Printer, MessageCircle, Globe,
+  Clock, MapPin, Phone, Mail, Printer, MessageCircle,
   CreditCard, Wallet, BadgePercent, Gift, Star, ChevronDown,
   Truck, UtensilsCrossed, Building2, ShoppingBag, History, FileText,
 } from 'lucide-react'
@@ -40,7 +40,6 @@ interface OrderItem {
   rewardItems?: any[]
   printLog?: any[]
   locationName?: string
-  source?: string
 }
 
 type Tab = 'detalles' | 'timeline' | 'historial'
@@ -261,19 +260,7 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
             </span>
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-foreground truncate">{item.customer.name}</p>
-              {item.source === 'tgo-app' && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-violet-200 bg-violet-50 text-violet-700 shrink-0">
-                  <MessageCircle size={8} /> RED TGO
-                </span>
-              )}
-              {item.source === 'tgo-customer' && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-[#f74211]/30 bg-[#f74211]/10 text-[#f74211] shrink-0">
-                  <Globe size={8} /> TAKEASYGO-CUSTOMER
-                </span>
-              )}
-            </div>
+            <p className="text-sm font-bold text-foreground truncate">{item.customer.name}</p>
             {item.customer.phone && (
               <a
                 href={waLink || '#'}

@@ -2,7 +2,8 @@
  * Cron Job: Cancelar órdenes awaiting_payment huérfanas
  *
  * Cancela órdenes cuyo pago nunca se completó.
- * Se ejecuta periódicamente para mantener la DB limpia.
+ * Solo aplica a pagos single_payer (empresa paga) o legacy sin whoPays.
+ * Órdenes con whoPays === 'split' quedan excluidas — tienen su propio cron.
  *
  * URL: /api/cron/cancel-awaiting-payment
  * Método: GET (con header Authorization: Bearer CRON_SECRET)
@@ -26,15 +27,23 @@ export async function GET(request: NextRequest) {
 
     const cutoff = new Date(Date.now() - CUTOFF_HOURS * 60 * 60 * 1000)
 
+    // Only cancel single_payer orders (or legacy orders without whoPays field).
+    // Split payment orders are excluded — they have their own cancellation logic
+    // with a shorter timeout and per-member handling.
     const result = await Order.updateMany(
       {
         status: 'awaiting_payment',
         createdAt: { $lt: cutoff },
+        $or: [
+          { whoPays: 'single_payer' },
+          { whoPays: { $exists: false } },
+        ],
       },
       {
         $set: {
           status: 'cancelled',
           'payment.status': 'rejected',
+          'statusTimestamps.cancelledAt': new Date(),
         },
       },
     )

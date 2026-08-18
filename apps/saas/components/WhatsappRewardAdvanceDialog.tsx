@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/dialog'
 import { Loader2, MessageCircle, Copy, Check, Send, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { TGO_BRAND_NAME } from '@/lib/brand'
 
 interface Props {
   open: boolean
@@ -41,7 +40,6 @@ export default function WhatsappRewardAdvanceDialog({
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [clubName, setClubName] = useState('')
   const [sosLimit, setSosLimit] = useState(0)
-  const [menuBasePath, setMenuBasePath] = useState('')
 
   const bulkAccRef = useRef({ sent: 0, skipped: 0, failed: 0 })
   const bulkQueueLengthRef = useRef(0)
@@ -53,29 +51,24 @@ export default function WhatsappRewardAdvanceDialog({
   const fetchMembers = useCallback(async () => {
     setLoading(true)
     try {
-      const url = apiPath === 'superadmin'
-        ? `${baseUrl}?action=list-members&tenantSlug=${tenantSlug}`
-        : baseUrl
-      const res = await fetch(url)
+      const res = await fetch(baseUrl)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setMembers(data.members)
       setClubName(data.clubName)
       setSosLimit(data.sosLimit)
-      setMenuBasePath(data.menuBasePath || '')
       setSelectedIds(new Set(data.members.map((m: any) => m._id)))
       if (data.members.length > 0) {
         const first = data.members[0]
         const items = first.eligibleItems.map((i: any) => `• ${i.name}`).join('\n')
-        const menuUrl = data.menuBasePath ? `${window.location.origin}${data.menuBasePath}` : ''
 
         if (defaultMessageType === 'superadmin') {
           setMessage(
-            `¡Hola ${first.name}! 🎉\n\nDesde ${TGO_BRAND_NAME} te informamos que con tus ${first.points} puntos y tu Reward Advance de ${data.sosLimit} puntos, ya podés canjear en ${data.clubName}:\n${items}\n\n${menuUrl}\n\n¡Te esperamos!`
+            `¡Hola ${first.name}! 🎉\n\nDesde TakeasyGO te informamos que con tus ${first.points} puntos y tu Reward Advance de ${data.sosLimit} puntos, ya podés canjear en ${data.clubName}:\n${items}\n\n¡Te esperamos!`
           )
         } else {
           setMessage(
-            `¡Hola ${first.name}! 🎉\n\nDesde ${data.clubName} te informamos que con tus ${first.points} puntos y tu Reward Advance de ${data.sosLimit} puntos, ya podés canjear:\n${items}\n\n${menuUrl}\n\n¡Te esperamos!`
+            `¡Hola ${first.name}! 🎉\n\nDesde ${data.clubName} te informamos que con tus ${first.points} puntos y tu Reward Advance de ${data.sosLimit} puntos, ya podés canjear:\n${items}\n\n¡Te esperamos!`
           )
         }
       }
@@ -84,7 +77,7 @@ export default function WhatsappRewardAdvanceDialog({
     } finally {
       setLoading(false)
     }
-  }, [baseUrl, apiPath, tenantSlug, defaultMessageType])
+  }, [baseUrl, defaultMessageType])
 
   useEffect(() => {
     if (open) fetchMembers()
@@ -143,15 +136,9 @@ export default function WhatsappRewardAdvanceDialog({
     fetch(baseUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId: String(member._id), tenantSlug }),
+      body: JSON.stringify({ memberId: member._id, tenantSlug }),
     })
-      .then(async (res) => {
-        const data = await res.json()
-        if (!res.ok) {
-          throw new Error(data.error || data.reason || 'Error al registrar intento')
-        }
-        return data
-      })
+      .then((res) => res.json())
       .then((data) => {
         if (data.ok === false) {
           toast.warning(
@@ -213,7 +200,7 @@ export default function WhatsappRewardAdvanceDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) handleClose() }}>
-      <DialogContent aria-label="WhatsApp Club" className="max-w-lg rounded-[2rem] max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-lg rounded-[2rem] max-h-[85vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">

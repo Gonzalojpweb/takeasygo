@@ -70,7 +70,7 @@ export type ServiceHoursSlot = { days: number[]; open: string; close: string }
 
 export interface CheckoutState {
   currentStep: number
-  mode: 'takeaway' | 'delivery' | 'business'
+  mode: 'takeaway' | 'delivery'
   tenantSlug: string
   locationId: string
   tenantName: string
@@ -126,7 +126,7 @@ type CheckoutAction =
   | { type: 'SET_STEP'; step: number }
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
-  | { type: 'SET_MODE'; mode: 'takeaway' | 'delivery' | 'business' }
+  | { type: 'SET_MODE'; mode: 'takeaway' | 'delivery' }
   | { type: 'SET_CART'; cart: CartItem[] }
   | { type: 'SET_LOADING'; loading: boolean }
   | { type: 'SET_FORM'; form: Partial<CheckoutState['form']> }
@@ -238,7 +238,7 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
   }
 }
 
-function createInitialState(tenantSlug: string, locationId: string, mode: 'takeaway' | 'delivery' | 'business'): CheckoutState {
+function createInitialState(tenantSlug: string, locationId: string, mode: 'takeaway' | 'delivery'): CheckoutState {
   return {
     currentStep: 0,
     mode,
@@ -286,13 +286,12 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
 export const stepsMap: Record<string, string[]> = {
   takeaway: ['Tu pedido', 'Tus datos', 'Pago'],
   delivery: ['Tu pedido', 'Dirección', 'Tus datos', 'Pago'],
-  business: ['Tu pedido', 'Tus datos', 'Pago'],
 }
 
 interface Props {
   tenantSlug: string
   locationId: string
-  mode: 'takeaway' | 'delivery' | 'business'
+  mode: 'takeaway' | 'delivery'
   children: ReactNode
 }
 
@@ -321,16 +320,6 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     if (hints) {
       dispatch({ type: 'SET_UPSERT_HINTS', hints: JSON.parse(hints) })
       sessionStorage.removeItem('upsellHints')
-    }
-
-    // Load business info from sessionStorage for business mode
-    if (mode === 'business') {
-      const corporateAccountId = sessionStorage.getItem('businessCorporateAccountId')
-      const role = sessionStorage.getItem('businessRole')
-      const paymentMode = sessionStorage.getItem('businessPaymentMode')
-      if (corporateAccountId) {
-        dispatch({ type: 'SET_BUSINESS_INFO', info: { corporateAccountId, role: role ?? 'employee', paymentMode: paymentMode ?? 'cash_mp' } })
-      }
     }
 
     // Fetch location config + estimated times

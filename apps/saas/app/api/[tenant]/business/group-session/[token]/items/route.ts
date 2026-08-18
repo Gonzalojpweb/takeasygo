@@ -5,6 +5,7 @@ import CorporateAccount from '@/models/CorporateAccount'
 import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveHalfPriceCustomizations } from '@takeasygo/business'
+import { upsertConsumerFromOrder } from '@/lib/consumer'
 
 export async function POST(
   request: NextRequest,
@@ -233,6 +234,24 @@ export async function POST(
     order.subtotal = order.items.reduce((sum: number, i: any) => sum + i.subtotal, 0)
     order.total = order.subtotal
     await order.save()
+
+    // Upsert Consumer record for the employee (creates a stable _id for future group payment references)
+    const itemsSubtotal = newItems.reduce((sum: number, i: any) => sum + i.subtotal, 0)
+    try {
+      await upsertConsumerFromOrder({
+        name: normalizedEmail.split('@')[0],
+        email: normalizedEmail,
+        phone: '',
+        phoneHash: null,
+        tenantId: tenant._id,
+        total: itemsSubtotal,
+        createdAt: order.createdAt,
+        isCorporate: true,
+        corporateAccountId: order.corporateAccountId,
+      })
+    } catch (e) {
+      console.error('[group-session] consumer upsert error for employee:', e)
+    }
 
     return NextResponse.json({
       added: newItems,
