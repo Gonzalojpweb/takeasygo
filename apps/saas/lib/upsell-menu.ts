@@ -1,13 +1,44 @@
 import type { CartItem } from '@/types/cart'
 import type { ICoOccurrencePair } from '@/models/MenuInsights'
 
-export type UpsellSource = 'manual' | 'behavioral' | 'static'
+export type UpsellSource = 'manual' | 'behavioral' | 'static' | 'special'
+
+interface SpecialDateRule {
+  name: string
+  date: { month: number; day: number }
+  triggerItems: string[]
+  suggestedItems: string[]
+}
+
+const SPECIAL_DATES: SpecialDateRule[] = [
+  {
+    name: 'Día de la Papa Frita',
+    date: { month: 8, day: 20 },
+    triggerItems: ['hamburguesa', 'burger', 'bebida', 'drink', 'gaseosa', 'cerveza'],
+    suggestedItems: ['papa', 'papas', 'frita', 'fritas', 'crew', 'clásica', 'sazonada'],
+  },
+]
 
 function median(values: number[]): number {
   if (values.length === 0) return 0
   const sorted = [...values].sort((a, b) => a - b)
   const mid = Math.floor(sorted.length / 2)
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
+function isSpecialDate(): SpecialDateRule | null {
+  const now = new Date()
+  const month = now.getMonth() + 1
+  const day = now.getDate()
+  
+  return SPECIAL_DATES.find(rule => rule.date.month === month && rule.date.day === day) || null
+}
+
+function matchesKeywords(item: any, keywords: string[]): boolean {
+  const name = item.name?.toLowerCase() || ''
+  const tags = (item.tags || []).map((t: string) => t.toLowerCase())
+  const combined = name + ' ' + tags.join(' ')
+  return keywords.some(kw => combined.includes(kw.toLowerCase()))
 }
 
 /**
@@ -59,6 +90,20 @@ export function getSuggestions(
       result.push(item)
       included.add(id)
       if (result.length >= maxSuggestions) return
+    }
+  }
+
+  // ── Capa -1: Sobrescritura por fecha especial ────────────────────────────
+  const specialDate = isSpecialDate()
+  if (specialDate && justAddedItemId) {
+    const justAddedItem = itemById.get(justAddedItemId)
+    if (justAddedItem && matchesKeywords(justAddedItem, specialDate.triggerItems)) {
+      const specialSuggestions = candidates
+        .filter((i: any) => matchesKeywords(i, specialDate.suggestedItems))
+        .slice(0, maxSuggestions)
+      if (specialSuggestions.length > 0) {
+        return { items: specialSuggestions, source: 'special' }
+      }
     }
   }
 
