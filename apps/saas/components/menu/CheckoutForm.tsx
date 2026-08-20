@@ -149,7 +149,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   }, [deliveryAddress])
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('cart')
+    const saved = sessionStorage.getItem(`cart_${tenantSlug}`)
     if (!saved) {
       router.back()
       return
@@ -530,7 +530,7 @@ async function handleSubmit(e: React.FormEvent) {
       captureRewardAdvanceAccepted(missingPoints)
     }
 
-    sessionStorage.removeItem('cart')
+    sessionStorage.removeItem(`cart_${tenantSlug}`)
 
     // Transferencia: no redirigir a pasarela, mostrar datos bancarios en tracking
     if (selectedPaymentMethod === 'transfer') {
