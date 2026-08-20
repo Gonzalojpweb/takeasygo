@@ -40,6 +40,7 @@ interface OrderItem {
   rewardItems?: any[]
   printLog?: any[]
   locationName?: string
+  source?: string
 }
 
 type Tab = 'detalles' | 'timeline' | 'historial'
@@ -62,6 +63,12 @@ const MODE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
   delivery: { label: 'DELIVERY', icon: Truck, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   'dine-in': { label: 'EN EL LOCAL', icon: UtensilsCrossed, color: 'bg-sky-100 text-sky-700 border-sky-200' },
   business: { label: 'CORPORATIVO', icon: Building2, color: 'bg-purple-100 text-purple-700 border-purple-200' },
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  'tgo-explore': 'TGO Explore',
+  'tgo-customer': 'TGO Customer',
+  'tgo-app': 'TGO App',
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -146,6 +153,11 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
           <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border', mode.color)}>
             <ModeIcon size={10} />
             {mode.label}
+          </span>
+        )}
+        {item.source?.startsWith('tgo-') && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border bg-[#f74211]/10 text-[#f74211] border-[#f74211]/30">
+            {SOURCE_LABELS[item.source] || 'TGO'}
           </span>
         )}
         <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border',
