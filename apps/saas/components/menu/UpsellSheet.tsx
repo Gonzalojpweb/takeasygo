@@ -12,7 +12,7 @@ function tn(obj: any, field: 'name' | 'description', locale: 'es' | 'en'): strin
   return obj[field] || ''
 }
 
-type UpsellSource = 'manual' | 'behavioral' | 'static'
+type UpsellSource = 'manual' | 'behavioral' | 'static' | 'special'
 
 const LABELS: Record<UpsellSource, Record<'es' | 'en', { title: string; subtitle: string; skip: string }>> = {
   behavioral: {
@@ -26,6 +26,10 @@ const LABELS: Record<UpsellSource, Record<'es' | 'en', { title: string; subtitle
   manual: {
     es: { title: '¿Completamos tu pedido?', subtitle: 'Te recomendamos agregar...', skip: 'No, gracias' },
     en: { title: 'Complete your order?', subtitle: 'We recommend adding...', skip: 'No thanks' },
+  },
+  special: {
+    es: { title: '¡Es un día especial!', subtitle: 'Hoy te recomendamos...', skip: 'No, gracias' },
+    en: { title: 'Special day!', subtitle: 'Today we recommend...', skip: 'No thanks' },
   },
 }
 
