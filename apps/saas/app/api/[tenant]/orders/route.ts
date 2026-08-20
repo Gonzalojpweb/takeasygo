@@ -422,7 +422,7 @@ export async function POST(
           available = available && item.isTakeawayAvailable !== false
         }
         if (isBusinessOrder) {
-          available = available && item.isBusinessAvailable && item.businessPrice != null
+          available = available && item.isBusinessAvailable
         }
         if (available && item._id) {
           menuItemMap.set(item._id.toString(), { 
@@ -440,7 +440,7 @@ export async function POST(
             available = available && item.isTakeawayAvailable !== false
           }
           if (isBusinessOrder) {
-            available = available && item.isBusinessAvailable && item.businessPrice != null
+            available = available && item.isBusinessAvailable
           }
           if (available && item._id) {
             menuItemMap.set(item._id.toString(), {

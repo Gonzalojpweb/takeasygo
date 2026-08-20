@@ -73,14 +73,14 @@ export async function POST(
     for (const category of (menu as any).categories || []) {
       if (!category.isBusinessAvailable) continue
       for (const item of category.items || []) {
-        if (item.isBusinessAvailable && item.businessPrice != null && item._id) {
+        if (item.isBusinessAvailable && item._id) {
           menuItemMap.set(item._id.toString(), { ...item, categoryName: category.name })
         }
       }
       for (const subcategory of category.subcategories || []) {
         if (!(subcategory.isBusinessAvailable ?? category.isBusinessAvailable)) continue
         for (const item of subcategory.items || []) {
-          if (item.isBusinessAvailable && item.businessPrice != null && item._id) {
+          if (item.isBusinessAvailable && item._id) {
             menuItemMap.set(item._id.toString(), { ...item, categoryName: subcategory.name })
           }
         }
