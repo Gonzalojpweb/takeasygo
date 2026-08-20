@@ -14,7 +14,7 @@ import {
   ChevronDown, Plus, Pencil, Trash2, Check, X,
   Star, Upload, Camera, Settings2, Image as ImageIcon,
   MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff, Clock, Sparkles, Building2,
-  Search
+  Search, Calendar
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -23,6 +23,31 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { toCents, toPesos } from '@takeasygo/business'
 import ScheduleEditor, { type ScheduleSlot } from '@/components/admin/ScheduleEditor'
+
+// Fechas especiales de upselling (misma lógica que upsell-menu.ts)
+interface SpecialDateRule {
+  name: string
+  date: { month: number; day: number }
+  triggerItems: string[]
+  suggestedItems: string[]
+}
+
+const SPECIAL_DATES: SpecialDateRule[] = [
+  {
+    name: 'Día de la Papa Frita',
+    date: { month: 8, day: 20 },
+    triggerItems: ['hamburguesa', 'burger', 'bebida', 'drink', 'gaseosa', 'cerveza'],
+    suggestedItems: ['papa', 'papas', 'frita', 'fritas', 'crew', 'clásica', 'sazonada'],
+  },
+]
+
+function getActiveSpecialDate(): SpecialDateRule | null {
+  const now = new Date()
+  const month = now.getMonth() + 1
+  const day = now.getDate()
+  
+  return SPECIAL_DATES.find(rule => rule.date.month === month && rule.date.day === day) || null
+}
 
 interface Props {
   locations: any[]
@@ -870,6 +895,23 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 
   return (
     <div className="space-y-8 pb-10">
+      {/* Banner de fecha especial de upselling */}
+      {(() => {
+        const activeSpecialDate = getActiveSpecialDate()
+        if (!activeSpecialDate) return null
+        return (
+          <div className="flex items-center gap-3 p-4 bg-[#f74211]/10 border border-[#f74211]/30 rounded-2xl">
+            <Calendar size={20} className="text-[#f74211]" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-[#f74211]">{activeSpecialDate.name}</p>
+              <p className="text-xs text-muted-foreground">
+                Upselling activo: al agregar {activeSpecialDate.triggerItems.join(', ')} se sugerirán {activeSpecialDate.suggestedItems.join(', ')}
+              </p>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Sede Selector */}
       {locations.length > 1 && (
         <div className="flex items-center gap-3 p-1.5 bg-muted/50 border border-border/60 rounded-2xl w-fit">
