@@ -51,7 +51,10 @@ export default function WhatsappRewardAdvanceDialog({
   const fetchMembers = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(baseUrl)
+      const url = apiPath === 'superadmin'
+        ? `${baseUrl}?action=list-members&tenantSlug=${tenantSlug}`
+        : baseUrl
+      const res = await fetch(url)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setMembers(data.members)
@@ -77,7 +80,7 @@ export default function WhatsappRewardAdvanceDialog({
     } finally {
       setLoading(false)
     }
-  }, [baseUrl, defaultMessageType])
+  }, [baseUrl, defaultMessageType, apiPath, tenantSlug])
 
   useEffect(() => {
     if (open) fetchMembers()
