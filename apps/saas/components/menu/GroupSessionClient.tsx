@@ -163,8 +163,37 @@ export default function GroupSessionClient({
         return
       }
 
-      // Redirect to tracking page for full order lifecycle visibility
-      window.location.href = `/${tenant.slug}/tracking/${data.order.orderNumber}`
+      const needsPayment = session?.paymentMode !== 'deferred'
+
+      if (!needsPayment) {
+        window.location.href = `/${tenant.slug}/tracking/${data.order.orderNumber}`
+        return
+      }
+
+      // cash_mp: create MP preference and redirect to checkout
+      const prefRes = await fetch(`/api/${tenant.slug}/payments/create-preference`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: data.order._id }),
+      })
+      if (!prefRes.ok) {
+        toast.error('Error al crear el pago. Redirigiendo al seguimiento...')
+        window.location.href = `/${tenant.slug}/tracking/${data.order.orderNumber}`
+        return
+      }
+      const { sandboxInitPoint, initPoint } = await prefRes.json()
+      const redirectUrl = process.env.NODE_ENV === 'development' ? sandboxInitPoint : initPoint
+
+      try {
+        localStorage.setItem('tgo-pending-order', JSON.stringify({
+          orderNumber: data.order.orderNumber,
+          tenantSlug: tenant.slug,
+          orderId: data.order._id,
+          createdAt: Date.now(),
+        }))
+      } catch {}
+
+      window.location.href = redirectUrl
     } catch {
       toast.error('Error al confirmar')
     } finally {
