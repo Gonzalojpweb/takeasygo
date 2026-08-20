@@ -264,12 +264,12 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   const featuredItems = categories.flatMap((cat: any) => {
     const direct = cat.items.filter((i: any) => {
-      if (mode === 'business') return i.isFeatured && i.isBusinessAvailable && i.businessPrice != null
+      if (mode === 'business') return i.isFeatured && i.isBusinessAvailable
       return i.isFeatured
     })
     const sub = (cat.subcategories ?? []).flatMap((sub: any) =>
       sub.items.filter((i: any) => {
-        if (mode === 'business') return i.isFeatured && i.isBusinessAvailable && i.businessPrice != null
+        if (mode === 'business') return i.isFeatured && i.isBusinessAvailable
         return i.isFeatured
       })
     )
@@ -1087,7 +1087,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                   <>
                     {category.items
                       .filter((item: any) => {
-                        if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && item.businessPrice != null && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+                        if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                         return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                       })
                       .length > 0 && (
@@ -1097,7 +1097,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         </div>
                         {category.items
                           .filter((item: any) => {
-                            if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && item.businessPrice != null && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+                            if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                             return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                           })
                           .map((item: any) => {
@@ -1192,7 +1192,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                       .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
                       .map((subcategory: any) => {
                         const subItems = subcategory.items.filter((item: any) => {
-                          if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && item.businessPrice != null && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+                          if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                           return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                         })
                         if (subItems.length === 0) return null
@@ -1298,7 +1298,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                 ) : (
                   category.items
                     .filter((item: any) => {
-                      if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && item.businessPrice != null && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+                      if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                       return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
                     })
                     .map((item: any) => {
