@@ -35,10 +35,11 @@ const ORDER_COLUMNS: BoardColumnDef[] = [
   { status: 'preparing',  title: 'Preparando',    dotColor: 'bg-orange-400', color: 'bg-orange-100 text-orange-700' },
   { status: 'ready',      title: 'Listos',        dotColor: 'bg-emerald-500', color: 'bg-emerald-100 text-emerald-700' },
   { status: 'en_ruta',    title: 'En Ruta',       dotColor: 'bg-sky-500',   color: 'bg-sky-100 text-sky-700' },
+  { status: 'arrived',    title: 'Llegaron',      dotColor: 'bg-amber-500', color: 'bg-amber-100 text-amber-700' },
   { status: 'delivered',  title: 'Entregados',    dotColor: 'bg-zinc-400',  color: 'bg-zinc-100 text-zinc-600' },
 ]
 
-const ACTIVE_STATUSES = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta']
+const ACTIVE_STATUSES = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
 const ALERT_STATUSES = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed']
 
 interface RecentRating {
