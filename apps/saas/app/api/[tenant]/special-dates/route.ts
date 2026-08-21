@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 
@@ -10,7 +10,7 @@ interface SpecialDateRule {
   suggestedItems: string[]
 }
 
-export async function GET(request: Request, { params }: { params: Promise<{ tenant: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   try {
     const { tenant: tenantSlug } = await params
 
@@ -29,7 +29,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ tena
   }
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ tenant: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   try {
     const { tenant: tenantSlug } = await params
 
