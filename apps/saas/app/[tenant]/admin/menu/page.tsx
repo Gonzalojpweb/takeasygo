@@ -6,7 +6,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import MenuManager from '@/components/admin/MenuManager'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Calendar } from 'lucide-react'
 import type { Types } from 'mongoose'
 
 export default async function MenuPage() {
@@ -28,6 +28,13 @@ export default async function MenuPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-white text-2xl font-bold">Menú</h1>
+        <a
+          href={`/${tenantSlug}/admin/special-dates`}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f74211]/10 hover:bg-[#f74211]/20 border border-[#f74211]/30 text-[#f74211] text-sm font-medium transition-colors"
+        >
+          <Calendar size={16} />
+          Fechas Especiales
+        </a>
       </div>
 
       {/* Links al menú público por sede */}
