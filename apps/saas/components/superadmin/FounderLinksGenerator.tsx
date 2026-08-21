@@ -22,6 +22,7 @@ interface Location {
 }
 
 const MODE_LABELS: Record<string, string> = {
+  home: 'Menú Home',
   takeaway: 'Take Away',
   delivery: 'Delivery',
   'dine-in': 'En el Local',
@@ -50,9 +51,9 @@ export default function FounderLinksGenerator({ tenants }: Props) {
   const selectedTenant = tenants.find(t => t._id === selectedTenantId)
   const selectedLocation = locations.find(l => l._id === selectedLocationId)
   const availableModes = selectedLocation?.settings?.orderModes ?? []
-  const allModes = selectedTenant?.business?.enabled
-    ? [...new Set([...availableModes, 'business'])]
-    : availableModes
+  const allModes = ['home', ...new Set(selectedTenant?.business?.enabled
+    ? [...availableModes, 'business']
+    : availableModes)]
 
   const fetchLocations = useCallback(async (tenantSlug: string) => {
     setLoadingLocations(true)
@@ -100,6 +101,9 @@ export default function FounderLinksGenerator({ tenants }: Props) {
 
   const generateLink = (slug: string, locationId: string, mode: string) => {
     if (!baseUrl || !slug || !locationId || !mode) return ''
+    if (mode === 'home') {
+      return `${baseUrl}/${slug}/menu/${locationId}?source=tgo-customer`
+    }
     return `${baseUrl}/${slug}/menu/${locationId}/${mode}?source=tgo-customer`
   }
 
@@ -239,29 +243,45 @@ export default function FounderLinksGenerator({ tenants }: Props) {
       <div className="bg-card border-2 border-border/60 rounded-2xl p-6 space-y-4">
         <div>
           <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-            Links por Tenant (Take Away por defecto)
+            Links por Tenant
           </h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Links rápidos con modo Take Away. Para elegir sede o modo específico, usá el generador de arriba.
+            Links rápidos al Home del Menú y Take Away. Para elegir sede o modo específico, usá el generador de arriba.
           </p>
         </div>
         <div className="space-y-2">
           {tenants.map((tenant) => {
-            const link = baseUrl
+            const homeLink = baseUrl
+              ? `${baseUrl}/${tenant.slug}/menu/LOCATION_ID?source=tgo-customer`
+              : ''
+            const takeawayLink = baseUrl
               ? `${baseUrl}/${tenant.slug}/menu/LOCATION_ID/takeaway?source=tgo-customer`
               : ''
             return (
-              <div key={tenant._id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
-                <Globe size={16} className="text-[#f74211] shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{tenant.name}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono truncate">
-                    {tenant.slug}/menu/LOCATION_ID/takeaway?source=tgo-customer
-                  </p>
+              <div key={tenant._id} className="p-3 bg-muted/30 rounded-xl space-y-2">
+                <div className="flex items-center gap-3">
+                  <Globe size={16} className="text-[#f74211] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{tenant.name}</p>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground shrink-0">
+                    Seleccioná sede arriba para generar el link exacto
+                  </span>
                 </div>
-                <span className="text-[10px] text-muted-foreground shrink-0">
-                  Seleccioná sede arriba para generar el link exacto
-                </span>
+                <div className="pl-7 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase w-16 shrink-0">Home</span>
+                    <p className="text-[10px] text-muted-foreground font-mono truncate flex-1">
+                      {tenant.slug}/menu/LOCATION_ID?source=tgo-customer
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase w-16 shrink-0">Takeaway</span>
+                    <p className="text-[10px] text-muted-foreground font-mono truncate flex-1">
+                      {tenant.slug}/menu/LOCATION_ID/takeaway?source=tgo-customer
+                    </p>
+                  </div>
+                </div>
               </div>
             )
           })}

@@ -164,6 +164,25 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
             {summary?.totalVisits || 0}
           </p>
         </div>
+        <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4 relative group">
+          <span className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-help">
+            <Info size={12} className="text-muted-foreground/50" />
+            <span className="absolute top-0 right-full mr-2 w-64 p-2 text-xs text-white bg-zinc-800 rounded-lg shadow-lg pointer-events-none text-left z-10">
+              Visitas que llegaron desde la plataforma TakeasyGO: app móvil (links compartidos) y explorador de restaurantes. Incluye fuentes tgo-customer y tgo-explore.
+            </span>
+          </span>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Visitas App TGO
+          </p>
+          <p className="text-3xl font-bold text-cyan-600 mt-2">
+            {summary?.tgoTrafficTotal || 0}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {(summary?.totalVisits || 0) > 0
+              ? `${Math.round(((summary?.tgoTrafficTotal || 0) / (summary?.totalVisits || 1)) * 100)}% del total`
+              : 'Sin datos'}
+          </p>
+        </div>
       </div>
 
       {/* Fuentes de tráfico */}
