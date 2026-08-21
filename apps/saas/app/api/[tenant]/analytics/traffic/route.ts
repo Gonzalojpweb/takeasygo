@@ -55,7 +55,7 @@ export async function GET(
       visitedAt: visitedAtFilter,
     }
 
-    const [visits, total, bySource, byDevice, byDay, byPromo] = await Promise.all([
+    const [visits, total, bySource, byDevice, byDay, byPromo, tgoTraffic] = await Promise.all([
       MenuVisit.find(query)
         .sort({ visitedAt: -1 })
         .limit(50)
@@ -91,6 +91,11 @@ export async function GET(
         { $group: { _id: '$promo', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]),
+      MenuVisit.aggregate([
+        { $match: { ...query, source: { $in: ['tgo-customer', 'tgo-explore'] } } },
+        { $group: { _id: '$source', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
     ])
 
     return NextResponse.json({
@@ -103,6 +108,7 @@ export async function GET(
         count: d.count
       })).reverse(),
       byPromo,
+      tgoTraffic,
       summary: {
         totalVisits: total,
         days: dateFromParam || dateToParam ? undefined : days,
@@ -110,6 +116,7 @@ export async function GET(
         dateTo: dateToParam || undefined,
         bySource,
         byDevice,
+        tgoTrafficTotal: tgoTraffic.reduce((sum: number, s: any) => sum + s.count, 0),
       },
     })
   } catch (error) {
