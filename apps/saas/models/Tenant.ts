@@ -272,6 +272,12 @@ export interface ITenant extends Document {
     triggerItems: string[]
     suggestedItems: string[]
   }[]
+  /** Balance acumulado de comisiones pendientes de cobro (en centavos) */
+  commissionBalance: {
+    transfer: number
+  }
+  /** Umbral de notificación de comisiones (en centavos). null = usar global */
+  commissionThreshold?: number | null
 }
 
 const TenantSchema = new Schema<ITenant>(
@@ -644,6 +650,11 @@ const TenantSchema = new Schema<ITenant>(
       }],
       default: [],
     },
+    // ── Balance de comisiones pendientes ──────────────────────────────────
+    commissionBalance: {
+      transfer: { type: Number, default: 0, min: 0 },
+    },
+    commissionThreshold: { type: Number, default: null, min: 0 },
   },
   {
     timestamps: true,

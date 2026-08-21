@@ -66,6 +66,17 @@ export async function PATCH(
 
     await order.save()
 
+    // ── Acumular comisión en balance del tenant ────────────────────────
+    // Nota: platformFeeAmount es 0 para órdenes takeaway (solo delivery genera comisión).
+    // Ver lib/pricing.ts:getPlatformFeePercent para la regla de negocio.
+    const commissionAmount = order.payment?.platformFeeAmount || 0
+    if (commissionAmount > 0) {
+      await Tenant.updateOne(
+        { _id: tenant._id },
+        { $inc: { 'commissionBalance.transfer': commissionAmount } }
+      )
+    }
+
     // ── Lealtad: procesar deducción de rewards y acreditar puntos ──────
     if (order.customer?.phoneHash) {
       if (order.rewardItems && order.rewardItems.length > 0) {
