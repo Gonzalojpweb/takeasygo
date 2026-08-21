@@ -265,6 +265,13 @@ export interface ITenant extends Document {
   }
   createdAt: Date
   updatedAt: Date
+  specialDates: {
+    id: string
+    name: string
+    date: { month: number; day: number }
+    triggerItems: string[]
+    suggestedItems: string[]
+  }[]
 }
 
 const TenantSchema = new Schema<ITenant>(
@@ -622,6 +629,20 @@ const TenantSchema = new Schema<ITenant>(
       successTitle:     { type: String, default: '¡Registro exitoso!' },
       successMessage:   { type: String, default: 'Bienvenido al club de fidelización' },
       welcomePointsMsg: { type: String, default: '{points} puntos de bienvenida' },
+    },
+    /** Fechas especiales de upselling */
+    specialDates: {
+      type: [{
+        id: { type: String, required: true },
+        name: { type: String, required: true },
+        date: {
+          month: { type: Number, required: true, min: 1, max: 12 },
+          day: { type: Number, required: true, min: 1, max: 31 },
+        },
+        triggerItems: { type: [String], default: [] },
+        suggestedItems: { type: [String], default: [] },
+      }],
+      default: [],
     },
   },
   {

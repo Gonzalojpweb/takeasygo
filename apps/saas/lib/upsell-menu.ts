@@ -44,7 +44,8 @@ function matchesKeywords(item: any, keywords: string[]): boolean {
 /**
  * Devuelve ítems sugeridos para mostrar en el UpsellSheet.
  *
- * Tres capas en orden de prioridad:
+ * Cuatro capas en orden de prioridad:
+ * -1. Special (fechas especiales configuradas por el tenant)
  *  0. Manual (suggestWith): el admin configuró explícitamente qué sugerir
  *  1. Behavioral (co-ocurrencia real de órdenes): clientes que pidieron X también pidieron Y
  *  2. Fallback estático (price tiers + isFeatured): funciona desde el día 1 sin historial
@@ -59,6 +60,7 @@ export function getSuggestions(
   justAddedItemId: string | undefined,
   insights: ICoOccurrencePair[] | null,
   maxSuggestions = 2,
+  tenantSpecialDates?: SpecialDateRule[],
 ): { items: any[]; source: UpsellSource } {
   const allItems: any[] = categories.flatMap((cat) => {
     if (!cat.isAvailable) return []
@@ -94,7 +96,12 @@ export function getSuggestions(
   }
 
   // ── Capa -1: Sobrescritura por fecha especial ────────────────────────────
-  const specialDate = isSpecialDate()
+  const specialDates = tenantSpecialDates || SPECIAL_DATES
+  const specialDate = specialDates.find(rule => {
+    const now = new Date()
+    return rule.date.month === now.getMonth() + 1 && rule.date.day === now.getDate()
+  })
+  
   if (specialDate && justAddedItemId) {
     const justAddedItem = itemById.get(justAddedItemId)
     if (justAddedItem && matchesKeywords(justAddedItem, specialDate.triggerItems)) {
