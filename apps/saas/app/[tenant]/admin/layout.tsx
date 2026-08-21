@@ -111,6 +111,19 @@ export default async function AdminLayout({
     })
   }
 
+  // Commission badge: show when balance (pesos) >= threshold (pesos)
+  let commissionBadge = 0
+  if (session.user.role === 'admin' && tenantDoc) {
+    const t = await Tenant.findById(tenantDoc._id)
+      .select('commissionBalance commissionThreshold')
+      .lean() as any
+    const balancePesos = (t?.commissionBalance?.transfer ?? 0) / 100
+    const threshold = t?.commissionThreshold ?? null
+    if (threshold != null && balancePesos >= threshold) {
+      commissionBadge = 1
+    }
+  }
+
   const sidebarProps = {
     tenantSlug: tenant,
     userRole: session.user.role ?? 'staff',
@@ -118,6 +131,7 @@ export default async function AdminLayout({
     plan,
     dineInOnly,
     unreadAnnouncements,
+    commissionBadge,
     businessEnabled,
     crmEnabled,
     assignedLocations: session.user.assignedLocations ?? [],
