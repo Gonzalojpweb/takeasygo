@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { headers } from 'next/navigation'
 
 interface SpecialDateRule {
   id: string
@@ -11,10 +10,9 @@ interface SpecialDateRule {
   suggestedItems: string[]
 }
 
-export async function GET(request: Request, { params }: { params: { tenant: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ tenant: string }> }) {
   try {
-    const headersList = await headers()
-    const tenantSlug = headersList.get('x-tenant-slug')
+    const { tenant: tenantSlug } = await params
 
     await connectDB()
 
@@ -31,10 +29,9 @@ export async function GET(request: Request, { params }: { params: { tenant: stri
   }
 }
 
-export async function POST(request: Request, { params }: { params: { tenant: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ tenant: string }> }) {
   try {
-    const headersList = await headers()
-    const tenantSlug = headersList.get('x-tenant-slug')
+    const { tenant: tenantSlug } = await params
 
     const body = await request.json()
     const { name, date, triggerItems, suggestedItems } = body

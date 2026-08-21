@@ -1,18 +1,32 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { headers } from 'next/navigation'
+import { auth } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 import SpecialDatesConfig from '@/components/admin/SpecialDatesConfig'
 
-export default async function SpecialDatesPage() {
-  const headersList = await headers()
-  const tenantSlug = headersList.get('x-tenant-slug')
+export default async function SpecialDatesPage({
+  params,
+}: {
+  params: Promise<{ tenant: string }>
+}) {
+  const { tenant: tenantSlug } = await params
+  const session = await auth()
+
+  if (!session?.user) redirect('/login')
 
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
   if (!tenant) {
-    return <div>Tenant not found</div>
+    redirect('/login')
   }
 
-  return <SpecialDatesConfig tenantSlug={tenantSlug || ''} />
+  const isOwner = session.user.tenantSlug === tenantSlug
+  const isSuperadmin = session.user.role === 'superadmin'
+
+  if (!isOwner && !isSuperadmin) {
+    redirect('/login')
+  }
+
+  return <SpecialDatesConfig tenantSlug={tenantSlug} />
 }
