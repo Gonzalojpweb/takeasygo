@@ -21,6 +21,7 @@ const STATUS_CONFIG = [
   { status: 'preparing', label: 'Preparando',  icon: Package,      color: 'bg-orange-400', bgColor: 'bg-orange-50' },
   { status: 'ready',     label: 'Listos',      icon: CheckCircle2, color: 'bg-emerald-500',bgColor: 'bg-emerald-50' },
   { status: 'en_ruta',   label: 'En Ruta',     icon: Truck,        color: 'bg-sky-500',    bgColor: 'bg-sky-50' },
+  { status: 'arrived',   label: 'Llegaron',    icon: CheckCircle2, color: 'bg-amber-500',  bgColor: 'bg-amber-50' },
 ]
 
 export default function OrderInsights({ items }: BoardInsightsRenderProps<OrderItem>) {
