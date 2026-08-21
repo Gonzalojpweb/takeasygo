@@ -38,16 +38,16 @@ interface CommissionStatus {
 /* ── Commissions endpoint ── */
 interface CommissionBreakdown {
   method: string
-  amount: string
+  amount: number
   count: number
 }
 
 interface CommissionData {
   from: string
   to: string
-  total: string
-  settled: string
-  pending: string
+  total: number
+  settled: number
+  pending: number
   breakdown: CommissionBreakdown[]
 }
 
@@ -55,7 +55,7 @@ interface CommissionData {
 interface Settlement {
   from: string
   to: string
-  amountCollected: string
+  amountCollected: number
   collectedBy: string
   collectedAt: string
   notes: string
@@ -162,7 +162,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
 
   const balance = status?.balance ?? 0
   const overThreshold = status?.overThreshold ?? false
-  const pendingRaw = data?.pending ? parseFloat(data.pending.replace(/[^0-9.,]/g, '').replace(',', '.')) : 0
+  const pendingAmount = data?.pending ?? 0
 
   return (
     <div className="space-y-6">
@@ -204,7 +204,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
             <div className="mt-3 h-8 w-32 animate-pulse rounded bg-muted" />
           ) : (
             <p className="text-3xl font-bold tracking-tight mt-3 tabular-nums text-destructive">
-              {data?.pending ?? '$0,00'}
+              ${fmt(pendingAmount)}
             </p>
           )}
           <p className="text-[10px] text-muted-foreground mt-1">
@@ -232,7 +232,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
           />
         </div>
 
-        {pendingRaw > 0 && (
+        {pendingAmount > 0 && (
           <Button
             onClick={handlePay}
             disabled={paying}
@@ -303,7 +303,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
                             {METHOD_LABELS[b.method] || b.method}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-right font-black tabular-nums">${b.amount}</td>
+                        <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(b.amount)}</td>
                         <td className="px-5 py-4 text-right text-sm text-muted-foreground">{b.count}</td>
                       </tr>
                     ))
@@ -360,7 +360,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
                         {format(new Date(s.from), 'dd/MM/yyyy', { locale: es })} –{' '}
                         {format(new Date(s.to), 'dd/MM/yyyy', { locale: es })}
                       </td>
-                      <td className="px-5 py-4 text-right font-black tabular-nums">${s.amountCollected}</td>
+                      <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(s.amountCollected)}</td>
                       <td className="px-5 py-4 text-sm">{s.collectedBy}</td>
                       <td className="px-5 py-4 text-sm text-muted-foreground">
                         {format(new Date(s.collectedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
