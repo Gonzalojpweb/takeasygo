@@ -11,6 +11,7 @@ interface DesktopSidebarProps {
   plan: any
   dineInOnly?: boolean
   unreadAnnouncements?: number
+  commissionBadge?: number
   businessEnabled?: boolean
   crmEnabled?: boolean
   assignedLocations?: string[]

@@ -33,6 +33,7 @@ import {
   Building2,
   Star,
   Calendar,
+  Coins,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -50,6 +51,7 @@ interface Props {
   isExpanded?: boolean
   dineInOnly?: boolean
   unreadAnnouncements?: number
+  commissionBadge?: number
   businessEnabled?: boolean
   crmEnabled?: boolean
   assignedLocations?: string[]
@@ -114,7 +116,7 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [] }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [] }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
   const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
@@ -180,6 +182,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
       items: [
         { href: `${base}/users`, label: 'Usuarios', icon: Users, roles: ['admin'], feature: 'users' },
         { href: `${base}/billing`, label: 'Facturación', icon: CreditCard, roles: ['admin'] },
+        { href: `${base}/commissions`, label: 'Comisiones', icon: Coins, roles: ['admin'], badge: commissionBadge },
         { href: `${base}/settings`, label: 'Configuración', icon: Settings, roles: ['admin'] },
         { href: `${base}/settings/pos`, label: 'Integración POS', icon: Database, roles: ['admin'], feature: 'posIntegration' },
       ],
