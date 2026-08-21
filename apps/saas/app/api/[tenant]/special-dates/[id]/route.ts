@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { headers } from 'next/navigation'
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { tenant: string; id: string } }
+  { params }: { params: Promise<{ tenant: string; id: string }> }
 ) {
   try {
-    const headersList = await headers()
-    const tenantSlug = headersList.get('x-tenant-slug')
-    const { id } = params
+    const { tenant: tenantSlug, id } = await params
 
     await connectDB()
 

@@ -435,7 +435,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       }]
     })
     if (triggerUpsell && isNew && !upsellDismissedRef.current) {
-      const { items, source } = getSuggestions(categories, cart, String(item._id), insights)
+      const { items, source } = getSuggestions(categories, cart, String(item._id), insights, 2, tenant.specialDates)
       if (items.length > 0) { setUpsellSuggestions(items); setUpsellSource(source) }
     }
     captureDishAdded({ _id: item._id, name: item.name, price: getItemPrice(item) }, 1, false)
@@ -662,7 +662,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     setCart(prev => [...prev, taggedItem])
     setCustomizingItem(null)
     if (!skipUpsellRef.current && !upsellDismissedRef.current && cartItem.menuItemId) {
-      const { items, source } = getSuggestions(categories, cart, cartItem.menuItemId, insights)
+      const { items, source } = getSuggestions(categories, cart, cartItem.menuItemId, insights, 2, tenant.specialDates)
       if (items.length > 0) { setUpsellSuggestions(items); setUpsellSource(source) }
     }
     skipUpsellRef.current = false

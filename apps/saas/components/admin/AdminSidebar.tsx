@@ -32,6 +32,7 @@ import {
   TrendingUp,
   Building2,
   Star,
+  Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -139,6 +140,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
       section: 'Catálogo',
       items: [
         { href: `${base}/menu`, label: 'Menú', icon: UtensilsCrossed, roles: ['admin', 'manager'] },
+        { href: `${base}/special-dates`, label: 'Fechas Especiales', icon: Calendar, roles: ['admin'] },
       ],
     },
     ...(businessEnabled && canAccess(plan, 'business') ? [{
