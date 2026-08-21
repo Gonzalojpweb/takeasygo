@@ -145,6 +145,19 @@ export async function PATCH(
 
     await order.save()
 
+    // ── Acumular comisión por transferencia en balance del tenant ──────
+    // Nota: platformFeeAmount es 0 para órdenes takeaway (solo delivery genera comisión).
+    // Ver lib/pricing.ts:getPlatformFeePercent para la regla de negocio.
+    if (status === 'confirmed' && previousStatus !== 'confirmed' && order.payment?.method === 'transfer') {
+      const commissionAmount = order.payment?.platformFeeAmount || 0
+      if (commissionAmount > 0) {
+        await Tenant.updateOne(
+          { _id: tenant._id },
+          { $inc: { 'commissionBalance.transfer': commissionAmount } }
+        )
+      }
+    }
+
     // ── Notify SyncLayer of status change (so POS receives order:status_updated)
     // skipForward: true prevents SyncLayer from forwarding back to SaaS (avoids loop)
     if (order.externalOrderId) {
