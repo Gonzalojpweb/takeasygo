@@ -10,7 +10,6 @@ import {
   CreditCard, Loader2, ArrowRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -25,7 +24,7 @@ function getDefaultDates() {
 }
 
 function fmt(n: number) {
-  return toPesos(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 /* ── Status endpoint ── */
