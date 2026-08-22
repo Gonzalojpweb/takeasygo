@@ -7,6 +7,7 @@ import { requireAuth } from '@/lib/apiAuth'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
 import { confirmOrderPayment } from '@/lib/sync-layer'
+import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 
 export async function PATCH(
   request: NextRequest,
@@ -36,7 +37,12 @@ export async function PATCH(
     }
 
     const authError = await requireAuth(request, tenant._id.toString())
-    if (authError) return authError
+    if (authError) {
+      const { getSessionUser } = await import('@/lib/apiAuth')
+      const debugUser = await getSessionUser(request)
+      console.log(`[CONFIRM-DBG] tenant._id="${tenant._id.toString()}" user.tenantId="${debugUser?.tenantId}" user.role="${debugUser?.role}"`)
+      return authError
+    }
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) {
@@ -65,6 +71,8 @@ export async function PATCH(
     }
 
     await order.save()
+
+    finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
 
     // ── Acumular comisión en balance del tenant ────────────────────────
     // Nota: platformFeeAmount es 0 para órdenes takeaway (solo delivery genera comisión).

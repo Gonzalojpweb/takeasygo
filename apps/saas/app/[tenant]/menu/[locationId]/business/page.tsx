@@ -4,6 +4,7 @@ import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { notFound } from 'next/navigation'
 import BusinessMenuClient from '@/components/menu/BusinessMenuClient'
+import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import type { Types } from 'mongoose'
 
 export const revalidate = 300
@@ -30,7 +31,7 @@ export default async function BusinessMenuPage({ params }: Props) {
 
   const tenant = JSON.parse(JSON.stringify(tenantDoc))
   const location = JSON.parse(JSON.stringify(locationDoc))
-  const menu = JSON.parse(JSON.stringify(menuDoc))
+  const menu = sanitizeMenuForPublic(JSON.parse(JSON.stringify(menuDoc)))
 
   return (
     <BusinessMenuClient

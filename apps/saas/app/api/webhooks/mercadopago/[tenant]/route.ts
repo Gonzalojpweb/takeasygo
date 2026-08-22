@@ -16,6 +16,7 @@ import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 import { sendAdminPushNotification } from '@/lib/push'
+import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -210,6 +211,11 @@ export async function POST(
             }
 
             await order.save({ session })
+
+            // Consumir hidden reward claims (idempotente)
+            if (paymentData.status === 'approved' && order.status === 'confirmed') {
+              finalizeHiddenRewardClaims(order._id, order.customer?.phoneHash).catch(() => {})
+            }
 
             // ── Push notification al consumidor (fire-and-forget) ──────────
             if (paymentData.status === 'approved' && 'clientToken' in order && order.clientToken) {

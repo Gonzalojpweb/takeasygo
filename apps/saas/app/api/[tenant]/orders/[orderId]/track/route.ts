@@ -7,6 +7,8 @@ import ImpactEvent from '@/models/ImpactEvent'
 import { decrypt } from '@/lib/crypto'
 import { rateLimit } from '@/lib/rateLimit'
 import { NextRequest, NextResponse } from 'next/server'
+import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
+import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
@@ -78,7 +80,7 @@ export async function POST(
     const hasMpConfigured = tenant.mercadopago?.isConfigured && tenant.mercadopago?.accessToken
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress trackingToken trackingTokenUsedAt')
+      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress trackingToken trackingTokenUsedAt hiddenRewardClaims')
       .lean() as any
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -107,6 +109,20 @@ export async function POST(
     if (order.payment?.method === 'transfer') {
       // Check if impact was registered for this order
       const impactExists = await ImpactEvent.exists({ orderId: order._id })
+
+      // Hidden reward summary (solo para órdenes confirmadas con claims)
+      let hiddenRewardSummary: { menuItemId: string; title: string; discountPercentage: number }[] | null = null
+      if (order.hiddenRewardClaims?.length > 0 && ['confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered'].includes(currentStatus)) {
+        const claims = await HiddenRewardClaim.find({ _id: { $in: order.hiddenRewardClaims } })
+          .select('menuItemId rewardTitle discountPercentage')
+          .lean()
+        hiddenRewardSummary = claims.map(c => ({
+          menuItemId: c.menuItemId?.toString() ?? '',
+          title: c.rewardTitle ?? '',
+          discountPercentage: c.discountPercentage ?? 0,
+        }))
+      }
+
       return NextResponse.json({
         status: currentStatus,
         orderNumber: order.orderNumber,
@@ -138,6 +154,7 @@ export async function POST(
           surchargeAmount: order.payment.surchargeAmount,
           transferConfirmed: order.payment.transferConfirmed,
         },
+        hiddenRewardSummary,
       }, {
         headers: { 'Cache-Control': 'no-store' },
       })
@@ -156,6 +173,7 @@ export async function POST(
           dbOrder.payment.status = 'approved'
           dbOrder.status = 'confirmed'
           await dbOrder.save()
+          finalizeHiddenRewardClaims(dbOrder._id, dbOrder.customerPhoneHash).catch(() => {})
           currentStatus = 'confirmed'
         } else {
           // El pedido ya fue actualizado por el webhook
@@ -175,6 +193,19 @@ export async function POST(
 
     // Check if impact was registered for this order
     const impactExists = await ImpactEvent.exists({ orderId: order._id })
+
+    // Hidden reward summary (solo para órdenes que ya confirmaron y tienen claims)
+    let hiddenRewardSummary: { menuItemId: string; title: string; discountPercentage: number }[] | null = null
+    if (order.hiddenRewardClaims?.length > 0 && ['confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered'].includes(currentStatus)) {
+      const claims = await HiddenRewardClaim.find({ _id: { $in: order.hiddenRewardClaims } })
+        .select('menuItemId rewardTitle discountPercentage')
+        .lean()
+      hiddenRewardSummary = claims.map(c => ({
+        menuItemId: c.menuItemId?.toString() ?? '',
+        title: c.rewardTitle ?? '',
+        discountPercentage: c.discountPercentage ?? 0,
+      }))
+    }
 
     return NextResponse.json({
       status:              currentStatus,
@@ -208,6 +239,7 @@ export async function POST(
         surchargeAmount: order.payment?.surchargeAmount ?? 0,
         transferConfirmed: order.payment?.transferConfirmed ?? false,
       },
+      hiddenRewardSummary,
     }, {
       headers: { 'Cache-Control': 'no-store' },
     })

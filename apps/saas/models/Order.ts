@@ -154,6 +154,8 @@ export interface IOrder extends Document {
   /** Descuento aplicado en centavos. @storedAs cents */
   discountAmount: number
   qrPromoApplied: boolean
+  /** IDs de claims de hidden reward aplicados a esta orden */
+  hiddenRewardClaims?: any[]
   promoSlug: string | null
   promoCode: string | null
   promoCreatedBy: 'superadmin' | 'admin' | null
@@ -446,6 +448,10 @@ const OrderSchema = new Schema(
     qrPromoApplied: {
       type: Boolean,
       default: false,
+    },
+    hiddenRewardClaims: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'HiddenRewardClaim' }],
+      default: [],
     },
     promoSlug: {
       type: String,

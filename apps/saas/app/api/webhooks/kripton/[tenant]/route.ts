@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, processRewardDeduction, revertRewardRedemptions } from '@/lib/loyalty'
 import { sendAdminPushNotification } from '@/lib/push'
+import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 
 const KRIPTON_CONFIRMED_STATES = ['confirmed', 'payed', 'pre_confirmed', 'completing']
 const KRIPTON_FAILED_STATES = ['expired', 'cancel', 'cancelled', 'rejected']
@@ -133,6 +134,11 @@ export async function POST(
         }
 
         await order.save({ session })
+
+        // Consumir hidden reward claims (idempotente)
+        if (isConfirmed && order.status === 'confirmed') {
+          finalizeHiddenRewardClaims(order._id, order.customer?.phoneHash).catch(() => {})
+        }
 
         // 4. Registrar notificación
         const notification = new PaymentNotification({

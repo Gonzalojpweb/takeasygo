@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
+import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 
 export async function GET(
   request: NextRequest,
@@ -85,6 +86,8 @@ export async function GET(
         order.status = 'confirmed'
       }
       await order.save()
+
+      finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
 
       return NextResponse.json({
         status: 'confirmed',

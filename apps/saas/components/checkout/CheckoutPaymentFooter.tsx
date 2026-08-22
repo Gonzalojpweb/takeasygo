@@ -86,6 +86,7 @@ export default function CheckoutPaymentFooter() {
           ? { rewardItems: [{ storeItemId: selectedRewardItemId }], loyaltyPointsRequired: selectedRewardItem.pointsCost }
           : {}),
         source: sessionStorage.getItem('tgo_attribution_source') || activeQrPromo?.source || undefined,
+        sessionId: sessionStorage.getItem('hr_sessionId') || undefined,
         ...(deliveryMode ? {
           deliveryAddress: {
             street: deliveryAddress.street,

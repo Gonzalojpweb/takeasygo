@@ -25,6 +25,7 @@ import { validateCheckoutRewards } from '@/lib/loyalty'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
 import QrPromo from '@/models/QrPromo'
+import { getDeviceIdIfExists } from '@/lib/hidden-rewards'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
 import { calculateFinalTotal } from '@/lib/pricing'
@@ -37,6 +38,7 @@ import Rating from '@/models/Rating'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
 import { pushOrderToSyncLayer } from '@/lib/sync-layer'
+import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -953,6 +955,163 @@ export async function POST(
       qrPromoApplied = true
     }
 
+    // --- HIDDEN REWARD: verificar claims pendientes para ítems del carrito ---
+    // Mutuamente exclusivo con QrPromo: si hay promo activa, el hidden reward queda pendiente para la próxima compra
+    let hiddenRewardDiscount = 0
+    const hiddenRewardClaimIds: mongoose.Types.ObjectId[] = []
+
+    // Mapa de maxClaims por menuItemId (ya tenemos menu en scope desde la línea 405)
+    const maxClaimsByMenuItemId = new Map<string, number>()
+    for (const category of menu.categories || []) {
+      for (const item of category.items || []) {
+        if (item._id && item.hiddenReward?.enabled && (item.hiddenReward.maxClaims ?? 0) > 0) {
+          maxClaimsByMenuItemId.set(item._id.toString(), item.hiddenReward.maxClaims)
+        }
+        for (const sub of category.subcategories || []) {
+          for (const item of sub.items || []) {
+            if (item._id && item.hiddenReward?.enabled && (item.hiddenReward.maxClaims ?? 0) > 0) {
+              maxClaimsByMenuItemId.set(item._id.toString(), item.hiddenReward.maxClaims)
+            }
+          }
+        }
+      }
+    }
+
+    if (!qrPromoApplied && body.customer.phone) {
+      const pHash = hashPhone(body.customer.phone)
+      const menuItemIds = resolvedItems
+        .filter(item => item.itemType === 'menuItem')
+        .map(item => item.menuItemId)
+
+      // ── Transición reserva → pendiente (link phone al crear pedido) ────────
+      // Si el dispositivo tiene una reserva activa para algún ítem del carrito,
+      // la transiciona a 'pendiente' vinculando el teléfono.
+      const deviceId = await getDeviceIdIfExists()
+      if (deviceId && menuItemIds.length > 0) {
+        const reservaClaims = await HiddenRewardClaim.find({
+          tenantId: tenant._id,
+          menuItemId: { $in: menuItemIds },
+          deviceId,
+          status: 'reserva',
+          reservationExpiresAt: { $gt: new Date() },
+        }).lean()
+
+        for (const rc of reservaClaims) {
+          await HiddenRewardClaim.findOneAndUpdate(
+            { _id: rc._id, status: 'reserva' },
+            {
+              $set: {
+                status: 'pendiente',
+                customerPhoneHash: pHash,
+                phoneLinkedAt: new Date(),
+              },
+            }
+          )
+        }
+      }
+
+      // Query $in (no N+1) — ahora incluye los recién transicionados
+      const pendingClaims = await HiddenRewardClaim.find({
+        tenantId: tenant._id,
+        customerPhoneHash: pHash,
+        menuItemId: { $in: menuItemIds },
+        status: 'pendiente',
+        expiresAt: { $gt: new Date() },
+      }).lean()
+
+      // Mapa para acceso rápido
+      const claimsByMenuItemId = new Map<string, any>()
+      for (const claim of pendingClaims) {
+        claimsByMenuItemId.set(claim.menuItemId.toString(), claim)
+      }
+
+      // Para cada item del carrito que tiene claim, reservar atómicamente
+      for (const item of resolvedItems) {
+        if (item.itemType !== 'menuItem') continue
+        const claim = claimsByMenuItemId.get(item.menuItemId?.toString())
+        if (!claim) continue
+
+        // Misma sesión: skip si el sessionId del claim coincide con el de la orden
+        if (body.sessionId && claim.sessionId === body.sessionId) continue
+
+        // Stock: consumido + reservado < maxClaims para este ítem
+        const itemKey = item.menuItemId?.toString()
+        const maxC = maxClaimsByMenuItemId.get(itemKey || '')
+        if (maxC !== undefined) {
+          const occupied = await HiddenRewardClaim.countDocuments({
+            tenantId: tenant._id,
+            menuItemId: item.menuItemId,
+            status: { $in: ['consumido', 'reservado'] },
+          })
+          if (occupied >= maxC) continue
+        }
+
+        // Reservar atómicamente: pendiente → reservado (solo uno gana la carrera)
+        const reserved = await HiddenRewardClaim.findOneAndUpdate(
+          {
+            _id: claim._id,
+            status: 'pendiente',
+            expiresAt: { $gt: new Date() },
+          },
+          {
+            $set: {
+              status: 'reservado',
+              reservedOrderId: null, // se setea después de crear el pedido
+            },
+          },
+          { new: true }
+        )
+
+        if (!reserved) {
+          // Otro pedido ganó la carrera — rechazar este (B2)
+          // Liberar los claims que ya se habían reservado en esta transacción
+          if (hiddenRewardClaimIds.length > 0) {
+            await HiddenRewardClaim.updateMany(
+              { _id: { $in: hiddenRewardClaimIds }, status: 'reservado' },
+              { $set: { status: 'pendiente', reservedOrderId: null } }
+            )
+          }
+          return NextResponse.json(
+            { error: 'Esta recompensa ya se usó en otro pedido. Reintentá.' },
+            { status: 409 }
+          )
+        }
+
+        const itemDiscount = Math.floor(item.subtotal * (claim.discountPercentage / 100))
+        hiddenRewardDiscount += itemDiscount
+        hiddenRewardClaimIds.push(reserved._id)
+      }
+    }
+    discountAmount += hiddenRewardDiscount
+
+    // ── Upsert LoyaltyMember: solo si hay claims reales de hidden rewards ─
+    // Auto-enrolamiento al Club como gancho de adquisición.
+    // Reusa el patrón de loyalty/register/route.ts.
+    if (!qrPromoApplied && body.customer.phone && hiddenRewardClaimIds.length > 0) {
+      const pHash = hashPhone(body.customer.phone)
+      const existingMember = await LoyaltyMember.findOne({
+        tenantId: tenant._id,
+        phoneHash: pHash,
+        status: 'active',
+      }).select('_id').lean()
+      if (!existingMember) {
+        const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
+        await LoyaltyMember.create({
+          tenantId: tenant._id,
+          phone: body.customer.phone,
+          phoneHash: pHash,
+          name: body.customer.name || 'Cliente',
+          email: body.customer.email || '',
+          source: 'hidden_reward',
+          status: 'active',
+          joinedAt: new Date(),
+          'loyalty.points': welcomePoints,
+        }).catch((err) => {
+          console.error('[HiddenRewards] LoyaltyMember upsert failed:', err)
+        })
+      }
+    }
+
     // --- VALIDACIÓN DE ÍTEMS DE PREMIO (CANJE CON PUNTOS) ---
     const resolvedRewards: any[] = []
     let rewardAdvanceApplied = false
@@ -1200,6 +1359,7 @@ export async function POST(
       promoSlug: activeQrPromo?.slug ?? body.promoSlug ?? null,
       promoCode: activeQrPromo?.code ?? null,
       promoCreatedBy: activeQrPromo?.createdBy ?? null,
+      ...(hiddenRewardClaimIds.length > 0 ? { hiddenRewardClaims: hiddenRewardClaimIds } : {}),
       ...(isDeferredBusiness ? { statusTimestamps: { confirmedAt: new Date() } } : {}),
       ...(isBusinessOrder && body.corporateAccountId ? {
         corporateAccountId: body.corporateAccountId,
@@ -1212,6 +1372,14 @@ export async function POST(
         deliveryRangeApplied,
       } : {}),
     })
+
+    // ── Vincular reservedOrderId a los claims reservados ──────────────────────
+    if (hiddenRewardClaimIds.length > 0) {
+      await HiddenRewardClaim.updateMany(
+        { _id: { $in: hiddenRewardClaimIds }, status: 'reservado' },
+        { $set: { reservedOrderId: order._id } }
+      )
+    }
 
     // Register impact event (never fails the order)
     try {

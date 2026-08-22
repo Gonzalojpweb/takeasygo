@@ -5,6 +5,7 @@ import Menu from '@/models/Menu'
 import { notFound } from 'next/navigation'
 import DineInMenuView from '@/components/menu/DineInMenuView'
 import { getBestSellers } from '@/lib/tia/bestSellers'
+import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import type { Types } from 'mongoose'
 
 export const revalidate = 300
@@ -33,7 +34,7 @@ export default async function DineInMenuPage({ params }: Props) {
     <DineInMenuView
       tenant={JSON.parse(JSON.stringify(tenantDoc))}
       location={JSON.parse(JSON.stringify(locationDoc))}
-      menu={JSON.parse(JSON.stringify(menuDoc))}
+      menu={sanitizeMenuForPublic(JSON.parse(JSON.stringify(menuDoc)))}
       bestSellers={JSON.parse(JSON.stringify(bestSellers))}
     />
   )

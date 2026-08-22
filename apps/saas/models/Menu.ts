@@ -78,6 +78,26 @@ export interface IMenuItem {
   descriptionTranslations?: { en: string }
   availabilityMode?: 'always' | 'scheduled'
   availabilitySchedule?: IAvailabilitySlot[]
+  /** Hidden Reward: recompensa escondida que se revela al agregar este ítem al carrito */
+  hiddenReward?: {
+    enabled: boolean
+    /** Porcentaje de descuento (0-100). Solo aplica a este ítem en la próxima compra */
+    discountPercentage: number
+    /** Título que se muestra al descubrir la recompensa */
+    title: string
+    /** Descripción de la recompensa */
+    description: string
+    /** Cantidad máxima total de claims (0 = ilimitado) */
+    maxClaims: number
+    /** Claims restantes (se decrementa atómicamente) */
+    remainingClaims: number
+    /** Inicio de vigencia (null = sin inicio) */
+    scheduledStart?: Date | null
+    /** Fin de vigencia (null = sin fin) */
+    scheduledEnd?: Date | null
+    /** Días de validez del claim después del descubrimiento (default: 30) */
+    claimExpiryDays: number
+  }
 }
 
 export interface IMenuSubCategory {
@@ -253,6 +273,20 @@ const MenuItemSchema = new Schema<IMenuItem>({
       timeEnd: String,
     }],
     default: [],
+  },
+  hiddenReward: {
+    type: {
+      enabled: { type: Boolean, default: false },
+      discountPercentage: { type: Number, default: 0, min: 0, max: 100 },
+      title: { type: String, default: '' },
+      description: { type: String, default: '' },
+      maxClaims: { type: Number, default: 0, min: 0 },
+      remainingClaims: { type: Number, default: 0, min: 0 },
+      scheduledStart: { type: Date, default: null },
+      scheduledEnd: { type: Date, default: null },
+      claimExpiryDays: { type: Number, default: 30, min: 1 },
+    },
+    default: null,
   },
 })
 

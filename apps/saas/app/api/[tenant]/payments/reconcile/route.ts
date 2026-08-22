@@ -8,6 +8,7 @@ import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { addPointsFromOrder } from '@/lib/loyalty'
+import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 
 export async function GET(
   request: NextRequest,
@@ -90,6 +91,7 @@ export async function GET(
             )
           })
           await session.endSession()
+          finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
           results.orders.healed++
         }
       } catch (err) {

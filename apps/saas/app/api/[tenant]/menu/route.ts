@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +35,8 @@ export async function GET(
       return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
     }
 
-    return NextResponse.json({ menu })
+    const safeMenu = sanitizeMenuForPublic(menu)
+    return NextResponse.json({ menu: safeMenu })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

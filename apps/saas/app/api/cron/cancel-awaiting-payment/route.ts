@@ -11,6 +11,8 @@
 
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
+import HiddenRewardClaim from '@/models/HiddenRewardClaim'
+import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
 
 const CRON_SECRET = process.env.CRON_SECRET
@@ -47,6 +49,25 @@ export async function GET(request: NextRequest) {
         },
       },
     )
+
+    // Liberar hidden reward claims reservados para órdenes canceladas
+    if (result.modifiedCount > 0) {
+      const cancelledOrderIds = await Order.find({
+        status: 'cancelled',
+        'statusTimestamps.cancelledAt': { $gte: new Date(Date.now() - CUTOFF_HOURS * 60 * 60 * 1000) },
+      }).distinct('_id')
+
+      if (cancelledOrderIds.length > 0) {
+        const released = await HiddenRewardClaim.updateMany(
+          { usedOrderId: { $in: cancelledOrderIds }, status: 'reservado' },
+          { $set: { status: 'pendiente', reservedOrderId: null, reservationExpiresAt: null } }
+        )
+
+        if (released.modifiedCount > 0) {
+          console.log(`[cancel-awaiting-payment] Released ${released.modifiedCount} hidden reward claims from cancelled orders`)
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
