@@ -6,6 +6,7 @@ import Order from '@/models/Order'
 import CorporateAccount from '@/models/CorporateAccount'
 import { notFound } from 'next/navigation'
 import GroupSessionClient from '@/components/menu/GroupSessionClient'
+import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import type { Types } from 'mongoose'
 
 interface Props {
@@ -34,7 +35,7 @@ export default async function GroupSessionPage({ params }: Props) {
 
   const tenant = JSON.parse(JSON.stringify(tenantDoc))
   const location = JSON.parse(JSON.stringify(locationDoc))
-  const menu = JSON.parse(JSON.stringify(menuDoc))
+  const menu = sanitizeMenuForPublic(JSON.parse(JSON.stringify(menuDoc)))
 
   return (
     <GroupSessionClient

@@ -79,6 +79,7 @@ export const createOrderSchema = z.object({
   paymentMethod: z.enum(['mercadopago', 'kripton', 'transfer', 'cash']).optional().default('mercadopago'),
   baseTotal: z.number().min(0).optional(),
   surchargePercent: z.number().min(0).optional().default(0),
+  sessionId: z.string().optional(),
 })
 
 export const deliveryQuoteSchema = z.object({

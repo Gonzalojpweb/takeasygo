@@ -13,6 +13,7 @@ import { StatusNotificationCard } from './StatusNotificationCard'
 import PointsEarnedToast from '@/components/rewards/PointsEarnedToast'
 import PostDeliveryCelebration from './PostDeliveryCelebration'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
+import { captureHiddenRewardRedeemed } from '@/lib/tia/events'
 
 const STATUS_STEPS = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
 
@@ -192,6 +193,7 @@ export default function OrderTracker({
   const [impactRegistered, setImpactRegistered] = useState(false)
   const [transferData, setTransferData] = useState(initialTransferData || null)
   const [whatsAppPhone] = useState(initialWhatsAppPhone || null)
+  const redeemedFiredRef = useRef(false)
   const [confirmTransferLoading, setConfirmTransferLoading] = useState(false)
 
   const whatsAppLink = whatsAppPhone && paymentMethod === 'transfer'
@@ -241,6 +243,13 @@ export default function OrderTracker({
         setTransferConfirmed(data.payment.transferConfirmed || false)
       }
       if (data.impactRegistered) setImpactRegistered(true)
+      // Hidden rewards: disparar Redeemed una sola vez cuando status pasa a confirmed+
+      if (!redeemedFiredRef.current && data.hiddenRewardSummary?.length > 0 && data.status !== 'awaiting_payment') {
+        redeemedFiredRef.current = true
+        for (const reward of data.hiddenRewardSummary) {
+          captureHiddenRewardRedeemed(reward.menuItemId, reward.discountPercentage, tenantSlug)
+        }
+      }
       setLastChecked(new Date())
     } catch { /* ignora errores de red */ }
   }, [tenantSlug, orderId, trackingToken])

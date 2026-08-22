@@ -161,3 +161,27 @@ export function captureHomeShared(method: 'native' | 'clipboard') {
     share_method: method,
   })
 }
+
+// ── Hidden Rewards ────────────────────────────────────────────────────────────
+
+export function captureHiddenRewardDiscovered(menuItemId: string) {
+  posthog.capture('hidden_reward.discovered', {
+    menu_item_id: menuItemId,
+  })
+}
+
+export function captureHiddenRewardRevealed(menuItemId: string, rewardTitle: string, discountPercentage: number) {
+  posthog.capture('hidden_reward.revealed', {
+    menu_item_id: menuItemId,
+    reward_title: rewardTitle,
+    discount_percentage: discountPercentage,
+  })
+}
+
+export function captureHiddenRewardRedeemed(menuItemId: string, discountPercentage: number, tenantId: string) {
+  posthog.capture('hidden_reward.redeemed', {
+    menu_item_id: menuItemId,
+    discount_percentage: discountPercentage,
+    tenant_id: tenantId,
+  })
+}

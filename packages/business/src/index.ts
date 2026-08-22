@@ -11,6 +11,8 @@ export {
   PLAN_PRICE,
   LOYALTY_MEMBER_LIMIT,
   PLAN_FEATURES_LANDING,
+  HIDDEN_REWARDS_GROWTH_LIMIT,
+  HIDDEN_REWARDS_LIMIT,
 } from "./plans"
 export { canPerformAction, PERMISSIONS } from "./authorization"
 export { validateEventSignature, createEventSignature } from "./sync-events"

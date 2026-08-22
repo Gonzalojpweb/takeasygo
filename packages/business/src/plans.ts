@@ -109,6 +109,10 @@ export const PLAN_ACCESS = {
 
   // Configuración de recargos por método de pago — disponible en todos los planes
   paymentSurcharges: ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
+
+  // Hidden Rewards — Recompensas Escondidas (Crecimiento y Premium)
+  // Growth: hasta 20 premios por sede. Premium: ilimitado.
+  hiddenRewards: ['buy', 'full'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS
@@ -135,6 +139,16 @@ export const LOYALTY_MEMBER_LIMIT: Record<Plan, number | null> = {
   buy:      null,
   full:     null,
   anfitrion: 0,  // el plan anfitrion no incluye pedidos ni club activo
+}
+
+/** Límite de premios ocultos por sede en plan Crecimiento. null = sin límite */
+export const HIDDEN_REWARDS_GROWTH_LIMIT = 20
+export const HIDDEN_REWARDS_LIMIT: Record<Plan, number | null> = {
+  trial:    0,
+  try:      0,
+  buy:      HIDDEN_REWARDS_GROWTH_LIMIT,
+  full:     null,
+  anfitrion: 0,
 }
 
 // ── Feature lists para la landing ────────────────────────────────────────────
@@ -176,6 +190,7 @@ export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: st
       'Integración POS (Fudo / Bistrosoft / API)',
       'Gestión de Reservas con pago de seña',
       'Club de Fidelización ilimitado y exportable',
+      'Hidden Rewards: Recompensas Escondidas en el menú (hasta 20 premios)',
     ],
     extra: [
       'Reportes de ventas con comparativa mensual y exportación',
@@ -192,6 +207,7 @@ export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: st
       'Advanced Analytics: Recompra y Hora Pico',
       'ICO avanzado con diagnóstico por factores',
       'KPIs operativos: TPP y Tasa de Cancelación',
+      'Hidden Rewards: Recompensas Escondidas ilimitadas',
     ],
     extra: [
       'Distribución horaria de pedidos y performance',

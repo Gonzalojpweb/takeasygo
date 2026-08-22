@@ -26,8 +26,9 @@ import LikeBadge from '@/components/menu/LikeBadge'
 import { getSuggestions, type UpsellSource } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
-import { captureMenuOpened, captureDishAdded } from '@/lib/tia/events'
+import { captureMenuOpened, captureDishAdded, captureHiddenRewardDiscovered, captureHiddenRewardRevealed } from '@/lib/tia/events'
 import { motion } from 'framer-motion'
+import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import LocationBar from '@/components/menu/LocationBar'
 import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
 import PromotionStories from '@/components/menu/PromotionStories'
@@ -158,6 +159,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     imageUrl?: string
   } | null>(null)
   const cartBtnRef = useRef<HTMLButtonElement>(null)
+  const confettiRef = useRef<ConfettiRef>(null)
   const navigatingRef = useRef(false)
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
@@ -442,6 +444,41 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     // Momento 01: feedback de posesión
     playAddSound()
     if (navigator.vibrate) navigator.vibrate(50)
+
+    // Hidden Rewards: disparar descubrimiento (fire-and-forget)
+    discoverHiddenReward(item._id)
+  }
+
+  async function discoverHiddenReward(menuItemId: string) {
+    try {
+      captureHiddenRewardDiscovered(menuItemId)
+      const res = await fetch(`/api/${tenant.slug}/hidden-rewards/discover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ menuItemId, locationId: location._id, sessionId: sessionStorage.getItem('hr_sessionId') || undefined }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.ok && data.reward) {
+        // Guardar sessionId para el mismo carrito (regla "no consumir en la misma sesión")
+        if (data.reward.sessionId) {
+          sessionStorage.setItem('hr_sessionId', data.reward.sessionId)
+        }
+        captureHiddenRewardRevealed(menuItemId, data.reward.title, data.reward.discountPercentage)
+        // Toast celebratorio centrado + confetti
+        toast(
+          <div className="flex flex-col items-center gap-1 py-2">
+            <span className="text-2xl">🎁</span>
+            <span className="font-bold text-base">{data.reward.title}</span>
+            <span className="text-sm text-zinc-500">{data.reward.description || `${data.reward.discountPercentage}% de descuento`}</span>
+          </div>,
+          { duration: 5000, position: 'top-center' }
+        )
+        confettiRef.current?.fire({ particleCount: 120, spread: 140 })
+      }
+    } catch {
+      // silencioso — no afecta la experiencia del usuario
+    }
   }
 
   async function addToGroupSession(items: any[], itemName: string) {
@@ -802,6 +839,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   return (
     <div style={{ backgroundColor: bg, color: text }} className="min-h-screen">
+      <Confetti ref={confettiRef} className="fixed top-0 left-0 z-50 pointer-events-none size-full" />
       {!isOperational && (
         <div className="sticky top-0 z-[100] w-full px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg animate-in slide-in-from-top duration-500"
           style={{ backgroundColor: '#f59e0b', color: '#fff' }}>

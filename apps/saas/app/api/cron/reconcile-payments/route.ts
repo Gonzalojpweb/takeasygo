@@ -7,6 +7,7 @@ import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
+import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 
@@ -117,6 +118,7 @@ export async function GET(request: NextRequest) {
               )
             })
             await session.endSession()
+            finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
 
             results.healed++
             results.details.push(`Order ${order.orderNumber} healed (MP payment ${approvedPayment.id})`)

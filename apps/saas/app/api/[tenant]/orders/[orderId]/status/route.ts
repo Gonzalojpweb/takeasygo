@@ -4,6 +4,8 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import PushSubscription from '@/models/PushSubscription'
 import DeliveryPushSubscription from '@/models/DeliveryPushSubscription'
+import HiddenRewardClaim from '@/models/HiddenRewardClaim'
+import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
@@ -156,6 +158,11 @@ export async function PATCH(
           { $inc: { 'commissionBalance.transfer': commissionAmount } }
         )
       }
+    }
+
+    // ── Hidden Rewards: consumir claims al confirmar la orden (idempotente) ──
+    if (status === 'confirmed' && previousStatus !== 'confirmed') {
+      await finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
     }
 
     // ── Notify SyncLayer of status change (so POS receives order:status_updated)

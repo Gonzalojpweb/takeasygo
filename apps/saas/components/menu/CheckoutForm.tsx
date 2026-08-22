@@ -81,6 +81,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   } | null>(null)
   const [selectedRewardItemId, setSelectedRewardItemId] = useState<string | null>(null)
   const [rewardItemLoading, setRewardItemLoading] = useState(false)
+  const [hiddenRewardClaims, setHiddenRewardClaims] = useState<Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }>>([])
 
   useEffect(() => {
     const stored = sessionStorage.getItem('tgo-active-qr-promo')
@@ -316,6 +317,37 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     return () => clearTimeout(timer)
   }, [form.phone, form.countryCode, tenantSlug])
 
+  // Hidden Rewards: consultar /check cuando cambia el phone y hay items en el carrito
+  useEffect(() => {
+    if (form.phone.length < 8 || cart.length === 0) {
+      setHiddenRewardClaims([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const fullPhone = `${form.countryCode}${form.phone}`
+        const menuItemIds = cart
+          .filter(item => item.type === 'menuItem' && item._id)
+          .map(item => item._id)
+        if (menuItemIds.length === 0) return
+        const res = await fetch(`/api/${tenantSlug}/hidden-rewards/check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: fullPhone, menuItemIds }),
+        })
+        const data = await res.json()
+        if (data.ok && data.claims?.length > 0) {
+          setHiddenRewardClaims(data.claims)
+        } else {
+          setHiddenRewardClaims([])
+        }
+      } catch {
+        setHiddenRewardClaims([])
+      }
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [form.phone, form.countryCode, tenantSlug, cart])
+
   // Cargar items del store disponibles para canje cuando hay miembro del club
   useEffect(() => {
     if (!loyaltyMember || !loyaltyConfig?.enabled) {
@@ -459,6 +491,7 @@ async function handleSubmit(e: React.FormEvent) {
           ? { rewardItems: [{ storeItemId: selectedRewardItemId }], loyaltyPointsRequired: selectedRewardItem.pointsCost }
           : {}),
         source: sessionStorage.getItem('tgo_attribution_source') || activeQrPromo?.source || undefined,
+        sessionId: sessionStorage.getItem('hr_sessionId') || undefined,
         ...(mode === 'business' && businessInfo ? {
           corporateAccountId: businessInfo.corporateAccountId,
           paymentModeSnapshot: businessInfo.paymentMode,
@@ -1002,6 +1035,11 @@ async function handleSubmit(e: React.FormEvent) {
               Ej: 11 6001 9734 (Sin el 0 ni el 9)
             </p>
           )}
+          {!form.phone.trim() && typeof window !== 'undefined' && sessionStorage.getItem('hr_sessionId') && (
+            <p className="text-xs text-amber-600 mt-1 ml-1 flex items-center gap-1">
+              🎁 Ingresá tu teléfono para activar una recompensa oculta en tu pedido
+            </p>
+          )}
           <input
             required={joinClub}
             placeholder={joinClub ? "Email (obligatorio para el club) *" : "Email (opcional)"}
@@ -1326,6 +1364,21 @@ async function handleSubmit(e: React.FormEvent) {
                 <span>-${toPesos(discountAmount).toLocaleString('es-AR')}</span>
               </div>
             )}
+            {hiddenRewardClaims.length > 0 && (() => {
+              let hrTotal = 0
+              for (const claim of hiddenRewardClaims) {
+                const cartItem = cart.find(i => i._id === claim.menuItemId)
+                if (cartItem) hrTotal += Math.floor(cartItem.price * cartItem.quantity * (claim.discountPercentage / 100))
+              }
+              return hrTotal > 0 ? (
+                <div className="flex justify-between text-sm text-amber-600 font-semibold">
+                  <span className="flex items-center gap-1">
+                    🎁 Recompensa ({hiddenRewardClaims.length})
+                  </span>
+                  <span>-${toPesos(hrTotal).toLocaleString('es-AR')}</span>
+                </div>
+              ) : null
+            })()}
             {selectedRewardItem && (
               <div className="flex justify-between text-sm text-emerald-600 font-semibold">
                 <span className="flex items-center gap-1">
