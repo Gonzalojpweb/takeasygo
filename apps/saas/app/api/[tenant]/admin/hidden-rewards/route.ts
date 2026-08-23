@@ -9,7 +9,7 @@ import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { requireAdminRole } from '@/lib/apiAuth'
-import { PLAN_ACCESS, HIDDEN_REWARDS_LIMIT } from '@takeasygo/business'
+import { PLAN_ACCESS, HIDDEN_REWARDS_LIMIT, canAccess, type Plan } from '@takeasygo/business'
 
 export async function GET(
   request: NextRequest,
@@ -79,8 +79,6 @@ export async function GET(
 
     // Plan info
     const plan = tenant.plan || 'trial'
-    const planAccess = PLAN_ACCESS[plan] || {}
-    // const hasHiddenRewards = planAccess.hiddenRewards?.length > 0
     const hasHiddenRewards = canAccess(plan as Plan, 'hiddenRewards')
     const maxItems = HIDDEN_REWARDS_LIMIT[plan] || 0
     const currentEnabled = itemsWithRewards.filter(i => i.hiddenReward.enabled).length
