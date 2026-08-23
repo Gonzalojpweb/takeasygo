@@ -80,7 +80,8 @@ export async function GET(
     // Plan info
     const plan = tenant.plan || 'trial'
     const planAccess = PLAN_ACCESS[plan] || {}
-    const hasHiddenRewards = planAccess.hiddenRewards?.length > 0
+    // const hasHiddenRewards = planAccess.hiddenRewards?.length > 0
+    const hasHiddenRewards = canAccess(plan as Plan, 'hiddenRewards')
     const maxItems = HIDDEN_REWARDS_LIMIT[plan] || 0
     const currentEnabled = itemsWithRewards.filter(i => i.hiddenReward.enabled).length
 
