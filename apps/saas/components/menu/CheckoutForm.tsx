@@ -327,8 +327,8 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       try {
         const fullPhone = `${form.countryCode}${form.phone}`
         const menuItemIds = cart
-          .filter(item => item.type === 'menuItem' && item._id)
-          .map(item => item._id)
+          .filter(item => item.type === 'menuItem' && item.menuItemId)
+          .map(item => item.menuItemId!)
         if (menuItemIds.length === 0) return
         const res = await fetch(`/api/${tenantSlug}/hidden-rewards/check`, {
           method: 'POST',
@@ -1367,7 +1367,7 @@ async function handleSubmit(e: React.FormEvent) {
             {hiddenRewardClaims.length > 0 && (() => {
               let hrTotal = 0
               for (const claim of hiddenRewardClaims) {
-                const cartItem = cart.find(i => i._id === claim.menuItemId)
+                const cartItem = cart.find(i => i.menuItemId === claim.menuItemId)
                 if (cartItem) hrTotal += Math.floor(cartItem.price * cartItem.quantity * (claim.discountPercentage / 100))
               }
               return hrTotal > 0 ? (
