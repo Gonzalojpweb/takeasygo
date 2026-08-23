@@ -14,7 +14,7 @@
     "build:saas": "turbo build --filter=@takeasygo/saas",
     "build:pos": "turbo build --filter=@takeasygo/pos",
     "start": "NODE_OPTIONS=--openssl-legacy-provider node dist/index.js",
-    "lint": "turbo lint",
+    "lint": "turbo lint --filter=@takeasygo/saas",
     "typecheck": "turbo typecheck",
     "clean": "turbo clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
