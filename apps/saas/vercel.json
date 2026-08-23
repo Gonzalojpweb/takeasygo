@@ -27,7 +27,7 @@
     },
     {
       "path": "/api/cron/expire-hidden-reservations",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
