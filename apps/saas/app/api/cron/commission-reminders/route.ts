@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
         title: `Recordatorio semanal de comisiones — ${tenant.name}`,
         content: `<p>Hola <b>${tenant.name}</b>,</p>
 <p>Tu saldo de comisiones pendientes por transferencia es de <b>$${balanceDisplay} USD</b>.</p>
-<p>Por favor realiza el pago para evitar cargos automáticos.</p>`,
+<p>Por favor realiza el pago para evitar cargos automáticos.</p>
+<p><a href="/${tenant.slug}/admin/commissions" style="display:inline-block;margin-top:8px;padding:8px 16px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;">Ver mis comisiones</a></p>`,
         type: 'alert',
         status: 'published',
         publishedAt: now,
