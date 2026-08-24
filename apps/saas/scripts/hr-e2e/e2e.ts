@@ -255,6 +255,24 @@ async function main() {
   const hrSidMatch = setCookieHeader.match(/hr_sid=([^;]+)/)
   const hrSidCookie = hrSidMatch ? `hr_sid=${hrSidMatch[1]}` : ''
 
+  // ── Test 1b: Check endpoint finds reserva claims by device ──────────────
+  console.log('\n[4b/7] Check endpoint finds reserva claim by device...')
+  const checkRes = await fetch(`${BASE_URL}/api/${TENANT_SLUG}/hidden-rewards/check`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(hrSidCookie ? { 'Cookie': hrSidCookie } : {}),
+    },
+    body: JSON.stringify({
+      phone: '+5491155551234',
+      menuItemIds: [subcatItemId.toString()],
+    }),
+  })
+  const checkData = await checkRes.json() as any
+  assert(checkData.ok === true, 'Check returns ok:true')
+  assert(checkData.claims?.length === 1, 'Check finds 1 reserva claim by device', `claims=${JSON.stringify(checkData.claims)}`)
+  assert(checkData.claims?.[0]?.discountPercentage === 15, 'Check claim has correct discount %', `got=${checkData.claims?.[0]?.discountPercentage}`)
+
   // ── Test 2: Create order with discount (different session) ──────────────
   console.log('\n[4/7] Create order with hidden reward (different session)...')
   const orderRes = await fetch(`${BASE_URL}/api/${TENANT_SLUG}/orders`, {
