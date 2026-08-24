@@ -4,10 +4,12 @@ import { useState, useRef, useEffect } from 'react'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Truck } from 'lucide-react'
+import { GripVertical, Truck, Gift } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { getLocationColor } from '@/lib/location-colors'
 import {
@@ -94,6 +96,14 @@ const EMPTY_ITEM = {
   variants: [] as VariantForm[],
   availabilityMode: 'always' as 'always' | 'scheduled',
   availabilitySchedule: [] as ScheduleSlot[],
+  hiddenReward: {
+    enabled: false,
+    title: '',
+    description: '',
+    discountPercentage: 10,
+    maxClaims: 0,
+    claimExpiryDays: 30,
+  },
 }
 
 type ItemFormData = typeof EMPTY_ITEM
@@ -516,6 +526,15 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           suggestWith: newItem.suggestWith,
           customizationGroups: serializeGroups(newItem.customizationGroups),
           variants: serializeVariants(newItem.variants),
+          hiddenReward: newItem.hiddenReward.enabled ? {
+            enabled: true,
+            title: newItem.hiddenReward.title,
+            description: newItem.hiddenReward.description,
+            discountPercentage: newItem.hiddenReward.discountPercentage,
+            maxClaims: newItem.hiddenReward.maxClaims,
+            remainingClaims: newItem.hiddenReward.maxClaims,
+            claimExpiryDays: newItem.hiddenReward.claimExpiryDays,
+          } : undefined,
         }),
       })
       if (!res.ok) throw new Error()
@@ -554,6 +573,15 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           variants: serializeVariants(editingItemData.variants),
           availabilityMode: editingItemData.availabilityMode,
           availabilitySchedule: editingItemData.availabilityMode === 'scheduled' ? editingItemData.availabilitySchedule : [],
+          hiddenReward: editingItemData.hiddenReward.enabled ? {
+            enabled: true,
+            title: editingItemData.hiddenReward.title,
+            description: editingItemData.hiddenReward.description,
+            discountPercentage: editingItemData.hiddenReward.discountPercentage,
+            maxClaims: editingItemData.hiddenReward.maxClaims,
+            remainingClaims: editingItemData.hiddenReward.maxClaims,
+            claimExpiryDays: editingItemData.hiddenReward.claimExpiryDays,
+          } : { enabled: false },
         }),
       })
       if (!res.ok) throw new Error()
@@ -1782,6 +1810,14 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                                       variants: deserializeVariants(item.variants || []),
                                                                       availabilityMode: item.availabilityMode ?? 'always',
                                                                       availabilitySchedule: item.availabilitySchedule ?? [],
+                                                                      hiddenReward: {
+                                                                        enabled: item.hiddenReward?.enabled ?? false,
+                                                                        title: item.hiddenReward?.title ?? '',
+                                                                        description: item.hiddenReward?.description ?? '',
+                                                                        discountPercentage: item.hiddenReward?.discountPercentage ?? 10,
+                                                                        maxClaims: item.hiddenReward?.maxClaims ?? 0,
+                                                                        claimExpiryDays: item.hiddenReward?.claimExpiryDays ?? 30,
+                                                                      },
                                                                     })
                                                                   }}>
                                                                   <Pencil size={14} />
@@ -2035,6 +2071,14 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                   variants: deserializeVariants(item.variants || []),
                                                   availabilityMode: item.availabilityMode ?? 'always',
                                                   availabilitySchedule: item.availabilitySchedule ?? [],
+                                                  hiddenReward: {
+                                                    enabled: item.hiddenReward?.enabled ?? false,
+                                                    title: item.hiddenReward?.title ?? '',
+                                                    description: item.hiddenReward?.description ?? '',
+                                                    discountPercentage: item.hiddenReward?.discountPercentage ?? 10,
+                                                    maxClaims: item.hiddenReward?.maxClaims ?? 0,
+                                                    claimExpiryDays: item.hiddenReward?.claimExpiryDays ?? 30,
+                                                  },
                                                 })
                                               }}
                                             >
@@ -3171,6 +3215,87 @@ function ItemForm({
           </div>
         )
       })()}
+
+      {/* ── Recompensa Escondida ── */}
+      <div className="pt-6 border-t border-border/60">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+            <Gift size={18} />
+          </div>
+          <div>
+            <h5 className="text-sm font-bold text-foreground leading-none">Recompensa Escondida</h5>
+            <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter opacity-70">
+              Descuento secreto que se revela al agregar al carrito
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-muted/30 rounded-2xl p-4 border border-border/60 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Activar recompensa</span>
+            <Switch
+              checked={data.hiddenReward.enabled}
+              onCheckedChange={checked =>
+                onChange({ ...data, hiddenReward: { ...data.hiddenReward, enabled: checked } })
+              }
+            />
+          </div>
+
+          {data.hiddenReward.enabled && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Título</label>
+                <input
+                  className={inputCls}
+                  value={data.hiddenReward.title}
+                  onChange={e => onChange({ ...data, hiddenReward: { ...data.hiddenReward, title: e.target.value } })}
+                  placeholder="Ej: 20% off en bebidas"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Descripción (opcional)</label>
+                <input
+                  className={inputCls}
+                  value={data.hiddenReward.description}
+                  onChange={e => onChange({ ...data, hiddenReward: { ...data.hiddenReward, description: e.target.value } })}
+                  placeholder="Ej: Válido solo hoy"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Descuento %</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  className={inputCls}
+                  value={data.hiddenReward.discountPercentage}
+                  onChange={e => onChange({ ...data, hiddenReward: { ...data.hiddenReward, discountPercentage: Number(e.target.value) } })}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Máx. Claims (0=infinito)</label>
+                <input
+                  type="number"
+                  min={0}
+                  className={inputCls}
+                  value={data.hiddenReward.maxClaims}
+                  onChange={e => onChange({ ...data, hiddenReward: { ...data.hiddenReward, maxClaims: Number(e.target.value) } })}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Días de validez</label>
+                <input
+                  type="number"
+                  min={1}
+                  className={inputCls}
+                  value={data.hiddenReward.claimExpiryDays}
+                  onChange={e => onChange({ ...data, hiddenReward: { ...data.hiddenReward, claimExpiryDays: Number(e.target.value) } })}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="flex items-center gap-3 pt-8 mt-4 border-t border-border/60">
         <Button
