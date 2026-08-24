@@ -120,6 +120,7 @@ export interface CheckoutState {
   }
   timezone?: string
   deliveryConfig?: { enabled?: boolean }
+  hiddenRewardClaims: Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }>
 }
 
 type CheckoutAction =
@@ -161,6 +162,7 @@ type CheckoutAction =
   | { type: 'SET_PROMO_CODE'; code: string }
   | { type: 'SET_TENANT_NAME'; name: string }
   | { type: 'SET_SERVICE_HOURS'; serviceHours: CheckoutState['serviceHours']; timezone?: string; deliveryConfig?: { enabled?: boolean } }
+  | { type: 'SET_HIDDEN_REWARD_CLAIMS'; claims: Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }> }
 
 interface CheckoutContextValue {
   state: CheckoutState
@@ -190,6 +192,7 @@ interface CheckoutContextValue {
   baseTotal: number
   activeSurchargePercent: number
   transferData: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null
+  hiddenRewardClaims: Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }>
 }
 
 const CheckoutContext = createContext<CheckoutContextValue | null>(null)
@@ -234,6 +237,7 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_PROMO_CODE': return { ...state, promoCode: action.code }
     case 'SET_TENANT_NAME': return { ...state, tenantName: action.name }
     case 'SET_SERVICE_HOURS': return { ...state, serviceHours: action.serviceHours, timezone: action.timezone ?? state.timezone, deliveryConfig: action.deliveryConfig ?? state.deliveryConfig }
+    case 'SET_HIDDEN_REWARD_CLAIMS': return { ...state, hiddenRewardClaims: action.claims }
     default: return state
   }
 }
@@ -280,6 +284,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     serviceHours: undefined,
     timezone: undefined,
     deliveryConfig: undefined,
+    hiddenRewardClaims: [],
   }
 }
 
@@ -413,6 +418,34 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     }
   }, [tenantSlug])
 
+  // Hidden Rewards: consultar /check cuando cambia el phone y hay items en el carrito
+  useEffect(() => {
+    const s = stateRef.current
+    if (s.form.phone.length < 8 || s.cart.length === 0) {
+      dispatch({ type: 'SET_HIDDEN_REWARD_CLAIMS', claims: [] })
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const fullPhone = `${s.form.countryCode}${s.form.phone}`
+        const menuItemIds = s.cart
+          .filter(item => item.type === 'menuItem' && item.menuItemId)
+          .map(item => item.menuItemId!)
+        if (menuItemIds.length === 0) return
+        const res = await fetch(`/api/${tenantSlug}/hidden-rewards/check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: fullPhone, menuItemIds }),
+        })
+        const data = await res.json()
+        dispatch({ type: 'SET_HIDDEN_REWARD_CLAIMS', claims: data.ok ? (data.claims || []) : [] })
+      } catch {
+        dispatch({ type: 'SET_HIDDEN_REWARD_CLAIMS', claims: [] })
+      }
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [state.form.phone, state.form.countryCode, tenantSlug, state.cart]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-fill from session
   useEffect(() => {
     const name = session?.user?.name
@@ -514,9 +547,18 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     .filter(i => i.type !== 'promotion')
     .reduce((sum, i) => sum + i.price * i.quantity, 0)
 
-  const discountAmount = state.activeQrPromo
+  const hiddenRewardDiscount = !state.activeQrPromo && state.hiddenRewardClaims.length > 0
+    ? state.hiddenRewardClaims.reduce((sum, claim) => {
+        const cartItem = state.cart.find(i => i.menuItemId === claim.menuItemId)
+        return cartItem ? sum + Math.floor(cartItem.price * cartItem.quantity * (claim.discountPercentage / 100)) : sum
+      }, 0)
+    : 0
+
+  const qrDiscount = state.activeQrPromo
     ? Math.floor(qrEligibleSubtotal * (state.activeQrPromo.discountPercentage / 100))
     : 0
+
+  const discountAmount = qrDiscount + hiddenRewardDiscount
 
   const selectedRewardItem = state.selectedRewardItemId
     ? state.storeItems.find(i => i._id === state.selectedRewardItemId) ?? null
@@ -614,6 +656,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     tenantName: state.tenantName,
     activeSurchargePercent,
     transferData: state.transferData,
+    hiddenRewardClaims: state.hiddenRewardClaims,
   }
 
   return (

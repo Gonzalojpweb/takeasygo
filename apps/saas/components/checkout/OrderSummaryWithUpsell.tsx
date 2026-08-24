@@ -4,7 +4,7 @@ import { useCheckout } from '@/contexts/CheckoutContext'
 import { toPesos } from '@takeasygo/business'
 
 export default function OrderSummaryWithUpsell() {
-  const { state, subtotal, baseTotal, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, selectedRewardItem } = useCheckout()
+  const { state, subtotal, baseTotal, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, selectedRewardItem, hiddenRewardClaims } = useCheckout()
   const { cart, upsellHints, activeQrPromo, deliveryMode, deliveryQuote } = state
 
   if (cart.length === 0) {
@@ -112,6 +112,21 @@ export default function OrderSummaryWithUpsell() {
             <span>-${toPesos(discountAmount).toLocaleString('es-AR')}</span>
           </div>
         )}
+        {!activeQrPromo && hiddenRewardClaims.length > 0 && (() => {
+          let hrTotal = 0
+          for (const claim of hiddenRewardClaims) {
+            const cartItem = state.cart.find(i => i.menuItemId === claim.menuItemId)
+            if (cartItem) hrTotal += Math.floor(cartItem.price * cartItem.quantity * (claim.discountPercentage / 100))
+          }
+          return hrTotal > 0 ? (
+            <div className="flex justify-between text-sm text-amber-600 font-semibold">
+              <span className="flex items-center gap-1">
+                🎁 Recompensa ({hiddenRewardClaims.length})
+              </span>
+              <span>-${toPesos(hrTotal).toLocaleString('es-AR')}</span>
+            </div>
+          ) : null
+        })()}
         {deliveryMode && deliveryQuote.withinRange && (
           <div className="flex justify-between text-sm text-zinc-500">
             <span className="flex items-center gap-1">🚚 Envío</span>
