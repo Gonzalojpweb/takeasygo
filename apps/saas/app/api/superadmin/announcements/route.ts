@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     if (errorResponse) return errorResponse
 
     const body = await request.json()
-    const { title, content, type, status, targetPlans, targetTenantIds } = body
+    const { title, content, type, status, targetPlans, targetTenantIds, requiresConsent } = body
 
     if (!title?.trim() || !content?.trim()) {
       return NextResponse.json({ error: 'Título y contenido son requeridos' }, { status: 400 })
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       targetPlans: Array.isArray(targetPlans) ? targetPlans : [],
       targetTenantIds: Array.isArray(targetTenantIds) ? targetTenantIds : [],
       publishedAt: status === 'published' ? new Date() : null,
+      requiresConsent: requiresConsent || false,
     })
 
     return NextResponse.json({ announcement: newAnnouncement }, { status: 201 })

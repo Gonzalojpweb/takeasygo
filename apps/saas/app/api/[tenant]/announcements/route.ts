@@ -34,8 +34,14 @@ export async function GET(
     }
 
     // scope=all returns everything with read status; default returns only unread
+    // Unread = not in readBy AND not in acceptances for this user
     if (scope !== 'all' && userId) {
-      baseFilter.readBy = { $ne: userId }
+      baseFilter.$and.push({
+        $or: [
+          { readBy: { $ne: userId } },
+          { 'acceptances.userId': { $ne: userId } },
+        ],
+      })
     }
 
     const announcements = await SystemAnnouncement.find(baseFilter)
@@ -45,11 +51,21 @@ export async function GET(
     let result: any[] = announcements
 
     if (scope === 'all' && userId) {
-      result = announcements.map(a => ({
-        ...a,
-        read: (a as any).readBy?.some((id: mongoose.Types.ObjectId) => id.equals(userId)) ?? false,
-        readBy: undefined,
-      }))
+      result = announcements.map(a => {
+        const accepted = (a as any).acceptances?.some(
+          (acc: any) => acc.userId?.equals?.(userId) ?? acc.userId?.toString?.() === userId.toString()
+        ) ?? false
+        const read = (a as any).readBy?.some(
+          (id: mongoose.Types.ObjectId) => id.equals?.(userId) ?? id.toString?.() === userId.toString()
+        ) ?? false
+        return {
+          ...a,
+          accepted,
+          read: read || accepted,
+          readBy: undefined,
+          acceptances: undefined,
+        }
+      })
     }
 
     return NextResponse.json({ announcements: result })
@@ -70,25 +86,36 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id').lean() as any
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    // Aquí necesitamos auth para saber QUIÉN está leyendo, no importa si falla el auth de tenant, 
-    // pero usamos requireAuth porque sabemos que es un admin legítimo.
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    // Para obtener el userID necesitamos descifrar la sesión
     const { auth } = await import('@/lib/auth')
     const session = await auth()
     if (!session?.user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const userId = new mongoose.Types.ObjectId(session.user.id)
     const body = await request.json()
-    const { announcementIds } = body // Array de IDs que se van a marcar como leídos
+    const { announcementIds, action } = body
 
     if (Array.isArray(announcementIds) && announcementIds.length > 0) {
-      await SystemAnnouncement.updateMany(
-        { _id: { $in: announcementIds } },
-        { $addToSet: { readBy: userId } }
-      )
+      if (action === 'accept') {
+        // Consentimiento explícito: guardar en acceptances con timestamp
+        await SystemAnnouncement.updateMany(
+          { _id: { $in: announcementIds } },
+          {
+            $addToSet: {
+              acceptances: { userId, acceptedAt: new Date() },
+              readBy: userId, // Legacy: mantener compatibilidad
+            },
+          }
+        )
+      } else {
+        // Mark as read normal (recordatorios semanales, etc.)
+        await SystemAnnouncement.updateMany(
+          { _id: { $in: announcementIds } },
+          { $addToSet: { readBy: userId } }
+        )
+      }
     }
 
     return NextResponse.json({ success: true })
