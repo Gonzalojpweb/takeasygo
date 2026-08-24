@@ -8,7 +8,13 @@ export interface ISystemAnnouncement extends Document {
   publishedAt?: Date
   targetPlans: string[] // ej: ['premium', 'anfitrion']. Vacío significa todos.
   targetTenantIds: mongoose.Types.ObjectId[] // Vacío = todos los tenants
-  readBy: mongoose.Types.ObjectId[] // Referencia a usuarios que ya lo leyeron
+  readBy: mongoose.Types.ObjectId[] // Legacy: referencia a usuarios que ya lo leyeron
+  acceptances: {
+    userId: mongoose.Types.ObjectId
+    acceptedAt: Date
+  }[] // Nuevo: tracking de aceptación con timestamp
+  requiresConsent: boolean // true = banner bloqueante, solo se cierra con "Acepto"
+  expiresAt: Date | null // null = nunca expira; Date = TTL automático (para recordatorios semanales)
   createdAt: Date
   updatedAt: Date
 }
@@ -30,9 +36,20 @@ const SystemAnnouncementSchema = new Schema<ISystemAnnouncement>(
     publishedAt: { type: Date },
     targetPlans: { type: [String], default: [] },
     targetTenantIds: { type: [Schema.Types.ObjectId], ref: 'Tenant', default: [] },
-    readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }], // Legacy
+    acceptances: [{
+      userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+      acceptedAt: { type: Date, default: Date.now },
+    }],
+    requiresConsent: { type: Boolean, default: false },
+    expiresAt: { type: Date, default: null },
   },
   { timestamps: true }
 )
+
+// TTL index: borra documentos cuando expiresAt queda en el pasado
+// expiresAt: null → nunca se borra (anuncio principal)
+// expiresAt: fecha → se borra cuando esa fecha pasa (recordatorios semanales, 90 días)
+SystemAnnouncementSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
 export default mongoose.models.SystemAnnouncement || mongoose.model<ISystemAnnouncement>('SystemAnnouncement', SystemAnnouncementSchema)

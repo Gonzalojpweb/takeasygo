@@ -1,11 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Megaphone, CheckCircle2, Clock, Info, Users } from 'lucide-react'
+import { Plus, Edit2, Trash2, Megaphone, CheckCircle2, Clock, Info, Users, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+
+interface Acceptance {
+  userId: string
+  acceptedAt: string
+  userName?: string
+  userEmail?: string
+}
 
 interface Announcement {
   _id: string
@@ -16,6 +23,8 @@ interface Announcement {
   publishedAt?: string
   targetPlans: string[]
   readBy: string[]
+  acceptances: Acceptance[]
+  requiresConsent: boolean
   createdAt: string
 }
 
@@ -31,12 +40,16 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [acceptanceDetails, setAcceptanceDetails] = useState<Acceptance[]>([])
+  const [loadingDetails, setLoadingDetails] = useState(false)
   
   // Form state
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [type, setType] = useState<Announcement['type']>('update')
   const [status, setStatus] = useState<Announcement['status']>('draft')
+  const [requiresConsent, setRequiresConsent] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -66,12 +79,14 @@ export default function AnnouncementsPage() {
       setContent(ann.content)
       setType(ann.type)
       setStatus(ann.status)
+      setRequiresConsent(ann.requiresConsent ?? false)
     } else {
       setEditingId(null)
       setTitle('')
       setContent('')
       setType('update')
       setStatus('draft')
+      setRequiresConsent(false)
     }
     setIsModalOpen(true)
   }
@@ -80,7 +95,7 @@ export default function AnnouncementsPage() {
     e.preventDefault()
     setSaving(true)
 
-    const payload = { title, content, type, status, targetPlans: [] }
+    const payload = { title, content, type, status, targetPlans: [], requiresConsent }
     const url = editingId ? `/api/superadmin/announcements/${editingId}` : '/api/superadmin/announcements'
     const method = editingId ? 'PUT' : 'POST'
 
@@ -119,6 +134,32 @@ export default function AnnouncementsPage() {
       }
     } catch (err) {
       toast.error('Error de red')
+    }
+  }
+
+  async function toggleAcceptances(ann: Announcement) {
+    if (expandedId === ann._id) {
+      setExpandedId(null)
+      setAcceptanceDetails([])
+      return
+    }
+
+    setExpandedId(ann._id)
+    setLoadingDetails(true)
+
+    try {
+      const res = await fetch(`/api/superadmin/announcements/${ann._id}/acceptances`)
+      const data = await res.json()
+      if (res.ok) {
+        setAcceptanceDetails(data.acceptances || [])
+      } else {
+        setAcceptanceDetails([])
+        toast.error('Error al cargar detalles')
+      }
+    } catch {
+      setAcceptanceDetails([])
+    } finally {
+      setLoadingDetails(false)
     }
   }
 
@@ -165,45 +206,89 @@ export default function AnnouncementsPage() {
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {announcements.map(ann => (
-                <tr key={ann._id} className="hover:bg-zinc-50/50 transition">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <span className={cn('px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider', TYPE_LABELS[ann.type].color)}>
-                        {TYPE_LABELS[ann.type].label}
-                      </span>
-                      <span className="font-medium text-zinc-900">{ann.title}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {ann.status === 'published' ? (
-                      <span className="flex items-center gap-1.5 text-green-600 text-xs font-medium">
-                        <CheckCircle2 size={14} /> Publicado
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-amber-600 text-xs font-medium">
-                        <Clock size={14} /> Borrador
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-zinc-500">
-                    <span className="flex items-center gap-1.5">
-                      <Users size={14} /> {ann.readBy?.length || 0}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-zinc-500 whitespace-nowrap">
-                    {format(new Date(ann.createdAt), "d MMM, yyyy", { locale: es })}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => openModal(ann)} className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition">
-                        <Edit2 size={16} />
+                <>
+                  <tr key={ann._id} className="hover:bg-zinc-50/50 transition">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <span className={cn('px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider', TYPE_LABELS[ann.type].color)}>
+                          {TYPE_LABELS[ann.type].label}
+                        </span>
+                        <span className="font-medium text-zinc-900">{ann.title}</span>
+                        {ann.requiresConsent && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 flex items-center gap-1">
+                            <ShieldCheck size={10} /> Consentimiento
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {ann.status === 'published' ? (
+                        <span className="flex items-center gap-1.5 text-green-600 text-xs font-medium">
+                          <CheckCircle2 size={14} /> Publicado
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-amber-600 text-xs font-medium">
+                          <Clock size={14} /> Borrador
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-zinc-500">
+                      <button
+                        onClick={() => toggleAcceptances(ann)}
+                        className="flex items-center gap-1.5 hover:text-indigo-600 transition cursor-pointer"
+                      >
+                        <Users size={14} /> {ann.readBy?.length || 0}
+                        {expandedId === ann._id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                       </button>
-                      <button onClick={() => handleDelete(ann._id)} className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-6 py-4 text-zinc-500 whitespace-nowrap">
+                      {format(new Date(ann.createdAt), "d MMM, yyyy", { locale: es })}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => openModal(ann)} className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(ann._id)} className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expandedId === ann._id && (
+                    <tr key={`${ann._id}-details`}>
+                      <td colSpan={5} className="px-6 py-4 bg-zinc-50">
+                        {loadingDetails ? (
+                          <div className="text-center text-zinc-400 text-xs py-2">Cargando detalles...</div>
+                        ) : acceptanceDetails.length === 0 ? (
+                          <div className="text-center text-zinc-400 text-xs py-2">Sin lecturas registradas aún</div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">
+                              Usuarios que aceptaron ({acceptanceDetails.length})
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {acceptanceDetails.map((acc, i) => (
+                                <div key={i} className="flex items-center gap-3 bg-white rounded-lg p-3 border border-zinc-200">
+                                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xs font-bold">
+                                    {acc.userName?.[0] || acc.userEmail?.[0]?.toUpperCase() || '?'}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-medium text-zinc-900 truncate">{acc.userName || 'Sin nombre'}</div>
+                                    <div className="text-[10px] text-zinc-400 truncate">{acc.userEmail}</div>
+                                    <div className="text-[10px] text-green-600 font-medium">
+                                      {acc.acceptedAt ? format(new Date(acc.acceptedAt), "d MMM yyyy, HH:mm", { locale: es }) : 'Sin fecha'}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>
@@ -257,6 +342,24 @@ export default function AnnouncementsPage() {
                     <option value="draft">Borrador (Oculto)</option>
                     <option value="published">Publicado (Visible)</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-orange-50 border border-orange-200 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="requiresConsent"
+                  checked={requiresConsent}
+                  onChange={e => setRequiresConsent(e.target.checked)}
+                  className="w-4 h-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+                />
+                <div>
+                  <label htmlFor="requiresConsent" className="text-sm font-medium text-orange-800 cursor-pointer">
+                    Requiere aceptación obligatoria
+                  </label>
+                  <p className="text-xs text-orange-600 mt-0.5">
+                    El admin no puede cerrar el banner sin hacer clic en "He leído y acepto". Se registra fecha y usuario.
+                  </p>
                 </div>
               </div>
 

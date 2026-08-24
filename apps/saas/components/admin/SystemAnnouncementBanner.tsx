@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Sparkles, ArrowUpCircle, AlertTriangle, Wrench, ChevronRight } from 'lucide-react'
+import { X, Sparkles, ArrowUpCircle, AlertTriangle, Wrench, ChevronRight, ShieldCheck } from 'lucide-react'
 
 interface Announcement {
   _id: string
   title: string
+  content: string
   type: 'feature' | 'update' | 'alert' | 'maintenance'
+  requiresConsent?: boolean
 }
 
 const TYPE_STYLES = {
@@ -27,6 +29,7 @@ export function SystemAnnouncementBanner({ tenantSlug }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [dismissed, setDismissed] = useState(false)
+  const [accepting, setAccepting] = useState(false)
 
   useEffect(() => {
     if (!tenantSlug) { setLoading(false); return }
@@ -53,14 +56,36 @@ export function SystemAnnouncementBanner({ tenantSlug }: Props) {
     } catch {}
   }, [tenantSlug])
 
-  const handleDismiss = useCallback(() => {
-    if (announcements.length === 0) return
-    markAsRead(announcements.map(a => a._id))
+  const acceptAnnouncements = useCallback(async (ids: string[]) => {
+    setAccepting(true)
+    try {
+      await fetch(`/api/${tenantSlug}/announcements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ announcementIds: ids, action: 'accept' }),
+      })
+    } catch {}
+    setAccepting(false)
+  }, [tenantSlug])
+
+  const handleDismissNormal = useCallback(() => {
+    const normalIds = announcements.filter(a => !a.requiresConsent).map(a => a._id)
+    if (normalIds.length > 0) markAsRead(normalIds)
     setDismissed(true)
   }, [announcements, markAsRead])
 
+  const handleAcceptConsent = useCallback(async () => {
+    const consentIds = announcements.filter(a => a.requiresConsent).map(a => a._id)
+    const normalIds = announcements.filter(a => !a.requiresConsent).map(a => a._id)
+    if (consentIds.length > 0) await acceptAnnouncements(consentIds)
+    if (normalIds.length > 0) await markAsRead(normalIds)
+    setDismissed(true)
+  }, [announcements, acceptAnnouncements, markAsRead])
+
   if (loading || dismissed || announcements.length === 0) return null
 
+  const hasConsentRequired = announcements.some(a => a.requiresConsent)
+  const hasNormal = announcements.some(a => !a.requiresConsent)
   const latestType = announcements[announcements.length - 1].type
   const style = TYPE_STYLES[latestType]
   const Icon = style.icon
@@ -107,7 +132,7 @@ export function SystemAnnouncementBanner({ tenantSlug }: Props) {
 
                 <div className="min-w-0">
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#f7f4f2', letterSpacing: '-0.01em' }}>
-                    Novedades del sistema
+                    {hasConsentRequired ? 'Aviso importante del sistema' : 'Novedades del sistema'}
                   </span>
                   <span
                     className="ml-2 inline-flex items-center justify-center"
@@ -128,31 +153,57 @@ export function SystemAnnouncementBanner({ tenantSlug }: Props) {
                 </div>
               </div>
 
-              <button
-                onClick={handleDismiss}
-                className="shrink-0 flex items-center justify-center transition-all active:scale-90"
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 9,
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  cursor: 'pointer',
-                }}
-              >
-                <X size={12} style={{ color: '#6e6560' }} />
-              </button>
+              {/* Solo mostrar X si hay anuncios normales (no consent-required) */}
+              {hasNormal && (
+                <button
+                  onClick={handleDismissNormal}
+                  className="shrink-0 flex items-center justify-center transition-all active:scale-90"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 9,
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={12} style={{ color: '#6e6560' }} />
+                </button>
+              )}
             </div>
 
             <p className="mt-2.5 ml-[48px]" style={{ fontSize: 12.5, color: '#8a7f7a', lineHeight: 1.5 }}>
-              {count === 1
-                ? 'Hay una novedad nueva desde tu último ingreso.'
-                : `Tenés ${count} novedades nuevas desde tu último ingreso.`}
+              {hasConsentRequired
+                ? 'Hay un aviso importante que requiere tu lectura y aceptación para continuar.'
+                : count === 1
+                  ? 'Hay una novedad nueva desde tu último ingreso.'
+                  : `Tenés ${count} novedades nuevas desde tu último ingreso.`}
             </p>
 
-            <div className="mt-3 ml-[48px]">
+            <div className="mt-3 ml-[48px] flex items-center gap-3">
+              {hasConsentRequired && (
+                <button
+                  onClick={handleAcceptConsent}
+                  disabled={accepting}
+                  className="inline-flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: '#fff',
+                    background: style.accent,
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '6px 14px',
+                    cursor: accepting ? 'wait' : 'pointer',
+                  }}
+                >
+                  <ShieldCheck size={13} />
+                  {accepting ? 'Procesando...' : 'He leído y acepto'}
+                </button>
+              )}
+
               <button
-                onClick={() => { handleDismiss(); router.push(`/${tenantSlug}/admin/updates`) }}
+                onClick={() => { handleDismissNormal(); router.push(`/${tenantSlug}/admin/updates`) }}
                 className="inline-flex items-center gap-1 transition-all active:scale-95"
                 style={{
                   fontSize: 12,
