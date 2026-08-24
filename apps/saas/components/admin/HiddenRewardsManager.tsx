@@ -184,11 +184,16 @@ export default function HiddenRewardsManager() {
         </CardHeader>
         <CardContent>
           {items.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No hay ítems con recompensas escondidas configuradas.
-              <br />
-              Activa una recompensa desde el editor del menú.
-            </p>
+            <div className="text-center py-8 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                No hay ítems con recompensas escondidas configuradas.
+                <br />
+                Activá una recompensa desde el editor del menú (editá un producto y buscá la sección "Recompensa Escondida").
+              </p>
+              <Button variant="outline" size="sm" onClick={() => { window.location.href = `${base}/menu` }}>
+                Ir al editor del menú
+              </Button>
+            </div>
           ) : (
             <div className="space-y-4">
               {items.map(item => (

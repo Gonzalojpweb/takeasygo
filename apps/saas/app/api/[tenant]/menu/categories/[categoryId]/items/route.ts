@@ -20,7 +20,7 @@ export async function POST(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { locationId, name, description, price, takeawayPrice, businessPrice, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, subcategoryId } = await request.json()
+    const { locationId, name, description, price, takeawayPrice, businessPrice, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, subcategoryId, hiddenReward } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -52,6 +52,7 @@ export async function POST(
       // Guardar precio original de lista al crear el item
       originalPrice: price,
       takeawayOriginalPrice: takeawayPrice || price,
+      ...(hiddenReward ? { hiddenReward } : {}),
     } as any
 
     if (subcategoryId) {
@@ -86,7 +87,7 @@ export async function PUT(
     if (authError) return authError
 
     const body = await request.json()
-    const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice } = body
+    const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice, hiddenReward } = body
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) {
@@ -154,6 +155,7 @@ export async function PUT(
     // Permitir guardar explícitamente (para bulk update)
     if (originalPrice !== undefined) item.originalPrice = originalPrice
     if (takeawayOriginalPrice !== undefined) item.takeawayOriginalPrice = takeawayOriginalPrice
+    if (hiddenReward !== undefined) item.hiddenReward = hiddenReward
 
     menu.markModified('categories')
     try {
