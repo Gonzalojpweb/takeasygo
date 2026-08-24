@@ -369,7 +369,16 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const qrEligibleSubtotal = cart
     .filter(i => i.type !== 'promotion')
     .reduce((sum, i) => sum + i.price * i.quantity, 0)
-  const discountAmount = activeQrPromo ? Math.floor(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100)) : 0
+
+  const hiddenRewardDiscount = !activeQrPromo && hiddenRewardClaims.length > 0
+    ? hiddenRewardClaims.reduce((sum, claim) => {
+        const cartItem = cart.find(i => i.menuItemId === claim.menuItemId)
+        return cartItem ? sum + Math.floor(cartItem.price * cartItem.quantity * (claim.discountPercentage / 100)) : sum
+      }, 0)
+    : 0
+
+  const qrDiscount = activeQrPromo ? Math.floor(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100)) : 0
+  const discountAmount = qrDiscount + hiddenRewardDiscount
 
   // Calcular si el reward seleccionado necesita SOS
   const selectedRewardItem = selectedRewardItemId
@@ -1361,21 +1370,16 @@ async function handleSubmit(e: React.FormEvent) {
                   <Percent size={12} />
                   {activeQrPromo.checkoutDiscountLabel || 'Descuento QR'} ({activeQrPromo.discountPercentage}%)
                 </span>
-                <span>-${toPesos(discountAmount).toLocaleString('es-AR')}</span>
+                <span>-${toPesos(qrDiscount).toLocaleString('es-AR')}</span>
               </div>
             )}
             {hiddenRewardClaims.length > 0 && (() => {
-              let hrTotal = 0
-              for (const claim of hiddenRewardClaims) {
-                const cartItem = cart.find(i => i.menuItemId === claim.menuItemId)
-                if (cartItem) hrTotal += Math.floor(cartItem.price * cartItem.quantity * (claim.discountPercentage / 100))
-              }
-              return hrTotal > 0 ? (
+              return hiddenRewardDiscount > 0 ? (
                 <div className="flex justify-between text-sm text-amber-600 font-semibold">
                   <span className="flex items-center gap-1">
                     🎁 Recompensa ({hiddenRewardClaims.length})
                   </span>
-                  <span>-${toPesos(hrTotal).toLocaleString('es-AR')}</span>
+                  <span>-${toPesos(hiddenRewardDiscount).toLocaleString('es-AR')}</span>
                 </div>
               ) : null
             })()}

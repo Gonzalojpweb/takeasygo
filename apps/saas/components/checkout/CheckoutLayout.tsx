@@ -40,7 +40,7 @@ export default function CheckoutLayout(props: Props) {
 
 function CheckoutLayoutInner() {
   const router = useRouter()
-  const { state, dispatch, steps, effectiveTime, delayEnabled, extraMinutes, delayMessage, selectedRewardItem, subtotal, discountAmount, deliveryCost, baseTotal, total, activeSurchargePercent, missingPoints, canUseSos, effectiveAdvanceLimit, tenantName, transferData } = useCheckout()
+  const { state, dispatch, steps, effectiveTime, delayEnabled, extraMinutes, delayMessage, selectedRewardItem, subtotal, discountAmount, deliveryCost, baseTotal, total, activeSurchargePercent, missingPoints, canUseSos, effectiveAdvanceLimit, tenantName, transferData, hiddenRewardClaims } = useCheckout()
   const { currentStep, activeOrderNumber, tenantSlug, deliveryMode, mode, loyaltyMember, loyaltyConfig, joinClub, walletEnabled, storeItems, selectedRewardItemId, rewardItemLoading, pointsLookupLoading, kriptonEnabled, transferEnabled, selectedPaymentMethod, scheduleOrder, activeQrPromo, estimatedTimeInfo, deliveryQuote } = state
 
   const [legalModal, setLegalModal] = useState<'terminos' | 'privacidad' | null>(null)
@@ -473,6 +473,8 @@ function PaymentConfirmation(props: {
     onPaymentMethodChange,
   } = props
 
+  const { state, hiddenRewardClaims } = useCheckout()
+
   const isDelivery = mode === 'delivery' || deliveryMode
   const restoName = tenantName || 'tu restaurante favorito'
   const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -643,6 +645,21 @@ function PaymentConfirmation(props: {
             <span>-${toPesos(discountAmount).toLocaleString('es-AR')}</span>
           </div>
         )}
+        {!activeQrPromo && hiddenRewardClaims.length > 0 && (() => {
+          let hrTotal = 0
+          for (const claim of hiddenRewardClaims) {
+            const cartItem = state.cart.find(i => i.menuItemId === claim.menuItemId)
+            if (cartItem) hrTotal += Math.floor(cartItem.price * cartItem.quantity * (claim.discountPercentage / 100))
+          }
+          return hrTotal > 0 ? (
+            <div className="flex justify-between text-sm text-amber-600 font-semibold">
+              <span className="flex items-center gap-1">
+                🎁 Recompensa ({hiddenRewardClaims.length})
+              </span>
+              <span>-${toPesos(hrTotal).toLocaleString('es-AR')}</span>
+            </div>
+          ) : null
+        })()}
         {selectedRewardItem && (
           <div className="flex justify-between text-sm text-emerald-600 font-semibold">
             <span className="flex items-center gap-1">
