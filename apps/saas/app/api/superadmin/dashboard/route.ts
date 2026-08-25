@@ -8,7 +8,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
 
@@ -83,11 +83,18 @@ function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
   return { stuck: false }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Auth check via getToken (next-auth/jwt) — avoids the apiAuth→auth→auth-adapter
+    // static import chain that creates circular-dependency TDZ errors in Turbopack bundles.
+    const { getToken } = await import('next-auth/jwt')
+    const token = await getToken({ req: request as any, secret: process.env.AUTH_SECRET })
+    if (!token || token.role !== 'superadmin') {
+      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+    }
+
     // All imports are lazy/dynamic to prevent webpack TDZ errors from circular module graphs
     const [
-      { requireSuperAdmin },
       { connectDB },
       { checkIsOpenNow },
       { default: Tenant },
@@ -97,7 +104,6 @@ export async function GET() {
       { default: Rating },
       { default: Feedback },
     ] = await Promise.all([
-      import('@/lib/apiAuth'),
       import('@/lib/mongoose'),
       import('@/lib/service-hours'),
       import('@/models/Tenant'),
@@ -108,8 +114,6 @@ export async function GET() {
       import('@/models/Feedback'),
     ])
 
-    const authError = await requireSuperAdmin()
-    if (authError) return authError
     await connectDB()
 
     const isOpenForTenant = makeIsOpenForTenant(checkIsOpenNow)
