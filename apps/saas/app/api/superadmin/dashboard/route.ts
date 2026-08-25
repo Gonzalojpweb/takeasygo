@@ -5,27 +5,17 @@
  *
  * READ-ONLY — does not modify any data.
  *
- * All imports are STATIC (like other working superadmin routes).
- * Dynamic import() causes Turbopack TDZ errors in this file's bundle.
+ * Auth uses getToken (next-auth/jwt) instead of requireSuperAdmin (apiAuth)
+ * to avoid a Turbopack TDZ bug triggered when apiAuth's dependency chain
+ * (auth -> auth-adapter -> mongoose, etc.) is bundled alongside multiple
+ * Mongoose models in the same route chunk.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { connectDB } from '@/lib/mongoose'
-import { requireSuperAdmin } from '@/lib/apiAuth'
-import { checkIsOpenNow } from '@/lib/service-hours'
-import type { ServiceHoursMode } from '@/lib/service-hours'
-import Tenant from '@/models/Tenant'
-import Location from '@/models/Location'
-import Order from '@/models/Order'
-import User from '@/models/User'
-import Rating from '@/models/Rating'
-import Feedback from '@/models/Feedback'
 
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
-
-const OPEN_MODES: ServiceHoursMode[] = ['takeaway', 'dineIn', 'delivery']
 
 function toDateStr(v: any): string {
   if (!v) return ''
@@ -50,10 +40,11 @@ function daysAgo(n: number): Date {
   return d
 }
 
-function isOpenForTenant(loc: any): boolean {
+function isOpenForTenant(loc: any, checkIsOpenNow: any): boolean {
   if (!loc?.serviceHours || !loc.timezone) return false
+  const modes = ['takeaway', 'dineIn', 'delivery'] as const
   try {
-    for (const mode of OPEN_MODES) {
+    for (const mode of modes) {
       const result = checkIsOpenNow(loc.serviceHours, mode, loc.timezone)
       if (result === true) return true
       if (result === false) continue
@@ -94,11 +85,68 @@ function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
   return { stuck: false }
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const authError = await requireSuperAdmin()
-    if (authError) return authError
-    await connectDB()
+    // ── Auth: getToken avoids the apiAuth→auth→auth-adapter chunk TDZ ──
+    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+    if (!secret) {
+      console.error('[superadmin/dashboard GET] AUTH_SECRET not configured')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    const { getToken } = await import('next-auth/jwt')
+    const token = await getToken({ req: request as any, secret })
+
+    if (!token) {
+      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+    }
+
+    // Token may lack role if issued before jwt callback was updated.
+    // Fall back to DB lookup.
+    let isSuperAdmin = token.role === 'superadmin'
+    if (!isSuperAdmin && token.id) {
+      const mongoose = await import('mongoose')
+      const defaultMongoose = mongoose.default ?? mongoose
+      if (defaultMongoose.connection.readyState !== 1) {
+        await defaultMongoose.connect(process.env.MONGODB_URI!)
+      }
+      const UserMod = await import('@/models/User')
+      const User = UserMod.default
+      const dbUser = await User.findById(token.id).select('role').lean<{ role: string }>()
+      isSuperAdmin = dbUser?.role === 'superadmin'
+    }
+
+    if (!isSuperAdmin) {
+      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+    }
+
+    // ── Data imports: sequential to avoid Turbopack chunk TDZ ──
+    const mongooseMod = await import('mongoose')
+    const mongoose = mongooseMod.default ?? mongooseMod
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(process.env.MONGODB_URI!)
+    }
+
+    const serviceHoursMod = await import('@/lib/service-hours')
+    const checkIsOpenNow = serviceHoursMod.checkIsOpenNow
+
+    const TenantMod = await import('@/models/Tenant')
+    const Tenant = TenantMod.default
+
+    const LocationMod = await import('@/models/Location')
+    const Location = LocationMod.default
+
+    const OrderMod = await import('@/models/Order')
+    const Order = OrderMod.default
+
+    const UserMod = await import('@/models/User')
+    const User = UserMod.default
+
+    const RatingMod = await import('@/models/Rating')
+    const Rating = RatingMod.default
+
+    const FeedbackMod = await import('@/models/Feedback')
+    const Feedback = FeedbackMod.default
 
     const now = new Date()
     const todayStart = startOfDay(now)
@@ -174,7 +222,7 @@ export async function GET(_request: NextRequest) {
       const orders = tenantActiveOrders.get(tid) || []
       const todayTenantOrders = todayOrders.filter((o: any) => o.tenantId.toString() === tid)
 
-      const isOpen = locs.some((loc: any) => isOpenForTenant(loc))
+      const open = locs.some((loc: any) => isOpenForTenant(loc, checkIsOpenNow))
       const statusCounts: Record<string, number> = {}
       const attentionReasons: string[] = []
 
@@ -191,7 +239,7 @@ export async function GET(_request: NextRequest) {
         name: t.name,
         slug: t.slug,
         plan: t.plan,
-        isOpen,
+        isOpen: open,
         isOperational: t.isOperational ?? true,
         activeOrders: orders.map((o: any) => ({
           orderId: o._id.toString(),
