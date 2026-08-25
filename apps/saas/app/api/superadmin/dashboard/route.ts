@@ -10,10 +10,6 @@
 
 import { connectDB } from '@/lib/mongoose'
 import { NextResponse } from 'next/server'
-import Tenant from '@/models/Tenant'
-import Location from '@/models/Location'
-import Order from '@/models/Order'
-import User from '@/models/User'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { checkIsOpenNow, type ServiceHoursMode } from '@/lib/service-hours'
 
@@ -93,8 +89,19 @@ export async function GET() {
     if (authError) return authError
     await connectDB()
 
-    // Lazy imports to break circular dependency chains
-    const [{ default: Rating }, { default: Feedback }] = await Promise.all([
+    // Lazy imports to avoid circular dependency chains in webpack bundle
+    const [
+      { default: Tenant },
+      { default: Location },
+      { default: Order },
+      { default: User },
+      { default: Rating },
+      { default: Feedback },
+    ] = await Promise.all([
+      import('@/models/Tenant'),
+      import('@/models/Location'),
+      import('@/models/Order'),
+      import('@/models/User'),
       import('@/models/Rating'),
       import('@/models/Feedback'),
     ])
