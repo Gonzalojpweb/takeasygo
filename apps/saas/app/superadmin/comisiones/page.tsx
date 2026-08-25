@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   DollarSign, Calendar, Search, CheckCircle2, Clock,
-  Building2, Loader2,
+  Building2, Loader2, AlertTriangle, FileText, CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
@@ -37,6 +37,12 @@ function StatusBadge({ status }: { status: string }) {
       {status === 'paid' ? 'Pagado' : status}
     </Badge>
   )
+}
+
+const STATEMENT_STATUS_STYLES: Record<string, { label: string; className: string }> = {
+  pendiente: { label: 'Pendiente', className: 'bg-amber-100 text-amber-700' },
+  pagado: { label: 'Pagado', className: 'bg-green-100 text-green-700' },
+  vencido: { label: 'Vencido', className: 'bg-red-100 text-red-700' },
 }
 
 interface TenantResult {
@@ -76,6 +82,29 @@ interface ApiResponse {
   error?: string
 }
 
+interface FailedClose {
+  tenantId: string
+  name: string
+  slug: string
+  orderCount: number
+  estimatedCommission: number
+}
+
+interface WeeklyStatement {
+  _id: string
+  tenantId: string
+  tenantName: string
+  tenantSlug: string
+  weekStart: string
+  weekEnd: string
+  amount: number
+  status: 'pendiente' | 'pagado' | 'vencido'
+  closedAt: string
+  paidAt: string | null
+  paidBy: string | null
+  orderCount: number
+}
+
 export default function SuperAdminComisionesPage() {
   const defaults = getDefaultDates()
   const [from, setFrom] = useState(defaults.from)
@@ -83,6 +112,13 @@ export default function SuperAdminComisionesPage() {
   const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const [failedCloses, setFailedCloses] = useState<FailedClose[]>([])
+  const [loadingFailed, setLoadingFailed] = useState(true)
+
+  const [weeklyStatements, setWeeklyStatements] = useState<WeeklyStatement[]>([])
+  const [loadingStatements, setLoadingStatements] = useState(true)
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchComisiones() {
@@ -102,6 +138,70 @@ export default function SuperAdminComisionesPage() {
     }
     fetchComisiones()
   }, [from, to])
+
+  useEffect(() => {
+    async function fetchFailedCloses() {
+      try {
+        setLoadingFailed(true)
+        const res = await fetch('/api/superadmin/commissions/failed-closes')
+        const json = await res.json()
+        if (res.ok) setFailedCloses(json.failedCloses || [])
+      } catch {
+        // silent
+      } finally {
+        setLoadingFailed(false)
+      }
+    }
+    fetchFailedCloses()
+  }, [])
+
+  useEffect(() => {
+    async function fetchWeeklyStatements() {
+      try {
+        setLoadingStatements(true)
+        const res = await fetch('/api/superadmin/commissions/weekly-statements')
+        const json = await res.json()
+        if (res.ok) setWeeklyStatements(json.statements || [])
+      } catch {
+        // silent
+      } finally {
+        setLoadingStatements(false)
+      }
+    }
+    fetchWeeklyStatements()
+  }, [])
+
+  async function handleMarkAsPaid(statementId: string, tenantName: string) {
+    if (!confirm(`¿Confirmar pago de comisiones para ${tenantName}?`)) return
+    try {
+      setMarkingPaid(statementId)
+      // Buscar el statement para obtener fechas
+      const stmt = weeklyStatements.find(s => s._id === statementId)
+      if (!stmt) return
+
+      const res = await fetch('/api/superadmin/commissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: stmt.tenantId,
+          from: stmt.weekStart,
+          to: stmt.weekEnd,
+          statementId,
+          notes: `Pago semanal ${stmt.weekStart} — ${stmt.weekEnd}`,
+        }),
+      })
+      if (res.ok) {
+        setWeeklyStatements(prev =>
+          prev.map(s => s._id === statementId ? { ...s, status: 'pagado' as const, paidAt: new Date().toISOString() } : s)
+        )
+        setFailedCloses(prev => prev.filter(f => f.tenantId !== stmt.tenantId))
+      }
+    } catch {
+      // silent
+    } finally {
+      setMarkingPaid(null)
+    }
+  }
 
   const tenantResults = data?.tenantResults || []
   const settlements = data?.settlements || []
@@ -160,6 +260,30 @@ export default function SuperAdminComisionesPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Failed Closes Alert Banner ── */}
+      {!loadingFailed && failedCloses.length > 0 && (
+        <div className="rounded-2xl border border-red-300 bg-red-50 p-5">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="shrink-0 text-red-500 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-red-800">
+                Cierres semanales fallidos detectados
+              </p>
+              <p className="text-xs text-red-600 mt-1">
+                {failedCloses.length} comercio(s) tuvieron órdenes transfer la semana pasada pero el cierre no se ejecutó.
+              </p>
+              <div className="mt-2 space-y-1">
+                {failedCloses.map(f => (
+                  <p key={f.tenantId} className="text-xs text-red-700">
+                    <span className="font-semibold">{f.name}</span> — {f.orderCount} órdenes, ~${fmt(f.estimatedCommission)} estimado
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Global Summary ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -317,6 +441,102 @@ export default function SuperAdminComisionesPage() {
                         </tr>
                       )
                     })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Weekly Statements Cross-Tenant ── */}
+      <Card className="rounded-2xl border shadow-sm overflow-hidden">
+        <CardHeader className="border-b border-border/40 p-5 flex flex-row items-center justify-between">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <FileText size={16} className="text-muted-foreground" />
+            Cierres Semanales
+          </CardTitle>
+          {!loadingStatements && (
+            <Badge variant="secondary" className="text-xs font-medium">
+              {weeklyStatements.length} registros
+            </Badge>
+          )}
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/40 bg-muted/30">
+                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Comercio</th>
+                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Semana</th>
+                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Monto</th>
+                  <th className="px-5 py-3 text-center text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Estado</th>
+                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Órdenes</th>
+                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {loadingStatements ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-8 text-center">
+                      <Loader2 size={20} className="animate-spin mx-auto text-muted-foreground" />
+                    </td>
+                  </tr>
+                ) : weeklyStatements.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                        <FileText size={32} className="opacity-30" />
+                        <p className="text-sm font-medium">Aún no hay cierres semanales</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  weeklyStatements.map((s) => {
+                    const statusStyle = STATEMENT_STATUS_STYLES[s.status] || STATEMENT_STATUS_STYLES.pendiente
+                    return (
+                      <tr key={s._id} className="hover:bg-muted/40 transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="flex flex-col">
+                            <p className="text-sm font-semibold text-foreground">{s.tenantName}</p>
+                            <p className="text-[10px] text-muted-foreground font-medium">{s.tenantSlug}</p>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-sm font-medium">
+                          {format(new Date(s.weekStart), 'dd/MM', { locale: es })} –{' '}
+                          {format(new Date(s.weekEnd), 'dd/MM/yyyy', { locale: es })}
+                        </td>
+                        <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(s.amount)}</td>
+                        <td className="px-5 py-4 text-center">
+                          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold', statusStyle.className)}>
+                            {statusStyle.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-right text-sm text-muted-foreground">{s.orderCount}</td>
+                        <td className="px-5 py-4 text-right">
+                          {s.status !== 'pagado' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[10px] font-bold gap-1"
+                              disabled={markingPaid === s._id}
+                              onClick={() => handleMarkAsPaid(s._id, s.tenantName)}
+                            >
+                              {markingPaid === s._id ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <CreditCard size={12} />
+                              )}
+                              Marcar pagado
+                            </Button>
+                          ) : (
+                            <span className="text-[10px] text-green-600 font-medium">
+                              {s.paidAt ? format(new Date(s.paidAt), 'dd/MM/yy', { locale: es }) : ''}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
