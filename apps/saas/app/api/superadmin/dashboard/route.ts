@@ -14,8 +14,6 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Order from '@/models/Order'
 import User from '@/models/User'
-import Rating from '@/models/Rating'
-import Feedback from '@/models/Feedback'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { checkIsOpenNow, type ServiceHoursMode } from '@/lib/service-hours'
 
@@ -94,6 +92,12 @@ export async function GET() {
     const authError = await requireSuperAdmin()
     if (authError) return authError
     await connectDB()
+
+    // Lazy imports to break circular dependency chains
+    const [{ default: Rating }, { default: Feedback }] = await Promise.all([
+      import('@/models/Rating'),
+      import('@/models/Feedback'),
+    ])
 
     const now = new Date()
     const todayStart = startOfDay(now)
