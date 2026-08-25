@@ -3,12 +3,10 @@
  *
  * GET /api/superadmin/dashboard
  *
- * Single aggregated endpoint powering the operational dashboard.
- * Returns live network status, active orders, activity feed,
- * KPIs, 7-day trend, tenant health, feedback, and payment methods.
- *
  * READ-ONLY — does not modify any data.
  */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { connectDB } from '@/lib/mongoose'
 import { NextResponse } from 'next/server'
@@ -19,18 +17,15 @@ import User from '@/models/User'
 import Rating from '@/models/Rating'
 import Feedback from '@/models/Feedback'
 import { requireSuperAdmin } from '@/lib/apiAuth'
-import { checkIsOpenNow } from '@/lib/service-hours'
-import type { ServiceHoursMode } from '@/lib/service-hours'
+import { checkIsOpenNow, type ServiceHoursMode } from '@/lib/service-hours'
 
-const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived'] as const
+const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
 
-const STUCK_THRESHOLDS = {
-  pendingMinutes: 30,
-  readyMinutes: 20,
-  estimatedMultiplier: 1.5,
-} as const
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
+function toDateStr(v: any): string {
+  if (!v) return ''
+  if (v instanceof Date) return v.toISOString()
+  try { return new Date(v).toISOString() } catch { return '' }
+}
 
 function minutesSince(date: Date): number {
   return (Date.now() - date.getTime()) / 60_000
@@ -49,73 +44,55 @@ function daysAgo(n: number): Date {
   return d
 }
 
-function isOpenForTenant(
-  location: { serviceHours?: Record<string, Array<{ days: number[]; open: string; close: string }>>; timezone?: string },
-): boolean {
-  const modes: ServiceHoursMode[] = ['takeaway', 'dineIn', 'delivery']
-  for (const mode of modes) {
-    const result = checkIsOpenNow(location.serviceHours as any, mode, location.timezone)
-    if (result === true) return true
-    if (result === false) continue
-  }
+function isOpenForTenant(loc: any): boolean {
+  if (!loc?.serviceHours || !loc.timezone) return false
+  try {
+    const modes: ServiceHoursMode[] = ['takeaway', 'dineIn', 'delivery']
+    for (const mode of modes) {
+      const result = checkIsOpenNow(loc.serviceHours, mode, loc.timezone)
+      if (result === true) return true
+      if (result === false) continue
+    }
+  } catch { /* malformed hours */ }
   return false
 }
 
 function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
-  const status = order.status
-  const ts = order.statusTimestamps || {}
+  try {
+    const status = order.status
+    const ts = order.statusTimestamps || {}
 
-  if (status === 'pending') {
-    const age = minutesSince(order.createdAt)
-    if (age > STUCK_THRESHOLDS.pendingMinutes) {
-      return { stuck: true, reason: `${Math.round(age)}min sin confirmar` }
+    if (status === 'pending') {
+      const age = minutesSince(order.createdAt)
+      if (age > 30) return { stuck: true, reason: `${Math.round(age)}min sin confirmar` }
     }
-  }
 
-  if (status === 'confirmed' || status === 'preparing') {
-    const referenceTime = status === 'confirmed' ? ts.confirmedAt : ts.preparingAt
-    if (referenceTime && order.statusTimestamps?.estimatedReadyAt) {
-      const estimated = new Date(order.statusTimestamps.estimatedReadyAt).getTime()
-      const elapsed = Date.now() - referenceTime.getTime()
-      const limit = (estimated - referenceTime.getTime()) * STUCK_THRESHOLDS.estimatedMultiplier
-      if (elapsed > limit) {
-        const pastDue = Math.round((elapsed - (estimated - referenceTime.getTime())) / 60_000)
-        return { stuck: true, reason: `${pastDue}min sobre estimado` }
+    if (status === 'confirmed' || status === 'preparing') {
+      const refTime = status === 'confirmed' ? ts.confirmedAt : ts.preparingAt
+      if (refTime && ts.estimatedReadyAt) {
+        const ref = new Date(refTime).getTime()
+        const est = new Date(ts.estimatedReadyAt).getTime()
+        const elapsed = Date.now() - ref
+        const limit = (est - ref) * 1.5
+        if (elapsed > limit) {
+          const pastDue = Math.round((elapsed - (est - ref)) / 60_000)
+          return { stuck: true, reason: `${pastDue}min sobre estimado` }
+        }
       }
     }
-  }
 
-  if (status === 'ready' && ts.readyAt) {
-    const age = minutesSince(new Date(ts.readyAt))
-    if (age > STUCK_THRESHOLDS.readyMinutes) {
-      return { stuck: true, reason: `${Math.round(age)}min sin retirar` }
+    if (status === 'ready' && ts.readyAt) {
+      const age = minutesSince(new Date(ts.readyAt))
+      if (age > 20) return { stuck: true, reason: `${Math.round(age)}min sin retirar` }
     }
-  }
-
+  } catch { /* defensive */ }
   return { stuck: false }
-}
-
-function buildActivityMessage(order: any, type: string, tenantName: string): string {
-  const n = order.orderNumber || '?'
-  switch (type) {
-    case 'order_created':
-      return `${tenantName} recibió pedido #${n}`
-    case 'order_confirmed':
-      return `${tenantName} confirmó pedido #${n}`
-    case 'order_delivered':
-      return `${tenantName} completó pedido #${n}`
-    case 'order_cancelled':
-      return `${tenantName} canceló pedido #${n}`
-    default:
-      return `${tenantName} — pedido #${n}`
-  }
 }
 
 export async function GET() {
   try {
     const authError = await requireSuperAdmin()
     if (authError) return authError
-
     await connectDB()
 
     const now = new Date()
@@ -124,40 +101,53 @@ export async function GET() {
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000)
 
     // ── Parallel data fetch ──────────────────────────────────────────
-    const [tenants, locations, activeOrders, todayOrders, recentOrders, todayRatings, todayFeedback, totalUsers] =
-      await Promise.all([
+    let tenants: any[] = []
+    let locations: any[] = []
+    let activeOrders: any[] = []
+    let todayOrders: any[] = []
+    let recentOrders: any[] = []
+    let todayRatings: any[] = []
+    let todayFeedback: any[] = []
+    let totalUsers = 0
+
+    try {
+      const results = await Promise.all([
         Tenant.find({ isActive: true, status: 'active' })
-          .select('name slug plan isOperational')
-          .lean(),
+          .select('name slug plan isOperational').lean(),
         Location.find({ status: 'active' })
-          .select('tenantId serviceHours timezone settings.acceptsOrders')
-          .lean(),
-        Order.find({ status: { $in: ACTIVE_STATUSES } })
+          .select('tenantId serviceHours timezone settings.acceptsOrders').lean(),
+        Order.find({ status: { $in: ACTIVE_STATUSES as any } })
           .select('tenantId locationId status orderNumber createdAt statusTimestamps total orderMode')
-          .sort({ createdAt: -1 })
-          .lean(),
+          .sort({ createdAt: -1 }).lean(),
         Order.find({ createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } })
-          .select('tenantId total payment.method payment.status createdAt status')
-          .lean(),
+          .select('tenantId total payment.method payment.status createdAt status').lean(),
         Order.find({ createdAt: { $gte: twoHoursAgo } })
           .select('tenantId status orderNumber createdAt statusTimestamps')
-          .sort({ createdAt: -1 })
-          .limit(30)
-          .lean(),
+          .sort({ createdAt: -1 }).limit(30).lean(),
         Rating.find({ createdAt: { $gte: todayStart } })
-          .select('tenantId stars comment createdAt')
-          .lean(),
+          .select('tenantId stars comment createdAt').lean(),
         Feedback.find({ createdAt: { $gte: todayStart } })
-          .select('tenantId satisfaction comment event createdAt')
-          .lean(),
+          .select('tenantId satisfaction comment event createdAt').lean(),
         User.countDocuments({ role: { $ne: 'superadmin' } }),
       ])
-
-    // ── Build lookup maps ────────────────────────────────────────────
-    const tenantMap = new Map<string, any>()
-    for (const t of tenants) {
-      tenantMap.set(t._id.toString(), t)
+      ;[tenants, locations, activeOrders, todayOrders, recentOrders, todayRatings, todayFeedback, totalUsers] = results
+    } catch (queryErr: any) {
+      console.error('[superadmin/dashboard GET] query error:', queryErr?.message || queryErr)
+      return NextResponse.json({
+        error: 'Error en consultas',
+        detail: queryErr?.message || String(queryErr),
+        ahora: { operandoAhora: 0, conPedidosActivos: 0, requierenAtencion: 0, abiertosSinPedidos: 0, sinActividad: 0, totalTenants: 0 },
+        pedidosActivos: [], actividadReciente: [],
+        kpis: { tenantsActivos: 0, pedidosHoy: 0, ingresosHoyCents: 0, ticketPromedioCents: 0, usuariosTotales: 0 },
+        tendencia7Dias: [], saludRed: { operandoNormalmente: 0, requierenAtencion: 0, sinActividad: 0, tenants: [] },
+        feedback: { negativosHoy: 0, totalHoy: 0, satisfaccionPct: 100, items: [] },
+        metodosPago: [], lastUpdated: now.toISOString(),
+      }, { status: 200 })
     }
+
+    // ── Lookup maps ──────────────────────────────────────────────────
+    const tenantMap = new Map<string, any>()
+    for (const t of tenants) tenantMap.set(t._id.toString(), t)
 
     const locationMap = new Map<string, any[]>()
     for (const loc of locations) {
@@ -166,7 +156,6 @@ export async function GET() {
       locationMap.get(tid)!.push(loc)
     }
 
-    // ── Per-tenant active orders ─────────────────────────────────────
     const tenantActiveOrders = new Map<string, any[]>()
     for (const order of activeOrders) {
       const tid = order.tenantId.toString()
@@ -174,22 +163,8 @@ export async function GET() {
       tenantActiveOrders.get(tid)!.push(order)
     }
 
-    // ── Compute per-tenant metrics ───────────────────────────────────
-    const tenantMetrics: Record<string, {
-      tenantId: string
-      name: string
-      slug: string
-      plan: string
-      isOpen: boolean
-      isOperational: boolean
-      activeOrders: any[]
-      statusCounts: Record<string, number>
-      needsAttention: boolean
-      attentionReasons: string[]
-      pedidosHoy: number
-      ingresosHoyCents: number
-      ultimaActividad?: string
-    }> = {}
+    // ── Per-tenant metrics ───────────────────────────────────────────
+    const tenantMetrics: Record<string, any> = {}
 
     for (const t of tenants) {
       const tid = t._id.toString()
@@ -197,16 +172,14 @@ export async function GET() {
       const orders = tenantActiveOrders.get(tid) || []
       const todayTenantOrders = todayOrders.filter((o: any) => o.tenantId.toString() === tid)
 
-      const isOpen = locs.some(loc => isOpenForTenant(loc))
+      const isOpen = locs.some((loc: any) => isOpenForTenant(loc))
       const statusCounts: Record<string, number> = {}
       const attentionReasons: string[] = []
 
       for (const order of orders) {
         statusCounts[order.status] = (statusCounts[order.status] || 0) + 1
         const stuck = isStuckOrder(order)
-        if (stuck.stuck && stuck.reason) {
-          attentionReasons.push(stuck.reason)
-        }
+        if (stuck.stuck && stuck.reason) attentionReasons.push(stuck.reason)
       }
 
       const lastOrder = orders[0] || todayTenantOrders[0]
@@ -222,13 +195,11 @@ export async function GET() {
           orderId: o._id.toString(),
           orderNumber: o.orderNumber,
           status: o.status,
-          createdAt: o.createdAt?.toISOString(),
+          createdAt: toDateStr(o.createdAt),
           minutesInStatus: o.statusTimestamps
-            ? minutesSince(new Date(
-                o.statusTimestamps.preparingAt || o.statusTimestamps.confirmedAt || o.createdAt
-              ))
+            ? minutesSince(new Date(o.statusTimestamps.preparingAt || o.statusTimestamps.confirmedAt || o.createdAt))
             : 0,
-          estimatedReadyAt: o.statusTimestamps?.estimatedReadyAt?.toISOString(),
+          estimatedReadyAt: toDateStr(o.statusTimestamps?.estimatedReadyAt),
           isStuck: isStuckOrder(o).stuck,
           stuckReason: isStuckOrder(o).reason,
         })),
@@ -239,63 +210,39 @@ export async function GET() {
         ingresosHoyCents: todayTenantOrders
           .filter((o: any) => o.payment?.status === 'approved')
           .reduce((sum: number, o: any) => sum + (o.total || 0), 0),
-        ultimaActividad: lastOrder?.createdAt?.toISOString(),
+        ultimaActividad: toDateStr(lastOrder?.createdAt),
       }
     }
 
     // ── Layer 1: AHORA EN TGO ────────────────────────────────────────
     const ahora = {
-      operandoAhora: 0,
-      conPedidosActivos: 0,
-      requierenAtencion: 0,
-      abiertosSinPedidos: 0,
-      sinActividad: 0,
-      totalTenants: tenants.length,
+      operandoAhora: 0, conPedidosActivos: 0, requierenAtencion: 0,
+      abiertosSinPedidos: 0, sinActividad: 0, totalTenants: tenants.length,
+    }
+    for (const m of Object.values(tenantMetrics)) {
+      const hasActive = m.activeOrders.length > 0
+      if (m.isOpen && m.isOperational) ahora.operandoAhora++
+      if (hasActive) ahora.conPedidosActivos++
+      if (m.needsAttention) ahora.requierenAtencion++
+      if (m.isOpen && !hasActive) ahora.abiertosSinPedidos++
+      if (!m.isOpen && !hasActive) ahora.sinActividad++
     }
 
-    for (const tid of Object.keys(tenantMetrics)) {
-      const m = tenantMetrics[tid]
-      const hasActiveOrders = m.activeOrders.length > 0
-
-      if (m.isOpen && m.isOperational) {
-        ahora.operandoAhora++
-      }
-      if (hasActiveOrders) {
-        ahora.conPedidosActivos++
-      }
-      if (m.needsAttention) {
-        ahora.requierenAtencion++
-      }
-      if (m.isOpen && !hasActiveOrders) {
-        ahora.abiertosSinPedidos++
-      }
-      if (!m.isOpen && !hasActiveOrders) {
-        ahora.sinActividad++
-      }
-    }
-
-    // ── Layer 2: PEDIDOS ACTIVOS (sorted by attention first) ─────────
+    // ── Layer 2: PEDIDOS ACTIVOS ─────────────────────────────────────
     const pedidosActivos = Object.values(tenantMetrics)
-      .filter(m => m.activeOrders.length > 0 || m.needsAttention)
-      .sort((a, b) => {
+      .filter((m: any) => m.activeOrders.length > 0 || m.needsAttention)
+      .sort((a: any, b: any) => {
         if (a.needsAttention && !b.needsAttention) return -1
         if (!a.needsAttention && b.needsAttention) return 1
         return b.activeOrders.length - a.activeOrders.length
       })
 
     // ── Layer 3: ACTIVIDAD RECIENTE ──────────────────────────────────
-    const activityTypeMap: Record<string, string> = {
-      open: 'order_created',
-      awaiting_payment: 'order_created',
-      awaiting_confirmation: 'order_created',
-      pending: 'order_created',
-      confirmed: 'order_confirmed',
-      preparing: 'order_confirmed',
-      ready: 'order_delivered',
-      en_ruta: 'order_delivered',
-      arrived: 'order_delivered',
-      delivered: 'order_delivered',
-      cancelled: 'order_cancelled',
+    const activityMap: Record<string, string> = {
+      open: 'order_created', awaiting_payment: 'order_created', awaiting_confirmation: 'order_created',
+      pending: 'order_created', confirmed: 'order_confirmed', preparing: 'order_confirmed',
+      ready: 'order_delivered', en_ruta: 'order_delivered', arrived: 'order_delivered',
+      delivered: 'order_delivered', cancelled: 'order_cancelled',
     }
 
     const actividadReciente = recentOrders
@@ -304,13 +251,21 @@ export async function GET() {
       .map((o: any) => {
         const tid = o.tenantId.toString()
         const t = tenantMap.get(tid)
-        const type = activityTypeMap[o.status] || 'order_created'
+        const type = activityMap[o.status] || 'order_created'
+        const name = t?.name || 'Desconocido'
+        const n = o.orderNumber || '?'
+        const messages: Record<string, string> = {
+          order_created: `${name} recibió pedido #${n}`,
+          order_confirmed: `${name} confirmó pedido #${n}`,
+          order_delivered: `${name} completó pedido #${n}`,
+          order_cancelled: `${name} canceló pedido #${n}`,
+        }
         return {
           type,
-          tenantName: t?.name || 'Desconocido',
+          tenantName: name,
           tenantSlug: t?.slug || '',
-          message: buildActivityMessage(o, type, t?.name || '?'),
-          timestamp: o.createdAt?.toISOString() || now.toISOString(),
+          message: messages[type] || `${name} — pedido #${n}`,
+          timestamp: toDateStr(o.createdAt) || now.toISOString(),
         }
       })
       .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -331,72 +286,50 @@ export async function GET() {
     }
 
     // ── Layer 5: TENDENCIA 7 DÍAS ────────────────────────────────────
-    const tendenciaRaw = await Order.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: sevenDaysAgo },
-          status: { $ne: 'cancelled' },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
-          },
-          pedidos: { $sum: 1 },
-          ingresos: {
-            $sum: {
-              $cond: [{ $eq: ['$payment.status', 'approved'] }, '$total', 0],
-            },
+    let tendencia7Dias: Array<{ date: string; pedidos: number; ingresosCents: number }> = []
+    try {
+      const tendenciaRaw = await Order.aggregate([
+        { $match: { createdAt: { $gte: sevenDaysAgo }, status: { $ne: 'cancelled' } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            pedidos: { $sum: 1 },
+            ingresos: { $sum: { $cond: [{ $eq: ['$payment.status', 'approved'] }, '$total', 0] } },
           },
         },
-      },
-      { $sort: { _id: 1 } },
-    ])
+        { $sort: { _id: 1 } },
+      ])
 
-    const tendencia7Dias: Array<{ date: string; pedidos: number; ingresosCents: number }> = []
-    for (let i = 6; i >= 0; i--) {
-      const d = daysAgo(i)
-      const key = d.toISOString().split('T')[0]
-      const found = tendenciaRaw.find((t: any) => t._id === key)
-      tendencia7Dias.push({
-        date: key,
-        pedidos: found?.pedidos || 0,
-        ingresosCents: found?.ingresos || 0,
-      })
+      for (let i = 6; i >= 0; i--) {
+        const d = daysAgo(i)
+        const key = d.toISOString().split('T')[0]
+        const found = tendenciaRaw.find((t: any) => t._id === key)
+        tendencia7Dias.push({ date: key, pedidos: found?.pedidos || 0, ingresosCents: found?.ingresos || 0 })
+      }
+    } catch (aggErr: any) {
+      console.error('[superadmin/dashboard GET] tendencia error:', aggErr?.message)
+      tendencia7Dias = []
     }
 
     // ── Layer 6: SALUD DE LA RED ─────────────────────────────────────
     const saludRed = {
-      operandoNormalmente: 0,
-      requierenAtencion: 0,
-      sinActividad: 0,
-      tenants: Object.values(tenantMetrics)
-        .map(m => {
-          let estado: 'operando' | 'atencion' | 'sin_actividad' = 'sin_actividad'
-          if (m.needsAttention) estado = 'atencion'
-          else if (m.isOpen && m.isOperational) estado = 'operando'
-
-          if (estado === 'operando') saludRed.operandoNormalmente++
-          else if (estado === 'atencion') saludRed.requierenAtencion++
-          else saludRed.sinActividad++
-
-          return {
-            tenantId: m.tenantId,
-            name: m.name,
-            slug: m.slug,
-            plan: m.plan,
-            estado,
-            pedidosActivos: m.activeOrders.length,
-            pedidosHoy: m.pedidosHoy,
-            ingresosHoyCents: m.ingresosHoyCents,
-            ultimaActividad: m.ultimaActividad,
-          }
-        })
-        .sort((a, b) => {
-          const order = { atencion: 0, operando: 1, sin_actividad: 2 }
-          return (order[a.estado] ?? 3) - (order[b.estado] ?? 3)
-        }),
+      operandoNormalmente: 0, requierenAtencion: 0, sinActividad: 0,
+      tenants: Object.values(tenantMetrics).map((m: any) => {
+        let estado: 'operando' | 'atencion' | 'sin_actividad' = 'sin_actividad'
+        if (m.needsAttention) estado = 'atencion'
+        else if (m.isOpen && m.isOperational) estado = 'operando'
+        if (estado === 'operando') saludRed.operandoNormalmente++
+        else if (estado === 'atencion') saludRed.requierenAtencion++
+        else saludRed.sinActividad++
+        return {
+          tenantId: m.tenantId, name: m.name, slug: m.slug, plan: m.plan,
+          estado, pedidosActivos: m.activeOrders.length, pedidosHoy: m.pedidosHoy,
+          ingresosHoyCents: m.ingresosHoyCents, ultimaActividad: m.ultimaActividad,
+        }
+      }).sort((a: any, b: any) => {
+        const o: Record<string, number> = { atencion: 0, operando: 1, sin_actividad: 2 }
+        return (o[a.estado] ?? 3) - (o[b.estado] ?? 3)
+      }),
     }
 
     // ── Layer 7: FEEDBACK ────────────────────────────────────────────
@@ -408,7 +341,7 @@ export async function GET() {
         stars: r.stars,
         satisfaction: r.stars <= 2 ? 'mejorable' : r.stars >= 4 ? 'excelente' : 'buena',
         comment: r.comment || '',
-        createdAt: r.createdAt?.toISOString() || '',
+        createdAt: toDateStr(r.createdAt),
       })),
       ...todayFeedback.map((f: any) => ({
         tenantName: tenantMap.get(f.tenantId.toString())?.name || '?',
@@ -417,7 +350,7 @@ export async function GET() {
         stars: undefined as number | undefined,
         satisfaction: f.satisfaction,
         comment: f.comment || '',
-        createdAt: f.createdAt?.toISOString() || '',
+        createdAt: toDateStr(f.createdAt),
       })),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
@@ -428,8 +361,7 @@ export async function GET() {
     const totalConSatisfaccion = allFeedbackToday.filter(f => f.satisfaction)
     const positivos = totalConSatisfaccion.filter(f => f.satisfaction === 'excelente' || f.satisfaction === 'buena').length
     const satisfaccionPct = totalConSatisfaccion.length > 0
-      ? Math.round((positivos / totalConSatisfaccion.length) * 100)
-      : 100
+      ? Math.round((positivos / totalConSatisfaccion.length) * 100) : 100
 
     const feedback = {
       negativosHoy,
@@ -439,28 +371,16 @@ export async function GET() {
     }
 
     // ── Layer 8: MÉTODOS DE PAGO ─────────────────────────────────────
-    const metodosPagoRaw = await Order.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: todayStart },
-          status: { $ne: 'cancelled' },
-          'payment.status': 'approved',
-        },
-      },
-      {
-        $group: {
-          _id: '$payment.method',
-          count: { $sum: 1 },
-          total: { $sum: '$total' },
-        },
-      },
-    ])
-
-    const metodosPago = metodosPagoRaw.map((m: any) => ({
-      method: m._id || 'unknown',
-      count: m.count,
-      totalCents: m.total,
-    }))
+    let metodosPago: Array<{ method: string; count: number; totalCents: number }> = []
+    try {
+      const raw = await Order.aggregate([
+        { $match: { createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' }, 'payment.status': 'approved' } },
+        { $group: { _id: '$payment.method', count: { $sum: 1 }, total: { $sum: '$total' } } },
+      ])
+      metodosPago = raw.map((m: any) => ({ method: m._id || 'unknown', count: m.count, totalCents: m.total }))
+    } catch (payErr: any) {
+      console.error('[superadmin/dashboard GET] payment aggregation error:', payErr?.message)
+    }
 
     // ── Response ─────────────────────────────────────────────────────
     return NextResponse.json({
@@ -474,8 +394,10 @@ export async function GET() {
       metodosPago,
       lastUpdated: now.toISOString(),
     })
-  } catch (error) {
-    console.error('[superadmin/dashboard GET]', error)
-    return NextResponse.json({ error: 'Error al obtener datos del dashboard' }, { status: 500 })
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    const stack = error instanceof Error ? error.stack : ''
+    console.error('[superadmin/dashboard GET]', msg, stack)
+    return NextResponse.json({ error: 'Error al obtener datos del dashboard', detail: msg }, { status: 500 })
   }
 }
