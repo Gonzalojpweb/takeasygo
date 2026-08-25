@@ -132,10 +132,46 @@ export default function DashboardClient() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/superadmin/dashboard')
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.detail || json.error || 'Error al cargar dashboard')
-      setData(json)
+      const [ahoraRes, pedidosRes, kpisRes, saludRes, feedbackRes, actividadRes, tendenciaRes, metodosPagoRes] = await Promise.all([
+        fetch('/api/superadmin/dashboard/ahora'),
+        fetch('/api/superadmin/dashboard/pedidos'),
+        fetch('/api/superadmin/dashboard/kpis'),
+        fetch('/api/superadmin/dashboard/salud'),
+        fetch('/api/superadmin/dashboard/feedback'),
+        fetch('/api/superadmin/dashboard/actividad'),
+        fetch('/api/superadmin/dashboard/tendencia'),
+        fetch('/api/superadmin/dashboard/metodos-pago'),
+      ])
+
+      const ahora = await ahoraRes.json()
+      const pedidos = await pedidosRes.json()
+      const kpis = await kpisRes.json()
+      const salud = await saludRes.json()
+      const feedback = await feedbackRes.json()
+      const actividad = await actividadRes.json()
+      const tendencia = await tendenciaRes.json()
+      const metodosPago = await metodosPagoRes.json()
+
+      if (!ahoraRes.ok) throw new Error(ahora.detail || ahora.error || 'Error al cargar ahora')
+      if (!pedidosRes.ok) throw new Error(pedidos.detail || pedidos.error || 'Error al cargar pedidos')
+      if (!kpisRes.ok) throw new Error(kpis.detail || kpis.error || 'Error al cargar kpis')
+      if (!saludRes.ok) throw new Error(salud.detail || salud.error || 'Error al cargar salud')
+      if (!feedbackRes.ok) throw new Error(feedback.detail || feedback.error || 'Error al cargar feedback')
+      if (!actividadRes.ok) throw new Error(actividad.detail || actividad.error || 'Error al cargar actividad')
+      if (!tendenciaRes.ok) throw new Error(tendencia.detail || tendencia.error || 'Error al cargar tendencia')
+      if (!metodosPagoRes.ok) throw new Error(metodosPago.detail || metodosPago.error || 'Error al cargar métodos de pago')
+
+      setData({
+        ahora: ahora.ahora,
+        pedidosActivos: pedidos.pedidosActivos,
+        kpis: kpis.kpis,
+        saludRed: salud.saludRed,
+        feedback: feedback.feedback,
+        actividadReciente: actividad.actividadReciente,
+        tendencia7Dias: tendencia.tendencia7Dias,
+        metodosPago: metodosPago.metodosPago,
+        lastUpdated: new Date().toISOString(),
+      })
       setError(null)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error de conexión')
