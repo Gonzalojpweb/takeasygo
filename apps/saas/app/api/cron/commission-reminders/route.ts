@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: true, reason: 'Not Sunday or Monday', dayOfWeek })
     }
 
-    const tenants = await Tenant.find({ 'commissionBalance.transfer': { $gt: 0 } }).lean()
+    const tenants = await Tenant.find({ isActive: true, 'commissionBalance.transfer': { $gt: 0 } }).lean()
 
     let created = 0
     let skipped = 0

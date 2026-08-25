@@ -6,6 +6,9 @@ import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
+const metricsCache = new Map<string, { data: TiaMetricsData; expiry: number }>()
+const METRICS_CACHE_TTL = 60_000 // 60 segundos — cache within same serverless instance
+
 const POSTHOG_HOST = 'https://us.i.posthog.com'
 
 function getPostHogConfig() {
@@ -220,6 +223,10 @@ async function getTenantTimezone(tenantId: mongoose.Types.ObjectId): Promise<str
 }
 
 export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetricsData> {
+  const now = Date.now()
+  const cached = metricsCache.get(tenantId)
+  if (cached && cached.expiry > now) return cached.data
+
   const tid = new mongoose.Types.ObjectId(tenantId)
   const timezone = await getTenantTimezone(tid)
   const { start: todayStart, end: todayEnd } = todayRange(timezone)
@@ -403,7 +410,7 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
 
   const avgOrderValue = todayOrders > 0 ? Math.round(todayRevenue / todayOrders) : 0
 
-  return {
+  const result: TiaMetricsData = {
     dailySummary: {
       todayOrders,
       todayRevenue,
@@ -463,4 +470,7 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
       totalMs: t3 - t0,
     },
   }
+
+  metricsCache.set(tenantId, { data: result, expiry: Date.now() + METRICS_CACHE_TTL })
+  return result
 }

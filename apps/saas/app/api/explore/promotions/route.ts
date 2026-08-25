@@ -114,7 +114,9 @@ export async function GET(request: NextRequest) {
       }]
     })
 
-    return NextResponse.json({ promotions })
+    return NextResponse.json({ promotions }, {
+      headers: { 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=240' },
+    })
   } catch (error) {
     console.error('[GET /api/explore/promotions]', error)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
