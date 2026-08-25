@@ -1,11 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { connectDB } from '@/lib/mongoose'
-import User from '@/models/User'
-import Account from '@/models/Account'
-import VerificationTokenModel from '@/models/VerificationToken'
+
+let UserModel: any = null
+let AccountModel: any = null
+let VerificationTokenModel: any = null
 
 async function ensureDB() {
   await connectDB()
+  if (!UserModel) {
+    UserModel = (await import('@/models/User')).default
+    AccountModel = (await import('@/models/Account')).default
+    VerificationTokenModel = (await import('@/models/VerificationToken')).default
+  }
 }
 
 function toAdapterUser(user: any) {
@@ -38,7 +44,7 @@ function toAdapterAccount(account: any) {
 export const adapter: any = {
   async createUser(user: any) {
     await ensureDB()
-    const created = await User.findOneAndUpdate(
+    const created = await UserModel.findOneAndUpdate(
       { email: user.email },
       {
         $setOnInsert: {
@@ -57,30 +63,30 @@ export const adapter: any = {
 
   async getUser(id: string) {
     await ensureDB()
-    const user = await User.findById(id).lean()
+    const user = await UserModel.findById(id).lean()
     if (!user) return null
     return toAdapterUser(user)
   },
 
   async getUserByEmail(email: string) {
     await ensureDB()
-    const user = await User.findOne({ email }).lean()
+    const user = await UserModel.findOne({ email }).lean()
     if (!user) return null
     return toAdapterUser(user)
   },
 
   async getUserByAccount({ provider, providerAccountId }: { provider: string; providerAccountId: string }) {
     await ensureDB()
-    const account = await Account.findOne({ provider, providerAccountId }).lean()
+    const account = await AccountModel.findOne({ provider, providerAccountId }).lean()
     if (!account) return null
-    const user = await User.findById(account.userId).lean()
+    const user = await UserModel.findById(account.userId).lean()
     if (!user) return null
     return toAdapterUser(user)
   },
 
   async updateUser(user: any) {
     await ensureDB()
-    const updated = await User.findByIdAndUpdate(
+    const updated = await UserModel.findByIdAndUpdate(
       user.id,
       { $set: { name: user.name, email: user.email, image: user.image, emailVerified: user.emailVerified } },
       { returnDocument: "after" }
@@ -91,13 +97,13 @@ export const adapter: any = {
 
   async deleteUser(userId: string) {
     await ensureDB()
-    await Account.deleteMany({ userId })
-    await User.findByIdAndDelete(userId)
+    await AccountModel.deleteMany({ userId })
+    await UserModel.findByIdAndDelete(userId)
   },
 
   async linkAccount(account: any) {
     await ensureDB()
-    const created = await Account.create({
+    const created = await AccountModel.create({
       userId: account.userId,
       type: account.type,
       provider: account.provider,
@@ -115,7 +121,7 @@ export const adapter: any = {
 
   async unlinkAccount({ provider, providerAccountId }: { provider: string; providerAccountId: string }) {
     await ensureDB()
-    await Account.findOneAndDelete({ provider, providerAccountId })
+    await AccountModel.findOneAndDelete({ provider, providerAccountId })
   },
 
   async createVerificationToken(verificationToken: any) {
@@ -145,7 +151,7 @@ export const adapter: any = {
 
   async getAccount(providerAccountId: string, provider: string) {
     await ensureDB()
-    const account = await Account.findOne({ provider, providerAccountId }).lean()
+    const account = await AccountModel.findOne({ provider, providerAccountId }).lean()
     if (!account) return null
     return toAdapterAccount(account)
   },

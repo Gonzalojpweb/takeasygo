@@ -4,8 +4,6 @@ import Google from 'next-auth/providers/google'
 import Email from 'next-auth/providers/email'
 import bcrypt from 'bcryptjs'
 import { connectDB } from '@/lib/mongoose'
-import User from '@/models/User'
-import Tenant from '@/models/Tenant'
 import { authConfig } from '@/lib/auth.config'
 import { Redis } from '@upstash/redis'
 import { rateLimit } from '@/lib/rateLimit'
@@ -70,6 +68,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         ssoCode: { label: 'SSO Code' },
       },
       async authorize(credentials) {
+        const [
+          { default: User },
+          { default: Tenant }
+        ] = await Promise.all([
+          import('@/models/User'),
+          import('@/models/Tenant')
+        ])
+
         // SSO via one-time auth code (from sso-callback page)
         if (credentials?.ssoCode) {
           const redis = new Redis({
