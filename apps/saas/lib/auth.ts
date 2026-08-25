@@ -7,7 +7,6 @@ import { connectDB } from '@/lib/mongoose'
 import { authConfig } from '@/lib/auth.config'
 import { Redis } from '@upstash/redis'
 import { rateLimit } from '@/lib/rateLimit'
-import { logAudit } from '@/lib/audit'
 import { adapter } from '@/lib/auth-adapter'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -16,6 +15,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   events: {
     async signIn({ user }) {
       const u = user as any
+      const { logAudit } = await import('@/lib/audit')
       logAudit({
         tenantId: u.tenantId ?? null,
         action: 'auth.login',
@@ -30,6 +30,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signOut(message) {
       const token = 'token' in message ? message.token : null
       if (!token) return
+      const { logAudit } = await import('@/lib/audit')
       logAudit({
         tenantId: (token.tenantId as string) ?? null,
         action: 'auth.logout',

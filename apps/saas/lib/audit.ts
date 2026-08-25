@@ -1,6 +1,4 @@
-import { auth } from '@/lib/auth'
 import { connectDB } from '@/lib/mongoose'
-import AuditLog from '@/models/AuditLog'
 import { NextRequest } from 'next/server'
 
 interface AuditOptions {
@@ -15,6 +13,8 @@ interface AuditOptions {
   userName?: string
   userRole?: string
 }
+
+let AuditLogModel: any = null
 
 /**
  * Persists an audit entry. Never throws — failures are logged to console only
@@ -31,6 +31,9 @@ export async function logAudit(options: AuditOptions): Promise<void> {
 
   try {
     await connectDB()
+    if (!AuditLogModel) {
+      AuditLogModel = (await import('@/models/AuditLog')).default
+    }
 
     // Only call auth() when user identity is not supplied by the caller.
     // Avoid calling auth() inside NextAuth events (the JWT may not exist yet).
@@ -39,6 +42,7 @@ export async function logAudit(options: AuditOptions): Promise<void> {
     let userRole = options.userRole ?? ''
 
     if (options.userId === undefined) {
+      const { auth } = await import('@/lib/auth')
       const session = await auth()
       userId   = (session?.user as any)?.id ?? null
       userName = session?.user?.name ?? session?.user?.email ?? 'Sistema'
@@ -50,7 +54,7 @@ export async function logAudit(options: AuditOptions): Promise<void> {
       options.request?.headers.get('x-real-ip') ??
       ''
 
-    await AuditLog.create({
+    await AuditLogModel.create({
       tenantId: options.tenantId,
       userId,
       userName,
