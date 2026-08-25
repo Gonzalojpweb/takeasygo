@@ -3,7 +3,6 @@ import { connectDB } from '@/lib/mongoose'
 import WeeklyCommissionStatement from '@/models/WeeklyCommissionStatement'
 import Tenant from '@/models/Tenant'
 import { requireSuperAdmin } from '@/lib/apiAuth'
-import { toPesos } from '@takeasygo/business'
 
 /**
  * GET /api/superadmin/commissions/weekly-statements
@@ -42,7 +41,7 @@ export async function GET(request: NextRequest) {
         tenantSlug: tenant?.slug || '',
         weekStart: s.weekStart,
         weekEnd: s.weekEnd,
-        amount: toPesos(s.amount),
+        amount: s.amount, // centavos — fmt() del page aplica toPesos()
         status: s.status,
         closedAt: s.closedAt,
         paidAt: s.paidAt,
