@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import CommissionSettlement from '@/models/CommissionSettlement'
+import WeeklyCommissionStatement from '@/models/WeeklyCommissionStatement'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { toPesos } from '@takeasygo/business'
 
@@ -103,11 +104,12 @@ export async function POST(request: NextRequest) {
   await connectDB()
 
   const body = await request.json()
-  const { tenantId, from, to, notes } = body as {
+  const { tenantId, from, to, notes, statementId } = body as {
     tenantId: string
     from: string
     to: string
     notes?: string
+    statementId?: string
   }
 
   if (!tenantId || !from || !to) {
@@ -160,6 +162,25 @@ export async function POST(request: NextRequest) {
     orderIds,
     status: 'paid',
   })
+
+  // Si se proporcionó statementId, marcar el WeeklyCommissionStatement como pagado
+  if (statementId) {
+    await WeeklyCommissionStatement.findOneAndUpdate(
+      { _id: statementId, tenantId, status: { $ne: 'pagado' } },
+      { $set: { status: 'pagado', paidAt: new Date(), paidBy: collectedBy } }
+    )
+  } else {
+    // Si no se proporcionó statementId, intentar encontrar statements pendientes/vencidos
+    // que se superpongan con el rango de fechas y marcarlos como pagados
+    await WeeklyCommissionStatement.updateMany(
+      {
+        tenantId,
+        weekStart: { $gte: fromDate, $lte: toDate },
+        status: { $ne: 'pagado' },
+      },
+      { $set: { status: 'pagado', paidAt: new Date(), paidBy: collectedBy } }
+    )
+  }
 
   return NextResponse.json({
     settlement: {

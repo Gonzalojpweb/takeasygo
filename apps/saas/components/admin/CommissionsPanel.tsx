@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   DollarSign, Calendar, Clock, CheckCircle2, AlertTriangle,
-  CreditCard, Loader2, ArrowRight,
+  CreditCard, Loader2, ArrowRight, FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -60,6 +60,17 @@ interface Settlement {
   notes: string
 }
 
+/* ── Weekly Statements endpoint ── */
+interface WeeklyStatement {
+  weekStart: string
+  weekEnd: string
+  amount: number
+  status: 'pendiente' | 'pagado' | 'vencido'
+  closedAt: string
+  paidAt: string | null
+  orderCount: number
+}
+
 const METHOD_LABELS: Record<string, string> = {
   transfer: 'Transferencia',
   mercadopago: 'MercadoPago',
@@ -72,6 +83,12 @@ const METHOD_COLORS: Record<string, string> = {
   kripton: 'text-purple-500',
 }
 
+const STATUS_STYLES: Record<string, { label: string; className: string }> = {
+  pendiente: { label: 'Pendiente', className: 'bg-amber-100 text-amber-700' },
+  pagado: { label: 'Pagado', className: 'bg-green-100 text-green-700' },
+  vencido: { label: 'Vencido', className: 'bg-red-100 text-red-700' },
+}
+
 export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string }) {
   const defaults = getDefaultDates()
   const [from, setFrom] = useState(defaults.from)
@@ -80,10 +97,12 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
   const [status, setStatus] = useState<CommissionStatus | null>(null)
   const [data, setData] = useState<CommissionData | null>(null)
   const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [weeklyStatements, setWeeklyStatements] = useState<WeeklyStatement[]>([])
 
   const [loadingStatus, setLoadingStatus] = useState(true)
   const [loadingData, setLoadingData] = useState(true)
   const [loadingSettlements, setLoadingSettlements] = useState(true)
+  const [loadingStatements, setLoadingStatements] = useState(true)
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -134,9 +153,25 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
     }
   }, [tenantSlug])
 
+  /* ── Fetch weekly statements ── */
+  const fetchWeeklyStatements = useCallback(async () => {
+    try {
+      setLoadingStatements(true)
+      const res = await fetch(`/api/${tenantSlug}/commissions/weekly-statements`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setWeeklyStatements(json.statements || [])
+    } catch {
+      // silent
+    } finally {
+      setLoadingStatements(false)
+    }
+  }, [tenantSlug])
+
   useEffect(() => { fetchStatus() }, [fetchStatus])
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { fetchSettlements() }, [fetchSettlements])
+  useEffect(() => { fetchWeeklyStatements() }, [fetchWeeklyStatements])
 
   /* ── Pay handler ── */
   async function handlePay() {
@@ -367,6 +402,76 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
                       <td className="px-5 py-4 text-sm text-muted-foreground">{s.notes || '—'}</td>
                     </tr>
                   ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Weekly Statements ── */}
+      <Card className="rounded-2xl border shadow-sm overflow-hidden">
+        <CardHeader className="border-b border-border/40 p-5 flex flex-row items-center justify-between">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <FileText size={16} className="text-muted-foreground" />
+            Cierres Semanales
+          </CardTitle>
+          {!loadingStatements && (
+            <Badge variant="secondary" className="text-xs font-medium">
+              {weeklyStatements.length} semanas
+            </Badge>
+          )}
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/40 bg-muted/30">
+                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Semana</th>
+                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Monto</th>
+                  <th className="px-5 py-3 text-center text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Estado</th>
+                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Órdenes</th>
+                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Cerrado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {loadingStatements ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center">
+                      <Loader2 size={20} className="animate-spin mx-auto text-muted-foreground" />
+                    </td>
+                  </tr>
+                ) : weeklyStatements.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                        <FileText size={32} className="opacity-30" />
+                        <p className="text-sm font-medium">Aún no hay cierres semanales</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  weeklyStatements.map((s, i) => {
+                    const statusStyle = STATUS_STYLES[s.status] || STATUS_STYLES.pendiente
+                    return (
+                      <tr key={i} className="hover:bg-muted/40 transition-colors">
+                        <td className="px-5 py-4 text-sm font-medium">
+                          {format(new Date(s.weekStart), 'dd/MM', { locale: es })} –{' '}
+                          {format(new Date(s.weekEnd), 'dd/MM/yyyy', { locale: es })}
+                        </td>
+                        <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(s.amount)}</td>
+                        <td className="px-5 py-4 text-center">
+                          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold', statusStyle.className)}>
+                            {statusStyle.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-right text-sm text-muted-foreground">{s.orderCount}</td>
+                        <td className="px-5 py-4 text-sm text-muted-foreground">
+                          {format(new Date(s.closedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
