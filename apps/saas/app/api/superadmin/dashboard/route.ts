@@ -4,13 +4,28 @@
  * GET /api/superadmin/dashboard
  *
  * READ-ONLY — does not modify any data.
+ *
+ * All imports are STATIC (like other working superadmin routes).
+ * Dynamic import() causes Turbopack TDZ errors in this file's bundle.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { connectDB } from '@/lib/mongoose'
+import { requireSuperAdmin } from '@/lib/apiAuth'
+import { checkIsOpenNow } from '@/lib/service-hours'
+import type { ServiceHoursMode } from '@/lib/service-hours'
+import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
+import Order from '@/models/Order'
+import User from '@/models/User'
+import Rating from '@/models/Rating'
+import Feedback from '@/models/Feedback'
 
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
+
+const OPEN_MODES: ServiceHoursMode[] = ['takeaway', 'dineIn', 'delivery']
 
 function toDateStr(v: any): string {
   if (!v) return ''
@@ -35,20 +50,16 @@ function daysAgo(n: number): Date {
   return d
 }
 
-// isOpenForTenant uses lazy-imported checkIsOpenNow to avoid circular dep issues at bundle time
-function makeIsOpenForTenant(checkIsOpenNow: (sh: any, mode: any, tz: string) => boolean | null) {
-  return function isOpenForTenant(loc: any): boolean {
-    if (!loc?.serviceHours || !loc.timezone) return false
-    try {
-      const modes = ['takeaway', 'dineIn', 'delivery'] as const
-      for (const mode of modes) {
-        const result = checkIsOpenNow(loc.serviceHours, mode, loc.timezone)
-        if (result === true) return true
-        if (result === false) continue
-      }
-    } catch { /* malformed hours */ }
-    return false
-  }
+function isOpenForTenant(loc: any): boolean {
+  if (!loc?.serviceHours || !loc.timezone) return false
+  try {
+    for (const mode of OPEN_MODES) {
+      const result = checkIsOpenNow(loc.serviceHours, mode, loc.timezone)
+      if (result === true) return true
+      if (result === false) continue
+    }
+  } catch { /* malformed hours */ }
+  return false
 }
 
 function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
@@ -85,43 +96,15 @@ function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
 
 export async function GET(_request: NextRequest) {
   try {
-    // Auth FIRST — loaded separately BEFORE data imports to avoid Turbopack TDZ.
-    // Loading apiAuth inside Promise.all with models creates a circular chunk dependency.
-    const { requireSuperAdmin } = await import('@/lib/apiAuth')
     const authError = await requireSuperAdmin()
     if (authError) return authError
-
-    // Data imports AFTER auth — modules already initialized, no TDZ risk
-    const [
-      { connectDB },
-      { checkIsOpenNow },
-      { default: Tenant },
-      { default: Location },
-      { default: Order },
-      { default: User },
-      { default: Rating },
-      { default: Feedback },
-    ] = await Promise.all([
-      import('@/lib/mongoose'),
-      import('@/lib/service-hours'),
-      import('@/models/Tenant'),
-      import('@/models/Location'),
-      import('@/models/Order'),
-      import('@/models/User'),
-      import('@/models/Rating'),
-      import('@/models/Feedback'),
-    ])
-
     await connectDB()
-
-    const isOpenForTenant = makeIsOpenForTenant(checkIsOpenNow)
 
     const now = new Date()
     const todayStart = startOfDay(now)
     const sevenDaysAgo = daysAgo(7)
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000)
 
-    // ── Parallel data fetch ──────────────────────────────────────────
     let tenants: any[] = []
     let locations: any[] = []
     let activeOrders: any[] = []
@@ -166,7 +149,6 @@ export async function GET(_request: NextRequest) {
       }, { status: 200 })
     }
 
-    // ── Lookup maps ──────────────────────────────────────────────────
     const tenantMap = new Map<string, any>()
     for (const t of tenants) tenantMap.set(t._id.toString(), t)
 
@@ -184,7 +166,6 @@ export async function GET(_request: NextRequest) {
       tenantActiveOrders.get(tid)!.push(order)
     }
 
-    // ── Per-tenant metrics ───────────────────────────────────────────
     const tenantMetrics: Record<string, any> = {}
 
     for (const t of tenants) {
@@ -235,7 +216,6 @@ export async function GET(_request: NextRequest) {
       }
     }
 
-    // ── Layer 1: AHORA EN TGO ────────────────────────────────────────
     const ahora = {
       operandoAhora: 0, conPedidosActivos: 0, requierenAtencion: 0,
       abiertosSinPedidos: 0, sinActividad: 0, totalTenants: tenants.length,
@@ -249,7 +229,6 @@ export async function GET(_request: NextRequest) {
       if (!m.isOpen && !hasActive) ahora.sinActividad++
     }
 
-    // ── Layer 2: PEDIDOS ACTIVOS ─────────────────────────────────────
     const pedidosActivos = Object.values(tenantMetrics)
       .filter((m: any) => m.activeOrders.length > 0 || m.needsAttention)
       .sort((a: any, b: any) => {
@@ -258,7 +237,6 @@ export async function GET(_request: NextRequest) {
         return b.activeOrders.length - a.activeOrders.length
       })
 
-    // ── Layer 3: ACTIVIDAD RECIENTE ──────────────────────────────────
     const activityMap: Record<string, string> = {
       open: 'order_created', awaiting_payment: 'order_created', awaiting_confirmation: 'order_created',
       pending: 'order_created', confirmed: 'order_confirmed', preparing: 'order_confirmed',
@@ -291,7 +269,6 @@ export async function GET(_request: NextRequest) {
       })
       .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
-    // ── Layer 4: KPIs DE HOY ─────────────────────────────────────────
     const pedidosHoy = todayOrders.length
     const ingresosHoyCents = todayOrders
       .filter((o: any) => o.payment?.status === 'approved')
@@ -306,7 +283,6 @@ export async function GET(_request: NextRequest) {
       usuariosTotales: totalUsers,
     }
 
-    // ── Layer 5: TENDENCIA 7 DÍAS ────────────────────────────────────
     let tendencia7Dias: Array<{ date: string; pedidos: number; ingresosCents: number }> = []
     try {
       const tendenciaRaw = await Order.aggregate([
@@ -332,7 +308,6 @@ export async function GET(_request: NextRequest) {
       tendencia7Dias = []
     }
 
-    // ── Layer 6: SALUD DE LA RED ─────────────────────────────────────
     const saludRed = {
       operandoNormalmente: 0, requierenAtencion: 0, sinActividad: 0,
       tenants: Object.values(tenantMetrics).map((m: any) => {
@@ -353,7 +328,6 @@ export async function GET(_request: NextRequest) {
       }),
     }
 
-    // ── Layer 7: FEEDBACK ────────────────────────────────────────────
     const allFeedbackToday = [
       ...todayRatings.map((r: any) => ({
         tenantName: tenantMap.get(r.tenantId.toString())?.name || '?',
@@ -391,7 +365,6 @@ export async function GET(_request: NextRequest) {
       items: allFeedbackToday.slice(0, 20),
     }
 
-    // ── Layer 8: MÉTODOS DE PAGO ─────────────────────────────────────
     let metodosPago: Array<{ method: string; count: number; totalCents: number }> = []
     try {
       const raw = await Order.aggregate([
@@ -403,7 +376,6 @@ export async function GET(_request: NextRequest) {
       console.error('[superadmin/dashboard GET] payment aggregation error:', payErr?.message)
     }
 
-    // ── Response ─────────────────────────────────────────────────────
     return NextResponse.json({
       ahora,
       pedidosActivos,
