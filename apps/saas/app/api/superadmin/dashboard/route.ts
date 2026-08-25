@@ -83,17 +83,15 @@ function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
   return { stuck: false }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    // Auth check via getToken (next-auth/jwt) — avoids the apiAuth→auth→auth-adapter
-    // static import chain that creates circular-dependency TDZ errors in Turbopack bundles.
-    const { getToken } = await import('next-auth/jwt')
-    const token = await getToken({ req: request as any, secret: process.env.AUTH_SECRET })
-    if (!token || token.role !== 'superadmin') {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    // Auth FIRST — loaded separately BEFORE data imports to avoid Turbopack TDZ.
+    // Loading apiAuth inside Promise.all with models creates a circular chunk dependency.
+    const { requireSuperAdmin } = await import('@/lib/apiAuth')
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
 
-    // All imports are lazy/dynamic to prevent webpack TDZ errors from circular module graphs
+    // Data imports AFTER auth — modules already initialized, no TDZ risk
     const [
       { connectDB },
       { checkIsOpenNow },
