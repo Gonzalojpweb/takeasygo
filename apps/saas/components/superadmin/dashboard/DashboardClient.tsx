@@ -134,7 +134,7 @@ export default function DashboardClient() {
     try {
       const res = await fetch('/api/superadmin/dashboard')
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Error al cargar dashboard')
+      if (!res.ok) throw new Error(json.detail || json.error || 'Error al cargar dashboard')
       setData(json)
       setError(null)
     } catch (err: unknown) {
