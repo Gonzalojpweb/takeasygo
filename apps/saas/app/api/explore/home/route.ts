@@ -324,6 +324,8 @@ export async function GET(request: NextRequest) {
         lng,
         radiusM: SEARCH_RADIUS_M
       }
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=240' },
     })
   } catch (error) {
     console.error('[GET /api/explore/home]', error)

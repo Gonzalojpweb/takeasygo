@@ -93,6 +93,8 @@ export async function GET(
         acceptsOrders: loc.settings?.acceptsOrders ?? true,
         estimatedPickupTime: loc.settings?.estimatedPickupTime ?? 20,
         orderModes: loc.settings?.orderModes ?? ['takeaway'],
+      }, {
+        headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
       })
     }
 
@@ -136,6 +138,8 @@ export async function GET(
       instagram: e.instagram ?? '',
       facebook: e.facebook ?? '',
       status: e.status,
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
     })
   } catch (error) {
     console.error('[explore/restaurant]', error)
