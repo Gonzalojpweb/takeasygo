@@ -8,10 +8,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { connectDB } from '@/lib/mongoose'
 import { NextResponse } from 'next/server'
-import { requireSuperAdmin } from '@/lib/apiAuth'
-import { checkIsOpenNow, type ServiceHoursMode } from '@/lib/service-hours'
 
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
 
@@ -38,17 +35,20 @@ function daysAgo(n: number): Date {
   return d
 }
 
-function isOpenForTenant(loc: any): boolean {
-  if (!loc?.serviceHours || !loc.timezone) return false
-  try {
-    const modes: ServiceHoursMode[] = ['takeaway', 'dineIn', 'delivery']
-    for (const mode of modes) {
-      const result = checkIsOpenNow(loc.serviceHours, mode, loc.timezone)
-      if (result === true) return true
-      if (result === false) continue
-    }
-  } catch { /* malformed hours */ }
-  return false
+// isOpenForTenant uses lazy-imported checkIsOpenNow to avoid circular dep issues at bundle time
+function makeIsOpenForTenant(checkIsOpenNow: (sh: any, mode: any, tz: string) => boolean | null) {
+  return function isOpenForTenant(loc: any): boolean {
+    if (!loc?.serviceHours || !loc.timezone) return false
+    try {
+      const modes = ['takeaway', 'dineIn', 'delivery'] as const
+      for (const mode of modes) {
+        const result = checkIsOpenNow(loc.serviceHours, mode, loc.timezone)
+        if (result === true) return true
+        if (result === false) continue
+      }
+    } catch { /* malformed hours */ }
+    return false
+  }
 }
 
 function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
@@ -85,12 +85,11 @@ function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
 
 export async function GET() {
   try {
-    const authError = await requireSuperAdmin()
-    if (authError) return authError
-    await connectDB()
-
-    // Lazy imports to avoid circular dependency chains in webpack bundle
+    // All imports are lazy/dynamic to prevent webpack TDZ errors from circular module graphs
     const [
+      { requireSuperAdmin },
+      { connectDB },
+      { checkIsOpenNow },
       { default: Tenant },
       { default: Location },
       { default: Order },
@@ -98,6 +97,9 @@ export async function GET() {
       { default: Rating },
       { default: Feedback },
     ] = await Promise.all([
+      import('@/lib/apiAuth'),
+      import('@/lib/mongoose'),
+      import('@/lib/service-hours'),
       import('@/models/Tenant'),
       import('@/models/Location'),
       import('@/models/Order'),
@@ -105,6 +107,12 @@ export async function GET() {
       import('@/models/Rating'),
       import('@/models/Feedback'),
     ])
+
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
+    await connectDB()
+
+    const isOpenForTenant = makeIsOpenForTenant(checkIsOpenNow)
 
     const now = new Date()
     const todayStart = startOfDay(now)
