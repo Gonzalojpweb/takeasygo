@@ -95,7 +95,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { getToken } = await import('next-auth/jwt')
-    const token = await getToken({ req: request as any, secret })
+    const isSecure = process.env.NODE_ENV === 'production'
+    const token = await getToken({ req: request as any, secret, secureCookie: isSecure })
 
     if (!token) {
       return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
