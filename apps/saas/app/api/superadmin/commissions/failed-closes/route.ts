@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         name: tenant.name,
         slug: tenant.slug,
         orderCount,
-        estimatedCommission: totalCommission / 100, // centavos → pesos
+        estimatedCommission: totalCommission, // centavos — fmt() en el page aplica toPesos()
       })
     }
   }
