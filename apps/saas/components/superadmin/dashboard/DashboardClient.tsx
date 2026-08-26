@@ -11,6 +11,7 @@ import TendenciaChart from './TendenciaChart'
 import SaludRed from './SaludRed'
 import FeedbackPanel from './FeedbackPanel'
 import MetodosPago from './MetodosPago'
+import CommissionsOverview from './CommissionsOverview'
 
 export interface DashboardData {
   ahora: {
@@ -277,6 +278,9 @@ export default function DashboardClient() {
         <FeedbackPanel data={data.feedback} />
         <MetodosPago data={data.metodosPago} />
       </div>
+
+      {/* Layer 9: COMISIONES */}
+      <CommissionsOverview />
     </div>
   )
 }

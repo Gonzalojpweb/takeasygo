@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   DollarSign, Calendar, Search, CheckCircle2, Clock,
   Building2, Loader2, AlertTriangle, FileText, CreditCard,
+  ArrowRightLeft, Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
@@ -119,6 +120,22 @@ export default function SuperAdminComisionesPage() {
   const [weeklyStatements, setWeeklyStatements] = useState<WeeklyStatement[]>([])
   const [loadingStatements, setLoadingStatements] = useState(true)
   const [markingPaid, setMarkingPaid] = useState<string | null>(null)
+
+  const [globalData, setGlobalData] = useState<any>(null)
+  const [loadingGlobal, setLoadingGlobal] = useState(true)
+
+  useEffect(() => {
+    async function fetchGlobal() {
+      try {
+        const res = await fetch('/api/superadmin/dashboard/comisiones')
+        const json = await res.json()
+        if (res.ok) setGlobalData(json)
+      } catch {} finally {
+        setLoadingGlobal(false)
+      }
+    }
+    fetchGlobal()
+  }, [])
 
   useEffect(() => {
     async function fetchComisiones() {
@@ -234,6 +251,72 @@ export default function SuperAdminComisionesPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      {/* ── Global Summary (from dashboard API) ── */}
+      {globalData && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Transfer Pendiente */}
+            <Card className="rounded-2xl border border-amber-200 bg-amber-50/50 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Transfer (Pendiente)</span>
+                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <ArrowRightLeft size={14} className="text-amber-600" />
+                </div>
+              </div>
+              <p className="text-2xl font-black tracking-tight tabular-nums text-amber-800">${fmt(globalData.transfer?.pending || 0)}</p>
+              {globalData.transfer?.overdue > 0 && (
+                <p className="text-[10px] text-red-600 font-medium mt-1 flex items-center gap-1">
+                  <AlertTriangle size={10} />
+                  ${fmt(globalData.transfer.overdue)} vencido(s)
+                </p>
+              )}
+            </Card>
+
+            {/* MP Auto-split */}
+            <Card className="rounded-2xl border border-emerald-200 bg-emerald-50/50 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">MP Auto-split</span>
+                <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <CheckCircle2 size={14} className="text-emerald-600" />
+                </div>
+              </div>
+              <p className="text-2xl font-black tracking-tight tabular-nums text-emerald-800">${fmt(globalData.mercadopago?.autoSplit || 0)}</p>
+              <p className="text-[10px] text-emerald-600 font-medium mt-1">Ya cobrado vía split</p>
+            </Card>
+
+            {/* MP Sin Split */}
+            <Card className="rounded-2xl border border-amber-200 bg-amber-50/50 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">MP Sin Split</span>
+                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <CreditCard size={14} className="text-amber-600" />
+                </div>
+              </div>
+              <p className="text-2xl font-black tracking-tight tabular-nums text-amber-800">${fmt(globalData.mercadopago?.noSplit || 0)}</p>
+              <p className="text-[10px] text-amber-600 font-medium mt-1">Cobro manual pendiente</p>
+            </Card>
+
+            {/* Total Pendiente */}
+            <Card className="rounded-2xl border border-red-200 bg-red-50/50 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-red-700 uppercase tracking-wider">Total Pendiente</span>
+                <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
+                  <DollarSign size={14} className="text-red-600" />
+                </div>
+              </div>
+              <p className="text-2xl font-black tracking-tight tabular-nums text-red-800">${fmt(globalData.combined?.grandPending || 0)}</p>
+              <p className="text-[10px] text-red-600 font-medium mt-1">Transfer + MP sin split</p>
+            </Card>
+          </div>
+
+          {/* MP note */}
+          <div className="flex items-start gap-2 text-[10px] text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
+            <Info size={11} className="shrink-0 mt-0.5" />
+            <span>{globalData.mercadopago?.note || 'Auto-split: cobrado vía MP split. Sin split: pendiente de cobro manual.'}</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Comisiones por Tenant</h1>
