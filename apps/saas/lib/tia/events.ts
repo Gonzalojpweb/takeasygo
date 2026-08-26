@@ -162,6 +162,29 @@ export function captureHomeShared(method: 'native' | 'clipboard') {
   })
 }
 
+// ── Best Sellers / Upselling ──────────────────────────────────────────────────
+
+export function captureBestSellerViewed() {
+  posthog.capture('best_seller.viewed')
+}
+
+export function captureBestSellerClicked(item: { _id: string; name: string; price: number; position: number }) {
+  posthog.capture('best_seller.clicked', {
+    dish_id: item._id,
+    dish_name: item.name,
+    dish_price: item.price,
+    position: item.position,
+  })
+}
+
+export function captureBestSellerAdded(item: { _id: string; name: string; price: number }) {
+  posthog.capture('best_seller.added', {
+    dish_id: item._id,
+    dish_name: item.name,
+    dish_price: item.price,
+  })
+}
+
 // ── Hidden Rewards ────────────────────────────────────────────────────────────
 
 export function captureHiddenRewardDiscovered(menuItemId: string) {

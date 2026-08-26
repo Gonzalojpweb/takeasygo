@@ -1,9 +1,10 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
+import { captureBestSellerViewed, captureBestSellerClicked } from '@/lib/tia/events'
 import type { BestSellerItem } from '@/lib/tia/bestSellers'
 
 interface BestSellersStyles {
@@ -31,6 +32,23 @@ export default function BestSellersSection({
   primaryColor,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<HTMLDivElement>(null)
+  const viewedRef = useRef(false)
+
+  useEffect(() => {
+    if (!sectionRef.current || viewedRef.current) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !viewedRef.current) {
+          viewedRef.current = true
+          captureBestSellerViewed()
+        }
+      },
+      { threshold: 0.5 },
+    )
+    observer.observe(sectionRef.current)
+    return () => observer.disconnect()
+  }, [])
 
   if (!bestSellers || bestSellers.length === 0) return null
 
@@ -46,8 +64,13 @@ export default function BestSellersSection({
     scrollRef.current.scrollBy({ left: dir === 'left' ? -w : w, behavior: 'smooth' })
   }
 
+  function handleCardClick(item: BestSellerItem, position: number) {
+    captureBestSellerClicked({ _id: item._id, name: item.name, price: item.price, position })
+    onAdd(item)
+  }
+
   return (
-    <section className="mt-8 px-5">
+    <section ref={sectionRef} className="mt-8 px-5">
       <div className="flex items-end justify-between mb-5">
         <div>
           <h2 className="text-2xl font-bold" style={{ color: primaryColor }}>
@@ -79,7 +102,7 @@ export default function BestSellersSection({
         ref={scrollRef}
         className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-1 px-1"
       >
-        {bestSellers.map((item) => (
+        {bestSellers.map((item, index) => (
           <div
             key={item._id}
             className="w-[58%] flex-shrink-0 snap-start"
@@ -89,7 +112,7 @@ export default function BestSellersSection({
                 'rounded-3xl overflow-hidden shadow-sm border border-zinc-100 active:scale-[0.97] transition-all duration-200 cursor-pointer'
               )}
               style={{ backgroundColor: cardBg }}
-              onClick={() => onAdd(item)}
+              onClick={() => handleCardClick(item, index)}
             >
               <div className="relative h-35">
                 {item.imageUrl ? (
@@ -130,7 +153,7 @@ export default function BestSellersSection({
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      onAdd(item)
+                      handleCardClick(item, index)
                     }}
                     className="text-white px-6 py-2 rounded-2xl font-semibold text-sm active:scale-95 transition-all"
                     style={{ backgroundColor: accent }}

@@ -821,6 +821,55 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 </motion.div>
             )}
 
+            {/* ── Upselling Overview ───────────────────────────────────── */}
+            {plan === 'full' && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.43 }}>
+                    <Card className="bg-card border-border/60 shadow-sm rounded-2xl overflow-hidden">
+                        <CardHeader className="p-5 border-b border-border/40 bg-muted/10">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                                    <Zap size={20} />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-base font-bold tracking-tight">Upselling Inteligente</CardTitle>
+                                    <p className="text-xs text-muted-foreground">Cómo funciona y su impacto en tus ventas</p>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-5">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div className="space-y-1">
+                                    <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Sugerencias</p>
+                                    <p className="text-foreground leading-relaxed">
+                                        Cuando un cliente agrega un producto, el sistema sugiere automáticamente complementos relevantes (bebidas, extras, postres).
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Banner checkout</p>
+                                    <p className="text-foreground leading-relaxed">
+                                        Antes de pagar, se muestran productos destacados que el cliente aún no agregó al carrito.
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Catálogo</p>
+                                    <p className="text-foreground leading-relaxed">
+                                        La sección de más vendidos actúa como upselling pasivo: muestra los productos populares como sugerencia de compra.
+                                    </p>
+                                </div>
+                            </div>
+                            {stats.upsellOverallConvRate > 0 && (
+                                <div className="mt-4 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
+                                    <span className="font-bold">{stats.upsellOverallConvRate}%</span> de conversión de upselling
+                                    {stats.upsellTotalRevenue > 0 && (
+                                        <> · <span className="font-bold">${toPesos(stats.upsellTotalRevenue).toLocaleString('es-AR')}</span> de revenue generado</>
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
+
             {/* ── Upselling Analytics ──────────────────────────────────── */}
             {plan === 'full' && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>

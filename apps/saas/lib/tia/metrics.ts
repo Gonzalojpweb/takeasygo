@@ -174,6 +174,17 @@ export interface RecommendationData {
   category: 'menu' | 'club' | 'operations' | 'promotions'
 }
 
+export interface BestSellersAnalyticsData {
+  viewed: number
+  clicked: number
+  added: number
+  ordered: number
+  viewToClickRate: number
+  clickToAddRate: number
+  addConversionRate: number
+  revenue: number
+}
+
 export interface SilData {
   insights: RecommendationData[]
   anomalies: AnomalyData[]
@@ -187,6 +198,7 @@ export interface TiaMetricsData {
   clubGrowth: ClubGrowthData
   trends: TrendsData
   historical: HistoricalData
+  bestSellersAnalytics: BestSellersAnalyticsData
   sil: SilData
   _timing?: {
     parallelMs: number
@@ -397,13 +409,26 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     historical.members.push({ label, value: memberData?.count ?? 0 })
   }
 
-  // PostHog: funnel + visits (filtered by tenant)
-  const [funnel, menuOpenedCount] = await Promise.all([
+  // PostHog: funnel + visits + best sellers (filtered by tenant)
+  const [funnel, menuOpenedCount, bsViewed, bsClicked, bsAdded] = await Promise.all([
     fetchFunnel(tenantId),
     fetchMenuOpened(tenantId),
+    fetchTrend('best_seller.viewed', 30, tenantId),
+    fetchTrend('best_seller.clicked', 30, tenantId),
+    fetchTrend('best_seller.added', 30, tenantId),
   ])
 
   const t3 = Date.now()
+
+  // Best sellers ordered count + revenue (from orders with addedFrom = 'best_sellers')
+  const bsOrderData = await Order.aggregate([
+    { $match: { tenantId: tid, createdAt: { $gte: thirtyDaysAgo }, status: { $nin: ['cancelled'] }, 'items.addedFrom': 'best_sellers' } },
+    { $unwind: '$items' },
+    { $match: { 'items.addedFrom': 'best_sellers' } },
+    { $group: { _id: null, ordered: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
+  ])
+  const bsOrdered = bsOrderData[0]?.ordered ?? 0
+  const bsRevenue = bsOrderData[0]?.revenue ?? 0
 
   const totalOrders7d = orders7d || 1
   const totalOrdersPrev7d = ordersPrev7d || 1
@@ -452,6 +477,16 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
       conversionPrev7d: ordersPrev7d > 0 ? Math.round(((orders7d - ordersPrev7d) / ordersPrev7d) * 100) : 0,
     },
     historical,
+    bestSellersAnalytics: {
+      viewed: bsViewed,
+      clicked: bsClicked,
+      added: bsAdded,
+      ordered: bsOrdered,
+      viewToClickRate: bsViewed > 0 ? Math.round((bsClicked / bsViewed) * 100) : 0,
+      clickToAddRate: bsClicked > 0 ? Math.round((bsAdded / bsClicked) * 100) : 0,
+      addConversionRate: bsAdded > 0 ? Math.round((bsOrdered / bsAdded) * 100) : 0,
+      revenue: bsRevenue,
+    },
     sil: {
       insights: [],
       anomalies: [],
