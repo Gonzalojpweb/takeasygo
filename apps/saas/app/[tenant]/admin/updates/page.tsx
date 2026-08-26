@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { Bell, Sparkles, ArrowUpCircle, AlertTriangle, Wrench, CheckCircle2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -26,10 +26,23 @@ const TYPE_STYLES = {
 
 export default function UpdatesPage() {
   const params = useParams()
+  const router = useRouter()
   const tenantSlug = params.tenant as string
+  const contentRef = useRef<HTMLDivElement>(null)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [marking, setMarking] = useState<string[]>([])
+
+  const handleContentClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    const anchor = target.closest('a')
+    if (!anchor) return
+    const href = anchor.getAttribute('href')
+    if (!href || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('#')) return
+    e.preventDefault()
+    const path = href.startsWith('/') ? `/${tenantSlug}${href}` : `/${tenantSlug}/${href}`
+    router.push(path)
+  }, [tenantSlug, router])
 
   useEffect(() => {
     if (!tenantSlug) return
@@ -120,6 +133,8 @@ export default function UpdatesPage() {
                           )}
                         </div>
                         <div
+                          ref={contentRef}
+                          onClick={handleContentClick}
                           className="mt-2 text-sm text-muted-foreground/80 leading-relaxed prose prose-sm max-w-none"
                           dangerouslySetInnerHTML={{ __html: ann.content }}
                         />

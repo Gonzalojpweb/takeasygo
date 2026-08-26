@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -26,6 +26,7 @@ import {
   Database,
   ImageIcon,
   Bell, PlusCircle, ShoppingBag, Coins, Banknote, Percent,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -66,6 +67,30 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    const tabsList = tabsListRef.current
+    if (!tabsList) return
+
+    const checkScroll = () => {
+      setShowLeftScroll(tabsList.scrollLeft > 0)
+      setShowRightScroll(tabsList.scrollLeft < tabsList.scrollWidth - tabsList.clientWidth)
+    }
+
+    tabsList.addEventListener('scroll', checkScroll)
+    checkScroll()
+
+    return () => tabsList.removeEventListener('scroll', checkScroll)
+  }, [])
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (!tabsListRef.current) return
+    const scrollAmount = 200
+    tabsListRef.current.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    })
+  }
 
   // Profile state
   const [profileLoading, setProfileLoading] = useState(false)
@@ -368,6 +393,9 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
 
   const [logoSaving, setLogoSaving] = useState(false)
   const [fontUploading, setFontUploading] = useState<string | null>(null)
+  const [showLeftScroll, setShowLeftScroll] = useState(false)
+  const [showRightScroll, setShowRightScroll] = useState(false)
+  const tabsListRef = useRef<HTMLDivElement>(null)
 
   async function handleLogoUpload(file: File | undefined) {
     if (!file) return
@@ -558,26 +586,50 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
   return (
     <div className="max-w-6xl">
       <Tabs defaultValue="branding" className="w-full" onValueChange={setActiveTab}>
-        <div className="flex overflow-x-auto pb-4 mb-2 no-scrollbar">
-          <TabsList className="bg-muted/50 border border-border/40 p-1.5 rounded-2xl h-auto gap-1">
-            <TabTrigger value="branding" icon={<Palette size={16} />} label="Identidad" />
-            <TabTrigger value="profile" icon={<User size={16} />} label="Perfil" />
-            <TabTrigger value="locations" icon={<MapPin size={16} />} label="Sedes" />
-            <TabTrigger value="general" icon={<SettingsIcon size={16} />} label="General" />
-            <TabTrigger value="mercadopago" icon={<CreditCard size={16} />} label="Pagos" />
-            <TabTrigger value="kripton" icon={<Coins size={16} />} label="Kripton" />
-            <TabTrigger value="notifications" icon={<Bell size={16} />} label="Notificaciones" />
-            {canAccess(plan as Plan, 'transferPayment') && (
-              <TabTrigger value="transferencia" icon={<Banknote size={16} />} label="Transferencia" />
-            )}
-            <TabTrigger value="recargos" icon={<Percent size={16} />} label="Recargos" />
-            {tenant.features?.reservations && (
-              <TabTrigger value="reservas" icon={<CalendarDays size={16} />} label="Reservas" />
-            )}
-            {canAccess(plan as Plan, 'posIntegration') && (
-              <TabTrigger value="pos" icon={<Database size={16} />} label="POS" />
-            )}
-          </TabsList>
+        <div className="relative mb-2">
+          {showLeftScroll && (
+            <button
+              onClick={() => scrollTabs('left')}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white border border-border/60 rounded-full shadow-lg flex items-center justify-center hover:bg-muted transition-colors"
+              aria-label="Scroll izquierda"
+            >
+              <ChevronLeft size={16} className="text-foreground" />
+            </button>
+          )}
+          <div 
+            ref={tabsListRef}
+            className="flex overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-border/40 scrollbar-track-transparent"
+            style={{ scrollbarWidth: 'auto' }}
+          >
+            <TabsList className="bg-muted/50 border border-border/40 p-1.5 rounded-2xl h-auto gap-1">
+              <TabTrigger value="branding" icon={<Palette size={16} />} label="Identidad" />
+              <TabTrigger value="profile" icon={<User size={16} />} label="Perfil" />
+              <TabTrigger value="locations" icon={<MapPin size={16} />} label="Sedes" />
+              <TabTrigger value="general" icon={<SettingsIcon size={16} />} label="General" />
+              <TabTrigger value="mercadopago" icon={<CreditCard size={16} />} label="Pagos" />
+              <TabTrigger value="kripton" icon={<Coins size={16} />} label="Kripton" />
+              <TabTrigger value="notifications" icon={<Bell size={16} />} label="Notificaciones" />
+              {canAccess(plan as Plan, 'transferPayment') && (
+                <TabTrigger value="transferencia" icon={<Banknote size={16} />} label="Transferencia" />
+              )}
+              <TabTrigger value="recargos" icon={<Percent size={16} />} label="Recargos" />
+              {tenant.features?.reservations && (
+                <TabTrigger value="reservas" icon={<CalendarDays size={16} />} label="Reservas" />
+              )}
+              {canAccess(plan as Plan, 'posIntegration') && (
+                <TabTrigger value="pos" icon={<Database size={16} />} label="POS" />
+              )}
+            </TabsList>
+          </div>
+          {showRightScroll && (
+            <button
+              onClick={() => scrollTabs('right')}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white border border-border/60 rounded-full shadow-lg flex items-center justify-center hover:bg-muted transition-colors"
+              aria-label="Scroll derecha"
+            >
+              <ChevronRight size={16} className="text-foreground" />
+            </button>
+          )}
         </div>
 
         <AnimatePresence mode="wait">

@@ -31,7 +31,7 @@ export default async function AdminDeliveryPage() {
   }))
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div>
         <h1 className="text-foreground text-4xl font-bold tracking-tight">Flota de Deliveries</h1>
         <p className="text-muted-foreground mt-2 font-medium">Gestioná los delivery persons de tu restaurante.</p>
