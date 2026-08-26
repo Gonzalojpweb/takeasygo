@@ -2274,7 +2274,7 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
           </p>
 
           <div className="space-y-2">
-            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
+            <div className="grid grid-cols-[2fr_2fr_3fr_auto] gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
               <span>Desde (km)</span>
               <span>Hasta (km)</span>
               <span>Precio ($)</span>
@@ -2285,7 +2285,7 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
                 key={idx}
                 role="group"
                 aria-label={`Rango ${idx + 1}: desde ${r.fromKm}km hasta ${r.toKm}km`}
-                className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 items-center"
+                className="grid grid-cols-[2fr_2fr_3fr_auto] gap-2 items-center"
               >
                 <input
                   type="number"
@@ -2295,7 +2295,7 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
                   value={r.fromKm}
                   onChange={e => updateRange(idx, 'fromKm', Number(e.target.value))}
                   aria-label={`Distancia desde en kilómetros, rango ${idx + 1}`}
-                  className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+                  className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 min-w-0"
                 />
                 <input
                   type="number"
@@ -2305,7 +2305,7 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
                   value={r.toKm}
                   onChange={e => updateRange(idx, 'toKm', Number(e.target.value))}
                   aria-label={`Distancia hasta en kilómetros, rango ${idx + 1}`}
-                  className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+                  className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 min-w-0"
                 />
                 <input
                   type="number"
@@ -2315,13 +2315,13 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
                   value={r.price}
                   onChange={e => updateRange(idx, 'price', Number(e.target.value))}
                   aria-label={`Precio del envío en pesos, rango ${idx + 1}`}
-                  className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+                  className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 min-w-0"
                 />
                 <button
                   type="button"
                   onClick={() => removeRange(idx)}
                   aria-label={`Eliminar rango ${idx + 1}`}
-                  className="h-10 w-10 flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all focus:outline-none focus:ring-2 focus:ring-destructive/30"
+                  className="h-10 w-10 flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all focus:outline-none focus:ring-2 focus:ring-destructive/30 shrink-0"
                 >
                   <Trash2 size={14} />
                 </button>
