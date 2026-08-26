@@ -26,7 +26,7 @@ import LikeBadge from '@/components/menu/LikeBadge'
 import { getSuggestions, type UpsellSource } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
-import { captureMenuOpened, captureDishAdded, captureHiddenRewardDiscovered, captureHiddenRewardRevealed } from '@/lib/tia/events'
+import { captureMenuOpened, captureDishAdded, captureHiddenRewardDiscovered, captureHiddenRewardRevealed, captureBestSellerAdded } from '@/lib/tia/events'
 import { motion } from 'framer-motion'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import LocationBar from '@/components/menu/LocationBar'
@@ -150,6 +150,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const skipUpsellRef = useRef(false)
   const upsellModalRef = useRef(false)
   const upsellDismissedRef = useRef(false)
+  const bestSellerRef = useRef(false)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
   const { play: playAddSound } = useNotificationSound('/pop.mp3')
@@ -693,9 +694,14 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     if (cartItem.menuItemId) {
       captureDishAdded({ _id: cartItem.menuItemId, name: cartItem.name, price: cartItem.price }, cartItem.quantity, true)
     }
-    const taggedItem: CartItem = upsellModalRef.current
-      ? { ...cartItem, addedFrom: 'upsell_sheet' }
-      : cartItem
+    if (bestSellerRef.current && cartItem.menuItemId) {
+      captureBestSellerAdded({ _id: cartItem.menuItemId, name: cartItem.name, price: cartItem.price })
+    }
+    const taggedItem: CartItem = bestSellerRef.current
+      ? { ...cartItem, addedFrom: 'best_sellers' }
+      : upsellModalRef.current
+        ? { ...cartItem, addedFrom: 'upsell_sheet' }
+        : cartItem
     setCart(prev => [...prev, taggedItem])
     setCustomizingItem(null)
     if (!skipUpsellRef.current && !upsellDismissedRef.current && cartItem.menuItemId) {
@@ -704,6 +710,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     }
     skipUpsellRef.current = false
     upsellModalRef.current = false
+    bestSellerRef.current = false
   }
 
   function handleUpsellOpenModal(item: any) {
@@ -1090,6 +1097,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             locationName={location.name}
             primaryColor={primary}
             onAdd={(item) => {
+              bestSellerRef.current = true
               const enriched = categories.flatMap((c: any) => [
                 ...(c.items ?? []),
                 ...(c.subcategories ?? []).flatMap((s: any) => s.items ?? [])
@@ -1632,6 +1640,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           onClose={() => {
             setCustomizingItem(null)
             setHalfPriceContext(null)
+            bestSellerRef.current = false
           }}
           primaryColor={primary}
           bgColor={bg}

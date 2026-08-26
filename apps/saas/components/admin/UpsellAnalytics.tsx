@@ -22,8 +22,9 @@ interface Props {
 }
 
 const SOURCE_LABELS: Record<string, string> = {
-  upsell_sheet: 'Sheet',
+  upsell_sheet: 'Sugerencia',
   checkout_banner: 'Banner',
+  best_sellers: 'Catálogo',
 }
 
 export default function UpsellAnalytics({

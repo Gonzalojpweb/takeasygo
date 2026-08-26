@@ -35,7 +35,7 @@ const orderItemSchema = z.object({
   quantity: z.number().int().min(1).max(99),
   customizations: z.array(customizationGroupSchema).max(10).default([]),
   selectedVariant: selectedVariantSchema.optional(),
-  addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner', 'promotion', 'group']).optional(),
+  addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner', 'promotion', 'group', 'best_sellers']).optional(),
 })
 
 const deliveryAddressSchema = z.object({

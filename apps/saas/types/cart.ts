@@ -34,7 +34,7 @@ export interface CartItem {
   customizations: SelectedCustomization[]
   customizationSummary: string // e.g. "Papa fritas · Al punto"
   selectedVariant?: SelectedVariant
-  addedFrom?: 'menu' | 'upsell_sheet' | 'checkout_banner'
+  addedFrom?: 'menu' | 'upsell_sheet' | 'checkout_banner' | 'promotion' | 'group' | 'best_sellers'
   type: CartItemType          // 'menuItem' or 'promotion'
   /** Precio original de lista del menú. Si existe, significa que el item tiene descuento de categoría y el QR no aplica sobre él. */
   originalPrice?: number

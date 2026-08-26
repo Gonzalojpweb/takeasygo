@@ -11,6 +11,7 @@ import BenchmarkSection from './BenchmarkSection'
 import WeekPriorities from './WeekPriorities'
 import DailyInsightPro from './DailyInsightPro'
 import ClubGrowth from './ClubGrowth'
+import BestSellersAnalytics from './BestSellersAnalytics'
 import TrendsOverview from './TrendsOverview'
 import HistoricalComparison from './HistoricalComparison'
 import CategoryComparison from './CategoryComparison'
@@ -47,6 +48,7 @@ function getDefaultMetrics(): TiaMetricsData {
     dailySummary: { todayOrders: 0, todayRevenue: 0, todayNewMembers: 0, todayRewardsRedeemed: 0, pendingOrders: 0, avgOrderValue: 0, todayTakeawayOrders: 0, todayDeliveryOrders: 0 },
     conversionFunnel: { menuOpened: 0, dishViewed: 0, dishAdded: 0, checkoutStarted: 0, orderCompleted: 0 },
     topProducts: { mostSold: [], mostViewed: [] },
+    bestSellersAnalytics: { viewed: 0, clicked: 0, added: 0, ordered: 0, viewToClickRate: 0, clickToAddRate: 0, addConversionRate: 0, revenue: 0 },
     clubGrowth: { totalMembers: 0, activeMembers: 0, newMembers7d: 0, newMembers30d: 0, totalPointsIssued: 0, totalPointsRedeemed: 0, redemptions7d: 0 },
     trends: { orders7d: 0, orders30d: 0, ordersPrev7d: 0, revenue7d: 0, revenue30d: 0, revenuePrev7d: 0, conversion7d: 0, conversionPrev7d: 0 },
     historical: { orders: [], revenue: [], members: [] },
@@ -229,6 +231,9 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
           <TrendsOverview data={metrics.trends} />
         </div>
       </div>
+
+      {/* SECCIÓN 4b: Catálogo de más vendidos */}
+      <BestSellersAnalytics data={metrics.bestSellersAnalytics} />
 
       {/* SECCIÓN 5: Comparación vs restaurantes similares */}
       <BenchmarkSection benchmark={report.benchmark} />
