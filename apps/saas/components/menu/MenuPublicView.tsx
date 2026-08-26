@@ -704,6 +704,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         : cartItem
     setCart(prev => [...prev, taggedItem])
     setCustomizingItem(null)
+    if (cartItem.menuItemId) {
+      discoverHiddenReward(cartItem.menuItemId)
+    }
     if (!skipUpsellRef.current && !upsellDismissedRef.current && cartItem.menuItemId) {
       const { items, source } = getSuggestions(categories, cart, cartItem.menuItemId, insights, 2, tenant.specialDates)
       if (items.length > 0) { setUpsellSuggestions(items); setUpsellSource(source) }
