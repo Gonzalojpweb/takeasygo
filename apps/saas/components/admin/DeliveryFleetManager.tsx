@@ -125,7 +125,7 @@ export default function DeliveryFleetManager({ tenantSlug, initialPersons }: Pro
 
       {/* Create form */}
       {showForm ? (
-        <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-4 max-w-md">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm">Nuevo delivery person</h3>
             <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -184,7 +184,7 @@ export default function DeliveryFleetManager({ tenantSlug, initialPersons }: Pro
             <p className="text-xs text-muted-foreground/60 mt-1">Agregá tu primer delivery para comenzar</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {activePersons.map(person => (
               <div key={person._id} className="bg-card border border-border/70 rounded-2xl p-4 space-y-3 hover:shadow-sm transition-all">
                 <div className="flex items-center justify-between">
@@ -236,7 +236,7 @@ export default function DeliveryFleetManager({ tenantSlug, initialPersons }: Pro
           <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-widest mb-3">
             Inactivos ({inactivePersons.length})
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {inactivePersons.map(person => (
               <div key={person._id} className="bg-card border border-border/50 rounded-2xl p-4 space-y-3 opacity-60">
                 <div className="flex items-center gap-2">

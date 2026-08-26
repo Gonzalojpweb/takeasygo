@@ -1031,9 +1031,6 @@ export async function POST(
         const claim = claimsByMenuItemId.get(item.menuItemId?.toString())
         if (!claim) continue
 
-        // Misma sesión: skip si el sessionId del claim coincide con el de la orden
-        if (body.sessionId && claim.sessionId === body.sessionId) continue
-
         // Stock: consumido + reservado < maxClaims para este ítem
         const itemKey = item.menuItemId?.toString()
         const maxC = maxClaimsByMenuItemId.get(itemKey || '')
