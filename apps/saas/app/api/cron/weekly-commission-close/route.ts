@@ -26,13 +26,13 @@ export async function GET(request: NextRequest) {
 
     const now = new Date()
 
-    // Calcular weekStart (lunes 00:00 UTC de esta semana)
+    // Calcular weekStart (lunes 00:00 UTC de la semana ANTERIOR)
     const dayOfWeek = now.getUTCDay() // 0=Sun, 1=Mon
     const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
     const weekStart = new Date(Date.UTC(
       now.getUTCFullYear(),
       now.getUTCMonth(),
-      now.getUTCDate() - daysSinceMonday,
+      now.getUTCDate() - daysSinceMonday - 7,
       0, 0, 0, 0
     ))
     const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000 - 1000)
