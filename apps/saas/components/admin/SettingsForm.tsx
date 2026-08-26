@@ -2247,14 +2247,17 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MapPin size={12} className="text-primary" />
-          <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+          <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
             🚚 Delivery
-          </label>
+          </span>
         </div>
         <button
           type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Activar delivery"
           onClick={() => setEnabled(!enabled)}
-          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 ${
             enabled ? 'bg-primary' : 'bg-muted-foreground/30'
           }`}
         >
@@ -2266,47 +2269,59 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
 
       {enabled && (
         <div className="space-y-3">
-          <p className="text-[10px] text-muted-foreground/50">
+          <p className="text-[10px] text-muted-foreground/70">
             Definí los rangos de distancia y el costo de envío para cada zona. Los rangos deben ser contiguos.
           </p>
 
           <div className="space-y-2">
-            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-1">
+            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
               <span>Desde (km)</span>
               <span>Hasta (km)</span>
               <span>Precio ($)</span>
-              <span className="w-8" />
+              <span className="w-10" />
             </div>
             {ranges.map((r, idx) => (
-              <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
+              <div
+                key={idx}
+                role="group"
+                aria-label={`Rango ${idx + 1}: desde ${r.fromKm}km hasta ${r.toKm}km`}
+                className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 items-center"
+              >
                 <input
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   step={0.1}
                   value={r.fromKm}
                   onChange={e => updateRange(idx, 'fromKm', Number(e.target.value))}
-                  className="bg-white border border-border/60 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-primary/40"
+                  aria-label={`Distancia desde en kilómetros, rango ${idx + 1}`}
+                  className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
                 />
                 <input
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   step={0.1}
                   value={r.toKm}
                   onChange={e => updateRange(idx, 'toKm', Number(e.target.value))}
-                  className="bg-white border border-border/60 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-primary/40"
+                  aria-label={`Distancia hasta en kilómetros, rango ${idx + 1}`}
+                  className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
                 />
                 <input
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   step={100}
                   value={r.price}
                   onChange={e => updateRange(idx, 'price', Number(e.target.value))}
-                  className="bg-white border border-border/60 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-primary/40"
+                  aria-label={`Precio del envío en pesos, rango ${idx + 1}`}
+                  className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
                 />
                 <button
                   type="button"
                   onClick={() => removeRange(idx)}
-                  className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                  aria-label={`Eliminar rango ${idx + 1}`}
+                  className="h-10 w-10 flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all focus:outline-none focus:ring-2 focus:ring-destructive/30"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -2315,7 +2330,8 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
             <button
               type="button"
               onClick={addRange}
-              className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors px-1 py-1"
+              aria-label="Agregar nuevo rango de delivery"
+              className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors px-1 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30 rounded-lg"
             >
               <PlusCircle size={13} strokeWidth={3} />
               Agregar rango
@@ -2325,9 +2341,10 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
       )}
 
       <Button
-        className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
+        className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
         onClick={handleSave}
         disabled={saving}
+        aria-busy={saving}
       >
         {saving ? 'Guardando...' : 'Guardar configuración de delivery'}
       </Button>
