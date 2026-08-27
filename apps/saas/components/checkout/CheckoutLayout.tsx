@@ -391,7 +391,7 @@ function LoyaltySection(props: {
   )
 }
 
-function PaymentMethodSelector({ selected, onChange, transferEnabled }: { selected: string; onChange: (method: 'mercadopago' | 'kripton' | 'transfer') => void; transferEnabled?: boolean }) {
+function PaymentMethodSelector({ selected, onChange, transferEnabled, cashEnabled }: { selected: string; onChange: (method: 'mercadopago' | 'kripton' | 'transfer' | 'cash') => void; transferEnabled?: boolean; cashEnabled?: boolean }) {
   return (
     <div className="space-y-3">
       <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Método de pago</p>
@@ -426,6 +426,22 @@ function PaymentMethodSelector({ selected, onChange, transferEnabled }: { select
             </div>
           </button>
         )}
+        {cashEnabled && (
+          <button
+            type="button"
+            onClick={() => onChange('cash')}
+            className={cn(
+              'flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all',
+              selected === 'cash' ? 'border-emerald-600 bg-emerald-600/5' : 'border-zinc-200 bg-white',
+            )}
+          >
+            <span className="text-2xl">💵</span>
+            <div>
+              <p className="text-sm font-bold text-zinc-900">Efectivo</p>
+              <p className="text-[10px] text-zinc-500">Pago al retirar</p>
+            </div>
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onChange('kripton')}
@@ -449,9 +465,10 @@ function PaymentConfirmation(props: {
   mode: 'takeaway' | 'delivery'
   deliveryMode: boolean
   tenantName: string
-  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer' | null
+  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer' | 'cash' | null
   kriptonEnabled: boolean
   transferEnabled: boolean
+  cashEnabled: boolean
   subtotal: number
   discountAmount: number
   activeQrPromo: any
@@ -462,11 +479,11 @@ function PaymentConfirmation(props: {
   total: number
   activeSurchargePercent: number
   transferData: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null
-  onPaymentMethodChange: (method: 'mercadopago' | 'kripton' | 'transfer') => void
+  onPaymentMethodChange: (method: 'mercadopago' | 'kripton' | 'transfer' | 'cash') => void
 }) {
   const {
     mode, deliveryMode, tenantName,
-    selectedPaymentMethod, kriptonEnabled, transferEnabled,
+    selectedPaymentMethod, kriptonEnabled, transferEnabled, cashEnabled,
     subtotal, discountAmount, activeQrPromo, selectedRewardItem,
     deliveryQuote, deliveryCost, baseTotal, total,
     activeSurchargePercent, transferData,
@@ -485,7 +502,7 @@ function PaymentConfirmation(props: {
       {/* Payment method display */}
       <div className="rounded-2xl border-2 border-zinc-200 p-4">
         <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3">Método de pago</p>
-        {kriptonEnabled || transferEnabled ? (
+        {kriptonEnabled || transferEnabled || cashEnabled ? (
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -530,6 +547,22 @@ function PaymentConfirmation(props: {
                 <div>
                   <p className="text-sm font-bold text-zinc-900">Kripton</p>
                   <p className="text-[10px] text-zinc-500">USDT, BTC, ETH</p>
+                </div>
+              </button>
+            )}
+            {cashEnabled && (
+              <button
+                type="button"
+                onClick={() => onPaymentMethodChange('cash')}
+                className={cn(
+                  'flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all',
+                  selectedPaymentMethod === 'cash' ? 'border-emerald-600 bg-emerald-600/5' : 'border-zinc-200 bg-white',
+                )}
+              >
+                <span className="text-2xl">💵</span>
+                <div>
+                  <p className="text-sm font-bold text-zinc-900">Efectivo</p>
+                  <p className="text-[10px] text-zinc-500">Pago al retirar</p>
                 </div>
               </button>
             )}

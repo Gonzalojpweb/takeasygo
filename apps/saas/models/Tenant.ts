@@ -56,6 +56,11 @@ export interface ITenant extends Document {
   }
   // ── Visibilidad de métodos de pago ────────────────────────────
   paymentMethodsVisibility: IPaymentMethodsVisibility
+  // ── Pago en efectivo ──────────────────────────────────────────
+  cash: {
+    enabled: boolean
+    discountPercent: number
+  }
   branding: {
     primaryColor: string
     secondaryColor: string
@@ -98,6 +103,7 @@ export interface ITenant extends Document {
     reservations: boolean
     crm: { enabled: boolean }
     tgoGrowthPushEnabled: boolean
+    cashPaymentEnabledBySuperadmin: boolean
   }
   business: {
     enabled: boolean
@@ -452,6 +458,7 @@ const TenantSchema = new Schema<ITenant>(
       reservations: { type: Boolean, default: false },
       crm: { enabled: { type: Boolean, default: false } },
       tgoGrowthPushEnabled: { type: Boolean, default: false },
+      cashPaymentEnabledBySuperadmin: { type: Boolean, default: false },
     },
     business: {
       enabled: { type: Boolean, default: false },
@@ -606,6 +613,11 @@ const TenantSchema = new Schema<ITenant>(
       mercadopago: { type: Boolean, default: true },
       kripton: { type: Boolean, default: false },
       transfer: { type: Boolean, default: true },
+    },
+    // ── Pago en efectivo ──────────────────────────────────────────────
+    cash: {
+      enabled: { type: Boolean, default: false },
+      discountPercent: { type: Number, default: 0, min: 0, max: 100 },
     },
     /** Configuración de notificaciones WhatsApp para admins */
     notifications: {

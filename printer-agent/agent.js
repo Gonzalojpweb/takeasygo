@@ -497,6 +497,13 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
         chunks.push(buf(`Tipo: ${modeLabel}\n`));
     }
 
+    // Pago en efectivo
+    if (order.payment?.method === 'cash') {
+        chunks.push(ESC_POS.ALIGN_CENTER, ESC_POS.BOLD_ON);
+        chunks.push(buf(`=== PAGO EFECTIVO ===\n`));
+        chunks.push(ESC_POS.BOLD_OFF, ESC_POS.ALIGN_LEFT);
+    }
+
     // Dirección de delivery
     if (order.orderMode === 'delivery' && order.deliveryAddress) {
         const addr = order.deliveryAddress;

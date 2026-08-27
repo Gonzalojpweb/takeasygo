@@ -2,6 +2,8 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import PlatformConfig from '@/models/PlatformConfig'
 import { calculateFinalTotal, getTotalFeesForMethod } from '@/lib/pricing'
+import { canAccess } from '@/lib/plans'
+import type { Plan } from '@/lib/plans'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
@@ -18,7 +20,7 @@ export async function GET(
 
     const [tenant, platformConfig] = await Promise.all([
       Tenant.findOne({ slug: tenantSlug })
-        .select('transfer paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth')
+        .select('transfer paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth plan features cash')
         .lean() as any,
       PlatformConfig.findById('platform').select('platformFees kripton').lean() as any,
     ])
@@ -31,6 +33,9 @@ export async function GET(
     const kriptonEnabled = platformKriptonEnabled && !!tenant.kripton?.isConfigured
     const transferEnabled = !!tenant.transfer?.enabled && !!tenant.transfer?.alias
     const mpEnabled = !!tenant.mercadopago?.isConfigured
+    const cashEnabled = canAccess(tenant.plan as Plan, 'cashPayment')
+      && !!tenant.features?.cashPaymentEnabledBySuperadmin
+      && !!tenant.cash?.enabled
 
     const methods: Array<{
       id: string
@@ -78,6 +83,17 @@ export async function GET(
         enabled: transferEnabled,
         surchargePercent: trSurcharge.surchargePercent,
         totalFees: trTotalFees,
+      })
+    }
+
+    if (cashEnabled) {
+      methods.push({
+        id: 'cash',
+        label: 'Efectivo',
+        description: 'Pago en efectivo al retirar',
+        enabled: true,
+        surchargePercent: 0,
+        totalFees: 0,
       })
     }
 

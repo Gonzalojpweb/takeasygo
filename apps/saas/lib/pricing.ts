@@ -6,7 +6,7 @@ export interface PricingResult {
   platformFeeAmount: number
 }
 
-export type PaymentMethod = 'mercadopago' | 'kripton' | 'transfer'
+export type PaymentMethod = 'mercadopago' | 'kripton' | 'transfer' | 'cash'
 
 interface TenantFees {
   paymentSurcharges?: {
@@ -41,6 +41,8 @@ function getPlatformFeePercent(
 ): number {
   if (overridePlatformFeePercent != null) return overridePlatformFeePercent
 
+  if (paymentMethod === 'cash') return 0
+
   if (paymentMethod === 'transfer') {
     // La comisión de plataforma por transferencia solo aplica a pedidos de delivery.
     // Si orderMode no llega (bug de caller), el sistema falla al lado seguro: no cobra.
@@ -62,6 +64,8 @@ export function getTotalFeesForMethod(
   overridePlatformFeePercent?: number,
   orderMode?: string
 ): number {
+  if (paymentMethod === 'cash') return 0
+
   if (paymentMethod === 'transfer') {
     if (orderMode !== 'delivery') return 0
     const platformFeePercent = getPlatformFeePercent(paymentMethod, tenant, platformConfig, overridePlatformFeePercent, orderMode)

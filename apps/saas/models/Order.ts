@@ -189,6 +189,10 @@ export interface IOrder extends Document {
     transferConfirmed: boolean
     transferConfirmedAt: Date | null
     transferConfirmedBy: string | null
+    // ── Ajuste de efectivo no cobrado ───────────────────────────────────
+    cashAdjustmentApplied: boolean
+    cashAdjustmentAppliedAt: Date | null
+    cashAdjustmentAppliedBy: string | null
   }
   notes: string
   /** Token bearer del endpoint de tracking. Se envía por header x-tracking-token, nunca por query string. */
@@ -503,6 +507,10 @@ const OrderSchema = new Schema(
       transferConfirmed: { type: Boolean, default: false },
       transferConfirmedAt: { type: Date, default: null },
       transferConfirmedBy: { type: String, default: null },
+      // ── Ajuste de efectivo no cobrado ─────────────────────────────
+      cashAdjustmentApplied: { type: Boolean, default: false },
+      cashAdjustmentAppliedAt: { type: Date, default: null },
+      cashAdjustmentAppliedBy: { type: String, default: null },
     },
     notes: { type: String, default: '', trim: true },
     trackingToken: { type: String, default: null, index: true },

@@ -17,6 +17,7 @@ interface OrderItem {
   locationName?: string
   orderTiming?: string
   scheduledPickupAt?: string
+  payment?: { method?: string }
 }
 
 const MODE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
@@ -104,6 +105,11 @@ export default function OrderCard({ item, isSelected, isNew, isEscalated, onClic
             <ModeIcon size={10} />
             {item.orderMode}
           </span>
+          {item.payment?.method === 'cash' && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+              💵 EFECTIVO
+            </span>
+          )}
           {item.locationName && (
             <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
               <MapPin size={8} />

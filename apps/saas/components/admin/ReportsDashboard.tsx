@@ -337,6 +337,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 mercadopago: 'Mercado Pago',
                 kripton: 'Kripton',
                 transfer: 'Transferencia',
+                cash: 'Efectivo',
             }
             activeOrders.forEach(o => {
                 const m = o.payment?.method || 'desconocido'
@@ -1242,6 +1243,7 @@ const METHOD_LABELS: Record<string, string> = {
     mercadopago: '💳 Mercado Pago',
     kripton: '🪙 Kripton',
     transfer: '🏦 Transferencia',
+    cash: '💵 Efectivo',
 }
 
 function PaymentMethodChart({ data }: { data: { method: string; orders: number; revenue: number; baseRevenue: number; surcharge: number }[] }) {

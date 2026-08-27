@@ -17,6 +17,10 @@
       "schedule": "0 4 * * *"
     },
     {
+      "path": "/api/cron/cash-reconciliation",
+      "schedule": "0 5 * * *"
+    },
+    {
       "path": "/api/tia/daily-insight",
       "schedule": "0 6 * * *"
     },

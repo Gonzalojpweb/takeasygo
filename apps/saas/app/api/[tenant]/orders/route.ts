@@ -37,7 +37,7 @@ import PushSubscription from '@/models/PushSubscription'
 import Rating from '@/models/Rating'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
-import { pushOrderToSyncLayer } from '@/lib/sync-layer'
+import { pushOrderToSyncLayer, confirmOrderPaymentCore } from '@/lib/sync-layer'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 
 webpush.setVapidDetails(
@@ -930,6 +930,15 @@ export async function POST(
     let discountAmount = 0
     let qrPromoApplied = false
 
+    // ── Descuento propio del restaurante para pago en efectivo ──────────
+    // Se aplica antes de QR promo e Hidden Rewards, sobre el subtotal.
+    // Solo si el método de pago es cash y el tenant tiene un descuento configurado.
+    let cashDiscount = 0
+    if (paymentMethod === 'cash' && (tenant as any).cash?.discountPercent > 0) {
+      cashDiscount = Math.floor(subtotal * ((tenant as any).cash.discountPercent / 100))
+      discountAmount += cashDiscount
+    }
+
     // Validar maxUsesPerConsumer si se usó un código promocional
     if (activeQrPromo?.code && body.customer.phone) {
       const consumerUses = await Order.countDocuments({
@@ -947,7 +956,7 @@ export async function POST(
       }
     }
 
-    if (activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
+    if (paymentMethod !== 'cash' && activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
       const qrEligibleSubtotal = resolvedItems
         .filter(item => item.itemType !== 'promotion')
         .reduce((sum, item) => sum + item.subtotal, 0)
@@ -977,7 +986,7 @@ export async function POST(
       }
     }
 
-    if (!qrPromoApplied && body.customer.phone) {
+    if (paymentMethod !== 'cash' && !qrPromoApplied && body.customer.phone) {
       const pHash = hashPhone(body.customer.phone)
       const menuItemIds = resolvedItems
         .filter(item => item.itemType === 'menuItem')
@@ -1315,6 +1324,8 @@ export async function POST(
     let initialStatus: string
     if (isDeferredBusiness) {
       initialStatus = 'confirmed'
+    } else if (paymentMethod === 'cash') {
+      initialStatus = 'confirmed'
     } else if (paymentMethod === 'transfer') {
       initialStatus = 'awaiting_payment'
     } else {
@@ -1490,6 +1501,39 @@ export async function POST(
           )
         } catch (err) {
           console.error('[orders] Admin push error:', (err as Error)?.message)
+        }
+      })
+    }
+
+    // ── Pago en efectivo: push + registrar venta en caja ────────────────
+    // El pedido entra en confirmed directo. Se notifica al admin y se
+    // registra la venta vía confirmOrderPaymentCore (misma vía que MP/transfer).
+    if (paymentMethod === 'cash') {
+      setImmediate(async () => {
+        try {
+          await sendAdminPushNotification(
+            tenant._id.toString(),
+            tenant.plan ?? 'trial',
+            tenant.name,
+            tenantSlug,
+            order.orderNumber,
+            pricing.finalTotal,
+            customerName
+          )
+        } catch (err) {
+          console.error('[orders] Admin push error (cash):', (err as Error)?.message)
+        }
+      })
+
+      setImmediate(async () => {
+        try {
+          await confirmOrderPaymentCore(order, tenant)
+        } catch (err) {
+          console.error(
+            `[orders] CRITICAL: confirmOrderPaymentCore FAILED for cash order ${order.orderNumber} ` +
+            `(orderId: ${order._id}). Cash sale was NOT registered. Manual reconciliation required.`,
+            err
+          )
         }
       })
     }
