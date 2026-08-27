@@ -95,6 +95,10 @@ export async function GET(
       clubStats,
       // Pedidos recientes
       recentOrders,
+      // Margin recovery (surcharge)
+      marginRecoveryAgg,
+      // Delivery conciliation (daily)
+      deliveryDailyRaw,
     ] = await Promise.all([
       // Stats
       Order.countDocuments({ tenantId, deletedAt: null }),
@@ -176,6 +180,29 @@ export async function GET(
       Order.find({ tenantId, deletedAt: null })
         .sort({ createdAt: -1 }).limit(5)
         .select('orderNumber total status customer.name createdAt').lean(),
+      // Margin recovery — total surcharge across ALL payment methods this month
+      Order.aggregate([
+        { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
+        { $group: {
+          _id: null,
+          totalSurcharge: { $sum: '$payment.surchargeAmount' },
+          totalPlatformFee: { $sum: '$payment.platformFeeAmount' },
+          totalOrders: { $sum: 1 },
+          avgSurchargePercent: { $avg: '$payment.surchargePercent' },
+        } },
+      ]),
+      // Delivery conciliation — daily breakdown of delivery orders this month
+      Order.aggregate([
+        { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, orderMode: 'delivery', status: { $ne: 'cancelled' } } },
+        { $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          orderCount: { $sum: 1 },
+          deliveryCollected: { $sum: '$deliveryCost' },
+          platformFees: { $sum: '$payment.platformFeeAmount' },
+          totalRevenue: { $sum: '$total' },
+        } },
+        { $sort: { _id: -1 } },
+      ]),
     ])
 
     // ── Process KPIs ──
@@ -284,6 +311,25 @@ export async function GET(
     // ── Process Club ──
     const club = clubStats[0] || { totalMembers: 0, membersWithPoints: 0, totalPoints: 0 }
 
+    // ── Process Margin Recovery ──
+    const mr = marginRecoveryAgg[0] || { totalSurcharge: 0, totalPlatformFee: 0, totalOrders: 0, avgSurchargePercent: 0 }
+    const marginRecovery = {
+      totalSurcharge: mr.totalSurcharge,
+      totalPlatformFee: mr.totalPlatformFee,
+      netRecovered: mr.totalSurcharge - mr.totalPlatformFee,
+      orderCount: mr.totalOrders,
+      avgSurchargePercent: Math.round(mr.avgSurchargePercent * 10) / 10,
+    }
+
+    // ── Process Delivery Conciliation ──
+    const deliveryConciliation = deliveryDailyRaw.map((d: any) => ({
+      date: d._id,
+      orderCount: d.orderCount,
+      deliveryCollected: d.deliveryCollected,
+      platformFees: d.platformFees,
+      netForDelivery: d.deliveryCollected - d.platformFees,
+    }))
+
     return NextResponse.json({
       stats: { total: totalOrders, pending: pendingOrders, confirmed: confirmedOrders, cancelled: cancelledOrders },
       kpis: { revenue, avgTicket, cancRate, orderCount: thisMonth.count, growth, prevRevenue, prevCancRate, cancTrend },
@@ -294,6 +340,8 @@ export async function GET(
       calificaciones: { avgRating: agg ? Math.round(agg.avg * 10) / 10 : 0, total: agg?.count ?? 0, distribution, calificaciones },
       club,
       pedidosRecientes: recentOrders,
+      marginRecovery,
+      deliveryConciliation,
     })
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)

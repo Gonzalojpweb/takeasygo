@@ -13,8 +13,10 @@ import Link from 'next/link'
 // Dashboard client components — receive pre-fetched data from /summary
 import StatsCards from '@/components/admin/dashboard/StatsCards'
 import KPIsMes from '@/components/admin/dashboard/KPIsMes'
+import MarginRecoveryCard from '@/components/admin/dashboard/MarginRecoveryCard'
 import { ICOWidget } from '@/components/admin/dashboard/ICOWidget'
 import MetodosPago from '@/components/admin/dashboard/MetodosPago'
+import DeliveryConciliation from '@/components/admin/dashboard/DeliveryConciliation'
 import { ComisionesBanner } from '@/components/admin/dashboard/ComisionesBanner'
 import MenuActividad from '@/components/admin/dashboard/MenuActividad'
 import CalificacionesWidget from '@/components/admin/dashboard/CalificacionesWidget'
@@ -166,11 +168,17 @@ export default async function AdminDashboard() {
       {/* KPIs del mes */}
       <KPIsMes tenantSlug={tenantSlug!} data={summary?.kpis} />
 
+      {/* Recuperación de margen — "Mirá lo que recuperaste" */}
+      <MarginRecoveryCard tenantSlug={tenantSlug!} data={summary?.marginRecovery} />
+
       {/* ICO */}
       <ICOWidget tenantSlug={tenantSlug!} userName={userName} data={summary?.ico} />
 
       {/* Métodos de pago */}
       <MetodosPago tenantSlug={tenantSlug!} data={summary?.metodosPago} />
+
+      {/* Conciliación de delivery — cobro diario vs comisión */}
+      <DeliveryConciliation tenantSlug={tenantSlug!} data={summary?.deliveryConciliation} />
 
       {/* Comisiones pendientes */}
       <ComisionesBanner tenantSlug={tenantSlug!} data={summary?.comisiones?.pending} />
