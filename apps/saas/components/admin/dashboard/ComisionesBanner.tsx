@@ -5,15 +5,20 @@ import { DollarSign } from 'lucide-react'
 import { toPesos } from '@takeasygo/business'
 import Link from 'next/link'
 
-export function ComisionesBanner({ tenantSlug }: { tenantSlug: string }) {
+export function ComisionesBanner({ tenantSlug, data: prefetchedData }: { tenantSlug: string; data?: number }) {
   const [pending, setPending] = useState<number | null>(null)
 
   useEffect(() => {
+    if (prefetchedData !== undefined) {
+      setPending(prefetchedData)
+      return
+    }
+
     fetch(`/api/${tenantSlug}/admin/dashboard/comisiones`)
       .then((res) => res.json())
       .then((data) => setPending(data.pending ?? 0))
       .catch(() => setPending(0))
-  }, [tenantSlug])
+  }, [tenantSlug, prefetchedData])
 
   if (pending === null || pending === 0) return null
 

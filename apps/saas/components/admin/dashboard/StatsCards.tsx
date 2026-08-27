@@ -19,12 +19,18 @@ const CARDS = [
   { key: 'cancelled', label: 'Cancelados', icon: XCircle, bg: 'bg-red-50', color: 'text-red-500' },
 ] as const
 
-export default function StatsCards({ tenantSlug }: { tenantSlug: string }) {
+export default function StatsCards({ tenantSlug, data: prefetchedData }: { tenantSlug: string; data?: DashboardStats }) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
   useEffect(() => {
+    if (prefetchedData) {
+      setStats(prefetchedData)
+      setLoading(false)
+      return
+    }
+
     let cancelled = false
 
     async function fetchStats() {
@@ -44,7 +50,7 @@ export default function StatsCards({ tenantSlug }: { tenantSlug: string }) {
 
     fetchStats()
     return () => { cancelled = true }
-  }, [tenantSlug])
+  }, [tenantSlug, prefetchedData])
 
   if (error) {
     return (

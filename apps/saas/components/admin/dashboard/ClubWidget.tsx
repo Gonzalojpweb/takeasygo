@@ -14,6 +14,7 @@ interface ClubData {
 
 interface ClubWidgetProps {
   tenantSlug: string
+  data?: ClubData
 }
 
 function ClubWidgetSkeleton() {
@@ -37,11 +38,17 @@ function ClubWidgetSkeleton() {
   )
 }
 
-export default function ClubWidget({ tenantSlug }: ClubWidgetProps) {
+export default function ClubWidget({ tenantSlug, data: prefetchedData }: ClubWidgetProps) {
   const [data, setData] = useState<ClubData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (prefetchedData) {
+      setData(prefetchedData)
+      setLoading(false)
+      return
+    }
+
     fetch(`/api/${tenantSlug}/admin/dashboard/club`)
       .then((res) => res.json())
       .then((json) => {
@@ -49,7 +56,7 @@ export default function ClubWidget({ tenantSlug }: ClubWidgetProps) {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [tenantSlug])
+  }, [tenantSlug, prefetchedData])
 
   if (loading) return <ClubWidgetSkeleton />
 

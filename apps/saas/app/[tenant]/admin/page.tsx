@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Sparkles, ChevronRight, UtensilsCrossed, Tag, CreditCard } from 'lucide-react'
 import type { Types } from 'mongoose'
@@ -10,7 +10,7 @@ import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 import OnboardingChecklist from '@/components/admin/OnboardingChecklist'
 import Link from 'next/link'
 
-// Dashboard client components (each fetches from its own API route)
+// Dashboard client components — receive pre-fetched data from /summary
 import StatsCards from '@/components/admin/dashboard/StatsCards'
 import KPIsMes from '@/components/admin/dashboard/KPIsMes'
 import { ICOWidget } from '@/components/admin/dashboard/ICOWidget'
@@ -102,6 +102,20 @@ export default async function AdminDashboard() {
     // auth may fail in some contexts, fallback to empty
   }
 
+  // Fetch consolidated dashboard data (single request replaces 9 individual fetches)
+  let summary: any = null
+  try {
+    const cookieStore = await cookies()
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const res = await fetch(`${baseUrl}/api/${tenantSlug}/admin/dashboard/summary`, {
+      headers: { cookie: cookieStore.toString() },
+      next: { revalidate: 30 },
+    })
+    if (res.ok) summary = await res.json()
+  } catch {
+    // Summary fetch failed — components will fall back to individual fetches
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <PlanBanner plan={plan} tenantSlug={tenantSlug!} />
@@ -124,7 +138,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Stats compactas */}
-      <StatsCards tenantSlug={tenantSlug!} />
+      <StatsCards tenantSlug={tenantSlug!} data={summary?.stats} />
 
       {/* Quick Actions */}
       <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-5 text-white">
@@ -150,28 +164,28 @@ export default async function AdminDashboard() {
       </div>
 
       {/* KPIs del mes */}
-      <KPIsMes tenantSlug={tenantSlug!} />
+      <KPIsMes tenantSlug={tenantSlug!} data={summary?.kpis} />
 
       {/* ICO */}
-      <ICOWidget tenantSlug={tenantSlug!} userName={userName} />
+      <ICOWidget tenantSlug={tenantSlug!} userName={userName} data={summary?.ico} />
 
       {/* Métodos de pago */}
-      <MetodosPago tenantSlug={tenantSlug!} />
+      <MetodosPago tenantSlug={tenantSlug!} data={summary?.metodosPago} />
 
       {/* Comisiones pendientes */}
-      <ComisionesBanner tenantSlug={tenantSlug!} />
+      <ComisionesBanner tenantSlug={tenantSlug!} data={summary?.comisiones?.pending} />
 
       {/* Actividad del menú */}
-      <MenuActividad tenantSlug={tenantSlug!} />
+      <MenuActividad tenantSlug={tenantSlug!} data={summary?.menuActividad} />
 
       {/* Calificaciones */}
-      <CalificacionesWidget tenantSlug={tenantSlug!} />
+      <CalificacionesWidget tenantSlug={tenantSlug!} data={summary?.calificaciones} />
 
       {/* Club */}
-      <ClubWidget tenantSlug={tenantSlug!} />
+      <ClubWidget tenantSlug={tenantSlug!} data={summary?.club} />
 
       {/* Pedidos recientes */}
-      <PedidosRecientes tenantSlug={tenantSlug!} />
+      <PedidosRecientes tenantSlug={tenantSlug!} data={summary?.pedidosRecientes} />
     </div>
   )
 }

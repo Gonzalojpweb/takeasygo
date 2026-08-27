@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 
 interface Props {
   tenantSlug: string
+  data?: DashboardData
 }
 
 interface MenuItem {
@@ -39,17 +40,23 @@ const FUNNEL_STEPS = [
   { key: 'orderCompleted', label: 'Completaron la compra', color: 'bg-green-500' },
 ] as const
 
-export default function MenuActividad({ tenantSlug }: Props) {
+export default function MenuActividad({ tenantSlug, data: prefetchedData }: Props) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (prefetchedData) {
+      setData(prefetchedData)
+      setLoading(false)
+      return
+    }
+
     fetch(`/api/${tenantSlug}/admin/dashboard/menu-actividad`)
       .then((res) => res.json())
       .then((json) => setData(json))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [tenantSlug])
+  }, [tenantSlug, prefetchedData])
 
   if (loading) {
     return (

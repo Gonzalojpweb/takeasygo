@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 
 interface MetodosPagoProps {
   tenantSlug: string
+  data?: MetodoPago[]
 }
 
 interface MetodoPago {
@@ -32,12 +33,18 @@ function fmtPesos(cents: number) {
   return `$${toPesos(cents).toLocaleString('es-AR')}`
 }
 
-export default function MetodosPago({ tenantSlug }: MetodosPagoProps) {
+export default function MetodosPago({ tenantSlug, data: prefetchedData }: MetodosPagoProps) {
   const [data, setData] = useState<MetodoPago[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (prefetchedData) {
+      setData(prefetchedData)
+      setLoading(false)
+      return
+    }
+
     let cancelled = false
 
     async function fetchMetodos() {
@@ -57,7 +64,7 @@ export default function MetodosPago({ tenantSlug }: MetodosPagoProps) {
 
     fetchMetodos()
     return () => { cancelled = true }
-  }, [tenantSlug])
+  }, [tenantSlug, prefetchedData])
 
   if (loading) {
     return (

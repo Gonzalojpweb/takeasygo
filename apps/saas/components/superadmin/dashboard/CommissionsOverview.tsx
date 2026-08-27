@@ -37,9 +37,9 @@ function fmt(n: number) {
   return toPesos(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export default function CommissionsOverview() {
-  const [data, setData] = useState<CommissionData | null>(null)
-  const [loading, setLoading] = useState(true)
+export default function CommissionsOverview({ data: prefetchedData }: { data?: CommissionData }) {
+  const [data, setData] = useState<CommissionData | null>(prefetchedData ?? null)
+  const [loading, setLoading] = useState(!prefetchedData)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
 
@@ -57,7 +57,10 @@ export default function CommissionsOverview() {
     }
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    if (prefetchedData) return
+    fetchData()
+  }, [prefetchedData, fetchData])
 
   if (loading && !data) {
     return (

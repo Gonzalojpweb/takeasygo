@@ -86,7 +86,7 @@ function NavLink({
 }) {
   const Icon = item.icon
   return (
-    <Link href={item.href} className="group block">
+    <Link href={item.href} prefetch={false} className="group block">
       <div
         className={cn(
           'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200',
@@ -250,6 +250,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
                       <Link
                         key={item.href}
                         href={item.href}
+                        prefetch={false}
                         className={cn(
                           'flex flex-col items-center justify-center gap-1 w-full px-1 py-2 rounded-lg transition-all duration-200 relative text-center',
                           isActive

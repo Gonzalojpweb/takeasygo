@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
       {
         source: '/ingest/static/:path*',
         destination: 'https://us-assets.i.posthog.com/static/:path*',
+        has: [
+          { type: 'header', key: 'accept', value: '.*' },
+        ],
       },
       {
         source: '/ingest/:path*',
@@ -119,6 +122,13 @@ const nextConfig: NextConfig = {
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'POST,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, X-POS-Signature, X-POS-Provider' },
+        ],
+      },
+      // PostHog proxied static assets — cache aggressively (versioned files)
+      {
+        source: '/ingest/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=86400, stale-while-revalidate=604800, max-age=0' },
         ],
       },
     ]

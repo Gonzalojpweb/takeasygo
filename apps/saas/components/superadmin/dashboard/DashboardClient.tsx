@@ -100,10 +100,18 @@ export interface DashboardData {
     count: number
     totalCents: number
   }>
+  comisiones: {
+    transfer: { pending: number; overdue: number; settled: number; statementCount: number }
+    mercadopago: { autoSplit: number; noSplit: number; note: string }
+    combined: { grandPending: number; grandSettled: number }
+    byTenant: Array<{
+      tenantId: string; name: string; slug: string
+      transferPending: number; transferSettled: number
+      mpAccumulated: number; mpAutoSplit: boolean; totalPending: number
+    }>
+  }
   lastUpdated: string
 }
-
-const POLL_INTERVAL = 30_000
 
 function DashboardSkeleton() {
   return (
@@ -133,44 +141,22 @@ export default function DashboardClient() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [ahoraRes, pedidosRes, kpisRes, saludRes, feedbackRes, actividadRes, tendenciaRes, metodosPagoRes] = await Promise.all([
-        fetch('/api/superadmin/dashboard/ahora'),
-        fetch('/api/superadmin/dashboard/pedidos'),
-        fetch('/api/superadmin/dashboard/kpis'),
-        fetch('/api/superadmin/dashboard/salud'),
-        fetch('/api/superadmin/dashboard/feedback'),
-        fetch('/api/superadmin/dashboard/actividad'),
-        fetch('/api/superadmin/dashboard/tendencia'),
-        fetch('/api/superadmin/dashboard/metodos-pago'),
-      ])
+      setLoading(true)
+      const res = await fetch('/api/superadmin/dashboard/summary')
+      const json = await res.json()
 
-      const ahora = await ahoraRes.json()
-      const pedidos = await pedidosRes.json()
-      const kpis = await kpisRes.json()
-      const salud = await saludRes.json()
-      const feedback = await feedbackRes.json()
-      const actividad = await actividadRes.json()
-      const tendencia = await tendenciaRes.json()
-      const metodosPago = await metodosPagoRes.json()
-
-      if (!ahoraRes.ok) throw new Error(ahora.detail || ahora.error || 'Error al cargar ahora')
-      if (!pedidosRes.ok) throw new Error(pedidos.detail || pedidos.error || 'Error al cargar pedidos')
-      if (!kpisRes.ok) throw new Error(kpis.detail || kpis.error || 'Error al cargar kpis')
-      if (!saludRes.ok) throw new Error(salud.detail || salud.error || 'Error al cargar salud')
-      if (!feedbackRes.ok) throw new Error(feedback.detail || feedback.error || 'Error al cargar feedback')
-      if (!actividadRes.ok) throw new Error(actividad.detail || actividad.error || 'Error al cargar actividad')
-      if (!tendenciaRes.ok) throw new Error(tendencia.detail || tendencia.error || 'Error al cargar tendencia')
-      if (!metodosPagoRes.ok) throw new Error(metodosPago.detail || metodosPago.error || 'Error al cargar métodos de pago')
+      if (!res.ok) throw new Error(json.detail || json.error || 'Error al cargar dashboard')
 
       setData({
-        ahora: ahora.ahora,
-        pedidosActivos: pedidos.pedidosActivos,
-        kpis: kpis.kpis,
-        saludRed: salud.saludRed,
-        feedback: feedback.feedback,
-        actividadReciente: actividad.actividadReciente,
-        tendencia7Dias: tendencia.tendencia7Dias,
-        metodosPago: metodosPago.metodosPago,
+        ahora: json.ahora,
+        pedidosActivos: json.pedidosActivos,
+        kpis: json.kpis,
+        saludRed: json.saludRed,
+        feedback: json.feedback,
+        actividadReciente: json.actividadReciente,
+        tendencia7Dias: json.tendencia7Dias,
+        metodosPago: json.metodosPago,
+        comisiones: json.comisiones,
         lastUpdated: new Date().toISOString(),
       })
       setError(null)
@@ -183,33 +169,6 @@ export default function DashboardClient() {
 
   useEffect(() => {
     fetchData()
-  }, [fetchData])
-
-  // Polling with visibility pause
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>
-
-    function startPolling() {
-      interval = setInterval(fetchData, POLL_INTERVAL)
-    }
-
-    function onVisibility() {
-      if (document.visibilityState === 'visible') {
-        clearInterval(interval)
-        fetchData()
-        startPolling()
-      } else {
-        clearInterval(interval)
-      }
-    }
-
-    document.addEventListener('visibilitychange', onVisibility)
-    startPolling()
-
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', onVisibility)
-    }
   }, [fetchData])
 
   if (loading && !data) {
@@ -237,7 +196,8 @@ export default function DashboardClient() {
   if (!data) return null
 
   const lastUpdated = new Date(data.lastUpdated)
-  const timeStr = lastUpdated.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  const minutesAgo = Math.round((Date.now() - lastUpdated.getTime()) / 60_000)
+  const timeLabel = minutesAgo === 0 ? 'ahora' : `hace ${minutesAgo}min`
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -251,7 +211,15 @@ export default function DashboardClient() {
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {loading && <Loader2 size={12} className="animate-spin text-primary" />}
-          <span suppressHydrationWarning>Última sync: {timeStr}</span>
+          <span suppressHydrationWarning>Última sync: {timeLabel}</span>
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            Actualizar
+          </button>
         </div>
       </div>
 
@@ -280,7 +248,7 @@ export default function DashboardClient() {
       </div>
 
       {/* Layer 9: COMISIONES */}
-      <CommissionsOverview />
+      <CommissionsOverview data={data.comisiones} />
     </div>
   )
 }
