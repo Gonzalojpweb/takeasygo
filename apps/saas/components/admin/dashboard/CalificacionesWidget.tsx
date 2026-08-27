@@ -86,11 +86,17 @@ function getInitials(name: string) {
     .toUpperCase()
 }
 
-export default function CalificacionesWidget({ tenantSlug }: { tenantSlug: string }) {
+export default function CalificacionesWidget({ tenantSlug, data: prefetchedData }: { tenantSlug: string; data?: CalificacionesData }) {
   const [data, setData] = useState<CalificacionesData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (prefetchedData) {
+      setData(prefetchedData)
+      setLoading(false)
+      return
+    }
+
     async function fetchCalificaciones() {
       try {
         const res = await fetch(`/api/${tenantSlug}/admin/dashboard/calificaciones`)
@@ -104,7 +110,7 @@ export default function CalificacionesWidget({ tenantSlug }: { tenantSlug: strin
       }
     }
     fetchCalificaciones()
-  }, [tenantSlug])
+  }, [tenantSlug, prefetchedData])
 
   if (loading) return <Skeleton />
   if (!data || data.total === 0) return null

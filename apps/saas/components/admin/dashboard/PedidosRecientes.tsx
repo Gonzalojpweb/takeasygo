@@ -9,6 +9,7 @@ import { toPesos } from '@takeasygo/business'
 
 interface Props {
   tenantSlug: string
+  data?: Order[]
 }
 
 interface Order {
@@ -33,17 +34,23 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelado',
 }
 
-export default function PedidosRecientes({ tenantSlug }: Props) {
+export default function PedidosRecientes({ tenantSlug, data: prefetchedData }: Props) {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (prefetchedData) {
+      setOrders(prefetchedData)
+      setLoading(false)
+      return
+    }
+
     fetch(`/api/${tenantSlug}/admin/dashboard/pedidos-recientes`)
       .then((res) => res.json())
       .then((data) => setOrders(data))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [tenantSlug])
+  }, [tenantSlug, prefetchedData])
 
   return (
     <Card className="rounded-2xl">

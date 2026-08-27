@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 
 interface KPIsMesProps {
   tenantSlug: string
+  data?: KPIsData
 }
 
 interface KPIsData {
@@ -26,12 +27,18 @@ function fmtPesos(cents: number) {
   return `$${toPesos(cents).toLocaleString('es-AR')}`
 }
 
-export default function KPIsMes({ tenantSlug }: KPIsMesProps) {
+export default function KPIsMes({ tenantSlug, data: prefetchedData }: KPIsMesProps) {
   const [data, setData] = useState<KPIsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (prefetchedData) {
+      setData(prefetchedData)
+      setLoading(false)
+      return
+    }
+
     let cancelled = false
 
     async function fetchKPIs() {
@@ -51,7 +58,7 @@ export default function KPIsMes({ tenantSlug }: KPIsMesProps) {
 
     fetchKPIs()
     return () => { cancelled = true }
-  }, [tenantSlug])
+  }, [tenantSlug, prefetchedData])
 
   if (loading) {
     return (

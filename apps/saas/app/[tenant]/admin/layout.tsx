@@ -71,7 +71,7 @@ export default async function AdminLayout({
 
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
-    .select('plan business.enabled features.crm.enabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl')
+    .select('plan business.enabled features.crm.enabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold')
     .lean() as any
   const plan: Plan = tenantDoc?.plan ?? 'try'
   const businessEnabled = tenantDoc?.business?.enabled ?? false
@@ -111,14 +111,11 @@ export default async function AdminLayout({
     })
   }
 
-  // Commission badge: show when balance (pesos) >= threshold (pesos)
+  // Commission badge: reuse tenantDoc (already fetched with commissionBalance/commissionThreshold)
   let commissionBadge = 0
   if (session.user.role === 'admin' && tenantDoc) {
-    const t = await Tenant.findById(tenantDoc._id)
-      .select('commissionBalance commissionThreshold')
-      .lean() as any
-    const balancePesos = (t?.commissionBalance?.transfer ?? 0) / 100
-    const threshold = t?.commissionThreshold ?? null
+    const balancePesos = (tenantDoc?.commissionBalance?.transfer ?? 0) / 100
+    const threshold = tenantDoc?.commissionThreshold ?? null
     if (threshold != null && balancePesos >= threshold) {
       commissionBadge = 1
     }

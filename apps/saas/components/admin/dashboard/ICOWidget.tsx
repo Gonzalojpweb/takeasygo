@@ -49,12 +49,14 @@ function ScoreRing({ score, size = 80 }: { score: number; size?: number }) {
   )
 }
 
-export function ICOWidget({ tenantSlug, userName }: { tenantSlug: string; userName: string }) {
-  const [data, setData] = useState<IcoData | null>(null)
-  const [loading, setLoading] = useState(true)
+export function ICOWidget({ tenantSlug, userName, data: initialData }: { tenantSlug: string; userName: string; data?: IcoData }) {
+  const [icoData, setIcoData] = useState<IcoData | null>(initialData ?? null)
+  const [loading, setLoading] = useState(!initialData)
   const [error, setError] = useState(false)
 
   useEffect(() => {
+    if (initialData) return
+
     let cancelled = false
 
     async function fetchIco() {
@@ -64,7 +66,7 @@ export function ICOWidget({ tenantSlug, userName }: { tenantSlug: string; userNa
         const res = await fetch(`/api/${tenantSlug}/admin/dashboard/ico`)
         if (!res.ok) throw new Error('Error fetching ICO data')
         const json = await res.json()
-        if (!cancelled) setData(json)
+        if (!cancelled) setIcoData(json)
       } catch {
         if (!cancelled) setError(true)
       } finally {
@@ -74,7 +76,7 @@ export function ICOWidget({ tenantSlug, userName }: { tenantSlug: string; userNa
 
     fetchIco()
     return () => { cancelled = true }
-  }, [tenantSlug])
+  }, [tenantSlug, initialData])
 
   if (loading) {
     return (
@@ -96,7 +98,7 @@ export function ICOWidget({ tenantSlug, userName }: { tenantSlug: string; userNa
     )
   }
 
-  if (error || !data) {
+  if (error || !icoData) {
     return (
       <Card className="rounded-2xl border shadow-sm overflow-hidden">
         <CardContent className="p-6">
@@ -109,7 +111,7 @@ export function ICOWidget({ tenantSlug, userName }: { tenantSlug: string; userNa
     )
   }
 
-  if (data.totalOrders < 10) {
+  if (icoData.totalOrders < 10) {
     return (
       <Card className="rounded-2xl border shadow-sm overflow-hidden">
         <CardContent className="p-6">
@@ -122,7 +124,7 @@ export function ICOWidget({ tenantSlug, userName }: { tenantSlug: string; userNa
     )
   }
 
-  const { icoScore, capacityScore, history } = data
+  const { icoScore, capacityScore, history } = icoData
   const lastEntries = history.slice(-8)
   const trendEntries = history.slice(-2)
   const trendDiff = trendEntries.length === 2 ? trendEntries[1].score - trendEntries[0].score : 0
