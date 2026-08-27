@@ -181,6 +181,11 @@ class TicketRenderer {
             this.addLine(`Tipo: ${modeLabel}`, this.fontSize.info);
         }
 
+        // Pago en efectivo
+        if (order.payment?.method === 'cash') {
+            this.addLine('=== PAGO EFECTIVO ===', this.fontSize.info, { bold: true, align: 'center' });
+        }
+
         // Dirección de delivery
         if (order.orderMode === 'delivery' && order.deliveryAddress) {
             const addr = order.deliveryAddress;

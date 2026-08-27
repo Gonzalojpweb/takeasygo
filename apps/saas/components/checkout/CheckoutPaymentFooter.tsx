@@ -168,6 +168,17 @@ export default function CheckoutPaymentFooter() {
         } catch {}
 
         router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
+      } else if (selectedPaymentMethod === 'cash') {
+        try {
+          localStorage.setItem('tgo-pending-order', JSON.stringify({
+            orderNumber: order.orderNumber,
+            tenantSlug,
+            orderId: order._id,
+            createdAt: Date.now(),
+          }))
+        } catch {}
+
+        router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
       } else if (kriptonEnabled && selectedPaymentMethod === 'kripton') {
         const prefRes = await fetch(`/api/${tenantSlug}/payments/create-kripton-preference`, {
           method: 'POST',
@@ -221,7 +232,7 @@ export default function CheckoutPaymentFooter() {
   }
 
   const isCartEmpty = cart.length === 0
-  const methodLabel = selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : selectedPaymentMethod === 'mercadopago' ? 'MercadoPago' : 'Pago'
+  const methodLabel = selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : selectedPaymentMethod === 'cash' ? 'Efectivo' : selectedPaymentMethod === 'mercadopago' ? 'MercadoPago' : 'Pago'
   const buttonText = isLastStep
     ? loading
       ? 'Procesando...'
@@ -276,7 +287,7 @@ export default function CheckoutPaymentFooter() {
           <div className="text-center max-w-sm">
             <div className="w-12 h-12 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin mx-auto mb-6" />
             <h2 className="text-xl font-black text-zinc-900 mb-3">
-              Redirigiendo a {selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'Mercado Pago'}
+              Redirigiendo a {selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : selectedPaymentMethod === 'cash' ? 'Efectivo' : 'Mercado Pago'}
             </h2>
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-left space-y-3">
               <p className="text-sm font-bold text-amber-800">⚠️ Importante:</p>

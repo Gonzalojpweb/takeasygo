@@ -113,6 +113,10 @@ export const PLAN_ACCESS = {
   // Hidden Rewards — Recompensas Escondidas (Crecimiento y Premium)
   // Growth: hasta 20 premios por sede. Premium: ilimitado.
   hiddenRewards: ['buy', 'full'] as const,
+
+  // Pago en efectivo — Solo Premium
+  // Habilita la opción de cobro en efectivo en el checkout del cliente.
+  cashPayment: ['full'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS

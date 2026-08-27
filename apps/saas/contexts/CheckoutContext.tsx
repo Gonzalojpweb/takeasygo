@@ -103,7 +103,8 @@ export interface CheckoutState {
   activeLegalModal: 'terminos' | 'privacidad' | null
   redirectingToMp: boolean
   kriptonEnabled: boolean
-  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer' | null
+  cashEnabled: boolean
+  selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer' | 'cash' | null
   paymentSurcharges: Record<string, number>
   paymentTotalFees: Record<string, number>
   transferEnabled: boolean
@@ -143,7 +144,8 @@ type CheckoutAction =
   | { type: 'SET_LEGAL_MODAL'; modal: 'terminos' | 'privacidad' | null }
   | { type: 'SET_REDIRECTING'; redirecting: boolean }
   | { type: 'SET_KRIPTON_ENABLED'; enabled: boolean }
-  | { type: 'SET_PAYMENT_METHOD'; method: 'mercadopago' | 'kripton' | 'transfer' | null }
+  | { type: 'SET_CASH_ENABLED'; enabled: boolean }
+  | { type: 'SET_PAYMENT_METHOD'; method: 'mercadopago' | 'kripton' | 'transfer' | 'cash' | null }
   | { type: 'SET_PAYMENT_SURCHARGES'; surcharges: Record<string, number> }
   | { type: 'SET_PAYMENT_TOTAL_FEES'; totalFees: Record<string, number> }
   | { type: 'SET_TRANSFER_ENABLED'; enabled: boolean }
@@ -218,6 +220,7 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_LEGAL_MODAL': return { ...state, activeLegalModal: action.modal }
     case 'SET_REDIRECTING': return { ...state, redirectingToMp: action.redirecting }
     case 'SET_KRIPTON_ENABLED': return { ...state, kriptonEnabled: action.enabled }
+    case 'SET_CASH_ENABLED': return { ...state, cashEnabled: action.enabled }
     case 'SET_PAYMENT_METHOD': return { ...state, selectedPaymentMethod: action.method }
     case 'SET_PAYMENT_SURCHARGES': return { ...state, paymentSurcharges: action.surcharges }
     case 'SET_PAYMENT_TOTAL_FEES': return { ...state, paymentTotalFees: action.totalFees }
@@ -271,6 +274,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     activeLegalModal: null,
     redirectingToMp: false,
     kriptonEnabled: false,
+    cashEnabled: false,
     selectedPaymentMethod: null as any,
     paymentSurcharges: {},
     paymentTotalFees: {},
@@ -395,6 +399,11 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
         if (trAvailable) {
           dispatch({ type: 'SET_TRANSFER_ENABLED', enabled: true })
           dispatch({ type: 'SET_TRANSFER_DATA', data: data.transfer })
+        }
+
+        const cashAvailable = data.methods.find((m: any) => m.id === 'cash')?.enabled
+        if (cashAvailable) {
+          dispatch({ type: 'SET_CASH_ENABLED', enabled: true })
         }
       })
       .catch((err) => { console.error('payment-methods fetch error:', err) })

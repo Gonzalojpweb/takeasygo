@@ -485,6 +485,7 @@ export type CashMovementType =
   | "deposit"
   | "sale"
   | "refund"
+  | "cash_order_not_collected"
 
 // ============================================================================
 // 11b. Z REPORT — Snapshot inmutable de cierre

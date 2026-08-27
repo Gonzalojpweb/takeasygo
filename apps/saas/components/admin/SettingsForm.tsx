@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import MercadoPagoSettings from './MercadoPagoSettings'
 import KriptonSettings from './KriptonSettings'
 import TransferSettings from './TransferSettings'
+import CashSettings from '@/components/admin/CashSettings'
 import PaymentSurchargeSettings from './PaymentSurchargeSettings'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toCents, toPesos } from '@takeasygo/business'
@@ -611,6 +612,9 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
               <TabTrigger value="notifications" icon={<Bell size={16} />} label="Notificaciones" />
               {canAccess(plan as Plan, 'transferPayment') && (
                 <TabTrigger value="transferencia" icon={<Banknote size={16} />} label="Transferencia" />
+              )}
+              {canAccess(plan as Plan, 'cashPayment') && tenant.features?.cashPaymentEnabledBySuperadmin && (
+                <TabTrigger value="efectivo" icon={<Banknote size={16} />} label="Efectivo" />
               )}
               <TabTrigger value="recargos" icon={<Percent size={16} />} label="Recargos" />
               {tenant.features?.reservations && (
@@ -1821,6 +1825,18 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                   <TransferSettings
                     tenantSlug={tenantSlug}
                     initialConfig={tenant.transfer}
+                  />
+                </div>
+              </TabsContent>
+            )}
+
+            {/* ── Efectivo ── */}
+            {canAccess(plan as Plan, 'cashPayment') && tenant.features?.cashPaymentEnabledBySuperadmin && (
+              <TabsContent value="efectivo" className="m-0 mt-2">
+                <div className="max-w-3xl">
+                  <CashSettings
+                    tenantSlug={tenantSlug}
+                    initialConfig={tenant.cash || { enabled: false, discountPercent: 0 }}
                   />
                 </div>
               </TabsContent>

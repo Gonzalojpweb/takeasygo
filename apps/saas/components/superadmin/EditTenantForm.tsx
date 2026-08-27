@@ -67,6 +67,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     featuresReservations: tenant.features?.reservations ?? false,
     featuresCrmEnabled: tenant.features?.crm?.enabled ?? false,
     featuresTgoGrowthPushEnabled: tenant.features?.tgoGrowthPushEnabled ?? false,
+    featuresCashPaymentEnabledBySuperadmin: tenant.features?.cashPaymentEnabledBySuperadmin ?? false,
     businessEnabled: tenant.business?.enabled ?? false,
     sosMaxLimit: tenant.loyalty?.sosMaxLimit ?? 0,
     // Labels de tipo de promoción
@@ -99,7 +100,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           isActive: form.isActive,
           isOperational: form.isOperational,
           alwaysVisible: form.alwaysVisible,
-          features: { reservations: form.featuresReservations, crm: { enabled: form.featuresCrmEnabled }, tgoGrowthPushEnabled: form.featuresTgoGrowthPushEnabled },
+          features: { reservations: form.featuresReservations, crm: { enabled: form.featuresCrmEnabled }, tgoGrowthPushEnabled: form.featuresTgoGrowthPushEnabled, cashPaymentEnabledBySuperadmin: form.featuresCashPaymentEnabledBySuperadmin },
           business: { enabled: form.businessEnabled },
           sosMaxLimit: form.sosMaxLimit,
           commissionPercent: form.commissionPercent === '' ? null : Number(form.commissionPercent),
@@ -472,6 +473,26 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                     <div className={cn(
                       "w-4 h-4 rounded-full bg-white shadow-sm transition-all absolute",
                       form.featuresTgoGrowthPushEnabled ? 'left-[26px]' : 'left-1'
+                    )} />
+                  </button>
+                </div>
+              )}
+
+              {form.plan === 'full' && (
+                <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-2 h-2 rounded-full", form.featuresCashPaymentEnabledBySuperadmin ? "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/30")} />
+                    <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Pago en Efectivo (Premium)</span>
+                  </div>
+                  <button type="button"
+                    onClick={() => setForm(p => ({ ...p, featuresCashPaymentEnabledBySuperadmin: !p.featuresCashPaymentEnabledBySuperadmin }))}
+                    className={cn(
+                      "w-12 h-6 rounded-full transition-all relative flex items-center",
+                      form.featuresCashPaymentEnabledBySuperadmin ? 'bg-primary' : 'bg-muted-foreground/20'
+                    )}>
+                    <div className={cn(
+                      "w-4 h-4 rounded-full bg-white shadow-sm transition-all absolute",
+                      form.featuresCashPaymentEnabledBySuperadmin ? 'left-[26px]' : 'left-1'
                     )} />
                   </button>
                 </div>

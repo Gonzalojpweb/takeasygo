@@ -18,6 +18,7 @@ import { ICOWidget } from '@/components/admin/dashboard/ICOWidget'
 import MetodosPago from '@/components/admin/dashboard/MetodosPago'
 import DeliveryConciliation from '@/components/admin/dashboard/DeliveryConciliation'
 import { ComisionesBanner } from '@/components/admin/dashboard/ComisionesBanner'
+import { CashAdjustmentBanner } from '@/components/admin/CashAdjustmentBanner'
 import MenuActividad from '@/components/admin/dashboard/MenuActividad'
 import CalificacionesWidget from '@/components/admin/dashboard/CalificacionesWidget'
 import ClubWidget from '@/components/admin/dashboard/ClubWidget'
@@ -182,6 +183,9 @@ export default async function AdminDashboard() {
 
       {/* Comisiones pendientes */}
       <ComisionesBanner tenantSlug={tenantSlug!} data={summary?.comisiones?.pending} />
+
+      {/* Efectivo no cobrado */}
+      <CashAdjustmentBanner />
 
       {/* Actividad del menú */}
       <MenuActividad tenantSlug={tenantSlug!} data={summary?.menuActividad} />
