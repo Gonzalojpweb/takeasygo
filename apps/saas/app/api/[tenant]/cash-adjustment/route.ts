@@ -1,7 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
-import CashRegister from '@/models/CashRegister'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
@@ -9,8 +8,8 @@ import { logAudit } from '@/lib/audit'
 /**
  * POST /{tenant}/cash-adjustment
  *
- * Marks a cash order as not collected. Creates a negative cash movement
- * (cash_order_not_collected) to reconcile the expected amount.
+ * Marks a cash order as not collected.
+ * Sets payment.cashAdjustmentApplied = true so reports exclude it.
  */
 export async function POST(
   request: NextRequest,
@@ -27,7 +26,7 @@ export async function POST(
     if (authError) return authError
 
     const body = await request.json()
-    const { orderId, type } = body
+    const { orderId } = body
 
     if (!orderId) {
       return NextResponse.json({ error: 'orderId requerido' }, { status: 400 })
@@ -49,7 +48,6 @@ export async function POST(
 
     const now = new Date()
 
-    // Mark the order as adjusted
     await Order.findByIdAndUpdate(order._id, {
       $set: {
         'payment.cashAdjustmentApplied': true,
@@ -58,27 +56,6 @@ export async function POST(
       },
     })
 
-    // Create a negative cash movement to subtract from expected
-    // Find the most recent open cash register
-    const openRegister = await CashRegister.findOne({
-      tenantId: tenant._id,
-      status: 'open',
-    }).sort({ openDate: -1 })
-
-    if (openRegister) {
-      await CashRegister.findByIdAndUpdate(openRegister._id, {
-        $push: {
-          movements: {
-            type: 'cash_order_not_collected',
-            amount: -order.total, // negative to subtract
-            description: `Pedido ${order.orderNumber} no cobrado`,
-            date: now,
-            relatedOrderId: order._id,
-          },
-        },
-      })
-    }
-
     logAudit({
       tenantId: tenant._id.toString(),
       action: 'cash.adjustment.applied',
@@ -86,7 +63,6 @@ export async function POST(
       entityId: order._id.toString(),
       details: {
         orderNumber: order.orderNumber,
-        type,
         amount: order.total,
       },
       request,
