@@ -185,7 +185,7 @@ export default async function AdminDashboard() {
       <ComisionesBanner tenantSlug={tenantSlug!} data={summary?.comisiones?.pending} />
 
       {/* Efectivo no cobrado */}
-      <CashAdjustmentBanner />
+      <CashAdjustmentBanner tenantSlug={tenantSlug!} />
 
       {/* Actividad del menú */}
       <MenuActividad tenantSlug={tenantSlug!} data={summary?.menuActividad} />

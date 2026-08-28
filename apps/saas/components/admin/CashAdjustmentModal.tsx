@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { useTenantSlug } from '@/hooks/useTenantSlug'
 import { toast } from 'sonner'
 
 interface OrphanedOrder {
@@ -18,12 +16,12 @@ interface OrphanedOrder {
 interface CashAdjustmentModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  tenantSlug: string
   orders: OrphanedOrder[]
   onSuccess?: () => void
 }
 
-export function CashAdjustmentModal({ open, onOpenChange, orders, onSuccess }: CashAdjustmentModalProps) {
-  const tenantSlug = useTenantSlug()
+export function CashAdjustmentModal({ open, onOpenChange, tenantSlug, orders, onSuccess }: CashAdjustmentModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [submitting, setSubmitting] = useState(false)
 
@@ -46,7 +44,7 @@ export function CashAdjustmentModal({ open, onOpenChange, orders, onSuccess }: C
     let failed = 0
     try {
       for (const orderId of selected) {
-        const res = await fetch(`/${tenantSlug}/cash-adjustment`, {
+        const res = await fetch(`/api/${tenantSlug}/cash-adjustment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -87,17 +85,21 @@ export function CashAdjustmentModal({ open, onOpenChange, orders, onSuccess }: C
 
         <div className="space-y-2 max-h-80 overflow-y-auto">
           <div className="flex items-center gap-2 pb-2 border-b">
-            <Checkbox
+            <input
+              type="checkbox"
               checked={selected.size === orders.length}
-              onCheckedChange={() => selected.size === orders.length ? setSelected(new Set()) : selectAll()}
+              onChange={() => selected.size === orders.length ? setSelected(new Set()) : selectAll()}
+              className="h-4 w-4 rounded border-zinc-300"
             />
             <span className="text-sm font-medium">Seleccionar todos</span>
           </div>
           {orders.map(order => (
             <div key={order.orderId} className="flex items-center gap-2 py-1">
-              <Checkbox
+              <input
+                type="checkbox"
                 checked={selected.has(order.orderId)}
-                onCheckedChange={() => toggle(order.orderId)}
+                onChange={() => toggle(order.orderId)}
+                className="h-4 w-4 rounded border-zinc-300"
               />
               <div className="flex-1 text-sm">
                 <span className="font-mono">{order.orderNumber}</span>

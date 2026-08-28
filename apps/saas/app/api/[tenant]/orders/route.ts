@@ -927,6 +927,7 @@ export async function POST(
 
     // Total calculado 100% en el servidor
     const subtotal = resolvedItems.reduce((sum, item) => sum + item.subtotal, 0)
+    const paymentMethod = body.paymentMethod || 'mercadopago'
     let discountAmount = 0
     let qrPromoApplied = false
 
@@ -1320,7 +1321,6 @@ export async function POST(
     const isDeferredBusiness = isBusinessOrder && body.paymentModeSnapshot === 'deferred'
 
     // ── Determinar status inicial según método de pago ──────────────
-    const paymentMethod = body.paymentMethod || 'mercadopago'
     let initialStatus: string
     if (isDeferredBusiness) {
       initialStatus = 'confirmed'
