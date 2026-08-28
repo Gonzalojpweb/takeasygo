@@ -491,7 +491,7 @@ function PaymentConfirmation(props: {
     onPaymentMethodChange,
   } = props
 
-  const { state, hiddenRewardClaims } = useCheckout()
+  const { state, hiddenRewardClaims, cashDiscount, cashDiscountPercent } = useCheckout()
 
   const isDelivery = mode === 'delivery' || deliveryMode
   const restoName = tenantName || 'tu restaurante favorito'
@@ -701,6 +701,14 @@ function PaymentConfirmation(props: {
               {selectedRewardItem.name} (Canje)
             </span>
             <span>$0</span>
+          </div>
+        )}
+        {state.selectedPaymentMethod === 'cash' && cashDiscount > 0 && (
+          <div className="flex justify-between text-sm text-green-600 font-semibold">
+            <span className="flex items-center gap-1">
+              💵 Descuento efectivo ({cashDiscountPercent}%)
+            </span>
+            <span>-${toPesos(cashDiscount).toLocaleString('es-AR')}</span>
           </div>
         )}
         {isDelivery && deliveryQuote.withinRange && (
