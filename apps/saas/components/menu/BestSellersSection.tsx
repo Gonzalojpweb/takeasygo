@@ -1,8 +1,9 @@
 'use client'
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
 import { captureBestSellerViewed, captureBestSellerClicked } from '@/lib/tia/events'
 import type { BestSellerItem } from '@/lib/tia/bestSellers'
@@ -114,12 +115,17 @@ export default function BestSellersSection({
               style={{ backgroundColor: cardBg }}
               onClick={() => handleCardClick(item, index)}
             >
-              <div className="relative h-35">
+              <div className="relative h-44">
                 {item.imageUrl ? (
-                  <img
-                    src={item.imageUrl}
+                  <Image
+                    src={cloudinaryUrl(item.imageUrl, { w: 600 })}
                     alt={item.name}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="58vw"
+                    className="object-cover food-photo"
+                    placeholder="blur"
+                    blurDataURL={cloudinaryBlurUrl(item.imageUrl)}
+                    priority={index === 0}
                   />
                 ) : (
                   <div className="w-full h-full bg-zinc-200 flex items-center justify-center text-4xl text-zinc-400">
@@ -127,7 +133,7 @@ export default function BestSellersSection({
                   </div>
                 )}
                 <div
-                  className="absolute top-3 right-3 text-white text-xs font-bold px-3 py-1 rounded-full shadow"
+                  className="absolute top-3 right-3 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10"
                   style={{ backgroundColor: badgeBg }}
                 >
                   🔥 Más vendido

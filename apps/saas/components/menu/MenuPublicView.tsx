@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
+import Image from 'next/image'
+import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
@@ -975,7 +976,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                       boxShadow: isActive ? `0 0 0 2px ${primary}25` : 'none',
                     }}>
                     {cat.imageUrl
-                      ? <img src={cat.imageUrl} alt={tn(cat, 'name', locale)} className="w-full h-full object-cover" />
+                      ? <Image src={cloudinaryUrl(cat.imageUrl, { w: 200 })} alt={tn(cat, 'name', locale)} width={56} height={56} className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center"
                           style={{ backgroundColor: primary + '12' }}>
                           <UtensilsCrossed size={18} style={{ color: primary + '60' }} />
@@ -1037,7 +1038,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                     style={{ borderColor: primary + '12' }}
                     onClick={() => openCustomizationModal(item)}>
                     {item.imageUrl
-                      ? <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-14 h-14 object-cover rounded-xl flex-shrink-0" />
+                      ? <Image src={cloudinaryUrl(item.imageUrl, { w: 200 })} alt={tn(item, 'name', locale)} width={56} height={56} className="w-14 h-14 object-cover rounded-xl flex-shrink-0 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                       : <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                           style={{ backgroundColor: primary + '15' }}>
                           {veg ? <Leaf size={16} style={{ color: '#22c55e' }} /> : <UtensilsCrossed size={14} style={{ color: primary + '80' }} />}
@@ -1173,35 +1174,35 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                               return (
                                 <div key={item._id} className="relative border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
                                   style={{ borderColor: primary + '20', borderRadius: borderStyle }}
-                                  onClick={() => openCustomizationModal(item, catGroups)}>
-                                  {item.imageUrl && (
-                                    <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-28 object-cover" />
-                                  )}
-                                  <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
-                                  <div className="p-3">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      {veg
-                                        ? <Leaf size={11} className="flex-shrink-0" style={{ color: '#22c55e' }} />
-                                        : <UtensilsCrossed size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
-                                      <p className="font-semibold text-base leading-tight">{tn(item, 'name', locale)}</p>
-                                    </div>
-                                    {item.description && (
-                                      <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
-                                    )}
-                                    <div className="flex items-center justify-between">
-                                      <p className="font-bold text-sm" style={{ color: primary }}>
-                                        ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                      </p>
-                                      {likesOrderId ? (
-                                        <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
-                                      ) : isOperational ? (
-                                        <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
-                                      ) : (
-                                        <span className="text-[9px] font-bold opacity-30">CATÁLOGO</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
+                                   onClick={() => openCustomizationModal(item, catGroups)}>
+                                   {item.imageUrl && (
+                                     <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} fill sizes="50vw" className="object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
+                                   )}
+                                   <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
+                                   <div className="p-3">
+                                     <div className="flex items-center gap-1.5 mb-1">
+                                       {veg
+                                         ? <Leaf size={11} className="flex-shrink-0" style={{ color: '#22c55e' }} />
+                                         : <UtensilsCrossed size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
+                                       <p className="font-semibold text-base leading-tight">{tn(item, 'name', locale)}</p>
+                                     </div>
+                                     {item.description && (
+                                       <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
+                                     )}
+                                     <div className="flex items-center justify-between">
+                                       <p className="font-bold text-sm" style={{ color: primary }}>
+                                         ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
+                                       </p>
+                                       {likesOrderId ? (
+                                         <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
+                                       ) : isOperational ? (
+                                         <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
+                                       ) : (
+                                         <span className="text-[9px] font-bold opacity-30">CATÁLOGO</span>
+                                       )}
+                                     </div>
+                                   </div>
+                                 </div>
                               )
                             }
 
@@ -1211,7 +1212,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 style={{ borderColor: primary + '12' }}
                                 onClick={() => openCustomizationModal(item, catGroups)}>
                                 {item.imageUrl
-                                  ? <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-16 h-16 object-cover rounded-xl flex-shrink-0" />
+                                  ? <Image src={cloudinaryUrl(item.imageUrl, { w: 200 })} alt={tn(item, 'name', locale)} width={64} height={64} className="w-16 h-16 object-cover rounded-xl flex-shrink-0 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                                   : <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                                       style={{ backgroundColor: primary + '10' }}>
                                       {veg
@@ -1286,7 +1287,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                     style={{ borderColor: primary + '20', borderRadius: borderStyle }}
                                     onClick={() => openCustomizationModal(item, catGroups)}>
                                     {item.imageUrl && (
-                                      <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-28 object-cover" />
+                                      <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} fill sizes="50vw" className="object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                                     )}
                                     <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
                                     <div className="p-3">
@@ -1322,7 +1323,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                   style={{ borderColor: primary + '12' }}
                                   onClick={() => openCustomizationModal(item, catGroups)}>
                                   {item.imageUrl
-                                    ? <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-16 h-16 object-cover rounded-xl flex-shrink-0" />
+                                    ? <Image src={cloudinaryUrl(item.imageUrl, { w: 200 })} alt={tn(item, 'name', locale)} width={64} height={64} className="w-16 h-16 object-cover rounded-xl flex-shrink-0 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                                     : <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                                         style={{ backgroundColor: primary + '10' }}>
                                         {veg
@@ -1386,7 +1387,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                             style={{ borderColor: primary + '20', borderRadius: borderStyle }}
                             onClick={() => openCustomizationModal(item, catGroups)}>
                             {item.imageUrl && (
-                              <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-28 object-cover" />
+                              <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} fill sizes="50vw" className="object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                             )}
                             <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
                             <div className="p-3">
@@ -1422,7 +1423,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                           style={{ borderColor: primary + '12' }}
                           onClick={() => openCustomizationModal(item, catGroups)}>
                           {item.imageUrl
-                            ? <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-16 h-16 object-cover rounded-xl flex-shrink-0" />
+                            ? <Image src={cloudinaryUrl(item.imageUrl, { w: 200 })} alt={tn(item, 'name', locale)} width={64} height={64} className="w-16 h-16 object-cover rounded-xl flex-shrink-0 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                             : <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                                 style={{ backgroundColor: primary + '10' }}>
                                 {veg
@@ -1493,8 +1494,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               {featuredItems.slice(0, 8).map((item: any) => (
                 <div key={item._id} className="rounded-xl overflow-hidden aspect-square relative group">
                   {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={tn(item, 'name', locale)}
-                      className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                    <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover transition-transform group-hover:scale-105 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3"
                       style={{ backgroundColor: primary + '20', border: `1px solid ${primary}30` }}>
