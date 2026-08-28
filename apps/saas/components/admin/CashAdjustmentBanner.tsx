@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { useTenantSlug } from '@/hooks/useTenantSlug'
 import { CashAdjustmentModal } from './CashAdjustmentModal'
 
 interface OrphanedOrder {
@@ -20,8 +19,7 @@ interface ReconciliationSummary {
   orders: OrphanedOrder[]
 }
 
-export function CashAdjustmentBanner() {
-  const tenantSlug = useTenantSlug()
+export function CashAdjustmentBanner({ tenantSlug }: { tenantSlug: string }) {
   const [summary, setSummary] = useState<ReconciliationSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [dismissed, setDismissed] = useState(false)
@@ -29,7 +27,7 @@ export function CashAdjustmentBanner() {
 
   async function fetchSummary() {
     try {
-      const res = await fetch(`/${tenantSlug}/cash-reconciliation?days=7`)
+      const res = await fetch(`/api/${tenantSlug}/cash-reconciliation?days=7`)
       if (res.ok) {
         const data = await res.json()
         setSummary(data)
@@ -83,6 +81,7 @@ export function CashAdjustmentBanner() {
       <CashAdjustmentModal
         open={modalOpen}
         onOpenChange={setModalOpen}
+        tenantSlug={tenantSlug}
         orders={summary.orders}
         onSuccess={() => {
           setModalOpen(false)

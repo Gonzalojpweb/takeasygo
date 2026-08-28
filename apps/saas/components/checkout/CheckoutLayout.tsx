@@ -41,7 +41,7 @@ export default function CheckoutLayout(props: Props) {
 function CheckoutLayoutInner() {
   const router = useRouter()
   const { state, dispatch, steps, effectiveTime, delayEnabled, extraMinutes, delayMessage, selectedRewardItem, subtotal, discountAmount, deliveryCost, baseTotal, total, activeSurchargePercent, missingPoints, canUseSos, effectiveAdvanceLimit, tenantName, transferData, hiddenRewardClaims } = useCheckout()
-  const { currentStep, activeOrderNumber, tenantSlug, deliveryMode, mode, loyaltyMember, loyaltyConfig, joinClub, walletEnabled, storeItems, selectedRewardItemId, rewardItemLoading, pointsLookupLoading, kriptonEnabled, transferEnabled, selectedPaymentMethod, scheduleOrder, activeQrPromo, estimatedTimeInfo, deliveryQuote } = state
+  const { currentStep, activeOrderNumber, tenantSlug, deliveryMode, mode, loyaltyMember, loyaltyConfig, joinClub, walletEnabled, storeItems, selectedRewardItemId, rewardItemLoading, pointsLookupLoading, kriptonEnabled, transferEnabled, cashEnabled, selectedPaymentMethod, scheduleOrder, activeQrPromo, estimatedTimeInfo, deliveryQuote } = state
 
   const [legalModal, setLegalModal] = useState<'terminos' | 'privacidad' | null>(null)
   const [storedName, setStoredName] = useState<string | null>(null)
@@ -150,6 +150,7 @@ function CheckoutLayoutInner() {
           selectedPaymentMethod={selectedPaymentMethod}
           kriptonEnabled={kriptonEnabled}
           transferEnabled={transferEnabled}
+          cashEnabled={cashEnabled}
           subtotal={subtotal}
           discountAmount={discountAmount}
           activeQrPromo={activeQrPromo}
