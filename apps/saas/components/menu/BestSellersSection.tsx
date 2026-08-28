@@ -145,7 +145,13 @@ export default function BestSellersSection({
                   </p>
                 )}
 
-                <div className="flex items-center justify-between mt-5">
+                {item.count > 0 && (
+                  <p className="text-[11px] text-zinc-400 font-medium mt-1.5">
+                    🔥 {item.count.toLocaleString()} pedidos este mes
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between mt-3">
                   <span className="text-xl font-bold" style={{ color: accent }}>
                     ${toPesos(item.price).toLocaleString('es-AR')}
                   </span>

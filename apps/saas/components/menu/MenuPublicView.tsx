@@ -19,6 +19,7 @@ import UpsellSheet from '@/components/menu/UpsellSheet'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import { resolveSlotCustomizationMode, type SlotCustomizationMode } from '@/lib/promotion-helpers'
 import StoreCarousel from '@/components/menu/StoreCarousel'
+import PointsStickyBar from '@/components/menu/PointsStickyBar'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import BestSellersSection from '@/components/menu/BestSellersSection'
@@ -1000,6 +1001,15 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         </nav>
       </header>
 
+      {/* Points sticky bar — positioned below header, accounts for other banners */}
+      {!isAdminCorp && (
+        <PointsStickyBar
+          tenantSlug={tenant.slug}
+          memberPoints={memberPoints}
+          locationId={location._id}
+        />
+      )}
+
       {/* ── Main menu content ── */}
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-28">
 
@@ -1011,34 +1021,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           </div>
         )}
 
-        {/* Promotions Section — hidden for company admin in business mode */}
-        {promotions.length > 0 && !isAdminCorp && (
-          <section className="mb-8 px-1">
-            <div className="flex items-center gap-2 mb-4">
-              <Tag size={18} style={{ color: primary }} strokeWidth={2.5} />
-              <h2 className="text-base font-bold tracking-tight" style={{ color: text }}>Promociones</h2>
-            </div>
-            
-            <PromotionCarousel
-              promotions={[...featuredPromotions, ...regularPromotions]}
-              tenantSlug={tenant.slug}
-              restaurantName={tenant.name}
-              locationId={location._id}
-              onAdd={addPromotionToCart}
-              primary={primary}
-              bg={bg}
-              textColor={text}
-              mode="takeaway"
-              typeLabels={tenant.promotionLabels}
-              loyaltyMessaging={tenant.loyaltyMessaging}
-            />
-          </section>
-        )}
-
-        {/* Store Points Carousel — hidden for company admin in business mode */}
-        {!isAdminCorp && <StoreCarousel tenantSlug={tenant.slug} memberPoints={memberPoints} locationId={location._id} />}
-
-        {/* Featured strip at top */}
+        {/* Featured strip — shown first so repeat customers reach products immediately */}
         {featuredItems.length > 0 && (
           <section className="mb-8 rounded-2xl overflow-hidden border" style={{ borderColor: primary + '25' }}>
             <div className="px-4 py-3 border-b" style={{ borderColor: primary + '25', backgroundColor: primary + '10' }}>
@@ -1074,6 +1057,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                           </span>
                         ))}
                         <LikeBadge count={item.likesCount ?? 0} variant="inline" />
+                        {(item.likesCount ?? 0) >= 5 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">
+                            Popular
+                          </span>
+                        )}
                       </div>
                     </div>
                     {likesOrderId ? (
@@ -1091,6 +1079,33 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             </div>
           </section>
         )}
+
+        {/* Promotions Section — hidden for company admin in business mode */}
+        {promotions.length > 0 && !isAdminCorp && (
+          <section className="mb-8 px-1">
+            <div className="flex items-center gap-2 mb-4">
+              <Tag size={18} style={{ color: primary }} strokeWidth={2.5} />
+              <h2 className="text-base font-bold tracking-tight" style={{ color: text }}>Promociones</h2>
+            </div>
+            
+            <PromotionCarousel
+              promotions={[...featuredPromotions, ...regularPromotions]}
+              tenantSlug={tenant.slug}
+              restaurantName={tenant.name}
+              locationId={location._id}
+              onAdd={addPromotionToCart}
+              primary={primary}
+              bg={bg}
+              textColor={text}
+              mode="takeaway"
+              typeLabels={tenant.promotionLabels}
+              loyaltyMessaging={tenant.loyaltyMessaging}
+            />
+          </section>
+        )}
+
+        {/* Store Points Carousel — hidden for company admin in business mode */}
+        {!isAdminCorp && <StoreCarousel tenantSlug={tenant.slug} memberPoints={memberPoints} locationId={location._id} />}
 
         {/* Best Sellers */}
         {bestSellers && bestSellers.length > 0 && tenant.branding?.bestSellers?.showSection !== false && (
@@ -1220,6 +1235,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                       </span>
                                     ))}
                                     <LikeBadge count={item.likesCount ?? 0} variant="inline" />
+                                    {(item.likesCount ?? 0) >= 5 && (
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">
+                                        Popular
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 {likesOrderId ? (
@@ -1326,6 +1346,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                         </span>
                                       ))}
                                       <LikeBadge count={item.likesCount ?? 0} variant="inline" />
+                                      {(item.likesCount ?? 0) >= 5 && (
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">
+                                          Popular
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                   {likesOrderId ? (
@@ -1421,6 +1446,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 </span>
                               ))}
                               <LikeBadge count={item.likesCount ?? 0} variant="inline" />
+                              {(item.likesCount ?? 0) >= 5 && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">
+                                  Popular
+                                </span>
+                              )}
                             </div>
                           </div>
                           {likesOrderId ? (
@@ -2085,6 +2115,25 @@ function CartControl({
   }
 
   if (hasCustomizations) {
+    if (compact) {
+      return (
+        <div className="relative flex-shrink-0">
+          {totalQty > 0 && (
+            <span
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center z-10"
+              style={{ backgroundColor: primary, color: bg }}>
+              {totalQty}
+            </span>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenModal(item); }}
+            className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0 transition-transform`}
+            style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.3)' : 'scale(1)' }}>
+            <Plus size={sz} />
+          </button>
+        </div>
+      )
+    }
     return (
       <div className="relative flex-shrink-0">
         {totalQty > 0 && (
@@ -2096,9 +2145,9 @@ function CartControl({
         )}
         <button
           onClick={(e) => { e.stopPropagation(); onOpenModal(item); }}
-          className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0 transition-transform`}
-          style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.3)' : 'scale(1)' }}>
-          <Plus size={sz} />
+          className="px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 flex-shrink-0 transition-transform active:scale-95"
+          style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.05)' : 'scale(1)' }}>
+          Agregar <Plus size={13} strokeWidth={2.5} />
         </button>
       </div>
     )
@@ -2125,11 +2174,21 @@ function CartControl({
     )
   }
 
+  if (compact) {
+    return (
+      <button onClick={handleAdd}
+        className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0 transition-transform`}
+        style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.3)' : 'scale(1)' }}>
+        <Plus size={sz} />
+      </button>
+    )
+  }
+
   return (
     <button onClick={handleAdd}
-      className={`${btnSz} rounded-full flex items-center justify-center flex-shrink-0 transition-transform`}
-      style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.3)' : 'scale(1)' }}>
-      <Plus size={sz} />
+      className="px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 flex-shrink-0 transition-transform active:scale-95"
+      style={{ backgroundColor: primary, color: bg, transform: bounce ? 'scale(1.05)' : 'scale(1)' }}>
+      Agregar <Plus size={13} strokeWidth={2.5} />
     </button>
   )
 }
