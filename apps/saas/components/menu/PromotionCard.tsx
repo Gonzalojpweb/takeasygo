@@ -8,6 +8,32 @@ import { capturePromotionViewed, capturePromotionClicked, capturePromotionApplie
 import ClubOnboardingModal from '../club/ClubOnboardingModal'
 import { toast } from 'sonner'
 
+// ── Countdown helper ────────────────────────────────────────────────
+function formatCountdown(endDate: Date): { text: string; urgent: boolean; expired: boolean } {
+  const diff = endDate.getTime() - Date.now()
+  if (diff <= 0) return { text: '', urgent: false, expired: true }
+  const totalMin = Math.floor(diff / 60000)
+  const hours = Math.floor(totalMin / 60)
+  const minutes = totalMin % 60
+  if (hours > 0) {
+    return { text: `Termina en ${hours}h ${minutes}m`, urgent: false, expired: false }
+  }
+  return { text: `Termina en ${minutes}m`, urgent: true, expired: false }
+}
+
+function usePromoCountdown(scheduledEnd?: Date | string | null) {
+  const [state, setState] = useState<{ text: string; urgent: boolean; expired: boolean }>({ text: '', urgent: false, expired: false })
+  useEffect(() => {
+    if (!scheduledEnd) return
+    const endDate = typeof scheduledEnd === 'string' ? new Date(scheduledEnd) : scheduledEnd
+    const tick = () => setState(formatCountdown(endDate))
+    tick()
+    const id = setInterval(tick, 60_000)
+    return () => clearInterval(id)
+  }, [scheduledEnd])
+  return state
+}
+
 // Helper function to check if a hex color is light
 function isLightColor(color?: string) {
   if (!color) return true
@@ -50,6 +76,7 @@ interface PromotionCardProps {
     originalPrice?: number
     conditions?: string
     isFeatured?: boolean
+    scheduledEnd?: Date | string | null
     ctaText?: string
     ctaLink?: string
     customStyles?: {
@@ -100,6 +127,7 @@ export function PromotionCard({
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false)
   const isFeatured = variant === 'featured' || (variant === undefined && promotion.isFeatured)
   const cardRef = useRef<HTMLDivElement>(null)
+  const countdown = usePromoCountdown(promotion.scheduledEnd)
 
   useEffect(() => {
     const el = cardRef.current
@@ -170,8 +198,8 @@ export function PromotionCard({
 
           {/* Left Content Column */}
           <div className="flex-1 flex flex-col justify-between p-4 z-10 min-w-0">
-            {/* Top: type badge */}
-            <div className="flex items-center gap-1.5">
+            {/* Top: type badge + countdown */}
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span
                 className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
                 style={{ backgroundColor: 'rgba(255,255,255,0.18)', color: onCard }}
@@ -181,6 +209,17 @@ export function PromotionCard({
                   : promoType === 'announcement' ? (typeLabels?.announcement || 'AVISO')
                   : (typeLabels?.loyalty || 'CLUB')}
               </span>
+              {countdown.text && (
+                <span
+                  className="text-[9px] font-bold px-2 py-0.5 rounded-full animate-pulse"
+                  style={{
+                    backgroundColor: countdown.urgent ? 'rgba(239,68,68,0.85)' : 'rgba(255,255,255,0.22)',
+                    color: countdown.urgent ? '#ffffff' : 'rgba(255,255,255,0.9)',
+                  }}
+                >
+                  ⏱ {countdown.text}
+                </span>
+              )}
             </div>
 
             {/* Middle: title + discount */}
@@ -392,15 +431,28 @@ export function PromotionCard({
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-between py-3 pr-3">
           <div className="space-y-1">
-            <span
-              className="text-[9px] uppercase font-black tracking-widest block"
-              style={{ color: accent }}
-            >
-              {promoType === 'sale' ? (typeLabels?.sale || 'PROMO')
-                : promoType === 'info' ? (typeLabels?.info || 'INFO')
-                : promoType === 'announcement' ? (typeLabels?.announcement || 'AVISO')
-                : (typeLabels?.loyalty || 'CLUB')}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span
+                className="text-[9px] uppercase font-black tracking-widest"
+                style={{ color: accent }}
+              >
+                {promoType === 'sale' ? (typeLabels?.sale || 'PROMO')
+                  : promoType === 'info' ? (typeLabels?.info || 'INFO')
+                  : promoType === 'announcement' ? (typeLabels?.announcement || 'AVISO')
+                  : (typeLabels?.loyalty || 'CLUB')}
+              </span>
+              {countdown.text && (
+                <span
+                  className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: countdown.urgent ? '#fef2f2' : (accent + '12'),
+                    color: countdown.urgent ? '#dc2626' : accent,
+                  }}
+                >
+                  ⏱ {countdown.text}
+                </span>
+              )}
+            </div>
             <h3
               className="font-bold text-sm leading-tight line-clamp-2"
               style={{ color: titleColor }}
