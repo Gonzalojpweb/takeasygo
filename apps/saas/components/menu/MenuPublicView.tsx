@@ -1176,7 +1176,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                   style={{ borderColor: primary + '20', borderRadius: borderStyle }}
                                    onClick={() => openCustomizationModal(item, catGroups)}>
                                    {item.imageUrl && (
-                                     <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} fill sizes="50vw" className="object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
+                                     <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} width={500} height={200} className="w-full h-36 object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                                    )}
                                    <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
                                    <div className="p-3">
@@ -1287,7 +1287,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                     style={{ borderColor: primary + '20', borderRadius: borderStyle }}
                                     onClick={() => openCustomizationModal(item, catGroups)}>
                                     {item.imageUrl && (
-                                      <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} fill sizes="50vw" className="object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
+                                      <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} width={500} height={200} className="w-full h-36 object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                                     )}
                                     <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
                                     <div className="p-3">
@@ -1387,7 +1387,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                             style={{ borderColor: primary + '20', borderRadius: borderStyle }}
                             onClick={() => openCustomizationModal(item, catGroups)}>
                             {item.imageUrl && (
-                              <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} fill sizes="50vw" className="object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
+                              <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} width={500} height={200} className="w-full h-36 object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                             )}
                             <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
                             <div className="p-3">
