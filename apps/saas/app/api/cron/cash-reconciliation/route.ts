@@ -82,16 +82,11 @@ export async function GET(request: NextRequest) {
             currency: 'ARS',
           }).format(totalAmount / 100)
 
-          const payload = JSON.stringify({
-            title: `⚠️ Efectivo no cobrado — ${tenant.name}`,
-            body: `${orphans.length} pedido(s) confirmado(s) sin cobrar. Monto: ${formattedTotal}`,
-            icon: '/tgoicon-192.png',
-            badge: '/tgoicon-192.png',
-            url: `/${tenant.slug}/admin`,
-            tag: `cash-reconciliation-${new Date().toISOString().slice(0, 10)}`,
-          })
+          const title = `⚠️ Efectivo no cobrado — ${tenant.name}`
+          const body = `${orphans.length} pedido(s) confirmado(s) sin cobrar. Monto: ${formattedTotal}`
+          const url = `/${tenant.slug}/admin`
 
-          await sendBulkPush(subs, payload.title, payload.body, payload.url)
+          await sendBulkPush(subs, title, body, url)
           pushSent = true
         }
       } catch (err) {
