@@ -353,6 +353,7 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
 
       const pointsToAdd = calculatePoints(
         order.items?.filter((i: any) => i.itemType !== 'reward')?.reduce((sum: number, i: any) => sum + (i.subtotal || 0), 0) ?? order.total ?? 0,
+        pointsConfig,
       )
       if (pointsToAdd <= 0) return null
 
