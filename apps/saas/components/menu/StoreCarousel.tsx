@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Flame, ChevronRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
+import { cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import { captureRewardViewed } from '@/lib/tia/events'
 
 interface StoreItem {
@@ -54,7 +56,7 @@ export default function StoreCarousel({ tenantSlug, memberPoints, locationId }: 
 
   return (
     <div className="px-4 py-6 bg-gradient-to-b from-purple-50/50 to-transparent">
-      {/* Header */}
+      {/* Header — no points badge here, that lives in PointsStickyBar */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-gray-900">Canjeá tus puntos</h2>
         <button 
@@ -66,29 +68,25 @@ export default function StoreCarousel({ tenantSlug, memberPoints, locationId }: 
         </button>
       </div>
 
-      {/* Points Badge */}
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex items-center gap-1.5 bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full text-sm font-bold">
-          <Flame size={14} className="fill-orange-500 text-orange-500" />
-          {memberPoints.toLocaleString()} pts
-        </div>
-      </div>
-
       {/* Horizontal Carousel */}
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide snap-x snap-mandatory">
         {items.map((item) => (
           <button
             key={item._id}
-          onClick={() => router.push(storeUrl)}
+            onClick={() => router.push(storeUrl)}
             className="flex-shrink-0 w-28 snap-start text-left group"
           >
             {/* Product Image */}
             <div className="relative w-28 h-28 rounded-2xl overflow-hidden bg-gray-100 mb-2 shadow-sm group-hover:shadow-md transition-shadow">
               {item.imageUrl ? (
-                <img
-                  src={item.imageUrl}
+                <Image
+                  src={cloudinaryUrl(item.imageUrl, { w: 300 })}
                   alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  fill
+                  sizes="112px"
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  placeholder="blur"
+                  blurDataURL={cloudinaryBlurUrl(item.imageUrl)}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
@@ -97,9 +95,8 @@ export default function StoreCarousel({ tenantSlug, memberPoints, locationId }: 
               )}
               
               {/* Points Badge on Image */}
-              <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-bold text-orange-600">
-                <Flame size={10} className="fill-orange-500" />
-                {item.pointsCost.toLocaleString()}
+              <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-bold text-orange-600 z-10">
+                {item.pointsCost.toLocaleString()} pts
               </div>
             </div>
 

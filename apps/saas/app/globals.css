@@ -793,3 +793,12 @@ main div:has(> .is-admin-orders-page) {
 [data-design="spatial"] nav[aria-label="Navegación principal"] a:active {
   opacity: 0.7;
 }
+
+/* ── Food photo enhancement ─────────────────────────────────────────── */
+.food-photo {
+  filter: saturate(1.08) contrast(1.02);
+  transition: filter 0.3s ease;
+}
+.food-photo:hover {
+  filter: saturate(1.15) contrast(1.05) brightness(1.02);
+}

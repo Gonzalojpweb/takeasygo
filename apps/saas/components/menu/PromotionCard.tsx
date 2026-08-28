@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { Tag, Plus, Percent, Info, Megaphone, Heart, ExternalLink, ChevronRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
 import { capturePromotionViewed, capturePromotionClicked, capturePromotionApplied } from '@/lib/tia/events'
 import ClubOnboardingModal from '../club/ClubOnboardingModal'
@@ -325,10 +326,14 @@ export function PromotionCard({
                 borderBottomRightRadius: styles.borderRadius || '20px',
               }}
             >
-              <img
-                src={promotion.imageUrl}
+              <Image
+                src={cloudinaryUrl(promotion.imageUrl, { w: 600 })}
                 alt={promotion.title}
-                className="w-full h-full object-cover object-[center_35%]"
+                fill
+                sizes="48vw"
+                className="object-cover object-[center_35%] food-photo"
+                placeholder="blur"
+                blurDataURL={cloudinaryBlurUrl(promotion.imageUrl)}
               />
               {/* Soft gradient mask to blend left edge with the colored card background */}
               <div
@@ -393,10 +398,14 @@ export function PromotionCard({
         <div className="relative flex-shrink-0 self-stretch" style={{ width: 108 }}>
           {promotion.imageUrl ? (
             <>
-              <img
-                src={promotion.imageUrl}
+              <Image
+                src={cloudinaryUrl(promotion.imageUrl, { w: 400 })}
                 alt={promotion.title}
-                className="w-full h-full object-cover object-[center_35%]"
+                fill
+                sizes="108px"
+                className="object-cover object-[center_35%] food-photo"
+                placeholder="blur"
+                blurDataURL={cloudinaryBlurUrl(promotion.imageUrl)}
                 style={{ borderRadius: '16px 0 0 16px' }}
               />
               {/* Discount badge on image */}
