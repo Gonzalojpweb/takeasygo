@@ -59,14 +59,14 @@ export default async function AdminLayout({
   const session = await auth()
 
   if (!session?.user) {
-    redirect('/login')
+    redirect(`/${tenant}/admin/login`)
   }
 
   const isSuperadmin = session.user.role === 'superadmin'
   const isOwnerOfTenant = session.user.tenantSlug === tenant
 
   if (!isSuperadmin && !isOwnerOfTenant) {
-    redirect('/login')
+    redirect(`/${tenant}/admin/login`)
   }
 
   await connectDB()
