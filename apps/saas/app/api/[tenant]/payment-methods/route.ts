@@ -44,6 +44,7 @@ export async function GET(
       enabled: boolean
       surchargePercent: number
       totalFees: number
+      cashDiscountPercent?: number
     }> = []
 
     {
@@ -94,6 +95,7 @@ export async function GET(
         enabled: true,
         surchargePercent: 0,
         totalFees: 0,
+        cashDiscountPercent: tenant.cash?.discountPercent || 0,
       })
     }
 

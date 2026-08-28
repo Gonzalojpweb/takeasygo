@@ -104,6 +104,7 @@ export interface CheckoutState {
   redirectingToMp: boolean
   kriptonEnabled: boolean
   cashEnabled: boolean
+  cashDiscountPercent: number
   selectedPaymentMethod: 'mercadopago' | 'kripton' | 'transfer' | 'cash' | null
   paymentSurcharges: Record<string, number>
   paymentTotalFees: Record<string, number>
@@ -145,6 +146,7 @@ type CheckoutAction =
   | { type: 'SET_REDIRECTING'; redirecting: boolean }
   | { type: 'SET_KRIPTON_ENABLED'; enabled: boolean }
   | { type: 'SET_CASH_ENABLED'; enabled: boolean }
+  | { type: 'SET_CASH_DISCOUNT_PERCENT'; percent: number }
   | { type: 'SET_PAYMENT_METHOD'; method: 'mercadopago' | 'kripton' | 'transfer' | 'cash' | null }
   | { type: 'SET_PAYMENT_SURCHARGES'; surcharges: Record<string, number> }
   | { type: 'SET_PAYMENT_TOTAL_FEES'; totalFees: Record<string, number> }
@@ -195,6 +197,8 @@ interface CheckoutContextValue {
   activeSurchargePercent: number
   transferData: { alias: string | null; cbu: string | null; cvu: string | null; bankName: string | null; holderName: string | null } | null
   hiddenRewardClaims: Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }>
+  cashDiscount: number
+  cashDiscountPercent: number
 }
 
 const CheckoutContext = createContext<CheckoutContextValue | null>(null)
@@ -221,6 +225,7 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_REDIRECTING': return { ...state, redirectingToMp: action.redirecting }
     case 'SET_KRIPTON_ENABLED': return { ...state, kriptonEnabled: action.enabled }
     case 'SET_CASH_ENABLED': return { ...state, cashEnabled: action.enabled }
+    case 'SET_CASH_DISCOUNT_PERCENT': return { ...state, cashDiscountPercent: action.percent }
     case 'SET_PAYMENT_METHOD': return { ...state, selectedPaymentMethod: action.method }
     case 'SET_PAYMENT_SURCHARGES': return { ...state, paymentSurcharges: action.surcharges }
     case 'SET_PAYMENT_TOTAL_FEES': return { ...state, paymentTotalFees: action.totalFees }
@@ -275,6 +280,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     redirectingToMp: false,
     kriptonEnabled: false,
     cashEnabled: false,
+    cashDiscountPercent: 0,
     selectedPaymentMethod: null as any,
     paymentSurcharges: {},
     paymentTotalFees: {},
@@ -404,6 +410,10 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
         const cashAvailable = data.methods.find((m: any) => m.id === 'cash')?.enabled
         if (cashAvailable) {
           dispatch({ type: 'SET_CASH_ENABLED', enabled: true })
+          const cashDiscount = data.methods.find((m: any) => m.id === 'cash')?.cashDiscountPercent || 0
+          if (cashDiscount > 0) {
+            dispatch({ type: 'SET_CASH_DISCOUNT_PERCENT', percent: cashDiscount })
+          }
         }
       })
       .catch((err) => { console.error('payment-methods fetch error:', err) })
@@ -569,6 +579,12 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
 
   const discountAmount = qrDiscount + hiddenRewardDiscount
 
+  // Cash discount: only applies when cash is selected, computed on subtotal (before delivery)
+  // The actual application happens server-side — this is for display only
+  const cashDiscount = state.selectedPaymentMethod === 'cash' && state.cashDiscountPercent > 0
+    ? Math.floor(subtotal * (state.cashDiscountPercent / 100))
+    : 0
+
   const selectedRewardItem = state.selectedRewardItemId
     ? state.storeItems.find(i => i._id === state.selectedRewardItemId) ?? null
     : null
@@ -666,6 +682,8 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     activeSurchargePercent,
     transferData: state.transferData,
     hiddenRewardClaims: state.hiddenRewardClaims,
+    cashDiscount,
+    cashDiscountPercent: state.cashDiscountPercent,
   }
 
   return (
