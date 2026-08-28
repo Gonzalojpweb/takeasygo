@@ -353,9 +353,17 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
 
       const pointsToAdd = calculatePoints(
         order.items?.filter((i: any) => i.itemType !== 'reward')?.reduce((sum: number, i: any) => sum + (i.subtotal || 0), 0) ?? order.total ?? 0,
-        pointsConfig,
       )
       if (pointsToAdd <= 0) return null
+
+      // Atomic claim: set loyaltyPointsCredited=true only if still false.
+      // Prevents race condition between webhook, reconcile, and tracking page.
+      const claimed = await Order.findOneAndUpdate(
+        { _id: order._id, loyaltyPointsCredited: { $ne: true } },
+        { $set: { loyaltyPointsCredited: true } },
+        { session, returnDocument: 'after' }
+      )
+      if (!claimed) return null
 
       await LoyaltyMember.updateOne(
         { _id: member._id },
@@ -366,7 +374,6 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
         { session }
       )
 
-      await Order.updateOne({ _id: order._id }, { $set: { loyaltyPointsCredited: true } }, { session })
       order.loyaltyPointsCredited = true
 
       if (member.wallet?.googleObjectId) {
@@ -380,6 +387,15 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
   }
 
   if (!order.customer?.phoneHash && !forceMemberId) return null
+
+  // Atomic claim: set loyaltyPointsCredited=true only if still false.
+  // Prevents race condition between webhook, reconcile, and tracking page.
+  const claimed = await Order.findOneAndUpdate(
+    { _id: order._id, loyaltyPointsCredited: { $ne: true } },
+    { $set: { loyaltyPointsCredited: true } },
+    { session, returnDocument: 'after' }
+  )
+  if (!claimed) return null
 
   const saleItemsTotal = order.items
     ?.filter((i: any) => i.itemType !== 'reward')
@@ -512,14 +528,6 @@ export async function addPointsFromOrder(order: any, tenant: any, session?: mong
     consolidated = true
     await member.save({ session })
   }
-
-  await Order.updateOne(
-    { _id: order._id },
-    { $set: { loyaltyPointsCredited: true } },
-    { session }
-  )
-
-  order.loyaltyPointsCredited = true
 
   if (member && member.wallet?.googleObjectId) {
     setImmediate(async () => {
