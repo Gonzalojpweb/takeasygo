@@ -1,5 +1,6 @@
 import Order from '@/models/Order'
 import { toPesos } from '@takeasygo/business'
+import iconv from 'iconv-lite'
 
 export interface PreCloseData {
   locationName: string
@@ -149,23 +150,12 @@ const ESC_POS = {
   SIZE_LARGE:    Buffer.from([0x1d, 0x21, 0x11]),
 }
 
-const SANITIZE_MAP: Record<string, string> = {
-  'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
-  'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
-  'ñ': 'n', 'Ñ': 'N', 'ü': 'u', 'Ü': 'U',
-  '¿': '', '¡': '', '€': 'EUR', 'º': 'o', 'ª': 'a',
-}
-
-const NON_LATIN1_RE = /[^\x00-\xFF]/g
-
-function sanitize(str: string): string {
-  return str.replace(NON_LATIN1_RE, '')
-    .replace(/[áéíóúÁÉÍÓÚñÑüÜ¿¡€ºª]/g, c => SANITIZE_MAP[c] || c)
-}
+// Guard: quita caracteres que CP858 no puede representar (rango Latin-1 + €).
+const NON_LATIN1_RE = /[^\u0000-\u00FF\u20AC]/g
 
 function buf(input: string | Buffer): Buffer {
   if (Buffer.isBuffer(input)) return input
-  return Buffer.from(sanitize(input), 'latin1')
+  return iconv.encode(input.replace(NON_LATIN1_RE, ''), 'cp858')
 }
 
 function money(v: number): string {
@@ -194,7 +184,7 @@ export function buildPreCloseBuffer(data: PreCloseData, columns: number = 32): s
 
   // Header
   chunks.push(ESC_POS.SIZE_LARGE, ESC_POS.BOLD_ON)
-  chunks.push(buf(`${sanitize(data.locationName.toUpperCase())}\n`))
+  chunks.push(buf(`${data.locationName.toUpperCase()}\n`))
   chunks.push(buf(`CIERRE DE TURNO\n`))
   chunks.push(ESC_POS.SIZE_NORMAL, ESC_POS.BOLD_OFF)
 
@@ -282,7 +272,7 @@ export function buildPreCloseBuffer(data: PreCloseData, columns: number = 32): s
   } else {
     data.topItems.forEach((item, i) => {
       const rank = `${i + 1}.`
-      const name = sanitize(item.name)
+      const name = item.name
       const rest = `${item.quantity}u  $${money(item.revenue)}`
       const lineText = `${rank} ${name}`
       const dots = '.'.repeat(Math.max(1, columns - lineText.length - rest.length))
