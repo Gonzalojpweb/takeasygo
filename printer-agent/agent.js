@@ -6,6 +6,7 @@ const os = require('os');
 const { execFile, spawn } = require('child_process');
 const { renderTicketToCanvas } = require('./ticket-renderer');
 const { canvasToEscPos } = require('./raster-encoder');
+const iconv = require('iconv-lite');
 
 // --- LEER VERSIÓN LOCAL ---
 let LOCAL_VERSION = '0.0.0';
@@ -268,7 +269,8 @@ function getFontSizeCommand(size) {
     }
 }
 
-const NON_LATIN1_RE = /[^\x00-\xFF]/g;
+// Guard: quita caracteres que CP858 no puede representar (rango Latin-1 + €).
+const NON_LATIN1_RE = /[^\u0000-\u00FF\u20AC]/g;
 
 function sanitizeText(str) {
     if (typeof str !== 'string') return '';
@@ -277,8 +279,8 @@ function sanitizeText(str) {
 
 function buf(input) {
     if (Buffer.isBuffer(input)) return input;
-    if (typeof input === 'string') return Buffer.from(sanitizeText(input), 'latin1');
-    return Buffer.from(String(input), 'latin1');
+    const str = typeof input === 'string' ? input : String(input);
+    return iconv.encode(sanitizeText(str), 'cp858');
 }
 
 // --- LOGICA DE TRASMISIÓN (TCP RAW) ---

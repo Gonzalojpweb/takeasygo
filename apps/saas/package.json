@@ -34,6 +34,7 @@
     "gsap": "^3.14.2",
     "highlight.js": "^11.11.1",
     "html5-qrcode": "^2.3.8",
+    "iconv-lite": "^0.7.2",
     "jose": "^6.2.10",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.1",

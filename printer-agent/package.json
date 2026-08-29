@@ -1,6 +1,6 @@
 {
     "name": "restaurant-print-agent",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "private": true,
     "packageManager": "pnpm@10.33.4",
     "description": "Bridge between cloud restaurant app and local thermal printers",
@@ -13,6 +13,7 @@
         "@napi-rs/canvas": "^0.1.100",
         "axios": "^1.6.0",
         "dotenv": "^16.3.1",
+        "iconv-lite": "^0.7.2",
         "node-windows": "^1.0.0-beta.8"
     },
     "devDependencies": {
