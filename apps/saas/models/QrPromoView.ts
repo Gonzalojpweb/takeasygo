@@ -2,6 +2,8 @@ import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IQrPromoView extends Document {
   tenantId: mongoose.Types.ObjectId
+  /** Sede donde se mostró la promo (null = no atribuida) */
+  locationId?: mongoose.Types.ObjectId | null
   promoId?: mongoose.Types.ObjectId
   promoSlug?: string
   scope?: 'tenant' | 'global'
@@ -19,6 +21,11 @@ const QrPromoViewSchema = new Schema<IQrPromoView>(
       ref: 'Tenant',
       required: true,
       index: true,
+    },
+    locationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Location',
+      default: null,
     },
     promoId: {
       type: Schema.Types.ObjectId,

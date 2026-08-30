@@ -105,12 +105,15 @@ export async function finalizeHiddenRewardClaims(
 
     if (!updated) continue // ya fue consumido por otra llamada (idempotente)
 
-    // 2. Decrementar remainingClaims atómicamente en el Menu
-    // Resolve menuId from menuItemId (HiddenRewardClaim has no menuId field)
+    // 2. Decrementar remainingClaims atómicamente en el Menu de la sede del claim
+    // Resolve menuId from menuItemId (HiddenRewardClaim has no menuId field).
+    // Multi-sede (B): si el claim tiene locationId, resolver el menú DE ESA SEDE
+    // (mismo menuItemId puede existir en menús de distintas sedes — cada uno con su stock).
     const itemId = claim.menuItemId
-    let menuDoc = await Menu.findOne({ 'categories.items._id': itemId }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
+    const locationScope = claim.locationId ? { locationId: claim.locationId } : {}
+    let menuDoc = await Menu.findOne({ ...locationScope, 'categories.items._id': itemId }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
     if (!menuDoc) {
-      menuDoc = await Menu.findOne({ 'categories.subcategories.items._id': itemId }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
+      menuDoc = await Menu.findOne({ ...locationScope, 'categories.subcategories.items._id': itemId }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
     }
     const menuId = menuDoc?._id
 

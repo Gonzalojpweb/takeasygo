@@ -1,4 +1,4 @@
-# Hidden Rewards E2E Runner
+﻿# Hidden Rewards E2E Runner
 # Uso: .\scripts\hr-e2e\run.ps1
 #
 # Requisitos:
@@ -44,7 +44,7 @@ $m = [regex]::Match($uriPath, '^(mongodb(?:\+srv)?://[^/]+)')
 if ($m.Success) {
   $testUri = "$($m.Groups[1].Value)/__hr_e2e__${qs}"
 } else {
-  Write-Host "  ❌ Cannot parse MONGODB_URI host from: $($uriPath.Substring(0, [Math]::Min(40, $uriPath.Length)))..." -ForegroundColor Red
+  Write-Host "  ERROR: Cannot parse MONGODB_URI host" -ForegroundColor Red
   exit 1
 }
 

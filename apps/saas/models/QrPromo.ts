@@ -2,6 +2,8 @@ import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IQrPromo extends Document {
   tenantId?: mongoose.Types.ObjectId
+  /** Sede a la que está acotada la promo. null = todas las sedes (elección explícita del admin). */
+  locationId?: mongoose.Types.ObjectId | null
   scope: 'tenant' | 'global'
   targetTenants?: mongoose.Types.ObjectId[]
   slug: string
@@ -39,6 +41,11 @@ const QrPromoSchema = new Schema<IQrPromo>(
       ref: 'Tenant',
       required: false,
       index: true,
+    },
+    locationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Location',
+      default: null,
     },
     scope: {
       type: String,
@@ -93,6 +100,7 @@ const QrPromoSchema = new Schema<IQrPromo>(
 
 QrPromoSchema.index({ tenantId: 1, slug: 1 }, { unique: true, sparse: true })
 QrPromoSchema.index({ tenantId: 1, isEnabled: 1 })
+QrPromoSchema.index({ tenantId: 1, locationId: 1, isEnabled: 1 })
 QrPromoSchema.index({ tenantId: 1, sourceTriggers: 1 })
 QrPromoSchema.index({ scope: 1 })
 QrPromoSchema.index({ scope: 1, targetTenants: 1 })

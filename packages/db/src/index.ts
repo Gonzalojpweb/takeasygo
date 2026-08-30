@@ -1,5 +1,6 @@
 export { connectMongo, disconnectMongo } from "./connection"
 export { MenuModel, type IMenuDocument } from "./models/menu"
+export { LocationModel, type ILocationDocument } from "./models/location"
 export { SyncOrderModel, type SyncOrderDocument } from "./models/sync-order"
 export { CashSaleEventModel, type CashSaleEventDocument } from "./models/cash-sale-event"
 export { ZReportRecordModel, type ZReportRecordDocument } from "./models/z-report-record"

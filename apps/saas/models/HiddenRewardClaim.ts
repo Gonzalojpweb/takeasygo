@@ -14,6 +14,8 @@ export type HiddenRewardClaimStatus = 'reserva' | 'pendiente' | 'reservado' | 'c
 export interface IHiddenRewardClaim extends Document {
   tenantId: Types.ObjectId
   menuItemId: Types.ObjectId
+  /** Sede donde se descubrió/consumió. Multi-sede: el stock y la unicidad son POR SEDE (B). null = flujo legacy */
+  locationId: Types.ObjectId | null
   /** Hash del ID de sesión del dispositivo (cookie hr_sid). Usado para unicidad por dispositivo en la fase de reserva */
   deviceId: string
   /** phoneHash del cliente — se setea al confirmar el pago del primer pedido. null mientras es reserva */
@@ -58,6 +60,12 @@ const HiddenRewardClaimSchema = new Schema<IHiddenRewardClaim>(
       ref: 'MenuItem',
       required: true,
       index: true,
+    },
+    /** Sede donde se descubrió. null en claims legacy (pre-multi-sede) */
+    locationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Location',
+      default: null,
     },
     /** Hash de la cookie hr_sid (session del dispositivo) */
     deviceId: {
@@ -130,21 +138,26 @@ const HiddenRewardClaimSchema = new Schema<IHiddenRewardClaim>(
 
 // ── Índices de unicidad ──────────────────────────────────────────────────────
 
-// Un mismo dispositivo no puede tener múltiples reservas activas para el mismo ítem
+// Un mismo dispositivo no puede tener múltiples reservas activas para el mismo ítem EN LA MISMA SEDE (B multi-sede)
+// Nota: el partial excluye locationId null → claims legacy no quedan bajo el constraint (transición)
 HiddenRewardClaimSchema.index(
-  { tenantId: 1, menuItemId: 1, deviceId: 1 },
+  { tenantId: 1, menuItemId: 1, locationId: 1, deviceId: 1 },
   {
     unique: true,
-    partialFilterExpression: { status: 'reserva' },
+    partialFilterExpression: { status: 'reserva', locationId: { $type: 'objectId' } },
   }
 )
 
-// Un mismo teléfono no puede reclamar el mismo hidden reward dos veces (pendiente o reservado)
+// Un mismo teléfono no puede reclamar el mismo hidden reward dos veces (pendiente o reservado) EN LA MISMA SEDE
 HiddenRewardClaimSchema.index(
-  { tenantId: 1, menuItemId: 1, customerPhoneHash: 1 },
+  { tenantId: 1, menuItemId: 1, locationId: 1, customerPhoneHash: 1 },
   {
     unique: true,
-    partialFilterExpression: { customerPhoneHash: { $type: 'string' }, status: { $in: ['pendiente', 'reservado'] } },
+    partialFilterExpression: {
+      customerPhoneHash: { $type: 'string' },
+      status: { $in: ['pendiente', 'reservado'] },
+      locationId: { $type: 'objectId' },
+    },
   }
 )
 

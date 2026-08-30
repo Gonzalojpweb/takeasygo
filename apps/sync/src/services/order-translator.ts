@@ -3,6 +3,7 @@ import { SyncOrderModel, type SyncOrderDocument } from "@takeasygo/db"
 
 export interface TranslatedOrder {
   tenantId: string
+  locationId?: string
   source: "takeasygo" | "pos"
   status: string
   items: Array<{
@@ -39,6 +40,7 @@ export async function createTranslatedOrder(
 
   const doc = await SyncOrderModel.create({
     tenantId: data.tenantId,
+    locationId: data.locationId ?? undefined,
     source: data.source,
     status: data.status,
     items: data.items,
@@ -90,6 +92,7 @@ export async function getPendingOrders(
 
   return docs.map((doc: SyncOrderDocument) => ({
     tenantId: doc.tenantId,
+    locationId: doc.locationId ?? undefined,
     source: doc.source as "takeasygo" | "pos",
     status: doc.status,
     items: doc.items.map((item: SyncOrderDocument['items'][number]) => ({

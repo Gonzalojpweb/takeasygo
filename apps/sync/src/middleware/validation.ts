@@ -22,11 +22,13 @@ export const loginSchema = z.discriminatedUnion("mode", [
     mode: z.literal("email"),
     email: z.string().email(),
     password: z.string().min(1),
+    locationId: z.string().optional(),
   }),
   z.object({
     mode: z.literal("pin"),
     employeePin: z.string().min(4).max(8),
     tenantId: z.string(),
+    locationId: z.string().optional(),
   }),
 ])
 

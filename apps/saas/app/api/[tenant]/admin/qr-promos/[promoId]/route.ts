@@ -1,6 +1,8 @@
 import { connectDB } from '@/lib/mongoose'
+import mongoose from 'mongoose'
 import QrPromo from '@/models/QrPromo'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 
@@ -50,13 +52,31 @@ export async function PUT(
       'title', 'subtitle', 'buttonText', 'termsText', 'imageUrl',
       'badgeLabel', 'offLabel', 'takeawayWarningTitle', 'takeawayWarningText',
       'loadingText', 'checkoutDiscountLabel', 'sourceTriggers',
-      'scheduledStart', 'scheduledEnd',
+      'scheduledStart', 'scheduledEnd', 'locationId',
     ]
 
     const updateData: Record<string, unknown> = {}
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         updateData[field] = body[field]
+      }
+    }
+
+    // locationId: null o '' = "todas las sedes" (elección explícita del admin).
+    // Si se provee, debe ser una sede activa del tenant.
+    if (body.locationId !== undefined) {
+      const raw = body.locationId === '' ? null : body.locationId
+      if (raw === null) {
+        updateData.locationId = null
+      } else {
+        if (typeof raw !== 'string' || !mongoose.Types.ObjectId.isValid(raw)) {
+          return NextResponse.json({ error: 'locationId inválido' }, { status: 400 })
+        }
+        const loc = await Location.findOne({ _id: raw, tenantId: tenant._id, isActive: true }).select('_id').lean()
+        if (!loc) {
+          return NextResponse.json({ error: 'La sede no existe o no pertenece al tenant' }, { status: 400 })
+        }
+        updateData.locationId = new mongoose.Types.ObjectId(raw)
       }
     }
 

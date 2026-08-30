@@ -15,13 +15,14 @@
 
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import Tenant from '@/models/Tenant'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { rateLimit } from '@/lib/rateLimit'
 import { hashPhone } from '@/lib/crypto'
 import { getDeviceIdIfExists } from '@/lib/hidden-rewards'
 
-const SELECT_FIELDS = 'menuItemId discountPercentage rewardTitle rewardDescription expiresAt'
+const SELECT_FIELDS = 'menuItemId locationId discountPercentage rewardTitle rewardDescription expiresAt'
 
 export async function POST(
   request: NextRequest,
@@ -30,14 +31,22 @@ export async function POST(
   try {
     const { tenant: tenantSlug } = await params
     const body = await request.json()
-    const { phone, menuItemIds } = body as {
+    const { phone, menuItemIds, locationId } = body as {
       phone?: string
       menuItemIds?: string[]
+      locationId?: string
     }
 
     if (!menuItemIds?.length) {
       return NextResponse.json({ ok: true, claims: [] })
     }
+
+    // Multi-sede (B): si el cliente explica su sede, filtrar claims por sede.
+    // locationId inválido → no exponer nada (respuesta uniforme)
+    const claimLocationId = locationId && mongoose.isValidObjectId(locationId)
+      ? new mongoose.Types.ObjectId(locationId)
+      : null
+    const locationFilter = claimLocationId ? { locationId: claimLocationId } : {}
 
     // Rate limit estricto: 3 consultas por IP en 60s
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
@@ -62,6 +71,7 @@ export async function POST(
           tenantId: tenant._id,
           deviceId,
           menuItemId: { $in: menuItemIds },
+          ...locationFilter,
           status: 'reserva',
           reservationExpiresAt: { $gt: now },
         })
@@ -77,6 +87,7 @@ export async function POST(
         tenantId: tenant._id,
         customerPhoneHash: phoneHash,
         menuItemId: { $in: menuItemIds },
+        ...locationFilter,
         status: 'pendiente',
         expiresAt: { $gt: now },
       })

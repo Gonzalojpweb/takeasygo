@@ -70,11 +70,15 @@ export function ordersRouter(
     try {
       const auth = req.auth!
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
-      const docs = await SyncOrderModel.find({
+      const filter: Record<string, any> = {
         tenantId: auth.tenantId,
         status: { $in: ["pending", "confirmed", "preparing", "ready", "delivered"] },
         updatedAt: { $gte: cutoff },
-      }).sort({ createdAt: -1 }).limit(50).lean()
+      }
+      if (auth.locationId) {
+        filter.locationId = auth.locationId
+      }
+      const docs = await SyncOrderModel.find(filter).sort({ createdAt: -1 }).limit(50).lean()
 
       res.json(docs.map((doc: any) => ({
         orderId: doc._id.toString(),
@@ -98,6 +102,7 @@ export function ordersRouter(
 
       const { id: orderId } = await createTranslatedOrder({
         tenantId: auth.tenantId,
+        locationId: auth.locationId,
         source: "takeasygo",
         status: "pending",
         items: data.items,
@@ -110,16 +115,22 @@ export function ordersRouter(
         paymentMethod: data.paymentMethod,
       })
 
-      io.to(`tenant:${auth.tenantId}`).emit("order:created", {
+      const createdEvent = {
         orderId,
         tenantId: auth.tenantId,
+        locationId: auth.locationId,
         items: data.items,
         total: data.total,
         baseTotal: data.baseTotal,
         surchargeAmount: data.surchargeAmount,
         paymentMethod: data.paymentMethod,
         timestamp: new Date().toISOString(),
-      })
+      }
+
+      io.to(`tenant:${auth.tenantId}`).emit("order:created", createdEvent)
+      if (auth.locationId) {
+        io.to(`tenant:${auth.tenantId}:location:${auth.locationId}`).emit("order:created", createdEvent)
+      }
 
       // Conditional timeout: transfer → 24h, MP/kripton → 10 min
       const timeoutMs = data.paymentMethod === 'transfer'
@@ -162,14 +173,6 @@ export function ordersRouter(
         return
       }
 
-      io.to(`tenant:${auth.tenantId}`).emit("order:status_updated", {
-        orderId,
-        tenantId: auth.tenantId,
-        externalStatus: status,
-        timestamp: new Date().toISOString(),
-      })
-
-      // Forward to SaaS via outbox
       const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
       const syncOrder = await SyncOrderModel.findOne({
         tenantId: auth.tenantId,
@@ -178,6 +181,20 @@ export function ordersRouter(
           { externalOrderId: orderId },
         ],
       }).lean()
+
+      const statusEvent = {
+        orderId,
+        tenantId: auth.tenantId,
+        locationId: syncOrder?.locationId,
+        externalStatus: status,
+        timestamp: new Date().toISOString(),
+      }
+      io.to(`tenant:${auth.tenantId}`).emit("order:status_updated", statusEvent)
+      if (syncOrder?.locationId) {
+        io.to(`tenant:${auth.tenantId}:location:${syncOrder.locationId}`).emit("order:status_updated", statusEvent)
+      }
+
+      // Forward to SaaS via outbox
       console.log(`[orders/status] syncOrder found=${!!syncOrder}, externalOrderId=${syncOrder?.externalOrderId ?? "UNDEFINED"}`)
       if (syncOrder?.externalOrderId) {
         await enqueueConfirmForward(confirmForwardQueue, {
@@ -211,21 +228,6 @@ export function ordersRouter(
 
       await removePendingOrder(orderQueue, orderId)
 
-      io.to(`tenant:${auth.tenantId}`).emit("order:confirmed", {
-        orderId,
-        tenantId: auth.tenantId,
-        timestamp: new Date().toISOString(),
-      })
-
-      // Also emit order:status_updated for POS UI
-      io.to(`tenant:${auth.tenantId}`).emit("order:status_updated", {
-        orderId,
-        tenantId: auth.tenantId,
-        externalStatus: "confirmed",
-        timestamp: new Date().toISOString(),
-      })
-
-      // Forward confirm to SaaS via outbox (BullMQ retry)
       const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
       const syncOrder = await SyncOrderModel.findOne({
         tenantId: auth.tenantId,
@@ -234,6 +236,32 @@ export function ordersRouter(
           { externalOrderId: orderId },
         ],
       }).lean()
+
+      const confirmedEvent = {
+        orderId,
+        tenantId: auth.tenantId,
+        locationId: syncOrder?.locationId,
+        timestamp: new Date().toISOString(),
+      }
+      io.to(`tenant:${auth.tenantId}`).emit("order:confirmed", confirmedEvent)
+      if (syncOrder?.locationId) {
+        io.to(`tenant:${auth.tenantId}:location:${syncOrder.locationId}`).emit("order:confirmed", confirmedEvent)
+      }
+
+      // Also emit order:status_updated for POS UI
+      const statusEvent = {
+        orderId,
+        tenantId: auth.tenantId,
+        locationId: syncOrder?.locationId,
+        externalStatus: "confirmed",
+        timestamp: new Date().toISOString(),
+      }
+      io.to(`tenant:${auth.tenantId}`).emit("order:status_updated", statusEvent)
+      if (syncOrder?.locationId) {
+        io.to(`tenant:${auth.tenantId}:location:${syncOrder.locationId}`).emit("order:status_updated", statusEvent)
+      }
+
+      // Forward confirm to SaaS via outbox (BullMQ retry)
       if (syncOrder?.externalOrderId) {
         await enqueueConfirmForward(confirmForwardQueue, {
           tenantId: auth.tenantId,

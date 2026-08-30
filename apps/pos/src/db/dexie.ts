@@ -5,6 +5,8 @@ export interface TenantConfigRecord {
   tenantId: string
   tenantSalt: Uint8Array
   deviceSecret?: string
+  /** Sede del POS (multi-sede). Ausente/disperso en POS single-sede (legacy). */
+  locationId?: string
 }
 
 export interface SessionRecord {

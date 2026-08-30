@@ -9,6 +9,8 @@ export interface AuthPayload {
   role: Role
   deviceType: DeviceType
   posRole: string
+  /** Sede del POS (multi-sede). Ausente en POS single-sede (legacy). */
+  locationId?: string
 }
 
 declare global {
@@ -72,6 +74,7 @@ export function authMiddleware(
     role: payload.role,
     deviceType: payload.deviceType,
     posRole,
+    locationId: payload.locationId,
   }
 
   next()

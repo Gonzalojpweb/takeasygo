@@ -1,0 +1,62 @@
+[
+  {
+    "id": "C1",
+    "description": "login pin con locationId válida → 200 + JWT con claim locationId",
+    "pass": true,
+    "detail": "{\"status\":200,\"payload\":{\"sub\":\"6a92eafdc033dd2152251f18\",\"tenantId\":\"6a92eafcc033dd2152251eff\",\"role\":\"admin\",\"deviceType\":\"hub\",\"locationId\":\"6a92eafcc033dd2152251f00\",\"iat\":1788013310,\"exp\":1788015110}}"
+  },
+  {
+    "id": "C2",
+    "description": "login con sede inactiva → 400 INVALID_LOCATION",
+    "pass": true,
+    "detail": "{\"status\":400,\"body\":{\"error\":\"Location not found for this tenant\",\"code\":\"INVALID_LOCATION\"}}"
+  },
+  {
+    "id": "C3",
+    "description": "login con locationId malformada → 400 INVALID_LOCATION",
+    "pass": true,
+    "detail": "{\"status\":400,\"body\":{\"error\":\"Invalid locationId\",\"code\":\"INVALID_LOCATION\"}}"
+  },
+  {
+    "id": "C4",
+    "description": "login legacy sin locationId → 200, JWT sin claim locationId",
+    "pass": true,
+    "detail": "{\"status\":200}"
+  },
+  {
+    "id": "C5",
+    "description": "GET /locations → solo 2 sedes activas",
+    "pass": true,
+    "detail": "[{\"id\":\"6a92eafcc033dd2152251f00\",\"name\":\"E Sede A\",\"slug\":\"e-sede-a\",\"address\":\"A\",\"acceptsOrders\":true},{\"id\":\"6a92eafcc033dd2152251f01\",\"name\":\"E Sede B\",\"slug\":\"e-sede-b\",\"address\":\"B\",\"acceptsOrders\":true}]"
+  },
+  {
+    "id": "C6",
+    "description": "GET /orders/pending filtrado por sede → solo la de sede A",
+    "pass": true,
+    "detail": "[\"6a92eafdc033dd2152251f1f\"]"
+  },
+  {
+    "id": "C7",
+    "description": "GET /orders/pending legacy → ambas sedes",
+    "pass": true,
+    "detail": "[\"6a92eafdc033dd2152251f22\",\"6a92eafdc033dd2152251f1f\"]"
+  },
+  {
+    "id": "C8",
+    "description": "internal GET /orders?locationId=B → solo sede B con locationId persistido",
+    "pass": true,
+    "detail": "[{\"orderId\":\"6a92eafdc033dd2152251f22\",\"tenantId\":\"6a92eafcc033dd2152251eff\",\"locationId\":\"6a92eafcc033dd2152251f01\",\"source\":\"takeasygo\",\"status\":\"pending\",\"paymentMethod\":\"cash\",\"items\":[{\"name\":\"Item B\",\"quantity\":1,\"unitPrice\":200,\"total\":200,\"_id\":\"6a92eafdc033dd2152251f23\",\"modifiers\":[]}],\"total\":200,\"createdAt\":\"2026-08-29T14:21:49.807Z\"}]"
+  },
+  {
+    "id": "C9",
+    "description": "internal GET /orders sin filtro → ambas sedes",
+    "pass": true,
+    "detail": "[\"6a92eafdc033dd2152251f22\",\"6a92eafdc033dd2152251f1f\"]"
+  },
+  {
+    "id": "C10",
+    "description": "índice compuesto tenantId+locationId+createdAt en sync_orders",
+    "pass": true,
+    "detail": "[{\"name\":\"_id_\",\"key\":{\"_id\":1}},{\"name\":\"tenantId_1\",\"key\":{\"tenantId\":1}},{\"name\":\"tenantId_1_createdAt_-1\",\"key\":{\"tenantId\":1,\"createdAt\":-1}},{\"name\":\"tenantId_1_status_1\",\"key\":{\"tenantId\":1,\"status\":1}},{\"name\":\"tenantId_1_externalOrderId_1\",\"key\":{\"tenantId\":1,\"externalOrderId\":1}},{\"name\":\"tenantId_1_locationId_1_createdAt_-1\",\"key\":{\"tenantId\":1,\"locationId\":1,\"createdAt\":-1}}]"
+  }
+]
