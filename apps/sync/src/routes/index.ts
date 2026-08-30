@@ -16,6 +16,7 @@ import { ssoRouter } from "./sso"
 import { internalRouter } from "./internal"
 import { deliveryRouter } from "./delivery"
 import { cashSaleRouter } from "./cash-sale"
+import { locationsRouter } from "./locations"
 import { zReportViewRouter } from "./z-report-view"
 import { zReportUploadRouter } from "./z-report-upload"
 import type { CashSaleJobData } from "../queues/cash-sale-queue"
@@ -46,6 +47,7 @@ export function createRouter(
 
   router.use("/orders", ordersRouter(io, orderQueue, confirmForwardQueue))
   router.use("/menu", menuRouter())
+  router.use("/locations", locationsRouter())
   router.use("/sync", syncRouter(io, confirmForwardQueue))
   router.use("/pairing", pairingRouter(io))
   router.use("/customers", customersRouter())

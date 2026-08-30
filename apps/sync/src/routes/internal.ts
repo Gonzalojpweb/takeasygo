@@ -32,6 +32,7 @@ export function internalRouter(
 
       const { id: orderId, duplicate } = await createTranslatedOrder({
         tenantId: data.tenantId,
+        locationId: data.locationId,
         source: "takeasygo",
         status: "pending",
         items: data.items,
@@ -48,16 +49,24 @@ export function internalRouter(
         return
       }
 
-      io.to(`tenant:${data.tenantId}`).emit("order:created", {
+      const createdEvent = {
         orderId,
         tenantId: data.tenantId,
+        locationId: data.locationId,
         items: data.items,
         total: data.total,
         baseTotal: data.baseTotal,
         surchargeAmount: data.surchargeAmount,
         paymentMethod: data.paymentMethod,
         timestamp: new Date().toISOString(),
-      })
+      }
+
+      // Dual-room emission: generic tenant room (single-sede POS intactos)
+      // + per-location room (multi-sede POS solo reciben su sede).
+      io.to(`tenant:${data.tenantId}`).emit("order:created", createdEvent)
+      if (data.locationId) {
+        io.to(`tenant:${data.tenantId}:location:${data.locationId}`).emit("order:created", createdEvent)
+      }
 
       // Conditional timeout: transfer → 24h, MP/kripton → 10 min
       const timeoutMs = data.paymentMethod === 'transfer'
@@ -97,21 +106,6 @@ export function internalRouter(
 
       await removePendingOrder(orderQueue, orderId)
 
-      io.to(`tenant:${tenantId}`).emit("order:confirmed", {
-        orderId,
-        tenantId,
-        timestamp: new Date().toISOString(),
-      })
-
-      // Also emit order:status_updated for POS UI
-      io.to(`tenant:${tenantId}`).emit("order:status_updated", {
-        orderId,
-        tenantId,
-        externalStatus: "confirmed",
-        timestamp: new Date().toISOString(),
-      })
-
-      // Forward confirm to SaaS via outbox (BullMQ retry)
       const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
       const syncOrder = await SyncOrderModel.findOne({
         tenantId,
@@ -120,6 +114,33 @@ export function internalRouter(
           { externalOrderId: orderId },
         ],
       }).lean()
+      const locationId = syncOrder?.locationId
+
+      const confirmedEvent = {
+        orderId,
+        tenantId,
+        locationId,
+        timestamp: new Date().toISOString(),
+      }
+      io.to(`tenant:${tenantId}`).emit("order:confirmed", confirmedEvent)
+      if (locationId) {
+        io.to(`tenant:${tenantId}:location:${locationId}`).emit("order:confirmed", confirmedEvent)
+      }
+
+      // Also emit order:status_updated for POS UI
+      const statusEvent = {
+        orderId,
+        tenantId,
+        locationId,
+        externalStatus: "confirmed",
+        timestamp: new Date().toISOString(),
+      }
+      io.to(`tenant:${tenantId}`).emit("order:status_updated", statusEvent)
+      if (locationId) {
+        io.to(`tenant:${tenantId}:location:${locationId}`).emit("order:status_updated", statusEvent)
+      }
+
+      // Forward confirm to SaaS via outbox (BullMQ retry)
       if (syncOrder?.externalOrderId) {
         await enqueueConfirmForward(confirmForwardQueue, {
           tenantId,
@@ -153,31 +174,36 @@ export function internalRouter(
         return
       }
 
-      io.to(`tenant:${tenantId}`).emit("order:status_updated", {
-        orderId,
+      const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
+      const syncOrder = await SyncOrderModel.findOne({
         tenantId,
-        externalStatus: status,
-        timestamp: new Date().toISOString(),
-      })
+        $or: [
+          ...(isObjectId ? [{ _id: orderId }] : []),
+          { externalOrderId: orderId },
+        ],
+      }).lean()
+      const locationId = syncOrder?.locationId
 
       // Forward to SaaS via outbox (skip when called from SaaS to avoid loop)
-      if (!skipForward) {
-        const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
-        const syncOrder = await SyncOrderModel.findOne({
+      if (!skipForward && syncOrder?.externalOrderId) {
+        await enqueueConfirmForward(confirmForwardQueue, {
           tenantId,
-          $or: [
-            ...(isObjectId ? [{ _id: orderId }] : []),
-            { externalOrderId: orderId },
-          ],
-        }).lean()
-        if (syncOrder?.externalOrderId) {
-          await enqueueConfirmForward(confirmForwardQueue, {
-            tenantId,
-            orderId,
-            externalOrderId: syncOrder.externalOrderId,
-            status,
-          })
-        }
+          orderId,
+          externalOrderId: syncOrder.externalOrderId,
+          status,
+        })
+      }
+
+      const statusEvent = {
+        orderId,
+        tenantId,
+        locationId,
+        externalStatus: status,
+        timestamp: new Date().toISOString(),
+      }
+      io.to(`tenant:${tenantId}`).emit("order:status_updated", statusEvent)
+      if (locationId) {
+        io.to(`tenant:${tenantId}:location:${locationId}`).emit("order:status_updated", statusEvent)
       }
 
       res.json({ status })
@@ -189,7 +215,7 @@ export function internalRouter(
 
   router.get("/orders", async (req, res) => {
     try {
-      const { tenantId, status } = req.query as { tenantId?: string; status?: string }
+      const { tenantId, status, locationId } = req.query as { tenantId?: string; status?: string; locationId?: string }
       if (!tenantId) {
         res.status(400).json({ error: "tenantId required" })
         return
@@ -199,6 +225,9 @@ export function internalRouter(
       if (status) {
         filter.status = { $in: status.split(",") }
       }
+      if (locationId) {
+        filter.locationId = locationId
+      }
 
       const { SyncOrderModel } = await import("@takeasygo/db")
       const docs = await SyncOrderModel.find(filter).sort({ createdAt: -1 }).limit(50).lean()
@@ -206,6 +235,7 @@ export function internalRouter(
       const orders = docs.map((doc: any) => ({
         orderId: doc._id.toString(),
         tenantId: doc.tenantId,
+        locationId: doc.locationId,
         source: doc.source,
         status: doc.status,
         paymentMethod: doc.paymentMethod,

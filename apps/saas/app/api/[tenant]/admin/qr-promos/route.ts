@@ -1,6 +1,8 @@
 import { connectDB } from '@/lib/mongoose'
+import mongoose from 'mongoose'
 import QrPromo from '@/models/QrPromo'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 
@@ -93,9 +95,24 @@ export async function POST(
       return NextResponse.json({ error: `Ya existe una promo con slug "${slug}"` }, { status: 409 })
     }
 
+    // locationId: null (o ausente) = "todas las sedes" — elección explícita del admin.
+    // Si se provee, debe ser una sede activa del tenant.
+    let locationId: mongoose.Types.ObjectId | null = null
+    if (body.locationId !== undefined && body.locationId !== null && body.locationId !== '') {
+      if (typeof body.locationId !== 'string' || !mongoose.Types.ObjectId.isValid(body.locationId)) {
+        return NextResponse.json({ error: 'locationId inválido' }, { status: 400 })
+      }
+      const loc = await Location.findOne({ _id: body.locationId, tenantId: tenant._id, isActive: true }).select('_id').lean()
+      if (!loc) {
+        return NextResponse.json({ error: 'La sede no existe o no pertenece al tenant' }, { status: 400 })
+      }
+      locationId = new mongoose.Types.ObjectId(body.locationId)
+    }
+
     const promo = await QrPromo.create({
       scope: 'tenant',
       tenantId: tenant._id,
+      locationId,
       slug,
       isEnabled: body.isEnabled ?? false,
       scheduledStart: body.scheduledStart || null,

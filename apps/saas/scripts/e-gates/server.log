@@ -1,0 +1,19 @@
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.8.209.105:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 22.7s
+○ Compiling /api/[tenant]/orders ...
+ GET /api/e-gates/orders 200 in 9.5s (proxy.ts: 941ms)
+(node:9588) [MONGOOSE] Warning: mongoose: Duplicate schema index on {"email":1} for model "User". This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9588) [MONGOOSE] Warning: mongoose: Duplicate schema index on {"phone":1} for model "User". This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:9588) [MONGOOSE] Warning: mongoose: Duplicate schema index on {"scope":1} for model "QrPromo". This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:9588) [MONGOOSE] Warning: mongoose: Duplicate schema index on {"code":1} for model "QrPromo". This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+ GET /api/e-gates/orders 404 in 2.1s (compile: 555ms, proxy.ts: 12ms, render: 1548ms)
+ POST /api/e-gates/orders 409 in 1497ms (compile: 34ms, proxy.ts: 12ms, render: 1451ms)
+ POST /api/e-gates/orders 404 in 880ms (compile: 27ms, proxy.ts: 13ms, render: 840ms)
+ POST /api/e-gates/orders 404 in 631ms (compile: 18ms, proxy.ts: 14ms, render: 600ms)
+ POST /api/e-gates/orders 409 in 180ms (compile: 13ms, proxy.ts: 11ms, render: 155ms)

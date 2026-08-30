@@ -9,6 +9,9 @@ let socket: Socket | null = null
 let currentJwt: string | null = null
 let listeners: Map<string, Set<SocketCallback>> = new Map()
 let registeredOnSocket: Map<string, Set<SocketCallback>> = new Map()
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+
+const POS_HEARTBEAT_MS = 30_000
 
 export function connectSocket(jwt: string): Socket {
   if (socket && socket.connected && currentJwt === jwt) return socket
@@ -46,6 +49,16 @@ export function connectSocket(jwt: string): Socket {
   socket.on("connect", () => {
     registeredOnSocket.clear()
     attachListeners()
+
+    // App-level heartbeat → SyncLayer marca `Location.pos.lastSeenAt` (E gate).
+    // El keepalive de socket.io (ping transport) NO genera eventos de app, así
+    // que este timer es el que mantiene fresco el indicador de POS activo.
+    if (heartbeatTimer) clearInterval(heartbeatTimer)
+    heartbeatTimer = setInterval(() => {
+      if (socket?.connected) {
+        socket.emit("heartbeat", { timestamp: new Date().toISOString() })
+      }
+    }, POS_HEARTBEAT_MS)
   })
 
   socket.on("disconnect", (_reason: string) => {
@@ -61,6 +74,10 @@ export function connectSocket(jwt: string): Socket {
 }
 
 export function disconnectSocket(): void {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer)
+    heartbeatTimer = null
+  }
   if (socket) {
     socket.removeAllListeners()
     socket.disconnect()

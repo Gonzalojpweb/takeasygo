@@ -128,10 +128,12 @@ export async function POST(
     }
 
     // ── Validar stock (reservas activas en vez de remainingClaims) ─────────────
-    // Contar reservas activas de este ítem (no decrementa pool global)
+    // Contar reservas activas de este ítem EN LA MISMA SEDE (B)
+    const claimLocationId = locationId ? new mongoose.Types.ObjectId(locationId) : null
     const activeReservations = await HiddenRewardClaim.countDocuments({
       tenantId: tenant._id,
       menuItemId: foundItem._id,
+      ...(claimLocationId ? { locationId: claimLocationId } : {}),
       status: 'reserva',
       reservationExpiresAt: { $gt: now },
     })
@@ -140,10 +142,11 @@ export async function POST(
       return uniformResponse(false)
     }
 
-    // ── Verificar si ya reclamó (misma sesión o mismo teléfono) ────────────────
+    // ── Verificar si ya reclamó (misma sesión o mismo teléfono) en la sede ─────
     const existingClaim = await HiddenRewardClaim.findOne({
       tenantId: tenant._id,
       menuItemId: foundItem._id,
+      ...(claimLocationId ? { locationId: claimLocationId } : {}),
       $or: [
         { deviceId },                      // misma sesión dispositivo
         { customerPhoneHash: { $ne: null } }, // ya tiene teléfono vinculado
@@ -162,6 +165,7 @@ export async function POST(
     await HiddenRewardClaim.create({
       tenantId: tenant._id,
       menuItemId: foundItem._id,
+      locationId: claimLocationId,
       deviceId,
       customerPhoneHash: null,
       sessionId: sid,

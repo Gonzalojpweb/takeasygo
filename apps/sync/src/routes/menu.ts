@@ -206,11 +206,15 @@ export function menuRouter(): Router {
       const auth = req.auth!
       const tenantId = new mongoose.Types.ObjectId(auth.tenantId)
 
-      // Find all active menus for this tenant
-      const menus = await MenuModel.find({
+      // Find all active menus for this tenant (multi-sede POS: solo su sede)
+      const menuQuery: Record<string, any> = {
         tenantId,
         isActive: true,
-      }).lean()
+      }
+      if (auth.locationId) {
+        menuQuery.locationId = auth.locationId
+      }
+      const menus = await MenuModel.find(menuQuery).lean()
 
       if (!menus || menus.length === 0) {
         res.json({

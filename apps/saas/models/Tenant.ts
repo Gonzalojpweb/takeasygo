@@ -104,6 +104,12 @@ export interface ITenant extends Document {
     crm: { enabled: boolean }
     tgoGrowthPushEnabled: boolean
     cashPaymentEnabledBySuperadmin: boolean
+    /**
+     * Gate E opt-in (por tenant): si es true, los pedidos online se rechazan
+     * (409 NO_POS_ACTIVE) cuando ninguna caja POS de la sede reportó heartbeat
+     * en los últimos 120s. Off/undefined = comportamiento actual (sin gate).
+     */
+    posLocationGate: boolean
   }
   business: {
     enabled: boolean
@@ -459,6 +465,7 @@ const TenantSchema = new Schema<ITenant>(
       crm: { enabled: { type: Boolean, default: false } },
       tgoGrowthPushEnabled: { type: Boolean, default: false },
       cashPaymentEnabledBySuperadmin: { type: Boolean, default: false },
+      posLocationGate: { type: Boolean, default: false },
     },
     business: {
       enabled: { type: Boolean, default: false },

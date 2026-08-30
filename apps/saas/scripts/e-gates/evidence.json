@@ -1,0 +1,26 @@
+[
+  {
+    "id": "G2",
+    "description": "posLocationGate:true sin heartbeat POS → 409 NO_POS_ACTIVE",
+    "pass": true,
+    "detail": "{\"status\":409,\"code\":\"NO_POS_ACTIVE\"}"
+  },
+  {
+    "id": "G3",
+    "description": "posLocationGate:true con heartbeat fresco → NO 409 (404 menú = gate superado)",
+    "pass": true,
+    "detail": "{\"status\":404,\"body\":{\"error\":\"Menú no encontrado para esta sede\"}}"
+  },
+  {
+    "id": "G4",
+    "description": "posLocationGate off sin heartbeat → NO gate (404 menú = legacy intacto)",
+    "pass": true,
+    "detail": "{\"status\":404,\"body\":{\"error\":\"Menú no encontrado para esta sede\"}}"
+  },
+  {
+    "id": "G1",
+    "description": "acceptsOrders=false → 409 ORDERS_CLOSED (gate real del admin)",
+    "pass": true,
+    "detail": "{\"status\":409,\"code\":\"ORDERS_CLOSED\"}"
+  }
+]

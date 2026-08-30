@@ -133,28 +133,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let tenantId: string
 
         if (mode === "pin") {
-          const { employeePin, tenantId: tid } = credentials as {
+          const { employeePin, tenantId: tid, locationId } = credentials as {
             employeePin: string
             tenantId: string
+            locationId?: string
           }
           tenantId = tid
 
           const existing = await db.tenantConfig.get(tenantId)
           if (existing) {
             salt = existing.tenantSalt
+            await db.tenantConfig.update(tenantId, { locationId })
           } else {
             salt = generateSalt()
             await db.tenantConfig.put({
               tenantId,
               tenantSalt: salt,
               deviceSecret: generateDeviceSecret(),
+              locationId,
             })
           }
 
           const key = await deriveSessionEncryptionKey(employeePin, salt)
           setEncryptionKey(key)
 
-          const result = await authApi.loginWithPin(employeePin, tenantId)
+          const result = await authApi.loginWithPin(employeePin, tenantId, locationId)
 
           const encrypted = await encryptStore(result, key)
           await db.session.put({ tenantId, encryptedJwt: encrypted })
@@ -162,12 +165,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setState({ status: "authenticated", tenantId, jwt: result })
           cacheSession(result, tenantId)
         } else {
-          const { email, password } = credentials as {
+          const { email, password, locationId } = credentials as {
             email: string
             password: string
+            locationId?: string
           }
 
-          const result = await authApi.loginWithEmail(email, password)
+          const result = await authApi.loginWithEmail(email, password, locationId)
 
           // Extract real tenantId from JWT payload
           const payload = decodeJwtPayload(result.accessToken)
@@ -176,12 +180,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const existing = await db.tenantConfig.get(tenantId)
           if (existing) {
             salt = existing.tenantSalt
+            await db.tenantConfig.update(tenantId, { locationId })
           } else {
             salt = generateSalt()
             await db.tenantConfig.put({
               tenantId,
               tenantSalt: salt,
               deviceSecret: generateDeviceSecret(),
+              locationId,
             })
           }
 

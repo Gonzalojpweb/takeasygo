@@ -46,6 +46,11 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!
 )
 
+// Gate E: ventana de frescura para el heartbeat del POS por sede.
+// Si una sede configuró posLocationGate y ninguna caja POS reportó
+// actividad en este lapso, los pedidos online se rechazan (409).
+const POS_GATE_WINDOW_MS = 120_000
+
 /**
  * Resuelve customizaciones recursivamente, incluyendo subGroups.
  */
@@ -229,13 +234,24 @@ export async function POST(
       return query
     }
 
+    // Acota promos del tenant a la sede del pedido. locationId null (explícito)
+    // o campo ausente = la promo aplica en todas las sedes.
+    function locationScopeFilter(locationId: any): Record<string, any> | null {
+      if (locationId === undefined || locationId === null) return null
+      const raw = String(locationId)
+      if (!mongoose.Types.ObjectId.isValid(raw)) return null
+      const oid = new mongoose.Types.ObjectId(raw)
+      return { $or: [{ locationId: oid }, { locationId: null }, { locationId: { $exists: false } }] }
+    }
+
     // Resolver QrPromo activa: 1) por slug, 2) por source, 3) última habilitada
-    // Incluye promos scope:'tenant' y scope:'global'
+    // Incluye promos scope:'tenant' (acotadas a la sede del pedido) y scope:'global'
+    const orderLocScope = locationScopeFilter(body.locationId)
     if (body.qrPromoApplied && !activeQrPromo) {
       if (body.promoSlug) {
         activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
           $or: [
-            { scope: 'tenant', tenantId },
+            { scope: 'tenant', tenantId, ...(orderLocScope ?? {}) },
             { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }] },
           ],
           slug: body.promoSlug.toLowerCase().trim(),
@@ -244,7 +260,7 @@ export async function POST(
 
       if (!activeQrPromo && body.source) {
         activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
-          scope: 'tenant', tenantId, sourceTriggers: body.source,
+          scope: 'tenant', tenantId, ...(orderLocScope ?? {}), sourceTriggers: body.source,
         })).sort({ createdAt: -1 }).lean()
         if (!activeQrPromo) {
           activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
@@ -257,7 +273,7 @@ export async function POST(
 
       if (!activeQrPromo) {
         activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
-          scope: 'tenant', tenantId,
+          scope: 'tenant', tenantId, ...(orderLocScope ?? {}),
         })).sort({ createdAt: -1 }).lean()
         if (!activeQrPromo) {
           activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
@@ -334,6 +350,29 @@ export async function POST(
         { error: 'Este local está pausado temporalmente y no acepta pedidos.', code: 'LOCATION_PAUSED' },
         { status: 409 }
       )
+    }
+
+    // ── Gate E (server-side) ────────────────────────────────────────────────
+    // 1. acceptsOrders real: configuración explícita del admin. Rechaza con
+    //    409 ORDERS_CLOSED cuando la sede no está recibiendo pedidos.
+    // 2. posLocationGate (opt-in, scoped solo al tenant en activación):
+    //    si ninguna caja POS de la sede reportó heartbeat en los últimos 120s,
+    //    rechaza con 409 NO_POS_ACTIVE.
+    if (location.settings?.acceptsOrders === false) {
+      return NextResponse.json(
+        { error: 'Este local no está aceptando pedidos en este momento.', code: 'ORDERS_CLOSED' },
+        { status: 409 }
+      )
+    }
+    if ((tenant as any).features?.posLocationGate === true) {
+      const lastSeen = (location as any).pos?.lastSeenAt
+      const posFresh = lastSeen && Date.now() - new Date(lastSeen).getTime() < POS_GATE_WINDOW_MS
+      if (!posFresh) {
+        return NextResponse.json(
+          { error: 'No hay una caja POS activa en esta sede en este momento.', code: 'NO_POS_ACTIVE' },
+          { status: 409 }
+        )
+      }
     }
 
     // Validar horario de atención para pedidos inmediatos
@@ -1001,6 +1040,7 @@ export async function POST(
         const reservaClaims = await HiddenRewardClaim.find({
           tenantId: tenant._id,
           menuItemId: { $in: menuItemIds },
+          locationId: location._id,
           deviceId,
           status: 'reserva',
           reservationExpiresAt: { $gt: new Date() },
@@ -1025,6 +1065,7 @@ export async function POST(
         tenantId: tenant._id,
         customerPhoneHash: pHash,
         menuItemId: { $in: menuItemIds },
+        locationId: location._id,
         status: 'pendiente',
         expiresAt: { $gt: new Date() },
       }).lean()
@@ -1048,6 +1089,7 @@ export async function POST(
           const occupied = await HiddenRewardClaim.countDocuments({
             tenantId: tenant._id,
             menuItemId: item.menuItemId,
+            locationId: location._id,
             status: { $in: ['consumido', 'reservado'] },
           })
           if (occupied >= maxC) continue
@@ -1543,6 +1585,7 @@ export async function POST(
       pushOrderToSyncLayer({
         tenantId: tenant._id.toString(),
         externalOrderId: order._id.toString(),
+        locationId: body.locationId,
         items: resolvedItems.map((i: any) => ({
           productId: i.menuItemId?.toString() ?? undefined,
           name: i.name,

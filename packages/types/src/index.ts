@@ -16,6 +16,8 @@ export interface JwtPayload {
   tenantId: string
   role: Role
   deviceType: DeviceType
+  /** Sede del POS (multi-sede). Ausente en POS single-sede (legacy). */
+  locationId?: string
   iat: number
   exp: number
 }

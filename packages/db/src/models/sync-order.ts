@@ -2,6 +2,8 @@ import mongoose, { Schema, type Document } from "mongoose"
 
 export interface SyncOrderDocument extends Document {
   tenantId: string
+  /** ObjectId de la sede (apps/saas Location). Presente en órdenes multi-sede. */
+  locationId?: string
   source: string
   status: string
   tableId?: string
@@ -32,6 +34,7 @@ export interface SyncOrderDocument extends Document {
 export const SyncOrderSchema = new Schema<SyncOrderDocument>(
   {
     tenantId: { type: String, required: true, index: true },
+    locationId: { type: String },
     source: { type: String, required: true, enum: ["takeasygo", "pos"] },
     status: {
       type: String,
@@ -75,6 +78,7 @@ export const SyncOrderSchema = new Schema<SyncOrderDocument>(
 
 SyncOrderSchema.index({ tenantId: 1, createdAt: -1 })
 SyncOrderSchema.index({ tenantId: 1, status: 1 })
+SyncOrderSchema.index({ tenantId: 1, locationId: 1, createdAt: -1 })
 SyncOrderSchema.index({ tenantId: 1, externalOrderId: 1 }, { unique: true, sparse: true })
 
 export const SyncOrderModel = mongoose.model<SyncOrderDocument>(

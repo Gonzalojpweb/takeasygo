@@ -72,7 +72,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       return
     }
     try {
-      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${source}${promoSlug ? `&promo=${promoSlug}` : ''}&_=${Date.now()}`
+      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${effectiveSource}${promoSlug ? `&promo=${promoSlug}` : ''}${effectiveLocationId ? `&locationId=${effectiveLocationId}` : ''}&_=${Date.now()}`
       const res = await fetch(apiUrl)
       const data = await res.json()
       if (data.show && data.promo) {
@@ -108,6 +108,7 @@ export default function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       body: JSON.stringify({
         source,
         promoSlug: resolvedSlug.current || undefined,
+        locationId: resolvedLocationId.current || undefined,
       }),
     })
   }

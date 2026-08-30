@@ -32,6 +32,8 @@ interface QrPromoItem {
   loadingText: string
   checkoutDiscountLabel: string
   sourceTriggers: string[]
+  /** Sede a la que está acotada la promo. null = todas las sedes (explícito) */
+  locationId?: string | null
 }
 
 interface LocationOption {
@@ -120,9 +122,9 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
 
   const baseUrl = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : ''
 
-  const getPromoUrl = (slug: string, locationId?: string) => {
-    const id = locationId || selectedLoc[slug] || locations[0]?._id || '{locationId}'
-    return `${baseUrl}/${tenantSlug}/menu/${id}?source=qr&promo=${slug}`
+  const getPromoUrl = (promo: QrPromoItem) => {
+    const id = promo.locationId || '{locationId}'
+    return `${baseUrl}/${tenantSlug}/menu/${id}?source=qr&promo=${promo.slug}`
   }
 
   const handleCreate = async () => {
@@ -281,7 +283,7 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
             {!isGlobal && (
               <>
                 <button
-                  onClick={() => copyToClipboard(getPromoUrl(promo.slug))}
+                  onClick={() => copyToClipboard(getPromoUrl(promo))}
                   className="text-gray-400 hover:text-gray-600 p-1"
                   title="Copiar URL del QR"
                 >
@@ -313,15 +315,16 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
           <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 space-y-1.5">
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <MapPin size={12} />
-              <span className="font-medium">¿A qué sucursal apunta este QR?</span>
+              <span className="font-medium">¿En qué sede se habilita esta promo?</span>
             </div>
             <div className="flex items-center gap-2">
               <select
-                value={selectedLoc[promo.slug] || locations[0]?._id || ''}
-                onChange={(e) => setSelectedLoc(prev => ({ ...prev, [promo.slug]: e.target.value }))}
-                className="text-xs font-mono px-2 py-1 rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-[#F74211]/30 max-w-[200px]"
+                value={promo.locationId || ''}
+                onChange={(e) => handleUpdate(promo._id, { locationId: e.target.value || null })}
+                disabled={saving}
+                className="text-xs font-mono px-2 py-1 rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-[#F74211]/30 max-w-[220px]"
               >
-                {locations.length === 0 && <option value="">Sin sucursales</option>}
+                <option value="">Todas las sedes</option>
                 {locations.map(loc => (
                   <option key={loc._id} value={loc._id}>{loc.name}{loc.address ? ` — ${loc.address}` : ''}</option>
                 ))}
@@ -330,17 +333,23 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider w-16 shrink-0">QR:</span>
-                <span className="text-xs text-gray-400 font-mono truncate flex-1" title={getPromoUrl(promo.slug)}>
-                  {getPromoUrl(promo.slug, selectedLoc[promo.slug] || locations[0]?._id)}
+                <span className="text-xs text-gray-400 font-mono truncate flex-1" title={getPromoUrl(promo)}>
+                  {getPromoUrl(promo)}
                 </span>
                 <button onClick={() => {
-                  const locId = selectedLoc[promo.slug] || locations[0]?._id
-                  if (!locId) return
-                  copyToClipboard(getPromoUrl(promo.slug, locId))
-                }} className="text-[#F74211] hover:text-[#F74211]/70 font-medium text-[10px] whitespace-nowrap">
+                  if (!promo.locationId) return
+                  copyToClipboard(getPromoUrl(promo))
+                }} className="text-[#F74211] hover:text-[#F74211]/70 font-medium text-[10px] whitespace-nowrap disabled:opacity-40"
+                  disabled={!promo.locationId}
+                >
                   Copiar
                 </button>
               </div>
+              {!promo.locationId && (
+                <p className="text-[10px] text-amber-600">
+                  Esta promo aplica en todas las sedes. Asigná una sede para copiar la URL del QR.
+                </p>
+              )}
               {promo.sourceTriggers && promo.sourceTriggers.length > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider w-16 shrink-0">Source:</span>
@@ -445,7 +454,7 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
               <span className="text-sm text-gray-400 font-mono truncate">
                 {baseUrl}/{tenantSlug}/menu/
                 <select
-                  value={selectedLoc['__new'] || locations[0]?._id || ''}
+                  value={selectedLoc['__new'] || ''}
                   onChange={(e) => setSelectedLoc(prev => ({ ...prev, __new: e.target.value }))}
                   className="text-xs font-mono px-1 py-0.5 rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-[#F74211]/30"
                 >

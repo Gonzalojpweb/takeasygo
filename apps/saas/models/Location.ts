@@ -74,6 +74,11 @@ export interface ILocation extends Document {
   status: 'active' | 'paused'
   pausedAt: Date | null
   pausedReason: string | null
+  /** Estado del POS en esta sede (E gate: gateway por dispositivo POS activo) */
+  pos?: {
+    /** Última vez que un dispositivo POS de la sede reportó heartbeat */
+    lastSeenAt?: Date | null
+  }
   scheduledOrdersConfig?: {
     enabled: boolean
     maxAdvanceHours: number
@@ -241,6 +246,9 @@ settings: {
     status: { type: String, enum: ['active', 'paused'], default: 'active' },
     pausedAt: { type: Date, default: null },
     pausedReason: { type: String, default: null },
+    pos: {
+      lastSeenAt: { type: Date, default: null },
+    },
     scheduledOrdersConfig: {
       enabled: { type: Boolean, default: false },
       maxAdvanceHours: { type: Number, default: 24 },

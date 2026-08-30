@@ -6,6 +6,7 @@ const SYNC_LAYER_SECRET = process.env.SYNC_LAYER_SECRET ?? ""
 interface SyncOrderPayload {
   tenantId: string
   externalOrderId: string
+  locationId?: string
   items: { productId?: string; name: string; quantity: number; unitPrice: number; total: number }[]
   total: number
   baseTotal?: number

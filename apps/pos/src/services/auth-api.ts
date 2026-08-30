@@ -6,14 +6,23 @@ export interface LoginResponse {
   deviceType: "hub"
 }
 
+export interface PosLocation {
+  id: string
+  name: string
+  slug: string
+  address: string
+  acceptsOrders: boolean
+}
+
 export async function loginWithPin(
   employeePin: string,
-  tenantId: string
+  tenantId: string,
+  locationId?: string
 ): Promise<LoginResponse> {
   const res = await fetch(`${SYNC_URL}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "pin", employeePin, tenantId }),
+    body: JSON.stringify({ mode: "pin", employeePin, tenantId, locationId }),
   })
 
   if (!res.ok) {
@@ -26,12 +35,13 @@ export async function loginWithPin(
 
 export async function loginWithEmail(
   email: string,
-  password: string
+  password: string,
+  locationId?: string
 ): Promise<LoginResponse> {
   const res = await fetch(`${SYNC_URL}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "email", email, password }),
+    body: JSON.stringify({ mode: "email", email, password, locationId }),
   })
 
   if (!res.ok) {
@@ -40,4 +50,15 @@ export async function loginWithEmail(
   }
 
   return res.json()
+}
+
+// Fetches the tenant's active locations for the sede picker (multi-sede POS).
+// Requires a valid hub JWT (temporary login).
+export async function getLocations(jwt: string): Promise<PosLocation[]> {
+  const res = await fetch(`${SYNC_URL}/api/v1/locations`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  })
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.locations ?? []
 }

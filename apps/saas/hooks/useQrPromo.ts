@@ -22,14 +22,17 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
   const [loading, setLoading] = useState(true)
   const [loyaltyMsg, setLoyaltyMsg] = useState<LoyaltyMessaging | null>(null)
   const resolvedSlug = useRef<string>('')
+  const resolvedLocationId = useRef<string | null>(null)
 
   const checkPromo = useCallback(async () => {
     let effectiveSource = source
+    let locationId: string | null = null
     if (!effectiveSource && typeof window !== 'undefined') {
       const pathParts = window.location.pathname.split('/')
-      const locationId = pathParts[3]
-      if (locationId && locationId.length === 24) {
+      const pathLocationId = pathParts[3]
+      if (pathLocationId && pathLocationId.length === 24) {
         effectiveSource = 'qr-auto'
+        locationId = pathLocationId
       }
     }
     if (!effectiveSource) {
@@ -37,7 +40,7 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
       return
     }
     try {
-      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${effectiveSource}${urlPromoSlug ? `&promo=${urlPromoSlug}` : ''}&_=${Date.now()}`
+      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${effectiveSource}${urlPromoSlug ? `&promo=${urlPromoSlug}` : ''}${locationId ? `&locationId=${locationId}` : ''}&_=${Date.now()}`
       const res = await fetch(apiUrl)
       if (!res.ok) {
         console.error(`QR promo fetch failed: ${res.status} ${res.statusText}`)
@@ -47,6 +50,7 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
       if (data.show && data.promo) {
         const slug = data.resolvedSlug || urlPromoSlug
         resolvedSlug.current = slug
+        resolvedLocationId.current = locationId
 
         setPromo(data.promo)
         setShow(true)
@@ -83,6 +87,7 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
       body: JSON.stringify({
         source,
         promoSlug: resolvedSlug.current || undefined,
+        locationId: resolvedLocationId.current || undefined,
       }),
     })
   }, [tenantSlug, source])

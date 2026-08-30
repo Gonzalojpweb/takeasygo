@@ -107,6 +107,7 @@ async function main() {
   console.log('\n[3/7] Seeding test data...')
   const tenantId = new mongoose.Types.ObjectId()
   const locationId = new mongoose.Types.ObjectId()
+  const locationBId = new mongoose.Types.ObjectId()
   const directItemId = new mongoose.Types.ObjectId()
   const subcatItemId = new mongoose.Types.ObjectId()
   const subcategoryId = new mongoose.Types.ObjectId()
@@ -138,6 +139,18 @@ async function main() {
     isActive: true,
   })
   console.log(`  location: ${locationId}`)
+
+  // Location B (multi-sede B: misma sede distinta para el escenario 2 locales)
+  await mongoose.connection.db!.collection('locations').insertOne({
+    _id: locationBId,
+    tenantId,
+    name: 'Test Location B',
+    slug: 'test-loc-b',
+    address: '456 Test Ave',
+    coordinates: { lat: -34.5, lng: -58.3 },
+    isActive: true,
+  })
+  console.log(`  locationB: ${locationBId}`)
 
   // Admin user
   await mongoose.connection.db!.collection('users').insertOne({
@@ -222,6 +235,51 @@ async function main() {
     ],
   })
   console.log(`  menu: direct=${directItemId}, subcat=${subcatItemId}`)
+
+  // Menu B (multi-sede): mismo subcatItemId con stock propio (maxClaims=1).
+  // Escenario clave: consumir en una sede NO descuenta el stock de la otra.
+  await mongoose.connection.db!.collection('menus').insertOne({
+    tenantId,
+    locationId: locationBId,
+    isActive: true,
+    categories: [
+      {
+        _id: new mongoose.Types.ObjectId(),
+        name: 'With Subs',
+        isAvailable: true,
+        isTakeawayAvailable: true,
+        isBusinessAvailable: true,
+        items: [],
+        subcategories: [
+          {
+            _id: new mongoose.Types.ObjectId(),
+            name: 'Classics',
+            isAvailable: true,
+            items: [
+              {
+                _id: subcatItemId,
+                name: 'Secret Pizza',
+                price: 2000,
+                isAvailable: true,
+                isTakeawayAvailable: true,
+                isBusinessAvailable: true,
+                hiddenReward: {
+                  enabled: true,
+                  discountPercentage: 15,
+                  title: 'Pizza oculta',
+                  description: '15% off la pizza',
+                  maxClaims: 1,
+                  remainingClaims: 1,
+                  claimExpiryDays: 30,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  console.log(`  menuB (locationId=${locationBId}): subcat=${subcatItemId}`)
 
   // ── Preflight: DB cross-check ────────────────────────────────────────────
   // Verify seed data exists in __hr_e2e__ via direct mongoose read.
@@ -440,10 +498,123 @@ async function main() {
   })
   assert(!fakeMember, 'No LoyaltyMember created for order without hidden rewards', `found=${!!fakeMember}`)
 
+  // ── Multi-sede (B): mismo menuItemId en 2 sedes con stock independiente ──
+  // Escenario: el MISMO dispositivo descubre el MISMO ítem (subcatItemId) en la
+  // sede B. Debe poder (per-sede), persistir locationId, y consumir en B NO
+  // descuenta el remainingClaims del menú de la sede A.
+  console.log('\n[8/8] Multi-sede: mismo menuItemId en 2 sedes (stock y dedupe por sede)...')
+
+  // D1: discover en sede B con el mismo device (hrSidCookie) + mismo ítem
+  const discoverB = await fetch(`${BASE_URL}/api/${TENANT_SLUG}/hidden-rewards/discover`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(hrSidCookie ? { 'Cookie': hrSidCookie } : {}),
+    },
+    body: JSON.stringify({ menuItemId: subcatItemId.toString(), locationId: locationBId.toString() }),
+  })
+  const discoverBData = await discoverB.json() as any
+  assert(discoverBData.ok === true, 'Multi-sede: discover ok:true en sede B con el mismo device+item', JSON.stringify(discoverBData))
+  const sessionBId = discoverBData.reward?.sessionId
+  assert(!!sessionBId, 'Multi-sede: discover B devuelve sessionId', JSON.stringify(discoverBData))
+
+  // D1b: la reserva B queda persistida con locationId = locationBId
+  const reservaB = await mongoose.connection.db!.collection('hiddenrewardclaims').findOne({
+    tenantId, menuItemId: subcatItemId, status: 'reserva',
+  })
+  assert(!!reservaB, 'Multi-sede: existe reserva activa (sede B)', `found=${!!reservaB}`)
+  assert(reservaB?.locationId?.toString() === locationBId.toString(), 'Multi-sede: claim persiste locationId de la sede B', `got=${reservaB?.locationId}`)
+
+  // D2: check con sede explícita → encuentra SOLO la reserva de la sede B
+  const checkB = await fetch(`${BASE_URL}/api/${TENANT_SLUG}/hidden-rewards/check`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(hrSidCookie ? { 'Cookie': hrSidCookie } : {}),
+    },
+    body: JSON.stringify({
+      phone: '+5491155551234',
+      menuItemIds: [subcatItemId.toString()],
+      locationId: locationBId.toString(),
+    }),
+  })
+  const checkBData = await checkB.json() as any
+  const claimBItem = (checkBData.claims ?? []).find((c: any) => c.menuItemId?.toString() === subcatItemId.toString())
+  assert(!!claimBItem, 'Multi-sede: check en sede B devuelve el claim (dedupe por sede)', JSON.stringify(checkBData.claims))
+  assert(claimBItem?.locationId === locationBId.toString(), 'Multi-sede: claimB.locationId coincide con sede B', `got=${claimBItem?.locationId}`)
+
+  // D3: segundo discover en sede B (mismo device+item+sede) → bloqueado
+  const discoverB2 = await fetch(`${BASE_URL}/api/${TENANT_SLUG}/hidden-rewards/discover`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(hrSidCookie ? { 'Cookie': hrSidCookie } : {}),
+    },
+    body: JSON.stringify({ menuItemId: subcatItemId.toString(), locationId: locationBId.toString() }),
+  })
+  const discoverB2Data = await discoverB2.json() as any
+  assert(discoverB2Data.ok === false, 'Multi-sede: 2º discover en sede B bloqueado (device+item+sede ya reservado)', JSON.stringify(discoverB2Data))
+
+  // D4: crear pedido EN la sede B con ese ítem (teléfono nuevo) → reserva claim B
+  const orderBRes = await fetch(`${BASE_URL}/api/${TENANT_SLUG}/orders`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(hrSidCookie ? { 'Cookie': hrSidCookie } : {}),
+    },
+    body: JSON.stringify({
+      locationId: locationBId.toString(),
+      items: [{ type: 'menuItem', quantity: 1, customizations: [], menuItemId: subcatItemId.toString() }],
+      customer: { name: 'E2E Customer B', phone: '+5491133332222', email: 'testb@e2e.local' },
+      mode: 'takeaway',
+      paymentMethod: 'transfer',
+      sessionId: 'different-session-uuid-b',
+    }),
+  })
+  const orderBData = await orderBRes.json() as any
+  assert(orderBRes.status === 201, 'Multi-sede: pedido en sede B creado (201)', `status=${orderBRes.status} body=${JSON.stringify(orderBData)}`)
+  const orderBId = orderBData.order?._id
+  assert(!!orderBId, 'Multi-sede: pedido B tiene _id')
+  assert((orderBData.order?.discountAmount ?? 0) > 0, 'Multi-sede: descuento aplicado en sede B', `discount=${orderBData.order?.discountAmount}`)
+
+  const reservadoB = await mongoose.connection.db!.collection('hiddenrewardclaims').findOne({
+    tenantId, menuItemId: subcatItemId, status: 'reservado', locationId: locationBId,
+  })
+  assert(!!reservadoB, 'Multi-sede: claim B = reservado con locationId sede B', `found=${!!reservadoB}`)
+
+  // D5: confirmar el pedido B → finalize descuenta SOLO el menú de la sede B
+  const confirmBRes = await fetch(`${BASE_URL}/api/${TENANT_SLUG}/orders/${orderBId}/confirm-transfer-admin`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Cookie': cookieHeader },
+  })
+  assert(confirmBRes.status === 200, 'Multi-sede: confirm orden B (200)', `status=${confirmBRes.status}`)
+  await new Promise(r => setTimeout(r, 2000))
+
+  const menuBAfter = await mongoose.connection.db!.collection('menus').findOne({ tenantId, locationId: locationBId })
+  const subcatMenuB = menuBAfter?.categories?.find((c: any) => c.name === 'With Subs')
+  const pizzaB = subcatMenuB?.subcategories?.[0]?.items?.find((i: any) => i._id?.toString() === subcatItemId.toString())
+  assert(pizzaB?.hiddenReward?.remainingClaims === 0, 'Multi-sede: remainingClaims menú B = 0 (se consumió la del stock de B)', `got=${pizzaB?.hiddenReward?.remainingClaims}`)
+
+  const menuAAfter = await mongoose.connection.db!.collection('menus').findOne({ tenantId, locationId })
+  const subcatMenuA = menuAAfter?.categories?.find((c: any) => c.name === 'With Subs')
+  const pizzaA = subcatMenuA?.subcategories?.[0]?.items?.find((i: any) => i._id?.toString() === subcatItemId.toString())
+  assert(pizzaA?.hiddenReward?.remainingClaims === 1, 'Multi-sede: remainingClaims menú A SIGUE = 1 (consumir en B no descuenta A)', `got=${pizzaA?.hiddenReward?.remainingClaims}`)
+
+  // D6: un claim consumido por sede, misma item — independencia total
+  const consumedForItem = await mongoose.connection.db!.collection('hiddenrewardclaims').find({
+    tenantId, menuItemId: subcatItemId, status: 'consumido',
+  }).toArray()
+  assert(consumedForItem.length === 2, 'Multi-sede: 2 claims consumidos (uno por sede) para el mismo item', `got=${consumedForItem.length}`)
+  const consumedLocs = new Set(consumedForItem.map(c => c.locationId?.toString()).filter(Boolean))
+  assert(consumedLocs.has(locationId.toString()) && consumedLocs.has(locationBId.toString()), 'Multi-sede: claims consumidos en sedes A y B, ambos con locationId', `locs=${[...consumedLocs].join(',')}`)
+
+  console.log('\n  ✅ Multi-sede escenario PASSED (stock y dedupe por sede).')
+
   // ── Cleanup ─────────────────────────────────────────────────────────────
   console.log('\n  🧹 Cleaning up...')
   await mongoose.connection.db!.collection('tenants').deleteOne({ _id: tenantId })
   await mongoose.connection.db!.collection('locations').deleteOne({ _id: locationId })
+  await mongoose.connection.db!.collection('locations').deleteOne({ _id: locationBId })
   await mongoose.connection.db!.collection('users').deleteOne({ email: ADMIN_EMAIL })
   await mongoose.connection.db!.collection('menus').deleteOne({ tenantId })
   await mongoose.connection.db!.collection('hiddenrewardclaims').deleteMany({ tenantId })
