@@ -37,6 +37,12 @@ export interface ILocation extends Document {
       triggeredBy: 'cron' | 'order_completed' | 'admin_request' | 'system_init'
       timestamp: Date
     }>
+    /** Override de pago en efectivo por sede (opcional). null = usa Tenant.cash */
+    cash?: {
+      enabled?: boolean
+      /** Descuento por pago en efectivo en %. Si falta, hereda el del tenant. @storedAs percent */
+      discountPercent?: number
+    } | null
   }
   deliveryConfig?: {
     enabled: boolean
@@ -215,6 +221,13 @@ settings: {
             timestamp: { type: Date, default: Date.now }
           }],
           default: []
+        },
+        cash: {
+          type: {
+            enabled: { type: Boolean, default: undefined },
+            discountPercent: { type: Number, min: 0, max: 100, default: undefined },
+          },
+          default: null,
         }
     },
     reservationConfig: {

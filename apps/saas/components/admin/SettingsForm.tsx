@@ -1664,6 +1664,15 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                             initialConfig={loc.deliveryConfig || { enabled: false, ranges: [], maxRangeKm: 0 }}
                           />
                         )}
+
+                        {/* ── Efectivo por sede ── */}
+                        {canAccess(plan as Plan, 'cashPayment') && tenant.features?.cashPaymentEnabledBySuperadmin && (
+                          <LocationCashSettings
+                            locationId={loc._id}
+                            tenantSlug={tenantSlug}
+                            initialCash={loc.settings?.cash ?? null}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   ))
@@ -2363,6 +2372,126 @@ function DeliveryConfigSection({ locationId, tenantSlug, initialConfig }: {
         aria-busy={saving}
       >
         {saving ? 'Guardando...' : 'Guardar configuración de delivery'}
+      </Button>
+    </div>
+  )
+}
+
+function LocationCashSettings({ locationId, tenantSlug, initialCash }: {
+  locationId: string
+  tenantSlug: string
+  initialCash: { enabled?: boolean; discountPercent?: number } | null | undefined
+}) {
+  const override = initialCash && typeof initialCash === 'object' ? initialCash : null
+  const [overrideEnabled, setOverrideEnabled] = useState(!!override)
+  const [enabled, setEnabled] = useState(override?.enabled ?? true)
+  const [discountPercent, setDiscountPercent] = useState(override?.discountPercent ?? 0)
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const payload = overrideEnabled
+        ? { enabled, discountPercent: Math.min(100, Math.max(0, Number(discountPercent) || 0)) }
+        : null
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { cash: payload } }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(
+        overrideEnabled
+          ? 'Configuración de efectivo de la sede guardada'
+          : 'La sede vuelve a usar la configuración general de efectivo'
+      )
+    } catch {
+      toast.error('Error al guardar configuración de efectivo')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Banknote size={12} className="text-primary" />
+          <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+            💵 Efectivo de la sede
+          </span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={overrideEnabled}
+          aria-label="Usar configuración propia de efectivo"
+          onClick={() => setOverrideEnabled(!overrideEnabled)}
+          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 ${
+            overrideEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
+          }`}
+        >
+          <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200 ${
+            overrideEnabled ? 'translate-x-5' : 'translate-x-0'
+          }`} />
+        </button>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground/70">
+        {overrideEnabled
+          ? 'Esta sede usa su propia configuración de efectivo. Los campos sin completar heredan el valor general del comercio.'
+          : 'Esta sede usa la configuración general de efectivo del comercio.'}
+      </p>
+
+      {overrideEnabled && (
+        <div className="space-y-4 border-t border-border/40 pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+              Aceptar efectivo en esta sede
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              aria-label="Aceptar efectivo en esta sede"
+              onClick={() => setEnabled(!enabled)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 ${
+                enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+              }`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200 ${
+                enabled ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 block">
+              Descuento por pago en efectivo (%)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={discountPercent}
+              onChange={e => setDiscountPercent(Number(e.target.value))}
+              className="bg-white border border-border/60 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20 min-w-0"
+            />
+            <p className="text-[9px] text-muted-foreground/40 italic">
+              Déjalo en 0 para no dar descuento con efectivo en esta sede.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Button
+        className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
+        onClick={handleSave}
+        disabled={saving}
+        aria-busy={saving}
+      >
+        {saving ? 'Guardando...' : 'Guardar configuración de efectivo'}
       </Button>
     </div>
   )

@@ -381,7 +381,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     // Se pasa el mode efectivo para que el precio de transferencia mostrado al cliente
     // coincida exactamente con lo que el servidor va a calcular (comisión solo en delivery).
     const effectiveMode = stateRef.current.deliveryMode ? 'delivery' : mode
-    fetch(`/api/${tenantSlug}/payment-methods?mode=${effectiveMode}`)
+    fetch(`/api/${tenantSlug}/payment-methods?mode=${effectiveMode}&locationId=${locationId}`)
       .then(r => r.json())
       .then(data => {
         if (data?.error) {

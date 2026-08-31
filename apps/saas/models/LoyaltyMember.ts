@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export type LoyaltyMemberStatus = 'active' | 'inactive' | 'blocked'
-export type LoyaltyMemberSource = 'checkout' | 'qr_scan' | 'admin' | 'manual_import' | 'explore' | 'promotion'
+export type LoyaltyMemberSource = 'checkout' | 'qr_scan' | 'admin' | 'manual_import' | 'explore' | 'promotion' | 'hidden_reward'
 export type LoyaltyTier = 'none' | 'bronze' | 'silver' | 'gold'
 
 export interface ILoyaltyMember extends Document {
@@ -149,7 +149,7 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
     },
     source: {
       type:    String,
-      enum:    ['checkout', 'qr_scan', 'admin', 'manual_import', 'explore', 'promotion'],
+      enum:    ['checkout', 'qr_scan', 'admin', 'manual_import', 'explore', 'promotion', 'hidden_reward'],
       default: 'admin',
     },
 
