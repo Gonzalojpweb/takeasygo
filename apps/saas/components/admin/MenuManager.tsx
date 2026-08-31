@@ -286,7 +286,15 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 
   useEffect(() => {
     if (currentMenu?.categories) {
-      setLocalCategories([...currentMenu.categories].sort((a: any, b: any) => a.sortOrder - b.sortOrder))
+      setLocalCategories(
+        [...currentMenu.categories]
+          .map((c: any) => ({
+            ...c,
+            items: c.items || [],
+            subcategories: c.subcategories || [],
+          }))
+          .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+      )
     } else {
       setLocalCategories([])
     }
@@ -1130,7 +1138,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                       ...sub,
                       items: (sub.items || []).filter(filterItem),
                     })).filter((sub: any) => sub.items.length > 0 || sub.name.toLowerCase().includes(q))
-                  : category.subcategories
+                  : (category.subcategories || [])
                 if (isSearching && !categoryMatches && filteredItems.length === 0 && filteredSubcategories.length === 0) return null
                 return (
                   <SortableCategoryWrapper key={category._id} id={category._id}>
@@ -1184,8 +1192,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               </h3>
                               <Badge variant="secondary" className="bg-muted px-2 font-bold tabular-nums text-[10px] uppercase tracking-wide opacity-70">
                                 {(() => {
-                                  const subcatItems = (category.subcategories || []).reduce((s: number, sc: any) => s + (sc.items?.length || 0), 0)
-                                  return category.items.length + subcatItems
+                                   const subcatItems = (category.subcategories || []).reduce((s: number, sc: any) => s + (sc.items?.length || 0), 0)
+                                   return (category.items || []).length + subcatItems
                                 })()} items
                               </Badge>
                               {!category.isAvailable && (
@@ -2128,7 +2136,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                     loading={loading}
                                     mode="add"
                                     tenantSlug={tenantSlug}
-                                    allItems={(currentMenu?.categories || []).flatMap((c: any) => [...c.items, ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])])}
+                                    allItems={(currentMenu?.categories || []).flatMap((c: any) => [...(c.items || []), ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])])}
                                   />
                                 </motion.div>
                               ) : (
