@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import QrPromo from '@/models/QrPromo'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
+import { Types } from 'mongoose'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function GET(request: NextRequest) {
@@ -42,6 +44,7 @@ export async function POST(request: NextRequest) {
       loadingText, checkoutDiscountLabel, sourceTriggers,
       scheduledStart, scheduledEnd, targetTenants,
       code, maxUses, maxUsesPerConsumer,
+      locationId,
     } = body
 
     if (!slug?.trim()) {
@@ -58,6 +61,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // locationId: una sede solo tiene sentido si el target es UNA sola sede de un
+    // único tenant. Con "todos los tenants" o varios tenants objetivo, el alcance
+    // de sedimentación no aplica (la promo global aplica a todas las sedes).
+    let resolvedLocationId: Types.ObjectId | null = null
+    const hasSingleTarget =
+      Array.isArray(targetTenants) && targetTenants.length === 1
+
+    if (locationId) {
+      if (!hasSingleTarget) {
+        return NextResponse.json(
+          { error: 'Solo se puede elegir una sede si el QR apunta a un único tenant destino' },
+          { status: 400 }
+        )
+      }
+      if (locationId === 'all' || locationId === 'all-locations') {
+        resolvedLocationId = null
+      } else if (Types.ObjectId.isValid(String(locationId))) {
+        const locExists = await Location.countDocuments({
+          _id: locationId,
+          tenantId: targetTenants[0],
+          isActive: true,
+        })
+        if (locExists !== 1) {
+          return NextResponse.json({ error: 'La sede indicada no existe o no pertenece al tenant destino' }, { status: 400 })
+        }
+        resolvedLocationId = new Types.ObjectId(String(locationId))
+      } else {
+        return NextResponse.json({ error: 'La sede indicada es inválida' }, { status: 400 })
+      }
+    }
+
     const cleanSlug = slug.toLowerCase().trim()
     const existing = await QrPromo.findOne({ scope: 'global', slug: cleanSlug })
     if (existing) {
@@ -67,6 +101,7 @@ export async function POST(request: NextRequest) {
     const promo = await QrPromo.create({
       scope: 'global',
       targetTenants: Array.isArray(targetTenants) ? targetTenants : [],
+      locationId: resolvedLocationId,
       slug: cleanSlug,
       isEnabled: isEnabled ?? true,
       scheduledStart: scheduledStart || null,

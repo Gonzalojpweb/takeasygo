@@ -111,7 +111,7 @@ export async function GET(
       qrPromoConfig = await findPromo({
         $or: [
           { scope: 'tenant', tenantId, ...(locationScope ?? {}) },
-          { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }] },
+          { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }], ...(locationScope ?? {}) },
         ],
         slug: promoSlug.toLowerCase().trim(),
       })
@@ -132,6 +132,7 @@ export async function GET(
         qrPromoConfig = await findPromo({
           scope: 'global',
           $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+          ...(locationScope ?? {}),
           sourceTriggers: source,
         })
         if (qrPromoConfig) matchedBy = 'source_global'
@@ -144,6 +145,7 @@ export async function GET(
         .then(f => f || findPromo({
           scope: 'global',
           $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+          ...(locationScope ?? {}),
         }))
       if (qrPromoConfig) matchedBy = 'default'
     }

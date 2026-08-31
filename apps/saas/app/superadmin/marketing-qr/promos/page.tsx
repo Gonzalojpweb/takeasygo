@@ -35,12 +35,20 @@ interface QrPromoItem {
   usedCount?: number
   maxUsesPerConsumer?: number
   createdBy?: string
+  locationId?: string | null
 }
 
 interface TenantOption {
   _id: string
   name: string
   slug: string
+}
+
+interface LocationOption {
+  _id: string
+  name: string
+  slug: string
+  status?: string
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
@@ -78,6 +86,9 @@ export default function GlobalQrPromosPage() {
   const [sourceTriggers, setSourceTriggers] = useState('qr')
   const [targetTenants, setTargetTenants] = useState<string[]>([])
   const [targetAll, setTargetAll] = useState(true)
+  const [locations, setLocations] = useState<LocationOption[]>([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
+  const [locationId, setLocationId] = useState<string>('all')
   const [code, setCode] = useState('')
   const [maxUses, setMaxUses] = useState('')
   const [maxUsesPerConsumer, setMaxUsesPerConsumer] = useState(1)
@@ -116,6 +127,26 @@ export default function GlobalQrPromosPage() {
     }
   }
 
+  async function fetchLocations(tenantId: string) {
+    setLocationsLoading(true)
+    setLocations([])
+    setLocationId('all')
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenantId}/locations`)
+      const data = await res.json()
+      if (res.ok) setLocations(data.locations || [])
+      else console.error('Error al cargar sedes', data.error)
+    } catch {
+      console.error('Error al cargar sedes')
+    } finally {
+      setLocationsLoading(false)
+    }
+  }
+
+  function applySingleTarget(tenantId: string) {
+    fetchLocations(tenantId)
+  }
+
   function openModal(promo?: QrPromoItem) {
     if (promo) {
       setEditingId(promo._id)
@@ -140,6 +171,11 @@ export default function GlobalQrPromosPage() {
       setSourceTriggers((promo.sourceTriggers || ['qr']).join(', '))
       setTargetTenants(promo.targetTenants || [])
       setTargetAll((promo.targetTenants || []).length === 0)
+      setLocationId(promo.locationId || 'all')
+      setLocations([])
+      if ((promo.targetTenants || []).length === 1) {
+        fetchLocations(promo.targetTenants[0])
+      }
       setCode(promo.code || '')
       setMaxUses(promo.maxUses?.toString() || '')
       setMaxUsesPerConsumer(promo.maxUsesPerConsumer ?? 1)
@@ -166,6 +202,8 @@ export default function GlobalQrPromosPage() {
       setSourceTriggers('qr')
       setTargetTenants([])
       setTargetAll(true)
+      setLocations([])
+      setLocationId('all')
       setCode('')
       setMaxUses('')
       setMaxUsesPerConsumer(1)
@@ -188,6 +226,7 @@ export default function GlobalQrPromosPage() {
       loadingText, checkoutDiscountLabel,
       sourceTriggers: sourceTriggers.split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
       targetTenants: targetAll ? [] : targetTenants,
+      locationId: targetAll || targetTenants.length !== 1 ? null : (locationId === 'all' ? null : locationId),
       code: code.trim() || undefined,
       maxUses: maxUses ? Number(maxUses) : undefined,
       maxUsesPerConsumer,
@@ -233,9 +272,16 @@ export default function GlobalQrPromosPage() {
   }
 
   function toggleTenant(tenantId: string) {
-    setTargetTenants(prev =>
-      prev.includes(tenantId) ? prev.filter(id => id !== tenantId) : [...prev, tenantId]
-    )
+    const next = targetTenants.includes(tenantId)
+      ? targetTenants.filter(id => id !== tenantId)
+      : [...targetTenants, tenantId]
+    setTargetTenants(next)
+    if (next.length === 1) {
+      fetchLocations(next[0])
+    } else {
+      setLocations([])
+      setLocationId('all')
+    }
   }
 
   if (loading) return <div className="p-8 text-center text-zinc-500">Cargando...</div>
@@ -578,6 +624,33 @@ export default function GlobalQrPromosPage() {
                     </div>
                   )}
                 </div>
+
+                {!targetAll && targetTenants.length === 1 && (
+                  <div className="col-span-2 border-t border-zinc-200 pt-4">
+                    <label className="block text-sm font-medium text-zinc-700 mb-2">
+                      <Globe size={16} className="inline mr-1" />
+                      Sedes destino
+                    </label>
+                    <p className="text-xs text-zinc-400 mb-2">
+                      Elegí la sede donde aplica esta promo. Si el tenant destino tiene más de una sede y no elegís,
+                      aplica a todas sus sedes.
+                    </p>
+                    <select
+                      value={locationId}
+                      onChange={e => setLocationId(e.target.value)}
+                      disabled={locationsLoading}
+                      className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400 disabled:opacity-50"
+                    >
+                      <option value="all">Todas las sedes</option>
+                      {locations.map(l => (
+                        <option key={l._id} value={l._id}>{l.name} <span>({l.slug})</span></option>
+                      ))}
+                    </select>
+                    {locationsLoading && (
+                      <p className="text-xs text-zinc-400 mt-1">Cargando sedes...</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="pt-4 border-t border-zinc-100 flex justify-end gap-3">
