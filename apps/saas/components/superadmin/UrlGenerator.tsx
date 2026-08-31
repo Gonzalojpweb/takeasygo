@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Copy, Check, Link2, Instagram, QrCode, MessageCircle, Facebook, Search, MousePointer, Globe, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -9,6 +9,13 @@ interface Tenant {
   _id: string
   name: string
   slug: string
+}
+
+interface Location {
+  _id: string
+  name: string
+  slug: string
+  status?: string
 }
 
 interface UrlGeneratorProps {
@@ -38,14 +45,46 @@ const QR_LOCATIONS = [
 
 export default function UrlGenerator({ tenants }: UrlGeneratorProps) {
   const [selectedTenant, setSelectedTenant] = useState<string>('')
+  const [selectedLocation, setSelectedLocation] = useState<string>('')
+  const [locations, setLocations] = useState<Location[]>([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
   const [selectedSource, setSelectedSource] = useState<string>('instagram')
   const [customLabel, setCustomLabel] = useState<string>('')
   const [copied, setCopied] = useState<string | null>(null)
 
   const selectedTenantData = tenants.find(t => t._id === selectedTenant)
-  
-  const baseUrl = selectedTenantData 
-    ? `https://takeasygo.com/${selectedTenantData.slug}/menu`
+
+  useEffect(() => {
+    if (!selectedTenant) {
+      setLocations([])
+      setSelectedLocation('')
+      return
+    }
+    let cancelled = false
+    setLocationsLoading(true)
+    setSelectedLocation('')
+    setLocations([])
+    fetch(`/api/superadmin/tenants/${selectedTenant}/locations`)
+      .then(res => res.json())
+      .then((data) => {
+        if (cancelled) return
+        setLocations(data.locations || [])
+      })
+      .catch(() => {
+        if (!cancelled) setLocations([])
+      })
+      .finally(() => {
+        if (!cancelled) setLocationsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [selectedTenant])
+
+  const selectedLocationData = locations.find(l => l._id === selectedLocation)
+
+  const baseUrl = selectedTenantData
+    ? selectedLocationData
+      ? `https://takeasygo.com/${selectedTenantData.slug}/menu/${selectedLocationData._id}`
+      : `https://takeasygo.com/${selectedTenantData.slug}/menu`
     : 'https://takeasygo.com/[tenant]/menu'
 
   const generateUrl = (source: string, label?: string) => {
@@ -91,6 +130,35 @@ export default function UrlGenerator({ tenants }: UrlGeneratorProps) {
           ))}
         </select>
       </div>
+
+      {/* Selección de Sede (solo cuando hay tenant) */}
+      {selectedTenantData && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">Sede</label>
+          <select
+            value={selectedLocation}
+            onChange={(e) => setSelectedLocation(e.target.value)}
+            disabled={locationsLoading}
+            className="w-full h-10 text-sm bg-background border border-border/60 rounded-lg px-3 disabled:opacity-50"
+          >
+            <option value="">
+              {locationsLoading
+                ? 'Cargando sedes...'
+                : locations.length > 1
+                  ? 'Todas las sedes (seleccioná para acotar)'
+                  : 'Todas las sedes'}
+            </option>
+            {locations.map(l => (
+              <option key={l._id} value={l._id}>{l.name} ({l.slug})</option>
+            ))}
+          </select>
+          {locations.length <= 1 && !locationsLoading && (
+            <p className="text-xs text-muted-foreground">
+              Este tenant no tiene sedes adicionales para acotar.
+            </p>
+          )}
+        </div>
+      )}
 
       {selectedTenantData && (
         <>
