@@ -216,7 +216,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       })
       .catch(() => {})
 
-    fetch(`/api/${tenantSlug}/payment-methods`)
+    fetch(`/api/${tenantSlug}/payment-methods?locationId=${locationId}`)
       .then(r => r.json())
       .then(data => {
         if (data?.error) {

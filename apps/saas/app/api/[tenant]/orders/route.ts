@@ -29,6 +29,7 @@ import { getDeviceIdIfExists } from '@/lib/hidden-rewards'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
 import { calculateFinalTotal } from '@/lib/pricing'
+import { resolveCashConfig } from '@/lib/cash'
 import { sendAdminPushNotification } from '@/lib/push'
 import PlatformConfig from '@/models/PlatformConfig'
 import { registerImpactEvent } from '@/lib/impact'
@@ -972,10 +973,11 @@ export async function POST(
 
     // ── Descuento propio del restaurante para pago en efectivo ──────────
     // Se aplica antes de QR promo e Hidden Rewards, sobre el subtotal.
-    // Solo si el método de pago es cash y el tenant tiene un descuento configurado.
+    // Solo si el método de pago es cash y la sede (o el tenant por fallback) tiene descuento.
     let cashDiscount = 0
-    if (paymentMethod === 'cash' && (tenant as any).cash?.discountPercent > 0) {
-      cashDiscount = Math.floor(subtotal * ((tenant as any).cash.discountPercent / 100))
+    const cashConfig = resolveCashConfig((tenant as any)?.cash, (location as any)?.settings?.cash)
+    if (paymentMethod === 'cash' && cashConfig.discountPercent > 0) {
+      cashDiscount = Math.floor(subtotal * (cashConfig.discountPercent / 100))
       discountAmount += cashDiscount
     }
 

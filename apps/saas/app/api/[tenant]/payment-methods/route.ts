@@ -1,7 +1,9 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import PlatformConfig from '@/models/PlatformConfig'
 import { calculateFinalTotal, getTotalFeesForMethod } from '@/lib/pricing'
+import { resolveCashConfig } from '@/lib/cash'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { NextRequest, NextResponse } from 'next/server'
@@ -16,6 +18,7 @@ export async function GET(
     // Fallback intencional a 'takeaway': si el caller no manda el parámetro,
     // el sistema falla al lado seguro (no cobra comisión de más).
     const mode = _request.nextUrl.searchParams.get('mode') || 'takeaway'
+    const locationId = _request.nextUrl.searchParams.get('locationId')
     await connectDB()
 
     const [tenant, platformConfig] = await Promise.all([
@@ -29,13 +32,25 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    // Override de efectivo por sede: si el locationId no existe o no es de este
+    // tenant, se usa el fallback a Tenant.cash (comportamiento legacy).
+    let locationCash: any = null
+    if (locationId) {
+      const locationDoc = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
+        .select('settings.cash')
+        .lean() as any
+      if (locationDoc) locationCash = locationDoc.settings?.cash ?? null
+    }
+
+    const cashConfig = resolveCashConfig(tenant.cash, locationCash)
+
     const platformKriptonEnabled = platformConfig?.kripton?.enabled ?? false
     const kriptonEnabled = platformKriptonEnabled && !!tenant.kripton?.isConfigured
     const transferEnabled = !!tenant.transfer?.enabled && !!tenant.transfer?.alias
     const mpEnabled = !!tenant.mercadopago?.isConfigured
     const cashEnabled = canAccess(tenant.plan as Plan, 'cashPayment')
       && !!tenant.features?.cashPaymentEnabledBySuperadmin
-      && !!tenant.cash?.enabled
+      && cashConfig.enabled
 
     const methods: Array<{
       id: string
@@ -48,8 +63,8 @@ export async function GET(
     }> = []
 
     {
-      const mpSurcharge = calculateFinalTotal(10000, 'mercadopago', tenant, platformConfig)
-      const mpTotalFees = getTotalFeesForMethod('mercadopago', tenant, platformConfig)
+      const mpSurcharge = calculateFinalTotal(10000, 'mercadopago', tenant, platformConfig || {})
+      const mpTotalFees = getTotalFeesForMethod('mercadopago', tenant, platformConfig || {})
       methods.push({
         id: 'mercadopago',
         label: 'Mercado Pago',
@@ -61,8 +76,8 @@ export async function GET(
     }
 
     if (kriptonEnabled) {
-      const krSurcharge = calculateFinalTotal(10000, 'kripton', tenant, platformConfig)
-      const krTotalFees = getTotalFeesForMethod('kripton', tenant, platformConfig)
+      const krSurcharge = calculateFinalTotal(10000, 'kripton', tenant, platformConfig || {})
+      const krTotalFees = getTotalFeesForMethod('kripton', tenant, platformConfig || {})
       methods.push({
         id: 'kripton',
         label: 'Kripton',
@@ -75,8 +90,8 @@ export async function GET(
 
     {
       // Transfer: se pasa el mode para que la comisión de plataforma solo aplique en delivery
-      const trSurcharge = calculateFinalTotal(10000, 'transfer', tenant, platformConfig, undefined, mode)
-      const trTotalFees = getTotalFeesForMethod('transfer', tenant, platformConfig, undefined, mode)
+      const trSurcharge = calculateFinalTotal(10000, 'transfer', tenant, platformConfig || {}, undefined, mode)
+      const trTotalFees = getTotalFeesForMethod('transfer', tenant, platformConfig || {}, undefined, mode)
       methods.push({
         id: 'transfer',
         label: 'Transferencia',
@@ -95,7 +110,7 @@ export async function GET(
         enabled: true,
         surchargePercent: 0,
         totalFees: 0,
-        cashDiscountPercent: tenant.cash?.discountPercent || 0,
+        cashDiscountPercent: cashConfig.discountPercent,
       })
     }
 

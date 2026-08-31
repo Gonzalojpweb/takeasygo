@@ -1,0 +1,143 @@
+{
+  "title": "Cash per-location E2E (Item C)",
+  "date": "2026-08-31T02:09:07.618Z",
+  "scenario": {
+    "tenantCash": {
+      "enabled": true,
+      "discountPercent": 5
+    },
+    "locA": {
+      "override": {
+        "enabled": true,
+        "discountPercent": 10
+      }
+    },
+    "locB": {
+      "override": null
+    },
+    "locC": {
+      "override": {
+        "enabled": false
+      }
+    },
+    "locD": {
+      "override": {
+        "discountPercent": 7
+      }
+    },
+    "itemPriceCents": 1000
+  },
+  "summary": {
+    "passed": 23,
+    "failed": 0,
+    "total": 23
+  },
+  "checks": [
+    {
+      "label": "Connection targets __cash_e2e__ (not prod)",
+      "pass": true,
+      "detail": "got \"__cash_e2e__\""
+    },
+    {
+      "label": "Preflight: tenant exists in __cash_e2e__",
+      "pass": true
+    },
+    {
+      "label": "Preflight: menu exists in __cash_e2e__",
+      "pass": true
+    },
+    {
+      "label": "payment-methods without locationId -> 200",
+      "pass": true
+    },
+    {
+      "label": "payment-methods without locationId -> cash offered",
+      "pass": true,
+      "detail": "methods=[{\"id\":\"mercadopago\",\"label\":\"Mercado Pago\",\"description\":\"Tarjeta, efectivo, transferencia\",\"enabled\":false,\"surchargePercent\":1.02,\"totalFees\":0.01},{\"id\":\"transfer\",\"label\":\"Transferencia\",\"description\":\"Pago por transferencia bancaria\",\"enabled\":false,\"surchargePercent\":0,\"totalFees\":0},{\"id\":\"cash\",\"label\":\"Efectivo\",\"description\":\"Pago en efectivo al retirar\",\"enabled\":true,\"surchargePercent\":0,\"totalFees\":0,\"cashDiscountPercent\":5}]"
+    },
+    {
+      "label": "payment-methods without locationId -> cash discount 5 (tenant fallback)",
+      "pass": true,
+      "detail": "got=5"
+    },
+    {
+      "label": "[A] override 10% applied",
+      "pass": true,
+      "detail": "got=10"
+    },
+    {
+      "label": "[B] no override -> fallback 5%",
+      "pass": true,
+      "detail": "got=5"
+    },
+    {
+      "label": "[B] cash offered (fallback enabled=true)",
+      "pass": true
+    },
+    {
+      "label": "[C] override enabled=false -> cash NOT offered",
+      "pass": true,
+      "detail": "methods=[{\"id\":\"mercadopago\",\"label\":\"Mercado Pago\",\"description\":\"Tarjeta, efectivo, transferencia\",\"enabled\":false,\"surchargePercent\":1.02,\"totalFees\":0.01},{\"id\":\"transfer\",\"label\":\"Transferencia\",\"description\":\"Pago por transferencia bancaria\",\"enabled\":false,\"surchargePercent\":0,\"totalFees\":0}]"
+    },
+    {
+      "label": "[D] partial override -> discount 7",
+      "pass": true,
+      "detail": "got=7"
+    },
+    {
+      "label": "[D] partial override -> enabled inherits tenant (true)",
+      "pass": true
+    },
+    {
+      "label": "invalid locationId -> fallback 5% (legacy behavior)",
+      "pass": true,
+      "detail": "got=5"
+    },
+    {
+      "label": "[A] cash order created (201)",
+      "pass": true,
+      "detail": "status=201 body={\"order\":{\"tenantId\":\"6a94e22e0fa646f24a546e66\",\"locationId\":\"6a94e22e0fa646f24a546e67\",\"orderNumber\":\"CAS-260830-6759\",\"status\":\"confirmed\",\"orderMode\":\"takeaway\",\"corporateAccountId\":null,\"paymentModeSnapshot\":null,\"whoPays\":null,\"paymentTiming\":null,\"groupSessionToken\":null,\"sessionExpiresAt\":null,\"items\":[{\"menuItemId\":\"6a94e22e0fa646f24a546e6b\",\"promotionId\":null,\"storeItemId\":null,\"itemType\":\"menuItem\",\"categoryName\":\"Main\",\"name\":\"Cash Test Item\",\"description\":\"\",\"shortDescription\":\"\",\"basePrice\":1000,\"extraPrice\":0,\"price\":1000,\"quantity\":1,\"subtotal\":1000,\"customizations\":[],\"selectedVariant\":null,\"printRole\":\"kitchen\",\"addedFrom\":null,\"addedByEmail\":null,\"promotionTitle\":null,\"slotName\":null,\"hasCategoryDiscount\":false,\"_id\":\"6a94e23f01fc18627111bea0\"}],\"rewardItems\":[],\"subtotal\":1000,\"discountAmount\":100,\"qrPromoApplied\":false,\"hiddenRewardClaims\":[],\"promoSlug\":null,\"promoCode\":null,\"promoCreatedBy\":null,\"total\":900,\"customer\":{\"name\":\"2fc62345e3f07e2f448f8619ceab29d3:14b97f0184f33ab8accd7589d162c0e9:89e86300be995db3\",\"phone\":\"ea0e83ef2b7606dea62cd49408bbcd27:51020d73aa03d8588ea80ef6ce3827b3:bc969f9d264e592cf9c9b32bc41a\",\"email\":\"e91f146e9a301dcbaa949be6767ff80c:b37d278ad1982823ee934be52ee6cc52:c865845edd9e22fc51a71988c1f1718a7d7d86ee6034dbb2ece3dc\",\"phoneHash\":\"b7d2187f8e5ab270947f30a8f5db3f739312c66ae6c0214614195a610cd403c9\"},\"payment\":{\"status\":\"pending\",\"method\":\"cash\",\"mercadopagoId\":null,\"mercadopagoData\":null,\"kriptonExternalCode\":null,\"kriptonToken\":null,\"kriptonData\":null,\"baseTotal\":900,\"surchargePercent\":0,\"surchargeAmount\":0,\"platformFeeAmount\":0,\"transferConfirmed\":false,\"transferConfirmedAt\":null,\"transferConfirmedBy\":null,\"cashAdjustmentApplied\":false,\"cashAdjustmentAppliedAt\":null,\"cashAdjustmentAppliedBy\":null},\"notes\":\"\",\"trackingToken\":\"3974c63f-468e-47dd-b92a-a3c712b0d271\",\"trackingTokenUsedAt\":null,\"clientToken\":null,\"printed\":false,\"statusTimestamps\":{\"confirmedAt\":null,\"preparingAt\":null,\"readyAt\":null,\"enRutaAt\":null,\"arrivedAt\":null,\"deliveredAt\":null,\"cancelledAt\":null,\"estimatedReadyAt\":null,\"customerEstimatedReadyAt\":null},\"posSync\":{\"status\":\"not_applicable\",\"posOrderId\":null,\"attempts\":0,\"lastAttemptAt\":null,\"error\":null},\"orderTiming\":\"immediate\",\"scheduledPickupAt\":null,\"scheduledStatus\":null,\"loyaltyPointsUsed\":0,\"loyaltyDiscountAmount\":0,\"rewardAdvanceApplied\":false,\"rewardAdvanceAmount\":0,\"loyaltyPointsCredited\":false,\"rewardDeductionProcessed\":false,\"source\":null,\"deliveryConfirmation\":null,\"deliveryAddress\":null,\"deliveryCost\":0,\"deliveryDistance\":0,\"deliveryRangeApplied\":null,\"deletedAt\":null,\"_id\":\"6a94e23f01fc18627111be9f\",\"payments\":[],\"printLog\":[],\"createdAt\":\"2026-08-31T02:09:03.655Z\",\"updatedAt\":\"2026-08-31T02:09:03.655Z\",\"__v\":0}}"
+    },
+    {
+      "label": "[A] cash discount = 100 (10% of 1000)",
+      "pass": true,
+      "detail": "got=100"
+    },
+    {
+      "label": "[A] order payment.method = cash",
+      "pass": true
+    },
+    {
+      "label": "[B] cash order created (201)",
+      "pass": true
+    },
+    {
+      "label": "[B] cash discount = 50 (fallback 5% of 1000)",
+      "pass": true,
+      "detail": "got=50"
+    },
+    {
+      "label": "[D] cash order created (201)",
+      "pass": true
+    },
+    {
+      "label": "[D] cash discount = 70 (7% of 1000)",
+      "pass": true,
+      "detail": "got=70"
+    },
+    {
+      "label": "[C] cash order created (201) - no se bloquea, consistente con tenant-level",
+      "pass": true
+    },
+    {
+      "label": "[C] cash discount = 50 (discount hereda tenant 5%)",
+      "pass": true,
+      "detail": "got=50"
+    },
+    {
+      "label": "DB: order A persists discountAmount=100",
+      "pass": true,
+      "detail": "got=100"
+    }
+  ]
+}
