@@ -60,17 +60,24 @@ export async function PUT(
         categoryMap.set(cat._id?.toString() ?? '', cat)
       }
 
-      const newCategories: MenuCategory[] = []
+      // Non-destructive reorder: never drop categories missing from orderedIds.
+      // Only assign sequential sortOrder to the listed (existing) categories.
+      let order = 0
       for (const id of orderedIds) {
         const cat = categoryMap.get(id)
         if (cat) {
-          cat.sortOrder = newCategories.length
-          newCategories.push(cat)
+          cat.sortOrder = order
+          order++
         }
       }
-
-      menu.categories = newCategories
-    } 
+      // Keep any category not present in orderedIds at the end (no data loss).
+      for (const cat of categories) {
+        if (cat.sortOrder === undefined || cat.sortOrder >= order) {
+          cat.sortOrder = order++
+        }
+      }
+      menu.markModified('categories')
+    }
     else if (type === 'items') {
       if (!categoryId) {
         return NextResponse.json({ error: 'Falta categoryId para reordenar ítems' }, { status: 400 })
@@ -97,13 +104,20 @@ export async function PUT(
       const newItems: any[] = []
       for (const id of orderedIds) {
         const item = itemMap.get(id)
-        if (item) {
-          newItems.push(item)
+        if (item) newItems.push(item)
+      }
+      // Preserve items not listed in orderedIds (no data loss on desync).
+      for (const item of targetCategory.items) {
+        if (!orderedIds.includes(item._id?.toString() ?? '')) {
+          if (!newItems.some((ni: any) => ni._id?.toString() === item._id?.toString())) {
+            newItems.push(item)
+          }
         }
       }
 
       targetCategory.items = newItems
-    } 
+      menu.markModified('categories')
+    }
     else if (type === 'subcategories') {
       if (!categoryId) {
         return NextResponse.json({ error: 'Falta categoryId para reordenar subcategorías' }, { status: 400 })
@@ -115,15 +129,21 @@ export async function PUT(
       for (const sub of category.subcategories || []) {
         subMap.set(sub._id?.toString() ?? '', sub)
       }
-      const newSubs: any[] = []
+      // Non-destructive: assign sequential sortOrder to listed subs, keep the rest.
+      let subOrder = 0
       for (const id of orderedIds) {
         const sub = subMap.get(id)
         if (sub) {
-          sub.sortOrder = newSubs.length
-          newSubs.push(sub)
+          sub.sortOrder = subOrder
+          subOrder++
         }
       }
-      category.subcategories = newSubs
+      for (const sub of category.subcategories || []) {
+        if (sub.sortOrder === undefined || sub.sortOrder >= subOrder) {
+          sub.sortOrder = subOrder++
+        }
+      }
+      menu.markModified('categories')
     }
     else if (type === 'subcategory_items') {
       if (!categoryId || !subcategoryId) {
@@ -144,7 +164,16 @@ export async function PUT(
         const item = itemMap.get(id)
         if (item) newItems.push(item)
       }
+      // Preserve items not listed in orderedIds (no data loss on desync).
+      for (const item of subcategory.items) {
+        if (!orderedIds.includes(item._id?.toString() ?? '')) {
+          if (!newItems.some((ni: any) => ni._id?.toString() === item._id?.toString())) {
+            newItems.push(item)
+          }
+        }
+      }
       subcategory.items = newItems
+      menu.markModified('categories')
     }
     else {
       return NextResponse.json({ error: 'Tipo inválido. Use "categories", "items", "subcategories" o "subcategory_items"' }, { status: 400 })
