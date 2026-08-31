@@ -253,7 +253,7 @@ export async function POST(
         activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
           $or: [
             { scope: 'tenant', tenantId, ...(orderLocScope ?? {}) },
-            { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }] },
+            { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }], ...(orderLocScope ?? {}) },
           ],
           slug: body.promoSlug.toLowerCase().trim(),
         })).sort({ createdAt: -1 }).lean()
@@ -267,6 +267,7 @@ export async function POST(
           activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
             scope: 'global',
             $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+            ...(orderLocScope ?? {}),
             sourceTriggers: body.source,
           })).sort({ createdAt: -1 }).lean()
         }
@@ -280,6 +281,7 @@ export async function POST(
           activeQrPromo = await QrPromo.findOne(addSchedulingFilter({
             scope: 'global',
             $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
+            ...(orderLocScope ?? {}),
           })).sort({ createdAt: -1 }).lean()
         }
       }
@@ -303,6 +305,7 @@ export async function POST(
           { $or: [{ scheduledStart: null }, { scheduledStart: { $lte: now } }] },
           { $or: [{ scheduledEnd: null }, { scheduledEnd: { $gte: now } }] },
           { $or: [{ targetTenants: { $size: 0 } }, { targetTenants: tenantId }] },
+          ...(orderLocScope ? [orderLocScope] : []),
         ],
       }).lean()
 

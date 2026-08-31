@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import QrPromo from '@/models/QrPromo'
+import Location from '@/models/Location'
+import { Types } from 'mongoose'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function GET(
@@ -66,6 +68,42 @@ export async function PUT(
     if (body.code !== undefined) promo.code = body.code?.toLowerCase().trim() || undefined
     if (body.maxUses !== undefined) promo.maxUses = body.maxUses
     if (body.maxUsesPerConsumer !== undefined) promo.maxUsesPerConsumer = body.maxUsesPerConsumer
+
+    // locationId: una sede solo tiene sentido si el target es UN único tenant.
+    // Se valida contra el tenant objetivo efectivo (nuevo del body o ya guardado).
+    if (body.locationId !== undefined) {
+      const effectiveTargets = body.targetTenants !== undefined
+        ? (Array.isArray(body.targetTenants) ? body.targetTenants : [])
+        : (promo.targetTenants || [])
+
+      const singleTarget = effectiveTargets.length === 1
+      const raw = body.locationId === null ? null : String(body.locationId)
+
+      if (raw && (raw === 'all' || raw === 'all-locations')) {
+        promo.locationId = null
+      } else if (raw && raw !== '') {
+        if (!singleTarget) {
+          return NextResponse.json(
+            { error: 'Solo se puede elegir una sede si el QR apunta a un único tenant destino' },
+            { status: 400 }
+          )
+        }
+        if (!Types.ObjectId.isValid(raw)) {
+          return NextResponse.json({ error: 'La sede indicada es inválida' }, { status: 400 })
+        }
+        const locExists = await Location.countDocuments({
+          _id: raw,
+          tenantId: effectiveTargets[0],
+          isActive: true,
+        })
+        if (locExists !== 1) {
+          return NextResponse.json({ error: 'La sede indicada no existe o no pertenece al tenant destino' }, { status: 400 })
+        }
+        promo.locationId = new Types.ObjectId(raw)
+      } else {
+        promo.locationId = null
+      }
+    }
 
     await promo.save()
     return NextResponse.json({ promo })
