@@ -3,14 +3,21 @@ import mongoose, { Schema, Document, Types } from 'mongoose'
 export type CorporateAccountStatus = 'active' | 'suspended' | 'cancelled'
 export type CorporatePaymentMode = 'cash_mp' | 'deferred' | 'mixed'
 export type CorporateRegisteredBy = 'tenant' | 'superadmin'
+export type CorporateAccessMode = 'specific' | 'all'
+
+export interface ITenantPaymentSetting {
+  tenantId: Types.ObjectId
+  paymentMode: CorporatePaymentMode
+  paymentTerms: string
+}
 
 export interface ICorporateAccount extends Document {
-  tenantId: Types.ObjectId
+  accessMode: CorporateAccessMode
+  tenantIds: Types.ObjectId[]
+  tenantSettings: ITenantPaymentSetting[]
   companyName: string
   companyTaxId: string
   status: CorporateAccountStatus
-  paymentMode: CorporatePaymentMode
-  paymentTerms: string
   registeredBy: CorporateRegisteredBy
   registeredById: Types.ObjectId
   companyAdminEmail: string
@@ -22,11 +29,30 @@ export interface ICorporateAccount extends Document {
 
 const CorporateAccountSchema = new Schema<ICorporateAccount>(
   {
-    tenantId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Tenant',
+    accessMode: {
+      type: String,
+      enum: ['specific', 'all'] as const,
       required: true,
-      index: true,
+      default: 'specific',
+    },
+    tenantIds: {
+      type: [Schema.Types.ObjectId],
+      ref: 'Tenant',
+      default: [],
+    },
+    tenantSettings: {
+      type: [
+        {
+          tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+          paymentMode: {
+            type: String,
+            enum: ['cash_mp', 'deferred', 'mixed'] as const,
+            required: true,
+          },
+          paymentTerms: { type: String, default: '', trim: true },
+        },
+      ],
+      default: [],
     },
     companyName: {
       type: String,
@@ -42,16 +68,6 @@ const CorporateAccountSchema = new Schema<ICorporateAccount>(
       type: String,
       enum: ['active', 'suspended', 'cancelled'] as const,
       default: 'active',
-    },
-    paymentMode: {
-      type: String,
-      enum: ['cash_mp', 'deferred', 'mixed'] as const,
-      required: [true, 'El esquema de pago es obligatorio'],
-    },
-    paymentTerms: {
-      type: String,
-      default: '',
-      trim: true,
     },
     registeredBy: {
       type: String,
@@ -84,8 +100,9 @@ const CorporateAccountSchema = new Schema<ICorporateAccount>(
   }
 )
 
-CorporateAccountSchema.index({ tenantId: 1, companyAdminEmail: 1 }, { unique: true })
-CorporateAccountSchema.index({ tenantId: 1, status: 1 })
+CorporateAccountSchema.index({ companyAdminEmail: 1 }, { unique: true })
+CorporateAccountSchema.index({ tenantIds: 1 })
+CorporateAccountSchema.index({ tenantIds: 1, status: 1 })
 
 if (process.env.NODE_ENV !== 'production') {
   delete (mongoose.models as any).CorporateAccount

@@ -20,15 +20,18 @@ export default async function SuperadminBusinessCompaniesPage() {
     companyName: c.companyName,
     companyTaxId: c.companyTaxId,
     status: c.status,
-    paymentMode: c.paymentMode,
-    paymentTerms: c.paymentTerms,
+    accessMode: c.accessMode,
+    tenantIds: c.tenantIds.map(id => id.toString()),
+    tenantSettings: c.tenantSettings.map(ts => ({
+      tenantId: ts.tenantId.toString(),
+      paymentMode: ts.paymentMode,
+      paymentTerms: ts.paymentTerms,
+    })),
+    tenantNames: c.tenantIds.map(id => tenantMap[id.toString()]?.name ?? '(sin tenant)'),
     companyAdminEmail: c.companyAdminEmail,
     employeeEmails: c.employeeEmails ?? [],
     notes: c.notes,
     registeredBy: c.registeredBy,
-    tenantId: c.tenantId.toString(),
-    tenantName: tenantMap[c.tenantId.toString()]?.name ?? '(sin tenant)',
-    tenantSlug: tenantMap[c.tenantId.toString()]?.slug ?? '',
     createdAt: c.createdAt?.toISOString?.() ?? c.createdAt,
   }))
 
