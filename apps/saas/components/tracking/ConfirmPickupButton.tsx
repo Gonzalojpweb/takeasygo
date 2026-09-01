@@ -75,14 +75,14 @@ export default function ConfirmPickupButton({
 
   if (confirmed) {
     return (
-      <div className="text-center space-y-5 py-4">
-        <div className="text-5xl animate-bounce">✅</div>
+      <div className="text-center space-y-4 py-2">
+        <div className="text-5xl animate-bounce">🍽️</div>
         <div>
-          <p className="font-black text-xl mb-1">¡Pedido retirado!</p>
+          <p className="font-black text-xl mb-1">
+            ¡Pedido completado{customerName ? `, ${customerName}` : ''}!
+          </p>
           <p className="text-sm opacity-60">
-            {customerName
-              ? `🎉 ¡Gracias ${customerName}, que lo disfrutes!`
-              : 'Gracias por tu compra. ¡Que lo disfrutes!'}
+            Gracias por elegirnos. ¡Que lo disfrutes!
           </p>
         </div>
 
@@ -109,13 +109,25 @@ export default function ConfirmPickupButton({
           </GoogleReviewPrompt>
         )}
 
-        <a
-          href={`/${tenantSlug}/menu/${locationId}/takeaway`}
-          className="block w-full py-4 rounded-2xl font-bold text-center text-base"
-          style={{ backgroundColor: primaryColor, color: backgroundColor }}
-        >
-          Volver al menú
-        </a>
+        {/* Buttons side by side */}
+        <div className="flex gap-2">
+          {ratingToken && (
+            <a
+              href={`/${tenantSlug}/menu/${locationId}/takeaway?likes=${orderId}&token=${ratingToken}`}
+              className="flex-1 py-3 rounded-2xl font-bold text-sm text-center"
+              style={{ backgroundColor: primaryColor, color: backgroundColor }}
+            >
+              ❤️ Likear
+            </a>
+          )}
+          <a
+            href={`/${tenantSlug}/menu/${locationId}/takeaway`}
+            className="flex-1 py-3 rounded-2xl font-bold text-sm text-center"
+            style={{ backgroundColor: primaryColor + '20', color: primaryColor }}
+          >
+            Volver al menú
+          </a>
+        </div>
       </div>
     )
   }

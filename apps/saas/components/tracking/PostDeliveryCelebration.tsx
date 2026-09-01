@@ -60,11 +60,11 @@ export default function PostDeliveryCelebration({
   }, [primaryColor])
 
   return (
-    <div className="mb-8 space-y-6">
+    <div className="mb-8 space-y-4 py-2">
       {/* Celebration header */}
-      <div className="text-center space-y-2 py-4">
+      <div className="text-center space-y-2 py-2">
         <div className="text-5xl animate-bounce">🍽️</div>
-        <p className="font-black text-2xl">
+        <p className="font-black text-xl">
           ¡Pedido completado{customerName ? `, ${customerName}` : ''}!
         </p>
         <p className="text-sm opacity-60">
@@ -95,25 +95,25 @@ export default function PostDeliveryCelebration({
         </GoogleReviewPrompt>
       )}
 
-      {/* Back to like */}
-      {ratingToken && (
+      {/* Buttons side by side */}
+      <div className="flex gap-2">
+        {ratingToken && (
+          <a
+            href={`/${tenantSlug}/menu/${locationId}/takeaway?likes=${orderId}&token=${ratingToken}`}
+            className="flex-1 py-3 rounded-2xl font-bold text-sm text-center"
+            style={{ backgroundColor: primaryColor, color: backgroundColor }}
+          >
+            ❤️ Likear
+          </a>
+        )}
         <a
-          href={`/${tenantSlug}/menu/${locationId}/takeaway?likes=${orderId}&token=${ratingToken}`}
-          className="block w-full text-center py-4 rounded-2xl font-bold text-base"
-          style={{ backgroundColor: primaryColor, color: backgroundColor }}
+          href={`/${tenantSlug}/menu/${locationId}/takeaway`}
+          className="flex-1 py-3 rounded-2xl font-bold text-sm text-center"
+          style={{ backgroundColor: primaryColor + '20', color: primaryColor }}
         >
-          ❤️ Volver y likear
+          Volver al menú
         </a>
-      )}
-
-      {/* Back to menu */}
-      <a
-        href={`/${tenantSlug}/menu/${locationId}/takeaway`}
-        className={`block w-full text-center py-4 rounded-2xl font-bold text-base ${ratingToken ? 'mt-2' : ''}`}
-        style={{ backgroundColor: primaryColor + '20', color: primaryColor }}
-      >
-        Volver al menú
-      </a>
+      </div>
     </div>
   )
 }

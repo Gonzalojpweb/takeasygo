@@ -50,7 +50,7 @@ export default function RedProximityBanner({ tenantSlug, tenantName }: Props) {
           className="inline-block px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90"
           style={{ backgroundColor: '#f74211' }}
         >
-          takeasygo.com/app
+          TGO APP
         </a>
       </div>
     </div>
