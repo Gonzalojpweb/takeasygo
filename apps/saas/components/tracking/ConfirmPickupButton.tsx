@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import confetti from 'canvas-confetti'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import RatingForm from './RatingForm'
+import GoogleReviewPrompt from './GoogleReviewPrompt'
 
 interface Props {
   orderId: string
@@ -16,6 +17,7 @@ interface Props {
   customerName?: string
   ratingToken?: string | null
   orderNumber?: string
+  reviewUrl?: string | null
 }
 
 export default function ConfirmPickupButton({
@@ -29,6 +31,7 @@ export default function ConfirmPickupButton({
   customerName,
   ratingToken,
   orderNumber,
+  reviewUrl,
 }: Props) {
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
@@ -85,15 +88,25 @@ export default function ConfirmPickupButton({
 
         {/* Rating form */}
         {ratingToken && orderNumber && (
-          <RatingForm
-            orderId={orderId}
-            orderNumber={orderNumber}
+          <GoogleReviewPrompt
+            customerName={customerName}
+            reviewUrl={reviewUrl ?? null}
             tenantSlug={tenantSlug}
-            token={ratingToken}
+            locationId={locationId}
+            orderId={orderId}
             primaryColor={primaryColor}
             backgroundColor={backgroundColor}
-            textColor={textColor}
-          />
+          >
+            <RatingForm
+              orderId={orderId}
+              orderNumber={orderNumber}
+              tenantSlug={tenantSlug}
+              token={ratingToken}
+              primaryColor={primaryColor}
+              backgroundColor={backgroundColor}
+              textColor={textColor}
+            />
+          </GoogleReviewPrompt>
         )}
 
         <a

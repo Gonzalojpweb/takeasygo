@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, Plus, X, Check, Loader2, Search, Trash2, ToggleLeft, ToggleRight, Store, Pencil,
+  Building2, Plus, X, Check, Loader2, Search, Trash2, ToggleLeft, ToggleRight, Store, Pencil, Globe,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -27,15 +27,14 @@ interface Company {
   companyName: string
   companyTaxId: string
   status: string
-  paymentMode: string
-  paymentTerms: string
+  accessMode: string
+  tenantIds: string[]
+  tenantSettings: Array<{ tenantId: string; paymentMode: string; paymentTerms: string }>
+  tenantNames: string[]
   companyAdminEmail: string
   employeeEmails: string[]
   notes: string
   registeredBy: string
-  tenantId: string
-  tenantName: string
-  tenantSlug: string
   createdAt: string
 }
 
@@ -61,40 +60,73 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
   const [editSaving, setEditSaving] = useState(false)
   const [addingEmployee, setAddingEmployee] = useState<string | null>(null)
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('')
-  const [editForm, setEditForm] = useState({
-    _id: '',
-    companyName: '',
-    companyTaxId: '',
-    companyAdminEmail: '',
-    paymentMode: 'cash_mp',
-    paymentTerms: '',
-    notes: '',
-    tenantId: '',
+
+  const [editForm, setEditForm] = useState<{
+    _id: string
+    companyName: string
+    companyTaxId: string
+    companyAdminEmail: string
+    notes: string
+    accessMode: string
+    tenantIds: string[]
+    tenantSettings: Record<string, { paymentMode: string; paymentTerms: string }>
+  }>({
+    _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', notes: '',
+    accessMode: 'specific', tenantIds: [], tenantSettings: {},
   })
 
   const [form, setForm] = useState({
     companyName: '',
     companyTaxId: '',
     companyAdminEmail: '',
-    paymentMode: 'cash_mp',
-    paymentTerms: '',
     employeeEmailsCsv: '',
     notes: '',
-    tenantId: '',
+    accessMode: 'specific' as 'specific' | 'all',
+    selectedTenantIds: [] as string[],
+    tenantSettings: {} as Record<string, { paymentMode: string; paymentTerms: string }>,
   })
 
   const filtered = search
     ? companies.filter(c =>
         c.companyName.toLowerCase().includes(search.toLowerCase()) ||
         c.companyAdminEmail.toLowerCase().includes(search.toLowerCase()) ||
-        c.tenantName.toLowerCase().includes(search.toLowerCase())
+        c.tenantNames.some(n => n.toLowerCase().includes(search.toLowerCase()))
       )
     : companies
 
+  function toggleFormTenant(tid: string) {
+    setForm(p => {
+      const ids = p.selectedTenantIds.includes(tid)
+        ? p.selectedTenantIds.filter(id => id !== tid)
+        : [...p.selectedTenantIds, tid]
+      const settings = { ...p.tenantSettings }
+      if (!ids.includes(tid)) {
+        delete settings[tid]
+      } else if (!settings[tid]) {
+        settings[tid] = { paymentMode: 'cash_mp', paymentTerms: '' }
+      }
+      return { ...p, selectedTenantIds: ids, tenantSettings: settings }
+    })
+  }
+
+  function updateFormTenantSetting(tid: string, field: 'paymentMode' | 'paymentTerms', value: string) {
+    setForm(p => ({
+      ...p,
+      tenantSettings: {
+        ...p.tenantSettings,
+        [tid]: { ...p.tenantSettings[tid], [field]: value },
+      },
+    }))
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.companyName.trim() || !form.companyAdminEmail.trim() || !form.tenantId) {
-      toast.error('Completá nombre, email corporativo y tenant')
+    if (!form.companyName.trim() || !form.companyAdminEmail.trim()) {
+      toast.error('Completá nombre y email corporativo')
+      return
+    }
+    if (form.accessMode === 'specific' && form.selectedTenantIds.length === 0) {
+      toast.error('Seleccioná al menos un tenant')
       return
     }
     setSaving(true)
@@ -111,18 +143,18 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
           companyName: form.companyName,
           companyTaxId: form.companyTaxId,
           companyAdminEmail: form.companyAdminEmail,
-          paymentMode: form.paymentMode,
-          paymentTerms: form.paymentTerms,
           employeeEmails,
           notes: form.notes,
-          tenantId: form.tenantId,
+          accessMode: form.accessMode,
+          tenantIds: form.accessMode === 'specific' ? form.selectedTenantIds : [],
+          tenantSettings: form.tenantSettings,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al crear empresa')
       setCompanies(prev => [data.company, ...prev])
       setShowCreate(false)
-      setForm({ companyName: '', companyTaxId: '', companyAdminEmail: '', paymentMode: 'cash_mp', paymentTerms: '', employeeEmailsCsv: '', notes: '', tenantId: '' })
+      setForm({ companyName: '', companyTaxId: '', companyAdminEmail: '', employeeEmailsCsv: '', notes: '', accessMode: 'specific', selectedTenantIds: [], tenantSettings: {} })
       toast.success('Empresa creada correctamente')
       router.refresh()
     } catch (err: unknown) {
@@ -149,11 +181,40 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
     }
   }
 
+  function toggleEditTenant(tid: string) {
+    setEditForm(p => {
+      const ids = p.tenantIds.includes(tid)
+        ? p.tenantIds.filter(id => id !== tid)
+        : [...p.tenantIds, tid]
+      const settings = { ...p.tenantSettings }
+      if (!ids.includes(tid)) {
+        delete settings[tid]
+      } else if (!settings[tid]) {
+        settings[tid] = { paymentMode: 'cash_mp', paymentTerms: '' }
+      }
+      return { ...p, tenantIds: ids, tenantSettings: settings }
+    })
+  }
+
+  function updateEditTenantSetting(tid: string, field: 'paymentMode' | 'paymentTerms', value: string) {
+    setEditForm(p => ({
+      ...p,
+      tenantSettings: {
+        ...p.tenantSettings,
+        [tid]: { ...p.tenantSettings[tid], [field]: value },
+      },
+    }))
+  }
+
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editForm._id) return
     if (!editForm.companyName.trim() || !editForm.companyAdminEmail.trim()) {
       toast.error('Completá el nombre de la empresa y el email corporativo')
+      return
+    }
+    if (editForm.accessMode === 'specific' && editForm.tenantIds.length === 0) {
+      toast.error('Seleccioná al menos un tenant')
       return
     }
     setEditSaving(true)
@@ -164,16 +225,16 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
         body: JSON.stringify({
           companyName: editForm.companyName,
           companyTaxId: editForm.companyTaxId,
-          paymentMode: editForm.paymentMode,
-          paymentTerms: editForm.paymentTerms,
           notes: editForm.notes,
-          tenantId: editForm.tenantId,
+          accessMode: editForm.accessMode,
+          tenantIds: editForm.accessMode === 'specific' ? editForm.tenantIds : [],
+          tenantSettings: editForm.tenantSettings,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al guardar')
       setCompanies(prev => prev.map(c => c._id === editForm._id ? data.company : c))
-      setEditForm({ _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', paymentMode: 'cash_mp', paymentTerms: '', notes: '', tenantId: '' })
+      setEditForm({ _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', notes: '', accessMode: 'specific', tenantIds: [], tenantSettings: {} })
       setEditingId(null)
       toast.success('Empresa actualizada correctamente')
       router.refresh()
@@ -222,7 +283,7 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
   }
 
   async function handleDelete(company: Company) {
-    if (!confirm(`¿Eliminar permanentemente "${company.companyName}" del tenant ${company.tenantName}?\nEsta acción no se puede deshacer.`)) return
+    if (!confirm(`¿Eliminar permanentemente "${company.companyName}"?\nEsta acción no se puede deshacer.`)) return
     try {
       const res = await fetch(`/api/superadmin/business/companies/${company._id}`, {
         method: 'DELETE',
@@ -238,6 +299,75 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
 
   const labelCls = "text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50 mb-2 block"
   const inputCls = "w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-2xl px-4 py-3 outline-none transition-all shadow-sm"
+
+  function TenantMultiSelect({ selected, onChange }: { selected: string[]; onChange: (tid: string) => void }) {
+    return (
+      <div className="space-y-2">
+        {tenants.map(t => (
+          <label key={t._id} className={cn(
+            "flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all",
+            selected.includes(t._id)
+              ? "border-primary/40 bg-primary/5"
+              : "border-border/40 bg-muted/20 hover:bg-muted/40"
+          )}>
+            <input
+              type="checkbox"
+              checked={selected.includes(t._id)}
+              onChange={() => onChange(t._id)}
+              className="sr-only"
+            />
+            <div className={cn(
+              "w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all",
+              selected.includes(t._id)
+                ? "border-primary bg-primary text-white"
+                : "border-border/60"
+            )}>
+              {selected.includes(t._id) && <Check size={12} />}
+            </div>
+            <div>
+              <p className="text-sm font-bold">{t.name}</p>
+              <p className="text-xs text-muted-foreground/60 font-mono">{t.slug}</p>
+            </div>
+          </label>
+        ))}
+      </div>
+    )
+  }
+
+  function TenantSettingsEditor({ tenantIds, settings, onUpdate }: {
+    tenantIds: string[]
+    settings: Record<string, { paymentMode: string; paymentTerms: string }>
+    onUpdate: (tid: string, field: 'paymentMode' | 'paymentTerms', value: string) => void
+  }) {
+    if (tenantIds.length === 0) return null
+    return (
+      <div className="space-y-3 mt-3">
+        {tenantIds.map(tid => {
+          const tenant = tenants.find(t => t._id === tid)
+          const s = settings[tid] || { paymentMode: 'cash_mp', paymentTerms: '' }
+          return (
+            <div key={tid} className="p-4 rounded-xl bg-muted/20 border border-border/40 space-y-3">
+              <p className="text-xs font-bold text-muted-foreground">{tenant?.name || tid}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Esquema de Pago</label>
+                  <select value={s.paymentMode} onChange={e => onUpdate(tid, 'paymentMode', e.target.value)} className={inputCls}>
+                    <option value="cash_mp">Contado MP</option>
+                    <option value="deferred">Diferido</option>
+                    <option value="mixed">Mixto</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Términos de Pago</label>
+                  <input value={s.paymentTerms} onChange={e => onUpdate(tid, 'paymentTerms', e.target.value)} className={inputCls} placeholder="Ej: Pago a 30 días" />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -273,37 +403,12 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className={labelCls}>Tenents asignado</label>
-              <select
-                required
-                value={form.tenantId}
-                onChange={e => setForm(p => ({ ...p, tenantId: e.target.value }))}
-                className={inputCls}
-              >
-                <option value="">Seleccionar tenant...</option>
-                {tenants.map(t => (
-                  <option key={t._id} value={t._id}>{t.name} ({t.slug})</option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label className={labelCls}>Nombre de la Empresa</label>
               <input required value={form.companyName} onChange={e => setForm(p => ({ ...p, companyName: e.target.value }))} className={inputCls} placeholder="Ej: Acme Corp S.A." />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className={labelCls}>CUIT</label>
               <input value={form.companyTaxId} onChange={e => setForm(p => ({ ...p, companyTaxId: e.target.value }))} className={inputCls} placeholder="30-12345678-9" />
-            </div>
-            <div>
-              <label className={labelCls}>Esquema de Pago</label>
-              <select value={form.paymentMode} onChange={e => setForm(p => ({ ...p, paymentMode: e.target.value }))} className={inputCls}>
-                <option value="cash_mp">Contado MP (todos pagan con MercadoPago)</option>
-                <option value="deferred">Diferido (factura directa empresa-restaurante)</option>
-                <option value="mixed">Mixto</option>
-              </select>
             </div>
           </div>
 
@@ -313,28 +418,60 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
               <input required type="email" value={form.companyAdminEmail} onChange={e => setForm(p => ({ ...p, companyAdminEmail: e.target.value }))} className={inputCls} placeholder="rrhh@acmecorp.com" />
             </div>
             <div>
-              <label className={labelCls}>Términos de Pago</label>
-              <input value={form.paymentTerms} onChange={e => setForm(p => ({ ...p, paymentTerms: e.target.value }))} className={inputCls} placeholder="Ej: Pago a 30 días" />
+              <label className={labelCls}>Empleados (un email por línea)</label>
+              <textarea
+                value={form.employeeEmailsCsv}
+                onChange={e => setForm(p => ({ ...p, employeeEmailsCsv: e.target.value }))}
+                className={cn(inputCls, "min-h-[80px] resize-y font-mono text-xs")}
+                placeholder="empleado1@acmecorp.com&#10;empleado2@acmecorp.com"
+              />
             </div>
           </div>
 
+          {/* Access Mode */}
           <div>
-            <label className={labelCls}>Empleados (un email por línea)</label>
-            <textarea
-              value={form.employeeEmailsCsv}
-              onChange={e => setForm(p => ({ ...p, employeeEmailsCsv: e.target.value }))}
-              className={cn(inputCls, "min-h-[100px] resize-y font-mono text-xs")}
-              placeholder="empleado1@acmecorp.com&#10;empleado2@acmecorp.com&#10;juan@acmecorp.com"
-            />
+            <label className={labelCls}>Modo de Acceso</label>
+            <div className="flex gap-3">
+              <label className={cn(
+                "flex-1 flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                form.accessMode === 'specific' ? "border-primary/40 bg-primary/5" : "border-border/40 hover:bg-muted/40"
+              )}>
+                <input type="radio" name="accessMode" value="specific" checked={form.accessMode === 'specific'} onChange={() => setForm(p => ({ ...p, accessMode: 'specific' }))} className="sr-only" />
+                <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", form.accessMode === 'specific' ? "border-primary" : "border-border/60")}>
+                  {form.accessMode === 'specific' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Tenants específicos</p>
+                  <p className="text-xs text-muted-foreground/60">Seleccionar tenants manualmente</p>
+                </div>
+              </label>
+              <label className={cn(
+                "flex-1 flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                form.accessMode === 'all' ? "border-primary/40 bg-primary/5" : "border-border/40 hover:bg-muted/40"
+              )}>
+                <input type="radio" name="accessMode" value="all" checked={form.accessMode === 'all'} onChange={() => setForm(p => ({ ...p, accessMode: 'all', selectedTenantIds: [] }))} className="sr-only" />
+                <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", form.accessMode === 'all' ? "border-primary" : "border-border/60")}>
+                  {form.accessMode === 'all' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div>
+                  <p className="text-sm font-bold flex items-center gap-1"><Globe size={14} /> Todos los tenants</p>
+                  <p className="text-xs text-muted-foreground/60">Incluye tenants futuros</p>
+                </div>
+              </label>
+            </div>
           </div>
+
+          {form.accessMode === 'specific' && (
+            <div>
+              <label className={labelCls}>Tenants asignados</label>
+              <TenantMultiSelect selected={form.selectedTenantIds} onChange={toggleFormTenant} />
+              <TenantSettingsEditor tenantIds={form.selectedTenantIds} settings={form.tenantSettings} onUpdate={updateFormTenantSetting} />
+            </div>
+          )}
 
           <div>
             <label className={labelCls}>Notas</label>
-            <textarea
-              value={form.notes}
-              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-              className={cn(inputCls, "min-h-[80px] resize-y")}
-            />
+            <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} className={cn(inputCls, "min-h-[80px] resize-y")} />
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-border/40">
@@ -354,91 +491,72 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
         <form onSubmit={handleSaveEdit} className="p-8 bg-card border-2 border-border/60 rounded-[2.5rem] shadow-xl space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold tracking-tight">Editar {editForm.companyName}</h3>
-            <button type="button" onClick={() => { setEditingId(null); setEditForm({ _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', paymentMode: 'cash_mp', paymentTerms: '', notes: '', tenantId: '' }) }} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button type="button" onClick={() => { setEditingId(null); setEditForm({ _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', notes: '', accessMode: 'specific', tenantIds: [], tenantSettings: {} }) }} className="text-muted-foreground hover:text-foreground transition-colors">
               <X size={20} />
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className={labelCls}>Tenant asignado</label>
-              <select
-                required
-                value={editForm.tenantId}
-                onChange={e => setEditForm(p => ({ ...p, tenantId: e.target.value }))}
-                className={inputCls}
-              >
-                {tenants.map(t => (
-                  <option key={t._id} value={t._id}>{t.name} ({t.slug})</option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label className={labelCls}>Nombre de la Empresa</label>
-              <input
-                required
-                value={editForm.companyName}
-                onChange={e => setEditForm(p => ({ ...p, companyName: e.target.value }))}
-                className={inputCls}
-                placeholder="Ej: Acme Corp S.A."
-              />
+              <input required value={editForm.companyName} onChange={e => setEditForm(p => ({ ...p, companyName: e.target.value }))} className={inputCls} />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className={labelCls}>CUIT</label>
-              <input
-                value={editForm.companyTaxId}
-                onChange={e => setEditForm(p => ({ ...p, companyTaxId: e.target.value }))}
-                className={inputCls}
-                placeholder="30-12345678-9"
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Esquema de Pago</label>
-              <select
-                value={editForm.paymentMode}
-                onChange={e => setEditForm(p => ({ ...p, paymentMode: e.target.value }))}
-                className={inputCls}
-              >
-                <option value="cash_mp">Contado MP (todos pagan con MercadoPago)</option>
-                <option value="deferred">Diferido (factura directa empresa-restaurante)</option>
-                <option value="mixed">Mixto</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className={labelCls}>Email Corporativo</label>
-              <input
-                required
-                type="email"
-                value={editForm.companyAdminEmail}
-                className={cn(inputCls, "opacity-60")}
-                disabled
-              />
-              <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">El email corporativo no se puede cambiar. Creá una nueva empresa si es necesario.</p>
-            </div>
-            <div>
-              <label className={labelCls}>Términos de Pago</label>
-              <input
-                value={editForm.paymentTerms}
-                onChange={e => setEditForm(p => ({ ...p, paymentTerms: e.target.value }))}
-                className={inputCls}
-                placeholder="Ej: Pago a 30 días"
-              />
+              <input value={editForm.companyTaxId} onChange={e => setEditForm(p => ({ ...p, companyTaxId: e.target.value }))} className={inputCls} />
             </div>
           </div>
 
           <div>
+            <label className={labelCls}>Email Corporativo</label>
+            <input required type="email" value={editForm.companyAdminEmail} className={cn(inputCls, "opacity-60")} disabled />
+            <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">El email corporativo no se puede cambiar.</p>
+          </div>
+
+          {/* Access Mode */}
+          <div>
+            <label className={labelCls}>Modo de Acceso</label>
+            <div className="flex gap-3">
+              <label className={cn(
+                "flex-1 flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                editForm.accessMode === 'specific' ? "border-primary/40 bg-primary/5" : "border-border/40 hover:bg-muted/40"
+              )}>
+                <input type="radio" name="editAccessMode" value="specific" checked={editForm.accessMode === 'specific'} onChange={() => setEditForm(p => ({ ...p, accessMode: 'specific' }))} className="sr-only" />
+                <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", editForm.accessMode === 'specific' ? "border-primary" : "border-border/60")}>
+                  {editForm.accessMode === 'specific' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Tenants específicos</p>
+                  <p className="text-xs text-muted-foreground/60">Seleccionar tenants manualmente</p>
+                </div>
+              </label>
+              <label className={cn(
+                "flex-1 flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                editForm.accessMode === 'all' ? "border-primary/40 bg-primary/5" : "border-border/40 hover:bg-muted/40"
+              )}>
+                <input type="radio" name="editAccessMode" value="all" checked={editForm.accessMode === 'all'} onChange={() => setEditForm(p => ({ ...p, accessMode: 'all', tenantIds: [] }))} className="sr-only" />
+                <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", editForm.accessMode === 'all' ? "border-primary" : "border-border/60")}>
+                  {editForm.accessMode === 'all' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div>
+                  <p className="text-sm font-bold flex items-center gap-1"><Globe size={14} /> Todos los tenants</p>
+                  <p className="text-xs text-muted-foreground/60">Incluye tenants futuros</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {editForm.accessMode === 'specific' && (
+            <div>
+              <label className={labelCls}>Tenants asignados</label>
+              <TenantMultiSelect selected={editForm.tenantIds} onChange={toggleEditTenant} />
+              <TenantSettingsEditor tenantIds={editForm.tenantIds} settings={editForm.tenantSettings} onUpdate={updateEditTenantSetting} />
+            </div>
+          )}
+
+          <div>
             <label className={labelCls}>Notas</label>
-            <textarea
-              value={editForm.notes}
-              onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
-              className={cn(inputCls, "min-h-[80px] resize-y")}
-            />
+            <textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} className={cn(inputCls, "min-h-[80px] resize-y")} />
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-border/40">
@@ -446,7 +564,7 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
               {editSaving ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
               {editSaving ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => { setEditingId(null); setEditForm({ _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', paymentMode: 'cash_mp', paymentTerms: '', notes: '', tenantId: '' }) }} className="font-bold rounded-xl h-12 px-8">
+            <Button type="button" variant="ghost" onClick={() => { setEditingId(null); setEditForm({ _id: '', companyName: '', companyTaxId: '', companyAdminEmail: '', notes: '', accessMode: 'specific', tenantIds: [], tenantSettings: {} }) }} className="font-bold rounded-xl h-12 px-8">
               Cancelar
             </Button>
           </div>
@@ -460,7 +578,7 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
             <Building2 size={28} className="text-muted-foreground/50" />
           </div>
           <p className="text-muted-foreground font-medium">No hay empresas registradas</p>
-          <p className="text-sm text-muted-foreground/50 mt-1">Registrá una empresa corporativa y asignalá a un tenant</p>
+          <p className="text-sm text-muted-foreground/50 mt-1">Registrá una empresa corporativa y asignale tenants</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -479,9 +597,18 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
                         {STATUS_LABELS[company.status]?.label}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Store size={12} className="text-muted-foreground/60" />
-                      <span className="text-xs font-medium text-muted-foreground">{company.tenantName}</span>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {company.accessMode === 'all' ? (
+                        <Badge className="text-[10px] font-bold px-2 py-0.5 border bg-primary/10 text-primary border-primary/20 flex items-center gap-1">
+                          <Globe size={10} /> Todos los tenants
+                        </Badge>
+                      ) : (
+                        company.tenantNames.map((name, i) => (
+                          <Badge key={i} className="text-[10px] font-bold px-2 py-0.5 border bg-muted/30 text-muted-foreground border-border/40 flex items-center gap-1">
+                            <Store size={10} /> {name}
+                          </Badge>
+                        ))
+                      )}
                       {company.companyTaxId && (
                         <span className="text-xs text-muted-foreground/50 font-mono">· CUIT: {company.companyTaxId}</span>
                       )}
@@ -494,15 +621,19 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
                   </Badge>
                   <button
                     onClick={() => {
+                      const settingsMap: Record<string, { paymentMode: string; paymentTerms: string }> = {}
+                      for (const ts of company.tenantSettings) {
+                        settingsMap[ts.tenantId] = { paymentMode: ts.paymentMode, paymentTerms: ts.paymentTerms }
+                      }
                       setEditForm({
                         _id: company._id,
                         companyName: company.companyName,
                         companyTaxId: company.companyTaxId,
                         companyAdminEmail: company.companyAdminEmail,
-                        paymentMode: company.paymentMode,
-                        paymentTerms: company.paymentTerms,
                         notes: company.notes,
-                        tenantId: company.tenantId,
+                        accessMode: company.accessMode,
+                        tenantIds: company.tenantIds,
+                        tenantSettings: settingsMap,
                       })
                       setEditingId(company._id)
                     }}
@@ -538,8 +669,8 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
                   <p className="text-sm font-mono font-medium">{company.companyAdminEmail}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Esquema de Pago</p>
-                  <p className="text-sm font-bold">{PAYMENT_MODE_LABELS[company.paymentMode] || company.paymentMode}</p>
+                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Acceso</p>
+                  <p className="text-sm font-bold">{company.accessMode === 'all' ? 'Todos los tenants' : `${company.tenantIds.length} tenant(s)`}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
                   <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Empleados</p>
@@ -605,10 +736,22 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
                 )}
               </div>
 
-              {company.paymentTerms && (
+              {/* Payment settings per tenant */}
+              {company.tenantSettings.length > 0 && (
                 <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Términos de Pago</p>
-                  <p className="text-xs text-muted-foreground">{company.paymentTerms}</p>
+                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-2">Configuración de Pago por Tenant</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {company.tenantSettings.map(ts => {
+                      const tenant = tenants.find(t => t._id === ts.tenantId)
+                      return (
+                        <div key={ts.tenantId} className="flex items-center gap-2 text-xs">
+                          <span className="font-medium">{tenant?.name || ts.tenantId}:</span>
+                          <span className="text-muted-foreground">{PAYMENT_MODE_LABELS[ts.paymentMode] || ts.paymentMode}</span>
+                          {ts.paymentTerms && <span className="text-muted-foreground/50">· {ts.paymentTerms}</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>

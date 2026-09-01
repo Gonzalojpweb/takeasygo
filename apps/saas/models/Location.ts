@@ -8,6 +8,11 @@ export interface ILocation extends Document {
   phone: string
   hours: string
   mapsUrl: string
+  googleBusiness?: {
+    reviewUrl?: string | null
+    placeId?: string | null
+    updatedAt?: Date | null
+  }
   isActive: boolean
   // ── Red TakeasyGO ──────────────────────────────────────────────────────────
   geo?: {
@@ -131,6 +136,11 @@ const LocationSchema = new Schema<ILocation>(
       type: String,
       trim: true,
       default: '',
+    },
+    googleBusiness: {
+      reviewUrl: { type: String, default: null },
+      placeId: { type: String, default: null },
+      updatedAt: { type: Date, default: null },
     },
     // ── Red TakeasyGO ────────────────────────────────────────────────────────
     geo: {

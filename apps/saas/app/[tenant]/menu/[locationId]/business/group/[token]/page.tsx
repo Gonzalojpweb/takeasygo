@@ -7,6 +7,7 @@ import CorporateAccount from '@/models/CorporateAccount'
 import { notFound } from 'next/navigation'
 import GroupSessionClient from '@/components/menu/GroupSessionClient'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
+import { getTenantPaymentConfig } from '@/lib/corporateAccess'
 import type { Types } from 'mongoose'
 
 interface Props {
@@ -45,7 +46,7 @@ export default async function GroupSessionPage({ params }: Props) {
       token={token}
       companyAdminEmail={corpAccount.companyAdminEmail}
       companyName={corpAccount.companyName}
-      paymentMode={corpAccount.paymentMode}
+      paymentMode={getTenantPaymentConfig(corpAccount, tenantDoc._id)?.paymentMode || 'cash_mp'}
     />
   )
 }

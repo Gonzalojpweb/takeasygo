@@ -18,11 +18,28 @@ export async function GET(
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
 
-    const companies = await CorporateAccount.find({ tenantId: tenant._id })
+    const companies = await CorporateAccount.find({
+      $or: [
+        { accessMode: 'all' },
+        { tenantIds: tenant._id },
+      ],
+    })
       .sort({ createdAt: -1 })
       .lean()
 
-    return NextResponse.json({ companies })
+    const enriched = companies.map(c => ({
+      ...c,
+      _id: c._id.toString(),
+      tenantIds: c.tenantIds.map(id => id.toString()),
+      tenantSettings: c.tenantSettings.map(ts => ({
+        ...ts,
+        tenantId: ts.tenantId.toString(),
+      })),
+      createdAt: c.createdAt?.toISOString?.() ?? c.createdAt,
+      updatedAt: c.updatedAt?.toISOString?.() ?? c.updatedAt,
+    }))
+
+    return NextResponse.json({ companies: enriched })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
@@ -36,7 +53,7 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id name')
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
     const authError = await requireAdminRole(request, tenant._id.toString())
@@ -56,8 +73,8 @@ export async function POST(
 
     const adminEmail = body.companyAdminEmail.trim().toLowerCase()
 
+    // Unicidad global del email
     const existing = await CorporateAccount.findOne({
-      tenantId: tenant._id,
       $or: [
         { companyAdminEmail: adminEmail },
         { employeeEmails: adminEmail },
@@ -65,7 +82,7 @@ export async function POST(
     })
     if (existing) {
       return NextResponse.json(
-        { error: 'Este email ya está registrado en otra empresa de este tenant' },
+        { error: 'Este email ya está registrado en otra empresa' },
         { status: 409 }
       )
     }
@@ -76,7 +93,6 @@ export async function POST(
 
     for (const empEmail of employeeEmails) {
       const conflict = await CorporateAccount.findOne({
-        tenantId: tenant._id,
         $or: [
           { companyAdminEmail: empEmail },
           { employeeEmails: empEmail },
@@ -91,11 +107,16 @@ export async function POST(
     }
 
     const account = await CorporateAccount.create({
-      tenantId: tenant._id,
+      accessMode: 'specific',
+      tenantIds: [tenant._id],
+      tenantSettings: [{
+        tenantId: tenant._id,
+        paymentMode: body.paymentMode,
+        paymentTerms: (body.paymentTerms || '').trim(),
+      }],
       companyName: body.companyName.trim(),
       companyTaxId: (body.companyTaxId || '').trim(),
-      paymentMode: body.paymentMode,
-      paymentTerms: (body.paymentTerms || '').trim(),
+      status: 'active',
       registeredBy: 'tenant',
       registeredById: tenant._id,
       companyAdminEmail: adminEmail,
@@ -103,11 +124,23 @@ export async function POST(
       notes: (body.notes || '').trim(),
     })
 
-    return NextResponse.json({ company: account }, { status: 201 })
+    const enriched = {
+      ...account.toObject(),
+      _id: account._id.toString(),
+      tenantIds: account.tenantIds.map(id => id.toString()),
+      tenantSettings: account.tenantSettings.map(ts => ({
+        ...ts,
+        tenantId: ts.tenantId.toString(),
+      })),
+      createdAt: account.createdAt.toISOString(),
+      updatedAt: account.updatedAt.toISOString(),
+    }
+
+    return NextResponse.json({ company: enriched }, { status: 201 })
   } catch (error: any) {
     if (error?.code === 11000) {
       return NextResponse.json(
-        { error: 'Ya existe una empresa con este email corporativo en este tenant' },
+        { error: 'Ya existe una empresa con este email corporativo' },
         { status: 409 }
       )
     }

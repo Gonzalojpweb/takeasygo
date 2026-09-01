@@ -27,7 +27,7 @@ import {
   Database,
   ImageIcon,
   Bell, PlusCircle, ShoppingBag, Coins, Banknote, Percent,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -119,6 +119,12 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     Object.fromEntries(locations.map((l: any) => [l._id, l.mapsUrl ?? '']))
   )
   const [mapsUrlLoading, setMapsUrlLoading] = useState<string | null>(null)
+
+  // Location googleBusiness.reviewUrl state
+  const [reviewUrlMap, setReviewUrlMap] = useState<Record<string, string>>(
+    Object.fromEntries(locations.map((l: any) => [l._id, l.googleBusiness?.reviewUrl ?? '']))
+  )
+  const [reviewUrlLoading, setReviewUrlLoading] = useState<string | null>(null)
 
   // Location hero state
   const [heroMap, setHeroMap] = useState<Record<string, HeroConfig>>(
@@ -519,6 +525,34 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
       toast.error('Error al guardar el link')
     } finally {
       setMapsUrlLoading(null)
+    }
+  }
+
+  async function handleSaveReviewUrl(locationId: string) {
+    const url = reviewUrlMap[locationId]?.trim() ?? ''
+    if (url && !url.includes('google.com')) {
+      toast.error('El link debe ser de Google (google.com)')
+      return
+    }
+    setReviewUrlLoading(locationId)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          googleBusiness: {
+            reviewUrl: url || null,
+            updatedAt: new Date(),
+          },
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Link de reseña de Google guardado')
+      router.refresh()
+    } catch {
+      toast.error('Error al guardar el link')
+    } finally {
+      setReviewUrlLoading(null)
     }
   }
 
@@ -1225,6 +1259,37 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                             onClick={() => handleSaveMapsUrl(loc._id)}
                             disabled={mapsUrlLoading === loc._id}>
                             {mapsUrlLoading === loc._id ? 'Guardando...' : 'Guardar Link'}
+                          </Button>
+                        </div>
+
+                        {/* ── Google Review URL ── */}
+                        <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Star size={12} className="text-primary" />
+                            <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">Link Reseña Google</label>
+                          </div>
+                          <input
+                            value={reviewUrlMap[loc._id] ?? ''}
+                            onChange={e => setReviewUrlMap(p => ({ ...p, [loc._id]: e.target.value }))}
+                            placeholder="https://search.google.com/local/writereview?placeid=..."
+                            className={cn(inputCls, "bg-white border-none shadow-inner h-11 h-12")}
+                          />
+                          <div className="mt-2 text-[11px] text-muted-foreground space-y-1">
+                            <p className="font-semibold text-foreground/70">¿Cómo obtener este link?</p>
+                            <ol className="list-decimal list-inside space-y-0.5 opacity-70">
+                              <li>Abri Google Maps y buscá tu restaurante</li>
+                              <li>Hacé click en tu restaurante para abrir la ficha</li>
+                              <li>Buscá el botón "Escribir una reseña" y hacé click</li>
+                              <li>Se abre una pestaña nueva — copiá el link de esa pestaña</li>
+                              <li>Pegalo acá y guardalo</li>
+                            </ol>
+                            <p className="opacity-50 mt-1">El link tiene que contener "google.com". Si no lo guardamos, verificá que sea el link correcto.</p>
+                          </div>
+                          <Button
+                            className="w-full mt-3 bg-zinc-900 border-zinc-800 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg"
+                            onClick={() => handleSaveReviewUrl(loc._id)}
+                            disabled={reviewUrlLoading === loc._id}>
+                            {reviewUrlLoading === loc._id ? 'Guardando...' : 'Guardar Link'}
                           </Button>
                         </div>
 
