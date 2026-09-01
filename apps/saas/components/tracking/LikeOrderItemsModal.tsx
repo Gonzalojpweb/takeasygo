@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { Heart, X, Send, CheckCircle2 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
@@ -42,11 +42,19 @@ export default function LikeOrderItemsModal({
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>({})
   const [sent, setSent] = useState(false)
   const [loadingAll, setLoadingAll] = useState(true)
+  const fetchedRef = useRef<string>('')
 
-  const likeableItems = items.filter((it) => it.menuItemId)
+  const likeableItems = useMemo(() => items.filter((it) => it.menuItemId), [items])
 
   useEffect(() => {
     if (!open || likeableItems.length === 0) return
+
+    const fetchKey = `${orderId}-${likeableItems.map((i) => i._id).join(',')}`
+    if (fetchedRef.current === fetchKey) {
+      setLoadingAll(false)
+      return
+    }
+
     setLoadingAll(true)
     const fetchAll = likeableItems.map(async (it) => {
       try {
@@ -66,6 +74,7 @@ export default function LikeOrderItemsModal({
         map[r.id] = { liked: r.liked, likesCount: r.likesCount, loading: false }
       }
       setItemStates(map)
+      fetchedRef.current = fetchKey
       setLoadingAll(false)
     })
   }, [open, likeableItems, orderId, ratingToken, tenantSlug])
@@ -128,38 +137,31 @@ export default function LikeOrderItemsModal({
 
   const handleClose = () => {
     setSent(false)
+    fetchedRef.current = ''
     onClose()
   }
 
   if (!open) return null
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          {/* Backdrop */}
-          <motion.div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={handleClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          />
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      {/* Backdrop */}
+      <motion.div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={handleClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      />
 
-          {/* Modal */}
-          <motion.div
-            className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
-            initial={{ y: '100%', opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-          >
+      {/* Modal */}
+      <motion.div
+        className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
+        initial={{ y: '100%', opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+      >
             {/* Handle bar (mobile) */}
             <div className="flex justify-center pt-3 sm:hidden">
               <div className="w-10 h-1 rounded-full bg-zinc-300" />
@@ -294,8 +296,6 @@ export default function LikeOrderItemsModal({
               )}
             </div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </div>
   )
 }
