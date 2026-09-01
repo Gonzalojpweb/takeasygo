@@ -54,7 +54,6 @@ export default function RatingForm({
   if (done) {
     return (
       <div className="text-center py-12">
-        <div className="text-6xl mb-4">🙏</div>
         <h2 className="text-xl font-black mb-2" style={{ color: textColor }}>
           ¡Gracias por tu opinión!
         </h2>
