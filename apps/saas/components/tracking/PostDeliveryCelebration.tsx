@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import confetti from 'canvas-confetti'
 
 import RatingForm from './RatingForm'
+import GoogleReviewPrompt from './GoogleReviewPrompt'
 
 interface Props {
   customerName: string
@@ -16,6 +17,7 @@ interface Props {
   primaryColor: string
   backgroundColor: string
   textColor: string
+  reviewUrl?: string | null
 }
 
 export default function PostDeliveryCelebration({
@@ -29,6 +31,7 @@ export default function PostDeliveryCelebration({
   primaryColor,
   backgroundColor,
   textColor,
+  reviewUrl,
 }: Props) {
   const celebRef = useRef(false)
 
@@ -71,15 +74,25 @@ export default function PostDeliveryCelebration({
 
       {/* Rating form */}
       {ratingToken && (
-        <RatingForm
-          orderId={orderId}
-          orderNumber={orderNumber}
+        <GoogleReviewPrompt
+          customerName={customerName}
+          reviewUrl={reviewUrl ?? null}
           tenantSlug={tenantSlug}
-          token={ratingToken}
+          locationId={locationId}
+          orderId={orderId}
           primaryColor={primaryColor}
           backgroundColor={backgroundColor}
-          textColor={textColor}
-        />
+        >
+          <RatingForm
+            orderId={orderId}
+            orderNumber={orderNumber}
+            tenantSlug={tenantSlug}
+            token={ratingToken}
+            primaryColor={primaryColor}
+            backgroundColor={backgroundColor}
+            textColor={textColor}
+          />
+        </GoogleReviewPrompt>
       )}
 
       {/* Back to like */}
