@@ -33,7 +33,7 @@ export default function GoogleReviewPrompt({
   return (
     <div className="text-center space-y-4">
       <p className="text-lg font-medium">
-        ¿Cómo fue tu experiencia{customerName ? `, ${customerName}` : ''}?
+        ¿Podrías dejar una reseña en Google para apoyar al restaurante?
       </p>
 
       <a
