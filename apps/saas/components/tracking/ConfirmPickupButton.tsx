@@ -5,6 +5,14 @@ import confetti from 'canvas-confetti'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import RatingForm from './RatingForm'
 import GoogleReviewPrompt from './GoogleReviewPrompt'
+import LikeOrderItemsModal from './LikeOrderItemsModal'
+
+interface OrderItem {
+  _id: string
+  name: string
+  quantity: number
+  menuItemId?: string
+}
 
 interface Props {
   orderId: string
@@ -18,6 +26,7 @@ interface Props {
   ratingToken?: string | null
   orderNumber?: string
   reviewUrl?: string | null
+  orderItems: OrderItem[]
 }
 
 export default function ConfirmPickupButton({
@@ -32,10 +41,12 @@ export default function ConfirmPickupButton({
   ratingToken,
   orderNumber,
   reviewUrl,
+  orderItems,
 }: Props) {
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState('')
+  const [showLikeModal, setShowLikeModal] = useState(false)
   const { play: playCelebration } = useNotificationSound('/pop.mp3')
 
   async function handleConfirm() {
@@ -108,13 +119,13 @@ export default function ConfirmPickupButton({
         {/* Buttons side by side */}
         <div className="flex gap-2">
           {ratingToken && (
-            <a
-              href={`/${tenantSlug}/menu/${locationId}/takeaway?likes=${orderId}&token=${ratingToken}`}
-              className="flex-1 py-3 rounded-2xl font-bold text-sm text-center"
+            <button
+              onClick={() => setShowLikeModal(true)}
+              className="flex-1 py-3 rounded-2xl font-bold text-sm text-center transition-all active:scale-[0.97]"
               style={{ backgroundColor: primaryColor, color: backgroundColor }}
             >
               ❤️ Likear
-            </a>
+            </button>
           )}
           <a
             href={`/${tenantSlug}/menu/${locationId}/takeaway`}
@@ -124,6 +135,20 @@ export default function ConfirmPickupButton({
             Volver al menú
           </a>
         </div>
+
+        {/* Like modal */}
+        {ratingToken && (
+          <LikeOrderItemsModal
+            open={showLikeModal}
+            onClose={() => setShowLikeModal(false)}
+            items={orderItems}
+            orderId={orderId}
+            ratingToken={ratingToken}
+            tenantSlug={tenantSlug}
+            tenantName={customerName ?? ''}
+            primaryColor={primaryColor}
+          />
+        )}
       </div>
     )
   }

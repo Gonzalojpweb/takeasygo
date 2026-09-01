@@ -1,10 +1,18 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import confetti from 'canvas-confetti'
 
 import RatingForm from './RatingForm'
 import GoogleReviewPrompt from './GoogleReviewPrompt'
+import LikeOrderItemsModal from './LikeOrderItemsModal'
+
+interface OrderItem {
+  _id: string
+  name: string
+  quantity: number
+  menuItemId?: string
+}
 
 interface Props {
   customerName: string
@@ -18,6 +26,7 @@ interface Props {
   backgroundColor: string
   textColor: string
   reviewUrl?: string | null
+  orderItems: OrderItem[]
 }
 
 export default function PostDeliveryCelebration({
@@ -32,8 +41,10 @@ export default function PostDeliveryCelebration({
   backgroundColor,
   textColor,
   reviewUrl,
+  orderItems,
 }: Props) {
   const celebRef = useRef(false)
+  const [showLikeModal, setShowLikeModal] = useState(false)
 
   // Subtle confetti on mount
   useEffect(() => {
@@ -98,13 +109,13 @@ export default function PostDeliveryCelebration({
       {/* Buttons side by side */}
       <div className="flex gap-2">
         {ratingToken && (
-          <a
-            href={`/${tenantSlug}/menu/${locationId}/takeaway?likes=${orderId}&token=${ratingToken}`}
-            className="flex-1 py-3 rounded-2xl font-bold text-sm text-center"
+          <button
+            onClick={() => setShowLikeModal(true)}
+            className="flex-1 py-3 rounded-2xl font-bold text-sm text-center transition-all active:scale-[0.97]"
             style={{ backgroundColor: primaryColor, color: backgroundColor }}
           >
             ❤️ Likear
-          </a>
+          </button>
         )}
         <a
           href={`/${tenantSlug}/menu/${locationId}/takeaway`}
@@ -114,6 +125,20 @@ export default function PostDeliveryCelebration({
           Volver al menú
         </a>
       </div>
+
+      {/* Like modal */}
+      {ratingToken && (
+        <LikeOrderItemsModal
+          open={showLikeModal}
+          onClose={() => setShowLikeModal(false)}
+          items={orderItems}
+          orderId={orderId}
+          ratingToken={ratingToken}
+          tenantSlug={tenantSlug}
+          tenantName={tenantName}
+          primaryColor={primaryColor}
+        />
+      )}
     </div>
   )
 }

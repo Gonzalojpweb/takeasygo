@@ -163,6 +163,12 @@ export default async function TrackingPage({ params, searchParams }: Props) {
             cvu: tenant.transfer.cvu,
           } : null}
           initialReviewUrl={location?.googleBusiness?.reviewUrl ?? null}
+          orderItems={order.items.map((item: any) => ({
+            _id: item._id?.toString() ?? '',
+            name: item.name,
+            quantity: item.quantity,
+            menuItemId: item.menuItemId?.toString(),
+          }))}
         />
 
         {/* Live tracking badge */}
