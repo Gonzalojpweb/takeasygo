@@ -68,7 +68,7 @@ export default function PostDeliveryCelebration({
           ¡Pedido completado{customerName ? `, ${customerName}` : ''}!
         </p>
         <p className="text-sm opacity-60">
-          Gracias por elegirnos. ¡Que lo disfrutes!
+          ¡Que lo disfrutes!
         </p>
       </div>
 
