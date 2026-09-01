@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, Plus, X, Check, AlertTriangle, Loader2, Search, Users, CreditCard, MoreHorizontal, Trash2, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Building2, Plus, X, Check, Loader2, Search, Trash2, Pencil, ToggleLeft, ToggleRight, Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,13 +20,19 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   cancelled: { label: 'Cancelada', className: 'bg-destructive/10 text-destructive border-destructive/20' },
 }
 
+interface TenantPaymentSetting {
+  tenantId: string
+  paymentMode: string
+  paymentTerms: string
+}
+
 interface Company {
   _id: string
   companyName: string
   companyTaxId: string
   status: string
-  paymentMode: string
-  paymentTerms: string
+  accessMode: string
+  tenantSettings: TenantPaymentSetting[]
   companyAdminEmail: string
   employeeEmails?: string[]
   notes: string
@@ -36,9 +42,10 @@ interface Company {
 interface Props {
   companies: Company[]
   tenantSlug: string
+  tenantId: string
 }
 
-export default function BusinessCompaniesClient({ companies: initial, tenantSlug }: Props) {
+export default function BusinessCompaniesClient({ companies: initial, tenantSlug, tenantId }: Props) {
   const router = useRouter()
   const [companies, setCompanies] = useState<Company[]>(initial)
   const [showCreate, setShowCreate] = useState(false)
@@ -58,7 +65,6 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
     notes: '',
   })
 
-  // Create form
   const [form, setForm] = useState({
     companyName: '',
     companyTaxId: '',
@@ -75,6 +81,14 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
         c.companyAdminEmail.toLowerCase().includes(search.toLowerCase())
       )
     : companies
+
+  function getLocalPaymentConfig(company: Company): { paymentMode: string; paymentTerms: string } {
+    const settings = company.tenantSettings?.find(s => s.tenantId === tenantId)
+    return {
+      paymentMode: settings?.paymentMode || 'cash_mp',
+      paymentTerms: settings?.paymentTerms || '',
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -336,7 +350,6 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
                 value={editForm.companyName}
                 onChange={e => setEditForm(p => ({ ...p, companyName: e.target.value }))}
                 className={inputCls}
-                placeholder="Ej: Acme Corp S.A."
               />
             </div>
             <div>
@@ -345,7 +358,6 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
                 value={editForm.companyTaxId}
                 onChange={e => setEditForm(p => ({ ...p, companyTaxId: e.target.value }))}
                 className={inputCls}
-                placeholder="30-12345678-9"
               />
             </div>
           </div>
@@ -360,24 +372,24 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
                 className={cn(inputCls, "opacity-60")}
                 disabled
               />
-              <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">El email corporativo no se puede cambiar. Creá una nueva empresa si es necesario.</p>
+              <p className="text-[10px] text-muted-foreground/50 font-medium mt-1">El email corporativo no se puede cambiar.</p>
             </div>
             <div>
-              <label className={labelCls}>Esquema de Pago</label>
+              <label className={labelCls}>Esquema de Pago (este tenant)</label>
               <select
                 value={editForm.paymentMode}
                 onChange={e => setEditForm(p => ({ ...p, paymentMode: e.target.value }))}
                 className={inputCls}
               >
-                <option value="cash_mp">Contado MP (todos pagan con MercadoPago)</option>
-                <option value="deferred">Diferido (factura directa empresa-restaurante)</option>
+                <option value="cash_mp">Contado MP</option>
+                <option value="deferred">Diferido</option>
                 <option value="mixed">Mixto</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className={labelCls}>Términos de Pago</label>
+            <label className={labelCls}>Términos de Pago (este tenant)</label>
             <input
               value={editForm.paymentTerms}
               onChange={e => setEditForm(p => ({ ...p, paymentTerms: e.target.value }))}
@@ -418,143 +430,151 @@ export default function BusinessCompaniesClient({ companies: initial, tenantSlug
         </div>
       ) : (
         <div className="space-y-4">
-          {filtered.map(company => (
-            <div key={company._id} className="p-6 bg-card border-2 border-border/60 rounded-[2rem] shadow-lg space-y-4">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                    <Building2 size={22} strokeWidth={2.5} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold tracking-tight">{company.companyName}</h3>
-                      <Badge className={cn('text-[10px] font-bold px-2 py-0.5 border', STATUS_LABELS[company.status]?.className)}>
-                        {STATUS_LABELS[company.status]?.label}
-                      </Badge>
+          {filtered.map(company => {
+            const localConfig = getLocalPaymentConfig(company)
+            return (
+              <div key={company._id} className="p-6 bg-card border-2 border-border/60 rounded-[2rem] shadow-lg space-y-4">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <Building2 size={22} strokeWidth={2.5} />
                     </div>
-                    {company?.companyTaxId && (
-                      <p className="text-xs text-muted-foreground font-mono mt-0.5">CUIT: {company?.companyTaxId}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setEditForm({
-                        _id: company._id,
-                        companyName: company.companyName,
-                        companyTaxId: company.companyTaxId,
-                        companyAdminEmail: company.companyAdminEmail,
-                        paymentMode: company.paymentMode,
-                        paymentTerms: company.paymentTerms,
-                        notes: company.notes,
-                      })
-                      setEditingId(company._id)
-                    }}
-                    className="p-2 rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-all"
-                    title="Editar"
-                  >
-                    <Pencil size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleToggleStatus(company)}
-                    className={cn(
-                      'p-2 rounded-xl transition-all',
-                      company.status === 'active' ? 'text-emerald-600 hover:bg-emerald-500/10' : 'text-amber-600 hover:bg-amber-500/10'
-                    )}
-                    title={company.status === 'active' ? 'Suspender' : 'Reactivar'}
-                  >
-                    {company.status === 'active' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(company)}
-                    className="p-2 rounded-xl text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-all"
-                    title="Eliminar"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Details grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Email Corporativo</p>
-                  <p className="text-sm font-mono font-medium">{company.companyAdminEmail}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Esquema de Pago</p>
-                  <p className="text-sm font-bold">{PAYMENT_MODE_LABELS[company.paymentMode] || company.paymentMode}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Empleados</p>
-                  <p className="text-sm font-bold">{(company.employeeEmails ?? []).length} emails registrados</p>
-                </div>
-              </div>
-
-              {/* Employee list */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Empleados Habilitados</p>
-                  <button
-                    onClick={() => setAddingEmployee(company._id)}
-                    className="text-[10px] font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-                  >
-                    <Plus size={12} /> Agregar
-                  </button>
-                </div>
-                {(company.employeeEmails ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground/50 italic">Sin empleados registrados</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {(company.employeeEmails ?? []).map(email => (
-                      <div key={email} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/40 border border-border/40 group">
-                        <span className="text-xs font-mono">{email}</span>
-                        <button
-                          onClick={() => handleRemoveEmployee(company._id, email)}
-                          className="text-muted-foreground/30 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <X size={12} />
-                        </button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold tracking-tight">{company.companyName}</h3>
+                        <Badge className={cn('text-[10px] font-bold px-2 py-0.5 border', STATUS_LABELS[company.status]?.className)}>
+                          {STATUS_LABELS[company.status]?.label}
+                        </Badge>
+                        {company.accessMode === 'all' && (
+                          <Badge className="text-[10px] font-bold px-2 py-0.5 border bg-primary/10 text-primary border-primary/20 flex items-center gap-1">
+                            <Globe size={10} /> Multi-tenant
+                          </Badge>
+                        )}
                       </div>
-                    ))}
+                      {company?.companyTaxId && (
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">CUIT: {company?.companyTaxId}</p>
+                      )}
+                    </div>
                   </div>
-                )}
-                {addingEmployee === company._id && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <input
-                      type="email"
-                      value={newEmployeeEmail}
-                      onChange={e => setNewEmployeeEmail(e.target.value)}
-                      placeholder="email@empresa.com"
-                      className="flex-1 bg-muted/40 border-2 border-border/60 focus:border-primary/40 text-foreground text-sm rounded-xl px-3 py-2 outline-none transition-all"
-                      autoFocus
-                    />
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleAddEmployee(company._id)}
-                      className="bg-primary text-white p-2 rounded-xl hover:bg-primary/90 transition-all active:scale-95"
+                      onClick={() => {
+                        setEditForm({
+                          _id: company._id,
+                          companyName: company.companyName,
+                          companyTaxId: company.companyTaxId,
+                          companyAdminEmail: company.companyAdminEmail,
+                          paymentMode: localConfig.paymentMode,
+                          paymentTerms: localConfig.paymentTerms,
+                          notes: company.notes,
+                        })
+                        setEditingId(company._id)
+                      }}
+                      className="p-2 rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-all"
+                      title="Editar"
                     >
-                      <Check size={16} />
+                      <Pencil size={18} />
                     </button>
                     <button
-                      onClick={() => { setAddingEmployee(null); setNewEmployeeEmail('') }}
-                      className="text-muted-foreground p-2 rounded-xl hover:bg-muted transition-all"
+                      onClick={() => handleToggleStatus(company)}
+                      className={cn(
+                        'p-2 rounded-xl transition-all',
+                        company.status === 'active' ? 'text-emerald-600 hover:bg-emerald-500/10' : 'text-amber-600 hover:bg-amber-500/10'
+                      )}
+                      title={company.status === 'active' ? 'Suspender' : 'Reactivar'}
                     >
-                      <X size={16} />
+                      {company.status === 'active' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                     </button>
+                    <button
+                      onClick={() => handleDelete(company)}
+                      className="p-2 rounded-xl text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-all"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Details grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Email Corporativo</p>
+                    <p className="text-sm font-mono font-medium">{company.companyAdminEmail}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Esquema de Pago</p>
+                    <p className="text-sm font-bold">{PAYMENT_MODE_LABELS[localConfig.paymentMode] || localConfig.paymentMode}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Empleados</p>
+                    <p className="text-sm font-bold">{(company.employeeEmails ?? []).length} emails registrados</p>
+                  </div>
+                </div>
+
+                {/* Employee list */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Empleados Habilitados</p>
+                    <button
+                      onClick={() => setAddingEmployee(company._id)}
+                      className="text-[10px] font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                    >
+                      <Plus size={12} /> Agregar
+                    </button>
+                  </div>
+                  {(company.employeeEmails ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground/50 italic">Sin empleados registrados</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {(company.employeeEmails ?? []).map(email => (
+                        <div key={email} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/40 border border-border/40 group">
+                          <span className="text-xs font-mono">{email}</span>
+                          <button
+                            onClick={() => handleRemoveEmployee(company._id, email)}
+                            className="text-muted-foreground/30 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {addingEmployee === company._id && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="email"
+                        value={newEmployeeEmail}
+                        onChange={e => setNewEmployeeEmail(e.target.value)}
+                        placeholder="email@empresa.com"
+                        className="flex-1 bg-muted/40 border-2 border-border/60 focus:border-primary/40 text-foreground text-sm rounded-xl px-3 py-2 outline-none transition-all"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleAddEmployee(company._id)}
+                        className="bg-primary text-white p-2 rounded-xl hover:bg-primary/90 transition-all active:scale-95"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={() => { setAddingEmployee(null); setNewEmployeeEmail('') }}
+                        className="text-muted-foreground p-2 rounded-xl hover:bg-muted transition-all"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {localConfig.paymentTerms && (
+                  <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Términos de Pago</p>
+                    <p className="text-xs text-muted-foreground">{localConfig.paymentTerms}</p>
                   </div>
                 )}
               </div>
-
-              {company.paymentTerms && (
-                <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1">Términos de Pago</p>
-                  <p className="text-xs text-muted-foreground">{company.paymentTerms}</p>
-                </div>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

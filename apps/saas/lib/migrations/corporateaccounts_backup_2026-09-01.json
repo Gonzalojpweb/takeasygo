@@ -1,0 +1,73 @@
+[
+  {
+    "_id": "6a15d34e87e3285b7d222304",
+    "tenantId": "69bf75d14af53e5e5c3a50ae",
+    "companyName": "CANDY ELECTRODOMESTICOS ARGENTINAS S.A",
+    "companyTaxId": "30-70982611-1",
+    "status": "active",
+    "paymentMode": "deferred",
+    "paymentTerms": "PRIMOS 5 DIAS DE CADA MES",
+    "adminUserId": null,
+    "employeeIds": [],
+    "inviteToken": "f6681fb04b7b7f2d824bed968daeaf364f0bdef75a718b34f0eb82bc017440bd",
+    "inviteExpiresAt": "2026-06-02T17:07:26.637Z",
+    "invitedBy": "699bed5aa9b8cdcebb9357ae",
+    "notes": "",
+    "createdAt": "2026-05-26T17:07:26.642Z",
+    "updatedAt": "2026-06-08T17:46:02.493Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a2700f2906d0dafc944bb36",
+    "tenantId": "69bf75d14af53e5e5c3a50ae",
+    "companyName": "team",
+    "companyTaxId": "30-30251879-2",
+    "status": "active",
+    "paymentMode": "deferred",
+    "paymentTerms": "pago final de mes",
+    "registeredBy": "tenant",
+    "registeredById": "69bf75d14af53e5e5c3a50ae",
+    "companyAdminEmail": "team@gmail.com",
+    "employeeEmails": [
+      "pepito@gmail.com"
+    ],
+    "notes": "",
+    "createdAt": "2026-06-08T17:50:42.560Z",
+    "updatedAt": "2026-06-08T17:59:37.540Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a80dce7f90f0b93a5fee9f8",
+    "tenantId": "6a7ca06137abee347117a903",
+    "companyName": "Pwc",
+    "companyTaxId": "",
+    "status": "active",
+    "paymentMode": "cash_mp",
+    "paymentTerms": "",
+    "registeredBy": "tenant",
+    "registeredById": "6a7ca06137abee347117a903",
+    "companyAdminEmail": "pablo.granado@pwc.com",
+    "employeeEmails": [],
+    "notes": "",
+    "createdAt": "2026-08-15T21:40:55.158Z",
+    "updatedAt": "2026-08-20T06:23:03.112Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a833e11224ebb89349ec1fd",
+    "tenantId": "6a65a4cdf1c0f0b75ad78a1f",
+    "companyName": "tgo",
+    "companyTaxId": "30-3958796-2",
+    "status": "active",
+    "paymentMode": "cash_mp",
+    "paymentTerms": "",
+    "registeredBy": "tenant",
+    "registeredById": "6a65a4cdf1c0f0b75ad78a1f",
+    "companyAdminEmail": "gonzalo@gmail.com",
+    "employeeEmails": [],
+    "notes": "",
+    "createdAt": "2026-08-17T17:00:01.073Z",
+    "updatedAt": "2026-08-20T10:28:50.190Z",
+    "__v": 0
+  }
+]

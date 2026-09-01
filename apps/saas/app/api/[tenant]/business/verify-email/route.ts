@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import CorporateAccount from '@/models/CorporateAccount'
+import { getTenantPaymentConfig } from '@/lib/corporateAccess'
 
 // Simple in-memory rate limiter (resets on server restart)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -80,13 +81,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Business no habilitado en este tenant' }, { status: 403 })
     }
 
+    // $and explícito: acceso al tenant Y email registrado
     const account = await CorporateAccount.findOne({
-      tenantId: tenant._id,
-      status: 'active',
-      $or: [
-        { companyAdminEmail: normalizedEmail },
-        { employeeEmails: normalizedEmail },
+      $and: [
+        { $or: [{ accessMode: 'all' }, { tenantIds: tenant._id }] },
+        { $or: [{ companyAdminEmail: normalizedEmail }, { employeeEmails: normalizedEmail }] },
       ],
+      status: 'active',
     }).lean()
 
     if (!account) {
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const isCompanyAdmin = account.companyAdminEmail === normalizedEmail
+    const paymentConfig = getTenantPaymentConfig(account, tenant._id)
 
     return NextResponse.json({
       verified: true,
@@ -101,7 +103,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       corporateAccountId: account._id.toString(),
       corporateAccountEmail: account.companyAdminEmail,
       companyName: account.companyName,
-      paymentMode: account.paymentMode,
+      paymentMode: paymentConfig?.paymentMode || 'cash_mp',
       isCompanyAdmin,
     })
   } catch (error) {

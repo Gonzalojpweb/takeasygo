@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import mongoose from 'mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import CorporateAccount from '@/models/CorporateAccount'
@@ -7,6 +8,7 @@ import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
 import { hashPhone } from '@/lib/crypto'
 import { upsertConsumerFromOrder } from '@/lib/consumer'
+import { corporateHasAccess, getTenantPaymentConfig } from '@/lib/corporateAccess'
 import crypto from 'crypto'
 
 // Only company admin email can start a group session
@@ -38,14 +40,17 @@ export async function POST(
       return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
     }
 
-    // Validate corporate account
+    // Validate corporate account with multi-tenant access
     const corpAccount = await CorporateAccount.findOne({
       _id: corporateAccountId,
-      tenantId: tenant._id,
       status: 'active',
     }).lean()
     if (!corpAccount) {
       return NextResponse.json({ error: 'Cuenta corporativa no encontrada o suspendida' }, { status: 403 })
+    }
+
+    if (!corporateHasAccess(corpAccount, tenant._id)) {
+      return NextResponse.json({ error: 'Cuenta corporativa no tiene acceso a este tenant' }, { status: 403 })
     }
 
     // Only the company admin email can start a group session
@@ -80,6 +85,9 @@ export async function POST(
       return NextResponse.json({ error: 'Menú no encontrado para esta sede' }, { status: 404 })
     }
 
+    // Get payment config for this tenant
+    const paymentConfig = getTenantPaymentConfig(corpAccount, tenant._id)
+
     const order = await Order.create({
       tenantId: tenant._id,
       locationId,
@@ -87,7 +95,7 @@ export async function POST(
       status: 'open',
       orderMode: 'business',
       corporateAccountId: corpAccount._id,
-      paymentModeSnapshot: corpAccount.paymentMode,
+      paymentModeSnapshot: paymentConfig?.paymentMode || 'cash_mp',
       groupSessionToken: token,
       sessionExpiresAt: expiresAt,
       items: [],

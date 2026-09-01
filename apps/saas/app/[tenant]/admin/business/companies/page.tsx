@@ -43,7 +43,12 @@ export default async function BusinessCompaniesPage() {
     )
   }
 
-  const companies = await CorporateAccount.find({ tenantId: tenant._id })
+  const companies = await CorporateAccount.find({
+    $or: [
+      { accessMode: 'all' },
+      { tenantIds: tenant._id },
+    ],
+  })
     .sort({ createdAt: -1 })
     .lean()
     .catch(() => [])
@@ -66,6 +71,7 @@ export default async function BusinessCompaniesPage() {
       <BusinessCompaniesClient
         companies={serialized}
         tenantSlug={tenantSlug || ''}
+        tenantId={tenant._id.toString()}
       />
     </div>
   )
