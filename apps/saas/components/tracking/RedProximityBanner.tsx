@@ -22,14 +22,18 @@ export default function RedProximityBanner({ tenantSlug, tenantName }: Props) {
 
       {/* Descripción */}
       <p className="text-sm opacity-60 leading-relaxed">
-        TGO es la nueva forma de vivir la ciudad. Navegá, encontrá tus lugares favoritos y comprá
-        directo al restaurante. Así ayudás a cada establecimiento de tu barrio a mejorar mientras
-        disfrutás y vivís la ciudad de la proximidad.
+        ¿Y si tu próximo lugar favorito estuviera cerca?
+      </p>
+      <p className="text-sm opacity-60 leading-relaxed">
+        Descubrí lugares, propuestas y experiencias cerca tuyo.
+      </p>
+      <p className="text-sm opacity-60 leading-relaxed">
+        Descubrí. Explorá. Viví tu ciudad.
       </p>
 
       {/* Ciudad */}
       <p className="text-xs font-semibold opacity-40">
-        Buenos Aires — Ciudad de los 15 minutos
+        Ciudad de los 15 minutos
       </p>
 
       {/* Divider */}
