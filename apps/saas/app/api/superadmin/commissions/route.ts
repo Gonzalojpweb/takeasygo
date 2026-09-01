@@ -182,6 +182,12 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Resetear commissionBalance.transfer del tenant (el admin ya pagó)
+  await Tenant.findOneAndUpdate(
+    { _id: tenantId },
+    { $inc: { 'commissionBalance.transfer': -amountCollected } }
+  )
+
   return NextResponse.json({
     settlement: {
       _id: settlement._id.toString(),
