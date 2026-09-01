@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
+import Location from '@/models/Location'
 import { notFound } from 'next/navigation'
 import OrderTracker from '@/components/tracking/OrderTracker'
 import LiveTrackingBadge from '@/components/tracking/LiveTrackingBadge'
@@ -26,6 +27,10 @@ export default async function TrackingPage({ params, searchParams }: Props) {
 
   const order = await Order.findOne({ orderNumber, tenantId: tenant._id }).lean() as any
   if (!order) notFound()
+
+  const location = order.locationId
+    ? await Location.findById(order.locationId).lean() as any
+    : null
 
   const branding = tenant.branding
 
@@ -156,6 +161,7 @@ export default async function TrackingPage({ params, searchParams }: Props) {
             cbu: tenant.transfer.cbu,
             cvu: tenant.transfer.cvu,
           } : null}
+          initialReviewUrl={location?.googleBusiness?.reviewUrl ?? null}
         />
 
         {/* Live tracking badge */}

@@ -28,6 +28,7 @@ import QrPromo from '@/models/QrPromo'
 import { getDeviceIdIfExists } from '@/lib/hidden-rewards'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
+import { corporateHasAccess } from '@/lib/corporateAccess'
 import { calculateFinalTotal } from '@/lib/pricing'
 import { resolveCashConfig } from '@/lib/cash'
 import { sendAdminPushNotification } from '@/lib/push'
@@ -437,10 +438,9 @@ export async function POST(
       }
       const corpAccount = await CorporateAccount.findOne({
         _id: body.corporateAccountId,
-        tenantId: tenant._id,
         status: 'active',
       })
-      if (!corpAccount) {
+      if (!corpAccount || !corporateHasAccess(corpAccount, tenant._id)) {
         return NextResponse.json({ error: 'Cuenta corporativa inválida o suspendida' }, { status: 403 })
       }
     }
@@ -1307,12 +1307,12 @@ export async function POST(
 
     // Bloquear joinClub si el email es companyAdminEmail (Business handoff v2 §4)
     const isCompanyAdminEmail = body.customer.email ? await CorporateAccount.findOne({
-      tenantId: tenant._id,
       status: 'active',
       companyAdminEmail: body.customer.email.toLowerCase().trim(),
     }).lean() : null
+    const isCompanyAdminInThisTenant = isCompanyAdminEmail && corporateHasAccess(isCompanyAdminEmail, tenant._id)
 
-    const canJoinClub = joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled && !isCompanyAdminEmail
+    const canJoinClub = joinClub && body.customer.phone && canAccess(tenant.plan, 'loyaltyClub') && tenant.loyalty?.enabled && !isCompanyAdminInThisTenant
 
     if (canJoinClub) {
       const pHash = hashPhone(body.customer.phone)

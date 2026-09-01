@@ -86,6 +86,7 @@ interface Props {
     cbu: string | null
     cvu: string | null
   } | null
+  initialReviewUrl?: string | null
 }
 
 function formatCountdown(target: string): string {
@@ -169,6 +170,7 @@ export default function OrderTracker({
   initialCustomerName = '',
   initialWhatsAppPhone,
   initialTransferData,
+  initialReviewUrl = null,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [confirmedAt, setConfirmedAt]     = useState<string | null>(null)
@@ -797,6 +799,7 @@ export default function OrderTracker({
             customerName={initialCustomerName}
             ratingToken={ratingToken}
             orderNumber={orderNumber}
+            reviewUrl={initialReviewUrl}
           />
         </div>
       )}
@@ -882,6 +885,7 @@ export default function OrderTracker({
           primaryColor={primaryColor}
           backgroundColor={backgroundColor}
           textColor={textColor}
+          reviewUrl={initialReviewUrl}
         />
       )}
       
