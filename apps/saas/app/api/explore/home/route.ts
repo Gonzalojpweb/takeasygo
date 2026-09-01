@@ -132,18 +132,28 @@ export async function GET(request: NextRequest) {
       ],
     }).sort({ isFeatured: -1, sortOrder: 1 }).limit(10).lean()
 
+    const seenGlobalIds = new Set<string>()
     const promotions = promotionsRaw.flatMap(p => {
       if (p.scope === 'global') {
+        if (seenGlobalIds.has(p._id.toString())) return []
+        seenGlobalIds.add(p._id.toString())
+
         const applicableTenantIds = p.targetTenants && p.targetTenants.length > 0
           ? p.targetTenants.filter((tid: any) => activeTenantIds.some((atid: any) => atid.equals(tid)))
           : activeTenantIds
-        return applicableTenantIds.map((tid: any) => ({
+
+        const primaryTenantId = applicableTenantIds[0]
+        if (!primaryTenantId) return []
+
+        return [{
           ...p,
-          tenantId: tid,
-          tenantSlug: tenantSlugMap.get(tid.toString()) || '',
-          tenantLogo: tenantLogoMap.get(tid.toString()) || '',
-          tenantName: tenantNameMap.get(tid.toString()) || '',
-        }))
+          _id: `${p._id}-${primaryTenantId}`,
+          originalPromoId: p._id,
+          tenantId: primaryTenantId,
+          tenantSlug: tenantSlugMap.get(primaryTenantId.toString()) || '',
+          tenantLogo: tenantLogoMap.get(primaryTenantId.toString()) || '',
+          tenantName: tenantNameMap.get(primaryTenantId.toString()) || '',
+        }]
       }
       return [{
         ...p,
