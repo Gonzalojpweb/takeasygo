@@ -76,13 +76,9 @@ export default function ConfirmPickupButton({
   if (confirmed) {
     return (
       <div className="text-center space-y-4 py-2">
-        <div className="text-5xl animate-bounce">🍽️</div>
         <div>
           <p className="font-black text-xl mb-1">
             ¡Pedido completado{customerName ? `, ${customerName}` : ''}!
-          </p>
-          <p className="text-sm opacity-60">
-            Gracias por elegirnos. ¡Que lo disfrutes!
           </p>
         </div>
 
