@@ -208,7 +208,7 @@ export function cashSaleRouter(
       const auth = req.auth!
       const { eventId } = req.params
 
-      const event = await CashSaleEventModel.findById(eventId)
+      const event = await CashSaleEventModel.findById(eventId).lean()
       if (!event) {
         return res.status(404).json({ error: "Event not found" })
       }

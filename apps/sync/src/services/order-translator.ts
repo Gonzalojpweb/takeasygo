@@ -88,7 +88,7 @@ export async function getPendingOrders(
   const docs = await SyncOrderModel.find({
     tenantId,
     status: "pending",
-  }).sort({ createdAt: 1 })
+  }).sort({ createdAt: 1 }).lean()
 
   return docs.map((doc: SyncOrderDocument) => ({
     tenantId: doc.tenantId,

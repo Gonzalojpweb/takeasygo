@@ -358,7 +358,7 @@ export function customersRouter(): Router {
       const consumer = await ConsumerModel.findOne({
         customerId,
         tenantIds: tenantId,
-      })
+      }).lean()
 
       if (!consumer) {
         return res.status(404).json({ error: "Customer not found" })
