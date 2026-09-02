@@ -1,6 +1,7 @@
 import type { KitchenCommand, KitchenCommandItem, Order } from "@takeasygo/types"
 import { db } from "../db/dexie"
 import { enqueue } from "./event-queue"
+import { formatCurrency } from "../utils/format"
 
 // ============================================================================
 // Helpers
@@ -11,7 +12,7 @@ function orderToKitchenCommand(order: Order): KitchenCommand {
     productId: item.productId,
     name: item.name,
     quantity: item.quantity,
-    modifiers: item.modifiers?.map((m) => `${m.name}: +$${m.price}`),
+    modifiers: item.modifiers?.map((m) => `${m.name}: +${formatCurrency(m.price)}`),
     notes: item.notes,
     category: "general",
   }))

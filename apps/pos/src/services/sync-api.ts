@@ -1,5 +1,14 @@
 const SYNC_URL = import.meta.env.VITE_SYNC_URL;
 
+// ── 401 detection — triggers re-login flow in AuthContext ───────────────────
+function checkAuth(res: Response): boolean {
+  if (res.status === 401) {
+    window.dispatchEvent(new CustomEvent("auth:expired"))
+    return false
+  }
+  return true
+}
+
 export interface ReplayEvent {
   id: string
   type: string
@@ -95,7 +104,7 @@ export async function fetchFailedCashSaleEvents(
         },
       }
     )
-    if (!res.ok) return []
+    if (!res.ok) { checkAuth(res); return [] }
     const data = await res.json()
     return data.events ?? []
   } catch {
@@ -114,6 +123,7 @@ export async function retryCashSaleEvent(
         Authorization: `Bearer ${jwt}`,
       },
     })
+    checkAuth(res)
     return res.ok
   } catch {
     return false
@@ -148,7 +158,7 @@ export async function fetchPendingOrders(
         },
       }
     )
-    if (!res.ok) return []
+    if (!res.ok) { checkAuth(res); return [] }
     return await res.json()
   } catch {
     return []
@@ -173,6 +183,7 @@ export async function confirmTransferPayment(
       },
       body: JSON.stringify({ tenantId }),
     })
+    checkAuth(res)
     return res.ok
   } catch {
     return false
@@ -199,6 +210,7 @@ export async function notifyStatusToSyncLayer(
       },
       body: JSON.stringify({ status }),
     })
+    checkAuth(res)
     return res.ok
   } catch {
     return false

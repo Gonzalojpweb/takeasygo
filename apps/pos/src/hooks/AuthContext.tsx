@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react"
 import type { ReactNode } from "react"
 import {
   generateSalt,
@@ -8,6 +8,12 @@ import {
 import { db } from "../db/dexie"
 import { setEncryptionKey } from "./useEncryptionKey"
 import * as authApi from "../services/auth-api"
+
+// ============================================================================
+// Token lifecycle constants
+// ============================================================================
+const TOKEN_WARNING_MS = 5 * 60 * 1000   // warn 5 minutes before expiry
+const SESSION_CHECK_MS = 60 * 1000        // check every 60 seconds
 
 // ============================================================================
 // Shared auth state — single source of truth for all hooks
@@ -85,6 +91,54 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading" })
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sessionCheckRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // ── Token lifecycle timers ────────────────────────────────────────────
+  const clearTimers = useCallback(() => {
+    if (refreshTimerRef.current) { clearTimeout(refreshTimerRef.current); refreshTimerRef.current = null }
+    if (sessionCheckRef.current) { clearInterval(sessionCheckRef.current); sessionCheckRef.current = null }
+  }, [])
+
+  const startTimers = useCallback((expiresAtMs: number) => {
+    clearTimers()
+
+    // Warn before expiry — dispatch event so UI can show re-login prompt
+    const msUntilWarning = expiresAtMs - Date.now() - TOKEN_WARNING_MS
+    if (msUntilWarning > 0) {
+      refreshTimerRef.current = setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("auth:expiring"))
+      }, msUntilWarning)
+    } else if (expiresAtMs - Date.now() > 0) {
+      // Already within warning window
+      window.dispatchEvent(new CustomEvent("auth:expiring"))
+    }
+
+    // Hard check — force logout when expired
+    sessionCheckRef.current = setInterval(() => {
+      if (Date.now() >= expiresAtMs) {
+        clearTimers()
+        clearCachedSession()
+        setState({ status: "login", error: "Sesión expirada, volvé a ingresar tu PIN" })
+        window.dispatchEvent(new CustomEvent("auth:expired"))
+      }
+    }, SESSION_CHECK_MS)
+  }, [clearTimers])
+
+  // Start timers when state becomes authenticated
+  useEffect(() => {
+    if (state.status === "authenticated" && state.jwt?.expiresAt) {
+      const expiresAtMs = state.jwt.expiresAt * 1000
+      if (Date.now() >= expiresAtMs) {
+        // Token already expired
+        clearCachedSession()
+        setState({ status: "login", error: "Sesión expirada, volvé a ingresar tu PIN" })
+      } else {
+        startTimers(expiresAtMs)
+      }
+    }
+    return clearTimers
+  }, [state.status, state.jwt?.expiresAt, startTimers, clearTimers])
 
   // Try to restore session on mount
   useEffect(() => {
@@ -210,6 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
+    clearTimers()
     clearCachedSession()
     const sessions = await db.session.toArray()
     for (const s of sessions) {
@@ -217,7 +272,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setEncryptionKey(null)
     setState({ status: "login" })
-  }, [])
+    window.dispatchEvent(new CustomEvent("auth:expired"))
+  }, [clearTimers])
 
   return (
     <AuthContext.Provider value={{ state, login, logout }}>
