@@ -169,6 +169,7 @@ export default async function TrackingPage({ params, searchParams }: Props) {
             quantity: item.quantity,
             menuItemId: item.menuItemId?.toString(),
           }))}
+          orderTotal={order.total}
         />
 
         {/* Live tracking badge */}
