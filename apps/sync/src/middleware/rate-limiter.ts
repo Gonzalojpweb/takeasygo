@@ -4,6 +4,29 @@ import { config } from "../config"
 const tokenBuckets = new Map<string, { count: number; resetAt: number }>()
 const tenantBuckets = new Map<string, { count: number; resetAt: number }>()
 
+const CLEANUP_INTERVAL = 5 * 60 * 1000 // every 5 minutes
+
+function cleanupBuckets(buckets: Map<string, { count: number; resetAt: number }>): number {
+  const now = Date.now()
+  let cleaned = 0
+  for (const [key, bucket] of buckets.entries()) {
+    if (now > bucket.resetAt) {
+      buckets.delete(key)
+      cleaned++
+    }
+  }
+  return cleaned
+}
+
+// Periodic cleanup to prevent memory leak from expired entries
+setInterval(() => {
+  const t = cleanupBuckets(tokenBuckets)
+  const tn = cleanupBuckets(tenantBuckets)
+  if (t + tn > 0) {
+    console.log(`[rateLimit] Cleaned ${t} token + ${tn} tenant expired entries. Sizes: token=${tokenBuckets.size} tenant=${tenantBuckets.size}`)
+  }
+}, CLEANUP_INTERVAL)
+
 function checkBucket(
   buckets: Map<string, { count: number; resetAt: number }>,
   key: string,
