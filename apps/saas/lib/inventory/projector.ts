@@ -20,7 +20,7 @@ interface ProjectionResult {
   estimateSigma: number
   confidenceLevel: "high" | "medium" | "low" | "critical"
   hypothesisFlags: HypothesisFlag[]
-  daysSinceObservervation: number
+  daysSinceObservation: number
   lastPhysicalObservationAt?: Date
   lastPhysicalObservationMethod?: ObservationMethod
   openEvidenceRequest: boolean
@@ -240,7 +240,7 @@ export function projectEvent(
     estimateSigma: newSigma,
     confidenceLevel: deriveConfidenceLevel(newSigma, newMu),
     hypothesisFlags: projection.hypothesisFlags ?? hypothesisFlags,
-    daysSinceObservervation: projection.lastPhysicalObservationAt
+    daysSinceObservation: projection.lastPhysicalObservationAt
       ? 0
       : currentState.daysSinceObservation + 1,
     lastPhysicalObservationAt: projection.lastPhysicalObservationAt ?? currentState.lastPhysicalObservationAt,
