@@ -1,8 +1,11 @@
-# E — Validación sync-layer (staging, Redis degradado)
+# E — Validación sync-layer (staging)
 
-Fecha: 2026-08-29T14:21:58.335Z
+Fecha HTTP: 2026-08-29T14:21:58.335Z
+Fecha sockets: 2026-09-02
 
-Resultado: **10/10 checks**
+Resultado total: **21/21 checks** (HTTP 10/10 + Socket 11/11)
+
+## HTTP checks (C1-C10)
 
 | ID | Check | Resultado |
 |----|-------|-----------|
@@ -16,6 +19,22 @@ Resultado: **10/10 checks**
 | C8 | internal GET /orders?locationId=B → solo sede B con locationId persistido | PASS |
 | C9 | internal GET /orders sin filtro → ambas sedes | PASS |
 | C10 | índice compuesto tenantId+locationId+createdAt en sync_orders | PASS |
+
+## Socket isolation checks (S1-S11)
+
+| ID | Check | Resultado |
+|----|-------|-----------|
+| S1 | JWT Sede A contiene locationId correcto | PASS |
+| S2 | JWT Sede B contiene locationId correcto | PASS |
+| S3 | JWT legacy NO contiene locationId | PASS |
+| S4 | Socket Sede A conectado | PASS |
+| S5 | Socket Sede B conectado | PASS |
+| S6 | Socket legacy conectado | PASS |
+| S7 | POST /orders para Sede A → 201 | PASS |
+| S8 | Socket Sede A RECIBE order:created (su sede) | PASS |
+| S9 | Socket Sede B NO recibe order:created (sede ajena) | PASS |
+| S10 | Socket legacy SÍ recibe order:created (todas las sedes) | PASS |
+| S11 | sync_order persistido con locationId = Sede A | PASS |
 
 ## Detalle
 
