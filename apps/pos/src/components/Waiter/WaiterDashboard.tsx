@@ -12,6 +12,7 @@ import { WaiterStats } from "./WaiterStats"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
 import { MesaDetailPanel } from "./MesaDetailPanel"
 import { WaiterContextPanel } from "./WaiterContextPanel"
+import { formatCurrency } from "../../utils/format"
 
 type Scene = "turno" | "mesa" | "configurar" | "pedido" | "cocina" | "entrega" | "cuenta" | "cierre"
 
@@ -690,7 +691,7 @@ export function WaiterDashboard() {
                       fontSize: 13,
                     }}>
                       <span>{item.quantity}× {item.name}</span>
-                      <span style={{ fontWeight: 500 }}>${item.total.toLocaleString("es-AR")}</span>
+                      <span style={{ fontWeight: 500 }}>{formatCurrency(item.total)}</span>
                     </div>
                   ))
                 )}
@@ -704,7 +705,7 @@ export function WaiterDashboard() {
               }}>
                 <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
                 <span style={{ fontSize: 20, fontWeight: 600, color: "var(--brand-orange)" }}>
-                  ${cartTotal.toLocaleString("es-AR")}
+                  {formatCurrency(cartTotal)}
                 </span>
               </div>
             </div>

@@ -50,9 +50,6 @@ export function connectSocket(jwt: string): Socket {
     registeredOnSocket.clear()
     attachListeners()
 
-    // App-level heartbeat → SyncLayer marca `Location.pos.lastSeenAt` (E gate).
-    // El keepalive de socket.io (ping transport) NO genera eventos de app, así
-    // que este timer es el que mantiene fresco el indicador de POS activo.
     if (heartbeatTimer) clearInterval(heartbeatTimer)
     heartbeatTimer = setInterval(() => {
       if (socket?.connected) {
@@ -66,6 +63,10 @@ export function connectSocket(jwt: string): Socket {
 
   socket.on("connect_error", (err: Error) => {
     console.error("[socket] connection error:", err.message)
+    // On auth error, disconnect — App.tsx will reconnect with fresh token
+    if (err.message.includes("Invalid or expired token")) {
+      disconnectSocket()
+    }
   })
 
   attachListeners()

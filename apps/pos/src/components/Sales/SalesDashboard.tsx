@@ -81,7 +81,7 @@ export function SalesDashboard() {
                     <span style={{ fontSize: "var(--font-size-sm)" }}>{item.quantity}x {item.name}</span>
                     {item.modifiers?.map((m, j) => (
                       <div key={j} style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", paddingLeft: "var(--sp-3)" }}>
-                        + {m.name} ${m.price}
+                        + {m.name} {formatCurrency(m.price)}
                       </div>
                     ))}
                   </div>
