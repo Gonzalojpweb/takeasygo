@@ -1,7 +1,7 @@
 # Deuda Técnica Pendiente — TakeasyGO
 
 > Generado: 2026-08-30
-> Última actualización: 2026-08-30 (cierre de sesión)
+> Última actualización: 2026-09-02 (cierre item E + item #9 + Sync activo)
 
 ---
 
@@ -48,18 +48,61 @@ Crear un script de seed o un middleware de startup que verifique la existencia d
 
 ## 2. Multi-sede (E, B, A, C) — Auditoría completada
 
-### Estado: CERRADO ✅
+### Estado: CERRADO ✅ (validado HTTP + sockets)
 
 | Item | Estado | Commits | Harness |
 |------|--------|---------|---------|
-| **E** — Precio × sede | ✅ Cerrado | `1b8594b` | — |
+| **E** — Precio × sede + socket isolation | ✅ Cerrado | `1b8594b` | HTTP 10/10 + socket 11/11 |
 | **B** — Dedupe + filtros | ✅ Cerrado (40/40) | `cf5c9ca`, `b99f72b`, `9e4d40c`, `64970c0` | 40/40 |
 | **A** — QrPromo global × sede | ✅ Cerrado (34/34) | `94590ff`, `8a396d5`, `9a13d06` | 34/34 |
 | **C** — Cash override por sede | ✅ Cerrado (23/23) | `94590ff` | 23/23 |
 
+### Validación socket isolation (E) — 2026-09-02
+
+**Resultado: 11/11 checks PASS**
+
+| ID | Check | Resultado |
+|----|-------|-----------|
+| S1 | JWT Sede A contiene locationId correcto | PASS |
+| S2 | JWT Sede B contiene locationId correcto | PASS |
+| S3 | JWT legacy NO contiene locationId | PASS |
+| S4 | Socket Sede A conectado | PASS |
+| S5 | Socket Sede B conectado | PASS |
+| S6 | Socket legacy conectado | PASS |
+| S7 | POST /orders para Sede A → 201 | PASS |
+| S8 | Socket Sede A RECIBE order:created (su sede) | PASS |
+| S9 | Socket Sede B NO recibe order:created (sede ajena) | PASS |
+| S10 | Socket legacy SÍ recibe order:created (todas las sedes) | PASS |
+| S11 | sync_order persistido con locationId = Sede A | PASS |
+
+**Script de test:** `apps/sync/scripts/e-validate/socket-isolation.ts`
+
+**Diagrama de aislamiento:**
+```
+POS Sede A (JWT + locationId=A)          POS Sede B (JWT + locationId=B)
+  │                                          │
+  ├─ socket.join(tenant:X:location:A)        ├─ socket.join(tenant:X:location:B)
+  │  (NO join tenant:X)                      │  (NO join tenant:X)
+  │                                          │
+  │         POST /orders (JWT A)             │
+  │              │                           │
+  │              ▼                           │
+  │    emit tenant:X:location:A ◄─── receives │
+  │    emit tenant:X (legacy)    ◄─── receives│
+  │                                          │
+  │    emit tenant:X:location:B ──X── ignores│
+```
+
+**Detalle del binding POS login → socket room:**
+1. POS login envía `locationId` en request body
+2. Server valida sede (debe estar activa) → firma JWT con claim `locationId`
+3. POS se conecta via socket con JWT
+4. Server middleware: `verifyJwt()` → extrae `locationId` → `socket.join("tenant:{id}:location:{loc}")`
+5. Multi-sede NO se une a `tenant:{id}` (sala genérica) → solo recibe pedidos de su sede
+
 ### Pendientes post-cierre
 
-Ninguno. Todos los items están commiteados y validados con harness + `typecheck`.
+Ninguno. Todos los items están commiteados y validados con harness + `typecheck` + socket isolation.
 
 ---
 
@@ -83,34 +126,31 @@ Ninguno. Todos los items están commiteados y validados con harness + `typecheck
 - **Estado:** ✅ Verificado. Zero modelos duales.
 - **Pendiente para prod:** Ninguno — es solo verificación.
 
-### 3.4 Sparse sync_orders (sincronización implícita)
+### 3.4 Sync_orders explícito (sincronización implícita)
 
-- **Estado:** ⚠️ Pendiente — nunca se creó el sync explícito de `sync_orders`.
-- **Bloqueante:** No — funciona por sync implícita al crear/leer órdenes.
-- **Urgencia:** Bajo.
+- **Estado:** ✅ No requerido — funciona por sync implícita.
+- **Detalle:** El SaaS tiene su colección `orders`, SyncLayer tiene `sync_orders`. Vinculados por `externalOrderId`. El push es implícito vía `pushOrderToSyncLayer()` al crear pedido. No existe colección `sync_orders` en el SaaS ni es necesaria.
+- **Bloqueante:** No.
+- **Urgencia:** Cerrado — sin acción requerida.
 
 ---
 
-## 4. Sockets/POS real — PENDING
+## 4. Sockets/POS real — CERRADO ✅
 
-### ¿Qué es?
+### Estado: CERRADO (Sync Layer activo en Render)
 
-El POS real requiere conexiones WebSocket para sincronización en tiempo real de órdenes, estado de impresión, y actualizaciones de menú.
+Sync Layer está activo en Render (cuota habilitada). Validación completa:
 
-### ¿Por qué quedó pendiente?
+1. **HTTP-level** (e-validate C1-C10): 10/10 PASS — login, JWT claims, pending orders filtering, internal API
+2. **Socket isolation** (socket-isolation S1-S11): 11/11 PASS — room routing, order delivery, legacy fallback
+3. **POS binding**: login con locationId → JWT contiene claim → socket se une a room `tenant:{id}:location:{loc}` → solo recibe pedidos de su sede
 
-- **Local:** WSL roto, Docker sin daemon — no se puede levantar Redis ni el servidor de sockets.
-- **Producción:** Sync Layer inactivo en Render — no se puede validar end-to-end.
+### Archivos de evidencia
+- `apps/sync/scripts/e-validate/evidence.md` — HTTP checks (10/10)
+- `apps/sync/scripts/e-validate/socket-evidence.md` — Socket checks (11/11)
+- `apps/sync/scripts/e-validate/socket-isolation.ts` — Test script reproducible
 
-### ¿Qué se necesita?
-
-1. Restaurar WSL/Docker local para desarrollo con Redis.
-2. Activar Sync Layer en Render (o migrar a infraestructura que soporte WebSockets).
-3. Validar handshake POS ↔ SaaS con datos reales.
-
-### Urgencia: **Alta**
-
-Sin sockets, el POS funciona en modo offline/sync periódico. No es bloqueante para pedidos web, pero sí para la experiencia POS en locales con múltiples terminales.
+### Urgencia: Cerrado
 
 ---
 
@@ -181,14 +221,14 @@ Sin sockets, el POS funciona en modo offline/sync periódico. No es bloqueante p
 |---|------|--------|---------------------|----------------|
 | 1 | platformConfig auto-creation | ⚠️ Sin auto-creación | No (existe por uso previo) | Crear seed/middleware de startup |
 | 2 | platformConfig `|| {}` hardening | ✅ Aplicado | No | Nada — cerrado |
-| 3 | Multi-sede E | ✅ Cerrado | No | Nada |
+| 3 | Multi-sede E (HTTP + sockets) | ✅ Cerrado (21/21) | No | Nada |
 | 4 | Multi-sede B (40/40) | ✅ Cerrado | No | Nada |
 | 5 | Multi-sede A (34/34) | ✅ Cerrado | No | Nada |
 | 6 | Multi-sede C (23/23) | ✅ Cerrado | No | Nada |
 | 7 | Backfill QrPromo locationId | ✅ Staging | No | Ejecutar en prod |
 | 8 | Índice QrPromo | ✅ Staging | No | Ejecutar en prod |
-| 9 | Sync_orders explícito | ⚠️ Pendiente | No | Crear sync (baja prioridad) |
-| 10 | Sockets/POS real | 🔴 Bloqueado | **Sí** (para POS multi-terminal) | Restaurar WSL/Docker → Activar Sync Layer |
+| 9 | Sync_orders explícito | ✅ No requerido | No | Nada — sync implícita funciona |
+| 10 | Sockets/POS real | ✅ Cerrado (Sync activo) | No | Nada — validado HTTP + sockets |
 | 11 | Hidden Rewards testing | 🟡 Sin test E2E | No | Ejecutar flujo completo |
 | 12 | WeeklyCommissionStatement | 🟡 Migración pendiente | No | Cerrar modelo + flujo |
 | 13 | WhatsApp Reward Advance | 🟡 Doc pendiente | No | Probar con número real |
@@ -204,6 +244,6 @@ Sin sockets, el POS funciona en modo offline/sync periódico. No es bloqueante p
 | Urgencia | Ítems |
 |----------|-------|
 | **Crítico** | — |
-| **Alto** | #10 (Sockets/POS) |
+| **Alto** | — |
 | **Medio** | #1 (platformConfig seed), #11 (Hidden Rewards), #12 (Comisiones) |
-| **Bajo** | #7, #8 (backfills prod), #9 (sync_orders), #13 (WhatsApp), #14 (Founder), #15 (QuickAccess) |
+| **Bajo** | #7, #8 (backfills prod), #13 (WhatsApp), #14 (Founder), #15 (QuickAccess) |
