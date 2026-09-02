@@ -5,7 +5,9 @@ import Location from '@/models/Location'
 import PushSubscription from '@/models/PushSubscription'
 import DeliveryPushSubscription from '@/models/DeliveryPushSubscription'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
+import SystemAnnouncement from '@/models/SystemAnnouncement'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
+import { revertRewardRedemptions } from '@/lib/loyalty'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
@@ -25,10 +27,10 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   pending:    ['confirmed', 'cancelled'],
   awaiting_confirmation: ['confirmed', 'cancelled'],
   confirmed:  ['preparing', 'cancelled'],
-  preparing:  ['ready', 'cancelled'],
+  preparing:  ['ready'],
   ready:      ['en_ruta', 'delivered'],
-  en_ruta:    ['arrived', 'cancelled'],
-  arrived:    ['delivered', 'cancelled'],
+  en_ruta:    ['arrived'],
+  arrived:    ['delivered'],
   delivered:  [],
   cancelled:  [],
 }
@@ -142,6 +144,43 @@ export async function PATCH(
       const tsField = STATUS_TIMESTAMP[status]
       if (tsField) {
         order.statusTimestamps[tsField] = new Date()
+      }
+      if (status === 'cancelled') {
+        order.cancelledBy = 'admin'
+
+        // Reconciliación: revertir commissionBalance si se calculó comisión (idempotente)
+        const commissionAmount = order.payment?.platformFeeAmount || 0
+        if (commissionAmount > 0) {
+          await Tenant.updateOne(
+            { _id: tenant._id },
+            { $inc: { 'commissionBalance.transfer': -commissionAmount } }
+          )
+        }
+
+        // Revertir reward redemptions (loyalty points, store stock)
+        await revertRewardRedemptions(order, tenant)
+
+        // Marcar payment.status como cancelled
+        if (order.payment?.status === 'approved') {
+          order.payment.status = 'cancelled'
+        }
+
+        // Notificar al cliente (SystemAnnouncement para el tenant)
+        const orderNumber = order.orderNumber || orderId
+        const customerName = order.customer?.name || 'Cliente'
+        await SystemAnnouncement.create({
+          title: `Pedido #${orderNumber} cancelado por el restaurante`,
+          content: `${customerName}, tu pedido #${orderNumber} fue cancelado por el restaurante. Si tenés preguntas, contactalos directamente.`,
+          type: 'alert',
+          status: 'published',
+          publishedAt: new Date(),
+          targetPlans: [],
+          targetTenantIds: [tenant._id],
+          readBy: [],
+          acceptances: [],
+          requiresConsent: false,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        })
       }
     }
 

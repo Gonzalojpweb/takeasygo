@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { StatusNotificationCard } from './StatusNotificationCard'
 import PointsEarnedToast from '@/components/rewards/PointsEarnedToast'
 import PostDeliveryCelebration from './PostDeliveryCelebration'
+import CancelOrderModal from './CancelOrderModal'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import { captureHiddenRewardRedeemed } from '@/lib/tia/events'
 
@@ -88,6 +89,7 @@ interface Props {
   } | null
   initialReviewUrl?: string | null
   orderItems: { _id: string; name: string; quantity: number; menuItemId?: string }[]
+  orderTotal: number
 }
 
 function formatCountdown(target: string): string {
@@ -173,12 +175,14 @@ export default function OrderTracker({
   initialTransferData,
   initialReviewUrl = null,
   orderItems,
+  orderTotal,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [confirmedAt, setConfirmedAt]     = useState<string | null>(null)
   const [estimatedReadyAt, setEstimatedReadyAt] = useState(initialEstimatedReadyAt)
   const [customerEstimatedReadyAt, setCustomerEstimatedReadyAt] = useState<string | null>(initialCustomerEstimatedReadyAt)
   const [cancellationClosed, setCancellationClosed] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
   const [countdown, setCountdown]         = useState('')
   const [lastChecked, setLastChecked]     = useState<Date | null>(null)
   const [orderTiming, setOrderTiming]     = useState(initialOrderTiming)
@@ -485,7 +489,7 @@ export default function OrderTracker({
         { duration: 5000, position: 'top-center' }
       )
       setCancellationToastShown(true)
-    }, 2 * 60 * 1000 + 30 * 1000) // 2:30 min
+    }, 3 * 60 * 1000) // 3 min — unificado con cancellationClosed
     return () => clearTimeout(timer)
   }, [status, cancellationToastShown])
 
@@ -634,6 +638,23 @@ export default function OrderTracker({
               }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Botón cancelar pedido (transfer/efectivo, dentro de ventana de 3 min) */}
+      {!cancellationClosed && status !== 'cancelled' && status !== 'delivered' &&
+        (paymentMethod === 'transfer' || paymentMethod === 'cash') &&
+        (paymentMethod === 'cash'
+          ? ['pending', 'awaiting_confirmation', 'confirmed'].includes(status)
+          : ['pending', 'awaiting_confirmation'].includes(status)
+        ) && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowCancelModal(true)}
+            className="w-full py-3 rounded-2xl font-bold text-sm text-red-500 bg-red-50 hover:bg-red-100 transition-colors border border-red-200"
+          >
+            Cancelar pedido
+          </button>
         </div>
       )}
 
@@ -903,6 +924,25 @@ export default function OrderTracker({
             pointsUsed={loyaltyPointsUsed}
           />
         </div>
+      )}
+
+      {/* Modal de cancelación */}
+      {trackingToken && (
+        <CancelOrderModal
+          open={showCancelModal}
+          onClose={() => setShowCancelModal(false)}
+          onCancelled={() => {
+            setStatus('cancelled')
+            setShowCancelModal(false)
+          }}
+          tenantSlug={tenantSlug}
+          orderId={orderId}
+          trackingToken={trackingToken}
+          orderNumber={orderNumber}
+          primaryColor={primaryColor}
+          items={orderItems}
+          total={toPesos(orderTotal)}
+        />
       )}
 
     </div>

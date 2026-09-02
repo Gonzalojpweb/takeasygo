@@ -75,6 +75,7 @@ export interface IStatusTimestamps {
   arrivedAt:        Date | null
   deliveredAt:      Date | null
   cancelledAt:      Date | null
+  cancelledBy:      'client' | 'admin' | 'system' | null
   estimatedReadyAt: Date | null  // confirmedAt + location.estimatedPickupTime (línea base ICO)
   customerEstimatedReadyAt: Date | null  // confirmedAt + estimatedPickupTime + delayExtraMinutes (solo UX)
 }
@@ -526,6 +527,7 @@ const OrderSchema = new Schema(
       arrivedAt:        { type: Date, default: null },
       deliveredAt:      { type: Date, default: null },
       cancelledAt:      { type: Date, default: null },
+      cancelledBy:      { type: String, enum: ['client', 'admin', 'system', null], default: null },
       estimatedReadyAt: { type: Date, default: null },
       customerEstimatedReadyAt: { type: Date, default: null },
     },
