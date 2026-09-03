@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongoose"
-import { TenantModel, InventoryStateModel, InventorySKUModel, InventoryStorageLocationModel } from "@takeasygo/db"
+import Tenant from "@/models/Tenant"
+import InventoryState from "@/models/InventoryState"
 
 // ============================================================================
 // GET /api/[tenant]/inventory/state/:skuId — Estado de inventario de un SKU
@@ -15,7 +16,7 @@ export async function GET(
     const { tenant: tenantSlug, skuId } = await params
     await connectDB()
 
-    const tenant = await TenantModel.findOne({ slug: tenantSlug, isActive: true })
+    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
@@ -31,7 +32,7 @@ export async function GET(
       query.storageLocationId = storageLocationId
     }
 
-    const states = await InventoryStateModel.find(query)
+    const states = await InventoryState.find(query)
       .populate("skuId", "name skuCode category canonicalUnit lastUnitCostCents businessImpact")
       .populate("storageLocationId", "name type")
 

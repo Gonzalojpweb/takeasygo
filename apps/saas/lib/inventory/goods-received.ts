@@ -1,4 +1,5 @@
-import { InventorySKUModel, InventoryUnitEquivalenceModel } from "@takeasygo/db"
+import InventorySKU from "@/models/InventorySKU"
+import InventoryUnitEquivalence from "@/models/InventoryUnitEquivalence"
 import { processInventoryEvent } from "./projector"
 import { connectDB } from "../mongoose"
 
@@ -50,7 +51,7 @@ async function convertToCanonical(
   quantity: number,
   fromUnit: string
 ): Promise<ConversionResult> {
-  const sku = await InventorySKUModel.findById(skuId)
+  const sku = await InventorySKU.findById(skuId)
   if (!sku) throw new Error(`SKU no encontrado: ${skuId}`)
 
   // Si ya es la unidad canónica
@@ -64,7 +65,7 @@ async function convertToCanonical(
   }
 
   // Buscar equivalencia aprendida
-  const equivalence = await InventoryUnitEquivalenceModel.findOne({
+  const equivalence = await InventoryUnitEquivalence.findOne({
     tenantId,
     skuId,
     fromUnit,
@@ -148,7 +149,7 @@ export async function captureGoodsReceived(
 
     // 5. Si la conversión fue incierta, registrar equivalencia aprendida
     if (conversion.confidence < 0.7 && input.unit !== conversion.canonicalUnit) {
-      await InventoryUnitEquivalenceModel.findOneAndUpdate(
+      await InventoryUnitEquivalence.findOneAndUpdate(
         {
           tenantId: input.tenantId,
           skuId: input.skuId,

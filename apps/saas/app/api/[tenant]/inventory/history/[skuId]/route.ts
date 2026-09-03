@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongoose"
-import { TenantModel, InventoryLedgerModel } from "@takeasygo/db"
+import Tenant from "@/models/Tenant"
+import InventoryLedger from "@/models/InventoryLedger"
 
 // ============================================================================
 // GET /api/[tenant]/inventory/history/:skuId — Historial de eventos de un SKU
@@ -15,7 +16,7 @@ export async function GET(
     const { tenant: tenantSlug, skuId } = await params
     await connectDB()
 
-    const tenant = await TenantModel.findOne({ slug: tenantSlug, isActive: true })
+    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
@@ -34,12 +35,12 @@ export async function GET(
     if (eventType) query.eventType = eventType
 
     const [events, total] = await Promise.all([
-      InventoryLedgerModel.find(query)
+      InventoryLedger.find(query)
         .sort({ occurredAt: -1 })
         .skip(offset)
         .limit(limit)
         .lean(),
-      InventoryLedgerModel.countDocuments(query),
+      InventoryLedger.countDocuments(query),
     ])
 
     return NextResponse.json({
