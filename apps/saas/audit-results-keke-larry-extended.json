@@ -1,0 +1,3235 @@
+{
+  "timestamp": "2026-09-03T15:34:21.009Z",
+  "retention": {
+    "customerLifetime": [
+      {
+        "_id": null,
+        "firstOrder": "2026-06-19T23:33:39.828Z",
+        "lastOrder": "2026-08-31T01:41:03.805Z",
+        "orderCount": 10,
+        "totalSpent": 33794270,
+        "daysBetween": 72.08847195601852
+      },
+      {
+        "_id": "81b88e0f1957e972fb5e3d7034bccb972f11367dc8802ded649086155176e55e",
+        "firstOrder": "2026-08-08T00:51:46.612Z",
+        "lastOrder": "2026-08-28T23:38:34.548Z",
+        "orderCount": 4,
+        "totalSpent": 29985610,
+        "daysBetween": 20.949165925925925
+      },
+      {
+        "_id": "6e1617d187af20018724951b77c7fb168496963d129862e7e33d0ac318e3362e",
+        "firstOrder": "2026-08-15T01:04:19.459Z",
+        "lastOrder": "2026-08-30T23:50:28.036Z",
+        "orderCount": 2,
+        "totalSpent": 22056750,
+        "daysBetween": 15.948710381944444
+      },
+      {
+        "_id": "cc30c3d748a6d1ffc86181f443d4e0f457caceda7d4c3bbd6c5d7091efc2357d",
+        "firstOrder": "2026-08-13T15:19:10.578Z",
+        "lastOrder": "2026-08-13T15:19:10.578Z",
+        "orderCount": 1,
+        "totalSpent": 21050000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "7c41875f821bece1dddd029b25a52ccf458422435b67160ce66e3375076d8519",
+        "firstOrder": "2026-08-14T15:16:09.181Z",
+        "lastOrder": "2026-08-14T15:16:09.181Z",
+        "orderCount": 1,
+        "totalSpent": 18290000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "df38b77ca1f2f980e1f05c99d90c22680e83a68b95b107136f89c77c395ced10",
+        "firstOrder": "2026-08-07T23:12:34.180Z",
+        "lastOrder": "2026-08-21T23:40:45.495Z",
+        "orderCount": 2,
+        "totalSpent": 16971597,
+        "daysBetween": 14.019575405092592
+      },
+      {
+        "_id": "81e14c460338dd026baadaa4cc3455a01f68efd729b13647df0146033989d806",
+        "firstOrder": "2026-08-02T00:53:13.477Z",
+        "lastOrder": "2026-08-04T23:03:42.927Z",
+        "orderCount": 2,
+        "totalSpent": 16075000,
+        "daysBetween": 2.9239519675925925
+      },
+      {
+        "_id": "2e2c238b359524b7b2a81eb73ed233c7a9aea46ad821e275f4d8ccaaa0d484b0",
+        "firstOrder": "2026-07-25T00:05:11.872Z",
+        "lastOrder": "2026-07-25T00:05:11.872Z",
+        "orderCount": 1,
+        "totalSpent": 14015300,
+        "daysBetween": 0
+      },
+      {
+        "_id": "b9653b179691b06af05830ba4adb149b0deb9ea11a1cb8f2e9d760db2029be01",
+        "firstOrder": "2026-07-15T23:44:42.473Z",
+        "lastOrder": "2026-08-29T00:06:02.294Z",
+        "orderCount": 3,
+        "totalSpent": 13588000,
+        "daysBetween": 44.01481274305556
+      },
+      {
+        "_id": "70b37978b4c0f37a55ede8b4d34b354c4198f1ad21a5f3b2f9d24a19a4656b79",
+        "firstOrder": "2026-08-16T00:38:35.857Z",
+        "lastOrder": "2026-08-16T00:38:35.857Z",
+        "orderCount": 1,
+        "totalSpent": 12700000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "0ecb9f11b7dd5b8b9ec0571cb53dc5fcea475dc212dea3fbca1176a631b6840c",
+        "firstOrder": "2026-07-25T23:40:01.218Z",
+        "lastOrder": "2026-08-15T00:04:48.096Z",
+        "orderCount": 3,
+        "totalSpent": 11415940,
+        "daysBetween": 20.01720923611111
+      },
+      {
+        "_id": "bb6ec0ee115ee70c6f330d27d4b0096f1bfc8a1af549ccb5865683ba2a1fab08",
+        "firstOrder": "2026-08-30T01:12:12.012Z",
+        "lastOrder": "2026-08-30T01:12:12.012Z",
+        "orderCount": 1,
+        "totalSpent": 11260000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "c063c542a61a765e1ef292828cf4e5f953f057eb18936e6d8f40886abb520ebe",
+        "firstOrder": "2026-08-30T23:57:31.906Z",
+        "lastOrder": "2026-08-30T23:57:31.906Z",
+        "orderCount": 1,
+        "totalSpent": 11205600,
+        "daysBetween": 0
+      },
+      {
+        "_id": "f20043140b2f46f16a44f37ee0fc04948fa511c3a90ff3b85e74b72d6828266a",
+        "firstOrder": "2026-06-20T23:49:27.806Z",
+        "lastOrder": "2026-06-20T23:49:27.806Z",
+        "orderCount": 1,
+        "totalSpent": 10185000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "4f45b56067e8702a8a8275912f7a2feb3d7b005f42aadc66d1860395a8ba4a1b",
+        "firstOrder": "2026-07-30T15:56:15.023Z",
+        "lastOrder": "2026-07-30T15:56:15.023Z",
+        "orderCount": 1,
+        "totalSpent": 10067300,
+        "daysBetween": 0
+      },
+      {
+        "_id": "f5aa0f7a97669728c8124645dcc31708b1aa3e5237e213ad414a9b884d364d5f",
+        "firstOrder": "2026-07-26T00:15:46.101Z",
+        "lastOrder": "2026-07-26T00:15:46.101Z",
+        "orderCount": 1,
+        "totalSpent": 9580600,
+        "daysBetween": 0
+      },
+      {
+        "_id": "2728850b6998105a3fb5f1c1899ca96cb88a2fed4e960590a85d90585a94de04",
+        "firstOrder": "2026-08-06T22:56:24.227Z",
+        "lastOrder": "2026-09-02T00:10:24.624Z",
+        "orderCount": 3,
+        "totalSpent": 9147308,
+        "daysBetween": 26.051393483796296
+      },
+      {
+        "_id": "0c8d80e0c201ed23c31bec8a3fe154cfe3ebe573335cb7147552d51c7b18f0b9",
+        "firstOrder": "2026-07-31T23:34:52.601Z",
+        "lastOrder": "2026-07-31T23:34:52.601Z",
+        "orderCount": 1,
+        "totalSpent": 9126300,
+        "daysBetween": 0
+      },
+      {
+        "_id": "1346b199fd17ef7e966487dd92cb780ee1c81d26d3ff845ef0da4319b3903ac8",
+        "firstOrder": "2026-06-21T01:16:10.047Z",
+        "lastOrder": "2026-06-21T01:16:10.047Z",
+        "orderCount": 1,
+        "totalSpent": 8625000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "79cc3aa05af6bca3a753f71978130baaa5689ccb980c662f4f7b65cadf467d9a",
+        "firstOrder": "2026-06-22T00:00:44.496Z",
+        "lastOrder": "2026-08-17T00:04:27.780Z",
+        "orderCount": 2,
+        "totalSpent": 8565250,
+        "daysBetween": 56.00258430555556
+      },
+      {
+        "_id": "864abe4c60b3af444a67d2119c2fc7f80df9fe643f898e157161652b5ce386b2",
+        "firstOrder": "2026-08-26T00:15:02.504Z",
+        "lastOrder": "2026-08-26T00:15:02.504Z",
+        "orderCount": 1,
+        "totalSpent": 8421828,
+        "daysBetween": 0
+      },
+      {
+        "_id": "ce830d5d4b7fe3f117e5573cd6c1ddc26883baf9243f771f0747b6f46ef986e0",
+        "firstOrder": "2026-08-16T23:52:57.314Z",
+        "lastOrder": "2026-08-29T17:03:52.859Z",
+        "orderCount": 3,
+        "totalSpent": 8306174,
+        "daysBetween": 12.715920659722222
+      },
+      {
+        "_id": "b6e5abab6295c123939ced5e14e9cb64435930ef8da984f31f9d07ad11455e8a",
+        "firstOrder": "2026-07-09T01:52:57.801Z",
+        "lastOrder": "2026-08-02T00:28:34.407Z",
+        "orderCount": 2,
+        "totalSpent": 8254300,
+        "daysBetween": 23.941395902777778
+      },
+      {
+        "_id": "bad1b157a8eeaee252cbd45afb53e7ab186782f3c3611e676df7e7638bddbbac",
+        "firstOrder": "2026-08-05T01:15:25.803Z",
+        "lastOrder": "2026-08-27T01:02:45.192Z",
+        "orderCount": 2,
+        "totalSpent": 8105657,
+        "daysBetween": 21.991196631944444
+      },
+      {
+        "_id": "f7577cb441dbafbafafd3dd9d3ae703a4ed29a21dcbb531e0c90091386cecf05",
+        "firstOrder": "2026-08-27T23:54:02.834Z",
+        "lastOrder": "2026-08-27T23:54:02.834Z",
+        "orderCount": 1,
+        "totalSpent": 8074861,
+        "daysBetween": 0
+      },
+      {
+        "_id": "e35d4c0cc19238e5fe6ee05dba134743ca79fbba569bd55e156a8ada1ea7120c",
+        "firstOrder": "2026-08-06T00:03:46.516Z",
+        "lastOrder": "2026-08-06T00:03:46.516Z",
+        "orderCount": 1,
+        "totalSpent": 7990700,
+        "daysBetween": 0
+      },
+      {
+        "_id": "9c65d9cf893134bac872c2cb4bf31e1d78f535c090b2b66a9ef03da88cdf78bd",
+        "firstOrder": "2026-08-07T00:33:59.799Z",
+        "lastOrder": "2026-08-07T00:33:59.799Z",
+        "orderCount": 1,
+        "totalSpent": 7800000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "91db898d3f21cd05b7b42558da4065049e2b4a03855ffc3e6e2bbd87ac2d4185",
+        "firstOrder": "2026-06-24T23:35:46.207Z",
+        "lastOrder": "2026-06-24T23:35:46.207Z",
+        "orderCount": 1,
+        "totalSpent": 7770000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "b277d5c2b57f82766d5f2031726a354643728d71ca095a51edfa87a3f71b96db",
+        "firstOrder": "2026-07-26T01:04:44.299Z",
+        "lastOrder": "2026-08-03T00:58:45.716Z",
+        "orderCount": 2,
+        "totalSpent": 7730000,
+        "daysBetween": 7.995849733796296
+      },
+      {
+        "_id": "bd67c0f0012c04d0517819c5b7757f775129f92caf5c11a61a444c962cc10652",
+        "firstOrder": "2026-08-10T02:18:32.211Z",
+        "lastOrder": "2026-08-25T16:47:08.090Z",
+        "orderCount": 2,
+        "totalSpent": 7359900,
+        "daysBetween": 15.60319304398148
+      },
+      {
+        "_id": "57076fc77ff71a96831cd8b51c8d82c690dbbeacb3bfa0b007898d22f2242f8d",
+        "firstOrder": "2026-07-31T23:40:33.813Z",
+        "lastOrder": "2026-08-16T00:52:35.332Z",
+        "orderCount": 2,
+        "totalSpent": 7254712,
+        "daysBetween": 15.050017581018519
+      },
+      {
+        "_id": "76b0a3399c9a8a328bfe30fb72e84551b32df1d359826f1afdf1e6b4503dc1fa",
+        "firstOrder": "2026-06-21T00:10:36.662Z",
+        "lastOrder": "2026-08-15T00:02:35.326Z",
+        "orderCount": 2,
+        "totalSpent": 7200000,
+        "daysBetween": 54.994428981481484
+      },
+      {
+        "_id": "337bf7d0f2bddbb0889b4eb2080c44b67e12134f38aaae6b183e05fede324ed8",
+        "firstOrder": "2026-07-17T01:52:21.783Z",
+        "lastOrder": "2026-09-03T02:05:37.751Z",
+        "orderCount": 2,
+        "totalSpent": 7200000,
+        "daysBetween": 48.00921259259259
+      },
+      {
+        "_id": "6886b91d719373ecf909bcd73a87ce567e4814b719c31bef9cea9f0adfdd01a9",
+        "firstOrder": "2026-09-03T01:45:25.868Z",
+        "lastOrder": "2026-09-03T01:45:25.868Z",
+        "orderCount": 1,
+        "totalSpent": 6600000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "bdcef3161576b59a558714990b276536e64b2f5be15c27c69633494f323b51fc",
+        "firstOrder": "2026-08-12T23:08:34.015Z",
+        "lastOrder": "2026-08-12T23:08:34.015Z",
+        "orderCount": 1,
+        "totalSpent": 6571339,
+        "daysBetween": 0
+      },
+      {
+        "_id": "c44a9bdb75d573809583df1a33aaed538e8d4339c54f7e85d32af5594bb408e1",
+        "firstOrder": "2026-06-27T00:00:43.547Z",
+        "lastOrder": "2026-06-27T00:00:43.547Z",
+        "orderCount": 1,
+        "totalSpent": 6420000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "67f6990b69ec31e17386cd761cb79e0bfb431d32a6f8bf5dddd05be9247a5b69",
+        "firstOrder": "2026-08-08T00:29:54.989Z",
+        "lastOrder": "2026-08-08T00:29:54.989Z",
+        "orderCount": 1,
+        "totalSpent": 6350000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "4c9067f27306b70dfb1469664d6bcbaf70f1d98b5736088a8ba6d246eb76b211",
+        "firstOrder": "2026-07-01T23:36:49.987Z",
+        "lastOrder": "2026-07-01T23:36:49.987Z",
+        "orderCount": 1,
+        "totalSpent": 6300000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "dbe94643baf9b8d4dcb1d5fc4eae82139253fec87b05fdb76e79a10145828032",
+        "firstOrder": "2026-08-15T15:36:05.358Z",
+        "lastOrder": "2026-08-27T01:09:07.650Z",
+        "orderCount": 2,
+        "totalSpent": 6184500,
+        "daysBetween": 11.397943194444444
+      },
+      {
+        "_id": "af854dc77e403bd50a728ca0514fabcdaf4b6f8af4a857f07e3db4e6a6cba8b0",
+        "firstOrder": "2026-06-22T00:03:36.553Z",
+        "lastOrder": "2026-07-04T01:50:05.581Z",
+        "orderCount": 2,
+        "totalSpent": 6125000,
+        "daysBetween": 12.073947083333334
+      },
+      {
+        "_id": "723a112528f2f121a58cca383044ba6bb36a9d3f51672bd6f9f306f3c310e81d",
+        "firstOrder": "2026-09-02T01:10:06.165Z",
+        "lastOrder": "2026-09-02T01:10:06.165Z",
+        "orderCount": 1,
+        "totalSpent": 6000000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "8872f65be635fa1fb311f424ded917f0320fb0ddf875c5402239ea08d397876d",
+        "firstOrder": "2026-07-31T00:00:36.301Z",
+        "lastOrder": "2026-07-31T00:00:36.301Z",
+        "orderCount": 1,
+        "totalSpent": 5993100,
+        "daysBetween": 0
+      },
+      {
+        "_id": "bd1611bbd9d05769462dc52b74d1622896d2c5bb37b42b505a553b14730664b8",
+        "firstOrder": "2026-08-23T23:34:50.461Z",
+        "lastOrder": "2026-08-23T23:34:50.461Z",
+        "orderCount": 1,
+        "totalSpent": 5914205,
+        "daysBetween": 0
+      },
+      {
+        "_id": "03aa020f255996e71d67d837390ce3ff2b471ee580c585c4fc22036b6213c83c",
+        "firstOrder": "2026-07-01T23:06:47.201Z",
+        "lastOrder": "2026-08-18T23:25:53.629Z",
+        "orderCount": 3,
+        "totalSpent": 5865516,
+        "daysBetween": 48.013268842592595
+      },
+      {
+        "_id": "22b6b5f87d18720c80d7cc90d43167c3855536b7b1cdf094fa8ddfed1cf8bed2",
+        "firstOrder": "2026-08-21T00:59:59.137Z",
+        "lastOrder": "2026-08-21T00:59:59.137Z",
+        "orderCount": 1,
+        "totalSpent": 5835349,
+        "daysBetween": 0
+      },
+      {
+        "_id": "5e629a03cd44b1a4b575b3513b8b895b77b1be6f2f382f04bce1141fd18d6fa7",
+        "firstOrder": "2026-08-27T22:50:57.198Z",
+        "lastOrder": "2026-08-27T22:50:57.198Z",
+        "orderCount": 1,
+        "totalSpent": 5620000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "c5437296493a8c9f8d07e2ac4e1c278f279afbee0970c820fbaf74219a974724",
+        "firstOrder": "2026-07-18T01:14:59.867Z",
+        "lastOrder": "2026-07-18T01:14:59.867Z",
+        "orderCount": 1,
+        "totalSpent": 5440000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "f3323665d4ead29a06e35cb602dbe0cece74ab86c74c8687be6259bb1006159c",
+        "firstOrder": "2026-08-07T00:59:02.769Z",
+        "lastOrder": "2026-08-30T22:56:27.757Z",
+        "orderCount": 2,
+        "totalSpent": 5362187,
+        "daysBetween": 23.914872546296298
+      },
+      {
+        "_id": "579706dedcd988cf08d87d66b5f28847ba338c0488f7fc362e5a0deae12a3dc2",
+        "firstOrder": "2026-08-16T00:48:11.420Z",
+        "lastOrder": "2026-08-16T00:48:11.420Z",
+        "orderCount": 1,
+        "totalSpent": 5227250,
+        "daysBetween": 0
+      },
+      {
+        "_id": "c976f17ae319f48635972ed144916a3a8ff7e6ed6c5bd65fd7c668e4d7266093",
+        "firstOrder": "2026-07-04T23:55:21.505Z",
+        "lastOrder": "2026-07-04T23:55:21.505Z",
+        "orderCount": 1,
+        "totalSpent": 5125000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "9b521619444def08fc0a885e4920015a0bc32d546f25c7d070548a6f1237e6b8",
+        "firstOrder": "2026-08-27T23:56:48.508Z",
+        "lastOrder": "2026-08-27T23:56:48.508Z",
+        "orderCount": 1,
+        "totalSpent": 4968425,
+        "daysBetween": 0
+      },
+      {
+        "_id": "7ec71ab3864c67871455b4d5e1c6e995dea0acdcbc4d0c477bf93918e87555d0",
+        "firstOrder": "2026-08-08T23:10:30.385Z",
+        "lastOrder": "2026-08-08T23:10:30.385Z",
+        "orderCount": 1,
+        "totalSpent": 4967932,
+        "daysBetween": 0
+      },
+      {
+        "_id": "1e6cc549989367ddd87db578d8a86ab3ce688484e29938a2b9f27b4980c19de8",
+        "firstOrder": "2026-07-18T00:23:39.702Z",
+        "lastOrder": "2026-07-18T00:23:39.702Z",
+        "orderCount": 1,
+        "totalSpent": 4940000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "e198008c1877326699df8acae5d01fc5ec9951e34750a3300d91ce75eeb48ce9",
+        "firstOrder": "2026-07-23T23:14:14.013Z",
+        "lastOrder": "2026-07-23T23:14:14.013Z",
+        "orderCount": 1,
+        "totalSpent": 4785100,
+        "daysBetween": 0
+      },
+      {
+        "_id": "a7d7058a07ae07c9d0a68bdf6f7ec66f8288a3c7820247f2b3eb68007566b123",
+        "firstOrder": "2026-06-22T02:36:08.459Z",
+        "lastOrder": "2026-06-22T02:36:08.459Z",
+        "orderCount": 1,
+        "totalSpent": 4745000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "cf1bd4a8c36d97d495fe7b6b556b5f10821f18fb623d4fce70d1749891f6d5a4",
+        "firstOrder": "2026-08-21T00:48:46.511Z",
+        "lastOrder": "2026-08-21T00:48:46.511Z",
+        "orderCount": 1,
+        "totalSpent": 4731364,
+        "daysBetween": 0
+      },
+      {
+        "_id": "efd572e15e60f3e9fde259f4bba39ef9c47c9b56b945b7e83da142d59b8bee2f",
+        "firstOrder": "2026-08-30T23:49:41.111Z",
+        "lastOrder": "2026-08-30T23:49:41.111Z",
+        "orderCount": 1,
+        "totalSpent": 4719750,
+        "daysBetween": 0
+      },
+      {
+        "_id": "c10cba1cf9c34124bacde9c08dd9f73b9b7fb7138fc6d1a0c64335a33f02f37b",
+        "firstOrder": "2026-08-06T00:44:24.050Z",
+        "lastOrder": "2026-08-23T02:07:13.071Z",
+        "orderCount": 2,
+        "totalSpent": 4644000,
+        "daysBetween": 17.05751181712963
+      },
+      {
+        "_id": "40897d7dbd5cd4769b57e585993de2b129096a5a873b91f64a86628327f1bd20",
+        "firstOrder": "2026-08-21T23:02:26.317Z",
+        "lastOrder": "2026-08-21T23:02:26.317Z",
+        "orderCount": 1,
+        "totalSpent": 4626223,
+        "daysBetween": 0
+      },
+      {
+        "_id": "3db4dcbe0538182fa93059586c1be00095be584b1d45ee7fc21ca87e868f1ef3",
+        "firstOrder": "2026-06-29T00:34:51.236Z",
+        "lastOrder": "2026-06-29T00:34:51.236Z",
+        "orderCount": 1,
+        "totalSpent": 4565000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "29e829bb159f5693499d993dbf4c766a22fba1a8dcbe9ad721280b5d5209f937",
+        "firstOrder": "2026-07-26T01:05:03.455Z",
+        "lastOrder": "2026-07-26T01:05:03.455Z",
+        "orderCount": 1,
+        "totalSpent": 4560000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "5f15d2c74c65fe6078c54c96bc6ac20329baf49734c923e25b85882705723d22",
+        "firstOrder": "2026-06-30T23:36:30.648Z",
+        "lastOrder": "2026-06-30T23:36:30.648Z",
+        "orderCount": 1,
+        "totalSpent": 4500000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "358a94dea11ff5099ea2ff2b1de17b8eca3a1a17dd2bbaefcf5211103a026bdc",
+        "firstOrder": "2026-08-26T23:08:31.103Z",
+        "lastOrder": "2026-08-26T23:08:31.103Z",
+        "orderCount": 1,
+        "totalSpent": 4466000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "698254a254960d81fbb90edadf18c2c68a2aa8be9b919cd93a55435acd7b4d68",
+        "firstOrder": "2026-09-03T00:19:55.674Z",
+        "lastOrder": "2026-09-03T00:19:55.674Z",
+        "orderCount": 1,
+        "totalSpent": 4415940,
+        "daysBetween": 0
+      },
+      {
+        "_id": "bf00f2966bd65fab084d829849549274a1c3b279596b62154d8c63bba2cd543e",
+        "firstOrder": "2026-08-02T00:24:53.882Z",
+        "lastOrder": "2026-08-02T00:24:53.882Z",
+        "orderCount": 1,
+        "totalSpent": 4415900,
+        "daysBetween": 0
+      },
+      {
+        "_id": "68c29543b109c4850ab759879286cf45e1b4cc0c29d6c44ff37c832fa75d0de5",
+        "firstOrder": "2026-08-07T23:25:24.717Z",
+        "lastOrder": "2026-08-07T23:25:24.717Z",
+        "orderCount": 1,
+        "totalSpent": 4400000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "15130f15a8a9ffaba4b7cb52ae6af75161c6fdec48199b187e2a739b14dd0ac0",
+        "firstOrder": "2026-08-01T00:53:06.884Z",
+        "lastOrder": "2026-08-01T00:53:06.884Z",
+        "orderCount": 1,
+        "totalSpent": 4365000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "152a46ab9c432abd3a479f0b5785f0b6ebe49945e61bf9e7a1d2d7b1e51113ad",
+        "firstOrder": "2026-08-24T00:18:10.105Z",
+        "lastOrder": "2026-08-24T00:18:10.105Z",
+        "orderCount": 1,
+        "totalSpent": 4310799,
+        "daysBetween": 0
+      },
+      {
+        "_id": "5daafbe8e802415a45b712c7ea17678a71785916541ba2a798f2ec119847070f",
+        "firstOrder": "2026-07-04T23:36:29.026Z",
+        "lastOrder": "2026-07-04T23:36:29.026Z",
+        "orderCount": 1,
+        "totalSpent": 4300000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "c3baef2d17a6a7f45ad474996125233e6cfa3b70829af237694e5080f3bf56ac",
+        "firstOrder": "2026-08-05T23:51:03.648Z",
+        "lastOrder": "2026-08-05T23:51:03.648Z",
+        "orderCount": 1,
+        "totalSpent": 4258200,
+        "daysBetween": 0
+      },
+      {
+        "_id": "462a869b465bff8b0684653d0b244ded831d4434118a47f3741ed2a0bdf959ba",
+        "firstOrder": "2026-08-16T01:30:36.151Z",
+        "lastOrder": "2026-08-16T01:30:36.151Z",
+        "orderCount": 1,
+        "totalSpent": 4205657,
+        "daysBetween": 0
+      },
+      {
+        "_id": "a1967d6ed9b6b54cf6b2bbc1eae70327201d573fe87da79192ed2d709a3f122c",
+        "firstOrder": "2026-07-02T00:11:45.107Z",
+        "lastOrder": "2026-07-02T00:11:45.107Z",
+        "orderCount": 1,
+        "totalSpent": 4140000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "155b69f243643f5255b09c7320dda01617608e731d183a7fdf747be566c5cfc4",
+        "firstOrder": "2026-07-05T00:52:14.358Z",
+        "lastOrder": "2026-08-08T00:53:21.825Z",
+        "orderCount": 2,
+        "totalSpent": 4105400,
+        "daysBetween": 34.00078086805556
+      },
+      {
+        "_id": "440d9698f4de9c7bda1e791a751f08c90808d2d480e3b0e8c3be871388a2a7b9",
+        "firstOrder": "2026-08-27T00:15:46.087Z",
+        "lastOrder": "2026-08-27T00:15:46.087Z",
+        "orderCount": 1,
+        "totalSpent": 4100516,
+        "daysBetween": 0
+      },
+      {
+        "_id": "faa0e8bc38be7b4cbd24c3d272759ba4f63887293e546c2b2fec399b7eb7f97f",
+        "firstOrder": "2026-08-28T23:39:45.937Z",
+        "lastOrder": "2026-08-28T23:39:45.937Z",
+        "orderCount": 1,
+        "totalSpent": 4100000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "0428888e3b1db6c04e67bc00dae1f728b7f25ab46a3edfa4b4e8bc1cbb718ec5",
+        "firstOrder": "2026-06-27T00:20:16.289Z",
+        "lastOrder": "2026-06-27T00:20:16.289Z",
+        "orderCount": 1,
+        "totalSpent": 4085000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "ac47f50df181df7f0f078defbd69097ed7ff035ec0e8c4c5c73685dbd7ce3047",
+        "firstOrder": "2026-07-25T00:05:17.142Z",
+        "lastOrder": "2026-07-25T00:05:17.142Z",
+        "orderCount": 1,
+        "totalSpent": 4080000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "48455e4231e605a29c523b99345c57adcd1339c6de3caba28fc42c4517cb50f5",
+        "firstOrder": "2026-08-12T23:57:09.839Z",
+        "lastOrder": "2026-08-12T23:57:09.839Z",
+        "orderCount": 1,
+        "totalSpent": 4050000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "d835ea197d3f69317b592b2a81e4b1f00179a88c02753cca48989570a5ab7ee6",
+        "firstOrder": "2026-08-07T00:24:18.760Z",
+        "lastOrder": "2026-08-07T00:24:18.760Z",
+        "orderCount": 1,
+        "totalSpent": 4047900,
+        "daysBetween": 0
+      },
+      {
+        "_id": "72b421e3952a6da8ddd328ff2cdc63134601b7d2725efb69ba076f1ff76fc74a",
+        "firstOrder": "2026-06-25T23:41:33.991Z",
+        "lastOrder": "2026-06-25T23:41:33.991Z",
+        "orderCount": 1,
+        "totalSpent": 4045000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "dfa91d6b3c18c10d357d3c6bf85fc9812c4d0b81ba97e913094fdae19eeee422",
+        "firstOrder": "2026-08-31T02:24:20.567Z",
+        "lastOrder": "2026-08-31T02:24:20.567Z",
+        "orderCount": 1,
+        "totalSpent": 4000000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "54e838cc2e0501ce43933b246dc9b3f0107c552a8db4f4f9a495aec050b56c8d",
+        "firstOrder": "2026-07-05T01:21:26.171Z",
+        "lastOrder": "2026-07-05T01:21:26.171Z",
+        "orderCount": 1,
+        "totalSpent": 4000000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "2a88835f0c95a1e7d04cce14c4810238676338d2585b812115ee3bac381cb10e",
+        "firstOrder": "2026-08-01T01:09:18.292Z",
+        "lastOrder": "2026-08-01T01:09:18.292Z",
+        "orderCount": 1,
+        "totalSpent": 3995400,
+        "daysBetween": 0
+      },
+      {
+        "_id": "08d1ae561a6b011ad3e289492665d4a550c96ef7959f970585b3c7a10ed05909",
+        "firstOrder": "2026-08-08T01:13:51.165Z",
+        "lastOrder": "2026-08-08T01:13:51.165Z",
+        "orderCount": 1,
+        "totalSpent": 3990000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "13d35df0d4ce98794c68816584fe4226cc2b6c7321f86a56862cfcc7611777b5",
+        "firstOrder": "2026-07-06T00:40:12.558Z",
+        "lastOrder": "2026-07-06T00:40:12.558Z",
+        "orderCount": 1,
+        "totalSpent": 3950000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "92f8a2dae42aa8f745c724a77c3e8613262d0ca846eec0d9ea02b8f1bfc5829b",
+        "firstOrder": "2026-08-14T02:03:55.673Z",
+        "lastOrder": "2026-08-14T02:03:55.673Z",
+        "orderCount": 1,
+        "totalSpent": 3950000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "ef946d4f8d28271037656fa6f2f00e90a6f3ca146fdc1b75da5a8ba7e65f5d50",
+        "firstOrder": "2026-08-13T23:44:12.616Z",
+        "lastOrder": "2026-08-13T23:44:12.616Z",
+        "orderCount": 1,
+        "totalSpent": 3932289,
+        "daysBetween": 0
+      },
+      {
+        "_id": "a5555135f579ee6740ff49c25382ea444591bb41371228cdf52afd3b900a3750",
+        "firstOrder": "2026-07-28T23:16:24.955Z",
+        "lastOrder": "2026-07-28T23:16:24.955Z",
+        "orderCount": 1,
+        "totalSpent": 3922200,
+        "daysBetween": 0
+      },
+      {
+        "_id": "22763fb51fbc00695ad7c1026fc09d58eddad2810428fb9429706072dc453bc7",
+        "firstOrder": "2026-08-07T23:20:30.362Z",
+        "lastOrder": "2026-08-28T23:42:16.562Z",
+        "orderCount": 2,
+        "totalSpent": 3900000,
+        "daysBetween": 21.015118055555554
+      },
+      {
+        "_id": "7d28ff9f20ebc13658e8cd4096e0b17226de317065526e671ba43ddcae6f7430",
+        "firstOrder": "2026-08-14T00:39:42.049Z",
+        "lastOrder": "2026-08-14T00:39:42.049Z",
+        "orderCount": 1,
+        "totalSpent": 3900000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "0173ab4616a0e06f73f50622e14fb55217222490ca7d579db489c0da0ca130cf",
+        "firstOrder": "2026-07-06T01:22:50.831Z",
+        "lastOrder": "2026-07-06T01:22:50.831Z",
+        "orderCount": 1,
+        "totalSpent": 3800000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "27f5302d903125df1bb955965e49b1e7e3df8a0b3f5a486a0bb5d201d2d07ae3",
+        "firstOrder": "2026-06-21T00:39:20.263Z",
+        "lastOrder": "2026-06-21T00:39:20.263Z",
+        "orderCount": 1,
+        "totalSpent": 3795000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "1ae4c0eac6f1022a6bcc05fd890ad4cc28c15c5b91c9d95a797057ab6eb9a35c",
+        "firstOrder": "2026-08-24T00:28:14.844Z",
+        "lastOrder": "2026-08-24T00:28:14.844Z",
+        "orderCount": 1,
+        "totalSpent": 3785091,
+        "daysBetween": 0
+      },
+      {
+        "_id": "99cbd0307f15ecbccc5cb8ecb186d52d6425d340b37efe60c98705b61372734b",
+        "firstOrder": "2026-07-06T00:29:58.564Z",
+        "lastOrder": "2026-07-06T00:29:58.564Z",
+        "orderCount": 1,
+        "totalSpent": 3750000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "3902e858d2beb00c44b5403ad2345fc18318ee8c42daa80ee0c95b546ed401d1",
+        "firstOrder": "2026-06-24T14:44:53.904Z",
+        "lastOrder": "2026-06-24T14:44:53.904Z",
+        "orderCount": 1,
+        "totalSpent": 3645000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "a6e96b40a8d2a280cbae9b9b3f5e78ca00166d40979df266abe106a450d330e5",
+        "firstOrder": "2026-06-28T23:52:26.178Z",
+        "lastOrder": "2026-06-28T23:52:26.178Z",
+        "orderCount": 1,
+        "totalSpent": 3465000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "bc25bfd76432c55a9aedb892d4fcd59bf1daaf9607ef3a5f074cf11ed59e0d73",
+        "firstOrder": "2026-07-02T15:01:45.836Z",
+        "lastOrder": "2026-07-02T15:01:45.836Z",
+        "orderCount": 1,
+        "totalSpent": 2800000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "7cf4c973aa7f6cc47688dec5621a22d9f145d2f2db63bf3216c4ae3e6ff3173b",
+        "firstOrder": "2026-08-19T23:26:27.599Z",
+        "lastOrder": "2026-08-19T23:26:27.599Z",
+        "orderCount": 1,
+        "totalSpent": 2786248,
+        "daysBetween": 0
+      },
+      {
+        "_id": "fca25a263a218e54f9aa89f376fc733c940b08e68e768dd4461304fd893ab81f",
+        "firstOrder": "2026-07-30T00:03:33.863Z",
+        "lastOrder": "2026-07-30T00:03:33.863Z",
+        "orderCount": 1,
+        "totalSpent": 2750000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "5fdfb78a22d1f0814078fb14701acb3e4882af7cb0120320ce5093502e46e911",
+        "firstOrder": "2026-07-30T00:46:03.021Z",
+        "lastOrder": "2026-07-30T00:46:03.021Z",
+        "orderCount": 1,
+        "totalSpent": 2675000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "15c142528b8b9683e0289f6ef06f38c87035394f336e339709578b4ba7d3e181",
+        "firstOrder": "2026-08-16T23:03:11.341Z",
+        "lastOrder": "2026-08-16T23:03:11.341Z",
+        "orderCount": 1,
+        "totalSpent": 2418253,
+        "daysBetween": 0
+      },
+      {
+        "_id": "f9ddac4ecbba012e612ddcf4c0684ef664eb3a5bee51c78ba9384c9ac2b224d0",
+        "firstOrder": "2026-08-17T02:07:27.581Z",
+        "lastOrder": "2026-08-17T02:07:27.581Z",
+        "orderCount": 1,
+        "totalSpent": 2418253,
+        "daysBetween": 0
+      },
+      {
+        "_id": "b47c68ab317f39a1d16b3830502285af261490d0d606d99632a06e264ccb58d4",
+        "firstOrder": "2026-08-11T23:12:42.422Z",
+        "lastOrder": "2026-08-11T23:12:42.422Z",
+        "orderCount": 1,
+        "totalSpent": 2375000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "5f6cb4e83e4e808f9d99547b46d20cd7e056bb1e9698a5ba63c631519eacaa35",
+        "firstOrder": "2026-07-09T23:17:51.838Z",
+        "lastOrder": "2026-07-09T23:17:51.838Z",
+        "orderCount": 1,
+        "totalSpent": 2373700,
+        "daysBetween": 0
+      },
+      {
+        "_id": "74f403ad9c780b334b7efc541f534d93f3733ac1eb315b76603f4a42d8001faf",
+        "firstOrder": "2026-08-12T00:08:04.375Z",
+        "lastOrder": "2026-08-12T00:08:04.375Z",
+        "orderCount": 1,
+        "totalSpent": 2313112,
+        "daysBetween": 0
+      },
+      {
+        "_id": "bb6cec878b0fd1adaf3daaa4ec07696b3f029ffdcaba0b0c903bb7f15d68b66e",
+        "firstOrder": "2026-08-29T01:09:00.453Z",
+        "lastOrder": "2026-08-29T01:09:00.453Z",
+        "orderCount": 1,
+        "totalSpent": 2283750,
+        "daysBetween": 0
+      },
+      {
+        "_id": "bde66245068135e84106a50cdc4494c6d18c8edc8509de87ec1899efce574ee9",
+        "firstOrder": "2026-08-08T01:29:13.130Z",
+        "lastOrder": "2026-08-08T01:29:13.130Z",
+        "orderCount": 1,
+        "totalSpent": 2207970,
+        "daysBetween": 0
+      },
+      {
+        "_id": "11b367dd2ecbdb933f11b66dc0ec3271d66d07dff055feacdd12654978592fdd",
+        "firstOrder": "2026-08-29T23:49:18.997Z",
+        "lastOrder": "2026-08-29T23:49:18.997Z",
+        "orderCount": 1,
+        "totalSpent": 2207625,
+        "daysBetween": 0
+      },
+      {
+        "_id": "11b98174f4864ccdf9f2be72380556f6f7ad55fb7b3d68bd391fb8468f195f94",
+        "firstOrder": "2026-08-29T23:35:49.949Z",
+        "lastOrder": "2026-08-29T23:35:49.949Z",
+        "orderCount": 1,
+        "totalSpent": 2197456,
+        "daysBetween": 0
+      },
+      {
+        "_id": "b615fa7703cb892ecf50d2b10bda1a3c7cd69db124daaf794a42241fa3ad9268",
+        "firstOrder": "2026-07-25T00:02:16.038Z",
+        "lastOrder": "2026-07-25T00:02:16.038Z",
+        "orderCount": 1,
+        "totalSpent": 2196400,
+        "daysBetween": 0
+      },
+      {
+        "_id": "dbde3e906a9a5b2a4cc67798bdf46010eef158a85194aa2ee000e663748e2ea5",
+        "firstOrder": "2026-06-26T23:18:00.561Z",
+        "lastOrder": "2026-06-26T23:18:00.561Z",
+        "orderCount": 1,
+        "totalSpent": 2150000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "e986147fbf9669d4255766721616b5f205ecd1b230395f0e46ab2aa2e21283a0",
+        "firstOrder": "2026-08-14T01:54:43.932Z",
+        "lastOrder": "2026-08-14T01:54:43.932Z",
+        "orderCount": 1,
+        "totalSpent": 2102829,
+        "daysBetween": 0
+      },
+      {
+        "_id": "3e836297ed3d864adeaf4a3112733bff53532e07dbc2938c25c45c860705a8d6",
+        "firstOrder": "2026-08-20T00:37:23.880Z",
+        "lastOrder": "2026-08-20T00:37:23.880Z",
+        "orderCount": 1,
+        "totalSpent": 2076543,
+        "daysBetween": 0
+      },
+      {
+        "_id": "99ffcddeefb6f6a03302aab1eb4d440ef2bf76ec54164e18a4004a1db861a1aa",
+        "firstOrder": "2026-06-20T00:09:42.377Z",
+        "lastOrder": "2026-06-20T00:09:42.377Z",
+        "orderCount": 1,
+        "totalSpent": 2045000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "e8187cf213275746cdc276631aebcf46e2ab2926d63d99b3af934fcec15594c6",
+        "firstOrder": "2026-06-20T23:48:48.335Z",
+        "lastOrder": "2026-06-20T23:48:48.335Z",
+        "orderCount": 1,
+        "totalSpent": 2045000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "c625bec7cf7ac0e093f103cad8fe0400cef418ff8ca884fc44483fadc505908f",
+        "firstOrder": "2026-08-09T02:35:09.301Z",
+        "lastOrder": "2026-08-09T02:35:09.301Z",
+        "orderCount": 1,
+        "totalSpent": 2000000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "ccf5627bb9b66c4ab591c8445de1263e0bee1b22bb72b4b97e95264906451047",
+        "firstOrder": "2026-07-06T00:25:06.522Z",
+        "lastOrder": "2026-07-06T00:25:06.522Z",
+        "orderCount": 1,
+        "totalSpent": 2000000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "0f490d5e36792d5bc0709e839804ba0020bf4e30d474afbe5ea52bf7feb985ee",
+        "firstOrder": "2026-07-26T01:05:26.835Z",
+        "lastOrder": "2026-07-26T01:05:26.835Z",
+        "orderCount": 1,
+        "totalSpent": 2000000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "3250cc191c50df5ffd4ad81f6622ca4f47c20f04d956630213b9d9b0e3ac78aa",
+        "firstOrder": "2026-07-02T15:33:09.829Z",
+        "lastOrder": "2026-07-02T15:33:09.829Z",
+        "orderCount": 1,
+        "totalSpent": 2000000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "e964d566057b33c26d5fd11cecea5169072e9e06c01ff0d168b0b0bcec75c34d",
+        "firstOrder": "2026-06-29T00:06:00.272Z",
+        "lastOrder": "2026-06-29T00:06:00.272Z",
+        "orderCount": 1,
+        "totalSpent": 1900000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "553e98cec2f922212f624e5278911d55d88510c6a5037d29ff0257f438873e60",
+        "firstOrder": "2026-07-15T23:49:42.766Z",
+        "lastOrder": "2026-07-15T23:49:42.766Z",
+        "orderCount": 1,
+        "totalSpent": 1800000,
+        "daysBetween": 0
+      },
+      {
+        "_id": "a00ff8e59ad45ed363bd3ac0d858415e0f9a5b5f859a75657c418e481b6f0797",
+        "firstOrder": "2026-08-12T23:26:53.590Z",
+        "lastOrder": "2026-08-12T23:26:53.590Z",
+        "orderCount": 1,
+        "totalSpent": 1800000,
+        "daysBetween": 0
+      }
+    ],
+    "timeToSecondPurchase": [
+      {
+        "_id": "df38b77ca1f2f980e1f05c99d90c22680e83a68b95b107136f89c77c395ced10",
+        "daysToSecond": 14.019575405092592
+      },
+      {
+        "_id": "dbe94643baf9b8d4dcb1d5fc4eae82139253fec87b05fdb76e79a10145828032",
+        "daysToSecond": 11.397943194444444
+      },
+      {
+        "_id": "03aa020f255996e71d67d837390ce3ff2b471ee580c585c4fc22036b6213c83c",
+        "daysToSecond": 45.0402715162037
+      },
+      {
+        "_id": null,
+        "daysToSecond": 0.02514292824074074
+      },
+      {
+        "_id": "81e14c460338dd026baadaa4cc3455a01f68efd729b13647df0146033989d806",
+        "daysToSecond": 2.9239519675925925
+      },
+      {
+        "_id": "0ecb9f11b7dd5b8b9ec0571cb53dc5fcea475dc212dea3fbca1176a631b6840c",
+        "daysToSecond": 14.005424965277777
+      },
+      {
+        "_id": "af854dc77e403bd50a728ca0514fabcdaf4b6f8af4a857f07e3db4e6a6cba8b0",
+        "daysToSecond": 12.073947083333334
+      },
+      {
+        "_id": "bd67c0f0012c04d0517819c5b7757f775129f92caf5c11a61a444c962cc10652",
+        "daysToSecond": 15.60319304398148
+      },
+      {
+        "_id": "b6e5abab6295c123939ced5e14e9cb64435930ef8da984f31f9d07ad11455e8a",
+        "daysToSecond": 23.941395902777778
+      },
+      {
+        "_id": "79cc3aa05af6bca3a753f71978130baaa5689ccb980c662f4f7b65cadf467d9a",
+        "daysToSecond": 56.00258430555556
+      },
+      {
+        "_id": "6e1617d187af20018724951b77c7fb168496963d129862e7e33d0ac318e3362e",
+        "daysToSecond": 15.948710381944444
+      },
+      {
+        "_id": "22763fb51fbc00695ad7c1026fc09d58eddad2810428fb9429706072dc453bc7",
+        "daysToSecond": 21.015118055555554
+      },
+      {
+        "_id": "76b0a3399c9a8a328bfe30fb72e84551b32df1d359826f1afdf1e6b4503dc1fa",
+        "daysToSecond": 54.994428981481484
+      },
+      {
+        "_id": "57076fc77ff71a96831cd8b51c8d82c690dbbeacb3bfa0b007898d22f2242f8d",
+        "daysToSecond": 15.050017581018519
+      },
+      {
+        "_id": "81b88e0f1957e972fb5e3d7034bccb972f11367dc8802ded649086155176e55e",
+        "daysToSecond": 4.979559293981482
+      },
+      {
+        "_id": "155b69f243643f5255b09c7320dda01617608e731d183a7fdf747be566c5cfc4",
+        "daysToSecond": 34.00078086805556
+      },
+      {
+        "_id": "c10cba1cf9c34124bacde9c08dd9f73b9b7fb7138fc6d1a0c64335a33f02f37b",
+        "daysToSecond": 17.05751181712963
+      },
+      {
+        "_id": "ce830d5d4b7fe3f117e5573cd6c1ddc26883baf9243f771f0747b6f46ef986e0",
+        "daysToSecond": 10.009330381944444
+      },
+      {
+        "_id": "337bf7d0f2bddbb0889b4eb2080c44b67e12134f38aaae6b183e05fede324ed8",
+        "daysToSecond": 48.00921259259259
+      },
+      {
+        "_id": "2728850b6998105a3fb5f1c1899ca96cb88a2fed4e960590a85d90585a94de04",
+        "daysToSecond": 23.077393587962963
+      },
+      {
+        "_id": "bad1b157a8eeaee252cbd45afb53e7ab186782f3c3611e676df7e7638bddbbac",
+        "daysToSecond": 21.991196631944444
+      },
+      {
+        "_id": "f3323665d4ead29a06e35cb602dbe0cece74ab86c74c8687be6259bb1006159c",
+        "daysToSecond": 23.914872546296298
+      },
+      {
+        "_id": "b277d5c2b57f82766d5f2031726a354643728d71ca095a51edfa87a3f71b96db",
+        "daysToSecond": 7.995849733796296
+      },
+      {
+        "_id": "b9653b179691b06af05830ba4adb149b0deb9ea11a1cb8f2e9d760db2029be01",
+        "daysToSecond": 37.02705752314815
+      }
+    ],
+    "cohortRetention": [
+      {
+        "month": "2026-06",
+        "totalCustomers": 20,
+        "returnedAfterFirstMonth": 20,
+        "returnRate": "100.0",
+        "twoPlusOrders": 4,
+        "twoPlusRate": "20.0",
+        "threePlusOrders": 1,
+        "threePlusRate": "5.0",
+        "subsequentRevenue": 129669520
+      },
+      {
+        "month": "2026-07",
+        "totalCustomers": 38,
+        "returnedAfterFirstMonth": 37,
+        "returnRate": "97.4",
+        "twoPlusOrders": 9,
+        "twoPlusRate": "23.7",
+        "threePlusOrders": 3,
+        "threePlusRate": "7.9",
+        "subsequentRevenue": 223843138
+      },
+      {
+        "month": "2026-08",
+        "totalCustomers": 73,
+        "returnedAfterFirstMonth": 71,
+        "returnRate": "97.3",
+        "twoPlusOrders": 16,
+        "twoPlusRate": "21.9",
+        "threePlusOrders": 4,
+        "threePlusRate": "5.5",
+        "subsequentRevenue": 459359988
+      },
+      {
+        "month": "2026-09",
+        "totalCustomers": 5,
+        "returnedAfterFirstMonth": 5,
+        "returnRate": "100.0",
+        "twoPlusOrders": 0,
+        "twoPlusRate": "0.0",
+        "threePlusOrders": 0,
+        "threePlusRate": "0.0",
+        "subsequentRevenue": 23234193
+      }
+    ]
+  },
+  "customerValue": {
+    "distribution": [
+      {
+        "_id": null,
+        "totalOrders": 10,
+        "totalRevenue": 33794270,
+        "avgTicket": 3379427,
+        "firstOrder": "2026-06-19T23:33:39.828Z",
+        "lastOrder": "2026-08-31T01:41:03.805Z"
+      },
+      {
+        "_id": "81b88e0f1957e972fb5e3d7034bccb972f11367dc8802ded649086155176e55e",
+        "totalOrders": 4,
+        "totalRevenue": 29985610,
+        "avgTicket": 7496402.5,
+        "firstOrder": "2026-08-08T00:51:46.612Z",
+        "lastOrder": "2026-08-28T23:38:34.548Z"
+      },
+      {
+        "_id": "6e1617d187af20018724951b77c7fb168496963d129862e7e33d0ac318e3362e",
+        "totalOrders": 2,
+        "totalRevenue": 22056750,
+        "avgTicket": 11028375,
+        "firstOrder": "2026-08-15T01:04:19.459Z",
+        "lastOrder": "2026-08-30T23:50:28.036Z"
+      },
+      {
+        "_id": "cc30c3d748a6d1ffc86181f443d4e0f457caceda7d4c3bbd6c5d7091efc2357d",
+        "totalOrders": 1,
+        "totalRevenue": 21050000,
+        "avgTicket": 21050000,
+        "firstOrder": "2026-08-13T15:19:10.578Z",
+        "lastOrder": "2026-08-13T15:19:10.578Z"
+      },
+      {
+        "_id": "7c41875f821bece1dddd029b25a52ccf458422435b67160ce66e3375076d8519",
+        "totalOrders": 1,
+        "totalRevenue": 18290000,
+        "avgTicket": 18290000,
+        "firstOrder": "2026-08-14T15:16:09.181Z",
+        "lastOrder": "2026-08-14T15:16:09.181Z"
+      },
+      {
+        "_id": "df38b77ca1f2f980e1f05c99d90c22680e83a68b95b107136f89c77c395ced10",
+        "totalOrders": 2,
+        "totalRevenue": 16971597,
+        "avgTicket": 8485798.5,
+        "firstOrder": "2026-08-07T23:12:34.180Z",
+        "lastOrder": "2026-08-21T23:40:45.495Z"
+      },
+      {
+        "_id": "81e14c460338dd026baadaa4cc3455a01f68efd729b13647df0146033989d806",
+        "totalOrders": 2,
+        "totalRevenue": 16075000,
+        "avgTicket": 8037500,
+        "firstOrder": "2026-08-02T00:53:13.477Z",
+        "lastOrder": "2026-08-04T23:03:42.927Z"
+      },
+      {
+        "_id": "2e2c238b359524b7b2a81eb73ed233c7a9aea46ad821e275f4d8ccaaa0d484b0",
+        "totalOrders": 1,
+        "totalRevenue": 14015300,
+        "avgTicket": 14015300,
+        "firstOrder": "2026-07-25T00:05:11.872Z",
+        "lastOrder": "2026-07-25T00:05:11.872Z"
+      },
+      {
+        "_id": "b9653b179691b06af05830ba4adb149b0deb9ea11a1cb8f2e9d760db2029be01",
+        "totalOrders": 3,
+        "totalRevenue": 13588000,
+        "avgTicket": 4529333.333333333,
+        "firstOrder": "2026-07-15T23:44:42.473Z",
+        "lastOrder": "2026-08-29T00:06:02.294Z"
+      },
+      {
+        "_id": "70b37978b4c0f37a55ede8b4d34b354c4198f1ad21a5f3b2f9d24a19a4656b79",
+        "totalOrders": 1,
+        "totalRevenue": 12700000,
+        "avgTicket": 12700000,
+        "firstOrder": "2026-08-16T00:38:35.857Z",
+        "lastOrder": "2026-08-16T00:38:35.857Z"
+      },
+      {
+        "_id": "0ecb9f11b7dd5b8b9ec0571cb53dc5fcea475dc212dea3fbca1176a631b6840c",
+        "totalOrders": 3,
+        "totalRevenue": 11415940,
+        "avgTicket": 3805313.3333333335,
+        "firstOrder": "2026-07-25T23:40:01.218Z",
+        "lastOrder": "2026-08-15T00:04:48.096Z"
+      },
+      {
+        "_id": "bb6ec0ee115ee70c6f330d27d4b0096f1bfc8a1af549ccb5865683ba2a1fab08",
+        "totalOrders": 1,
+        "totalRevenue": 11260000,
+        "avgTicket": 11260000,
+        "firstOrder": "2026-08-30T01:12:12.012Z",
+        "lastOrder": "2026-08-30T01:12:12.012Z"
+      },
+      {
+        "_id": "c063c542a61a765e1ef292828cf4e5f953f057eb18936e6d8f40886abb520ebe",
+        "totalOrders": 1,
+        "totalRevenue": 11205600,
+        "avgTicket": 11205600,
+        "firstOrder": "2026-08-30T23:57:31.906Z",
+        "lastOrder": "2026-08-30T23:57:31.906Z"
+      },
+      {
+        "_id": "f20043140b2f46f16a44f37ee0fc04948fa511c3a90ff3b85e74b72d6828266a",
+        "totalOrders": 1,
+        "totalRevenue": 10185000,
+        "avgTicket": 10185000,
+        "firstOrder": "2026-06-20T23:49:27.806Z",
+        "lastOrder": "2026-06-20T23:49:27.806Z"
+      },
+      {
+        "_id": "4f45b56067e8702a8a8275912f7a2feb3d7b005f42aadc66d1860395a8ba4a1b",
+        "totalOrders": 1,
+        "totalRevenue": 10067300,
+        "avgTicket": 10067300,
+        "firstOrder": "2026-07-30T15:56:15.023Z",
+        "lastOrder": "2026-07-30T15:56:15.023Z"
+      },
+      {
+        "_id": "f5aa0f7a97669728c8124645dcc31708b1aa3e5237e213ad414a9b884d364d5f",
+        "totalOrders": 1,
+        "totalRevenue": 9580600,
+        "avgTicket": 9580600,
+        "firstOrder": "2026-07-26T00:15:46.101Z",
+        "lastOrder": "2026-07-26T00:15:46.101Z"
+      },
+      {
+        "_id": "2728850b6998105a3fb5f1c1899ca96cb88a2fed4e960590a85d90585a94de04",
+        "totalOrders": 3,
+        "totalRevenue": 9147308,
+        "avgTicket": 3049102.6666666665,
+        "firstOrder": "2026-08-06T22:56:24.227Z",
+        "lastOrder": "2026-09-02T00:10:24.624Z"
+      },
+      {
+        "_id": "0c8d80e0c201ed23c31bec8a3fe154cfe3ebe573335cb7147552d51c7b18f0b9",
+        "totalOrders": 1,
+        "totalRevenue": 9126300,
+        "avgTicket": 9126300,
+        "firstOrder": "2026-07-31T23:34:52.601Z",
+        "lastOrder": "2026-07-31T23:34:52.601Z"
+      },
+      {
+        "_id": "1346b199fd17ef7e966487dd92cb780ee1c81d26d3ff845ef0da4319b3903ac8",
+        "totalOrders": 1,
+        "totalRevenue": 8625000,
+        "avgTicket": 8625000,
+        "firstOrder": "2026-06-21T01:16:10.047Z",
+        "lastOrder": "2026-06-21T01:16:10.047Z"
+      },
+      {
+        "_id": "79cc3aa05af6bca3a753f71978130baaa5689ccb980c662f4f7b65cadf467d9a",
+        "totalOrders": 2,
+        "totalRevenue": 8565250,
+        "avgTicket": 4282625,
+        "firstOrder": "2026-06-22T00:00:44.496Z",
+        "lastOrder": "2026-08-17T00:04:27.780Z"
+      },
+      {
+        "_id": "864abe4c60b3af444a67d2119c2fc7f80df9fe643f898e157161652b5ce386b2",
+        "totalOrders": 1,
+        "totalRevenue": 8421828,
+        "avgTicket": 8421828,
+        "firstOrder": "2026-08-26T00:15:02.504Z",
+        "lastOrder": "2026-08-26T00:15:02.504Z"
+      },
+      {
+        "_id": "ce830d5d4b7fe3f117e5573cd6c1ddc26883baf9243f771f0747b6f46ef986e0",
+        "totalOrders": 3,
+        "totalRevenue": 8306174,
+        "avgTicket": 2768724.6666666665,
+        "firstOrder": "2026-08-16T23:52:57.314Z",
+        "lastOrder": "2026-08-29T17:03:52.859Z"
+      },
+      {
+        "_id": "b6e5abab6295c123939ced5e14e9cb64435930ef8da984f31f9d07ad11455e8a",
+        "totalOrders": 2,
+        "totalRevenue": 8254300,
+        "avgTicket": 4127150,
+        "firstOrder": "2026-07-09T01:52:57.801Z",
+        "lastOrder": "2026-08-02T00:28:34.407Z"
+      },
+      {
+        "_id": "bad1b157a8eeaee252cbd45afb53e7ab186782f3c3611e676df7e7638bddbbac",
+        "totalOrders": 2,
+        "totalRevenue": 8105657,
+        "avgTicket": 4052828.5,
+        "firstOrder": "2026-08-05T01:15:25.803Z",
+        "lastOrder": "2026-08-27T01:02:45.192Z"
+      },
+      {
+        "_id": "f7577cb441dbafbafafd3dd9d3ae703a4ed29a21dcbb531e0c90091386cecf05",
+        "totalOrders": 1,
+        "totalRevenue": 8074861,
+        "avgTicket": 8074861,
+        "firstOrder": "2026-08-27T23:54:02.834Z",
+        "lastOrder": "2026-08-27T23:54:02.834Z"
+      },
+      {
+        "_id": "e35d4c0cc19238e5fe6ee05dba134743ca79fbba569bd55e156a8ada1ea7120c",
+        "totalOrders": 1,
+        "totalRevenue": 7990700,
+        "avgTicket": 7990700,
+        "firstOrder": "2026-08-06T00:03:46.516Z",
+        "lastOrder": "2026-08-06T00:03:46.516Z"
+      },
+      {
+        "_id": "9c65d9cf893134bac872c2cb4bf31e1d78f535c090b2b66a9ef03da88cdf78bd",
+        "totalOrders": 1,
+        "totalRevenue": 7800000,
+        "avgTicket": 7800000,
+        "firstOrder": "2026-08-07T00:33:59.799Z",
+        "lastOrder": "2026-08-07T00:33:59.799Z"
+      },
+      {
+        "_id": "91db898d3f21cd05b7b42558da4065049e2b4a03855ffc3e6e2bbd87ac2d4185",
+        "totalOrders": 1,
+        "totalRevenue": 7770000,
+        "avgTicket": 7770000,
+        "firstOrder": "2026-06-24T23:35:46.207Z",
+        "lastOrder": "2026-06-24T23:35:46.207Z"
+      },
+      {
+        "_id": "b277d5c2b57f82766d5f2031726a354643728d71ca095a51edfa87a3f71b96db",
+        "totalOrders": 2,
+        "totalRevenue": 7730000,
+        "avgTicket": 3865000,
+        "firstOrder": "2026-07-26T01:04:44.299Z",
+        "lastOrder": "2026-08-03T00:58:45.716Z"
+      },
+      {
+        "_id": "bd67c0f0012c04d0517819c5b7757f775129f92caf5c11a61a444c962cc10652",
+        "totalOrders": 2,
+        "totalRevenue": 7359900,
+        "avgTicket": 3679950,
+        "firstOrder": "2026-08-10T02:18:32.211Z",
+        "lastOrder": "2026-08-25T16:47:08.090Z"
+      },
+      {
+        "_id": "57076fc77ff71a96831cd8b51c8d82c690dbbeacb3bfa0b007898d22f2242f8d",
+        "totalOrders": 2,
+        "totalRevenue": 7254712,
+        "avgTicket": 3627356,
+        "firstOrder": "2026-07-31T23:40:33.813Z",
+        "lastOrder": "2026-08-16T00:52:35.332Z"
+      },
+      {
+        "_id": "76b0a3399c9a8a328bfe30fb72e84551b32df1d359826f1afdf1e6b4503dc1fa",
+        "totalOrders": 2,
+        "totalRevenue": 7200000,
+        "avgTicket": 3600000,
+        "firstOrder": "2026-06-21T00:10:36.662Z",
+        "lastOrder": "2026-08-15T00:02:35.326Z"
+      },
+      {
+        "_id": "337bf7d0f2bddbb0889b4eb2080c44b67e12134f38aaae6b183e05fede324ed8",
+        "totalOrders": 2,
+        "totalRevenue": 7200000,
+        "avgTicket": 3600000,
+        "firstOrder": "2026-07-17T01:52:21.783Z",
+        "lastOrder": "2026-09-03T02:05:37.751Z"
+      },
+      {
+        "_id": "6886b91d719373ecf909bcd73a87ce567e4814b719c31bef9cea9f0adfdd01a9",
+        "totalOrders": 1,
+        "totalRevenue": 6600000,
+        "avgTicket": 6600000,
+        "firstOrder": "2026-09-03T01:45:25.868Z",
+        "lastOrder": "2026-09-03T01:45:25.868Z"
+      },
+      {
+        "_id": "bdcef3161576b59a558714990b276536e64b2f5be15c27c69633494f323b51fc",
+        "totalOrders": 1,
+        "totalRevenue": 6571339,
+        "avgTicket": 6571339,
+        "firstOrder": "2026-08-12T23:08:34.015Z",
+        "lastOrder": "2026-08-12T23:08:34.015Z"
+      },
+      {
+        "_id": "c44a9bdb75d573809583df1a33aaed538e8d4339c54f7e85d32af5594bb408e1",
+        "totalOrders": 1,
+        "totalRevenue": 6420000,
+        "avgTicket": 6420000,
+        "firstOrder": "2026-06-27T00:00:43.547Z",
+        "lastOrder": "2026-06-27T00:00:43.547Z"
+      },
+      {
+        "_id": "67f6990b69ec31e17386cd761cb79e0bfb431d32a6f8bf5dddd05be9247a5b69",
+        "totalOrders": 1,
+        "totalRevenue": 6350000,
+        "avgTicket": 6350000,
+        "firstOrder": "2026-08-08T00:29:54.989Z",
+        "lastOrder": "2026-08-08T00:29:54.989Z"
+      },
+      {
+        "_id": "4c9067f27306b70dfb1469664d6bcbaf70f1d98b5736088a8ba6d246eb76b211",
+        "totalOrders": 1,
+        "totalRevenue": 6300000,
+        "avgTicket": 6300000,
+        "firstOrder": "2026-07-01T23:36:49.987Z",
+        "lastOrder": "2026-07-01T23:36:49.987Z"
+      },
+      {
+        "_id": "dbe94643baf9b8d4dcb1d5fc4eae82139253fec87b05fdb76e79a10145828032",
+        "totalOrders": 2,
+        "totalRevenue": 6184500,
+        "avgTicket": 3092250,
+        "firstOrder": "2026-08-15T15:36:05.358Z",
+        "lastOrder": "2026-08-27T01:09:07.650Z"
+      },
+      {
+        "_id": "af854dc77e403bd50a728ca0514fabcdaf4b6f8af4a857f07e3db4e6a6cba8b0",
+        "totalOrders": 2,
+        "totalRevenue": 6125000,
+        "avgTicket": 3062500,
+        "firstOrder": "2026-06-22T00:03:36.553Z",
+        "lastOrder": "2026-07-04T01:50:05.581Z"
+      },
+      {
+        "_id": "723a112528f2f121a58cca383044ba6bb36a9d3f51672bd6f9f306f3c310e81d",
+        "totalOrders": 1,
+        "totalRevenue": 6000000,
+        "avgTicket": 6000000,
+        "firstOrder": "2026-09-02T01:10:06.165Z",
+        "lastOrder": "2026-09-02T01:10:06.165Z"
+      },
+      {
+        "_id": "8872f65be635fa1fb311f424ded917f0320fb0ddf875c5402239ea08d397876d",
+        "totalOrders": 1,
+        "totalRevenue": 5993100,
+        "avgTicket": 5993100,
+        "firstOrder": "2026-07-31T00:00:36.301Z",
+        "lastOrder": "2026-07-31T00:00:36.301Z"
+      },
+      {
+        "_id": "bd1611bbd9d05769462dc52b74d1622896d2c5bb37b42b505a553b14730664b8",
+        "totalOrders": 1,
+        "totalRevenue": 5914205,
+        "avgTicket": 5914205,
+        "firstOrder": "2026-08-23T23:34:50.461Z",
+        "lastOrder": "2026-08-23T23:34:50.461Z"
+      },
+      {
+        "_id": "03aa020f255996e71d67d837390ce3ff2b471ee580c585c4fc22036b6213c83c",
+        "totalOrders": 3,
+        "totalRevenue": 5865516,
+        "avgTicket": 1955172,
+        "firstOrder": "2026-07-01T23:06:47.201Z",
+        "lastOrder": "2026-08-18T23:25:53.629Z"
+      },
+      {
+        "_id": "22b6b5f87d18720c80d7cc90d43167c3855536b7b1cdf094fa8ddfed1cf8bed2",
+        "totalOrders": 1,
+        "totalRevenue": 5835349,
+        "avgTicket": 5835349,
+        "firstOrder": "2026-08-21T00:59:59.137Z",
+        "lastOrder": "2026-08-21T00:59:59.137Z"
+      },
+      {
+        "_id": "5e629a03cd44b1a4b575b3513b8b895b77b1be6f2f382f04bce1141fd18d6fa7",
+        "totalOrders": 1,
+        "totalRevenue": 5620000,
+        "avgTicket": 5620000,
+        "firstOrder": "2026-08-27T22:50:57.198Z",
+        "lastOrder": "2026-08-27T22:50:57.198Z"
+      },
+      {
+        "_id": "c5437296493a8c9f8d07e2ac4e1c278f279afbee0970c820fbaf74219a974724",
+        "totalOrders": 1,
+        "totalRevenue": 5440000,
+        "avgTicket": 5440000,
+        "firstOrder": "2026-07-18T01:14:59.867Z",
+        "lastOrder": "2026-07-18T01:14:59.867Z"
+      },
+      {
+        "_id": "f3323665d4ead29a06e35cb602dbe0cece74ab86c74c8687be6259bb1006159c",
+        "totalOrders": 2,
+        "totalRevenue": 5362187,
+        "avgTicket": 2681093.5,
+        "firstOrder": "2026-08-07T00:59:02.769Z",
+        "lastOrder": "2026-08-30T22:56:27.757Z"
+      },
+      {
+        "_id": "579706dedcd988cf08d87d66b5f28847ba338c0488f7fc362e5a0deae12a3dc2",
+        "totalOrders": 1,
+        "totalRevenue": 5227250,
+        "avgTicket": 5227250,
+        "firstOrder": "2026-08-16T00:48:11.420Z",
+        "lastOrder": "2026-08-16T00:48:11.420Z"
+      },
+      {
+        "_id": "c976f17ae319f48635972ed144916a3a8ff7e6ed6c5bd65fd7c668e4d7266093",
+        "totalOrders": 1,
+        "totalRevenue": 5125000,
+        "avgTicket": 5125000,
+        "firstOrder": "2026-07-04T23:55:21.505Z",
+        "lastOrder": "2026-07-04T23:55:21.505Z"
+      },
+      {
+        "_id": "9b521619444def08fc0a885e4920015a0bc32d546f25c7d070548a6f1237e6b8",
+        "totalOrders": 1,
+        "totalRevenue": 4968425,
+        "avgTicket": 4968425,
+        "firstOrder": "2026-08-27T23:56:48.508Z",
+        "lastOrder": "2026-08-27T23:56:48.508Z"
+      },
+      {
+        "_id": "7ec71ab3864c67871455b4d5e1c6e995dea0acdcbc4d0c477bf93918e87555d0",
+        "totalOrders": 1,
+        "totalRevenue": 4967932,
+        "avgTicket": 4967932,
+        "firstOrder": "2026-08-08T23:10:30.385Z",
+        "lastOrder": "2026-08-08T23:10:30.385Z"
+      },
+      {
+        "_id": "1e6cc549989367ddd87db578d8a86ab3ce688484e29938a2b9f27b4980c19de8",
+        "totalOrders": 1,
+        "totalRevenue": 4940000,
+        "avgTicket": 4940000,
+        "firstOrder": "2026-07-18T00:23:39.702Z",
+        "lastOrder": "2026-07-18T00:23:39.702Z"
+      },
+      {
+        "_id": "e198008c1877326699df8acae5d01fc5ec9951e34750a3300d91ce75eeb48ce9",
+        "totalOrders": 1,
+        "totalRevenue": 4785100,
+        "avgTicket": 4785100,
+        "firstOrder": "2026-07-23T23:14:14.013Z",
+        "lastOrder": "2026-07-23T23:14:14.013Z"
+      },
+      {
+        "_id": "a7d7058a07ae07c9d0a68bdf6f7ec66f8288a3c7820247f2b3eb68007566b123",
+        "totalOrders": 1,
+        "totalRevenue": 4745000,
+        "avgTicket": 4745000,
+        "firstOrder": "2026-06-22T02:36:08.459Z",
+        "lastOrder": "2026-06-22T02:36:08.459Z"
+      },
+      {
+        "_id": "cf1bd4a8c36d97d495fe7b6b556b5f10821f18fb623d4fce70d1749891f6d5a4",
+        "totalOrders": 1,
+        "totalRevenue": 4731364,
+        "avgTicket": 4731364,
+        "firstOrder": "2026-08-21T00:48:46.511Z",
+        "lastOrder": "2026-08-21T00:48:46.511Z"
+      },
+      {
+        "_id": "efd572e15e60f3e9fde259f4bba39ef9c47c9b56b945b7e83da142d59b8bee2f",
+        "totalOrders": 1,
+        "totalRevenue": 4719750,
+        "avgTicket": 4719750,
+        "firstOrder": "2026-08-30T23:49:41.111Z",
+        "lastOrder": "2026-08-30T23:49:41.111Z"
+      },
+      {
+        "_id": "c10cba1cf9c34124bacde9c08dd9f73b9b7fb7138fc6d1a0c64335a33f02f37b",
+        "totalOrders": 2,
+        "totalRevenue": 4644000,
+        "avgTicket": 2322000,
+        "firstOrder": "2026-08-06T00:44:24.050Z",
+        "lastOrder": "2026-08-23T02:07:13.071Z"
+      },
+      {
+        "_id": "40897d7dbd5cd4769b57e585993de2b129096a5a873b91f64a86628327f1bd20",
+        "totalOrders": 1,
+        "totalRevenue": 4626223,
+        "avgTicket": 4626223,
+        "firstOrder": "2026-08-21T23:02:26.317Z",
+        "lastOrder": "2026-08-21T23:02:26.317Z"
+      },
+      {
+        "_id": "3db4dcbe0538182fa93059586c1be00095be584b1d45ee7fc21ca87e868f1ef3",
+        "totalOrders": 1,
+        "totalRevenue": 4565000,
+        "avgTicket": 4565000,
+        "firstOrder": "2026-06-29T00:34:51.236Z",
+        "lastOrder": "2026-06-29T00:34:51.236Z"
+      },
+      {
+        "_id": "29e829bb159f5693499d993dbf4c766a22fba1a8dcbe9ad721280b5d5209f937",
+        "totalOrders": 1,
+        "totalRevenue": 4560000,
+        "avgTicket": 4560000,
+        "firstOrder": "2026-07-26T01:05:03.455Z",
+        "lastOrder": "2026-07-26T01:05:03.455Z"
+      },
+      {
+        "_id": "5f15d2c74c65fe6078c54c96bc6ac20329baf49734c923e25b85882705723d22",
+        "totalOrders": 1,
+        "totalRevenue": 4500000,
+        "avgTicket": 4500000,
+        "firstOrder": "2026-06-30T23:36:30.648Z",
+        "lastOrder": "2026-06-30T23:36:30.648Z"
+      },
+      {
+        "_id": "358a94dea11ff5099ea2ff2b1de17b8eca3a1a17dd2bbaefcf5211103a026bdc",
+        "totalOrders": 1,
+        "totalRevenue": 4466000,
+        "avgTicket": 4466000,
+        "firstOrder": "2026-08-26T23:08:31.103Z",
+        "lastOrder": "2026-08-26T23:08:31.103Z"
+      },
+      {
+        "_id": "698254a254960d81fbb90edadf18c2c68a2aa8be9b919cd93a55435acd7b4d68",
+        "totalOrders": 1,
+        "totalRevenue": 4415940,
+        "avgTicket": 4415940,
+        "firstOrder": "2026-09-03T00:19:55.674Z",
+        "lastOrder": "2026-09-03T00:19:55.674Z"
+      },
+      {
+        "_id": "bf00f2966bd65fab084d829849549274a1c3b279596b62154d8c63bba2cd543e",
+        "totalOrders": 1,
+        "totalRevenue": 4415900,
+        "avgTicket": 4415900,
+        "firstOrder": "2026-08-02T00:24:53.882Z",
+        "lastOrder": "2026-08-02T00:24:53.882Z"
+      },
+      {
+        "_id": "68c29543b109c4850ab759879286cf45e1b4cc0c29d6c44ff37c832fa75d0de5",
+        "totalOrders": 1,
+        "totalRevenue": 4400000,
+        "avgTicket": 4400000,
+        "firstOrder": "2026-08-07T23:25:24.717Z",
+        "lastOrder": "2026-08-07T23:25:24.717Z"
+      },
+      {
+        "_id": "15130f15a8a9ffaba4b7cb52ae6af75161c6fdec48199b187e2a739b14dd0ac0",
+        "totalOrders": 1,
+        "totalRevenue": 4365000,
+        "avgTicket": 4365000,
+        "firstOrder": "2026-08-01T00:53:06.884Z",
+        "lastOrder": "2026-08-01T00:53:06.884Z"
+      },
+      {
+        "_id": "152a46ab9c432abd3a479f0b5785f0b6ebe49945e61bf9e7a1d2d7b1e51113ad",
+        "totalOrders": 1,
+        "totalRevenue": 4310799,
+        "avgTicket": 4310799,
+        "firstOrder": "2026-08-24T00:18:10.105Z",
+        "lastOrder": "2026-08-24T00:18:10.105Z"
+      },
+      {
+        "_id": "5daafbe8e802415a45b712c7ea17678a71785916541ba2a798f2ec119847070f",
+        "totalOrders": 1,
+        "totalRevenue": 4300000,
+        "avgTicket": 4300000,
+        "firstOrder": "2026-07-04T23:36:29.026Z",
+        "lastOrder": "2026-07-04T23:36:29.026Z"
+      },
+      {
+        "_id": "c3baef2d17a6a7f45ad474996125233e6cfa3b70829af237694e5080f3bf56ac",
+        "totalOrders": 1,
+        "totalRevenue": 4258200,
+        "avgTicket": 4258200,
+        "firstOrder": "2026-08-05T23:51:03.648Z",
+        "lastOrder": "2026-08-05T23:51:03.648Z"
+      },
+      {
+        "_id": "462a869b465bff8b0684653d0b244ded831d4434118a47f3741ed2a0bdf959ba",
+        "totalOrders": 1,
+        "totalRevenue": 4205657,
+        "avgTicket": 4205657,
+        "firstOrder": "2026-08-16T01:30:36.151Z",
+        "lastOrder": "2026-08-16T01:30:36.151Z"
+      },
+      {
+        "_id": "a1967d6ed9b6b54cf6b2bbc1eae70327201d573fe87da79192ed2d709a3f122c",
+        "totalOrders": 1,
+        "totalRevenue": 4140000,
+        "avgTicket": 4140000,
+        "firstOrder": "2026-07-02T00:11:45.107Z",
+        "lastOrder": "2026-07-02T00:11:45.107Z"
+      },
+      {
+        "_id": "155b69f243643f5255b09c7320dda01617608e731d183a7fdf747be566c5cfc4",
+        "totalOrders": 2,
+        "totalRevenue": 4105400,
+        "avgTicket": 2052700,
+        "firstOrder": "2026-07-05T00:52:14.358Z",
+        "lastOrder": "2026-08-08T00:53:21.825Z"
+      },
+      {
+        "_id": "440d9698f4de9c7bda1e791a751f08c90808d2d480e3b0e8c3be871388a2a7b9",
+        "totalOrders": 1,
+        "totalRevenue": 4100516,
+        "avgTicket": 4100516,
+        "firstOrder": "2026-08-27T00:15:46.087Z",
+        "lastOrder": "2026-08-27T00:15:46.087Z"
+      },
+      {
+        "_id": "faa0e8bc38be7b4cbd24c3d272759ba4f63887293e546c2b2fec399b7eb7f97f",
+        "totalOrders": 1,
+        "totalRevenue": 4100000,
+        "avgTicket": 4100000,
+        "firstOrder": "2026-08-28T23:39:45.937Z",
+        "lastOrder": "2026-08-28T23:39:45.937Z"
+      },
+      {
+        "_id": "0428888e3b1db6c04e67bc00dae1f728b7f25ab46a3edfa4b4e8bc1cbb718ec5",
+        "totalOrders": 1,
+        "totalRevenue": 4085000,
+        "avgTicket": 4085000,
+        "firstOrder": "2026-06-27T00:20:16.289Z",
+        "lastOrder": "2026-06-27T00:20:16.289Z"
+      },
+      {
+        "_id": "ac47f50df181df7f0f078defbd69097ed7ff035ec0e8c4c5c73685dbd7ce3047",
+        "totalOrders": 1,
+        "totalRevenue": 4080000,
+        "avgTicket": 4080000,
+        "firstOrder": "2026-07-25T00:05:17.142Z",
+        "lastOrder": "2026-07-25T00:05:17.142Z"
+      },
+      {
+        "_id": "48455e4231e605a29c523b99345c57adcd1339c6de3caba28fc42c4517cb50f5",
+        "totalOrders": 1,
+        "totalRevenue": 4050000,
+        "avgTicket": 4050000,
+        "firstOrder": "2026-08-12T23:57:09.839Z",
+        "lastOrder": "2026-08-12T23:57:09.839Z"
+      },
+      {
+        "_id": "d835ea197d3f69317b592b2a81e4b1f00179a88c02753cca48989570a5ab7ee6",
+        "totalOrders": 1,
+        "totalRevenue": 4047900,
+        "avgTicket": 4047900,
+        "firstOrder": "2026-08-07T00:24:18.760Z",
+        "lastOrder": "2026-08-07T00:24:18.760Z"
+      },
+      {
+        "_id": "72b421e3952a6da8ddd328ff2cdc63134601b7d2725efb69ba076f1ff76fc74a",
+        "totalOrders": 1,
+        "totalRevenue": 4045000,
+        "avgTicket": 4045000,
+        "firstOrder": "2026-06-25T23:41:33.991Z",
+        "lastOrder": "2026-06-25T23:41:33.991Z"
+      },
+      {
+        "_id": "dfa91d6b3c18c10d357d3c6bf85fc9812c4d0b81ba97e913094fdae19eeee422",
+        "totalOrders": 1,
+        "totalRevenue": 4000000,
+        "avgTicket": 4000000,
+        "firstOrder": "2026-08-31T02:24:20.567Z",
+        "lastOrder": "2026-08-31T02:24:20.567Z"
+      },
+      {
+        "_id": "54e838cc2e0501ce43933b246dc9b3f0107c552a8db4f4f9a495aec050b56c8d",
+        "totalOrders": 1,
+        "totalRevenue": 4000000,
+        "avgTicket": 4000000,
+        "firstOrder": "2026-07-05T01:21:26.171Z",
+        "lastOrder": "2026-07-05T01:21:26.171Z"
+      },
+      {
+        "_id": "2a88835f0c95a1e7d04cce14c4810238676338d2585b812115ee3bac381cb10e",
+        "totalOrders": 1,
+        "totalRevenue": 3995400,
+        "avgTicket": 3995400,
+        "firstOrder": "2026-08-01T01:09:18.292Z",
+        "lastOrder": "2026-08-01T01:09:18.292Z"
+      },
+      {
+        "_id": "08d1ae561a6b011ad3e289492665d4a550c96ef7959f970585b3c7a10ed05909",
+        "totalOrders": 1,
+        "totalRevenue": 3990000,
+        "avgTicket": 3990000,
+        "firstOrder": "2026-08-08T01:13:51.165Z",
+        "lastOrder": "2026-08-08T01:13:51.165Z"
+      },
+      {
+        "_id": "13d35df0d4ce98794c68816584fe4226cc2b6c7321f86a56862cfcc7611777b5",
+        "totalOrders": 1,
+        "totalRevenue": 3950000,
+        "avgTicket": 3950000,
+        "firstOrder": "2026-07-06T00:40:12.558Z",
+        "lastOrder": "2026-07-06T00:40:12.558Z"
+      },
+      {
+        "_id": "92f8a2dae42aa8f745c724a77c3e8613262d0ca846eec0d9ea02b8f1bfc5829b",
+        "totalOrders": 1,
+        "totalRevenue": 3950000,
+        "avgTicket": 3950000,
+        "firstOrder": "2026-08-14T02:03:55.673Z",
+        "lastOrder": "2026-08-14T02:03:55.673Z"
+      },
+      {
+        "_id": "ef946d4f8d28271037656fa6f2f00e90a6f3ca146fdc1b75da5a8ba7e65f5d50",
+        "totalOrders": 1,
+        "totalRevenue": 3932289,
+        "avgTicket": 3932289,
+        "firstOrder": "2026-08-13T23:44:12.616Z",
+        "lastOrder": "2026-08-13T23:44:12.616Z"
+      },
+      {
+        "_id": "a5555135f579ee6740ff49c25382ea444591bb41371228cdf52afd3b900a3750",
+        "totalOrders": 1,
+        "totalRevenue": 3922200,
+        "avgTicket": 3922200,
+        "firstOrder": "2026-07-28T23:16:24.955Z",
+        "lastOrder": "2026-07-28T23:16:24.955Z"
+      },
+      {
+        "_id": "22763fb51fbc00695ad7c1026fc09d58eddad2810428fb9429706072dc453bc7",
+        "totalOrders": 2,
+        "totalRevenue": 3900000,
+        "avgTicket": 1950000,
+        "firstOrder": "2026-08-07T23:20:30.362Z",
+        "lastOrder": "2026-08-28T23:42:16.562Z"
+      },
+      {
+        "_id": "7d28ff9f20ebc13658e8cd4096e0b17226de317065526e671ba43ddcae6f7430",
+        "totalOrders": 1,
+        "totalRevenue": 3900000,
+        "avgTicket": 3900000,
+        "firstOrder": "2026-08-14T00:39:42.049Z",
+        "lastOrder": "2026-08-14T00:39:42.049Z"
+      },
+      {
+        "_id": "0173ab4616a0e06f73f50622e14fb55217222490ca7d579db489c0da0ca130cf",
+        "totalOrders": 1,
+        "totalRevenue": 3800000,
+        "avgTicket": 3800000,
+        "firstOrder": "2026-07-06T01:22:50.831Z",
+        "lastOrder": "2026-07-06T01:22:50.831Z"
+      },
+      {
+        "_id": "27f5302d903125df1bb955965e49b1e7e3df8a0b3f5a486a0bb5d201d2d07ae3",
+        "totalOrders": 1,
+        "totalRevenue": 3795000,
+        "avgTicket": 3795000,
+        "firstOrder": "2026-06-21T00:39:20.263Z",
+        "lastOrder": "2026-06-21T00:39:20.263Z"
+      },
+      {
+        "_id": "1ae4c0eac6f1022a6bcc05fd890ad4cc28c15c5b91c9d95a797057ab6eb9a35c",
+        "totalOrders": 1,
+        "totalRevenue": 3785091,
+        "avgTicket": 3785091,
+        "firstOrder": "2026-08-24T00:28:14.844Z",
+        "lastOrder": "2026-08-24T00:28:14.844Z"
+      },
+      {
+        "_id": "99cbd0307f15ecbccc5cb8ecb186d52d6425d340b37efe60c98705b61372734b",
+        "totalOrders": 1,
+        "totalRevenue": 3750000,
+        "avgTicket": 3750000,
+        "firstOrder": "2026-07-06T00:29:58.564Z",
+        "lastOrder": "2026-07-06T00:29:58.564Z"
+      },
+      {
+        "_id": "3902e858d2beb00c44b5403ad2345fc18318ee8c42daa80ee0c95b546ed401d1",
+        "totalOrders": 1,
+        "totalRevenue": 3645000,
+        "avgTicket": 3645000,
+        "firstOrder": "2026-06-24T14:44:53.904Z",
+        "lastOrder": "2026-06-24T14:44:53.904Z"
+      },
+      {
+        "_id": "a6e96b40a8d2a280cbae9b9b3f5e78ca00166d40979df266abe106a450d330e5",
+        "totalOrders": 1,
+        "totalRevenue": 3465000,
+        "avgTicket": 3465000,
+        "firstOrder": "2026-06-28T23:52:26.178Z",
+        "lastOrder": "2026-06-28T23:52:26.178Z"
+      },
+      {
+        "_id": "bc25bfd76432c55a9aedb892d4fcd59bf1daaf9607ef3a5f074cf11ed59e0d73",
+        "totalOrders": 1,
+        "totalRevenue": 2800000,
+        "avgTicket": 2800000,
+        "firstOrder": "2026-07-02T15:01:45.836Z",
+        "lastOrder": "2026-07-02T15:01:45.836Z"
+      },
+      {
+        "_id": "7cf4c973aa7f6cc47688dec5621a22d9f145d2f2db63bf3216c4ae3e6ff3173b",
+        "totalOrders": 1,
+        "totalRevenue": 2786248,
+        "avgTicket": 2786248,
+        "firstOrder": "2026-08-19T23:26:27.599Z",
+        "lastOrder": "2026-08-19T23:26:27.599Z"
+      },
+      {
+        "_id": "fca25a263a218e54f9aa89f376fc733c940b08e68e768dd4461304fd893ab81f",
+        "totalOrders": 1,
+        "totalRevenue": 2750000,
+        "avgTicket": 2750000,
+        "firstOrder": "2026-07-30T00:03:33.863Z",
+        "lastOrder": "2026-07-30T00:03:33.863Z"
+      },
+      {
+        "_id": "5fdfb78a22d1f0814078fb14701acb3e4882af7cb0120320ce5093502e46e911",
+        "totalOrders": 1,
+        "totalRevenue": 2675000,
+        "avgTicket": 2675000,
+        "firstOrder": "2026-07-30T00:46:03.021Z",
+        "lastOrder": "2026-07-30T00:46:03.021Z"
+      },
+      {
+        "_id": "15c142528b8b9683e0289f6ef06f38c87035394f336e339709578b4ba7d3e181",
+        "totalOrders": 1,
+        "totalRevenue": 2418253,
+        "avgTicket": 2418253,
+        "firstOrder": "2026-08-16T23:03:11.341Z",
+        "lastOrder": "2026-08-16T23:03:11.341Z"
+      },
+      {
+        "_id": "f9ddac4ecbba012e612ddcf4c0684ef664eb3a5bee51c78ba9384c9ac2b224d0",
+        "totalOrders": 1,
+        "totalRevenue": 2418253,
+        "avgTicket": 2418253,
+        "firstOrder": "2026-08-17T02:07:27.581Z",
+        "lastOrder": "2026-08-17T02:07:27.581Z"
+      },
+      {
+        "_id": "b47c68ab317f39a1d16b3830502285af261490d0d606d99632a06e264ccb58d4",
+        "totalOrders": 1,
+        "totalRevenue": 2375000,
+        "avgTicket": 2375000,
+        "firstOrder": "2026-08-11T23:12:42.422Z",
+        "lastOrder": "2026-08-11T23:12:42.422Z"
+      },
+      {
+        "_id": "5f6cb4e83e4e808f9d99547b46d20cd7e056bb1e9698a5ba63c631519eacaa35",
+        "totalOrders": 1,
+        "totalRevenue": 2373700,
+        "avgTicket": 2373700,
+        "firstOrder": "2026-07-09T23:17:51.838Z",
+        "lastOrder": "2026-07-09T23:17:51.838Z"
+      },
+      {
+        "_id": "74f403ad9c780b334b7efc541f534d93f3733ac1eb315b76603f4a42d8001faf",
+        "totalOrders": 1,
+        "totalRevenue": 2313112,
+        "avgTicket": 2313112,
+        "firstOrder": "2026-08-12T00:08:04.375Z",
+        "lastOrder": "2026-08-12T00:08:04.375Z"
+      },
+      {
+        "_id": "bb6cec878b0fd1adaf3daaa4ec07696b3f029ffdcaba0b0c903bb7f15d68b66e",
+        "totalOrders": 1,
+        "totalRevenue": 2283750,
+        "avgTicket": 2283750,
+        "firstOrder": "2026-08-29T01:09:00.453Z",
+        "lastOrder": "2026-08-29T01:09:00.453Z"
+      },
+      {
+        "_id": "bde66245068135e84106a50cdc4494c6d18c8edc8509de87ec1899efce574ee9",
+        "totalOrders": 1,
+        "totalRevenue": 2207970,
+        "avgTicket": 2207970,
+        "firstOrder": "2026-08-08T01:29:13.130Z",
+        "lastOrder": "2026-08-08T01:29:13.130Z"
+      },
+      {
+        "_id": "11b367dd2ecbdb933f11b66dc0ec3271d66d07dff055feacdd12654978592fdd",
+        "totalOrders": 1,
+        "totalRevenue": 2207625,
+        "avgTicket": 2207625,
+        "firstOrder": "2026-08-29T23:49:18.997Z",
+        "lastOrder": "2026-08-29T23:49:18.997Z"
+      },
+      {
+        "_id": "11b98174f4864ccdf9f2be72380556f6f7ad55fb7b3d68bd391fb8468f195f94",
+        "totalOrders": 1,
+        "totalRevenue": 2197456,
+        "avgTicket": 2197456,
+        "firstOrder": "2026-08-29T23:35:49.949Z",
+        "lastOrder": "2026-08-29T23:35:49.949Z"
+      },
+      {
+        "_id": "b615fa7703cb892ecf50d2b10bda1a3c7cd69db124daaf794a42241fa3ad9268",
+        "totalOrders": 1,
+        "totalRevenue": 2196400,
+        "avgTicket": 2196400,
+        "firstOrder": "2026-07-25T00:02:16.038Z",
+        "lastOrder": "2026-07-25T00:02:16.038Z"
+      },
+      {
+        "_id": "dbde3e906a9a5b2a4cc67798bdf46010eef158a85194aa2ee000e663748e2ea5",
+        "totalOrders": 1,
+        "totalRevenue": 2150000,
+        "avgTicket": 2150000,
+        "firstOrder": "2026-06-26T23:18:00.561Z",
+        "lastOrder": "2026-06-26T23:18:00.561Z"
+      },
+      {
+        "_id": "e986147fbf9669d4255766721616b5f205ecd1b230395f0e46ab2aa2e21283a0",
+        "totalOrders": 1,
+        "totalRevenue": 2102829,
+        "avgTicket": 2102829,
+        "firstOrder": "2026-08-14T01:54:43.932Z",
+        "lastOrder": "2026-08-14T01:54:43.932Z"
+      },
+      {
+        "_id": "3e836297ed3d864adeaf4a3112733bff53532e07dbc2938c25c45c860705a8d6",
+        "totalOrders": 1,
+        "totalRevenue": 2076543,
+        "avgTicket": 2076543,
+        "firstOrder": "2026-08-20T00:37:23.880Z",
+        "lastOrder": "2026-08-20T00:37:23.880Z"
+      },
+      {
+        "_id": "99ffcddeefb6f6a03302aab1eb4d440ef2bf76ec54164e18a4004a1db861a1aa",
+        "totalOrders": 1,
+        "totalRevenue": 2045000,
+        "avgTicket": 2045000,
+        "firstOrder": "2026-06-20T00:09:42.377Z",
+        "lastOrder": "2026-06-20T00:09:42.377Z"
+      },
+      {
+        "_id": "e8187cf213275746cdc276631aebcf46e2ab2926d63d99b3af934fcec15594c6",
+        "totalOrders": 1,
+        "totalRevenue": 2045000,
+        "avgTicket": 2045000,
+        "firstOrder": "2026-06-20T23:48:48.335Z",
+        "lastOrder": "2026-06-20T23:48:48.335Z"
+      },
+      {
+        "_id": "c625bec7cf7ac0e093f103cad8fe0400cef418ff8ca884fc44483fadc505908f",
+        "totalOrders": 1,
+        "totalRevenue": 2000000,
+        "avgTicket": 2000000,
+        "firstOrder": "2026-08-09T02:35:09.301Z",
+        "lastOrder": "2026-08-09T02:35:09.301Z"
+      },
+      {
+        "_id": "ccf5627bb9b66c4ab591c8445de1263e0bee1b22bb72b4b97e95264906451047",
+        "totalOrders": 1,
+        "totalRevenue": 2000000,
+        "avgTicket": 2000000,
+        "firstOrder": "2026-07-06T00:25:06.522Z",
+        "lastOrder": "2026-07-06T00:25:06.522Z"
+      },
+      {
+        "_id": "0f490d5e36792d5bc0709e839804ba0020bf4e30d474afbe5ea52bf7feb985ee",
+        "totalOrders": 1,
+        "totalRevenue": 2000000,
+        "avgTicket": 2000000,
+        "firstOrder": "2026-07-26T01:05:26.835Z",
+        "lastOrder": "2026-07-26T01:05:26.835Z"
+      },
+      {
+        "_id": "3250cc191c50df5ffd4ad81f6622ca4f47c20f04d956630213b9d9b0e3ac78aa",
+        "totalOrders": 1,
+        "totalRevenue": 2000000,
+        "avgTicket": 2000000,
+        "firstOrder": "2026-07-02T15:33:09.829Z",
+        "lastOrder": "2026-07-02T15:33:09.829Z"
+      },
+      {
+        "_id": "e964d566057b33c26d5fd11cecea5169072e9e06c01ff0d168b0b0bcec75c34d",
+        "totalOrders": 1,
+        "totalRevenue": 1900000,
+        "avgTicket": 1900000,
+        "firstOrder": "2026-06-29T00:06:00.272Z",
+        "lastOrder": "2026-06-29T00:06:00.272Z"
+      },
+      {
+        "_id": "553e98cec2f922212f624e5278911d55d88510c6a5037d29ff0257f438873e60",
+        "totalOrders": 1,
+        "totalRevenue": 1800000,
+        "avgTicket": 1800000,
+        "firstOrder": "2026-07-15T23:49:42.766Z",
+        "lastOrder": "2026-07-15T23:49:42.766Z"
+      },
+      {
+        "_id": "a00ff8e59ad45ed363bd3ac0d858415e0f9a5b5f859a75657c418e481b6f0797",
+        "totalOrders": 1,
+        "totalRevenue": 1800000,
+        "avgTicket": 1800000,
+        "firstOrder": "2026-08-12T23:26:53.590Z",
+        "lastOrder": "2026-08-12T23:26:53.590Z"
+      }
+    ],
+    "top10Share": 26.4,
+    "totalRevenue": 752452628
+  },
+  "upselling": {
+    "items": [
+      {
+        "_id": {
+          "source": "best_sellers",
+          "itemName": "YSIBOOM"
+        },
+        "quantity": 4,
+        "revenue": 8810000,
+        "orderCount": 3
+      },
+      {
+        "_id": {
+          "source": "upsell_sheet",
+          "itemName": "KHEBURGER"
+        },
+        "quantity": 4,
+        "revenue": 8300000,
+        "orderCount": 3
+      },
+      {
+        "_id": {
+          "source": "best_sellers",
+          "itemName": "KHEBURGER"
+        },
+        "quantity": 3,
+        "revenue": 5800000,
+        "orderCount": 3
+      },
+      {
+        "_id": {
+          "source": "best_sellers",
+          "itemName": "TYRON"
+        },
+        "quantity": 3,
+        "revenue": 5690000,
+        "orderCount": 3
+      },
+      {
+        "_id": {
+          "source": "upsell_sheet",
+          "itemName": "TYRON"
+        },
+        "quantity": 3,
+        "revenue": 5150000,
+        "orderCount": 3
+      },
+      {
+        "_id": {
+          "source": "best_sellers",
+          "itemName": "ZEBALLON CRISPY"
+        },
+        "quantity": 2,
+        "revenue": 4200000,
+        "orderCount": 2
+      },
+      {
+        "_id": {
+          "source": "best_sellers",
+          "itemName": "JEEZY"
+        },
+        "quantity": 2,
+        "revenue": 4200000,
+        "orderCount": 2
+      },
+      {
+        "_id": {
+          "source": "best_sellers",
+          "itemName": "RABREK"
+        },
+        "quantity": 2,
+        "revenue": 4050000,
+        "orderCount": 2
+      },
+      {
+        "_id": {
+          "source": "upsell_sheet",
+          "itemName": "JEEZY"
+        },
+        "quantity": 2,
+        "revenue": 4000000,
+        "orderCount": 2
+      },
+      {
+        "_id": {
+          "source": "upsell_sheet",
+          "itemName": "Papas Clásicas"
+        },
+        "quantity": 1,
+        "revenue": 1200000,
+        "orderCount": 1
+      }
+    ],
+    "totalUpsellRevenue": 51400000,
+    "totalUpsellQuantity": 26,
+    "ordersWithUpsell": 18,
+    "totalValidOrders": 161
+  },
+  "tia": {
+    "bySource": [
+      {
+        "_id": "sil",
+        "count": 24
+      },
+      {
+        "_id": "daily-cron",
+        "count": 1615
+      }
+    ],
+    "recentActive": [
+      {
+        "_id": "6a9919658abb6b8344d00a4e",
+        "type": "historical",
+        "severity": "critical",
+        "category": "revenue",
+        "title": "Tus ingresos semanales subieron 67%",
+        "description": "Pasaron de 75712888 a 126302496 vs semana anterior. Buen crecimiento.",
+        "metric": "revenue.weekly",
+        "currentValue": 126302496
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a4f",
+        "type": "central_tendency",
+        "severity": "critical",
+        "category": "conversion",
+        "title": "Muy baja tasa de recompra",
+        "description": "Solo 24 de 122 clientes (20%) realizaron más de un pedido en los últimos 90 días. 98 clientes compraron una sola vez y no regresaron.",
+        "metric": "recurrence.repeatRate",
+        "currentValue": 19.7,
+        "recommendation": "Implementar programa de fidelización con rewards por segunda compra. Considerar descuento de bienvenida post-primera compra."
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a50",
+        "type": "trend",
+        "severity": "warning",
+        "category": "orders",
+        "title": "Tendencia negativa en pedidos diarios",
+        "description": "pedidos diarios muestra una tendencia a la baja en los últimos 30 días.",
+        "metric": "orders.daily",
+        "currentValue": -0.05116796440489433,
+        "recommendation": "Identificar la causa del declive y evaluar cambios en menú, precios o promociones."
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a51",
+        "type": "trend",
+        "severity": "warning",
+        "category": "revenue",
+        "title": "Tendencia negativa en ingresos diarios",
+        "description": "ingresos diarios muestra una tendencia a la baja en los últimos 30 días.",
+        "metric": "revenue.daily",
+        "currentValue": -266135.63715239154,
+        "recommendation": "Identificar la causa del declive y evaluar cambios en menú, precios o promociones."
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a52",
+        "type": "trend",
+        "severity": "warning",
+        "category": "club",
+        "title": "Tendencia negativa en miembros nuevos diarios",
+        "description": "miembros nuevos diarios muestra una tendencia a la baja en los últimos 30 días.",
+        "metric": "members.daily",
+        "currentValue": -0.04849833147942158,
+        "recommendation": "Identificar la causa del declive y evaluar cambios en menú, precios o promociones."
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a53",
+        "type": "historical",
+        "severity": "warning",
+        "category": "orders",
+        "title": "Tus pedidos semanales subieron 50%",
+        "description": "Pasaron de 16 a 24 vs semana anterior. Buen crecimiento.",
+        "metric": "orders.weekly",
+        "currentValue": 24
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a54",
+        "type": "historical",
+        "severity": "warning",
+        "category": "operations",
+        "title": "Abandono de clientes por encima de lo esperado",
+        "description": "Tasa de abandono: 27% (26 de 98 clientes activos no regresaron en los últimos 30 días). 2 clientes recurrentes están en riesgo de abandono (sin pedidos en >30 días). 47 clientes nuevos hicieron un solo pedido y no regresaron",
+        "metric": "churn.rate",
+        "currentValue": 26.5,
+        "recommendation": "Implementar campaña de reenganche para clientes inactivos: reward de bienvenida, descuento por tiempo limitado o notificación push."
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a55",
+        "type": "distribution",
+        "severity": "info",
+        "category": "revenue",
+        "title": "Hay días excepcionales en tus ingresos diarios",
+        "description": "La mayoría de los días son moderados pero algunos se disparan mucho por encima de lo normal. Revisá qué causó esos picos.",
+        "metric": "revenue.daily",
+        "currentValue": 35059575.300000004
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a56",
+        "type": "central_tendency",
+        "severity": "info",
+        "category": "club",
+        "title": "Tus miembros nuevos diarios son irregulares",
+        "description": "Algunos días tenés valores muy altos que suben el promedio. Revisá qué días se disparan para entender el patrón.",
+        "metric": "members.daily",
+        "currentValue": 1.4666666666666666
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a57",
+        "type": "distribution",
+        "severity": "info",
+        "category": "club",
+        "title": "Hay días excepcionales en tus miembros nuevos diarios",
+        "description": "La mayoría de los días son moderados pero algunos se disparan mucho por encima de lo normal. Revisá qué causó esos picos.",
+        "metric": "members.daily",
+        "currentValue": 3
+      }
+    ]
+  },
+  "cis": {
+    "segments": [
+      {
+        "_id": "NEW",
+        "count": 129,
+        "avgOrderCount": 1.0077519379844961,
+        "avgTotalSpent": 4547023.2558139535,
+        "avgHealthScore": 43.945736434108525
+      },
+      {
+        "_id": "VIP",
+        "count": 6,
+        "avgOrderCount": 17.166666666666668,
+        "avgTotalSpent": 39225283.333333336,
+        "avgHealthScore": 43.5
+      },
+      {
+        "_id": "HIGH_POTENTIAL",
+        "count": 3,
+        "avgOrderCount": 3,
+        "avgTotalSpent": 8521666.666666666,
+        "avgHealthScore": 67.66666666666667
+      },
+      {
+        "_id": "DORMANT",
+        "count": 2,
+        "avgOrderCount": 2,
+        "avgTotalSpent": 11100000,
+        "avgHealthScore": 64.5
+      }
+    ],
+    "healthScoreDistribution": [
+      {
+        "_id": 0,
+        "count": 12,
+        "avgOrderCount": 0,
+        "avgTotalSpent": 0
+      },
+      {
+        "_id": 20,
+        "count": 34,
+        "avgOrderCount": 1,
+        "avgTotalSpent": 2099000
+      },
+      {
+        "_id": 40,
+        "count": 78,
+        "avgOrderCount": 2.2948717948717947,
+        "avgTotalSpent": 7708739.743589744
+      },
+      {
+        "_id": 60,
+        "count": 16,
+        "avgOrderCount": 2.0625,
+        "avgTotalSpent": 12314687.5
+      }
+    ]
+  },
+  "feedback": {
+    "total": 61,
+    "withComments": 0,
+    "comments": []
+  },
+  "products": {
+    "coOccurrence": []
+  },
+  "temporal": {
+    "ticketByHour": [
+      {
+        "_id": 0,
+        "avgTicket": 4646320.158730159,
+        "count": 63,
+        "totalRevenue": 292718170
+      },
+      {
+        "_id": 1,
+        "avgTicket": 4485942.307692308,
+        "count": 26,
+        "totalRevenue": 116634500
+      },
+      {
+        "_id": 2,
+        "avgTicket": 3194652.875,
+        "count": 8,
+        "totalRevenue": 25557223
+      },
+      {
+        "_id": 14,
+        "avgTicket": 3645000,
+        "count": 1,
+        "totalRevenue": 3645000
+      },
+      {
+        "_id": 15,
+        "avgTicket": 8428371.42857143,
+        "count": 7,
+        "totalRevenue": 58998600
+      },
+      {
+        "_id": 16,
+        "avgTicket": 5151930,
+        "count": 1,
+        "totalRevenue": 5151930
+      },
+      {
+        "_id": 17,
+        "avgTicket": 4100516,
+        "count": 1,
+        "totalRevenue": 4100516
+      },
+      {
+        "_id": 22,
+        "avgTicket": 3678262.3333333335,
+        "count": 3,
+        "totalRevenue": 11034787
+      },
+      {
+        "_id": 23,
+        "avgTicket": 4600233.37254902,
+        "count": 51,
+        "totalRevenue": 234611902
+      }
+    ],
+    "ticketByDayOfWeek": [
+      {
+        "_id": 1,
+        "avgTicket": 5149280.517241379,
+        "count": 29,
+        "totalRevenue": 149329135
+      },
+      {
+        "_id": 2,
+        "avgTicket": 3679740.722222222,
+        "count": 18,
+        "totalRevenue": 66235333
+      },
+      {
+        "_id": 3,
+        "avgTicket": 3708659.8333333335,
+        "count": 6,
+        "totalRevenue": 22251959
+      },
+      {
+        "_id": 4,
+        "avgTicket": 4080904.4444444445,
+        "count": 18,
+        "totalRevenue": 73456280
+      },
+      {
+        "_id": 5,
+        "avgTicket": 4849833.777777778,
+        "count": 27,
+        "totalRevenue": 130945512
+      },
+      {
+        "_id": 6,
+        "avgTicket": 5178248.888888889,
+        "count": 27,
+        "totalRevenue": 139812720
+      },
+      {
+        "_id": 7,
+        "avgTicket": 4733935.805555556,
+        "count": 36,
+        "totalRevenue": 170421689
+      }
+    ]
+  },
+  "statistics": {
+    "ticketPercentiles": {
+      "p10": 2283750,
+      "p25": 4731364,
+      "p50": 4675000,
+      "p75": 3400000,
+      "p90": 4085000,
+      "count": 161
+    },
+    "revenueDistribution": {
+      "cumulativeRevenue": [
+        1800000,
+        3600000,
+        5500000,
+        7500000,
+        9500000,
+        11500000,
+        13500000,
+        15545000,
+        17590000,
+        19666543,
+        21769372,
+        23919372,
+        26115772,
+        28313228,
+        30520853,
+        32728823,
+        35012573,
+        37325685,
+        39699385,
+        42074385,
+        44492638,
+        46910891,
+        49585891,
+        52335891,
+        55122139,
+        57922139,
+        61387139,
+        65032139,
+        68782139,
+        72567230,
+        76362230,
+        80162230,
+        84062230,
+        87962230,
+        91884430,
+        95816719,
+        99766719,
+        103716719,
+        107706719,
+        111702119,
+        115702119,
+        119702119,
+        123747119,
+        127795019,
+        131845019,
+        135925019,
+        140010019,
+        144110019,
+        148210535,
+        152315935,
+        156455935,
+        160661592,
+        164919792,
+        169219792,
+        173530591,
+        177895591,
+        182295591,
+        186711491,
+        191127431,
+        195593431,
+        200093431,
+        204653431,
+        209218431,
+        213844654,
+        218488654,
+        223208404,
+        227939768,
+        232684768,
+        237469868,
+        242409868,
+        247377800,
+        252346225,
+        257471225,
+        262698475,
+        268060662,
+        273500662,
+        279120662,
+        284956011,
+        290821527,
+        296735732,
+        302728832,
+        308728832,
+        314853832,
+        321038332,
+        327338332,
+        333688332,
+        340108332,
+        346679671,
+        353279671,
+        360479671,
+        367679671,
+        374934383,
+        382294283,
+        390024283,
+        397794283,
+        405594283,
+        413584983,
+        421659844,
+        429765501,
+        438019801,
+        446325975,
+        454747803,
+        463313053,
+        471938053,
+        481064353,
+        490211661,
+        499792261,
+        509859561,
+        520044561,
+        531250161,
+        542510161,
+        553926101,
+        566626101,
+        580214101,
+        594229401,
+        610304401,
+        627275998,
+        645565998,
+        666615998,
+        688672748,
+        718658358,
+        752452628
+      ],
+      "customerCount": 122
+    }
+  },
+  "datasets": {
+    "customerAnalytics": [
+      {
+        "_id": null,
+        "customer_id": null,
+        "first_order_date": "2026-06-19T23:33:39.828Z",
+        "last_order_date": "2026-08-31T01:41:03.805Z",
+        "total_orders": 10,
+        "total_revenue": 33794270,
+        "avg_ticket": 3379427,
+        "days_since_last_order": 3.5786696990740743,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "81b88e0f1957e972fb5e3d7034bccb972f11367dc8802ded649086155176e55e",
+        "customer_id": "81b88e0f1957e972fb5e3d7034bccb972f11367dc8802ded649086155176e55e",
+        "first_order_date": "2026-08-08T00:51:46.612Z",
+        "last_order_date": "2026-08-28T23:38:34.548Z",
+        "total_orders": 4,
+        "total_revenue": 29985610,
+        "avg_ticket": 7496402.5,
+        "days_since_last_order": 5.663730543981481,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "6e1617d187af20018724951b77c7fb168496963d129862e7e33d0ac318e3362e",
+        "customer_id": "6e1617d187af20018724951b77c7fb168496963d129862e7e33d0ac318e3362e",
+        "first_order_date": "2026-08-15T01:04:19.459Z",
+        "last_order_date": "2026-08-30T23:50:28.036Z",
+        "total_orders": 2,
+        "total_revenue": 22056750,
+        "avg_ticket": 11028375,
+        "days_since_last_order": 3.6554725810185187,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "cc30c3d748a6d1ffc86181f443d4e0f457caceda7d4c3bbd6c5d7091efc2357d",
+        "customer_id": "cc30c3d748a6d1ffc86181f443d4e0f457caceda7d4c3bbd6c5d7091efc2357d",
+        "first_order_date": "2026-08-13T15:19:10.578Z",
+        "last_order_date": "2026-08-13T15:19:10.578Z",
+        "total_orders": 1,
+        "total_revenue": 21050000,
+        "avg_ticket": 21050000,
+        "days_since_last_order": 21.010535752314816,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "7c41875f821bece1dddd029b25a52ccf458422435b67160ce66e3375076d8519",
+        "customer_id": "7c41875f821bece1dddd029b25a52ccf458422435b67160ce66e3375076d8519",
+        "first_order_date": "2026-08-14T15:16:09.181Z",
+        "last_order_date": "2026-08-14T15:16:09.181Z",
+        "total_orders": 1,
+        "total_revenue": 18290000,
+        "avg_ticket": 18290000,
+        "days_since_last_order": 20.01263525462963,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "df38b77ca1f2f980e1f05c99d90c22680e83a68b95b107136f89c77c395ced10",
+        "customer_id": "df38b77ca1f2f980e1f05c99d90c22680e83a68b95b107136f89c77c395ced10",
+        "first_order_date": "2026-08-07T23:12:34.180Z",
+        "last_order_date": "2026-08-21T23:40:45.495Z",
+        "total_orders": 2,
+        "total_revenue": 16971597,
+        "avg_ticket": 8485798.5,
+        "days_since_last_order": 12.662214953703703,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "81e14c460338dd026baadaa4cc3455a01f68efd729b13647df0146033989d806",
+        "customer_id": "81e14c460338dd026baadaa4cc3455a01f68efd729b13647df0146033989d806",
+        "first_order_date": "2026-08-02T00:53:13.477Z",
+        "last_order_date": "2026-08-04T23:03:42.927Z",
+        "total_orders": 2,
+        "total_revenue": 16075000,
+        "avg_ticket": 8037500,
+        "days_since_last_order": 29.68793912037037,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "2e2c238b359524b7b2a81eb73ed233c7a9aea46ad821e275f4d8ccaaa0d484b0",
+        "customer_id": "2e2c238b359524b7b2a81eb73ed233c7a9aea46ad821e275f4d8ccaaa0d484b0",
+        "first_order_date": "2026-07-25T00:05:11.872Z",
+        "last_order_date": "2026-07-25T00:05:11.872Z",
+        "total_orders": 1,
+        "total_revenue": 14015300,
+        "avg_ticket": 14015300,
+        "days_since_last_order": 40.64524299768519,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "b9653b179691b06af05830ba4adb149b0deb9ea11a1cb8f2e9d760db2029be01",
+        "customer_id": "b9653b179691b06af05830ba4adb149b0deb9ea11a1cb8f2e9d760db2029be01",
+        "first_order_date": "2026-07-15T23:44:42.473Z",
+        "last_order_date": "2026-08-29T00:06:02.294Z",
+        "total_orders": 3,
+        "total_revenue": 13588000,
+        "avg_ticket": 4529333.333333333,
+        "days_since_last_order": 5.644659409722222,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "70b37978b4c0f37a55ede8b4d34b354c4198f1ad21a5f3b2f9d24a19a4656b79",
+        "customer_id": "70b37978b4c0f37a55ede8b4d34b354c4198f1ad21a5f3b2f9d24a19a4656b79",
+        "first_order_date": "2026-08-16T00:38:35.857Z",
+        "last_order_date": "2026-08-16T00:38:35.857Z",
+        "total_orders": 1,
+        "total_revenue": 12700000,
+        "avg_ticket": 12700000,
+        "days_since_last_order": 18.62204872685185,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "0ecb9f11b7dd5b8b9ec0571cb53dc5fcea475dc212dea3fbca1176a631b6840c",
+        "customer_id": "0ecb9f11b7dd5b8b9ec0571cb53dc5fcea475dc212dea3fbca1176a631b6840c",
+        "first_order_date": "2026-07-25T23:40:01.218Z",
+        "last_order_date": "2026-08-15T00:04:48.096Z",
+        "total_orders": 3,
+        "total_revenue": 11415940,
+        "avg_ticket": 3805313.3333333335,
+        "days_since_last_order": 19.64551818287037,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "bb6ec0ee115ee70c6f330d27d4b0096f1bfc8a1af549ccb5865683ba2a1fab08",
+        "customer_id": "bb6ec0ee115ee70c6f330d27d4b0096f1bfc8a1af549ccb5865683ba2a1fab08",
+        "first_order_date": "2026-08-30T01:12:12.012Z",
+        "last_order_date": "2026-08-30T01:12:12.012Z",
+        "total_orders": 1,
+        "total_revenue": 11260000,
+        "avg_ticket": 11260000,
+        "days_since_last_order": 4.598713599537037,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "c063c542a61a765e1ef292828cf4e5f953f057eb18936e6d8f40886abb520ebe",
+        "customer_id": "c063c542a61a765e1ef292828cf4e5f953f057eb18936e6d8f40886abb520ebe",
+        "first_order_date": "2026-08-30T23:57:31.906Z",
+        "last_order_date": "2026-08-30T23:57:31.906Z",
+        "total_orders": 1,
+        "total_revenue": 11205600,
+        "avg_ticket": 11205600,
+        "days_since_last_order": 3.650566678240741,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "f20043140b2f46f16a44f37ee0fc04948fa511c3a90ff3b85e74b72d6828266a",
+        "customer_id": "f20043140b2f46f16a44f37ee0fc04948fa511c3a90ff3b85e74b72d6828266a",
+        "first_order_date": "2026-06-20T23:49:27.806Z",
+        "last_order_date": "2026-06-20T23:49:27.806Z",
+        "total_orders": 1,
+        "total_revenue": 10185000,
+        "avg_ticket": 10185000,
+        "days_since_last_order": 74.6561696875,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "4f45b56067e8702a8a8275912f7a2feb3d7b005f42aadc66d1860395a8ba4a1b",
+        "customer_id": "4f45b56067e8702a8a8275912f7a2feb3d7b005f42aadc66d1860395a8ba4a1b",
+        "first_order_date": "2026-07-30T15:56:15.023Z",
+        "last_order_date": "2026-07-30T15:56:15.023Z",
+        "total_orders": 1,
+        "total_revenue": 10067300,
+        "avg_ticket": 10067300,
+        "days_since_last_order": 34.98478986111111,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "f5aa0f7a97669728c8124645dcc31708b1aa3e5237e213ad414a9b884d364d5f",
+        "customer_id": "f5aa0f7a97669728c8124645dcc31708b1aa3e5237e213ad414a9b884d364d5f",
+        "first_order_date": "2026-07-26T00:15:46.101Z",
+        "last_order_date": "2026-07-26T00:15:46.101Z",
+        "total_orders": 1,
+        "total_revenue": 9580600,
+        "avg_ticket": 9580600,
+        "days_since_last_order": 39.637902384259256,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "2728850b6998105a3fb5f1c1899ca96cb88a2fed4e960590a85d90585a94de04",
+        "customer_id": "2728850b6998105a3fb5f1c1899ca96cb88a2fed4e960590a85d90585a94de04",
+        "first_order_date": "2026-08-06T22:56:24.227Z",
+        "last_order_date": "2026-09-02T00:10:24.624Z",
+        "total_orders": 3,
+        "total_revenue": 9147308,
+        "avg_ticket": 3049102.6666666665,
+        "days_since_last_order": 1.6416231828703705,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "0c8d80e0c201ed23c31bec8a3fe154cfe3ebe573335cb7147552d51c7b18f0b9",
+        "customer_id": "0c8d80e0c201ed23c31bec8a3fe154cfe3ebe573335cb7147552d51c7b18f0b9",
+        "first_order_date": "2026-07-31T23:34:52.601Z",
+        "last_order_date": "2026-07-31T23:34:52.601Z",
+        "total_orders": 1,
+        "total_revenue": 9126300,
+        "avg_ticket": 9126300,
+        "days_since_last_order": 33.666299375,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "1346b199fd17ef7e966487dd92cb780ee1c81d26d3ff845ef0da4319b3903ac8",
+        "customer_id": "1346b199fd17ef7e966487dd92cb780ee1c81d26d3ff845ef0da4319b3903ac8",
+        "first_order_date": "2026-06-21T01:16:10.047Z",
+        "last_order_date": "2026-06-21T01:16:10.047Z",
+        "total_orders": 1,
+        "total_revenue": 8625000,
+        "avg_ticket": 8625000,
+        "days_since_last_order": 74.59595856481481,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "79cc3aa05af6bca3a753f71978130baaa5689ccb980c662f4f7b65cadf467d9a",
+        "customer_id": "79cc3aa05af6bca3a753f71978130baaa5689ccb980c662f4f7b65cadf467d9a",
+        "first_order_date": "2026-06-22T00:00:44.496Z",
+        "last_order_date": "2026-08-17T00:04:27.780Z",
+        "total_orders": 2,
+        "total_revenue": 8565250,
+        "avg_ticket": 4282625,
+        "days_since_last_order": 17.64575332175926,
+        "repeat_customer": true,
+        "club_member": false
+      },
+      {
+        "_id": "864abe4c60b3af444a67d2119c2fc7f80df9fe643f898e157161652b5ce386b2",
+        "customer_id": "864abe4c60b3af444a67d2119c2fc7f80df9fe643f898e157161652b5ce386b2",
+        "first_order_date": "2026-08-26T00:15:02.504Z",
+        "last_order_date": "2026-08-26T00:15:02.504Z",
+        "total_orders": 1,
+        "total_revenue": 8421828,
+        "avg_ticket": 8421828,
+        "days_since_last_order": 8.638406979166668,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "ce830d5d4b7fe3f117e5573cd6c1ddc26883baf9243f771f0747b6f46ef986e0",
+        "customer_id": "ce830d5d4b7fe3f117e5573cd6c1ddc26883baf9243f771f0747b6f46ef986e0",
+        "first_order_date": "2026-08-16T23:52:57.314Z",
+        "last_order_date": "2026-08-29T17:03:52.859Z",
+        "total_orders": 3,
+        "total_revenue": 8306174,
+        "avg_ticket": 2768724.6666666665,
+        "days_since_last_order": 4.937824166666666,
+        "repeat_customer": true,
+        "club_member": false
+      },
+      {
+        "_id": "b6e5abab6295c123939ced5e14e9cb64435930ef8da984f31f9d07ad11455e8a",
+        "customer_id": "b6e5abab6295c123939ced5e14e9cb64435930ef8da984f31f9d07ad11455e8a",
+        "first_order_date": "2026-07-09T01:52:57.801Z",
+        "last_order_date": "2026-08-02T00:28:34.407Z",
+        "total_orders": 2,
+        "total_revenue": 8254300,
+        "avg_ticket": 4127150,
+        "days_since_last_order": 32.6290099537037,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "bad1b157a8eeaee252cbd45afb53e7ab186782f3c3611e676df7e7638bddbbac",
+        "customer_id": "bad1b157a8eeaee252cbd45afb53e7ab186782f3c3611e676df7e7638bddbbac",
+        "first_order_date": "2026-08-05T01:15:25.803Z",
+        "last_order_date": "2026-08-27T01:02:45.192Z",
+        "total_orders": 2,
+        "total_revenue": 8105657,
+        "avg_ticket": 4052828.5,
+        "days_since_last_order": 7.605274016203704,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "f7577cb441dbafbafafd3dd9d3ae703a4ed29a21dcbb531e0c90091386cecf05",
+        "customer_id": "f7577cb441dbafbafafd3dd9d3ae703a4ed29a21dcbb531e0c90091386cecf05",
+        "first_order_date": "2026-08-27T23:54:02.834Z",
+        "last_order_date": "2026-08-27T23:54:02.834Z",
+        "total_orders": 1,
+        "total_revenue": 8074861,
+        "avg_ticket": 8074861,
+        "days_since_last_order": 6.652986493055556,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "e35d4c0cc19238e5fe6ee05dba134743ca79fbba569bd55e156a8ada1ea7120c",
+        "customer_id": "e35d4c0cc19238e5fe6ee05dba134743ca79fbba569bd55e156a8ada1ea7120c",
+        "first_order_date": "2026-08-06T00:03:46.516Z",
+        "last_order_date": "2026-08-06T00:03:46.516Z",
+        "total_orders": 1,
+        "total_revenue": 7990700,
+        "avg_ticket": 7990700,
+        "days_since_last_order": 28.64623091435185,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "9c65d9cf893134bac872c2cb4bf31e1d78f535c090b2b66a9ef03da88cdf78bd",
+        "customer_id": "9c65d9cf893134bac872c2cb4bf31e1d78f535c090b2b66a9ef03da88cdf78bd",
+        "first_order_date": "2026-08-07T00:33:59.799Z",
+        "last_order_date": "2026-08-07T00:33:59.799Z",
+        "total_orders": 1,
+        "total_revenue": 7800000,
+        "avg_ticket": 7800000,
+        "days_since_last_order": 27.625243842592592,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "91db898d3f21cd05b7b42558da4065049e2b4a03855ffc3e6e2bbd87ac2d4185",
+        "customer_id": "91db898d3f21cd05b7b42558da4065049e2b4a03855ffc3e6e2bbd87ac2d4185",
+        "first_order_date": "2026-06-24T23:35:46.207Z",
+        "last_order_date": "2026-06-24T23:35:46.207Z",
+        "total_orders": 1,
+        "total_revenue": 7770000,
+        "avg_ticket": 7770000,
+        "days_since_last_order": 70.66567893518518,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "b277d5c2b57f82766d5f2031726a354643728d71ca095a51edfa87a3f71b96db",
+        "customer_id": "b277d5c2b57f82766d5f2031726a354643728d71ca095a51edfa87a3f71b96db",
+        "first_order_date": "2026-07-26T01:04:44.299Z",
+        "last_order_date": "2026-08-03T00:58:45.716Z",
+        "total_orders": 2,
+        "total_revenue": 7730000,
+        "avg_ticket": 3865000,
+        "days_since_last_order": 31.608045729166665,
+        "repeat_customer": true,
+        "club_member": false
+      },
+      {
+        "_id": "bd67c0f0012c04d0517819c5b7757f775129f92caf5c11a61a444c962cc10652",
+        "customer_id": "bd67c0f0012c04d0517819c5b7757f775129f92caf5c11a61a444c962cc10652",
+        "first_order_date": "2026-08-10T02:18:32.211Z",
+        "last_order_date": "2026-08-25T16:47:08.090Z",
+        "total_orders": 2,
+        "total_revenue": 7359900,
+        "avg_ticket": 3679950,
+        "days_since_last_order": 8.9494534375,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "57076fc77ff71a96831cd8b51c8d82c690dbbeacb3bfa0b007898d22f2242f8d",
+        "customer_id": "57076fc77ff71a96831cd8b51c8d82c690dbbeacb3bfa0b007898d22f2242f8d",
+        "first_order_date": "2026-07-31T23:40:33.813Z",
+        "last_order_date": "2026-08-16T00:52:35.332Z",
+        "total_orders": 2,
+        "total_revenue": 7254712,
+        "avg_ticket": 3627356,
+        "days_since_last_order": 18.612332581018517,
+        "repeat_customer": true,
+        "club_member": false
+      },
+      {
+        "_id": "76b0a3399c9a8a328bfe30fb72e84551b32df1d359826f1afdf1e6b4503dc1fa",
+        "customer_id": "76b0a3399c9a8a328bfe30fb72e84551b32df1d359826f1afdf1e6b4503dc1fa",
+        "first_order_date": "2026-06-21T00:10:36.662Z",
+        "last_order_date": "2026-08-15T00:02:35.326Z",
+        "total_orders": 2,
+        "total_revenue": 7200000,
+        "avg_ticket": 3600000,
+        "days_since_last_order": 19.647054872685185,
+        "repeat_customer": true,
+        "club_member": false
+      },
+      {
+        "_id": "337bf7d0f2bddbb0889b4eb2080c44b67e12134f38aaae6b183e05fede324ed8",
+        "customer_id": "337bf7d0f2bddbb0889b4eb2080c44b67e12134f38aaae6b183e05fede324ed8",
+        "first_order_date": "2026-07-17T01:52:21.783Z",
+        "last_order_date": "2026-09-03T02:05:37.751Z",
+        "total_orders": 2,
+        "total_revenue": 7200000,
+        "avg_ticket": 3600000,
+        "days_since_last_order": 0.5616101388888889,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "6886b91d719373ecf909bcd73a87ce567e4814b719c31bef9cea9f0adfdd01a9",
+        "customer_id": "6886b91d719373ecf909bcd73a87ce567e4814b719c31bef9cea9f0adfdd01a9",
+        "first_order_date": "2026-09-03T01:45:25.868Z",
+        "last_order_date": "2026-09-03T01:45:25.868Z",
+        "total_orders": 1,
+        "total_revenue": 6600000,
+        "avg_ticket": 6600000,
+        "days_since_last_order": 0.5756365625,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "bdcef3161576b59a558714990b276536e64b2f5be15c27c69633494f323b51fc",
+        "customer_id": "bdcef3161576b59a558714990b276536e64b2f5be15c27c69633494f323b51fc",
+        "first_order_date": "2026-08-12T23:08:34.015Z",
+        "last_order_date": "2026-08-12T23:08:34.015Z",
+        "total_orders": 1,
+        "total_revenue": 6571339,
+        "avg_ticket": 6571339,
+        "days_since_last_order": 21.684570046296297,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "c44a9bdb75d573809583df1a33aaed538e8d4339c54f7e85d32af5594bb408e1",
+        "customer_id": "c44a9bdb75d573809583df1a33aaed538e8d4339c54f7e85d32af5594bb408e1",
+        "first_order_date": "2026-06-27T00:00:43.547Z",
+        "last_order_date": "2026-06-27T00:00:43.547Z",
+        "total_orders": 1,
+        "total_revenue": 6420000,
+        "avg_ticket": 6420000,
+        "days_since_last_order": 68.64834861111112,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "67f6990b69ec31e17386cd761cb79e0bfb431d32a6f8bf5dddd05be9247a5b69",
+        "customer_id": "67f6990b69ec31e17386cd761cb79e0bfb431d32a6f8bf5dddd05be9247a5b69",
+        "first_order_date": "2026-08-08T00:29:54.989Z",
+        "last_order_date": "2026-08-08T00:29:54.989Z",
+        "total_orders": 1,
+        "total_revenue": 6350000,
+        "avg_ticket": 6350000,
+        "days_since_last_order": 26.628077291666667,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "4c9067f27306b70dfb1469664d6bcbaf70f1d98b5736088a8ba6d246eb76b211",
+        "customer_id": "4c9067f27306b70dfb1469664d6bcbaf70f1d98b5736088a8ba6d246eb76b211",
+        "first_order_date": "2026-07-01T23:36:49.987Z",
+        "last_order_date": "2026-07-01T23:36:49.987Z",
+        "total_orders": 1,
+        "total_revenue": 6300000,
+        "avg_ticket": 6300000,
+        "days_since_last_order": 63.66494074074074,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "dbe94643baf9b8d4dcb1d5fc4eae82139253fec87b05fdb76e79a10145828032",
+        "customer_id": "dbe94643baf9b8d4dcb1d5fc4eae82139253fec87b05fdb76e79a10145828032",
+        "first_order_date": "2026-08-15T15:36:05.358Z",
+        "last_order_date": "2026-08-27T01:09:07.650Z",
+        "total_orders": 2,
+        "total_revenue": 6184500,
+        "avg_ticket": 3092250,
+        "days_since_last_order": 7.600847418981481,
+        "repeat_customer": true,
+        "club_member": false
+      },
+      {
+        "_id": "af854dc77e403bd50a728ca0514fabcdaf4b6f8af4a857f07e3db4e6a6cba8b0",
+        "customer_id": "af854dc77e403bd50a728ca0514fabcdaf4b6f8af4a857f07e3db4e6a6cba8b0",
+        "first_order_date": "2026-06-22T00:03:36.553Z",
+        "last_order_date": "2026-07-04T01:50:05.581Z",
+        "total_orders": 2,
+        "total_revenue": 6125000,
+        "avg_ticket": 3062500,
+        "days_since_last_order": 61.57239914351852,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "723a112528f2f121a58cca383044ba6bb36a9d3f51672bd6f9f306f3c310e81d",
+        "customer_id": "723a112528f2f121a58cca383044ba6bb36a9d3f51672bd6f9f306f3c310e81d",
+        "first_order_date": "2026-09-02T01:10:06.165Z",
+        "last_order_date": "2026-09-02T01:10:06.165Z",
+        "total_orders": 1,
+        "total_revenue": 6000000,
+        "avg_ticket": 6000000,
+        "days_since_last_order": 1.600170162037037,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "8872f65be635fa1fb311f424ded917f0320fb0ddf875c5402239ea08d397876d",
+        "customer_id": "8872f65be635fa1fb311f424ded917f0320fb0ddf875c5402239ea08d397876d",
+        "first_order_date": "2026-07-31T00:00:36.301Z",
+        "last_order_date": "2026-07-31T00:00:36.301Z",
+        "total_orders": 1,
+        "total_revenue": 5993100,
+        "avg_ticket": 5993100,
+        "days_since_last_order": 34.64843247685185,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "bd1611bbd9d05769462dc52b74d1622896d2c5bb37b42b505a553b14730664b8",
+        "customer_id": "bd1611bbd9d05769462dc52b74d1622896d2c5bb37b42b505a553b14730664b8",
+        "first_order_date": "2026-08-23T23:34:50.461Z",
+        "last_order_date": "2026-08-23T23:34:50.461Z",
+        "total_orders": 1,
+        "total_revenue": 5914205,
+        "avg_ticket": 5914205,
+        "days_since_last_order": 10.66632414351852,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "03aa020f255996e71d67d837390ce3ff2b471ee580c585c4fc22036b6213c83c",
+        "customer_id": "03aa020f255996e71d67d837390ce3ff2b471ee580c585c4fc22036b6213c83c",
+        "first_order_date": "2026-07-01T23:06:47.201Z",
+        "last_order_date": "2026-08-18T23:25:53.629Z",
+        "total_orders": 3,
+        "total_revenue": 5865516,
+        "avg_ticket": 1955172,
+        "days_since_last_order": 15.672537476851852,
+        "repeat_customer": true,
+        "club_member": true
+      },
+      {
+        "_id": "22b6b5f87d18720c80d7cc90d43167c3855536b7b1cdf094fa8ddfed1cf8bed2",
+        "customer_id": "22b6b5f87d18720c80d7cc90d43167c3855536b7b1cdf094fa8ddfed1cf8bed2",
+        "first_order_date": "2026-08-21T00:59:59.137Z",
+        "last_order_date": "2026-08-21T00:59:59.137Z",
+        "total_orders": 1,
+        "total_revenue": 5835349,
+        "avg_ticket": 5835349,
+        "days_since_last_order": 13.607195949074073,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "5e629a03cd44b1a4b575b3513b8b895b77b1be6f2f382f04bce1141fd18d6fa7",
+        "customer_id": "5e629a03cd44b1a4b575b3513b8b895b77b1be6f2f382f04bce1141fd18d6fa7",
+        "first_order_date": "2026-08-27T22:50:57.198Z",
+        "last_order_date": "2026-08-27T22:50:57.198Z",
+        "total_orders": 1,
+        "total_revenue": 5620000,
+        "avg_ticket": 5620000,
+        "days_since_last_order": 6.696801724537037,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "c5437296493a8c9f8d07e2ac4e1c278f279afbee0970c820fbaf74219a974724",
+        "customer_id": "c5437296493a8c9f8d07e2ac4e1c278f279afbee0970c820fbaf74219a974724",
+        "first_order_date": "2026-07-18T01:14:59.867Z",
+        "last_order_date": "2026-07-18T01:14:59.867Z",
+        "total_orders": 1,
+        "total_revenue": 5440000,
+        "avg_ticket": 5440000,
+        "days_since_last_order": 47.59677083333333,
+        "repeat_customer": false,
+        "club_member": false
+      },
+      {
+        "_id": "f3323665d4ead29a06e35cb602dbe0cece74ab86c74c8687be6259bb1006159c",
+        "customer_id": "f3323665d4ead29a06e35cb602dbe0cece74ab86c74c8687be6259bb1006159c",
+        "first_order_date": "2026-08-07T00:59:02.769Z",
+        "last_order_date": "2026-08-30T22:56:27.757Z",
+        "total_orders": 2,
+        "total_revenue": 5362187,
+        "avg_ticket": 2681093.5,
+        "days_since_last_order": 3.6929758101851853,
+        "repeat_customer": true,
+        "club_member": false
+      },
+      {
+        "_id": "579706dedcd988cf08d87d66b5f28847ba338c0488f7fc362e5a0deae12a3dc2",
+        "customer_id": "579706dedcd988cf08d87d66b5f28847ba338c0488f7fc362e5a0deae12a3dc2",
+        "first_order_date": "2026-08-16T00:48:11.420Z",
+        "last_order_date": "2026-08-16T00:48:11.420Z",
+        "total_orders": 1,
+        "total_revenue": 5227250,
+        "avg_ticket": 5227250,
+        "days_since_last_order": 18.615387118055555,
+        "repeat_customer": false,
+        "club_member": true
+      },
+      {
+        "_id": "c976f17ae319f48635972ed144916a3a8ff7e6ed6c5bd65fd7c668e4d7266093",
+        "customer_id": "c976f17ae319f48635972ed144916a3a8ff7e6ed6c5bd65fd7c668e4d7266093",
+        "first_order_date": "2026-07-04T23:55:21.505Z",
+        "last_order_date": "2026-07-04T23:55:21.505Z",
+        "total_orders": 1,
+        "total_revenue": 5125000,
+        "avg_ticket": 5125000,
+        "days_since_last_order": 60.652075949074074,
+        "repeat_customer": false,
+        "club_member": false
+      }
+    ]
+  }
+}

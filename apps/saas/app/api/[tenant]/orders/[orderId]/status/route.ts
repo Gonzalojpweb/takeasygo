@@ -15,6 +15,7 @@ import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustm
 import { addPointsFromOrder } from '@/lib/loyalty'
 import { notifySyncLayerStatus } from '@/lib/sync-layer'
 import { generateRatingToken } from '@/lib/rating-token'
+import { captureOrderStatusChanged } from '@/lib/events'
 import webpush from 'web-push'
 
 webpush.setVapidDetails(
@@ -185,6 +186,14 @@ export async function PATCH(
     }
 
     await order.save()
+
+    // M3: Track order status change (MongoDB)
+    captureOrderStatusChanged({
+      orderId: order._id.toString(),
+      previousStatus,
+      newStatus: status,
+      phoneHash: order.customerPhoneHash || order.customer?.phoneHash || '',
+    })
 
     // ── Acumular comisión por transferencia en balance del tenant ──────
     // Nota: platformFeeAmount es 0 para órdenes takeaway (solo delivery genera comisión).

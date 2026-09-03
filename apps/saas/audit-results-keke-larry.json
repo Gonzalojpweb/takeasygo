@@ -1,0 +1,1166 @@
+{
+  "timestamp": "2026-09-03T15:31:23.589Z",
+  "tenant": {
+    "id": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Keke&Larry"
+  },
+  "collections": {
+    "orders": 175,
+    "consumers": 0,
+    "customerprofiles": 140,
+    "customerevents": 10998,
+    "loyaltymembers": 94,
+    "feedbacks": 61,
+    "tiainsights": 1639,
+    "ratings": 3,
+    "menus": 1,
+    "storeitems": 1,
+    "promotions": 10,
+    "qrpromos": 2,
+    "impactevents": 88,
+    "explorevents": 0,
+    "shareevents": 0,
+    "menuvisits": 2888,
+    "hiddenrewardclaims": 9,
+    "storeitemredemptions": 0
+  },
+  "orders": {
+    "dateRange": {
+      "_id": null,
+      "minDate": "2026-06-19T23:33:39.828Z",
+      "maxDate": "2026-09-03T02:05:37.751Z",
+      "count": 175
+    },
+    "statusDistribution": [
+      {
+        "_id": "delivered",
+        "count": 160
+      },
+      {
+        "_id": "cancelled",
+        "count": 14
+      },
+      {
+        "_id": "awaiting_payment",
+        "count": 1
+      }
+    ],
+    "modeDistribution": [
+      {
+        "_id": "delivery",
+        "count": 98
+      },
+      {
+        "_id": "takeaway",
+        "count": 77
+      }
+    ],
+    "revenueStats": {
+      "_id": null,
+      "totalRevenue": 752452628,
+      "avgTicket": 4673618.807453416,
+      "medianTicket": [
+        4080000
+      ],
+      "minTicket": 941300,
+      "maxTicket": 21050000,
+      "count": 161
+    },
+    "itemsPerOrder": {
+      "_id": null,
+      "avgItems": 2.1739130434782608,
+      "avgUniqueProducts": 1.937888198757764,
+      "maxItems": 9
+    },
+    "discountStats": {
+      "_id": null,
+      "totalDiscounts": 920000,
+      "ordersWithDiscount": 1,
+      "totalLoyaltyDiscounts": 0,
+      "ordersWithLoyaltyDiscount": 0,
+      "totalLoyaltyPointsUsed": 0
+    },
+    "loyaltyPointsCredited": {
+      "_id": null,
+      "totalOrders": 161,
+      "ordersWithPointsCredited": 98
+    }
+  },
+  "customers": {
+    "uniqueCustomers": 134,
+    "customerOrderDistribution": [
+      {
+        "_id": 1,
+        "customerCount": 98,
+        "totalRevenue": 493255557
+      },
+      {
+        "_id": 2,
+        "customerCount": 17,
+        "totalRevenue": 147094253
+      },
+      {
+        "_id": 3,
+        "customerCount": 5,
+        "totalRevenue": 48322938
+      },
+      {
+        "_id": 4,
+        "customerCount": 1,
+        "totalRevenue": 29985610
+      },
+      {
+        "_id": 10,
+        "customerCount": 1,
+        "totalRevenue": 33794270
+      }
+    ],
+    "repeatCustomers": 24,
+    "highFrequencyCustomers": 7,
+    "customersByMonth": [
+      {
+        "_id": "2026-06",
+        "month": "2026-06",
+        "customerCount": 20
+      },
+      {
+        "_id": "2026-07",
+        "month": "2026-07",
+        "customerCount": 38
+      },
+      {
+        "_id": "2026-08",
+        "month": "2026-08",
+        "customerCount": 73
+      },
+      {
+        "_id": "2026-09",
+        "month": "2026-09",
+        "customerCount": 5
+      }
+    ]
+  },
+  "loyalty": {
+    "membersCount": 94,
+    "membersBySource": [
+      {
+        "_id": "checkout",
+        "count": 63
+      },
+      {
+        "_id": "promotion",
+        "count": 20
+      },
+      {
+        "_id": "explore",
+        "count": 11
+      }
+    ],
+    "pointsStats": {
+      "_id": null,
+      "totalPoints": 261335,
+      "avgPoints": 2780.159574468085,
+      "membersWithPoints": 85
+    },
+    "redemptionsStats": {
+      "_id": null,
+      "totalRedemptions": 1,
+      "totalPointsSpent": 12990,
+      "membersWhoRedeemed": 1
+    },
+    "memberOrderStats": {
+      "_id": null,
+      "totalOrders": 93,
+      "avgTicket": 4852815.602150538,
+      "totalRevenue": 451311851
+    },
+    "nonMemberOrderStats": {
+      "_id": null,
+      "totalOrders": 68,
+      "avgTicket": 4428540.838235294,
+      "totalRevenue": 301140777
+    },
+    "memberUniqueCustomers": 63,
+    "nonMemberUniqueCustomers": 59,
+    "memberRepeatRate": {
+      "_id": null,
+      "total": 63,
+      "repeat": 16
+    },
+    "nonMemberRepeatRate": {
+      "_id": null,
+      "total": 59,
+      "repeat": 8
+    }
+  },
+  "feedback": {
+    "feedbackCount": 61,
+    "byEvent": [
+      {
+        "_id": "checkout_success",
+        "count": 52
+      },
+      {
+        "_id": "checkout_error",
+        "count": 1
+      },
+      {
+        "_id": "club_registered",
+        "count": 8
+      }
+    ],
+    "satisfactionDist": [
+      {
+        "_id": "buena",
+        "count": 13
+      },
+      {
+        "_id": "excelente",
+        "count": 37
+      },
+      {
+        "_id": "mejorable",
+        "count": 2
+      }
+    ],
+    "comments": []
+  },
+  "tia": {
+    "insightsCount": 1639,
+    "byType": [
+      {
+        "_id": "anomaly",
+        "count": 580
+      },
+      {
+        "_id": "central_tendency",
+        "count": 286
+      },
+      {
+        "_id": "distribution",
+        "count": 185
+      },
+      {
+        "_id": "trend",
+        "count": 315
+      },
+      {
+        "_id": "category",
+        "count": 12
+      },
+      {
+        "_id": "variability",
+        "count": 70
+      },
+      {
+        "_id": "historical",
+        "count": 191
+      }
+    ],
+    "bySeverity": [
+      {
+        "_id": "info",
+        "count": 592
+      },
+      {
+        "_id": "critical",
+        "count": 213
+      },
+      {
+        "_id": "warning",
+        "count": 834
+      }
+    ],
+    "byCategory": [
+      {
+        "_id": "operations",
+        "count": 72
+      },
+      {
+        "_id": "orders",
+        "count": 305
+      },
+      {
+        "_id": "club",
+        "count": 312
+      },
+      {
+        "_id": "revenue",
+        "count": 409
+      },
+      {
+        "_id": "conversion",
+        "count": 72
+      },
+      {
+        "_id": "menu",
+        "count": 457
+      },
+      {
+        "_id": "products",
+        "count": 12
+      }
+    ],
+    "byStatus": [
+      {
+        "_id": "active",
+        "count": 1639
+      }
+    ],
+    "recentInsights": [
+      {
+        "_id": "6a9919658abb6b8344d00a60",
+        "type": "anomaly",
+        "severity": "warning",
+        "category": "menu",
+        "title": "Buen pico en visitas a productos",
+        "description": "Tuviste 148 (vs ~61 habitual). Algo bueno pasó — revisá si hubo promoción o evento para repetirlo.",
+        "currentValue": 148,
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a58",
+        "type": "trend",
+        "severity": "info",
+        "category": "menu",
+        "title": "Tendencia positiva en aperturas del menú",
+        "description": "aperturas del menú muestra crecimiento sostenido en los últimos 30 días.",
+        "currentValue": 0.5588709677419355,
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a52",
+        "type": "trend",
+        "severity": "warning",
+        "category": "club",
+        "title": "Tendencia negativa en miembros nuevos diarios",
+        "description": "miembros nuevos diarios muestra una tendencia a la baja en los últimos 30 días.",
+        "currentValue": -0.04849833147942158,
+        "recommendation": "Identificar la causa del declive y evaluar cambios en menú, precios o promociones.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a5e",
+        "type": "anomaly",
+        "severity": "warning",
+        "category": "club",
+        "title": "Buen pico en miembros nuevos diarios",
+        "description": "Tuviste 4 (vs ~1 habitual). Algo bueno pasó — revisá si hubo promoción o evento para repetirlo.",
+        "currentValue": 4,
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a5a",
+        "type": "anomaly",
+        "severity": "critical",
+        "category": "menu",
+        "title": "Buen pico en aperturas del menú",
+        "description": "Tuviste 144 (vs ~38 habitual). Algo bueno pasó — revisá si hubo promoción o evento para repetirlo.",
+        "currentValue": 144,
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a56",
+        "type": "central_tendency",
+        "severity": "info",
+        "category": "club",
+        "title": "Tus miembros nuevos diarios son irregulares",
+        "description": "Algunos días tenés valores muy altos que suben el promedio. Revisá qué días se disparan para entender el patrón.",
+        "currentValue": 1.4666666666666666,
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a61",
+        "type": "anomaly",
+        "severity": "warning",
+        "category": "menu",
+        "title": "Buen pico en productos al carrito",
+        "description": "Tuviste 56 (vs ~21 habitual). Algo bueno pasó — revisá si hubo promoción o evento para repetirlo.",
+        "currentValue": 56,
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a4f",
+        "type": "central_tendency",
+        "severity": "critical",
+        "category": "conversion",
+        "title": "Muy baja tasa de recompra",
+        "description": "Solo 24 de 122 clientes (20%) realizaron más de un pedido en los últimos 90 días. 98 clientes compraron una sola vez y no regresaron.",
+        "currentValue": 19.7,
+        "recommendation": "Implementar programa de fidelización con rewards por segunda compra. Considerar descuento de bienvenida post-primera compra.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a59",
+        "type": "central_tendency",
+        "severity": "info",
+        "category": "club",
+        "title": "Miembros del club gastan más que no miembros",
+        "description": "Los miembros del club gastan 38% más por cliente que los no miembros ($70.209,88 vs $51.040,81 en 90 días).",
+        "currentValue": 7020988,
+        "recommendation": "Fortalecer adquisición de membresías — los miembros generan mayor valor.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a53",
+        "type": "historical",
+        "severity": "warning",
+        "category": "orders",
+        "title": "Tus pedidos semanales subieron 50%",
+        "description": "Pasaron de 16 a 24 vs semana anterior. Buen crecimiento.",
+        "currentValue": 24,
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a5d",
+        "type": "anomaly",
+        "severity": "warning",
+        "category": "club",
+        "title": "Buen pico en miembros nuevos diarios",
+        "description": "Tuviste 4 (vs ~1 habitual). Algo bueno pasó — revisá si hubo promoción o evento para repetirlo.",
+        "currentValue": 4,
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a5b",
+        "type": "anomaly",
+        "severity": "warning",
+        "category": "orders",
+        "title": "Buen pico en pedidos diarios",
+        "description": "Tuviste 9 (vs ~3 habitual). Algo bueno pasó — revisá si hubo promoción o evento para repetirlo.",
+        "currentValue": 9,
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a55",
+        "type": "distribution",
+        "severity": "info",
+        "category": "revenue",
+        "title": "Hay días excepcionales en tus ingresos diarios",
+        "description": "La mayoría de los días son moderados pero algunos se disparan mucho por encima de lo normal. Revisá qué causó esos picos.",
+        "currentValue": 35059575.300000004,
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a5f",
+        "type": "anomaly",
+        "severity": "warning",
+        "category": "menu",
+        "title": "Buen pico en visitas a productos",
+        "description": "Tuviste 175 (vs ~61 habitual). Algo bueno pasó — revisá si hubo promoción o evento para repetirlo.",
+        "currentValue": 175,
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a51",
+        "type": "trend",
+        "severity": "warning",
+        "category": "revenue",
+        "title": "Tendencia negativa en ingresos diarios",
+        "description": "ingresos diarios muestra una tendencia a la baja en los últimos 30 días.",
+        "currentValue": -266135.63715239154,
+        "recommendation": "Identificar la causa del declive y evaluar cambios en menú, precios o promociones.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a57",
+        "type": "distribution",
+        "severity": "info",
+        "category": "club",
+        "title": "Hay días excepcionales en tus miembros nuevos diarios",
+        "description": "La mayoría de los días son moderados pero algunos se disparan mucho por encima de lo normal. Revisá qué causó esos picos.",
+        "currentValue": 3,
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a4e",
+        "type": "historical",
+        "severity": "critical",
+        "category": "revenue",
+        "title": "Tus ingresos semanales subieron 67%",
+        "description": "Pasaron de 75712888 a 126302496 vs semana anterior. Buen crecimiento.",
+        "currentValue": 126302496,
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a50",
+        "type": "trend",
+        "severity": "warning",
+        "category": "orders",
+        "title": "Tendencia negativa en pedidos diarios",
+        "description": "pedidos diarios muestra una tendencia a la baja en los últimos 30 días.",
+        "currentValue": -0.05116796440489433,
+        "recommendation": "Identificar la causa del declive y evaluar cambios en menú, precios o promociones.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a54",
+        "type": "historical",
+        "severity": "warning",
+        "category": "operations",
+        "title": "Abandono de clientes por encima de lo esperado",
+        "description": "Tasa de abandono: 27% (26 de 98 clientes activos no regresaron en los últimos 30 días). 2 clientes recurrentes están en riesgo de abandono (sin pedidos en >30 días). 47 clientes nuevos hicieron un solo pedido y no regresaron",
+        "currentValue": 26.5,
+        "recommendation": "Implementar campaña de reenganche para clientes inactivos: reward de bienvenida, descuento por tiempo limitado o notificación push.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      },
+      {
+        "_id": "6a9919658abb6b8344d00a5c",
+        "type": "anomaly",
+        "severity": "warning",
+        "category": "revenue",
+        "title": "Buen pico en ingresos diarios",
+        "description": "Tuviste 45903370 (vs ~14582651 habitual). Algo bueno pasó — revisá si hubo promoción o evento para repetirlo.",
+        "currentValue": 45903370,
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico.",
+        "status": "active",
+        "generatedAt": "2026-09-03T06:53:25.344Z"
+      }
+    ]
+  },
+  "products": {
+    "menuItemsCount": 23,
+    "topProducts": [
+      {
+        "_id": "6a0f97e8759b08387148f94e",
+        "name": "TYRON",
+        "categoryName": "Burgas",
+        "totalQuantity": 70,
+        "totalRevenue": 132195000,
+        "orderCount": 63
+      },
+      {
+        "_id": "6a0f97e8759b08387148f981",
+        "name": "ZEBALLON CRISPY",
+        "categoryName": "Burgas",
+        "totalQuantity": 52,
+        "totalRevenue": 108415000,
+        "orderCount": 46
+      },
+      {
+        "_id": "6a0f97e8759b08387148f9b4",
+        "name": "KHEBURGER",
+        "categoryName": "Burgas",
+        "totalQuantity": 45,
+        "totalRevenue": 88350000,
+        "orderCount": 44
+      },
+      {
+        "_id": "6a0f97e8759b08387148f9c5",
+        "name": "YSIBOOM",
+        "categoryName": "Burgas",
+        "totalQuantity": 34,
+        "totalRevenue": 73215000,
+        "orderCount": 30
+      },
+      {
+        "_id": "6a0f97e8759b08387148f93c",
+        "name": "ACRI",
+        "categoryName": "Burgas",
+        "totalQuantity": 33,
+        "totalRevenue": 60540000,
+        "orderCount": 29
+      },
+      {
+        "_id": "6a0f97e8759b08387148f9a3",
+        "name": "JEEZY",
+        "categoryName": "Burgas",
+        "totalQuantity": 28,
+        "totalRevenue": 56605000,
+        "orderCount": 28
+      },
+      {
+        "_id": "6a0f97e8759b08387148f9d6",
+        "name": "RABREK",
+        "categoryName": "Burgas",
+        "totalQuantity": 21,
+        "totalRevenue": 42310000,
+        "orderCount": 21
+      },
+      {
+        "_id": "6a0f97e8759b08387148f992",
+        "name": "DUKING",
+        "categoryName": "Burgas",
+        "totalQuantity": 19,
+        "totalRevenue": 40465000,
+        "orderCount": 18
+      },
+      {
+        "_id": null,
+        "name": "🍔 3 TYRON",
+        "categoryName": "",
+        "totalQuantity": 8,
+        "totalRevenue": 32490000,
+        "orderCount": 8
+      },
+      {
+        "_id": "6a35cefe56b0c07901da671d",
+        "name": "SAINTLUNA",
+        "categoryName": "Burgas",
+        "totalQuantity": 12,
+        "totalRevenue": 25400000,
+        "orderCount": 12
+      },
+      {
+        "_id": "6a0f97e8759b08387148f970",
+        "name": "LARRY MOB",
+        "categoryName": "Burgas",
+        "totalQuantity": 12,
+        "totalRevenue": 23500000,
+        "orderCount": 12
+      },
+      {
+        "_id": "6a0f97e8759b08387148f9f1",
+        "name": "BarderiTo$",
+        "categoryName": "Nuggets",
+        "totalQuantity": 12,
+        "totalRevenue": 12925000,
+        "orderCount": 12
+      },
+      {
+        "_id": "6a0f97e8759b08387148f9e8",
+        "name": "Papas Clásicas",
+        "categoryName": "Papas",
+        "totalQuantity": 14,
+        "totalRevenue": 10100000,
+        "orderCount": 13
+      },
+      {
+        "_id": "6a0f97e8759b08387148f9ec",
+        "name": "Papas Crew",
+        "categoryName": "Papas",
+        "totalQuantity": 7,
+        "totalRevenue": 7500000,
+        "orderCount": 7
+      },
+      {
+        "_id": "6a0f97e8759b08387148f9fc",
+        "name": "Poliamok",
+        "categoryName": "Empanadas",
+        "totalQuantity": 1,
+        "totalRevenue": 1050000,
+        "orderCount": 1
+      },
+      {
+        "_id": "6a371d4e543537d466aa5cd0",
+        "name": "Pepsi",
+        "categoryName": "Bebidas",
+        "totalQuantity": 3,
+        "totalRevenue": 1050000,
+        "orderCount": 2
+      },
+      {
+        "_id": "6a371cb3130acbd5b72c6730",
+        "name": "7UP",
+        "categoryName": "Bebidas",
+        "totalQuantity": 3,
+        "totalRevenue": 1050000,
+        "orderCount": 2
+      },
+      {
+        "_id": "6a0f97e8759b08387148fa0b",
+        "name": "Andes Rubia",
+        "categoryName": "Bebidas",
+        "totalQuantity": 2,
+        "totalRevenue": 700000,
+        "orderCount": 1
+      },
+      {
+        "_id": "6a0f97e8759b08387148fa0a",
+        "name": "Zero",
+        "categoryName": "Bebidas",
+        "totalQuantity": 1,
+        "totalRevenue": 350000,
+        "orderCount": 1
+      }
+    ],
+    "categoryStats": [
+      {
+        "_id": "Burgas",
+        "totalQuantity": 326,
+        "totalRevenue": 650995000,
+        "orderCount": 303
+      },
+      {
+        "_id": "",
+        "totalQuantity": 8,
+        "totalRevenue": 32490000,
+        "orderCount": 8
+      },
+      {
+        "_id": "Papas",
+        "totalQuantity": 21,
+        "totalRevenue": 17600000,
+        "orderCount": 20
+      },
+      {
+        "_id": "Nuggets",
+        "totalQuantity": 12,
+        "totalRevenue": 12925000,
+        "orderCount": 12
+      },
+      {
+        "_id": "Bebidas",
+        "totalQuantity": 9,
+        "totalRevenue": 3150000,
+        "orderCount": 6
+      },
+      {
+        "_id": "Empanadas",
+        "totalQuantity": 1,
+        "totalRevenue": 1050000,
+        "orderCount": 1
+      }
+    ]
+  },
+  "temporal": {
+    "byDayOfWeek": [
+      {
+        "_id": 1,
+        "count": 29,
+        "revenue": 149329135
+      },
+      {
+        "_id": 2,
+        "count": 18,
+        "revenue": 66235333
+      },
+      {
+        "_id": 3,
+        "count": 6,
+        "revenue": 22251959
+      },
+      {
+        "_id": 4,
+        "count": 18,
+        "revenue": 73456280
+      },
+      {
+        "_id": 5,
+        "count": 27,
+        "revenue": 130945512
+      },
+      {
+        "_id": 6,
+        "count": 27,
+        "revenue": 139812720
+      },
+      {
+        "_id": 7,
+        "count": 36,
+        "revenue": 170421689
+      }
+    ],
+    "byHour": [
+      {
+        "_id": 0,
+        "count": 63,
+        "revenue": 292718170
+      },
+      {
+        "_id": 1,
+        "count": 26,
+        "revenue": 116634500
+      },
+      {
+        "_id": 2,
+        "count": 8,
+        "revenue": 25557223
+      },
+      {
+        "_id": 14,
+        "count": 1,
+        "revenue": 3645000
+      },
+      {
+        "_id": 15,
+        "count": 7,
+        "revenue": 58998600
+      },
+      {
+        "_id": 16,
+        "count": 1,
+        "revenue": 5151930
+      },
+      {
+        "_id": 17,
+        "count": 1,
+        "revenue": 4100516
+      },
+      {
+        "_id": 22,
+        "count": 3,
+        "revenue": 11034787
+      },
+      {
+        "_id": 23,
+        "count": 51,
+        "revenue": 234611902
+      }
+    ],
+    "byMonth": [
+      {
+        "_id": "2026-06",
+        "count": 21,
+        "revenue": 87430000
+      },
+      {
+        "_id": "2026-07",
+        "count": 41,
+        "revenue": 176486300
+      },
+      {
+        "_id": "2026-08",
+        "count": 94,
+        "revenue": 465302135
+      },
+      {
+        "_id": "2026-09",
+        "count": 5,
+        "revenue": 23234193
+      }
+    ],
+    "dailyRevenue": [
+      {
+        "_id": "2026-06-19",
+        "count": 1,
+        "revenue": 1600000
+      },
+      {
+        "_id": "2026-06-20",
+        "count": 4,
+        "revenue": 16570000
+      },
+      {
+        "_id": "2026-06-21",
+        "count": 3,
+        "revenue": 15820000
+      },
+      {
+        "_id": "2026-06-22",
+        "count": 3,
+        "revenue": 10895000
+      },
+      {
+        "_id": "2026-06-24",
+        "count": 2,
+        "revenue": 11415000
+      },
+      {
+        "_id": "2026-06-25",
+        "count": 1,
+        "revenue": 4045000
+      },
+      {
+        "_id": "2026-06-26",
+        "count": 1,
+        "revenue": 2150000
+      },
+      {
+        "_id": "2026-06-27",
+        "count": 2,
+        "revenue": 10505000
+      },
+      {
+        "_id": "2026-06-28",
+        "count": 1,
+        "revenue": 3465000
+      },
+      {
+        "_id": "2026-06-29",
+        "count": 2,
+        "revenue": 6465000
+      },
+      {
+        "_id": "2026-06-30",
+        "count": 1,
+        "revenue": 4500000
+      },
+      {
+        "_id": "2026-07-01",
+        "count": 2,
+        "revenue": 8065000
+      },
+      {
+        "_id": "2026-07-02",
+        "count": 3,
+        "revenue": 8940000
+      },
+      {
+        "_id": "2026-07-03",
+        "count": 1,
+        "revenue": 2725000
+      },
+      {
+        "_id": "2026-07-04",
+        "count": 3,
+        "revenue": 13550000
+      },
+      {
+        "_id": "2026-07-05",
+        "count": 2,
+        "revenue": 5950000
+      },
+      {
+        "_id": "2026-07-06",
+        "count": 4,
+        "revenue": 13500000
+      },
+      {
+        "_id": "2026-07-09",
+        "count": 2,
+        "revenue": 6212100
+      },
+      {
+        "_id": "2026-07-15",
+        "count": 2,
+        "revenue": 6050000
+      },
+      {
+        "_id": "2026-07-17",
+        "count": 1,
+        "revenue": 3400000
+      },
+      {
+        "_id": "2026-07-18",
+        "count": 2,
+        "revenue": 10380000
+      },
+      {
+        "_id": "2026-07-23",
+        "count": 1,
+        "revenue": 4785100
+      },
+      {
+        "_id": "2026-07-25",
+        "count": 5,
+        "revenue": 29291700
+      },
+      {
+        "_id": "2026-07-26",
+        "count": 4,
+        "revenue": 18970600
+      },
+      {
+        "_id": "2026-07-28",
+        "count": 1,
+        "revenue": 3922200
+      },
+      {
+        "_id": "2026-07-29",
+        "count": 1,
+        "revenue": 941300
+      },
+      {
+        "_id": "2026-07-30",
+        "count": 3,
+        "revenue": 15492300
+      },
+      {
+        "_id": "2026-07-31",
+        "count": 4,
+        "revenue": 24311000
+      },
+      {
+        "_id": "2026-08-01",
+        "count": 2,
+        "revenue": 8360400
+      },
+      {
+        "_id": "2026-08-02",
+        "count": 3,
+        "revenue": 20706800
+      },
+      {
+        "_id": "2026-08-03",
+        "count": 1,
+        "revenue": 4900000
+      },
+      {
+        "_id": "2026-08-04",
+        "count": 1,
+        "revenue": 4200000
+      },
+      {
+        "_id": "2026-08-05",
+        "count": 2,
+        "revenue": 8158200
+      },
+      {
+        "_id": "2026-08-06",
+        "count": 3,
+        "revenue": 13615800
+      },
+      {
+        "_id": "2026-08-07",
+        "count": 6,
+        "revenue": 29862400
+      },
+      {
+        "_id": "2026-08-08",
+        "count": 8,
+        "revenue": 38121302
+      },
+      {
+        "_id": "2026-08-09",
+        "count": 1,
+        "revenue": 2000000
+      },
+      {
+        "_id": "2026-08-10",
+        "count": 2,
+        "revenue": 9337970
+      },
+      {
+        "_id": "2026-08-11",
+        "count": 1,
+        "revenue": 2375000
+      },
+      {
+        "_id": "2026-08-12",
+        "count": 4,
+        "revenue": 14734451
+      },
+      {
+        "_id": "2026-08-13",
+        "count": 3,
+        "revenue": 29555941
+      },
+      {
+        "_id": "2026-08-14",
+        "count": 5,
+        "revenue": 32312829
+      },
+      {
+        "_id": "2026-08-15",
+        "count": 4,
+        "revenue": 23515940
+      },
+      {
+        "_id": "2026-08-16",
+        "count": 7,
+        "revenue": 30964788
+      },
+      {
+        "_id": "2026-08-17",
+        "count": 2,
+        "revenue": 6833503
+      },
+      {
+        "_id": "2026-08-18",
+        "count": 1,
+        "revenue": 2102829
+      },
+      {
+        "_id": "2026-08-19",
+        "count": 1,
+        "revenue": 2786248
+      },
+      {
+        "_id": "2026-08-20",
+        "count": 1,
+        "revenue": 2076543
+      },
+      {
+        "_id": "2026-08-21",
+        "count": 4,
+        "revenue": 23814533
+      },
+      {
+        "_id": "2026-08-22",
+        "count": 1,
+        "revenue": 4669000
+      },
+      {
+        "_id": "2026-08-23",
+        "count": 2,
+        "revenue": 8350205
+      },
+      {
+        "_id": "2026-08-24",
+        "count": 2,
+        "revenue": 8095890
+      },
+      {
+        "_id": "2026-08-25",
+        "count": 1,
+        "revenue": 5151930
+      },
+      {
+        "_id": "2026-08-26",
+        "count": 2,
+        "revenue": 12887828
+      },
+      {
+        "_id": "2026-08-27",
+        "count": 7,
+        "revenue": 31406788
+      },
+      {
+        "_id": "2026-08-28",
+        "count": 4,
+        "revenue": 19636958
+      },
+      {
+        "_id": "2026-08-29",
+        "count": 5,
+        "revenue": 15458347
+      },
+      {
+        "_id": "2026-08-30",
+        "count": 6,
+        "revenue": 43101742
+      },
+      {
+        "_id": "2026-08-31",
+        "count": 2,
+        "revenue": 6207970
+      },
+      {
+        "_id": "2026-09-02",
+        "count": 2,
+        "revenue": 8418253
+      },
+      {
+        "_id": "2026-09-03",
+        "count": 3,
+        "revenue": 14815940
+      }
+    ]
+  },
+  "dataQuality": {
+    "ordersWithoutPhone": 11,
+    "ordersWithoutItems": 0,
+    "ordersWithNegativeTotal": 0,
+    "ordersWithZeroTotal": 0,
+    "duplicateOrderNumbers": 0,
+    "inconsistentTotals": 119,
+    "consumersWithoutOrders": 155
+  }
+}

@@ -504,9 +504,17 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
         if (res.ok && data.member) {
           dispatch({ type: 'SET_LOYALTY_MEMBER', member: data.member })
           dispatch({ type: 'SET_WALLET_ENABLED', enabled: data.wallet?.enabled ?? false })
+          // M3: Track loyalty lookup (MongoDB)
+          import('@/lib/events').then(({ captureLoyaltyLookup }) => {
+            captureLoyaltyLookup({ phoneHash: data.member.phoneHash || '', found: true, segment: data.member.segment, points: data.member.points })
+          })
         } else {
           dispatch({ type: 'SET_LOYALTY_MEMBER', member: null })
           dispatch({ type: 'SET_WALLET_ENABLED', enabled: false })
+          // M3: Track loyalty lookup — not found
+          import('@/lib/events').then(({ captureLoyaltyLookup }) => {
+            captureLoyaltyLookup({ phoneHash: '', found: false })
+          })
         }
       } catch (err) {
         console.error('Loyalty lookup error', err)

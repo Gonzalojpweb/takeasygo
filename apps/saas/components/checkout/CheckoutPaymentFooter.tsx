@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { toPesos } from '@takeasygo/business'
 import { useRouter } from 'next/navigation'
 import { captureCheckoutStarted, captureRewardAdvanceAccepted } from '@/lib/tia/events'
+import { captureCheckoutStarted as captureCheckoutStartedMongo } from '@/lib/events'
 
 export default function CheckoutPaymentFooter() {
   const { state, dispatch, steps, baseTotal, total, subtotal, discountAmount, deliveryCost, selectedRewardItem, rewardNeedsAdvance, missingPoints, canUseSos, effectiveAdvanceLimit, transferData } = useCheckout()
@@ -61,6 +62,7 @@ export default function CheckoutPaymentFooter() {
     dispatch({ type: 'SET_LOADING', loading: true })
 
     captureCheckoutStarted({ total, itemsCount: cart.length, orderMode: mode })
+    captureCheckoutStartedMongo({ total, itemsCount: cart.length, orderMode: mode })
 
     let lastOrder: any = null
 

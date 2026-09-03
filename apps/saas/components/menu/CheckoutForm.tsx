@@ -15,6 +15,7 @@ import SchedulePicker from './SchedulePicker'
 import { FeedbackProvider, useFeedback } from '@/components/feedback/FeedbackContext'
 import FeedbackModal from '@/components/feedback/FeedbackModal'
 import { captureCheckoutStarted, captureRewardRedeemed, captureRewardAdvanceOffered, captureRewardAdvanceAccepted } from '@/lib/tia/events'
+import { captureCheckoutStarted as captureCheckoutStartedMongo } from '@/lib/events'
 
 interface Props {
   tenantSlug: string
@@ -477,6 +478,7 @@ async function handleSubmit(e: React.FormEvent) {
   setLoading(true)
 
     captureCheckoutStarted({ total, itemsCount: cart.length, orderMode: mode })
+    captureCheckoutStartedMongo({ total, itemsCount: cart.length, orderMode: mode })
 
     let lastOrder: any = null
 
