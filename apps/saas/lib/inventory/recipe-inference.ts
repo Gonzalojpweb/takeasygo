@@ -1,9 +1,7 @@
-import {
-  InventorySKUModel,
-  InventoryRecipeModel,
-  InventorySkuMenuLinkModel,
-  InventoryStorageLocationModel,
-} from "@takeasygo/db"
+import InventorySKU from "@/models/InventorySKU"
+import InventoryRecipe from "@/models/InventoryRecipe"
+import InventorySkuMenuLink from "@/models/InventorySkuMenuLink"
+import InventoryStorageLocation from "@/models/InventoryStorageLocation"
 import { connectDB } from "../mongoose"
 
 // ============================================================================
@@ -50,7 +48,7 @@ export async function createRecipeFromDeclaration(
 
   // Buscar SKUs involucrados para obtener priors de yield
   const skuIds = declaration.ingredients.map((i) => i.skuId)
-  const skus = await InventorySKUModel.find({ _id: { $in: skuIds } })
+  const skus = await InventorySKU.find({ _id: { $in: skuIds } })
   const skuMap = new Map(skus.map((s) => [s._id.toString(), s]))
 
   // Construir inputs con priors de categoría
@@ -73,7 +71,7 @@ export async function createRecipeFromDeclaration(
   }
 
   // Crear receta
-  const recipe = await InventoryRecipeModel.create({
+  const recipe = await InventoryRecipe.create({
     tenantId,
     name: declaration.menuItemName,
     type: "cooking",
@@ -85,7 +83,7 @@ export async function createRecipeFromDeclaration(
   })
 
   // Crear vínculo menú → receta
-  await InventorySkuMenuLinkModel.findOneAndUpdate(
+  await InventorySkuMenuLink.findOneAndUpdate(
     { tenantId, menuItemId: declaration.menuItemId },
     {
       $set: {
@@ -153,13 +151,13 @@ export async function getOnboardingStatus(
   await connectDB()
 
   const [skusCount, recipesCount, storageLocationsCount] = await Promise.all([
-    InventorySKUModel.countDocuments({ tenantId, isActive: true }),
-    InventoryRecipeModel.countDocuments({ tenantId, isActive: true }),
-    InventoryStorageLocationModel.countDocuments({ tenantId, isActive: true }),
+    InventorySKU.countDocuments({ tenantId, isActive: true }),
+    InventoryRecipe.countDocuments({ tenantId, isActive: true }),
+    InventoryStorageLocation.countDocuments({ tenantId, isActive: true }),
   ])
 
   // Contar SKUs que tienen al menos una receta asociada
-  const links = await InventorySkuMenuLinkModel.find({ tenantId, isActive: true })
+  const links = await InventorySkuMenuLink.find({ tenantId, isActive: true })
     .populate("recipeId", "inputs")
     .lean()
 

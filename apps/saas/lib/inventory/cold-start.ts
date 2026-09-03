@@ -1,4 +1,6 @@
-import { MenuModel, InventorySKUModel, InventoryStorageLocationModel } from "@takeasygo/db"
+import Menu from "@/models/Menu"
+import InventorySKU from "@/models/InventorySKU"
+import InventoryStorageLocation from "@/models/InventoryStorageLocation"
 import { connectDB } from "../mongoose"
 
 // ============================================================================
@@ -152,7 +154,7 @@ export async function inferSKUsFromMenu(
   await connectDB()
 
   // 1. Obtener menú activo del tenant
-  const menu = await MenuModel.findOne({ tenantId, isActive: true })
+  const menu = await Menu.findOne({ tenantId, isActive: true })
   if (!menu) {
     return {
       tenantId,
@@ -234,7 +236,7 @@ export async function confirmSKUs(
 
   for (const sku of confirmedSKUs) {
     // Verificar si ya existe
-    const existing = await InventorySKUModel.findOne({
+    const existing = await InventorySKU.findOne({
       tenantId,
       name: sku.name,
     })
@@ -243,7 +245,7 @@ export async function confirmSKUs(
       continue
     }
 
-    const newSKU = await InventorySKUModel.create({
+    const newSKU = await InventorySKU.create({
       tenantId,
       name: sku.name,
       category: sku.category,
@@ -278,7 +280,7 @@ export async function ensureDefaultStorageLocations(
   const created: Array<{ id: string; name: string; type: string }> = []
 
   for (const loc of defaults) {
-    const existing = await InventoryStorageLocationModel.findOne({
+    const existing = await InventoryStorageLocation.findOne({
       tenantId,
       locationId,
       name: loc.name,
@@ -288,7 +290,7 @@ export async function ensureDefaultStorageLocations(
       continue
     }
 
-    const newLoc = await InventoryStorageLocationModel.create({
+    const newLoc = await InventoryStorageLocation.create({
       tenantId,
       locationId,
       name: loc.name,

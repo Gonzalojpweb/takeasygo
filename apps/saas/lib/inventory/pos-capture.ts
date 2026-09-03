@@ -1,4 +1,5 @@
-import { InventorySkuMenuLinkModel, InventoryRecipeModel } from "@takeasygo/db"
+import InventorySkuMenuLink from "@/models/InventorySkuMenuLink"
+import InventoryRecipe from "@/models/InventoryRecipe"
 import { processInventoryEvent } from "./projector"
 import { connectDB } from "../mongoose"
 
@@ -43,7 +44,7 @@ export async function captureSaleConsumed(
   for (const item of items) {
     try {
       // 1. Buscar vínculo menú → receta
-      const link = await InventorySkuMenuLinkModel.findOne({
+      const link = await InventorySkuMenuLink.findOne({
         tenantId,
         menuItemId: item.productId,
         isActive: true,
@@ -57,7 +58,7 @@ export async function captureSaleConsumed(
       }
 
       // 2. Buscar receta con sus inputs
-      const recipe = await InventoryRecipeModel.findById(link.recipeId)
+      const recipe = await InventoryRecipe.findById(link.recipeId)
       if (!recipe) {
         errors.push(`Receta no encontrada: ${link.recipeId} para ${item.name}`)
         continue

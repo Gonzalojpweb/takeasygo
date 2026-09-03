@@ -1,6 +1,6 @@
-import { InventoryLedgerModel, InventoryStateModel } from "@takeasygo/db"
+import InventoryLedger from "@/models/InventoryLedger"
+import InventoryState from "@/models/InventoryState"
 import type {
-  InventoryEvent,
   InventoryEventType,
   ObservationMethod,
   HypothesisFlag,
@@ -273,7 +273,7 @@ export async function processInventoryEvent(eventData: {
 
   // 1. Insert en ledger (idempotencia: eventId es unique)
   try {
-    await InventoryLedgerModel.create(eventData as any)
+    await InventoryLedger.create(eventData as any)
   } catch (err: any) {
     if (err.code === 11000) {
       // Duplicate key → evento ya procesado (idempotencia)
@@ -283,7 +283,7 @@ export async function processInventoryEvent(eventData: {
   }
 
   // 2. Buscar o crear estado actual
-  let state = await InventoryStateModel.findOne({
+  let state = await InventoryState.findOne({
     tenantId: eventData.tenantId,
     skuId: eventData.skuId,
     storageLocationId: eventData.storageLocationId,
@@ -291,7 +291,7 @@ export async function processInventoryEvent(eventData: {
 
   const isNew = !state
   if (isNew) {
-    state = new InventoryStateModel({
+    state = new InventoryState({
       tenantId: eventData.tenantId,
       skuId: eventData.skuId,
       storageLocationId: eventData.storageLocationId,

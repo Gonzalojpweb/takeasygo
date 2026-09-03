@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongoose"
-import { TenantModel } from "@takeasygo/db"
+import Tenant from "@/models/Tenant"
 import { capturePhysicalCount, getSKUsForVerification } from "@/lib/inventory"
 
 // ============================================================================
@@ -21,7 +21,7 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
-    const tenant = await TenantModel.findOne({ slug: tenantSlug, isActive: true })
+    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
@@ -103,7 +103,7 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
-    const tenant = await TenantModel.findOne({ slug: tenantSlug, isActive: true })
+    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }

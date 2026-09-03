@@ -1,4 +1,6 @@
-import { InventoryStateModel, InventorySKUModel, InventoryLedgerModel } from "@takeasygo/db"
+import InventoryState from "@/models/InventoryState"
+import InventorySKU from "@/models/InventorySKU"
+import InventoryLedger from "@/models/InventoryLedger"
 import { connectDB } from "../mongoose"
 
 // ============================================================================
@@ -51,7 +53,7 @@ export async function calculateConsumptionVelocity(
   const since = new Date()
   since.setDate(since.getDate() - days)
 
-  const result = await InventoryLedgerModel.aggregate([
+  const result = await InventoryLedger.aggregate([
     {
       $match: {
         tenantId: skuId ? skuId : tenantId, // Will be fixed by actual ObjectId
@@ -113,8 +115,8 @@ export async function calculateEERForSKU(
   config: EERConfig = DEFAULT_EER_CONFIG
 ): Promise<EERResult | null> {
   const [state, sku] = await Promise.all([
-    InventoryStateModel.findOne({ tenantId, skuId, storageLocationId }),
-    InventorySKUModel.findById(skuId),
+    InventoryState.findOne({ tenantId, skuId, storageLocationId }),
+    InventorySKU.findById(skuId),
   ])
 
   if (!state || !sku) return null
@@ -155,7 +157,7 @@ export async function getDailyPriorities(
   config: EERConfig = DEFAULT_EER_CONFIG
 ): Promise<EERResult[]> {
   // Obtener todos los states activos del tenant
-  const states = await InventoryStateModel.find({ tenantId })
+  const states = await InventoryState.find({ tenantId })
 
   if (!states.length) return []
 

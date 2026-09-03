@@ -1,4 +1,4 @@
-import { InventoryStateModel } from "@takeasygo/db"
+import InventoryState from "@/models/InventoryState"
 import { processInventoryEvent } from "./projector"
 import { connectDB } from "../mongoose"
 
@@ -41,7 +41,7 @@ export async function capturePhysicalCount(
 
   try {
     // 1. Obtener estado actual
-    const state = await InventoryStateModel.findOne({
+    const state = await InventoryState.findOne({
       tenantId: input.tenantId,
       skuId: input.skuId,
       storageLocationId: input.storageLocationId,
@@ -119,7 +119,7 @@ export async function getSKUsForVerification(
   await connectDB()
 
   // Buscar estados con mayor incertidumbre y que no hayan sido observados recientemente
-  const states = await InventoryStateModel.find({
+  const states = await InventoryState.find({
     tenantId,
     daysSinceObservation: { $gte: 1 }, // Al menos 1 día sin observar
     confidenceLevel: { $in: ["low", "critical"] },
