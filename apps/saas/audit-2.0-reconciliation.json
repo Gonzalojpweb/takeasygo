@@ -1,0 +1,380 @@
+{
+  "monetaryUnit": {
+    "sampleOrders": [
+      {
+        "orderNumber": "KEK-260620-4129",
+        "total_cents": 2045000,
+        "total_pesos": 20450,
+        "subtotal_cents": 1900000,
+        "itemsSubtotal_cents": 1900000
+      },
+      {
+        "orderNumber": "KEK-260621-9110",
+        "total_cents": 8625000,
+        "total_pesos": 86250,
+        "subtotal_cents": 8480000,
+        "itemsSubtotal_cents": 8480000
+      },
+      {
+        "orderNumber": "KEK-260624-8409",
+        "total_cents": 7770000,
+        "total_pesos": 77700,
+        "subtotal_cents": 7625000,
+        "itemsSubtotal_cents": 7625000
+      },
+      {
+        "orderNumber": "KEK-260630-4837",
+        "total_cents": 4500000,
+        "total_pesos": 45000,
+        "subtotal_cents": 4050000,
+        "itemsSubtotal_cents": 4050000
+      },
+      {
+        "orderNumber": "KEK-260701-5301",
+        "total_cents": 6300000,
+        "total_pesos": 63000,
+        "subtotal_cents": 5850000,
+        "itemsSubtotal_cents": 5850000
+      }
+    ],
+    "reconciliation": {
+      "_id": null,
+      "avgDifference": 212687.13043478262,
+      "maxDifference": 895300,
+      "minDifference": -525139,
+      "ordersWhereTotalGreater": 161,
+      "ordersWhereSubtotalGreater": 0,
+      "count": 161
+    }
+  },
+  "orderReconciliation": {
+    "total": 175,
+    "valid": 161,
+    "cancelled": 14,
+    "totalRevenue_cents": 752452628,
+    "totalRevenue_pesos": 7524526.28,
+    "avgTicket_cents": 4673618.807453416,
+    "avgTicket_pesos": 46736.18807453416
+  },
+  "productReconciliation": {
+    "itemsRevenue_cents": 718210000,
+    "itemsRevenue_pesos": 7182100,
+    "totalRevenue_cents": 752452628,
+    "difference_cents": 34242628,
+    "costBreakdown": {
+      "discounts": 920000,
+      "deliveryCost": 21340000,
+      "loyaltyDiscounts": 0,
+      "surcharges": 13822628
+    },
+    "categories": [
+      {
+        "name": "Burgas",
+        "revenue_cents": 650995000,
+        "revenue_pesos": 6509950,
+        "percentage": "90.6%"
+      },
+      {
+        "name": "",
+        "revenue_cents": 32490000,
+        "revenue_pesos": 324900,
+        "percentage": "4.5%"
+      },
+      {
+        "name": "Papas",
+        "revenue_cents": 17600000,
+        "revenue_pesos": 176000,
+        "percentage": "2.5%"
+      },
+      {
+        "name": "Nuggets",
+        "revenue_cents": 12925000,
+        "revenue_pesos": 129250,
+        "percentage": "1.8%"
+      },
+      {
+        "name": "Bebidas",
+        "revenue_cents": 3150000,
+        "revenue_pesos": 31500,
+        "percentage": "0.4%"
+      },
+      {
+        "name": "Empanadas",
+        "revenue_cents": 1050000,
+        "revenue_pesos": 10500,
+        "percentage": "0.1%"
+      }
+    ]
+  },
+  "customerReconciliation": {
+    "uniqueCustomers": 122,
+    "oneTime": 98,
+    "repeat": 24,
+    "highFreq": 7,
+    "totalRevenue_cents": 752452628,
+    "crossCheckMatch": true
+  },
+  "loyaltyReconciliation": {
+    "activeMembers": 84,
+    "memberOrders": 93,
+    "memberRevenue_cents": 451311851,
+    "memberRevenue_pesos": 4513118.51,
+    "nonMemberOrders": 68,
+    "nonMemberRevenue_cents": 301140777,
+    "nonMemberRevenue_pesos": 3011407.77,
+    "crossCheckMatch": true,
+    "totalPoints": 261335,
+    "pointsSpent": 12990,
+    "utilizationRate": "5.0%"
+  },
+  "upsellReconciliation": {
+    "addedFromDistribution": [
+      {
+        "source": null,
+        "count": 349
+      },
+      {
+        "source": "best_sellers",
+        "count": 15
+      },
+      {
+        "source": "upsell_sheet",
+        "count": 12
+      },
+      {
+        "source": "menu",
+        "count": 11
+      }
+    ],
+    "upsellRevenue_cents": 51400000,
+    "upsellRevenue_pesos": 514000,
+    "upsellQuantity": 26,
+    "ordersWithUpsell": 18,
+    "totalValidOrders": 161,
+    "penetrationRate": "11.2%",
+    "revenueShare": "6.83%"
+  },
+  "tiaChain": {
+    "totalInsights": 1639,
+    "sources": [
+      {
+        "_id": "daily-cron",
+        "count": 1615
+      },
+      {
+        "_id": "sil",
+        "count": 24
+      }
+    ],
+    "status": [
+      {
+        "_id": "active",
+        "count": 1639
+      }
+    ],
+    "criticalInsights": [
+      {
+        "title": "Buen pico en pedidos diarios",
+        "severity": "critical",
+        "category": "orders",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      },
+      {
+        "title": "Buen pico en ingresos diarios",
+        "severity": "critical",
+        "category": "revenue",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      },
+      {
+        "title": "Buen pico en ingresos diarios",
+        "severity": "critical",
+        "category": "revenue",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      },
+      {
+        "title": "Buen pico en pedidos diarios",
+        "severity": "critical",
+        "category": "orders",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      },
+      {
+        "title": "Buen pico en ingresos diarios",
+        "severity": "critical",
+        "category": "revenue",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      },
+      {
+        "title": "Buen pico en pedidos diarios",
+        "severity": "critical",
+        "category": "orders",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      },
+      {
+        "title": "Buen pico en pedidos diarios",
+        "severity": "critical",
+        "category": "orders",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      },
+      {
+        "title": "Buen pico en ingresos diarios",
+        "severity": "critical",
+        "category": "revenue",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      },
+      {
+        "title": "Buen pico en pedidos diarios",
+        "severity": "critical",
+        "category": "orders",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      },
+      {
+        "title": "Buen pico en ingresos diarios",
+        "severity": "critical",
+        "category": "revenue",
+        "recommendation": "Verificar si hubo promoción, evento o cambio que explique el pico."
+      }
+    ],
+    "chainStatus": {
+      "generatesInsights": "CONFIRMED",
+      "providesRecommendations": "CONFIRMED",
+      "userReceivesInsights": "UNVERIFIABLE",
+      "userActsOnRecommendations": "UNVERIFIABLE",
+      "measurableOutcome": "UNVERIFIABLE"
+    }
+  },
+  "cisReconciliation": {
+    "segments": [
+      {
+        "segment": "NEW",
+        "count": 129,
+        "totalOrders": 130,
+        "totalSpent_cents": 586566000,
+        "totalSpent_pesos": 5865660
+      },
+      {
+        "segment": "VIP",
+        "count": 6,
+        "totalOrders": 103,
+        "totalSpent_cents": 235351700,
+        "totalSpent_pesos": 2353517
+      },
+      {
+        "segment": "HIGH_POTENTIAL",
+        "count": 3,
+        "totalOrders": 9,
+        "totalSpent_cents": 25565000,
+        "totalSpent_pesos": 255650
+      },
+      {
+        "segment": "DORMANT",
+        "count": 2,
+        "totalOrders": 4,
+        "totalSpent_cents": 22200000,
+        "totalSpent_pesos": 222000
+      }
+    ],
+    "cisTotalOrders": 246,
+    "actualTotalOrders": 175,
+    "orderMatch": false,
+    "profileMatchRate": "111/140 (79.3%)"
+  },
+  "timezone": {
+    "rawTimestamps": [
+      {
+        "orderNumber": "KEK-260620-4129",
+        "createdAt_utc": "2026-06-20T00:09:42.377Z",
+        "utcHour": 0,
+        "arHour": 21
+      },
+      {
+        "orderNumber": "KEK-260621-9110",
+        "createdAt_utc": "2026-06-21T01:16:10.047Z",
+        "utcHour": 1,
+        "arHour": 22
+      },
+      {
+        "orderNumber": "KEK-260624-8409",
+        "createdAt_utc": "2026-06-24T23:35:46.207Z",
+        "utcHour": 23,
+        "arHour": 20
+      },
+      {
+        "orderNumber": "KEK-260630-4837",
+        "createdAt_utc": "2026-06-30T23:36:30.648Z",
+        "utcHour": 23,
+        "arHour": 20
+      },
+      {
+        "orderNumber": "KEK-260701-5301",
+        "createdAt_utc": "2026-07-01T23:36:49.987Z",
+        "utcHour": 23,
+        "arHour": 20
+      }
+    ],
+    "hourDistributionUTC": [
+      {
+        "utcHour": 0,
+        "count": 63
+      },
+      {
+        "utcHour": 1,
+        "count": 26
+      },
+      {
+        "utcHour": 2,
+        "count": 8
+      },
+      {
+        "utcHour": 14,
+        "count": 1
+      },
+      {
+        "utcHour": 15,
+        "count": 7
+      },
+      {
+        "utcHour": 16,
+        "count": 1
+      },
+      {
+        "utcHour": 17,
+        "count": 1
+      },
+      {
+        "utcHour": 22,
+        "count": 3
+      },
+      {
+        "utcHour": 23,
+        "count": 51
+      }
+    ],
+    "peakHoursAR": [
+      {
+        "utcHour": 0,
+        "arHour": 21,
+        "count": 63
+      },
+      {
+        "utcHour": 23,
+        "arHour": 20,
+        "count": 51
+      },
+      {
+        "utcHour": 1,
+        "arHour": 22,
+        "count": 26
+      },
+      {
+        "utcHour": 2,
+        "arHour": 23,
+        "count": 8
+      },
+      {
+        "utcHour": 15,
+        "arHour": 12,
+        "count": 7
+      }
+    ]
+  }
+}

@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import Rating from '@/models/Rating'
 import { verifyRatingToken } from '@/lib/rating-token'
+import { captureRatingSubmitted } from '@/lib/events'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(
@@ -46,6 +47,12 @@ export async function POST(
         locationId: order.locationId,
         stars: starsN,
         comment: typeof comment === 'string' ? comment.trim().slice(0, 280) : '',
+      })
+      // M3: Track rating submission (MongoDB)
+      captureRatingSubmitted({
+        orderId: order._id.toString(),
+        stars: starsN,
+        phoneHash: order.customerPhoneHash || '',
       })
     } catch (e: any) {
       if (e.code === 11000) {

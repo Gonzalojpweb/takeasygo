@@ -29,6 +29,7 @@ import { getSuggestions, type UpsellSource } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
 import { captureMenuOpened, captureDishAdded, captureHiddenRewardDiscovered, captureHiddenRewardRevealed, captureBestSellerAdded } from '@/lib/tia/events'
+import { captureMenuOpened as captureMenuOpenedMongo, captureCartAdd, captureUpsellImpression } from '@/lib/events'
 import { motion } from 'framer-motion'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import LocationBar from '@/components/menu/LocationBar'
@@ -243,7 +244,17 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   useEffect(() => {
     captureMenuOpened(location._id)
+    captureMenuOpenedMongo(location._id)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Upsell impression: track when suggestions become visible
+  const prevUpsellCountRef = useRef(0)
+  useEffect(() => {
+    if (upsellSuggestions.length > 0 && prevUpsellCountRef.current === 0) {
+      captureUpsellImpression({ suggestions: upsellSuggestions.map((s: any) => s.name), source: upsellSource || 'static' })
+    }
+    prevUpsellCountRef.current = upsellSuggestions.length
+  }, [upsellSuggestions, upsellSource])
 
   const clubMembership = useClubMembership(tenant.slug, location._id)
 
@@ -444,6 +455,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       if (items.length > 0) { setUpsellSuggestions(items); setUpsellSource(source) }
     }
     captureDishAdded({ _id: item._id, name: item.name, price: getItemPrice(item) }, 1, false)
+    captureCartAdd({ menuItemId: item._id, name: item.name, category: '', price: getItemPrice(item), quantity: 1, hasCustomizations: false, source: addedFrom || 'menu' })
     // Momento 01: feedback de posesión
     playAddSound()
     if (navigator.vibrate) navigator.vibrate(50)
@@ -643,6 +655,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       }
       if (cartItem.menuItemId) {
         captureDishAdded({ _id: cartItem.menuItemId, name: itemName, price: cartItem.price }, cartItem.quantity, true)
+        captureCartAdd({ menuItemId: cartItem.menuItemId, name: itemName, price: cartItem.price, quantity: cartItem.quantity, hasCustomizations: true, source: 'menu' })
       }
       setCart(prev => {
         const existing = prev.find(i => i.cartItemId === uniqueId)
@@ -695,6 +708,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
     if (cartItem.menuItemId) {
       captureDishAdded({ _id: cartItem.menuItemId, name: cartItem.name, price: cartItem.price }, cartItem.quantity, true)
+      const addedFrom = bestSellerRef.current ? 'best_sellers' : upsellModalRef.current ? 'upsell_sheet' : 'menu'
+      captureCartAdd({ menuItemId: cartItem.menuItemId, name: cartItem.name, price: cartItem.price, quantity: cartItem.quantity, hasCustomizations: true, source: addedFrom })
     }
     if (bestSellerRef.current && cartItem.menuItemId) {
       captureBestSellerAdded({ _id: cartItem.menuItemId, name: cartItem.name, price: cartItem.price })

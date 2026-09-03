@@ -36,6 +36,7 @@ export type CustomerSignal =
 
 // ── Eventos crudos (P7 — guardar siempre) ────────────────────────────────────
 export type CustomerEventType =
+  // Core funnel
   | 'order_completed'
   | 'product_view'
   | 'cart_add'
@@ -43,9 +44,25 @@ export type CustomerEventType =
   | 'checkout_started'
   | 'checkout_completed'
   | 'menu_opened'
+  // CIS internal
   | 'segment_changed'
   | 'signal_detected'
   | 'health_score_changed'
+  // Behavioral — Phase 2 (Spec v1.0)
+  | 'dish_detail_opened'
+  | 'upsell_impression'
+  | 'upsell_add'
+  | 'checkout_field_interact'
+  | 'payment_method_selected'
+  | 'delivery_address_set'
+  | 'loyalty_lookup'
+  | 'tia_insight_shown'
+  | 'tia_insight_dismissed'
+  | 'tia_insight_resolved'
+  | 'rating_submitted'
+  | 'feedback_submitted'
+  | 'qr_promo_applied'
+  | 'order_status_changed'
 
 // ── Severidad (igual que TIA para consistencia) ─────────────────────────────
 export type CustomerInsightSeverity = 'info' | 'warning' | 'critical'
