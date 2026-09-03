@@ -177,7 +177,7 @@ export function ProductConfigurationPanel({
       name: product.name,
       quantity,
       unitPrice,
-      total: unitPrice * quantity,
+      total: (unitPrice + modifierTotal) * quantity,
       modifiers: modifiers.length > 0 ? modifiers : undefined,
       notes: notes || undefined,
     })
