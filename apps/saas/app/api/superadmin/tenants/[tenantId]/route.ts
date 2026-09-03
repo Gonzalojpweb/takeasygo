@@ -66,6 +66,15 @@ export async function PUT(
     if (features?.cashPaymentEnabledBySuperadmin !== undefined) {
       updateSet['features.cashPaymentEnabledBySuperadmin'] = !!features.cashPaymentEnabledBySuperadmin
     }
+    if (features?.crm !== undefined) {
+      updateSet['features.crm.enabled'] = !!features.crm?.enabled
+    }
+    if (features?.reservations !== undefined) {
+      updateSet['features.reservations'] = !!features.reservations
+    }
+    if (features?.tgoGrowthPushEnabled !== undefined) {
+      updateSet['features.tgoGrowthPushEnabled'] = !!features.tgoGrowthPushEnabled
+    }
 
     const tenant = await Tenant.findByIdAndUpdate(
       tenantId,
