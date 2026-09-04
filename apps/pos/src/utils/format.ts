@@ -1,4 +1,4 @@
-import { toPesos } from "@takeasygo/business"
+import { toPesos } from "@takeasygo/business/browser"
 
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", {

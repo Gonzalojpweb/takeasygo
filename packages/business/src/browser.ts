@@ -1,5 +1,6 @@
 export { calculateOrderTotal, validateOrderItems } from "./order"
 export { canPerformAction, PERMISSIONS } from "./authorization"
+export { toPesos, toCents, formatCents } from "./money"
 export {
   generateSalt,
   deriveKey,

@@ -1,5 +1,5 @@
 import type { ZReport, PaymentMethod } from "@takeasygo/types"
-import { toPesos } from "@takeasygo/business"
+import { toPesos } from "@takeasygo/business/browser"
 
 // ============================================================================
 // Z Report — Renderer PDF (client-side)
