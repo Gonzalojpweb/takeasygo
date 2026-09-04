@@ -25,6 +25,10 @@ import { fetchCustomerEngagement, fetchBatchEngagement } from './posthog-bridge'
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
+// Ventana temporal para definir "segunda compra" (P4.3)
+// Un cliente que vuelve dentro de 30 días se considera "convertido" en recurrente.
+export const SECOND_PURCHASE_WINDOW_DAYS = 30
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function daysBetween(a: Date, b: Date): number {
@@ -48,7 +52,7 @@ async function getTenantTimezone(tenantId: mongoose.Types.ObjectId): Promise<str
 export async function computeBaseMetrics(
   consumerId: mongoose.Types.ObjectId,
   tenantId: mongoose.Types.ObjectId
-): Promise<Pick<CustomerMetrics, 'orderCount' | 'totalSpent' | 'firstOrderAt' | 'lastOrderAt' | 'avgTicket' | 'daysSinceLastOrder' | 'daysSinceFirstOrder' | 'visitFrequency' | 'avgOrderInterval'>> {
+): Promise<Pick<CustomerMetrics, 'orderCount' | 'totalSpent' | 'firstOrderAt' | 'lastOrderAt' | 'avgTicket' | 'daysSinceLastOrder' | 'daysSinceFirstOrder' | 'visitFrequency' | 'avgOrderInterval' | 'daysToSecondPurchase' | 'secondPurchaseConversionRate'>> {
   const tid = new mongoose.Types.ObjectId(tenantId)
   const cid = new mongoose.Types.ObjectId(consumerId)
 
@@ -58,7 +62,7 @@ export async function computeBaseMetrics(
     return {
       orderCount: 0, totalSpent: 0, firstOrderAt: null, lastOrderAt: null,
       avgTicket: 0, daysSinceLastOrder: null, daysSinceFirstOrder: null,
-      visitFrequency: 0, avgOrderInterval: 0,
+      visitFrequency: 0, avgOrderInterval: 0, daysToSecondPurchase: null, secondPurchaseConversionRate: 0,
     }
   }
 
@@ -103,10 +107,31 @@ export async function computeBaseMetrics(
     }
   }
 
+  // daysToSecondPurchase: días entre primera y segunda orden (null si solo 1 orden)
+  let daysToSecondPurchase: number | null = null
+  if (orderCount >= 2 && firstOrderAt) {
+    const secondOrder = await Order.findOne({
+      tenantId: tid,
+      'customer.phoneHash': consumer.phoneHash,
+      status: { $nin: ['cancelled', 'open', 'awaiting_payment'] },
+      createdAt: { $gt: firstOrderAt },
+    })
+      .sort({ createdAt: 1 })
+      .select('createdAt')
+      .lean()
+    if (secondOrder) {
+      daysToSecondPurchase = daysBetween(firstOrderAt, secondOrder.createdAt)
+    }
+  }
+
+  // secondPurchaseConversionRate: placeholder per-customer (1 if orderCount >= 2, else 0)
+  // The tenant-level rate is computed separately via computeSecondPurchaseFunnel()
+  const secondPurchaseConversionRate = orderCount >= 2 ? 1 : 0
+
   return {
     orderCount, totalSpent, firstOrderAt, lastOrderAt,
     avgTicket, daysSinceLastOrder, daysSinceFirstOrder,
-    visitFrequency, avgOrderInterval,
+    visitFrequency, avgOrderInterval, daysToSecondPurchase, secondPurchaseConversionRate,
   }
 }
 
@@ -298,6 +323,104 @@ export async function computeAllMetrics(
     ...rewards,
     ...club,
     lifetimeValue: base.totalSpent,
+  }
+}
+
+// ── Tenant-level: funnel de primera → segunda compra ─────────────────────────
+
+export interface SecondPurchaseFunnel {
+  totalFirstTimeBuyers: number
+  convertedWithinWindow: number
+  conversionRate: number
+  avgDaysToSecond: number
+  windowDays: number
+}
+
+export async function computeSecondPurchaseFunnel(
+  tenantId: mongoose.Types.ObjectId
+): Promise<SecondPurchaseFunnel> {
+  const tid = new mongoose.Types.ObjectId(tenantId)
+  const timezone = await getTenantTimezone(tid)
+
+  // Find first-time buyers: customers with exactly 1 COMPLETED order
+  // (consistent with avgOrderInterval criteria — queries Order directly, not Consumer.totalOrders)
+  const firstTimeBuyers = await Order.aggregate([
+    {
+      $match: {
+        tenantId: tid,
+        status: { $nin: ['cancelled', 'open', 'awaiting_payment'] },
+      },
+    },
+    {
+      $group: {
+        _id: '$customer.phoneHash',
+        orderCount: { $sum: 1 },
+        firstOrderAt: { $min: '$createdAt' },
+      },
+    },
+    { $match: { orderCount: 1 } },
+  ])
+
+  if (firstTimeBuyers.length === 0) {
+    return { totalFirstTimeBuyers: 0, convertedWithinWindow: 0, conversionRate: 0, avgDaysToSecond: 0, windowDays: SECOND_PURCHASE_WINDOW_DAYS }
+  }
+
+  const phoneHashes = firstTimeBuyers.map((b: any) => b._id)
+
+  // Find second orders for these customers
+  const secondOrders = await Order.aggregate([
+    {
+      $match: {
+        tenantId: tid,
+        'customer.phoneHash': { $in: phoneHashes },
+        status: { $nin: ['cancelled', 'open', 'awaiting_payment'] },
+      },
+    },
+    { $sort: { createdAt: 1 } },
+    {
+      $group: {
+        _id: '$customer.phoneHash',
+        orderDates: { $push: '$createdAt' },
+        orderCount: { $sum: 1 },
+      },
+    },
+    { $match: { orderCount: { $gte: 2 } } },
+    {
+      $project: {
+        _id: 1,
+        firstOrder: { $arrayElemAt: ['$orderDates', 0] },
+        secondOrder: { $arrayElemAt: ['$orderDates', 1] },
+      },
+    },
+  ])
+
+  // Count conversions within window
+  let convertedWithinWindow = 0
+  let totalDaysToSecond = 0
+  let countWithSecond = 0
+
+  for (const so of secondOrders) {
+    const buyer = firstTimeBuyers.find((b: any) => b._id === so._id)
+    if (buyer) {
+      const daysToSecond = daysBetween(buyer.firstOrderAt, so.secondOrder)
+      if (daysToSecond <= SECOND_PURCHASE_WINDOW_DAYS) {
+        convertedWithinWindow++
+      }
+      totalDaysToSecond += daysToSecond
+      countWithSecond++
+    }
+  }
+
+  const totalFirstTimeBuyers = firstTimeBuyers.length
+  const conversionRate = totalFirstTimeBuyers > 0 ? convertedWithinWindow / totalFirstTimeBuyers : 0
+  const avgDaysToSecond = countWithSecond > 0 ? totalDaysToSecond / countWithSecond : 0
+
+  return {
+    totalFirstTimeBuyers,
+    convertedWithinWindow,
+    conversionRate,
+    avgDaysToSecond: Math.round(avgDaysToSecond),
+    windowDays: SECOND_PURCHASE_WINDOW_DAYS,
   }
 }
 

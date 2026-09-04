@@ -31,6 +31,7 @@ export interface ITiaInsight extends Document {
   generatedAt: Date
   dismissedAt?: Date
   resolvedAt?: Date
+  readAt?: Date
   source: 'sil' | 'daily-cron'
   createdAt: Date
   updatedAt: Date
@@ -75,6 +76,7 @@ const TiaInsightSchema = new Schema<ITiaInsight>(
     generatedAt: { type: Date, default: Date.now },
     dismissedAt: { type: Date },
     resolvedAt: { type: Date },
+    readAt: { type: Date },
     source: {
       type: String,
       enum: ['sil', 'daily-cron'],
@@ -86,6 +88,7 @@ const TiaInsightSchema = new Schema<ITiaInsight>(
 
 TiaInsightSchema.index({ tenantId: 1, status: 1, generatedAt: -1 })
 TiaInsightSchema.index({ tenantId: 1, type: 1, severity: 1 })
+TiaInsightSchema.index({ tenantId: 1, readAt: 1, status: 1 })
 
 const TiaInsight =
   mongoose.models.TiaInsight ||

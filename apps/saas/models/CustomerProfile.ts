@@ -51,6 +51,10 @@ export interface ICustomerProfile extends Document {
   completedOrders: number
   conversionRate: number
 
+  // Retención
+  secondPurchaseConversionRate: number
+  daysToSecondPurchase: number | null
+
   // Rewards
   rewardUsageCount: number
   rewardUsageRate: number
@@ -109,6 +113,10 @@ const CustomerProfileSchema = new Schema<ICustomerProfile>(
     checkoutStarts: { type: Number, default: 0 },
     completedOrders: { type: Number, default: 0 },
     conversionRate: { type: Number, default: 0 },
+
+    // Retención
+    secondPurchaseConversionRate: { type: Number, default: 0 },
+    daysToSecondPurchase: { type: Number, default: null },
 
     // Rewards
     rewardUsageCount: { type: Number, default: 0 },
