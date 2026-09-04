@@ -66,6 +66,10 @@ export default defineConfig({
         __dirname,
         "../../packages/business/src"
       ),
+      "@takeasygo/business/browser": path.resolve(
+        __dirname,
+        "../../packages/business/src/browser.ts"
+      ),
       "@takeasygo/ui": path.resolve(__dirname, "../../packages/ui/src"),
     },
   },
