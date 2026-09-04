@@ -11,9 +11,12 @@ interface Props {
     anomalies: Insight[]
   }
   loading?: boolean
+  tenantSlug?: string
+  onDismiss?: (id: string) => void
+  onResolve?: (id: string) => void
 }
 
-export default function SilSection({ data, loading }: Props) {
+export default function SilSection({ data, loading, tenantSlug, onDismiss, onResolve }: Props) {
   const hasData = data.insights.length > 0 || data.anomalies.length > 0
 
   if (loading) {
@@ -48,20 +51,32 @@ export default function SilSection({ data, loading }: Props) {
         </div>
       ) : (
         <div className="space-y-3">
-          {data.insights.map((insight, i) => (
+          {data.insights.map((insight) => (
             <InsightCard
-              key={i}
+              key={insight._id}
+              _id={insight._id}
               title={insight.title}
               description={insight.description}
               type={insight.severity === 'critical' ? 'warning' : insight.severity === 'info' ? 'neutral' : 'warning'}
+              severity={insight.severity}
+              dbStatus={insight.dbStatus}
+              tenantSlug={tenantSlug}
+              onDismiss={onDismiss}
+              onResolve={onResolve}
             />
           ))}
-          {data.anomalies.map((anomaly, i) => (
+          {data.anomalies.map((anomaly) => (
             <InsightCard
-              key={`anomaly-${i}`}
+              key={anomaly._id}
+              _id={anomaly._id}
               title={anomaly.title}
               description={anomaly.description}
               type={anomaly.severity === 'critical' ? 'negative' : 'warning'}
+              severity={anomaly.severity}
+              dbStatus={anomaly.dbStatus}
+              tenantSlug={tenantSlug}
+              onDismiss={onDismiss}
+              onResolve={onResolve}
             />
           ))}
         </div>

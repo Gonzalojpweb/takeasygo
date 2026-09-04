@@ -15,13 +15,16 @@ import BestSellersAnalytics from './BestSellersAnalytics'
 import TrendsOverview from './TrendsOverview'
 import HistoricalComparison from './HistoricalComparison'
 import CategoryComparison from './CategoryComparison'
+import SilSection from './SilSection'
 import { generateReport } from '@/lib/tia/reporting/engine'
+import { captureTiaInsightDismissed, captureTiaInsightResolved } from '@/lib/events'
 import type { TiaReport, ReportContext } from '@/lib/tia/reporting/types'
 import type { TiaMetricsData } from '@/lib/tia/metrics'
 import type { Insight, Recommendation, BenchmarkItem } from '@/lib/tia/types'
 
 interface DbInsight {
   _id: string
+  status: 'active' | 'dismissed' | 'resolved'
   type: Insight['type']
   severity: Insight['severity']
   category: Insight['category']
@@ -58,6 +61,8 @@ function getDefaultMetrics(): TiaMetricsData {
 
 function mapDbInsight(i: DbInsight): Insight {
   return {
+    _id: i._id,
+    dbStatus: i.status,
     type: i.type,
     severity: i.severity,
     category: i.category,
@@ -148,6 +153,58 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
     }
   }, [tenantSlug, fetchDailyInsights])
 
+  const handleDismiss = useCallback(async (insightId: string) => {
+    // Optimistic update
+    setSilData(prev => ({
+      ...prev,
+      insights: prev.insights.map(i => i._id === insightId ? { ...i, dbStatus: 'dismissed' as const } : i),
+      anomalies: prev.anomalies.map(i => i._id === insightId ? { ...i, dbStatus: 'dismissed' as const } : i),
+    }))
+    try {
+      const res = await fetch(`/api/${tenantSlug}/tia/insights`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ insightId, action: 'dismiss' }),
+      })
+      if (!res.ok) throw new Error('Failed to dismiss')
+      captureTiaInsightDismissed(insightId, 'sil')
+    } catch (err) {
+      console.error('[TIA] dismiss error', err)
+      // Revert optimistic update
+      setSilData(prev => ({
+        ...prev,
+        insights: prev.insights.map(i => i._id === insightId ? { ...i, dbStatus: 'active' as const } : i),
+        anomalies: prev.anomalies.map(i => i._id === insightId ? { ...i, dbStatus: 'active' as const } : i),
+      }))
+    }
+  }, [tenantSlug])
+
+  const handleResolve = useCallback(async (insightId: string) => {
+    // Optimistic update
+    setSilData(prev => ({
+      ...prev,
+      insights: prev.insights.map(i => i._id === insightId ? { ...i, dbStatus: 'resolved' as const } : i),
+      anomalies: prev.anomalies.map(i => i._id === insightId ? { ...i, dbStatus: 'resolved' as const } : i),
+    }))
+    try {
+      const res = await fetch(`/api/${tenantSlug}/tia/insights`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ insightId, action: 'resolve' }),
+      })
+      if (!res.ok) throw new Error('Failed to resolve')
+      captureTiaInsightResolved(insightId, 'sil')
+    } catch (err) {
+      console.error('[TIA] resolve error', err)
+      // Revert optimistic update
+      setSilData(prev => ({
+        ...prev,
+        insights: prev.insights.map(i => i._id === insightId ? { ...i, dbStatus: 'active' as const } : i),
+        anomalies: prev.anomalies.map(i => i._id === insightId ? { ...i, dbStatus: 'active' as const } : i),
+      }))
+    }
+  }, [tenantSlug])
+
   useEffect(() => {
     fetchMetrics()
   }, [tenantSlug])
@@ -215,6 +272,17 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
 
       {/* SECCIÓN 1: Lo más importante de hoy */}
       <TopFindings findings={report.findings} />
+
+      {/* SECCIÓN 1b: Insights del día (interactivos) */}
+      {hasInsights && (
+        <SilSection
+          data={silData}
+          loading={silLoading}
+          tenantSlug={tenantSlug}
+          onDismiss={handleDismiss}
+          onResolve={handleResolve}
+        />
+      )}
 
       {/* SECCIÓN 2: Oportunidades detectadas */}
       <OpportunitiesSection opportunities={report.opportunities} />

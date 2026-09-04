@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import CustomerProfile from '@/models/CustomerProfile'
 import { canAccess } from '@/lib/plans'
 import { getCustomerIntelligenceSummary } from '@/lib/cis/tia-bridge'
+import { computeSecondPurchaseFunnel } from '@/lib/cis/metrics'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/[tenant]/crm/metrics — Métricas agregadas de clientes CIS
@@ -47,6 +48,8 @@ export async function GET(
       avgTicket: 0, avgVisitFrequency: 0, avgConversionRate: 0, totalRevenue: 0,
     }
 
+    const retentionFunnel = await computeSecondPurchaseFunnel(tenant._id)
+
     return NextResponse.json({
       totalCustomers: summary.totalCustomers,
       avgHealthScore: summary.avgHealthScore,
@@ -58,6 +61,7 @@ export async function GET(
       avgVisitFrequency: Math.round((metrics.avgVisitFrequency ?? 0) * 100) / 100,
       avgConversionRate: Math.round((metrics.avgConversionRate ?? 0) * 100),
       totalRevenue: metrics.totalRevenue ?? 0,
+      retentionFunnel,
     })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

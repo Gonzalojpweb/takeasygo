@@ -3,13 +3,70 @@ import { connectDB } from '@/lib/mongoose'
 import TiaInsight from '@/models/TiaInsight'
 import { generateRecommendations } from '@/lib/tia/recommendations'
 
+async function getTenant(tenantSlug: string) {
+  const Tenant = (await import('@/models/Tenant')).default
+  return Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id plan').lean() as any
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+  const { tenant: tenantSlug } = await params
+  await connectDB()
+
+  const tenant = await getTenant(tenantSlug)
+  if (!tenant) {
+    return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+  }
+
+  try {
+    const { insightId, action } = await req.json()
+
+    if (!insightId || !['read', 'dismiss', 'resolve'].includes(action)) {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    }
+
+    const insight = await TiaInsight.findOne({ _id: insightId, tenantId: tenant._id })
+    if (!insight) {
+      return NextResponse.json({ error: 'Insight not found' }, { status: 404 })
+    }
+
+    const now = new Date()
+
+    switch (action) {
+      case 'read':
+        if (!insight.readAt) {
+          await TiaInsight.findOneAndUpdate(
+            { _id: insightId, tenantId: tenant._id, readAt: null },
+            { $set: { readAt: now } }
+          )
+        }
+        break
+      case 'dismiss':
+        await TiaInsight.findOneAndUpdate(
+          { _id: insightId, tenantId: tenant._id },
+          { $set: { status: 'dismissed', dismissedAt: now } }
+        )
+        break
+      case 'resolve':
+        await TiaInsight.findOneAndUpdate(
+          { _id: insightId, tenantId: tenant._id },
+          { $set: { status: 'resolved', resolvedAt: now } }
+        )
+        break
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('[TIA Insights PATCH]', error)
+    return NextResponse.json({ error: 'Error updating insight' }, { status: 500 })
+  }
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
 
   await connectDB()
 
-  const Tenant = (await import('@/models/Tenant')).default
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id plan').lean() as any
+  const tenant = await getTenant(tenantSlug)
   if (!tenant) {
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: { 'Cache-Control': 'no-cache' } })
   }

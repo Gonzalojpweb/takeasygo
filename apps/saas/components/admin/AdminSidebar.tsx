@@ -26,6 +26,7 @@ import {
   Activity,
   Shield,
   BrainCircuit,
+  Sparkles,
   CreditCard,
   Database,
   BookOpen,
@@ -169,6 +170,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
     {
       section: 'Inteligencia',
       items: [
+        { href: `${base}/intelligence`, label: 'Intelligence', icon: Sparkles, roles: ['admin', 'manager'] },
         { href: `${base}/reports`, label: 'Reportes', icon: BarChart3, roles: ['admin', 'manager'], feature: 'reports', requiresTakeaway: true },
         { href: `${base}/analytics`, label: 'Analytics', icon: TrendingUp, roles: ['admin', 'manager'] },
         { href: `${base}/reviews`, label: 'Reseñas', icon: Star, roles: ['admin', 'manager'] },

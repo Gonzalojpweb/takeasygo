@@ -5,6 +5,7 @@ import { Users, Heart, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react
 import { toPesos } from '@takeasygo/business'
 import SegmentDistributionChart from './charts/SegmentDistributionChart'
 import LTVDashboard from './LTVDashboard'
+import RetentionFunnel from './RetentionFunnel'
 
 interface Props {
   tenantId: string
@@ -22,6 +23,13 @@ interface Metrics {
   avgTicket: number
   avgVisitFrequency: number
   totalRevenue: number
+  retentionFunnel: {
+    totalFirstTimeBuyers: number
+    convertedWithinWindow: number
+    conversionRate: number
+    avgDaysToSecond: number
+    windowDays: number
+  }
 }
 
 const SEGMENT_LABELS: Record<string, string> = {
@@ -230,6 +238,8 @@ export default function CISDashboard({ tenantId, tenantSlug, plan }: Props) {
               </div>
             </div>
           </div>
+
+          <RetentionFunnel data={metrics.retentionFunnel} />
         </>
       )}
 

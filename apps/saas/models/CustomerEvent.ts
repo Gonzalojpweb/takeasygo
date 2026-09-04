@@ -129,7 +129,7 @@ const CustomerEventSchema = new Schema<ICustomerEvent>(
       latencyMs: { type: Number, default: undefined },
     },
   },
-  { timestamps: false }
+  { timestamps: true }
 )
 
 // Índices

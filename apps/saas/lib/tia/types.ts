@@ -13,6 +13,8 @@ export type Severity = 'info' | 'warning' | 'critical'
 export type InsightCategory = 'orders' | 'revenue' | 'products' | 'club' | 'conversion' | 'menu' | 'operations'
 
 export interface Insight {
+  _id?: string
+  dbStatus?: 'active' | 'dismissed' | 'resolved'
   type: InsightType
   severity: Severity
   category: InsightCategory

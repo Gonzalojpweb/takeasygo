@@ -118,6 +118,10 @@ export interface CustomerMetrics {
   checkoutStarts: number
   completedOrders: number
   conversionRate: number // completedOrders / checkoutStarts
+
+  // Retención (P4.3)
+  secondPurchaseConversionRate: number // clientes con 2+ órdenes / total clientes (tenant-level)
+  daysToSecondPurchase: number | null  // días entre primera y segunda orden (null si solo 1 orden)
 }
 
 // ── Insight individual (P2) ──────────────────────────────────────────────────
