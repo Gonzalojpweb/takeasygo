@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import type { Product, OrderItem } from "@takeasygo/types"
+import { calculateItemTotal } from "@takeasygo/business/browser"
 import { useTables } from "../../hooks/useTables"
 import { reserveTable } from "../../services/table"
 import { useMenu } from "../../hooks/useMenu"
@@ -81,7 +82,7 @@ export function WaiterDashboard() {
       if (existing) {
         return prev.map((i) =>
           i.productId === product.id
-            ? { ...i, quantity: i.quantity + 1, total: i.unitPrice * (i.quantity + 1) }
+            ? { ...i, quantity: i.quantity + 1, total: calculateItemTotal({ ...i, quantity: i.quantity + 1 }) }
             : i
         )
       }
@@ -105,7 +106,7 @@ export function WaiterDashboard() {
     setCart((prev) =>
       prev.map((i) =>
         i.productId === productId
-          ? { ...i, quantity, total: i.unitPrice * quantity }
+          ? { ...i, quantity, total: calculateItemTotal({ ...i, quantity }) }
           : i
       )
     )

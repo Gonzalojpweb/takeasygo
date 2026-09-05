@@ -6,6 +6,7 @@ interface ValidationItem {
   name: string
   quantity: number
   unitPrice: number
+  total: number
   status: "valid" | "needs_attention"
 }
 
@@ -38,7 +39,7 @@ export function OrderValidationPanel({ order, items, onToggleItem }: OrderValida
                   {item.status === "needs_attention" ? "⚠ " : "✓ "}{item.quantity}x {item.name}
                 </span>
                 <span style={{ fontWeight: 600 }}>
-                  {formatCurrency(item.unitPrice * item.quantity)}
+                  {formatCurrency(item.total)}
                 </span>
               </div>
             </div>

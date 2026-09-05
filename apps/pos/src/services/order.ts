@@ -1,5 +1,5 @@
 import type { Order, OrderItem, OrderStatus } from "@takeasygo/types"
-import { calculateOrderTotal, validateOrderItems } from "@takeasygo/business/browser"
+import { calculateOrderTotal, calculateItemTotal, validateOrderItems } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
 import { enqueue } from "./event-queue"
 import { notifyStatusToSyncLayer } from "./sync-api"
@@ -171,7 +171,7 @@ export async function updateItemQuantity(
     newItems = order.items.filter((i) => i.productId !== productId)
   } else {
     newItems = order.items.map((i) =>
-      i.productId === productId ? { ...i, quantity, total: i.unitPrice * quantity } : i
+      i.productId === productId ? { ...i, quantity, total: calculateItemTotal({ ...i, quantity }) } : i
     )
   }
 
