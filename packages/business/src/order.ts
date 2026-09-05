@@ -6,6 +6,12 @@ export function calculateOrderTotal(items: OrderItem[]): number {
   }, 0)
 }
 
+/** Calculate item total including modifiers: (unitPrice + modifiersTotal) * quantity */
+export function calculateItemTotal(item: OrderItem): number {
+  const modifiersTotal = item.modifiers?.reduce((s, m) => s + m.price, 0) ?? 0
+  return (item.unitPrice + modifiersTotal) * item.quantity
+}
+
 export function validateOrderItems(items: OrderItem[]): {
   valid: boolean
   errors: string[]

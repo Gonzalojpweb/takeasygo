@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import type { ComponentType } from "react"
 import type { Product, OrderItem, CustomerProfile, PaymentMethod, Order } from "@takeasygo/types"
+import { calculateItemTotal } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
@@ -60,6 +61,7 @@ interface ValidationItem {
   name: string
   quantity: number
   unitPrice: number
+  total: number
   status: "valid" | "needs_attention"
 }
 
@@ -258,6 +260,7 @@ export function CounterDashboard() {
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        total: item.total,
         status: "valid" as const,
       }))
     )
@@ -462,7 +465,7 @@ export function CounterDashboard() {
       if (existing) {
         return prev.map((i) =>
           i.productId === product.id
-            ? { ...i, quantity: i.quantity + 1, total: i.unitPrice * (i.quantity + 1) }
+            ? { ...i, quantity: i.quantity + 1, total: calculateItemTotal({ ...i, quantity: i.quantity + 1 }) }
             : i
         )
       }
@@ -486,7 +489,7 @@ export function CounterDashboard() {
     setCart((prev) =>
       prev.map((i) =>
         i.productId === productId
-          ? { ...i, quantity, total: i.unitPrice * quantity }
+          ? { ...i, quantity, total: calculateItemTotal({ ...i, quantity }) }
           : i
       )
     )
@@ -785,7 +788,7 @@ export function CounterDashboard() {
                           </span>
                         </div>
                         <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
-                          {formatCurrency(item.unitPrice * item.quantity)}
+                          {formatCurrency(item.total)}
                         </span>
                       </div>
                     ))}
