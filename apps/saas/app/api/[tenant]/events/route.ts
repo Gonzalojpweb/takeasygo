@@ -55,7 +55,7 @@ const eventSchema = z.object({
     source: z.string().optional(),
     quantity: z.number().optional(),
     hasCustomizations: z.boolean().optional(),
-    customizations: z.record(z.unknown()).optional(),
+    customizations: z.record(z.string(), z.unknown()).optional(),
     paymentMethod: z.string().optional(),
     orderMode: z.string().optional(),
     previousStatus: z.string().optional(),
