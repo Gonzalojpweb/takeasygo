@@ -42,14 +42,14 @@ const BADGE_NUEVO: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: 'var(--tgo-tracking-wider)',
   textTransform: 'uppercase',
-  color: '#854F0B',
+  color: 'var(--tgo-state-discovery)',
   backgroundColor: 'var(--tgo-state-discovery-soft)',
   padding: '1px 7px',
   lineHeight: 1.4,
 }
 const BADGE_ABIERTO: React.CSSProperties = {
   ...BADGE_NUEVO,
-  color: '#0F6E56',
+  color: 'var(--tgo-state-activity)',
   backgroundColor: 'var(--tgo-state-activity-soft)',
 }
 const BADGE_CERRADO: React.CSSProperties = {
@@ -73,7 +73,7 @@ const DOT_OPEN: React.CSSProperties = {
   width: 18,
   height: 18,
   borderRadius: 'var(--tgo-radius-pill)',
-  backgroundColor: 'var(--tgo-state-success)',
+  backgroundColor: 'var(--tgo-state-activity)',
   border: '2px solid var(--tgo-card)',
 }
 const DOT_CLOSED: React.CSSProperties = {
@@ -188,7 +188,7 @@ const CTA_CATALOG: React.CSSProperties = {
   fontSize: 'var(--tgo-type-caption)',
   fontWeight: 600,
   backgroundColor: 'transparent',
-  color: '#854F0B',
+  color: 'var(--tgo-state-discovery)',
   border: '1.5px solid var(--tgo-state-discovery)',
 }
 const TEXT_OPEN: React.CSSProperties = {

@@ -3,23 +3,23 @@
 // ── TGO CategoryCard ──────────────────────────────────────────────────────────
 //
 // Componente de negocio para categorías.
-// Objeto visual. No un botón.
-// Icono + color pastel + sombra suave + profundidad.
-// Se siente como un objeto físico que podés tocar.
+// Seleccionable: glow naranja cuando está activo.
+// TGO Foundations §8: color en fondo, no en trazo del ícono.
 
 interface Props {
   name: string
   icon: string
   color: string
   bg: string
+  selected?: boolean
   onClick?: () => void
 }
 
 export default function CategoryCard({
   name,
   icon,
-  color,
   bg,
+  selected = false,
   onClick,
 }: Props) {
   return (
@@ -28,24 +28,17 @@ export default function CategoryCard({
       className="flex flex-col items-center gap-2 group"
     >
       <div
-        className="flex items-center justify-center group-active:scale-90"
+        className="flex items-center justify-center group-active:scale-90 transition-all"
         style={{
           width: 58,
           height: 58,
-          borderRadius: 'var(--tgo-radius-md)',
-          backgroundColor: bg,
-          boxShadow: 'var(--shadow-card)',
-          border: '1px solid var(--tgo-border)',
+          borderRadius: selected ? 'var(--tgo-radius-pill)' : 'var(--tgo-radius-md)',
+          backgroundColor: selected ? 'var(--tgo-brand)' : bg,
+          boxShadow: selected
+            ? '0 0 0 4px rgba(247, 66, 17, 0.15), 0 4px 12px rgba(247, 66, 17, 0.25)'
+            : 'none',
+          border: `1px solid ${selected ? 'var(--tgo-brand)' : 'var(--tgo-border)'}`,
           fontSize: 24,
-          transition: `all var(--tgo-duration-base) var(--tgo-ease-standard)`,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = 'var(--tgo-elevation-floating)'
-          e.currentTarget.style.borderColor = 'var(--tgo-border-active)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = 'var(--shadow-card)'
-          e.currentTarget.style.borderColor = 'var(--tgo-border)'
         }}
       >
         {icon}
@@ -54,11 +47,11 @@ export default function CategoryCard({
       <span
         style={{
           fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: 'var(--tgo-tracking-wider)',
-          textTransform: 'uppercase',
-          color: 'var(--tgo-text-muted)',
-          transition: `color var(--tgo-duration-fast) var(--tgo-ease-standard)`,
+          fontWeight: selected ? 700 : 500,
+          textTransform: 'capitalize',
+          color: selected ? 'var(--tgo-brand)' : 'var(--tgo-text-muted)',
+          textAlign: 'center',
+          lineHeight: 1.2,
         }}
       >
         {name}
