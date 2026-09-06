@@ -48,8 +48,8 @@ export default function LiveCityMetrics({
         margin: '0 var(--tgo-page-padding)',
         padding: '12px 14px',
         borderRadius: 16,
-        background: 'var(--tgo-text-primary)',
-        boxShadow: '0 4px 12px rgba(45, 42, 75, 0.25)',
+        background: 'var(--tgo-surface-2)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
       }}
     >
       {/* Header */}
@@ -68,7 +68,7 @@ export default function LiveCityMetrics({
           style={{
             fontSize: 10,
             fontWeight: 700,
-            color: '#FFFFFF',
+            color: 'var(--tgo-text-inverse)',
             letterSpacing: '0.08em',
             textTransform: 'uppercase' as const,
           }}
@@ -103,7 +103,7 @@ export default function LiveCityMetrics({
               />
               <p
                 style={{
-                  color: 'rgba(255, 255, 255, 0.65)',
+                  color: 'var(--tgo-text-muted)',
                   fontSize: 8.5,
                   lineHeight: 1,
                   marginTop: 3,
