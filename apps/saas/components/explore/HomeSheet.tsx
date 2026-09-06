@@ -13,7 +13,7 @@ import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHand
 import { motion, useMotionValue, animate } from 'framer-motion'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import { useHaptic } from '@/components/tgo/useHaptic'
-import PuntoTGO, { type NetworkStatus } from '@/components/tgo/PuntoTGO'
+import PuntoTGO, { type LcsFaceExpression } from '@/components/tgo/PuntoTGO'
 import { Clock } from 'lucide-react'
 
 interface Props {
