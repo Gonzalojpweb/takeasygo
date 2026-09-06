@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, ArrowLeft, Mail, CheckCircle2 } from 'lucide-react'
+import PuntoTGO from '@/components/tgo/PuntoTGO'
 
 interface AuthStageProps {
   userName: string
@@ -88,17 +89,14 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
             transition={{ duration: 0.3 }}
             className="flex flex-col items-center w-full"
           >
-            {/* Shield icon */}
+            {/* PuntoTGO Pin */}
             <motion.div
               initial={{ scale: 0, rotate: -20 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.1, duration: 0.5, type: 'spring', bounce: 0.4 }}
-              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-8"
-              style={{ backgroundColor: 'rgba(247, 66, 17, 0.1)' }}
+              className="mb-8"
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--tgo-brand-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
+              <PuntoTGO expression="happy" size="xl" animate={false} />
             </motion.div>
 
             {/* Title */}
@@ -109,7 +107,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               className="text-2xl font-bold tracking-tight mb-3 text-center"
               style={{ color: 'var(--tgo-text-primary)' }}
             >
-              Continuá.
+              Tu perfil gastronómico
             </motion.h2>
 
             {/* Subtitle */}
@@ -120,7 +118,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               className="text-sm text-center mb-10 leading-relaxed max-w-[280px]"
               style={{ color: 'var(--tgo-text-muted)' }}
             >
-              Creá tu cuenta para guardar favoritos, acceder a beneficios exclusivos y acompañarte donde estés.
+              Iniciá sesión para guardar tus favoritos, seguir tus pedidos y ver tu nivel en cada local de la red.
             </motion.p>
 
             {/* Auth buttons */}
@@ -133,7 +131,11 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 whileTap={{ scale: 0.97 }}
                 onClick={handleGoogle}
                 className="h-14 rounded-2xl flex items-center justify-center gap-3 font-semibold text-sm transition-all duration-150"
-                style={{ backgroundColor: 'var(--tgo-text-on-accent)', color: 'var(--tgo-surface-1)' }}
+                style={{
+                  backgroundColor: 'var(--tgo-text-on-accent)',
+                  color: 'var(--tgo-surface-1)',
+                  border: '1px solid var(--tgo-border)',
+                }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
@@ -152,25 +154,18 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 disabled
                 className="h-14 rounded-2xl flex items-center justify-center gap-3 font-semibold text-sm transition-all duration-150 opacity-50 cursor-not-allowed"
                 style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  backgroundColor: 'var(--tgo-surface-1)',
                   color: 'var(--tgo-text-muted)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  border: '1px solid var(--tgo-border)',
                 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                 </svg>
-                Proximamente Apple
+                Apple — próximamente
               </motion.button>
 
-              {/* Divider */}
-              <div className="flex items-center gap-3 my-1">
-                <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }} />
-                <span className="text-xs font-medium" style={{ color: 'var(--tgo-text-muted)' }}>o</span>
-                <div className="flex-1 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }} />
-              </div>
-
-              {/* Email */}
+              {/* Email — text link */}
               <motion.button
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -179,13 +174,10 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 onClick={() => setShowEmailInput(true)}
                 className="h-14 rounded-2xl flex items-center justify-center gap-2 font-semibold text-sm transition-all duration-150"
                 style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
                   color: 'var(--tgo-text-primary)',
-                  border: '1px solid rgba(255,255,255,0.1)',
                 }}
               >
-                <Mail size={16} />
-                Continuar con Email
+                Continuar con email
               </motion.button>
             </div>
           </motion.div>
