@@ -123,18 +123,17 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
 
             {/* Auth buttons */}
             <div className="flex flex-col gap-3 w-full max-w-[300px]">
-              {/* Google */}
+              {/* Google — Primary button */}
               <motion.button
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={handleGoogle}
-                className="h-14 rounded-2xl flex items-center justify-center gap-3 font-semibold text-sm transition-all duration-150"
+                className="h-12 rounded-full flex items-center justify-center gap-3 font-semibold text-sm transition-all duration-150"
                 style={{
-                  backgroundColor: 'var(--tgo-text-on-accent)',
-                  color: 'var(--tgo-surface-1)',
-                  border: '1px solid var(--tgo-border)',
+                  backgroundColor: 'var(--tgo-brand)',
+                  color: 'var(--tgo-text-inverse)',
                 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24">
@@ -146,17 +145,16 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 Continuar con Google
               </motion.button>
 
-              {/* Apple - disabled */}
+              {/* Apple — Disabled */}
               <motion.button
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.5 }}
                 disabled
-                className="h-14 rounded-2xl flex items-center justify-center gap-3 font-semibold text-sm transition-all duration-150 opacity-50 cursor-not-allowed"
+                className="h-12 rounded-full flex items-center justify-center gap-3 font-semibold text-sm transition-all duration-150 opacity-50 cursor-not-allowed"
                 style={{
-                  backgroundColor: 'var(--tgo-surface-1)',
-                  color: 'var(--tgo-text-muted)',
-                  border: '1px solid var(--tgo-border)',
+                  backgroundColor: 'var(--tgo-state-inactive-soft)',
+                  color: 'var(--tgo-state-inactive)',
                 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -165,14 +163,14 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 Apple — próximamente
               </motion.button>
 
-              {/* Email — text link */}
+              {/* Email — Tertiary / text link */}
               <motion.button
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setShowEmailInput(true)}
-                className="h-14 rounded-2xl flex items-center justify-center gap-2 font-semibold text-sm transition-all duration-150"
+                className="h-12 rounded-full flex items-center justify-center gap-2 font-semibold text-sm transition-all duration-150"
                 style={{
                   color: 'var(--tgo-text-primary)',
                 }}
@@ -198,7 +196,7 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               transition={{ delay: 0.1, duration: 0.5, type: 'spring', bounce: 0.4 }}
               className="mb-8"
             >
-              <CheckCircle2 size={64} color="#12B76A" strokeWidth={1.5} />
+              <CheckCircle2 size={64} style={{ color: 'var(--tgo-state-success)' }} strokeWidth={1.5} />
             </motion.div>
 
             {/* Title */}
@@ -241,8 +239,8 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               transition={{ delay: 0.5, duration: 0.5 }}
               className="w-full max-w-[300px] p-4 rounded-2xl mb-8"
               style={{
-                backgroundColor: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                backgroundColor: 'var(--tgo-surface-1)',
+                border: '1px solid var(--tgo-border)',
               }}
             >
               <p className="text-xs text-center leading-relaxed" style={{ color: 'var(--tgo-text-muted)' }}>
@@ -335,19 +333,19 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 onKeyDown={handleEmailKeyDown}
                 placeholder="tu@email.com"
                 autoComplete="email"
-                className="w-full h-14 rounded-2xl px-5 text-base font-medium outline-none transition-all duration-150"
+                className="w-full h-12 rounded-full px-5 text-sm font-medium outline-none transition-all duration-150"
                 style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  backgroundColor: 'var(--tgo-surface-1)',
                   color: 'var(--tgo-text-primary)',
                   border: error
                     ? '1px solid var(--tgo-state-danger)'
-                    : '1px solid rgba(255,255,255,0.1)',
+                    : '1px solid var(--tgo-border)',
                 }}
                 onFocus={(e) => {
                   if (!error) e.currentTarget.style.borderColor = 'var(--tgo-brand-primary)'
                 }}
                 onBlur={(e) => {
-                  if (!error) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                  if (!error) e.currentTarget.style.borderColor = 'var(--tgo-border)'
                 }}
               />
               {error && (
@@ -370,11 +368,10 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
               whileTap={{ scale: 0.96 }}
               onClick={handleEmailSubmit}
               disabled={!email.trim() || sending}
-              className="w-full max-w-[300px] h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150 disabled:opacity-30"
+              className="w-full max-w-[300px] h-12 rounded-full flex items-center justify-center gap-2 font-bold text-sm transition-all duration-150 disabled:opacity-30"
               style={{
                 backgroundColor: 'var(--tgo-brand-primary)',
                 color: 'var(--tgo-text-on-accent)',
-                boxShadow: email.trim() ? '0 12px 24px -4px rgba(247, 66, 17, 0.4)' : 'none',
               }}
             >
               {sending ? (
