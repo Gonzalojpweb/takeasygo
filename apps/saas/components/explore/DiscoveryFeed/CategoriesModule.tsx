@@ -40,12 +40,19 @@ const CATEGORY_CONFIG: Record<
 }
 
 function getCategoryConfig(name: string) {
-  const key = Object.keys(CATEGORY_CONFIG).find(
-    (k) => k.toLowerCase() === name.toLowerCase()
+  const lower = name.toLowerCase()
+  // Exact match (case-insensitive)
+  const exact = Object.keys(CATEGORY_CONFIG).find(
+    (k) => k.toLowerCase() === lower
   )
-  return key
-    ? CATEGORY_CONFIG[key]
-    : { icon: '🍽', color: 'var(--tgo-text-secondary)', bg: 'var(--tgo-surface-2)' }
+  if (exact) return CATEGORY_CONFIG[exact]
+  // Partial match: check if any key is contained in the name or vice versa
+  const partial = Object.keys(CATEGORY_CONFIG).find((k) => {
+    const kl = k.toLowerCase()
+    return kl.includes(lower) || lower.includes(kl)
+  })
+  if (partial) return CATEGORY_CONFIG[partial]
+  return { icon: '🍽', color: 'var(--tgo-text-secondary)', bg: 'var(--tgo-surface-2)' }
 }
 
 export { CATEGORY_CONFIG, getCategoryConfig }
