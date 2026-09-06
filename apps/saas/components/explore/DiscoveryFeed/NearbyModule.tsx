@@ -1,7 +1,7 @@
 'use client'
 
-import { RestaurantCard } from '@/components/tgo-business'
-import { DiscoveryContinuo, EmptyState } from '@/components/tgo'
+import NearbyListItem from '@/components/explore/NearbyListItem'
+import { EmptyState } from '@/components/tgo'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 
 interface Props {
@@ -23,19 +23,26 @@ export function NearbyModule({ restaurants, onNavigate }: Props) {
   }
 
   return (
-    <DiscoveryContinuo
-      items={restaurants.slice(0, 6)}
-      keyExtractor={(r) => r.id}
-      gap={12}
+    <div
+      className="flex flex-col gap-2"
       style={{ paddingInline: 'var(--tgo-page-padding)' }}
     >
-      {(r) => (
-        <RestaurantCard
-          restaurant={r}
-          layout="list"
-          onNavigate={() => onNavigate(r)}
+      {restaurants.slice(0, 6).map((r) => (
+        <NearbyListItem
+          key={r.id}
+          restaurant={{
+            _id: r.id,
+            name: r.name,
+            slug: r.slug || r.id,
+            primaryColor: r.primaryColor,
+            isOperational: r.isOperational,
+            distance: r.distanceM,
+            cuisineType: r.cuisineTypes,
+          }}
+          isNetwork={r.type === 'network'}
+          onNavigate={(slug) => onNavigate(r)}
         />
-      )}
-    </DiscoveryContinuo>
+      ))}
+    </div>
   )
 }

@@ -8,15 +8,12 @@
 import DiscoveryFeed from './DiscoveryFeed'
 
 export default function HomeView({
-  onOpenLeadModal,
   onCategorySelect,
 }: {
-  onOpenLeadModal: () => void
   onCategorySelect?: (name: string) => void
 }) {
   return (
     <DiscoveryFeed
-      onOpenLeadModal={onOpenLeadModal}
       onCategorySelect={onCategorySelect}
     />
   )

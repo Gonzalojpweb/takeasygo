@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { Suspense } from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import SmoothScroll from '@/components/SmoothScroll'
@@ -9,7 +9,7 @@ import './globals.css'
 import AuthProvider from '@/components/AuthProvider'
 import { LocationProvider } from '@/components/explore/LocationContext'
 
-const geist = Geist({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Takeasygo | Premium Dining Tech',
@@ -27,7 +27,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" suppressHydrationWarning data-design="spatial">
-      <body className={geist.className}>
+      <body className={inter.className}>
         <AuthProvider>
           <LocationProvider>
             <Suspense fallback={null}>

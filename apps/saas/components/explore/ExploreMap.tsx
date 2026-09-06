@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import Supercluster from 'supercluster'
 import MapCapsule from './MapCapsule'
+import PuntoTGO, { type OrderStatus, type NetworkStatus } from '@/components/tgo/PuntoTGO'
 
 interface Props {
   userLat: number
@@ -19,6 +20,40 @@ interface Props {
 function distLabel(m: number | null) {
   if (m === null) return ''
   return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`
+}
+
+// ── PuntoTGO to HTML string (for L.divIcon) ──────────────────────────────────
+
+function renderPuntoTGOToHTML({
+  networkStatus,
+  size = 40,
+}: {
+  networkStatus: NetworkStatus
+  size?: number
+}) {
+  // We render a simple SVG that matches PuntoTGO avatar variant
+  const color = networkStatus === 'live' ? 'var(--tgo-network-live)' : 'var(--tgo-network-dormant)'
+  const expression = networkStatus === 'live' ? 'happy' : 'sleepy'
+
+  // Simple face based on expression
+  let mouthPath = ''
+  if (expression === 'happy') {
+    mouthPath = 'M17 21 Q20 24 23 21'
+  } else {
+    mouthPath = 'M17 22 Q20 20 23 22'
+  }
+
+  return `
+    <div style="transform:translate(-${size / 2}px, -${size}px);">
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
+           style="filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25));">
+        <circle cx="20" cy="20" r="20" fill="${color}"/>
+        <circle cx="20" cy="20" r="14" fill="white"/>
+        <circle cx="15" cy="16" r="1.8" fill="#2D2A4B"/>
+        <circle cx="25" cy="16" r="1.8" fill="#2D2A4B"/>
+        <path d="${mouthPath}" stroke="#2D2A4B" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      </svg>
+    </div>`
 }
 
 // ── SVG pin shapes ────────────────────────────────────────────────────────────
@@ -100,7 +135,7 @@ function clusterSvg(count: number, isSingleDigit: boolean) {
     <div style="transform:translate(${ox}px, ${oy}px); cursor:pointer;">
       <div style="
         width:${size}px; height:${size}px; border-radius:50%;
-        background: var(--tgo-brand-primary, #10b981);
+        background: var(--tgo-brand);
         color: white;
         display: flex; align-items: center; justify-content: center;
         font-weight: 900; font-size: ${fontSize}px;
@@ -456,16 +491,24 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
         if (zoom < ZOOM_CLUSTER && !isNetwork) return
         if (zoom < ZOOM_FULL && isNetwork && !isOperational) return
 
-        const fill = isNetwork
-          ? (isOperational ? 'var(--tgo-brand-primary)' : 'var(--tgo-state-discovery)')
-          : 'var(--tgo-state-inactive)'
-        const opacity = isClosed ? 0.55 : 1
-        const isActive = r.isOpenNow === true && isNetwork && isOperational
+        // Use PuntoTGO for network restaurants
+        const html = isNetwork
+          ? renderPuntoTGOToHTML({
+              networkStatus: isOperational ? 'live' : 'dormant',
+              size: 40,
+            })
+          : pinSvg(
+              'var(--tgo-surface-1)',
+              false,
+              undefined,
+              isClosed ? 0.55 : 1,
+              false
+            )
 
         const icon = L.divIcon({
           className: '',
-          html: pinSvg(fill, isNetwork, r.logoUrl, opacity, isActive),
-          iconSize: isNetwork ? [40, 48] : [28, 36],
+          html,
+          iconSize: isNetwork ? [40, 40] : [28, 36],
         })
 
         const marker = L.marker([lat, lng], { icon }).addTo(map)
@@ -498,14 +541,14 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
         attributionControl: false,
       }).setView([userLat, userLng], 15)
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
       }).addTo(map)
 
       // User location marker
       const userIcon = L.divIcon({
         className: '',
-        html: pulsePinSvg('var(--tgo-brand-primary)'),
+        html: pulsePinSvg('var(--tgo-brand)'),
         iconSize: [36, 36],
       })
       L.marker([userLat, userLng], { icon: userIcon }).addTo(map)
@@ -543,7 +586,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
   }, [userLat, userLng, restaurants, isTouch, showCard, hideCard, onSelect, renderMarkers])
 
   return (
-    <div className="relative w-full h-full" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
+    <div className="relative w-full h-full" style={{ backgroundColor: 'var(--tgo-bg)' }}>
       <div ref={containerRef} className="w-full h-full" />
 
       {/* Contextual capsule — top of map */}

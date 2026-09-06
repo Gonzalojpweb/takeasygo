@@ -461,10 +461,6 @@ function ExploreClientInner() {
           {/* === HOME VIEW === */}
           {view === 'home' && (
             <HomeView
-              onOpenLeadModal={() => {
-                trackExploreEvent({ eventType: 'click_lead' })
-                setShowLeadModal(true)
-              }}
               onCategorySelect={handleCategorySelect}
             />
           )}

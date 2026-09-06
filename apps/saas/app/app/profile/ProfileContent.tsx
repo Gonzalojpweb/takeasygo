@@ -6,7 +6,6 @@ import Image from 'next/image'
 import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle, MapPin, X, Loader2, Globe } from 'lucide-react'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { BlurFade } from '@/components/ui/blur-fade'
-import { BorderBeam } from '@/components/ui/border-beam'
 import { AnimatedShinyText } from '@/components/ui/animated-shiny-text'
 import BottomNav from '@/components/explore/BottomNav'
 import { useTenant } from '@/contexts/TenantContext'
@@ -14,6 +13,7 @@ import AddressSelector from '@/components/explore/AddressSelector'
 import { useState, useEffect } from 'react'
 import RestaurantLeadModal from '@/components/explore/RestaurantLeadModal'
 import { microcopy } from '@/components/tgo/microcopy'
+import PuntoTGO from '@/components/tgo/PuntoTGO'
 
 interface ClubSummary {
   tenantSlug: string
@@ -132,7 +132,7 @@ export default function ProfileContent() {
   return (
     <div
       className="flex flex-col h-full overflow-y-auto pb-24"
-      style={{ backgroundColor: 'var(--tgo-surface-0)' }}
+      style={{ backgroundColor: 'var(--tgo-bg)' }}
     >
       {!session ? (
         /* ── LOGIN VIEW ─────────────────────────────────────────── */
@@ -145,7 +145,7 @@ export default function ProfileContent() {
               left: '-10%',
               width: '40%',
               height: '40%',
-              background: 'var(--tgo-brand-primary)',
+              background: 'var(--tgo-brand)',
               opacity: 0.06,
               filter: 'blur(120px)',
             }}
@@ -157,23 +157,15 @@ export default function ProfileContent() {
               right: '-5%',
               width: '30%',
               height: '30%',
-              background: 'var(--tgo-state-success)',
+              background: 'var(--tgo-success)',
               opacity: 0.04,
               filter: 'blur(100px)',
             }}
           />
 
           <BlurFade delay={0.1}>
-            <div
-              className="w-20 h-20 flex items-center justify-center mb-6 relative group"
-              style={{
-                backgroundColor: 'var(--tgo-card)',
-                borderRadius: 'var(--tgo-radius-2xl)',
-                border: '1px solid var(--tgo-border)',
-              }}
-            >
-              <BorderBeam size={80} duration={8} />
-              <User size={32} style={{ color: 'var(--tgo-state-trust)' }} />
+            <div className="mb-6">
+              <PuntoTGO variant="avatar" size="xl" status="idle" />
             </div>
           </BlurFade>
 
@@ -333,8 +325,6 @@ export default function ProfileContent() {
               borderRadius: 'var(--tgo-radius-2xl)',
             }}
           >
-            <BorderBeam size={200} duration={12} colorFrom="var(--tgo-brand-primary)" colorTo="var(--tgo-brand-primary)" />
-
             <div className="flex items-center gap-4 relative z-10">
               <div
                 className="w-16 h-16 overflow-hidden shrink-0"
