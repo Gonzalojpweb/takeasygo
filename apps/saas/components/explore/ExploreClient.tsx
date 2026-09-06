@@ -31,6 +31,15 @@ const ExploreMap = dynamic(() => import('./ExploreMap'), {
   ),
 })
 
+const HomeFullbleed = dynamic(() => import('./HomeFullbleed'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
+      <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--tgo-text-muted)', borderTopColor: 'transparent' }} />
+    </div>
+  ),
+})
+
 import HomeView from './HomeView'
 import OrdersView from './OrdersView'
 
@@ -460,9 +469,49 @@ function ExploreClientInner() {
 
           {/* === HOME VIEW === */}
           {view === 'home' && (
-            <HomeView
-              onCategorySelect={handleCategorySelect}
-            />
+            coords ? (
+              <HomeFullbleed
+                userLat={coords.lat}
+                userLng={coords.lng}
+                restaurants={restaurants}
+                onSelect={handleNavigate}
+                openCount={networkCount}
+                promoCount={listedCount}
+                newCount={restaurants.filter(r => r.isNew).length}
+                avgPickup={(() => {
+                  const open = restaurants.filter(r => r.isOpenNow && r.estimatedPickupTime)
+                  return open.length > 0
+                    ? Math.round(open.reduce((sum, r) => sum + (r.estimatedPickupTime ?? 0), 0) / open.length)
+                    : null
+                })()}
+                onNavigateToMap={() => router.push('/app?view=map')}
+              />
+            ) : (
+              <div
+                className="flex flex-col items-center justify-center h-full gap-3"
+                style={{ backgroundColor: 'var(--tgo-surface-1)' }}
+              >
+                <div
+                  className="animate-spin"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 'var(--tgo-radius-pill)',
+                    border: '2px solid var(--tgo-border)',
+                    borderTopColor: 'var(--tgo-text-muted)',
+                  }}
+                />
+                <p
+                  style={{
+                    color: 'var(--tgo-text-muted)',
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                >
+                  Localizando posición en el mapa...
+                </p>
+              </div>
+            )
           )}
 
           {/* === LIST VIEW === */}
