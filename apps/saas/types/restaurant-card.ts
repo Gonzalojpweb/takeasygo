@@ -53,4 +53,9 @@ export interface RestaurantCardData {
     hasActivePromo: boolean
     promoTypes?: string[]
   }
+  // Living City System (LCS) fields
+  icoScore?: number | null
+  icoRing?: 'none' | 'thin' | 'marked' | 'gold'
+  hasCrown?: boolean
+  hasWinkOffer?: boolean
 }

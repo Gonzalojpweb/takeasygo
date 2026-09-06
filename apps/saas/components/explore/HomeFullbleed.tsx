@@ -37,46 +37,106 @@ interface Props {
 // ── PuntoTGO to HTML string (for L.divIcon) ──────────────────────────────────
 
 function renderPuntoTGOToHTML({
-  networkStatus,
-  isOperational = true,
+  expression = 'happy',
+  ring = 'none',
+  hasCrown = false,
+  isNew = false,
   size = 40,
 }: {
-  networkStatus: NetworkStatus
-  isOperational?: boolean
+  expression?: 'happy' | 'sleepy' | 'wink'
+  ring?: 'none' | 'thin' | 'marked' | 'gold'
+  hasCrown?: boolean
+  isNew?: boolean
   size?: number
 }) {
-  const isLive = networkStatus === 'live' && isOperational
   const height = Math.round(size * 1.3)
+  const isSleepy = expression === 'sleepy'
+  const pinFill = isSleepy ? '#9CA3AF' : 'url(#puntoTgoGradientHome)'
 
-  const pinFill = isLive ? 'url(#puntoTgoGradientHome)' : 'var(--tgo-network-dormant, #9CA3AF)'
+  let faceSvg = ''
+  if (expression === 'wink') {
+    faceSvg = `
+      <circle cx="15" cy="16" r="1.8" fill="#2D2A4B"/>
+      <path d="M23 15.5 Q25 14 27 15.5" stroke="#2D2A4B" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+      <path d="M17 21 Q20 25 23 21" stroke="#2D2A4B" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+    `
+  } else if (expression === 'sleepy') {
+    faceSvg = `
+      <path d="M13.5 16.5 L16.5 16.5" stroke="#2D2A4B" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M23.5 16.5 L26.5 16.5" stroke="#2D2A4B" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M17.5 21 L22.5 21" stroke="#2D2A4B" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    `
+  } else {
+    faceSvg = `
+      <circle cx="15" cy="16" r="1.8" fill="#2D2A4B"/>
+      <circle cx="25" cy="16" r="1.8" fill="#2D2A4B"/>
+      <path d="M17 21 Q20 24.5 23 21" stroke="#2D2A4B" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+    `
+  }
 
-  const eyeY = isLive ? 16 : 17
-  const eyeRadius = isLive ? 1.8 : 1.5
-  const mouthPath = isLive
-    ? 'M17 21 Q20 24 23 21'
-    : 'M17 22 L23 22'
+  let ringSvg = ''
+  if (ring === 'thin') {
+    ringSvg = `<ellipse cx="20" cy="49" rx="14" ry="3.5" fill="none" stroke="#94A3B8" stroke-width="1.5" opacity="0.8"/>`
+  } else if (ring === 'marked') {
+    ringSvg = `<ellipse cx="20" cy="49" rx="15" ry="4" fill="none" stroke="#FF8C42" stroke-width="2.5"/>`
+  } else if (ring === 'gold') {
+    ringSvg = `<ellipse cx="20" cy="49" rx="16" ry="4.5" fill="none" stroke="url(#puntoTgoGoldRingHome)" stroke-width="3.2" style="filter:drop-shadow(0 0 3px rgba(255, 215, 0, 0.7));"/>`
+  }
 
-  const pulseStyle = isLive
-    ? 'animation: punto-tgo-pulse 2s ease-in-out infinite;'
-    : ''
+  let crownSvg = ''
+  if (hasCrown) {
+    crownSvg = `
+      <g style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+        <path d="M12 4 L14.5 8.5 L20 2 L25.5 8.5 L28 4 L26.5 11 L13.5 11 Z" fill="url(#puntoTgoCrownHome)" stroke="#B45309" stroke-width="0.8" stroke-linejoin="round"/>
+        <circle cx="12" cy="3.5" r="0.9" fill="#FFF"/>
+        <circle cx="20" cy="1.5" r="1.1" fill="#FFF"/>
+        <circle cx="28" cy="3.5" r="0.9" fill="#FFF"/>
+      </g>
+    `
+  }
+
+  let newBadgeSvg = ''
+  if (isNew) {
+    newBadgeSvg = `
+      <g transform="translate(10, 42)">
+        <rect x="0" y="0" width="20" height="8" rx="4" fill="#3B82F6" stroke="#FFFFFF" stroke-width="0.8"/>
+        <text x="10" y="6" text-anchor="middle" fill="#FFFFFF" font-size="5" font-weight="900" font-family="system-ui, sans-serif">NUEVO</text>
+      </g>
+    `
+  }
+
+  const breatheStyle = !isSleepy ? 'animation: punto-tgo-breathe 2.5s ease-in-out infinite;' : ''
 
   return `
-    <div style="transform:translate(-${size / 2}px, -${height}px); ${pulseStyle}">
-      <svg width="${size}" height="${height}" viewBox="0 0 40 52" fill="none" xmlns="http://www.w3.org/2000/svg"
-           style="filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25));">
+    <div style="transform:translate(-${size / 2}px, -${height}px); ${breatheStyle}">
+      <svg width="${size}" height="${height}" viewBox="0 0 40 54" fill="none" xmlns="http://www.w3.org/2000/svg"
+           style="filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25)); overflow:visible;">
         <defs>
           <linearGradient id="puntoTgoGradientHome" x1="20" y1="0" x2="20" y2="52" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stop-color="#FFB347"/>
             <stop offset="50%" stop-color="#FF8C42"/>
             <stop offset="100%" stop-color="#F74211"/>
           </linearGradient>
+          <linearGradient id="puntoTgoGoldRingHome" x1="0" y1="49" x2="40" y2="49" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FFE259"/>
+            <stop offset="50%" stop-color="#FFA751"/>
+            <stop offset="100%" stop-color="#FFD700"/>
+          </linearGradient>
+          <linearGradient id="puntoTgoCrownHome" x1="12" y1="2" x2="28" y2="11" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FDE047"/>
+            <stop offset="100%" stop-color="#CA8A04"/>
+          </linearGradient>
         </defs>
-        <path d="M20 52C20 52 40 36 40 22C40 10 31 0 20 0C9 0 0 10 0 22C0 36 20 52 20 52Z"
-              fill="${pinFill}"/>
+
+        ${ringSvg}
+
+        <path d="M20 52C20 52 40 36 40 22C40 10 31 0 20 0C9 0 0 10 0 22C0 36 20 52 20 52Z" fill="${pinFill}"/>
+
         <circle cx="20" cy="20" r="12" fill="white"/>
-        <circle cx="15" cy="${eyeY}" r="${eyeRadius}" fill="#2D2A4B"/>
-        <circle cx="25" cy="${eyeY}" r="${eyeRadius}" fill="#2D2A4B"/>
-        <path d="${mouthPath}" stroke="#2D2A4B" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+
+        ${faceSvg}
+        ${crownSvg}
+        ${newBadgeSvg}
       </svg>
     </div>`
 }
@@ -248,15 +308,19 @@ export default function HomeFullbleed({
       if (!r) return
 
       const isNetwork = r.type === 'network'
-      const networkStatus: NetworkStatus = isNetwork
-        ? r.isOperational === false
-          ? 'dormant'
-          : 'live'
-        : 'dormant'
+      const isOperational = r.isOperational ?? true
+      const isClosed = r.isOpenNow === false
+
+      // LCS v1.0 Face Expression Derivation
+      const hasWink = r.hasWinkOffer === true || r.loyaltyInfo?.hasActivePromo === true
+      const isResting = isClosed || !isOperational || !r.acceptsOrders || !isNetwork
+      const expression = isResting ? 'sleepy' : (hasWink ? 'wink' : 'happy')
 
       const html = renderPuntoTGOToHTML({
-        networkStatus,
-        isOperational: r.isOperational !== false,
+        expression,
+        ring: r.icoRing ?? 'none',
+        hasCrown: r.hasCrown ?? false,
+        isNew: r.isNew ?? false,
         size: 40,
       })
 

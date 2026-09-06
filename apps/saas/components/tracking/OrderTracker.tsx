@@ -15,20 +15,20 @@ import PostDeliveryCelebration from './PostDeliveryCelebration'
 import CancelOrderModal from './CancelOrderModal'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import { captureHiddenRewardRedeemed } from '@/lib/tia/events'
-import PuntoTGO, { type OrderStatus } from '@/components/tgo/PuntoTGO'
+import PuntoTGO, { type LcsFaceExpression } from '@/components/tgo/PuntoTGO'
 
-// Map tracking statuses to PuntoTGO order statuses
-const TRACKING_TO_PUNTO_TGO: Record<string, OrderStatus> = {
-  awaiting_payment: 'idle',
-  awaiting_confirmation: 'confirmed',
-  pending: 'confirmed',
-  confirmed: 'confirmed',
-  preparing: 'preparing',
-  ready: 'ready',
-  en_ruta: 'delivering',
-  arrived: 'arriving',
-  delivered: 'delivered',
-  cancelled: 'cancelled',
+// Map tracking statuses to Living City System face expressions
+const TRACKING_TO_LCS_EXPRESSION: Record<string, LcsFaceExpression> = {
+  awaiting_payment: 'happy',
+  awaiting_confirmation: 'happy',
+  pending: 'happy',
+  confirmed: 'happy',
+  preparing: 'happy',
+  ready: 'wink',
+  en_ruta: 'happy',
+  arrived: 'wink',
+  delivered: 'happy',
+  cancelled: 'sleepy',
 }
 
 const STATUS_STEPS = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
@@ -578,8 +578,7 @@ export default function OrderTracker({
                 ) : (
                   <div className="flex justify-center">
                     <PuntoTGO
-                      variant="pin"
-                      status={TRACKING_TO_PUNTO_TGO[status] || 'idle'}
+                      expression={TRACKING_TO_LCS_EXPRESSION[status] || 'happy'}
                       size="xl"
                       animate={!!info.pulse}
                     />

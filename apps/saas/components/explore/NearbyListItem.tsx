@@ -18,6 +18,11 @@ interface Restaurant {
   slug: string
   primaryColor?: string
   isOperational?: boolean
+  isOpenNow?: boolean | null
+  hasWinkOffer?: boolean
+  icoRing?: 'none' | 'thin' | 'marked' | 'gold'
+  hasCrown?: boolean
+  isNew?: boolean
   distance?: number | null
   cuisineType?: string[]
   coverImage?: string
@@ -40,6 +45,10 @@ export default function NearbyListItem({
   onNavigate,
 }: NearbyListItemProps) {
   const haptic = useHaptic()
+  const isOperational = restaurant.isOperational ?? true
+  const isClosed = restaurant.isOpenNow === false
+  const isResting = isClosed || !isOperational || !isNetwork
+  const expression = isResting ? 'sleepy' : (restaurant.hasWinkOffer ? 'wink' : 'happy')
 
   return (
     <button
@@ -56,9 +65,11 @@ export default function NearbyListItem({
       {/* Avatar: PuntoTGO instead of raw logo */}
       <div className="shrink-0">
         <PuntoTGO
-          variant="avatar"
+          expression={expression}
+          ring={restaurant.icoRing ?? 'none'}
+          hasCrown={restaurant.hasCrown ?? false}
+          isNew={restaurant.isNew ?? false}
           size="md"
-          networkStatus={isNetwork ? 'live' : 'dormant'}
         />
       </div>
 

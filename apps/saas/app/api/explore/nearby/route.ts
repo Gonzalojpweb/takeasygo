@@ -66,6 +66,19 @@ export interface NearbyRestaurant {
     hasActivePromo: boolean
     promoTypes?: string[]
   }
+  // Living City System (LCS) fields
+  icoScore?: number | null
+  icoRing?: 'none' | 'thin' | 'marked' | 'gold'
+  hasCrown?: boolean
+  hasWinkOffer?: boolean
+}
+
+function getIcoRing(icoScore: number | null | undefined): 'none' | 'thin' | 'marked' | 'gold' {
+  if (icoScore == null) return 'none'
+  if (icoScore >= 85) return 'gold'
+  if (icoScore >= 70) return 'marked'
+  if (icoScore >= 50) return 'thin'
+  return 'none'
 }
 
 // ── Mapper: NearbyRestaurant → RestaurantCardData ─────────────────────────────
@@ -107,6 +120,10 @@ function toRestaurantCardData(r: NearbyRestaurant): RestaurantCardData {
       promoTypes: r.loyaltyInfo.promoTypes ?? [],
     } : undefined,
     isNew: r.isNew ?? false,
+    icoScore: r.icoScore,
+    icoRing: r.icoRing,
+    hasCrown: r.hasCrown,
+    hasWinkOffer: r.hasWinkOffer,
   }
 }
 
@@ -359,6 +376,11 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
+    const maxIcoScore = mergedNetworkRaw.reduce((max: number, loc: any) => {
+      const score = loc.tenant?.cachedScores?.icoScore
+      return typeof score === 'number' ? Math.max(max, score) : max
+    }, 0)
+
     const networkResults: NearbyRestaurant[] = mergedNetworkRaw.map(loc => {
       const distanceM = Math.round(loc.distanceM)
       const estimatedPickupTime: number = loc.settings?.estimatedPickupTime ?? 20
@@ -392,6 +414,11 @@ export async function GET(request: NextRequest) {
       const tenantIdStr = loc.tenant?._id?.toString()
       const tenantPromo = tenantIdStr ? promosMap[tenantIdStr] : undefined
       const hasClub = loc.tenant?.loyalty?.enabled === true
+
+      const rawIcoScore: number | null = loc.tenant?.cachedScores?.icoScore ?? null
+      const icoRing = getIcoRing(rawIcoScore)
+      const hasWinkOffer = tenantPromo?.hasPromo === true
+      const hasCrown = rawIcoScore !== null && rawIcoScore >= 85 && (rawIcoScore === maxIcoScore || rawIcoScore >= 95)
 
       return {
         id: loc._id.toString(),
@@ -427,6 +454,10 @@ export async function GET(request: NextRequest) {
           promoTypes: tenantPromo?.types,
         } : undefined,
         isNew: loc.tenant?.createdAt ? new Date(loc.tenant.createdAt) >= thirtyDaysAgo : false,
+        icoScore: rawIcoScore,
+        icoRing,
+        hasCrown,
+        hasWinkOffer,
       }
     })
 

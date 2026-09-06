@@ -49,11 +49,11 @@ function SheetItem({
 }) {
   const haptic = useHaptic()
   const isNetwork = r.type === 'network'
-  const networkStatus: NetworkStatus = isNetwork
-    ? r.isOperational === false
-      ? 'dormant'
-      : 'live'
-    : 'dormant'
+  const isOperational = r.isOperational ?? true
+  const isClosed = r.isOpenNow === false
+  const hasWink = r.hasWinkOffer === true || r.loyaltyInfo?.hasActivePromo === true
+  const isResting = isClosed || !isOperational || !r.acceptsOrders || !isNetwork
+  const expression = isResting ? 'sleepy' : (hasWink ? 'wink' : 'happy')
 
   return (
     <button
@@ -62,9 +62,11 @@ function SheetItem({
       style={{ borderBottom: '1px solid var(--tgo-border)' }}
     >
       <PuntoTGO
-        variant="avatar"
+        expression={expression}
+        ring={r.icoRing ?? 'none'}
+        hasCrown={r.hasCrown ?? false}
+        isNew={r.isNew ?? false}
         size="md"
-        networkStatus={networkStatus}
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
