@@ -11,7 +11,6 @@ import BottomNav from '@/components/explore/BottomNav'
 import { useTenant } from '@/contexts/TenantContext'
 import AddressSelector from '@/components/explore/AddressSelector'
 import { useState, useEffect } from 'react'
-import RestaurantLeadModal from '@/components/explore/RestaurantLeadModal'
 import { microcopy } from '@/components/tgo/microcopy'
 import PuntoTGO from '@/components/tgo/PuntoTGO'
 
@@ -45,7 +44,6 @@ export default function ProfileContent() {
   const { tenantSlug } = useTenant()
   const loading = status === 'loading'
   const [showAddressSelector, setShowAddressSelector] = useState(false)
-  const [showRestaurantLead, setShowRestaurantLead] = useState(false)
   const [showEmailForm, setShowEmailForm] = useState(false)
   const [emailInput, setEmailInput] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
@@ -186,18 +184,6 @@ export default function ProfileContent() {
 
           <div className="w-full max-w-[320px] space-y-3">
             <button
-              onClick={() => {}}
-              disabled
-              className="w-full flex items-center justify-center gap-3 py-3.5 font-bold transition-transform active:scale-95 opacity-50 cursor-not-allowed"
-              style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-text-primary)', color: 'var(--tgo-text-inverse)' }}
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-                <path d="M17.05 20.28c-.96.95-2.04 2.15-3.32 2.15-1.24 0-1.63-.78-3.08-.78-1.46 0-1.89.76-3.08.76-1.28 0-2.31-1.13-3.32-2.15-2.07-2.08-3.66-5.88-3.66-9.15 0-5.23 3.39-8 6.58-8 1.63 0 2.92.57 3.82.57.85 0 2.37-.62 4.24-.62 1.93 0 4.09.87 5.3 2.76-3.8 1.83-3.18 6.78.29 8.24-1.07 2.47-2.73 5.3-3.77 6.22zm-4.33-14.89c.83-1.05 1.4-2.5 1.4-3.94 0-.2-.02-.4-.05-.59-1.34.05-2.95.89-3.92 2.03-.86 1-1.61 2.5-1.61 4 .01.21.04.42.06.6.14.01.29.02.43.02 1.25 0 2.87-.78 3.69-2.12z" />
-              </svg>
-              {microcopy.onboarding.auth.apple}
-            </button>
-
-            <button
               onClick={() => signIn('google', { callbackUrl })}
               className="w-full flex items-center justify-center gap-3 py-3.5 font-bold shadow-sm border transition-transform active:scale-95"
               style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-card)', color: 'var(--tgo-text-primary)', borderColor: 'var(--tgo-border)' }}
@@ -210,6 +196,18 @@ export default function ProfileContent() {
                 className="shrink-0"
               />
               {microcopy.onboarding.auth.google}
+            </button>
+
+            <button
+              onClick={() => {}}
+              disabled
+              className="w-full flex items-center justify-center gap-3 py-3.5 font-bold transition-transform active:scale-95 opacity-50 cursor-not-allowed"
+              style={{ borderRadius: 'var(--tgo-radius-xl)', backgroundColor: 'var(--tgo-text-primary)', color: 'var(--tgo-text-inverse)' }}
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+                <path d="M17.05 20.28c-.96.95-2.04 2.15-3.32 2.15-1.24 0-1.63-.78-3.08-.78-1.46 0-1.89.76-3.08.76-1.28 0-2.31-1.13-3.32-2.15-2.07-2.08-3.66-5.88-3.66-9.15 0-5.23 3.39-8 6.58-8 1.63 0 2.92.57 3.82.57.85 0 2.37-.62 4.24-.62 1.93 0 4.09.87 5.3 2.76-3.8 1.83-3.18 6.78.29 8.24-1.07 2.47-2.73 5.3-3.77 6.22zm-4.33-14.89c.83-1.05 1.4-2.5 1.4-3.94 0-.2-.02-.4-.05-.59-1.34.05-2.95.89-3.92 2.03-.86 1-1.61 2.5-1.61 4 .01.21.04.42.06.6.14.01.29.02.43.02 1.25 0 2.87-.78 3.69-2.12z" />
+              </svg>
+              {microcopy.onboarding.auth.apple}
             </button>
 
             {!showEmailForm ? (
@@ -290,28 +288,14 @@ export default function ProfileContent() {
               className="text-[10px] text-center mb-3 uppercase tracking-widest font-medium"
               style={{ color: 'var(--tgo-text-muted)' }}
             >
-              {microcopy.b2b.askOwner}
+              ¿No tenés cuenta?
             </p>
-            <button
-              onClick={() => setShowRestaurantLead(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold transition-all active:scale-[0.98]"
-              style={{
-                ...cardStyle,
-                  color: 'var(--tgo-text-muted)',
-              }}
+            <p
+              className="text-xs text-center"
+              style={{ color: 'var(--tgo-text-muted)' }}
             >
-              {microcopy.b2b.register}
-            </button>
-            <button
-              onClick={() => router.push('/login')}
-              className="w-full flex items-center justify-center gap-2 py-3 mt-2 text-sm font-bold transition-all active:scale-[0.98]"
-              style={{
-                ...cardStyle,
-                color: 'var(--tgo-text-secondary)',
-              }}
-            >
-              Accedé a tu panel de gestión
-            </button>
+              Registrate para seguir tus pedidos
+            </p>
           </div>
         </div>
       ) : (
@@ -759,11 +743,6 @@ export default function ProfileContent() {
             </button>
           </div>
         </div>
-      )}
-
-      {/* Restaurant Lead Modal */}
-      {showRestaurantLead && (
-        <RestaurantLeadModal onClose={() => setShowRestaurantLead(false)} />
       )}
 
       {/* Address Selector Modal */}
