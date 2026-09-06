@@ -58,9 +58,10 @@ function MiniMap({ lat, lng }: { lat: number; lng: number }) {
         scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false,
       }).setView([lat, lng], 16)
       // CartoDB Light with API key (required since 2024)
+      // @2x tiles for sharper labels and icons on HiDPI screens
       const cartoKey = process.env.NEXT_PUBLIC_CARTO_API_KEY || ''
       const tileUrl = cartoKey
-        ? `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`
+        ? `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?api_key=${cartoKey}`
         : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
       const tileLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
