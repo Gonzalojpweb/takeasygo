@@ -410,6 +410,9 @@ html.lenis body {
   --tgo-state-inactive: #98A2B3;
   --tgo-state-inactive-soft: rgba(152, 162, 179, 0.08);
 
+  --tgo-state-new: #4E7FD1;
+  --tgo-state-new-soft: rgba(78, 127, 209, 0.08);
+
   /* ── Border Layer ────────────────────────────────────────────────── */
   --tgo-border: #D8D4D5;
   --tgo-border-active: #D8D4D5;
