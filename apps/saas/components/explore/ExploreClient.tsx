@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { RestaurantCardData } from '@/types/restaurant-card'
@@ -11,7 +11,7 @@ import ExploreHeader from './ExploreHeader'
 import BottomNav from './BottomNav'
 import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
-import { GpsLoading, FetchOverlay } from './ExploreLoadingSkeleton'
+import { FetchOverlay } from './ExploreLoadingSkeleton'
 import DiscoverCard from './DiscoverCard'
 
 import { AnimatedLogoLoader } from '@/components/tgo'
@@ -24,20 +24,10 @@ import { useHaptic } from '@/components/tgo/useHaptic'
 
 const ExploreMap = dynamic(() => import('./ExploreMap'), {
   ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
-      <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--tgo-text-muted)', borderTopColor: 'transparent' }} />
-    </div>
-  ),
 })
 
 const HomeFullbleed = dynamic(() => import('./HomeFullbleed'), {
   ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
-      <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--tgo-text-muted)', borderTopColor: 'transparent' }} />
-    </div>
-  ),
 })
 
 import HomeView from './HomeView'
@@ -53,11 +43,7 @@ type View = 'home' | 'list' | 'map' | 'orders'
 const BUENOS_AIRES = { lat: -34.6037, lng: -58.3816 }
 
 export default function ExploreClient() {
-  return (
-    <Suspense fallback={<GpsLoading />}>
-      <ExploreClientInner />
-    </Suspense>
-  )
+  return <ExploreClientInner />
 }
 
 function getOrCreateSessionId(): string {
@@ -102,6 +88,7 @@ function ExploreClientInner() {
   const exploreCache = readExploreCache()
   const [restaurants, setRestaurants] = useState<RestaurantCardData[]>(exploreCache?.restaurants ?? [])
   const [fetching, setFetching] = useState(false)
+  const hasLoadedOnce = useRef(false)
   const [radius, setRadius] = useState(exploreCache?.radius ?? 5000)
   const [activeCuisine, setActiveCuisine] = useState<string | null>(null)
   const [openNowOnly, setOpenNowOnly] = useState(false)
@@ -335,6 +322,7 @@ function ExploreClientInner() {
       if (!res.ok) throw new Error('Error al cargar restaurantes')
       const data = await res.json()
       setRestaurants(data.restaurants)
+      hasLoadedOnce.current = true
       try {
         sessionStorage.setItem('tgo_explore_cache', JSON.stringify({ restaurants: data.restaurants, radius: r, timestamp: Date.now() }))
       } catch {}
@@ -465,8 +453,8 @@ function ExploreClientInner() {
         {/* ── Content ─────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-hidden relative">
 
-          {/* Fetch overlay */}
-          {fetching && <FetchOverlay />}
+          {/* Fetch overlay — only on first load */}
+          {fetching && !hasLoadedOnce.current && <FetchOverlay />}
 
           {/* === HOME VIEW === */}
           {view === 'home' && (
@@ -527,7 +515,7 @@ function ExploreClientInner() {
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
               />
-              <div className="h-full overflow-y-auto pb-24" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
+              <div className="h-full overflow-y-auto pb-28" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
               {filtered.length === 0 ? (
                 <EmptyState
                   icon={<span style={{ fontSize: 28 }}>📍</span>}
@@ -650,7 +638,7 @@ function ExploreClientInner() {
 
 
 
-                  <div className="h-8" />
+                  <div className="h-32" />
                 </div>
               )}
             </div>
