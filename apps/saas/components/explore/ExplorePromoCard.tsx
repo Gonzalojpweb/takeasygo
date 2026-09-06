@@ -80,10 +80,12 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
       className="shrink-0 text-left active:scale-[0.97] transition-transform flex flex-col items-center"
       style={{
         width: 132,
+        height: 164,
         padding: '14px 12px',
         borderRadius: 18,
         backgroundColor: 'var(--tgo-surface-2)',
         border: '1px solid var(--tgo-border)',
+        justifyContent: 'space-between',
       }}
     >
       {/* Image / Avatar */}

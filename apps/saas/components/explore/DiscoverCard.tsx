@@ -54,10 +54,12 @@ export default function DiscoverCard({
       className="flex flex-col items-center shrink-0 active:scale-[0.97] transition-transform"
       style={{
         width: 132,
+        height: 164,
         padding: '14px 12px',
         borderRadius: 18,
         backgroundColor: 'var(--tgo-surface-2)',
         border: '1px solid var(--tgo-border)',
+        justifyContent: 'space-between',
       }}
     >
       {/* Avatar container */}
