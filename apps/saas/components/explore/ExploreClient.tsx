@@ -599,7 +599,7 @@ function ExploreClientInner() {
                   {/* ── Promos (restaurants with active promos) ── */}
                   {promoRestaurants.length > 0 && (
                     <Section
-                      title="Promos activas"
+                      title="Hoy podés aprovechar"
                       subtitle="Ofertas disponibles cerca tuyo"
                     >
                       <HorizontalScroller>

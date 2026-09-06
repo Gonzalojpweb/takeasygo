@@ -33,7 +33,7 @@ export default function ExploreLayout({ children }: { children: React.ReactNode 
   return (
     <>
       <style>{`
-        html, body { background-color: var(--tgo-surface-0, #E7E2E3); }
+        html, body { background-color: var(--tgo-surface-0, #E7E2E3) !important; }
       `}</style>
     <TenantProvider>
       <Suspense fallback={null}>
