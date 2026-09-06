@@ -311,25 +311,68 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── Promotions: active promos per tenant (all tenants, not just nearby) ─
+    // ── Promotions: active promos per tenant (filtered by locationId, scope, redemptions) ─
     const promosMap: Record<string, { hasPromo: boolean; types: string[] }> = {}
     try {
       const now = new Date()
-      const promoAggs = await Promotion.aggregate([
-        {
-          $match: {
-            isActive: true,
-            $and: [
-              { $or: [{ scheduledStart: { $exists: false } }, { scheduledStart: null }, { scheduledStart: { $lte: now } }] },
-              { $or: [{ scheduledEnd: { $exists: false } }, { scheduledEnd: null }, { scheduledEnd: { $gte: now } }] },
-            ],
-          },
-        },
-        { $group: { _id: '$tenantId', types: { $addToSet: '$type' } } },
-      ])
-      promoAggs.forEach((p: any) => {
-        if (p._id) promosMap[p._id.toString()] = { hasPromo: true, types: p.types }
-      })
+      const locationIds = mergedNetworkRaw.map((l: any) => l._id).filter(Boolean)
+      const tenantIds = mergedNetworkRaw.map((l: any) => l.tenant?._id).filter(Boolean)
+
+      // Tenant-scoped promos: applies to specific location or all locations of the tenant
+      const tenantPromos = await Promotion.find({
+        scope: 'tenant',
+        tenantId: { $in: tenantIds },
+        isActive: true,
+        $or: [
+          { locationId: null },
+          { locationId: { $in: locationIds } },
+        ],
+        $and: [
+          { $or: [{ scheduledStart: { $exists: false } }, { scheduledStart: null }, { scheduledStart: { $lte: now } }] },
+          { $or: [{ scheduledEnd: { $exists: false } }, { scheduledEnd: null }, { scheduledEnd: { $gte: now } }] },
+          { $or: [{ maxRedemptions: null }, { maxRedemptions: { $exists: false } }, { $expr: { $lt: ['$redemptionsCount', '$maxRedemptions'] } }] },
+        ],
+      }).lean()
+
+      // Global promos: applies to all active tenants or specific targetTenants
+      const globalPromos = await Promotion.find({
+        scope: 'global',
+        isActive: true,
+        $or: [
+          { targetTenants: { $size: 0 } },
+          { targetTenants: { $in: tenantIds } },
+        ],
+        $and: [
+          { $or: [{ scheduledStart: { $exists: false } }, { scheduledStart: null }, { scheduledStart: { $lte: now } }] },
+          { $or: [{ scheduledEnd: { $exists: false } }, { scheduledEnd: null }, { scheduledEnd: { $gte: now } }] },
+          { $or: [{ maxRedemptions: null }, { maxRedemptions: { $exists: false } }, { $expr: { $lt: ['$redemptionsCount', '$maxRedemptions'] } }] },
+        ],
+      }).lean()
+
+      // Build promosMap: group by tenantId → { hasPromo, types }
+      const allPromos = [...tenantPromos, ...globalPromos]
+      for (const promo of allPromos) {
+        const tid = promo.tenantId?.toString()
+        if (!tid) continue
+
+        // For global promos, determine which tenantId to use
+        const effectiveTenantId = promo.scope === 'global'
+          ? (promo.targetTenants && promo.targetTenants.length > 0
+              ? promo.targetTenants.find((t: any) => tenantIds.some((tid: any) => tid.toString() === t.toString()))?.toString()
+              : tid)
+          : tid
+
+        if (!effectiveTenantId) continue
+
+        if (!promosMap[effectiveTenantId]) {
+          promosMap[effectiveTenantId] = { hasPromo: true, types: [promo.type] }
+        } else {
+          promosMap[effectiveTenantId].hasPromo = true
+          if (!promosMap[effectiveTenantId].types.includes(promo.type)) {
+            promosMap[effectiveTenantId].types.push(promo.type)
+          }
+        }
+      }
     } catch (e) {
       console.error('[explore/nearby] promos aggregation failed:', e)
     }

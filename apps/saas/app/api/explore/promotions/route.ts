@@ -63,9 +63,18 @@ export async function GET(request: NextRequest) {
     const tenantLogoMap = new Map(tenants.map(t => [t._id.toString(), t.branding?.logoUrl || '']))
 
     const now = new Date()
+    const locationIds = allLocations.map(l => l._id)
+
     const promotionsRaw = await Promotion.find({
       $or: [
-        { scope: 'tenant', tenantId: { $in: activeTenantIds } },
+        {
+          scope: 'tenant',
+          tenantId: { $in: activeTenantIds },
+          $or: [
+            { locationId: null },
+            { locationId: { $in: locationIds } },
+          ],
+        },
         {
           scope: 'global',
           $or: [
@@ -90,6 +99,7 @@ export async function GET(request: NextRequest) {
             { scheduledEnd: { $gte: now } },
           ],
         },
+        { $or: [{ maxRedemptions: null }, { maxRedemptions: { $exists: false } }, { $expr: { $lt: ['$redemptionsCount', '$maxRedemptions'] } }] },
       ],
     }).sort({ isFeatured: -1, sortOrder: 1 }).lean()
 
