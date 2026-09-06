@@ -146,12 +146,16 @@ export default function ExploreHeader({
           />
         </div>
 
-        {/* Filter toggle */}
-        <div className="flex items-center gap-2 mb-2">
+        {/* ── Single filter row: Filtros + Status + Cuisine (1 line) ── */}
+        <div
+          className="flex items-center gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none pb-1"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {/* Filtros toggle */}
           <button
             onClick={() => { haptic.selection(); setShowFilters((v) => !v) }}
             aria-label="Filtros"
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-1.5 shrink-0"
             style={{
               padding: '6px 12px',
               borderRadius: 'var(--tgo-radius-md)',
@@ -186,11 +190,12 @@ export default function ExploreHeader({
             )}
           </button>
 
+          {/* Limpiar (only when filters active) */}
           {activeFilters > 0 && (
             <button
               onClick={() => { haptic.selection(); onClearFilters() }}
               aria-label="Limpiar filtros"
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 shrink-0"
               style={{
                 color: 'var(--tgo-text-muted)',
                 fontSize: 'var(--tgo-type-caption)',
@@ -201,6 +206,56 @@ export default function ExploreHeader({
               Limpiar
             </button>
           )}
+
+          {/* Status chips */}
+          {STATUS_FILTERS.map((f) => {
+            const Icon = f.icon
+            const isActive = activeFilter === f.query
+            return (
+              <button
+                key={f.query}
+                onClick={() => {
+                  haptic.selection()
+                  setActiveFilter(isActive ? null : f.query)
+                }}
+                className="flex items-center gap-1.5 shrink-0 active:scale-[0.96]"
+                style={{
+                  height: 32,
+                  padding: '0 12px',
+                  borderRadius: 'var(--tgo-radius-pill)',
+                  fontSize: 'var(--tgo-type-body-sm)',
+                  fontWeight: isActive ? 600 : 400,
+                  backgroundColor: isActive
+                    ? 'var(--tgo-state-trust-soft)'
+                    : 'transparent',
+                  color: isActive
+                    ? 'var(--tgo-state-trust)'
+                    : 'var(--tgo-text-muted)',
+                  border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
+                  transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
+                }}
+              >
+                <Icon size={13} />
+                {f.label}
+              </button>
+            )
+          })}
+
+          {/* Cuisine chips */}
+          {allCuisines.map((cuisine) => (
+            <Chip
+              key={cuisine}
+              variant={activeCuisine === cuisine ? 'active' : 'suggestion'}
+              size="pill"
+              onClick={() =>
+                setActiveCuisine(
+                  activeCuisine === cuisine ? null : cuisine
+                )
+              }
+            >
+              {cuisine}
+            </Chip>
+          ))}
         </div>
 
         {/* Filters panel */}
@@ -261,67 +316,6 @@ export default function ExploreHeader({
           </div>
         )}
 
-        {/* Cuisine chips */}
-        {allCuisines.length > 0 && (
-          <div
-            className="flex gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none pb-1"
-            style={{ scrollbarWidth: 'none' }}
-          >
-            {allCuisines.map((cuisine) => (
-              <Chip
-                key={cuisine}
-                variant={activeCuisine === cuisine ? 'active' : 'suggestion'}
-                size="pill"
-                onClick={() =>
-                  setActiveCuisine(
-                    activeCuisine === cuisine ? null : cuisine
-                  )
-                }
-              >
-                {cuisine}
-              </Chip>
-            ))}
-          </div>
-        )}
-
-        {/* Status chips (combinable with cuisine) */}
-        <div
-          className="flex gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none mt-2 pb-1"
-          style={{ scrollbarWidth: 'none' }}
-        >
-          {STATUS_FILTERS.map((f) => {
-            const Icon = f.icon
-            const isActive = activeFilter === f.query
-            return (
-              <button
-                key={f.query}
-                onClick={() => {
-                  haptic.selection()
-                  setActiveFilter(isActive ? null : f.query)
-                }}
-                className="flex items-center gap-1.5 shrink-0 active:scale-[0.96]"
-                style={{
-                  height: 32,
-                  padding: '0 12px',
-                  borderRadius: 'var(--tgo-radius-pill)',
-                  fontSize: 'var(--tgo-type-body-sm)',
-                  fontWeight: isActive ? 600 : 400,
-                  backgroundColor: isActive
-                    ? 'var(--tgo-state-trust-soft)'
-                    : 'transparent',
-                  color: isActive
-                    ? 'var(--tgo-state-trust)'
-                    : 'var(--tgo-text-muted)',
-                  border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
-                  transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
-                }}
-              >
-                <Icon size={13} />
-                {f.label}
-              </button>
-            )
-          })}
-        </div>
 
         {/* Summary */}
         {(networkCount > 0 || listedCount > 0) && (

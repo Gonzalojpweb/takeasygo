@@ -37,19 +37,29 @@ const CATEGORY_CONFIG: Record<
   Cafetería: { icon: '☕', color: 'var(--tgo-state-trust)', bg: 'var(--tgo-state-trust-soft)' },
   Helados: { icon: '🍦', color: '#E11D48', bg: 'rgba(225, 29, 72, 0.20)' },
   'Comida Casera': { icon: '🍲', color: '#92400E', bg: 'rgba(146, 64, 14, 0.20)' },
+  Pasta: { icon: '🍝', color: '#D94A3D', bg: 'rgba(217, 74, 61, 0.20)' },
+  'Comida Venezolana': { icon: '🫓', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.20)' },
+  'Comida Rápida': { icon: '🍔', color: '#FAB300', bg: 'rgba(250, 179, 0, 0.20)' },
+  Kiosco: { icon: '🏪', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.20)' },
+  'Sushi & Ramen': { icon: '🍣', color: '#D94A3D', bg: 'rgba(217, 74, 61, 0.20)' },
+  Otro: { icon: '🍽', color: 'var(--tgo-text-secondary)', bg: 'var(--tgo-surface-2)' },
+}
+
+function normalizeAccent(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
 function getCategoryConfig(name: string) {
-  const lower = name.toLowerCase()
-  // Exact match (case-insensitive)
+  const normalized = normalizeAccent(name)
+  // Exact match (case + accent insensitive)
   const exact = Object.keys(CATEGORY_CONFIG).find(
-    (k) => k.toLowerCase() === lower
+    (k) => normalizeAccent(k) === normalized
   )
   if (exact) return CATEGORY_CONFIG[exact]
-  // Partial match: check if any key is contained in the name or vice versa
+  // Partial match: check if any key is contained in the name or vice versa (accent-insensitive)
   const partial = Object.keys(CATEGORY_CONFIG).find((k) => {
-    const kl = k.toLowerCase()
-    return kl.includes(lower) || lower.includes(kl)
+    const kn = normalizeAccent(k)
+    return kn.includes(normalized) || normalized.includes(kn)
   })
   if (partial) return CATEGORY_CONFIG[partial]
   return { icon: '🍽', color: 'var(--tgo-text-secondary)', bg: 'var(--tgo-surface-2)' }
