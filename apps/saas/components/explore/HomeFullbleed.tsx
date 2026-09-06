@@ -19,6 +19,7 @@ import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import { Sun, Moon, Navigation, ChevronRight, Clock, Bike, MapPin, Tag } from 'lucide-react'
 import { LiveCityMetrics } from '@/components/tgo'
+import HomeSheet from './HomeSheet'
 
 interface Props {
   userLat: number
@@ -404,23 +405,17 @@ export default function HomeFullbleed({
         })}
       </div>
 
-      {/* ── FLOATING "CIUDAD AHORA MISMO" CARD ────────────────────────── */}
-      <div
-        className="absolute inset-x-0 z-20 pointer-events-none"
-        style={{
-          bottom: 80, /* above bottom nav + handle */
-          paddingInline: 20,
-        }}
+      {/* ── BOTTOM SHEET (peek / half / full) ──────────────────────────── */}
+      <HomeSheet
+        userLat={userLat}
+        userLng={userLng}
+        restaurants={restaurants}
+        onSelect={onSelect}
       >
+        {/* Peek content: "Ciudad ahora mismo" metrics */}
         <div
-          className="pointer-events-auto"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.95)',
-            borderRadius: 'var(--tgo-radius-2xl)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-            backdropFilter: 'blur(12px)',
-            padding: '12px 16px',
-          }}
+          className="px-4 py-3"
+          style={{ borderBottom: '1px solid var(--tgo-border)' }}
         >
           <LiveCityMetrics
             openCount={openCount}
@@ -429,23 +424,7 @@ export default function HomeFullbleed({
             avgPickup={avgPickup}
           />
         </div>
-      </div>
-
-      {/* ── SHEET HANDLE (visual indicator only) ────────────────────────── */}
-      <div
-        className="absolute inset-x-0 z-20 flex justify-center pointer-events-none"
-        style={{ bottom: 60 }}
-      >
-        <div
-          style={{
-            width: 40,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: 'var(--tgo-text-muted)',
-            opacity: 0.3,
-          }}
-        />
-      </div>
+      </HomeSheet>
     </div>
   )
 }
