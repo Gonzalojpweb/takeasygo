@@ -72,6 +72,7 @@ interface Props {
   showAll: boolean
   onToggleShowAll: () => void
   onSelect: (name: string) => void
+  selectedCuisine?: string | null
 }
 
 export function CategoriesModule({
@@ -79,6 +80,7 @@ export function CategoriesModule({
   showAll,
   onToggleShowAll,
   onSelect,
+  selectedCuisine = null,
 }: Props) {
   const haptic = useHaptic()
   const visible = showAll ? categories.slice(0, 12) : categories.slice(0, 8)
@@ -99,6 +101,7 @@ export function CategoriesModule({
               icon={config.icon}
               color={config.color}
               bg={config.bg}
+              selected={selectedCuisine === cat}
               onClick={() => { haptic.selection(); onSelect(cat) }}
             />
           )

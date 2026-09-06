@@ -1,63 +1,43 @@
 'use client'
 
-// ── ExploreHeader (TGO) ─────────────────────────────────────────────────────
+// ── ExploreHeader (TGO Foundations) ──────────────────────────────────────────
 //
-// Header del Explore. Reescrito con TGO primitives.
-// SearchBar + Chips de filtro + Resumen.
-// Misma sensación que Home.
+// Header de Descubrí. 4 filtros fijos multi-selección, buscador, nada de scroll.
+// TGO Foundations §7: 1 botón primario por pantalla.
 
-import { MapPin, Clock, X, Bike, Tag } from 'lucide-react'
+import { Clock, Bike, MapPin, Tag, X } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
 import AddressSelector from '@/components/explore/AddressSelector'
 import { SearchBar } from '@/components/tgo'
-import { Chip } from '@/components/tgo'
 import { useHaptic } from '@/components/tgo/useHaptic'
 
 interface Props {
   gpsError: string | null
-  radius: number
-  setRadius: (r: number) => void
+  activeFilters: Set<string>
+  toggleFilter: (f: string) => void
   activeCuisine: string | null
   setActiveCuisine: (c: string | null) => void
-  activeFilter: string | null
-  setActiveFilter: (f: string | null) => void
-  openNowOnly: boolean
-  setOpenNowOnly: (v: boolean) => void
-  allCuisines: string[]
-  networkCount: number
-  listedCount: number
-  activeFilters: number
-  filteredCount: number
-  onClearFilters: () => void
   searchQuery: string
   setSearchQuery: (q: string) => void
 }
 
-const RADIUS_OPTIONS = [
-  { value: 1000, label: '1 km' },
-  { value: 2000, label: '2 km' },
-  { value: 5000, label: '5 km' },
-  { value: 10000, label: '10 km' },
-]
-
-const STATUS_FILTERS = [
-  { label: 'Abiertos', icon: Clock, query: 'abiertos' },
-  { label: 'Delivery', icon: Bike, query: 'delivery' },
-  { label: 'Cercanos', icon: Tag, query: 'cercanos' },
-  { label: 'Beneficios', icon: Tag, query: 'beneficios' },
+const FILTER_CHIPS = [
+  { key: 'abiertos', label: 'Abiertos', icon: Clock },
+  { key: 'delivery', label: 'Delivery', icon: Bike },
+  { key: 'cercanos', label: 'Cercanos', icon: MapPin },
+  { key: 'beneficios', label: 'Beneficios', icon: Tag },
 ]
 
 export default function ExploreHeader({
-  gpsError, radius, setRadius,
-  activeCuisine, setActiveCuisine,
-  activeFilter, setActiveFilter,
-  openNowOnly, setOpenNowOnly,
-  allCuisines, networkCount, listedCount,
-  activeFilters, filteredCount,
-  onClearFilters, searchQuery, setSearchQuery,
+  gpsError,
+  activeFilters,
+  toggleFilter,
+  activeCuisine,
+  setActiveCuisine,
+  searchQuery,
+  setSearchQuery,
 }: Props) {
-  const [showFilters, setShowFilters] = useState(false)
   const [showAddressSelector, setShowAddressSelector] = useState(false)
   const haptic = useHaptic()
 
@@ -66,173 +46,66 @@ export default function ExploreHeader({
       className="shrink-0"
       style={{
         paddingTop: 'var(--tgo-safe-top)',
-        backgroundColor: 'var(--tgo-card)',
+        backgroundColor: 'var(--tgo-surface-0)',
       }}
     >
-      {/* Top bar */}
-      <div style={{ padding: 'var(--tgo-space-4) var(--tgo-page-padding) var(--tgo-space-3)' }}>
-        {/* Logo + actions */}
-        <div className="flex items-center gap-3 mb-2">
-          <Image
-            src="/tgoicon.png"
-            alt="TGO"
-            width={28}
-            height={28}
-            className="h-7 w-auto"
-            unoptimized
-          />
-          {gpsError && (
-            <p
-              className="ml-auto flex items-center gap-1"
-              style={{
-                color: 'var(--tgo-state-discovery)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 700,
-              }}
-            >
-              {gpsError}
-            </p>
-          )}
-        </div>
-
+      <div style={{ padding: '12px 20px 8px' }}>
         {/* Headline */}
         <div className="flex items-center gap-2 mb-0.5">
           <h1
             style={{
               color: 'var(--tgo-text-primary)',
-              fontSize: 'var(--tgo-type-title)',
-              fontWeight: 700,
-              letterSpacing: 'var(--tgo-tracking-tight)',
+              fontSize: 22,
+              fontWeight: 800,
               lineHeight: 1.2,
             }}
           >
             Takeaway cerca de vos
           </h1>
-          <button
-            onClick={() => { haptic.impact('light'); setShowAddressSelector(true) }}
-            aria-label="Seleccionar dirección"
-            className="p-1.5"
-            style={{
-              borderRadius: 'var(--tgo-radius-sm)',
-              backgroundColor: 'var(--tgo-surface-2)',
-              color: 'var(--tgo-text-muted)',
-              transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
-            }}
-            title="Cambiar ubicación"
-          >
-            <MapPin size={14} />
-          </button>
         </div>
         <p
           className="mb-3"
           style={{
             color: 'var(--tgo-text-muted)',
-            fontSize: 10,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: 'var(--tgo-tracking-tight)',
+            fontSize: 11,
+            fontWeight: 500,
           }}
         >
           Basado en tu ubicación real
         </p>
 
         {/* SearchBar */}
-        <div className="mb-2">
+        <div className="mb-3">
           <SearchBar
             value={searchQuery}
             onSearch={(q) => setSearchQuery(q)}
             showLocation={false}
-            placeholder="¿Qué buscas hoy?"
+            placeholder="¿Qué buscás hoy?"
           />
         </div>
 
-        {/* ── Single filter row: Filtros + Status + Cuisine (1 line) ── */}
-        <div
-          className="flex items-center gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none pb-1"
-          style={{ scrollbarWidth: 'none' }}
-        >
-          {/* Filtros toggle */}
-          <button
-            onClick={() => { haptic.selection(); setShowFilters((v) => !v) }}
-            aria-label="Filtros"
-            className="flex items-center gap-1.5 shrink-0"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--tgo-radius-md)',
-              backgroundColor: showFilters || activeFilters > 0
-                ? 'var(--tgo-state-trust-soft)'
-                : 'var(--tgo-surface-2)',
-              color: showFilters || activeFilters > 0
-                ? 'var(--tgo-state-trust)'
-                : 'var(--tgo-text-muted)',
-              fontSize: 'var(--tgo-type-caption)',
-              fontWeight: 600,
-              transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
-            }}
-          >
-            <Clock size={13} />
-            Filtros
-            {activeFilters > 0 && (
-              <span
-                className="flex items-center justify-center"
-                style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: 'var(--tgo-radius-pill)',
-                  backgroundColor: 'var(--tgo-state-trust)',
-                  color: 'var(--tgo-text-inverse)',
-                  fontSize: 9,
-                  fontWeight: 700,
-                }}
-              >
-                {activeFilters}
-              </span>
-            )}
-          </button>
-
-          {/* Limpiar (only when filters active) */}
-          {activeFilters > 0 && (
-            <button
-              onClick={() => { haptic.selection(); onClearFilters() }}
-              aria-label="Limpiar filtros"
-              className="flex items-center gap-1 shrink-0"
-              style={{
-                color: 'var(--tgo-text-muted)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 600,
-              }}
-            >
-              <X size={12} />
-              Limpiar
-            </button>
-          )}
-
-          {/* Status chips */}
-          {STATUS_FILTERS.map((f) => {
+        {/* ── 4 Filter Chips — equal width, multi-select ── */}
+        <div className="grid grid-cols-4 gap-[6px] mb-1">
+          {FILTER_CHIPS.map((f) => {
             const Icon = f.icon
-            const isActive = activeFilter === f.query
+            const isActive = activeFilters.has(f.key)
             return (
               <button
-                key={f.query}
-                onClick={() => {
-                  haptic.selection()
-                  setActiveFilter(isActive ? null : f.query)
-                }}
-                className="flex items-center gap-1.5 shrink-0 active:scale-[0.96]"
+                key={f.key}
+                onClick={() => { haptic.selection(); toggleFilter(f.key) }}
+                className="flex items-center justify-center gap-1.5 active:scale-[0.96] transition-all"
                 style={{
-                  height: 32,
-                  padding: '0 12px',
+                  height: 36,
                   borderRadius: 'var(--tgo-radius-pill)',
-                  fontSize: 'var(--tgo-type-body-sm)',
-                  fontWeight: isActive ? 600 : 400,
+                  fontSize: 12,
+                  fontWeight: isActive ? 600 : 500,
                   backgroundColor: isActive
-                    ? 'var(--tgo-state-trust-soft)'
-                    : 'transparent',
+                    ? 'var(--tgo-brand)'
+                    : 'var(--tgo-surface-2)',
                   color: isActive
-                    ? 'var(--tgo-state-trust)'
-                    : 'var(--tgo-text-muted)',
-                  border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
-                  transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
+                    ? 'var(--tgo-text-inverse)'
+                    : 'var(--tgo-text-primary)',
+                  border: `1px solid ${isActive ? 'var(--tgo-brand)' : 'var(--tgo-border)'}`,
                 }}
               >
                 <Icon size={13} />
@@ -240,135 +113,19 @@ export default function ExploreHeader({
               </button>
             )
           })}
-
-          {/* Cuisine chips */}
-          {allCuisines.map((cuisine) => (
-            <Chip
-              key={cuisine}
-              variant={activeCuisine === cuisine ? 'active' : 'suggestion'}
-              size="pill"
-              onClick={() =>
-                setActiveCuisine(
-                  activeCuisine === cuisine ? null : cuisine
-                )
-              }
-            >
-              {cuisine}
-            </Chip>
-          ))}
         </div>
 
-        {/* Filters panel */}
-        {showFilters && (
-          <div
-            className="mb-3"
-            style={{
-              padding: 'var(--tgo-space-4)',
-              borderRadius: 'var(--tgo-radius-lg)',
-              backgroundColor: 'var(--tgo-card)',
-              border: '1px solid var(--tgo-border)',
-              boxShadow: 'var(--tgo-elevation-floating)',
-            }}
-          >
-            {/* Radius */}
-            <div className="flex items-center gap-2 mb-3">
-              <MapPin
-                size={14}
-                style={{ color: 'var(--tgo-state-trust)' }}
-              />
-              <span
-                style={{
-                  color: 'var(--tgo-text-muted)',
-                  fontSize: 'var(--tgo-type-caption)',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: 'var(--tgo-tracking-wider)',
-                }}
-              >
-                Radio
-              </span>
-              <div className="flex gap-2 ml-2">
-                {RADIUS_OPTIONS.map((r) => (
-                  <button
-                    key={r.value}
-                    onClick={() => { haptic.selection(); setRadius(r.value) }}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 'var(--tgo-radius-md)',
-                      fontSize: 'var(--tgo-type-caption)',
-                      fontWeight: 700,
-                      backgroundColor:
-                        radius === r.value
-                          ? 'var(--tgo-state-trust)'
-                          : 'var(--tgo-surface-2)',
-                      color:
-                        radius === r.value
-                          ? 'var(--tgo-text-inverse)'
-                          : 'var(--tgo-text-muted)',
-                      transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
-                    }}
-                  >
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-
-        {/* Summary */}
-        {(networkCount > 0 || listedCount > 0) && (
-          <div
-            className="flex items-center gap-2 mt-3"
-            style={{
-              padding: '8px 12px',
-              borderRadius: 'var(--tgo-radius-md)',
-              backgroundColor: 'var(--tgo-surface-1)',
-              width: 'fit-content',
-            }}
-          >
-            {networkCount > 0 && (
-              <span
-                className="flex items-center gap-1.5"
-                style={{
-                  color: 'var(--tgo-state-success)',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: 'var(--tgo-tracking-widest)',
-                }}
-              >
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{
-                    backgroundColor: 'var(--tgo-state-activity)',
-                    boxShadow: '0 0 8px rgba(47, 191, 113, 0.5)',
-                  }}
-                />
-                {networkCount} en red
-              </span>
-            )}
-            {networkCount > 0 && listedCount > 0 && (
-              <span style={{ color: 'var(--tgo-border)', fontSize: 10 }}>
-                |
-              </span>
-            )}
-            {listedCount > 0 && (
-              <span
-                style={{
-                  color: 'var(--tgo-text-muted)',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: 'var(--tgo-tracking-widest)',
-                }}
-              >
-                {listedCount} directorio
-              </span>
-            )}
-          </div>
-        )}
+        {/* Hint text */}
+        <p
+          className="text-center"
+          style={{
+            color: 'var(--tgo-text-muted)',
+            fontSize: 10,
+            fontWeight: 500,
+          }}
+        >
+          Podés combinar entre sí y con las categorías de abajo
+        </p>
       </div>
 
       {/* Address Selector Modal */}

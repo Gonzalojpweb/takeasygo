@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'rea
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { RestaurantCardData } from '@/types/restaurant-card'
-import { RestaurantCard } from '@/components/tgo-business'
 import { Section } from '@/components/tgo'
 import { HorizontalScroller } from '@/components/tgo'
 import { EmptyState } from '@/components/tgo'
@@ -13,6 +12,7 @@ import BottomNav from './BottomNav'
 import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
 import { GpsLoading, FetchOverlay } from './ExploreLoadingSkeleton'
+import DiscoverCard from './DiscoverCard'
 
 import { AnimatedLogoLoader } from '@/components/tgo'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
@@ -109,7 +109,16 @@ function ExploreClientInner() {
 
   const [prevView, setPrevView] = useState<View>('home')
   const [showAllCategories, setShowAllCategories] = useState(false)
-  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
+
+  const toggleFilter = useCallback((f: string) => {
+    setActiveFilters(prev => {
+      const next = new Set(prev)
+      if (next.has(f)) next.delete(f)
+      else next.add(f)
+      return next
+    })
+  }, [])
 
   const handleNavigate = useCallback((r: RestaurantCardData) => {
     setTenantSlug(r.id)
@@ -347,11 +356,11 @@ function ExploreClientInner() {
   )
 
   const filtered = useMemo(() => restaurants.filter(r => {
-    // Cuisine filter
+    // Cuisine filter (single select)
     if (activeCuisine && !r.cuisineTypes.includes(activeCuisine)) return false
-    // Status filter (combinable with cuisine)
-    if (activeFilter) {
-      switch (activeFilter) {
+    // Status filters (multi-select, AND logic)
+    for (const f of activeFilters) {
+      switch (f) {
         case 'abiertos':
           if (r.isOpenNow !== true && r.isOpenNow !== null) return false
           break
@@ -366,7 +375,6 @@ function ExploreClientInner() {
           break
       }
     }
-    if (openNowOnly && r.isOpenNow !== true) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       const matchName = r.name.toLowerCase().includes(q)
@@ -374,11 +382,10 @@ function ExploreClientInner() {
       if (!matchName && !matchCuisine) return false
     }
     return true
-  }), [restaurants, activeCuisine, activeFilter, openNowOnly, searchQuery])
+  }), [restaurants, activeCuisine, activeFilters, searchQuery])
 
   const networkCount = useMemo(() => filtered.filter(r => r.type === 'network').length, [filtered])
   const listedCount = useMemo(() => filtered.filter(r => r.type === 'listed').length, [filtered])
-  const activeFilters = (activeCuisine ? 1 : 0) + (activeFilter ? 1 : 0) + (openNowOnly ? 1 : 0) + (searchQuery ? 1 : 0)
 
   // Separate network (featured) vs listed
   const featuredRestaurants = useMemo(() => filtered.filter(r => r.type === 'network').slice(0, 7), [filtered])
@@ -513,20 +520,10 @@ function ExploreClientInner() {
             <>
               <ExploreHeader
                 gpsError={gpsError}
-                radius={radius}
-                setRadius={setRadius}
+                activeFilters={activeFilters}
+                toggleFilter={toggleFilter}
                 activeCuisine={activeCuisine}
                 setActiveCuisine={setActiveCuisine}
-                activeFilter={activeFilter}
-                setActiveFilter={setActiveFilter}
-                openNowOnly={openNowOnly}
-                setOpenNowOnly={setOpenNowOnly}
-                allCuisines={allCuisines}
-                networkCount={networkCount}
-                listedCount={listedCount}
-                activeFilters={activeFilters}
-                filteredCount={filtered.length}
-                onClearFilters={() => { setActiveCuisine(null); setActiveFilter(null); setOpenNowOnly(false); setSearchQuery('') }}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
               />
@@ -534,20 +531,20 @@ function ExploreClientInner() {
               {filtered.length === 0 ? (
                 <EmptyState
                   icon={<span style={{ fontSize: 28 }}>📍</span>}
-                  title={activeFilters > 0 ? 'Sin resultados' : 'Sin restaurantes en este radio'}
+                  title={activeFilters.size > 0 ? 'Sin resultados' : 'Sin restaurantes en este radio'}
                   subtitle={
-                    activeFilters > 0
+                    activeFilters.size > 0
                       ? 'Probá cambiando los filtros o ampliando el radio de búsqueda'
                       : 'Probá ampliar el radio de búsqueda para encontrar opciones cerca'
                   }
                   action={
-                    activeFilters > 0
+                    activeFilters.size > 0
                       ? {
                           label: 'Limpiar filtros',
                           onClick: () => {
                             haptic.selection()
                             setActiveCuisine(null)
-                            setOpenNowOnly(false)
+                            setActiveFilters(new Set())
                             setSearchQuery('')
                           },
                         }
@@ -572,6 +569,7 @@ function ExploreClientInner() {
                           haptic.selection()
                           setActiveCuisine(name === activeCuisine ? null : name)
                         }}
+                        selectedCuisine={activeCuisine}
                       />
                     </Section>
                   )}
@@ -583,15 +581,31 @@ function ExploreClientInner() {
                       subtitle="Opciones que tienen sentido ahora mismo"
                     >
                       <HorizontalScroller>
-                        {featuredRestaurants.map((r, i) => (
-                          <RestaurantCard
-                            key={r.id}
-                            restaurant={r}
-                            layout="hero"
-                            index={i}
-                            onNavigate={() => handleNavigate(r)}
-                          />
-                        ))}
+                        {featuredRestaurants.map((r) => {
+                          const isClosed = r.isOpenNow === false
+                          const isResting = isClosed || r.isOperational === false
+                          const hasWink = r.hasWinkOffer === true || r.loyaltyInfo?.hasActivePromo === true
+                          const expression = isResting ? 'sleepy' : (hasWink ? 'wink' : 'happy')
+                          const distLabel = r.distanceM != null
+                            ? (r.distanceM < 1000 ? `${r.distanceM} m` : `${(r.distanceM / 1000).toFixed(1)} km`)
+                            : undefined
+
+                          return (
+                            <DiscoverCard
+                              key={r.id}
+                              name={r.name}
+                              cuisineType={r.cuisineTypes}
+                              rating={r.averageRating ?? undefined}
+                              distanceLabel={distLabel}
+                              logoUrl={r.logoUrl}
+                              placeholderColor={r.primaryColor}
+                              isNetwork={r.type === 'network'}
+                              isOpenNow={r.isOpenNow === true}
+                              expression={expression}
+                              onClick={() => handleNavigate(r)}
+                            />
+                          )
+                        })}
                       </HorizontalScroller>
                     </Section>
                   )}
@@ -603,15 +617,33 @@ function ExploreClientInner() {
                       subtitle="Ofertas disponibles cerca tuyo"
                     >
                       <HorizontalScroller>
-                        {promoRestaurants.map((r, i) => (
-                          <RestaurantCard
-                            key={r.id}
-                            restaurant={r}
-                            layout="hero"
-                            index={i}
-                            onNavigate={() => handleNavigate(r)}
-                          />
-                        ))}
+                        {promoRestaurants.map((r) => {
+                          const isClosed = r.isOpenNow === false
+                          const isResting = isClosed || r.isOperational === false
+                          const hasWink = r.hasWinkOffer === true || r.loyaltyInfo?.hasActivePromo === true
+                          const expression = isResting ? 'sleepy' : (hasWink ? 'wink' : 'happy')
+                          const promoLabel = r.loyaltyInfo?.hasActivePromo ? r.loyaltyInfo?.promoTypes?.[0] ?? 'OFERTA' : null
+                          const distLabel = r.distanceM != null
+                            ? (r.distanceM < 1000 ? `${r.distanceM} m` : `${(r.distanceM / 1000).toFixed(1)} km`)
+                            : undefined
+
+                          return (
+                            <DiscoverCard
+                              key={r.id}
+                              name={r.name}
+                              cuisineType={r.cuisineTypes}
+                              rating={r.averageRating ?? undefined}
+                              distanceLabel={distLabel}
+                              logoUrl={r.logoUrl}
+                              placeholderColor={r.primaryColor}
+                              isNetwork={r.type === 'network'}
+                              isOpenNow={r.isOpenNow === true}
+                              promoLabel={promoLabel}
+                              expression={expression}
+                              onClick={() => handleNavigate(r)}
+                            />
+                          )
+                        })}
                       </HorizontalScroller>
                     </Section>
                   )}

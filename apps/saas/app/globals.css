@@ -841,3 +841,16 @@ main div:has(> .is-admin-orders-page) {
 .food-photo:hover {
   filter: saturate(1.15) contrast(1.05) brightness(1.02);
 }
+
+/* ── Hide scrollbar globally (TGO Foundations: minimalismo) ────────────── */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Safe area inset for mobile app containers ────────────────────────── */
+.consumer-app {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
