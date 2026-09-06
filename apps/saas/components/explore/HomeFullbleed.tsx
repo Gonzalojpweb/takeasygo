@@ -370,12 +370,16 @@ export default function HomeFullbleed({
 
       {/* ── FLOATING HEADER ────────────────────────────────────────────── */}
       <div
-        className="absolute inset-x-0 top-0 z-20 flex items-start justify-between"
+        className="absolute inset-x-0 top-0 z-20"
         style={{
-          padding: '12px 20px',
+          background: 'linear-gradient(to bottom, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.7) 70%, transparent 100%)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
         }}
       >
+        <div
+          className="flex items-start justify-between"
+          style={{ padding: '12px 20px' }}
+        >
         {/* Greeting: left-aligned, two lines */}
         <div className="flex flex-col gap-0.5">
           <span
@@ -422,6 +426,7 @@ export default function HomeFullbleed({
             </span>
           )}
         </button>
+        </div>
       </div>
 
       {/* ── AMBIENT CARD (1 a la vez, sobre el mapa) ──────────────────── */}
