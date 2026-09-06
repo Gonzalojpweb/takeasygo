@@ -2,12 +2,8 @@
 
 // ── LiveCityMetrics ───────────────────────────────────────────────────────────
 //
-// Card oscura con color sólido navy que muestra métricas vivas de la ciudad.
-// El único bloque oscuro de la Home — tiene que saltar a la vista.
-//
-// Estructura:
-//   - Header: dot verde pulsante + "LA CIUDAD AHORA MISMO"
-//   - Stats grid: 4 columnas con números grandes de color funcional
+// Card que muestra métricas vivas de la ciudad.
+// Doc 01 §1.2: Un solo color de acento (--tgo-brand), jerarquía por tamaño.
 //
 // Uso:
 //   <LiveCityMetrics openCount={18} promoCount={4} newCount={3} avgPickup={11} />
@@ -22,10 +18,10 @@ interface LiveCityMetricsProps {
 }
 
 const STATS = [
-  { key: 'abiertos', color: 'var(--tgo-state-activity)' },
-  { key: 'promos', color: 'var(--tgo-state-discovery)' },
-  { key: 'nuevos', color: 'var(--tgo-state-reward)' },
-  { key: 'espera', color: 'var(--tgo-state-proximity)' },
+  { key: 'abiertos' },
+  { key: 'promos' },
+  { key: 'nuevos' },
+  { key: 'espera' },
 ] as const
 
 const LABELS: Record<string, string> = {
@@ -54,21 +50,21 @@ export default function LiveCityMetrics({
         margin: '0 var(--tgo-page-padding)',
         padding: '18px 16px',
         borderRadius: 22,
-        background: 'var(--tgo-state-trust)',
+        background: 'var(--tgo-text-primary)',
         boxShadow: '0 8px 24px rgba(45, 42, 75, 0.35)',
       }}
     >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        {/* Pulsing green dot */}
+        {/* Pulsing green dot — only element with pulse-live (Doc 01 §2.5) */}
         <span
           style={{
             width: 8,
             height: 8,
             borderRadius: '50%',
-            backgroundColor: 'var(--tgo-state-activity)',
+            backgroundColor: 'var(--tgo-network-live)',
             flexShrink: 0,
-            animation: 'tgo-pulse-dot 1.8s ease-in-out infinite',
+            animation: 'punto-tgo-pulse-dot 1.8s ease-in-out infinite',
           }}
         />
         <span
@@ -84,7 +80,7 @@ export default function LiveCityMetrics({
         </span>
       </div>
 
-      {/* Stats grid */}
+      {/* Stats grid — single accent color, hierarchy by size */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
         {STATS.map((s) => {
           const val = values[s.key]
@@ -95,13 +91,13 @@ export default function LiveCityMetrics({
                 value={val ?? 0}
                 suffix={s.key === 'espera' ? 'min' : undefined}
                 numberStyle={{
-                  color: s.color,
+                  color: 'var(--tgo-brand)',
                   fontSize: 22,
                   fontWeight: 700,
                   lineHeight: 1,
                 }}
                 suffixStyle={{
-                  color: s.color,
+                  color: 'var(--tgo-brand)',
                   fontSize: 13,
                   fontWeight: 700,
                   lineHeight: 1,
@@ -125,7 +121,7 @@ export default function LiveCityMetrics({
       </div>
 
       <style>{`
-        @keyframes tgo-pulse-dot {
+        @keyframes punto-tgo-pulse-dot {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.4); opacity: 0.6; }
         }

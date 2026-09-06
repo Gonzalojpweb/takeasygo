@@ -117,83 +117,72 @@
  }
 
 :root {
-  --font-heading: 'Geist', system-ui, sans-serif;
-  --font-body: 'Geist', system-ui, sans-serif;
-  --font-display: 'Geist', system-ui, sans-serif;
-  --font-tag: 'Geist', system-ui, sans-serif;
+  /* ── Font: Inter unificado (Doc 01 §2.2) ──────────────────────────── */
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-tag: 'Inter', system-ui, sans-serif;
   --radius: 0.75rem;
-  --background: oklch(0.985 0 0);
-  /* Subtle off-white for depth */
-  --foreground: oklch(0.13 0.01 285);
-  /* #060102 */
-  --card: oklch(96.332% 0.00387 106.908);
-  --card-foreground: oklch(0.13 0.01 285);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.13 0.01 285);
-  --primary: #f54500;
-  /* #f14722 */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.94 0.01 285);
-  --secondary-foreground: oklch(0.13 0.01 285);
-  --muted: oklch(0.94 0.01 285);
-  --muted-foreground: oklch(0.40 0.01 285);
-  --accent: oklch(0.94 0.01 285);
-  --accent-foreground: oklch(0.13 0.01 285);
-  --destructive: #bb0916;
-  --border: oklch(0.13 0.01 285 / 12%);
-  /* More visible border */
-  --input: oklch(0.13 0.01 285 / 12%);
-  --ring: oklch(0.64 0.22 36.65);
-  --chart-1: oklch(0.64 0.22 36.65);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+
+  /* ── Shadcn aliases → TGO tokens (Doc 01 §2.1) ──────────────────── */
+  --background: var(--tgo-surface-1);
+  --foreground: var(--tgo-text-primary);
+  --card: var(--tgo-card);
+  --card-foreground: var(--tgo-text-primary);
+  --popover: var(--tgo-surface-2);
+  --popover-foreground: var(--tgo-text-primary);
+  --primary: var(--tgo-brand);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--tgo-surface-1);
+  --secondary-foreground: var(--tgo-text-primary);
+  --muted: var(--tgo-surface-1);
+  --muted-foreground: var(--tgo-text-muted);
+  --accent: var(--tgo-surface-1);
+  --accent-foreground: var(--tgo-text-primary);
+  --destructive: var(--tgo-danger);
+  --border: var(--tgo-border);
+  --input: var(--tgo-border);
+  --ring: var(--tgo-brand);
 
   /* Sidebar - Premium Dark Look */
-  --sidebar: oklch(0.13 0.01 285);
-  /* #060102 */
-  --sidebar-foreground: oklch(0.98 0 0);
-  --sidebar-primary: oklch(0.64 0.22 36.65);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(1 0 0 / 10%);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.64 0.22 36.65);
+  --sidebar: var(--tgo-text-primary);
+  --sidebar-foreground: var(--tgo-surface-2);
+  --sidebar-primary: var(--tgo-brand);
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: rgba(255, 255, 255, 0.10);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.10);
+  --sidebar-ring: var(--tgo-brand);
 }
 
 .dark {
-  --background: oklch(0.12 0.01 285);
-  --foreground: oklch(0.98 0 0);
-  --card: oklch(0.15 0.01 285);
-  --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.15 0.01 285);
-  --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.64 0.22 36.65);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.18 0.01 285);
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.18 0.01 285);
-  --muted-foreground: oklch(0.6 0.01 285);
-  --accent: oklch(0.18 0.01 285);
-  --accent-foreground: oklch(0.98 0 0);
-  --destructive: oklch(0.5 0.2 27);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.64 0.22 36.65);
-  --chart-1: oklch(0.64 0.22 36.65);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.13 0.01 285);
-  --sidebar-foreground: oklch(0.98 0 0);
-  --sidebar-primary: oklch(0.64 0.22 36.65);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(1 0 0 / 12%);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.64 0.22 36.65);
+  /* ── Dark mode aliases → TGO dark tokens ─────────────────────────── */
+  --background: var(--tgo-surface-1-dark);
+  --foreground: var(--tgo-text-primary-dark);
+  --card: var(--tgo-surface-2-dark);
+  --card-foreground: var(--tgo-text-primary-dark);
+  --popover: var(--tgo-surface-2-dark);
+  --popover-foreground: var(--tgo-text-primary-dark);
+  --primary: var(--tgo-brand);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--tgo-surface-1-dark);
+  --secondary-foreground: var(--tgo-text-primary-dark);
+  --muted: var(--tgo-surface-1-dark);
+  --muted-foreground: var(--tgo-text-secondary-dark);
+  --accent: var(--tgo-surface-1-dark);
+  --accent-foreground: var(--tgo-text-primary-dark);
+  --destructive: var(--tgo-danger);
+  --border: var(--tgo-border-dark);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: var(--tgo-brand);
+  --sidebar: var(--tgo-bg-dark);
+  --sidebar-foreground: var(--tgo-text-primary-dark);
+  --sidebar-primary: var(--tgo-brand);
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: rgba(255, 255, 255, 0.12);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: var(--tgo-brand);
 }
 
 @layer base {
@@ -303,15 +292,26 @@ html.lenis body {
 
 [data-design="spatial"] {
   /* ── Brand Layer (Identidad) ─────────────────────────────────────── */
-  --tgo-brand-primary: #F74211;
-  --tgo-brand-primary-soft: rgba(247, 66, 17, 0.08);
-  --tgo-brand-primary-hover: #E03A0F;
+  /* Doc 01 target: --tgo-brand | Legacy: --tgo-brand-primary */
+  --tgo-brand: #F74211;
+  --tgo-brand-hover: #E03A0F;
+  --tgo-brand-pressed: #C7330D;
+  --tgo-brand-soft: rgba(247, 66, 17, 0.08);
+
+  /* Backwards-compatible aliases (deprecated — use --tgo-brand instead) */
+  --tgo-brand-primary: var(--tgo-brand);
+  --tgo-brand-primary-soft: var(--tgo-brand-soft);
+  --tgo-brand-primary-hover: var(--tgo-brand-hover);
 
   /* ── Surface Layer (Superficies y Elevaciones) ───────────────────── */
-  --tgo-surface-0: #E7E2E3;
+  /* Doc 01 target: --tgo-bg | Legacy: --tgo-surface-0 */
+  --tgo-bg: #E7E2E3;
   --tgo-surface-1: #ECEAE9;
   --tgo-surface-2: #FFFFFF;
   --tgo-surface-3: #E7E2E3;
+
+  /* Backwards-compatible alias (deprecated — use --tgo-bg instead) */
+  --tgo-surface-0: var(--tgo-bg);
 
   --tgo-card: #FBF9F7;
   --tgo-surface-sheet: #FFFFFF;
@@ -358,28 +358,42 @@ html.lenis body {
   --tgo-text-link: #4E5067;
 
   /* ── Functional Layer (Estados) ──────────────────────────────────── */
-  --tgo-state-action: #F74211;
-  --tgo-state-action-hover: #E03A0F;
-  --tgo-state-action-soft: rgba(247, 66, 17, 0.08);
+  /* Doc 01 target: --tgo-success | Legacy: --tgo-state-success */
+  --tgo-success: #12B76A;
+  --tgo-success-soft: rgba(18, 183, 106, 0.08);
+
+  --tgo-warning: #F59E0B;
+  --tgo-warning-soft: rgba(245, 158, 11, 0.08);
+
+  --tgo-danger: #D92D20;
+  --tgo-danger-soft: rgba(217, 45, 32, 0.08);
+
+  --tgo-info: #3B82F6;
+  --tgo-info-soft: rgba(59, 130, 246, 0.08);
+
+  /* Backwards-compatible aliases (deprecated — use --tgo-success/warning/danger/info instead) */
+  --tgo-state-action: var(--tgo-brand);
+  --tgo-state-action-hover: var(--tgo-brand-hover);
+  --tgo-state-action-soft: var(--tgo-brand-soft);
 
   --tgo-state-trust: #2D2A4B;
   --tgo-state-trust-hover: #23203D;
   --tgo-state-trust-soft: rgba(45, 42, 75, 0.08);
 
-  --tgo-state-success: #12B76A;
-  --tgo-state-success-soft: rgba(18, 183, 106, 0.08);
+  --tgo-state-success: var(--tgo-success);
+  --tgo-state-success-soft: var(--tgo-success-soft);
 
-  --tgo-state-warning: #F59E0B;
-  --tgo-state-warning-soft: rgba(245, 158, 11, 0.08);
+  --tgo-state-warning: var(--tgo-warning);
+  --tgo-state-warning-soft: var(--tgo-warning-soft);
 
-  --tgo-state-danger: #D92D20;
-  --tgo-state-danger-soft: rgba(217, 45, 32, 0.08);
+  --tgo-state-danger: var(--tgo-danger);
+  --tgo-state-danger-soft: var(--tgo-danger-soft);
 
-  --tgo-state-error: #D92D20;
-  --tgo-state-error-soft: rgba(217, 45, 32, 0.08);
+  --tgo-state-error: var(--tgo-danger);
+  --tgo-state-error-soft: var(--tgo-danger-soft);
 
-  --tgo-state-info: #3B82F6;
-  --tgo-state-info-soft: rgba(59, 130, 246, 0.08);
+  --tgo-state-info: var(--tgo-info);
+  --tgo-state-info-soft: var(--tgo-info-soft);
 
   --tgo-state-discovery: #FAB300;
   --tgo-state-discovery-soft: rgba(250, 179, 0, 0.08);
@@ -444,10 +458,17 @@ html.lenis body {
   --tgo-space-xl: 32px;
 
   /* ── Motion Layer (Duraciones + Curvas) ──────────────────────────── */
-  --tgo-duration-instant: 0ms;
-  --tgo-duration-fast: 180ms;
-  --tgo-duration-base: 200ms;
-  --tgo-duration-slow: 220ms;
+  /* Doc 01 target: --tgo-dur-* | Legacy: --tgo-duration-* */
+  --tgo-dur-instant: 0ms;
+  --tgo-dur-fast: 180ms;
+  --tgo-dur-base: 200ms;
+  --tgo-dur-slow: 220ms;
+
+  /* Backwards-compatible aliases (deprecated — use --tgo-dur-* instead) */
+  --tgo-duration-instant: var(--tgo-dur-instant);
+  --tgo-duration-fast: var(--tgo-dur-fast);
+  --tgo-duration-base: var(--tgo-dur-base);
+  --tgo-duration-slow: var(--tgo-dur-slow);
 
   --tgo-ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
   --tgo-ease-emphasized: cubic-bezier(0.4, 0, 0.2, 1);
@@ -472,6 +493,24 @@ html.lenis body {
   --tgo-z-overlay: 300;
   --tgo-z-toast: 600;
   --tgo-z-tooltip: 700;
+
+  /* ── Dark Mode Layer (Doc 01 §2.1) ─────────────────────────────── */
+  --tgo-bg-dark: #0D0B0A;
+  --tgo-surface-1-dark: #1A1816;
+  --tgo-surface-2-dark: #242220;
+  --tgo-text-primary-dark: #F7F4F2;
+  --tgo-text-secondary-dark: #8A7F7A;
+  --tgo-text-muted-dark: #5A524D;
+  --tgo-border-dark: rgba(247, 244, 242, 0.08);
+  --tgo-brand-glow: rgba(241, 71, 34, 0.25);
+  --tgo-network-live: #10B981;
+  --tgo-network-dormant: #B4B2A9;
+
+  /* ── Network / Discovery Layer (Doc 01 §2.1) ───────────────────── */
+  --tgo-discovery: #FAB300;
+  --tgo-activity: #2FBF71;
+  --tgo-proximity: #3A86C8;
+  --tgo-reward: #7A5AF8;
 }
 
 /* Glass card with blur */

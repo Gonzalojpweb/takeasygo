@@ -114,13 +114,11 @@ function QuickFiltersModule({
 
 interface DiscoveryFeedProps {
   userName?: string
-  onOpenLeadModal?: () => void
   onCategorySelect?: (name: string) => void
 }
 
 export default function DiscoveryFeed({
   userName,
-  onOpenLeadModal,
   onCategorySelect,
 }: DiscoveryFeedProps) {
   const { currentAddress } = useLocation()
@@ -457,71 +455,6 @@ export default function DiscoveryFeed({
       </Section>
 
       {/* B2B CTA */}
-      {onOpenLeadModal && (
-        <section
-          className="py-6"
-          style={{ paddingInline: 'var(--tgo-page-padding)' }}
-        >
-          <p
-            style={{
-              fontSize: '0.6875rem',
-              lineHeight: 1.6,
-              color: 'var(--tgo-text-muted)',
-              maxWidth: 300,
-              margin: '0 auto 16px',
-              textAlign: 'center',
-            }}
-          >
-            TGO conecta personas y comercios cercanos.
-            Creemos en una ciudad donde todo lo importante
-            sucede cerca de vos.
-          </p>
-          <div
-            className="p-6 text-center"
-            style={{
-              borderRadius: 'var(--tgo-radius-xl)',
-              backgroundColor: 'var(--tgo-surface-1)',
-              border: '1px solid var(--tgo-border)',
-            }}
-          >
-            <h3
-              style={{
-                color: 'var(--tgo-text-primary)',
-                fontSize: 'var(--tgo-type-body)',
-                fontWeight: 700,
-              }}
-            >
-              ¿Tenés un restaurante?
-            </h3>
-            <p
-              className="mt-1"
-              style={{
-                color: 'var(--tgo-text-muted)',
-                fontSize: 'var(--tgo-type-body-sm)',
-                lineHeight: 1.5,
-              }}
-            >
-              Sumate a la plataforma que potencia locales sin comisiones abusivas.
-            </p>
-            <button
-              onClick={() => { haptic.impact('light'); onOpenLeadModal() }}
-              className="mt-3"
-              style={{
-                padding: '10px 20px',
-                borderRadius: 'var(--tgo-radius-md)',
-                backgroundColor: 'var(--tgo-state-trust)',
-                color: 'var(--tgo-text-inverse)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: 'var(--tgo-tracking-wider)',
-              }}
-            >
-              Registrar mi local
-            </button>
-          </div>
-        </section>
-      )}
       </div>
     </PullToRefresh>
   )
