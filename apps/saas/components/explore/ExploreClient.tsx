@@ -13,6 +13,7 @@ import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
 import { FetchOverlay } from './ExploreLoadingSkeleton'
 import DiscoverCard from './DiscoverCard'
+import ExplorePromoCard, { type ExplorePromo } from './ExplorePromoCard'
 
 import { AnimatedLogoLoader } from '@/components/tgo'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
@@ -87,6 +88,7 @@ function ExploreClientInner() {
   }
   const exploreCache = readExploreCache()
   const [restaurants, setRestaurants] = useState<RestaurantCardData[]>(exploreCache?.restaurants ?? [])
+  const [promotions, setPromotions] = useState<ExplorePromo[]>([])
   const [fetching, setFetching] = useState(false)
   const hasLoadedOnce = useRef(false)
   const [radius, setRadius] = useState(exploreCache?.radius ?? 5000)
@@ -337,6 +339,20 @@ function ExploreClientInner() {
     if (coords) fetchNearby(coords.lat, coords.lng, radius)
   }, [coords, radius, fetchNearby])
 
+  // ── Fetch promotions ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!coords) return
+    const fetchPromos = async () => {
+      try {
+        const res = await fetch(`/api/explore/promotions?lat=${coords.lat}&lng=${coords.lng}`)
+        if (!res.ok) return
+        const data = await res.json()
+        setPromotions(data.promotions ?? [])
+      } catch {}
+    }
+    fetchPromos()
+  }, [coords])
+
   // ── Filtering (memoized) ───────────────────────────────────────────────
   const allCuisines = useMemo(() =>
     Array.from(new Set(restaurants.flatMap(r => r.cuisineTypes))).sort(),
@@ -377,7 +393,6 @@ function ExploreClientInner() {
 
   // Separate network (featured) vs listed
   const featuredRestaurants = useMemo(() => filtered.filter(r => r.type === 'network').slice(0, 7), [filtered])
-  const promoRestaurants = useMemo(() => filtered.filter(r => r.loyaltyInfo?.hasActivePromo).slice(0, 7), [filtered])
 
   return (
     <div
@@ -598,40 +613,26 @@ function ExploreClientInner() {
                     </Section>
                   )}
 
-                  {/* ── Promos (restaurants with active promos) ── */}
-                  {promoRestaurants.length > 0 && (
+                  {/* ── Promos (real promotion details from /api/explore/promotions) ── */}
+                  {promotions.length > 0 && (
                     <Section
                       title="Hoy podés aprovechar"
                       subtitle="Ofertas disponibles cerca tuyo"
                     >
                       <HorizontalScroller>
-                        {promoRestaurants.map((r) => {
-                          const isClosed = r.isOpenNow === false
-                          const isResting = isClosed || r.isOperational === false
-                          const hasWink = r.hasWinkOffer === true || r.loyaltyInfo?.hasActivePromo === true
-                          const expression = isResting ? 'sleepy' : (hasWink ? 'wink' : 'happy')
-                          const promoLabel = r.loyaltyInfo?.hasActivePromo ? r.loyaltyInfo?.promoTypes?.[0] ?? 'OFERTA' : null
-                          const distLabel = r.distanceM != null
-                            ? (r.distanceM < 1000 ? `${r.distanceM} m` : `${(r.distanceM / 1000).toFixed(1)} km`)
-                            : undefined
-
-                          return (
-                            <DiscoverCard
-                              key={r.id}
-                              name={r.name}
-                              cuisineType={r.cuisineTypes}
-                              rating={r.averageRating ?? undefined}
-                              distanceLabel={distLabel}
-                              logoUrl={r.logoUrl}
-                              placeholderColor={r.primaryColor}
-                              isNetwork={r.type === 'network'}
-                              isOpenNow={r.isOpenNow === true}
-                              promoLabel={promoLabel}
-                              expression={expression}
-                              onClick={() => handleNavigate(r)}
-                            />
-                          )
-                        })}
+                        {promotions.map((promo) => (
+                          <ExplorePromoCard
+                            key={promo.id}
+                            promo={promo}
+                            onClick={() => {
+                              // Navigate to restaurant if tenantSlug is available
+                              if (promo.tenantSlug) {
+                                const restaurant = restaurants.find(r => r.tenantSlug === promo.tenantSlug)
+                                if (restaurant) handleNavigate(restaurant)
+                              }
+                            }}
+                          />
+                        ))}
                       </HorizontalScroller>
                     </Section>
                   )}
