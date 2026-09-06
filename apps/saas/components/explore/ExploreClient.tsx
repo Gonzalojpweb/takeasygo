@@ -13,7 +13,7 @@ import BottomNav from './BottomNav'
 import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
 import { GpsLoading, FetchOverlay } from './ExploreLoadingSkeleton'
-import SelfReportModal from '@/components/consumer/SelfReportModal'
+
 import { AnimatedLogoLoader } from '@/components/tgo'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import NetworkDiscoveryOnboarding from './NetworkDiscoveryOnboarding'
@@ -106,7 +106,7 @@ function ExploreClientInner() {
   const [activeCuisine, setActiveCuisine] = useState<string | null>(null)
   const [openNowOnly, setOpenNowOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [showLeadModal, setShowLeadModal] = useState(false)
+
   const [prevView, setPrevView] = useState<View>('home')
   const [showAllCategories, setShowAllCategories] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
@@ -616,52 +616,7 @@ function ExploreClientInner() {
                     </Section>
                   )}
 
-                  {/* Footer B2B CTA */}
-                  <section style={{ paddingInline: 'var(--tgo-page-padding)', paddingBottom: 48, paddingTop: 16 }}>
-                    <div
-                      className="text-center"
-                      style={{
-                        padding: 'var(--tgo-space-6)',
-                        borderRadius: 'var(--tgo-radius-xl)',
-                        backgroundColor: 'var(--tgo-surface-1)',
-                        border: '1px solid var(--tgo-border)',
-                      }}
-                    >
-                      <p
-                        style={{
-                          color: 'var(--tgo-text-primary)',
-                          fontSize: 'var(--tgo-type-body-sm)',
-                          fontWeight: 600,
-                        }}
-                      >
-                        ¿Tu restaurante no está en el mapa?
-                      </p>
-                      <p
-                        className="mt-1"
-                        style={{
-                          color: 'var(--tgo-text-muted)',
-                          fontSize: 'var(--tgo-type-caption)',
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        Sumanos a TGO y empezá a recibir pedidos sin comisiones
-                        ridículas.
-                      </p>
-                      <button
-                        onClick={() => { haptic.selection(); setShowLeadModal(true) }}
-                        className="mt-3"
-                        style={{
-                          color: 'var(--tgo-text-link)',
-                          fontSize: 'var(--tgo-type-caption)',
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          letterSpacing: 'var(--tgo-tracking-widest)',
-                        }}
-                      >
-                        Registrar mi restaurante →
-                      </button>
-                    </div>
-                  </section>
+
 
                   <div className="h-8" />
                 </div>
@@ -725,13 +680,7 @@ function ExploreClientInner() {
         {/* ── Bottom Nav ─────────────────────────────────────────────── */}
         <BottomNav />
 
-        {/* ── Register Modal ─────────────────────────────────────────── */}
-        {showLeadModal && (
-          <SelfReportModal onClose={() => {
-            setShowLeadModal(false)
-            trackExploreEvent({ eventType: 'click_lead' })
-          }} />
-        )}
+
       </div>
     </div>
   )

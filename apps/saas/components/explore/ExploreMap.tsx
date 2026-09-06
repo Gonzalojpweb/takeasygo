@@ -136,74 +136,6 @@ function renderPuntoTGOToHTML({
     </div>`
 }
 
-// ── SVG pin shapes ────────────────────────────────────────────────────────────
-
-function pinSvg(fill: string, isNetwork: boolean, logoUrl?: string, opacity = 1, isActive = false) {
-  const glowFilter = isActive
-    ? 'filter:drop-shadow(0 4px 8px rgba(0,0,0,0.4)) drop-shadow(0 0 6px rgba(16,185,129,0.3))'
-    : 'filter:drop-shadow(0 4px 8px rgba(0,0,0,0.4))'
-  const glowFilterSm = isActive
-    ? 'filter:drop-shadow(0 3px 6px rgba(0,0,0,0.3)) drop-shadow(0 0 4px rgba(16,185,129,0.2))'
-    : 'filter:drop-shadow(0 3px 6px rgba(0,0,0,0.3))'
-
-  if (isNetwork && logoUrl) {
-    return `
-      <div style="position:relative; width:40px; height:40px; transform:translate(-20px, -40px); opacity:${opacity}">
-        <svg width="40" height="48" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="${glowFilter}">
-          <path d="M20 48C20 48 40 34 40 20C40 9.0 31.0 0 20 0C9.0 0 0 9.0 0 20C0 34 20 48 20 48Z" fill="${fill}"/>
-        </svg>
-        <div style="position:absolute; top:4px; left:4px; width:32px; height:32px; border-radius:50%; overflow:hidden; border:2px solid white; background:white">
-          <img src="${logoUrl}" style="width:100%; height:100%; object-cover" />
-        </div>
-      </div>`
-  }
-
-  return `
-    <div style="transform:translate(-14px, -36px); opacity:${opacity}">
-      <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg"
-           style="${glowFilterSm}">
-        <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z"
-              fill="${fill}"/>
-        <circle cx="14" cy="14" r="5" fill="white" fill-opacity="0.95"/>
-      </svg>
-    </div>`
-}
-
-// Hitbox: invisible larger area behind the pin for easier touch/click
-function hitboxSvg(isNetwork: boolean) {
-  const w = isNetwork ? 56 : 44
-  const h = isNetwork ? 64 : 52
-  const ox = isNetwork ? -28 : -22
-  const oy = isNetwork ? -56 : -48
-  return `
-    <div style="position:absolute; width:${w}px; height:${h}px; transform:translate(${ox}px, ${oy}px); cursor:pointer;">
-      <div style="width:100%; height:100%;"></div>
-    </div>`
-}
-
-function pulsePinSvg(fill: string) {
-  return `
-    <div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;transform:translate(-18px, -18px)">
-      <div style="
-        position:absolute;width:36px;height:36px;border-radius:50%;
-        background:${fill};opacity:0.25;
-        animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite;
-      "></div>
-      <div style="
-        width:14px;height:14px;border-radius:50%;
-        background:${fill};border:3px solid white;
-        box-shadow:0 0 12px ${fill};
-        position:relative;z-index:1;
-      "></div>
-    </div>
-    <style>
-      @keyframes pulse {
-        0%,100%{transform:scale(1);opacity:0.25}
-        50%{transform:scale(1.8);opacity:0}
-      }
-    </style>`
-}
-
 // ── Cluster marker SVG ────────────────────────────────────────────────────────
 
 function clusterSvg(count: number, isSingleDigit: boolean) {
@@ -576,22 +508,14 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect, me
         const isResting = isClosed || !isOperational || !r.acceptsOrders || !isNetwork
         const expression = isResting ? 'sleepy' : (hasWink ? 'wink' : 'happy')
 
-        // Use PuntoTGO for network restaurants
-        const html = isNetwork
-          ? renderPuntoTGOToHTML({
-              expression,
-              ring: r.icoRing ?? 'none',
-              hasCrown: r.hasCrown ?? false,
-              isNew: r.isNew ?? false,
-              size: 40,
-            })
-          : pinSvg(
-              'var(--tgo-surface-1)',
-              false,
-              undefined,
-              isClosed ? 0.55 : 1,
-              false
-            )
+        // PuntoTGO for all restaurants — network gets full LCS, non-network gets sleepy
+        const html = renderPuntoTGOToHTML({
+          expression: isNetwork ? expression : 'sleepy',
+          ring: isNetwork ? (r.icoRing ?? 'none') : 'none',
+          hasCrown: isNetwork ? (r.hasCrown ?? false) : false,
+          isNew: isNetwork ? (r.isNew ?? false) : false,
+          size: isNetwork ? 40 : 32,
+        })
 
         const icon = L.divIcon({
           className: '',
@@ -653,11 +577,16 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect, me
         }
       })
 
-      // User location marker
+      // User location marker — simple pulsing dot
       const userIcon = L.divIcon({
         className: '',
-        html: pulsePinSvg('var(--tgo-brand)'),
-        iconSize: [36, 36],
+        html: `
+          <div style="position:relative;width:20px;height:20px;display:flex;align-items:center;justify-content:center;transform:translate(-10px,-10px)">
+            <div style="position:absolute;width:20px;height:20px;border-radius:50%;background:var(--tgo-brand);opacity:0.25;animation:punto-tgo-pulse-dot 2s ease-in-out infinite;"></div>
+            <div style="width:10px;height:10px;border-radius:50%;background:var(--tgo-brand);border:2px solid white;box-shadow:0 0 8px var(--tgo-brand);position:relative;z-index:1;"></div>
+          </div>
+        `,
+        iconSize: [20, 20],
       })
       L.marker([userLat, userLng], { icon: userIcon }).addTo(map)
 
