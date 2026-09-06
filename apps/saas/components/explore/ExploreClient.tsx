@@ -109,6 +109,7 @@ function ExploreClientInner() {
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [prevView, setPrevView] = useState<View>('home')
   const [showAllCategories, setShowAllCategories] = useState(false)
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
   const handleNavigate = useCallback((r: RestaurantCardData) => {
     setTenantSlug(r.id)
@@ -346,7 +347,25 @@ function ExploreClientInner() {
   )
 
   const filtered = useMemo(() => restaurants.filter(r => {
+    // Cuisine filter
     if (activeCuisine && !r.cuisineTypes.includes(activeCuisine)) return false
+    // Status filter (combinable with cuisine)
+    if (activeFilter) {
+      switch (activeFilter) {
+        case 'abiertos':
+          if (r.isOpenNow !== true && r.isOpenNow !== null) return false
+          break
+        case 'delivery':
+          if (r.deliveryEnabled !== true) return false
+          break
+        case 'beneficios':
+          if (!r.loyaltyInfo?.hasClub && !r.loyaltyInfo?.hasActivePromo) return false
+          break
+        case 'cercanos':
+          // Already sorted by distance from API
+          break
+      }
+    }
     if (openNowOnly && r.isOpenNow !== true) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
@@ -355,11 +374,11 @@ function ExploreClientInner() {
       if (!matchName && !matchCuisine) return false
     }
     return true
-  }), [restaurants, activeCuisine, openNowOnly, searchQuery])
+  }), [restaurants, activeCuisine, activeFilter, openNowOnly, searchQuery])
 
   const networkCount = useMemo(() => filtered.filter(r => r.type === 'network').length, [filtered])
   const listedCount = useMemo(() => filtered.filter(r => r.type === 'listed').length, [filtered])
-  const activeFilters = (activeCuisine ? 1 : 0) + (openNowOnly ? 1 : 0) + (searchQuery ? 1 : 0)
+  const activeFilters = (activeCuisine ? 1 : 0) + (activeFilter ? 1 : 0) + (openNowOnly ? 1 : 0) + (searchQuery ? 1 : 0)
 
   // Separate network (featured) vs listed
   const featuredRestaurants = useMemo(() => filtered.filter(r => r.type === 'network').slice(0, 7), [filtered])
@@ -524,6 +543,8 @@ function ExploreClientInner() {
                 setRadius={setRadius}
                 activeCuisine={activeCuisine}
                 setActiveCuisine={setActiveCuisine}
+                activeFilter={activeFilter}
+                setActiveFilter={setActiveFilter}
                 openNowOnly={openNowOnly}
                 setOpenNowOnly={setOpenNowOnly}
                 allCuisines={allCuisines}
@@ -531,7 +552,7 @@ function ExploreClientInner() {
                 listedCount={listedCount}
                 activeFilters={activeFilters}
                 filteredCount={filtered.length}
-                onClearFilters={() => { setActiveCuisine(null); setOpenNowOnly(false); setSearchQuery('') }}
+                onClearFilters={() => { setActiveCuisine(null); setActiveFilter(null); setOpenNowOnly(false); setSearchQuery('') }}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
               />

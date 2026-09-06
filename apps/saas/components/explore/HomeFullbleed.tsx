@@ -8,7 +8,7 @@
 //
 // Paso 1 del spec: layout estático con mapa real, overlays, y handle.
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import 'leaflet/dist/leaflet.css'
 import { useHaptic } from '@/components/tgo/useHaptic'
@@ -17,7 +17,7 @@ import { type NetworkStatus } from '@/components/tgo/PuntoTGO'
 import { SmartGreeting } from '@/components/tgo'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
-import { Sun, Moon, Clock, Bike, MapPin, Tag } from 'lucide-react'
+import { Sun, Moon } from 'lucide-react'
 import { LiveCityMetrics } from '@/components/tgo'
 import HomeSheet from './HomeSheet'
 import AmbientCard from './AmbientCard'
@@ -81,15 +81,6 @@ function renderPuntoTGOToHTML({
     </div>`
 }
 
-// ── QuickFilters ─────────────────────────────────────────────────────────────
-
-const QUICK_FILTERS = [
-  { label: 'Abiertos', icon: Clock, query: 'abiertos', iconColor: 'var(--tgo-state-activity)' },
-  { label: 'Delivery', icon: Bike, query: 'delivery', iconColor: 'var(--tgo-state-trust)' },
-  { label: 'Cercanos', icon: MapPin, query: 'cercanos', iconColor: 'var(--tgo-state-proximity)' },
-  { label: 'Beneficios', icon: Tag, query: 'beneficios', iconColor: 'var(--tgo-state-reward)' },
-]
-
 export default function HomeFullbleed({
   userLat,
   userLng,
@@ -107,28 +98,9 @@ export default function HomeFullbleed({
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
   const [mapReady, setMapReady] = useState(false)
-  const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
   const hour = new Date().getHours()
   const isDay = hour >= 6 && hour < 19
-
-  // Filter restaurants for map markers based on active filter
-  const filteredForMap = activeFilter
-    ? restaurants.filter((r) => {
-        switch (activeFilter) {
-          case 'abiertos':
-            return r.isOpenNow === true || r.isOpenNow === null
-          case 'delivery':
-            return r.deliveryEnabled === true && (r.isDeliveryOpen === true || r.isDeliveryOpen === null)
-          case 'cercanos':
-            return true // Already sorted by distance from API
-          case 'beneficios':
-            return r.loyaltyInfo?.hasClub || r.loyaltyInfo?.hasActivePromo
-          default:
-            return true
-        }
-      })
-    : restaurants
 
   // ── Initialize Leaflet map ──────────────────────────────────────────────
   useEffect(() => {
@@ -187,7 +159,7 @@ export default function HomeFullbleed({
     markersRef.current.forEach((m) => m.remove())
     markersRef.current = []
 
-    const valid = filteredForMap.filter(r => r.lat !== null && r.lng !== null)
+    const valid = restaurants.filter(r => r.lat !== null && r.lng !== null)
     if (valid.length === 0) return
 
     const cluster = new Supercluster({ radius: 60, maxZoom: 17 })
@@ -302,12 +274,7 @@ export default function HomeFullbleed({
 
       markersRef.current.push(marker)
     })
-  }, [filteredForMap, mapReady, onSelect, haptic])
-
-  const handleFilterToggle = useCallback((query: string) => {
-    haptic.selection()
-    setActiveFilter(prev => prev === query ? null : query)
-  }, [haptic])
+  }, [restaurants, mapReady, onSelect, haptic])
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: 'var(--tgo-bg)' }}>
@@ -384,44 +351,6 @@ export default function HomeFullbleed({
             interval={10000}
           />
         </div>
-      </div>
-
-      {/* ── QUICK FILTERS (floating, below greeting) ───────────────────── */}
-      <div
-        className="absolute inset-x-0 z-20 flex justify-center gap-2 pointer-events-auto"
-        style={{ top: 64, paddingInline: 20 }}
-      >
-        {QUICK_FILTERS.map((f) => {
-          const Icon = f.icon
-          const isActive = activeFilter === f.query
-          return (
-            <button
-              key={f.query}
-              onClick={() => handleFilterToggle(f.query)}
-              className="flex items-center gap-1.5 active:scale-[0.96]"
-              style={{
-                height: 32,
-                padding: '0 12px',
-                borderRadius: 'var(--tgo-radius-pill)',
-                fontSize: 'var(--tgo-type-body-sm)',
-                fontWeight: isActive ? 600 : 400,
-                backgroundColor: isActive
-                  ? 'var(--tgo-state-trust-soft)'
-                  : 'rgba(255,255,255,0.9)',
-                color: isActive
-                  ? '#FFFFFF'
-                  : 'var(--tgo-text-primary)',
-                border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'rgba(255,255,255,0.8)'}`,
-                backdropFilter: 'blur(8px)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
-              }}
-            >
-              <Icon size={14} />
-              {f.label}
-            </button>
-          )
-        })}
       </div>
 
       {/* ── AMBIENT CARD (1 a la vez, sobre el mapa) ──────────────────── */}
