@@ -382,33 +382,7 @@ function ExploreClientInner() {
 
   // Separate network (featured) vs listed
   const featuredRestaurants = useMemo(() => filtered.filter(r => r.type === 'network').slice(0, 7), [filtered])
-  const listRestaurants = filtered
-
-  // ── Infinite scroll ───────────────────────────────────────────────────
-  const ITEMS_PER_PAGE = 10
-  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE)
-  const loadMoreRef = useRef<HTMLDivElement>(null)
-  const visibleListRestaurants = useMemo(() => listRestaurants.slice(0, visibleCount), [listRestaurants, visibleCount])
-  const hasMore = visibleCount < listRestaurants.length
-
-  useEffect(() => {
-    if (!loadMoreRef.current || !hasMore) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setVisibleCount((prev) => prev + ITEMS_PER_PAGE)
-        }
-      },
-      { rootMargin: '200px' }
-    )
-    observer.observe(loadMoreRef.current)
-    return () => observer.disconnect()
-  }, [hasMore, listRestaurants.length])
-
-  // Reset visible count when filters change
-  useEffect(() => {
-    setVisibleCount(ITEMS_PER_PAGE)
-  }, [activeCuisine, openNowOnly, searchQuery])
+  const promoRestaurants = useMemo(() => filtered.filter(r => r.loyaltyInfo?.hasActivePromo).slice(0, 7), [filtered])
 
   return (
     <div
@@ -622,48 +596,25 @@ function ExploreClientInner() {
                     </Section>
                   )}
 
-                  {/* ── All restaurants (compact list) ── */}
-                  <Section
-                    title={
-                      featuredRestaurants.length > 0
-                        ? 'Todas las opciones'
-                        : 'Opciones cercanas'
-                    }
-                    subtitle={`${listRestaurants.length} locales encontrados`}
-                  >
-                    <div
-                      className="flex flex-col gap-3"
-                      style={{ paddingInline: 'var(--tgo-page-padding)' }}
+                  {/* ── Promos (restaurants with active promos) ── */}
+                  {promoRestaurants.length > 0 && (
+                    <Section
+                      title="Promos activas"
+                      subtitle="Ofertas disponibles cerca tuyo"
                     >
-                      {visibleListRestaurants.map((r) => (
-                        <RestaurantCard
-                          key={r.id}
-                          restaurant={r}
-                          layout="list"
-                          onNavigate={() => handleNavigate(r)}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Infinite scroll trigger */}
-                    {hasMore && (
-                      <div
-                        ref={loadMoreRef}
-                        className="flex items-center justify-center py-4"
-                      >
-                        <div
-                          className="animate-spin"
-                          style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: 'var(--tgo-radius-pill)',
-                            border: '2px solid var(--tgo-border)',
-                            borderTopColor: 'var(--tgo-text-muted)',
-                          }}
-                        />
-                      </div>
-                    )}
-                  </Section>
+                      <HorizontalScroller>
+                        {promoRestaurants.map((r, i) => (
+                          <RestaurantCard
+                            key={r.id}
+                            restaurant={r}
+                            layout="hero"
+                            index={i}
+                            onNavigate={() => handleNavigate(r)}
+                          />
+                        ))}
+                      </HorizontalScroller>
+                    </Section>
+                  )}
 
                   {/* Footer B2B CTA */}
                   <section style={{ paddingInline: 'var(--tgo-page-padding)', paddingBottom: 48, paddingTop: 16 }}>
