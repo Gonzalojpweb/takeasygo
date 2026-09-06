@@ -57,7 +57,28 @@ function MiniMap({ lat, lng }: { lat: number; lng: number }) {
         zoomControl: false, attributionControl: false, dragging: false,
         scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false,
       }).setView([lat, lng], 16)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map)
+      // CartoDB Light with API key (required since 2024)
+      const cartoKey = process.env.NEXT_PUBLIC_CARTO_API_KEY || ''
+      const tileUrl = cartoKey
+        ? `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      const tileLayer = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        attribution: cartoKey
+          ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        crossOrigin: true,
+      }).addTo(map)
+
+      // Fallback: if tiles fail, show neutral grey background
+      tileLayer.on('tileerror', (e: any) => {
+        const tile = e.tile
+        if (tile && !tile.dataset.errorHandled) {
+          tile.dataset.errorHandled = 'true'
+          tile.style.background = 'var(--tgo-surface-2, #f3f4f6)'
+          tile.style.opacity = '0.5'
+        }
+      })
       const icon = L.divIcon({
         className: '',
         html: '<div style="width:16px;height:16px;border-radius:50%;background:#12B76A;border:3px solid #fff;box-shadow:0 0 0 3px rgba(18,183,106,0.4),0 0 16px rgba(18,183,106,0.3)"></div>',

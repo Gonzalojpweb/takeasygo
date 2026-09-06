@@ -541,9 +541,28 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
         attributionControl: false,
       }).setView([userLat, userLng], 15)
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // CartoDB Voyager with API key (required since 2024)
+      const cartoKey = process.env.NEXT_PUBLIC_CARTO_API_KEY || ''
+      const tileUrl = cartoKey
+        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      const tileLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
+        attribution: cartoKey
+          ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        crossOrigin: true,
       }).addTo(map)
+
+      // Fallback: if tiles fail, show neutral grey background
+      tileLayer.on('tileerror', (e: any) => {
+        const tile = e.tile
+        if (tile && !tile.dataset.errorHandled) {
+          tile.dataset.errorHandled = 'true'
+          tile.style.background = 'var(--tgo-surface-2, #f3f4f6)'
+          tile.style.opacity = '0.5'
+        }
+      })
 
       // User location marker
       const userIcon = L.divIcon({
