@@ -9,7 +9,7 @@
 // Posicionamiento: sheet anclado a bottom:0, translateY para ocultar.
 // y = 0 → full visible. y = fullH → todo oculto. PEEK = solo handle visible.
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { motion, useMotionValue, animate } from 'framer-motion'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import { useHaptic } from '@/components/tgo/useHaptic'
@@ -143,13 +143,14 @@ function SheetItem({
 
 // ── Main Sheet Component ───────────────────────────────────────────────────
 
-export default function HomeSheet({
-  userLat,
-  userLng,
-  restaurants,
-  onSelect,
-  children,
-}: Props) {
+export interface HomeSheetHandle {
+  snapTo: (pos: 'peek' | 'half' | 'full') => void
+}
+
+const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
+  { userLat, userLng, restaurants, onSelect, children },
+  ref,
+) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const [sheetH, setSheetH] = useState(0)
   const [position, setPosition] = useState<'peek' | 'half' | 'full'>('peek')
@@ -215,6 +216,9 @@ export default function HomeSheet({
     setPosition(pos)
   }, [y, peekHidden, halfHidden, fullHidden])
 
+  // Expose snapTo to parent via ref
+  useImperativeHandle(ref, () => ({ snapTo: snapToPosition }), [snapToPosition])
+
   // Top picks: 4-6 items with v1 personalization
   const topPicks = restaurants
     .filter(r => r.lat !== null && r.lng !== null)
@@ -246,7 +250,7 @@ export default function HomeSheet({
   return (
     <motion.div
       ref={sheetRef}
-      className="absolute inset-x-0 bottom-0 z-30"
+      className="absolute inset-x-0 bottom-0 z-[999]"
       style={{
         height: fullH,
         y,
@@ -348,4 +352,6 @@ export default function HomeSheet({
       </div>
     </motion.div>
   )
-}
+})
+
+export default HomeSheet
