@@ -294,20 +294,27 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── Promotions: active promos per tenant ────────────────────────────────
+    // ── Promotions: active promos per tenant (all tenants, not just nearby) ─
     const promosMap: Record<string, { hasPromo: boolean; types: string[] }> = {}
-    if (tenantIdsForRatings.length > 0) {
-      try {
-        const promoAggs = await Promotion.aggregate([
-          { $match: { tenantId: { $in: tenantIdsForRatings }, isActive: true } },
-          { $group: { _id: '$tenantId', types: { $addToSet: '$type' } } },
-        ])
-        promoAggs.forEach((p: any) => {
-          promosMap[p._id.toString()] = { hasPromo: true, types: p.types }
-        })
-      } catch (e) {
-        console.error('[explore/nearby] promos aggregation failed:', e)
-      }
+    try {
+      const now = new Date()
+      const promoAggs = await Promotion.aggregate([
+        {
+          $match: {
+            isActive: true,
+            $and: [
+              { $or: [{ scheduledStart: { $exists: false } }, { scheduledStart: null }, { scheduledStart: { $lte: now } }] },
+              { $or: [{ scheduledEnd: { $exists: false } }, { scheduledEnd: null }, { scheduledEnd: { $gte: now } }] },
+            ],
+          },
+        },
+        { $group: { _id: '$tenantId', types: { $addToSet: '$type' } } },
+      ])
+      promoAggs.forEach((p: any) => {
+        if (p._id) promosMap[p._id.toString()] = { hasPromo: true, types: p.types }
+      })
+    } catch (e) {
+      console.error('[explore/nearby] promos aggregation failed:', e)
     }
 
     // ── Directorio: RestaurantDirectory listados o reclamados ────────────────
