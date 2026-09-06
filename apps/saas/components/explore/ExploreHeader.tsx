@@ -248,34 +248,6 @@ export default function ExploreHeader({
                 ))}
               </div>
             </div>
-
-            {/* Open now */}
-            <button
-              onClick={() => { haptic.selection(); setOpenNowOnly(!openNowOnly) }}
-              aria-label="Filtrar abiertos ahora"
-              className="flex items-center gap-2"
-              style={{
-                padding: '8px 16px',
-                borderRadius: 'var(--tgo-radius-md)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: 'var(--tgo-tracking-wider)',
-                backgroundColor: openNowOnly
-                  ? 'var(--tgo-state-success-soft)'
-                  : 'var(--tgo-surface-2)',
-                color: openNowOnly
-                  ? 'var(--tgo-state-success)'
-                  : 'var(--tgo-text-muted)',
-                border: openNowOnly
-                  ? '1px solid var(--tgo-state-success)'
-                  : '1px solid transparent',
-                transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
-              }}
-            >
-              <Clock size={13} />
-              Abierto ahora
-            </button>
           </div>
         )}
 

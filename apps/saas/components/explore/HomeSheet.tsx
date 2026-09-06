@@ -6,15 +6,15 @@
 // Patrón Uber/Google Maps: peek / half / full.
 // Nivel 4 de feedback: decisión sin sacar de contexto, se cierra con swipe.
 //
-// Paso 2 del spec: sheet funcional con data dummy de 4-6 picks.
+// Posicionamiento: sheet anclado a bottom:0, translateY para ocultar.
+// y = 0 → full visible. y = fullH → todo oculto. PEEK = solo handle visible.
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
+import { motion, useMotionValue, animate } from 'framer-motion'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import PuntoTGO, { type NetworkStatus } from '@/components/tgo/PuntoTGO'
-import Image from 'next/image'
-import { Clock, MapPin, ChevronRight } from 'lucide-react'
+import { Clock } from 'lucide-react'
 
 interface Props {
   userLat: number
@@ -29,22 +29,14 @@ function distLabel(m: number | null) {
   return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`
 }
 
-// ── Sheet positions (in px from bottom, excluding bottom nav ~64px) ────────
+// ── Sheet positions ───────────────────────────────────────────────────────
+// PEEK = handle + "ciudad ahora mismo" (~80px visible from bottom)
+// HALF = 4-6 picks (~340px visible from bottom)
+// FULL = 88% of viewport
 
-const PEEK = 80    // Handle + minimal preview
-const HALF = 340   // Half screen-ish: shows 4-6 items
-const FULL_RATIO = 0.88 // 88% of viewport height for full
-
-// ── Snap thresholds ───────────────────────────────────────────────────────
-
-function snapTo(y: number, maxH: number) {
-  const fullH = maxH * FULL_RATIO
-  const mid = (PEEK + HALF) / 2
-  const mid2 = (HALF + fullH) / 2
-  if (y < mid) return PEEK
-  if (y < mid2) return HALF
-  return fullH
-}
+const PEEK_VISIBLE = 80
+const HALF_VISIBLE = 340
+const FULL_RATIO = 0.88
 
 // ── Single restaurant row ──────────────────────────────────────────────────
 
@@ -161,14 +153,14 @@ export default function HomeSheet({
   const sheetRef = useRef<HTMLDivElement>(null)
   const [sheetH, setSheetH] = useState(0)
   const [position, setPosition] = useState<'peek' | 'half' | 'full'>('peek')
-  const y = useMotionValue(PEEK)
   const haptic = useHaptic()
+
+  // y = pixels HIDDEN below viewport. 0 = fully visible, fullH = fully hidden.
+  const y = useMotionValue(0)
 
   // Measure viewport
   useEffect(() => {
-    const update = () => {
-      setSheetH(window.innerHeight)
-    }
+    const update = () => setSheetH(window.innerHeight)
     update()
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
@@ -176,59 +168,67 @@ export default function HomeSheet({
 
   const fullH = sheetH * FULL_RATIO
 
-  // Drag constraints
-  const dragMin = PEEK
-  const dragMax = fullH
+  // Snap targets as "hidden" values
+  const peekHidden = fullH - PEEK_VISIBLE
+  const halfHidden = fullH - HALF_VISIBLE
+  const fullHidden = 0
 
-  // Transform y to visual offset
-  const sheetY = useTransform(y, [PEEK, fullH], [PEEK, fullH])
+  // Initialize to peek position
+  useEffect(() => {
+    if (fullH > 0) {
+      y.set(peekHidden)
+    }
+  }, [fullH, peekHidden, y])
 
   // Snap on drag end
   const handleDragEnd = useCallback(() => {
     const current = y.get()
-    const snapped = snapTo(current, sheetH)
+    // Determine closest snap target
+    const targets = [fullHidden, halfHidden, peekHidden]
+    let snapped = peekHidden
+    let minDist = Infinity
+    for (const t of targets) {
+      const dist = Math.abs(current - t)
+      if (dist < minDist) {
+        minDist = dist
+        snapped = t
+      }
+    }
     animate(y, snapped, {
       type: 'spring',
       stiffness: 400,
       damping: 35,
     })
-    if (snapped === PEEK) setPosition('peek')
-    else if (snapped === HALF) setPosition('half')
+    if (snapped === peekHidden) setPosition('peek')
+    else if (snapped === halfHidden) setPosition('half')
     else setPosition('full')
-  }, [y, sheetH])
+  }, [y, peekHidden, halfHidden, fullHidden])
 
   // Programmatic snap
   const snapToPosition = useCallback((pos: 'peek' | 'half' | 'full') => {
-    const target = pos === 'peek' ? PEEK : pos === 'half' ? HALF : fullH
+    const target = pos === 'peek' ? peekHidden : pos === 'half' ? halfHidden : fullHidden
     animate(y, target, {
       type: 'spring',
       stiffness: 400,
       damping: 35,
     })
     setPosition(pos)
-  }, [y, fullH])
+  }, [y, peekHidden, halfHidden, fullHidden])
 
   // Top picks: 4-6 items with v1 personalization
-  // Sort priority: open now > network > distance
   const topPicks = restaurants
     .filter(r => r.lat !== null && r.lng !== null)
     .sort((a, b) => {
-      // 1. Open now first
       const aOpen = a.isOpenNow === true ? 0 : 1
       const bOpen = b.isOpenNow === true ? 0 : 1
       if (aOpen !== bOpen) return aOpen - bOpen
-
-      // 2. Network first (higher business value)
       const aNetwork = a.type === 'network' ? 0 : 1
       const bNetwork = b.type === 'network' ? 0 : 1
       if (aNetwork !== bNetwork) return aNetwork - bNetwork
-
-      // 3. Then by distance
       return (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity)
     })
     .slice(0, 6)
 
-  // All valid restaurants for full view (same sorting)
   const allValid = restaurants
     .filter(r => r.lat !== null && r.lng !== null)
     .sort((a, b) => {
@@ -241,19 +241,19 @@ export default function HomeSheet({
       return (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity)
     })
 
-  if (sheetH === 0) return null
+  if (sheetH === 0 || fullH === 0) return null
 
   return (
     <motion.div
       ref={sheetRef}
       className="absolute inset-x-0 bottom-0 z-30"
       style={{
-        y: sheetY,
         height: fullH,
+        y,
         touchAction: 'none',
       }}
       drag="y"
-      dragConstraints={{ top: dragMin, bottom: dragMax }}
+      dragConstraints={{ top: fullHidden, bottom: peekHidden }}
       dragElastic={0.1}
       onDragEnd={handleDragEnd}
     >
@@ -293,9 +293,7 @@ export default function HomeSheet({
           <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
             <div
               className="px-4 py-2"
-              style={{
-                borderBottom: '1px solid var(--tgo-border)',
-              }}
+              style={{ borderBottom: '1px solid var(--tgo-border)' }}
             >
               <p
                 className="text-[10px] font-bold uppercase tracking-wider"
@@ -319,7 +317,7 @@ export default function HomeSheet({
               />
             ))}
 
-            {/* ── FULL: All restaurants (infinite scroll) ────────────── */}
+            {/* ── FULL: All restaurants ──────────────────────────────── */}
             {position === 'full' && allValid.length > topPicks.length && (
               <>
                 <div
