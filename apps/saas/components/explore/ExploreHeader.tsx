@@ -6,7 +6,7 @@
 // SearchBar + Chips de filtro + Resumen.
 // Misma sensación que Home.
 
-import { MapPin, Clock, X } from 'lucide-react'
+import { MapPin, Clock, X, Bike, Tag } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
 import AddressSelector from '@/components/explore/AddressSelector'
@@ -20,6 +20,8 @@ interface Props {
   setRadius: (r: number) => void
   activeCuisine: string | null
   setActiveCuisine: (c: string | null) => void
+  activeFilter: string | null
+  setActiveFilter: (f: string | null) => void
   openNowOnly: boolean
   setOpenNowOnly: (v: boolean) => void
   allCuisines: string[]
@@ -39,9 +41,17 @@ const RADIUS_OPTIONS = [
   { value: 10000, label: '10 km' },
 ]
 
+const STATUS_FILTERS = [
+  { label: 'Abiertos', icon: Clock, query: 'abiertos' },
+  { label: 'Delivery', icon: Bike, query: 'delivery' },
+  { label: 'Cercanos', icon: Tag, query: 'cercanos' },
+  { label: 'Beneficios', icon: Tag, query: 'beneficios' },
+]
+
 export default function ExploreHeader({
   gpsError, radius, setRadius,
   activeCuisine, setActiveCuisine,
+  activeFilter, setActiveFilter,
   openNowOnly, setOpenNowOnly,
   allCuisines, networkCount, listedCount,
   activeFilters, filteredCount,
@@ -273,6 +283,45 @@ export default function ExploreHeader({
             ))}
           </div>
         )}
+
+        {/* Status chips (combinable with cuisine) */}
+        <div
+          className="flex gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none mt-2 pb-1"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {STATUS_FILTERS.map((f) => {
+            const Icon = f.icon
+            const isActive = activeFilter === f.query
+            return (
+              <button
+                key={f.query}
+                onClick={() => {
+                  haptic.selection()
+                  setActiveFilter(isActive ? null : f.query)
+                }}
+                className="flex items-center gap-1.5 shrink-0 active:scale-[0.96]"
+                style={{
+                  height: 32,
+                  padding: '0 12px',
+                  borderRadius: 'var(--tgo-radius-pill)',
+                  fontSize: 'var(--tgo-type-body-sm)',
+                  fontWeight: isActive ? 600 : 400,
+                  backgroundColor: isActive
+                    ? 'var(--tgo-state-trust-soft)'
+                    : 'transparent',
+                  color: isActive
+                    ? 'var(--tgo-state-trust)'
+                    : 'var(--tgo-text-muted)',
+                  border: `1px solid ${isActive ? 'var(--tgo-state-trust)' : 'var(--tgo-border)'}`,
+                  transition: `all var(--tgo-duration-fast) var(--tgo-ease-standard)`,
+                }}
+              >
+                <Icon size={13} />
+                {f.label}
+              </button>
+            )
+          })}
+        </div>
 
         {/* Summary */}
         {(networkCount > 0 || listedCount > 0) && (
