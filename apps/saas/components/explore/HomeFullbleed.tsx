@@ -17,9 +17,10 @@ import { type NetworkStatus } from '@/components/tgo/PuntoTGO'
 import { SmartGreeting } from '@/components/tgo'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
-import { Sun, Moon, Navigation, ChevronRight, Clock, Bike, MapPin, Tag } from 'lucide-react'
+import { Sun, Moon, Clock, Bike, MapPin, Tag } from 'lucide-react'
 import { LiveCityMetrics } from '@/components/tgo'
 import HomeSheet from './HomeSheet'
+import AmbientCard from './AmbientCard'
 
 interface Props {
   userLat: number
@@ -111,6 +112,24 @@ export default function HomeFullbleed({
   const hour = new Date().getHours()
   const isDay = hour >= 6 && hour < 19
 
+  // Filter restaurants for map markers based on active filter
+  const filteredForMap = activeFilter
+    ? restaurants.filter((r) => {
+        switch (activeFilter) {
+          case 'abiertos':
+            return r.isOpenNow === true || r.isOpenNow === null
+          case 'delivery':
+            return r.deliveryEnabled === true && (r.isDeliveryOpen === true || r.isDeliveryOpen === null)
+          case 'cercanos':
+            return true // Already sorted by distance from API
+          case 'beneficios':
+            return r.loyaltyInfo?.hasClub || r.loyaltyInfo?.hasActivePromo
+          default:
+            return true
+        }
+      })
+    : restaurants
+
   // ── Initialize Leaflet map ──────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -158,7 +177,7 @@ export default function HomeFullbleed({
     }
   }, [userLat, userLng])
 
-  // ── Add markers when restaurants change ─────────────────────────────────
+  // ── Add markers when filtered restaurants change ────────────────────────
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return
     const L = require('leaflet')
@@ -168,7 +187,7 @@ export default function HomeFullbleed({
     markersRef.current.forEach((m) => m.remove())
     markersRef.current = []
 
-    const valid = restaurants.filter(r => r.lat !== null && r.lng !== null)
+    const valid = filteredForMap.filter(r => r.lat !== null && r.lng !== null)
     if (valid.length === 0) return
 
     const cluster = new Supercluster({ radius: 60, maxZoom: 17 })
@@ -283,7 +302,7 @@ export default function HomeFullbleed({
 
       markersRef.current.push(marker)
     })
-  }, [restaurants, mapReady, onSelect, haptic])
+  }, [filteredForMap, mapReady, onSelect, haptic])
 
   const handleFilterToggle = useCallback((query: string) => {
     haptic.selection()
@@ -291,7 +310,7 @@ export default function HomeFullbleed({
   }, [haptic])
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: '#E7E2E3' }}>
+    <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: 'var(--tgo-bg)' }}>
       {/* ── MAP FULL-BLEED ─────────────────────────────────────────────── */}
       <div
         ref={mapRef}
@@ -404,6 +423,13 @@ export default function HomeFullbleed({
           )
         })}
       </div>
+
+      {/* ── AMBIENT CARD (1 a la vez, sobre el mapa) ──────────────────── */}
+      <AmbientCard
+        restaurants={restaurants}
+        onSelect={onSelect}
+        intervalMs={6000}
+      />
 
       {/* ── BOTTOM SHEET (peek / half / full) ──────────────────────────── */}
       <HomeSheet

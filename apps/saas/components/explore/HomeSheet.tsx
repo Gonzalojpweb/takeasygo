@@ -208,14 +208,38 @@ export default function HomeSheet({
     setPosition(pos)
   }, [y, fullH])
 
-  // Top picks: 4-6 items sorted by proximity
+  // Top picks: 4-6 items with v1 personalization
+  // Sort priority: open now > network > distance
   const topPicks = restaurants
     .filter(r => r.lat !== null && r.lng !== null)
-    .sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity))
+    .sort((a, b) => {
+      // 1. Open now first
+      const aOpen = a.isOpenNow === true ? 0 : 1
+      const bOpen = b.isOpenNow === true ? 0 : 1
+      if (aOpen !== bOpen) return aOpen - bOpen
+
+      // 2. Network first (higher business value)
+      const aNetwork = a.type === 'network' ? 0 : 1
+      const bNetwork = b.type === 'network' ? 0 : 1
+      if (aNetwork !== bNetwork) return aNetwork - bNetwork
+
+      // 3. Then by distance
+      return (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity)
+    })
     .slice(0, 6)
 
-  // All valid restaurants for full view
-  const allValid = restaurants.filter(r => r.lat !== null && r.lng !== null)
+  // All valid restaurants for full view (same sorting)
+  const allValid = restaurants
+    .filter(r => r.lat !== null && r.lng !== null)
+    .sort((a, b) => {
+      const aOpen = a.isOpenNow === true ? 0 : 1
+      const bOpen = b.isOpenNow === true ? 0 : 1
+      if (aOpen !== bOpen) return aOpen - bOpen
+      const aNetwork = a.type === 'network' ? 0 : 1
+      const bNetwork = b.type === 'network' ? 0 : 1
+      if (aNetwork !== bNetwork) return aNetwork - bNetwork
+      return (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity)
+    })
 
   if (sheetH === 0) return null
 
