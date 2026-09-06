@@ -5,16 +5,10 @@
 // Componente unificado que representa el "Punto TGO" — el personaje visual
 // de la marca que aparece en pines de mapa, avatares de tracking, badges, etc.
 //
-// Referencia: tgoicon.PNG (pin naranja con cara sonriente)
+// Referencia: tgoicon.PNG (pin gota naranja con cara sonriente blanca)
 //
-// Variantes:
-//   - pin: Para mapa — circular con borde, sombra
-//   - avatar: Para feed/tracking — circular sin borde
-//   - inline: Para badges/counters —最小化, solo cara sin fondo
-//
-// Estados:
-//   - 10 estados de orden (idle, confirmed, preparing, ready, pickup, delivering, arriving, delivered, completed, cancelled)
-//   - 2 estados de red (live, dormant)
+// Geometría: SIEMPRE pin (gota) — nunca un círculo simple.
+// Doc 01 §3.2: "Forma base: pin (gota) — nunca un círculo simple ni un cuadrado."
 
 import { useMemo } from 'react'
 
@@ -53,12 +47,12 @@ export interface PuntoTGOProps {
 
 // ── Size mapping ────────────────────────────────────────────────────────────
 
-const SIZE_MAP: Record<PuntoTGOSize, number> = {
-  xs: 24,
-  sm: 32,
-  md: 40,
-  lg: 56,
-  xl: 80,
+const SIZE_MAP: Record<PuntoTGOSize, { width: number; height: number }> = {
+  xs: { width: 24, height: 32 },
+  sm: { width: 32, height: 42 },
+  md: { width: 40, height: 52 },
+  lg: { width: 56, height: 72 },
+  xl: { width: 80, height: 104 },
 }
 
 // ── Expression by status ────────────────────────────────────────────────────
@@ -121,12 +115,11 @@ const STATUS_ANIMATION: Record<OrderStatus, AnimationType> = {
 // ── Face expressions ────────────────────────────────────────────────────────
 
 function FaceExpression({ expression, size }: { expression: Expression; size: number }) {
-  const scale = size / 40 // Scale relative to base size
+  const scale = size / 40
   const eyeRadius = 1.8 * scale
   const eyeY = 16 * scale
   const eyeSpacing = 5 * scale
 
-  // Mouth varies by expression
   const mouthY = 21 * scale
   const mouthWidth = 6 * scale
 
@@ -136,47 +129,38 @@ function FaceExpression({ expression, size }: { expression: Expression; size: nu
 
   switch (expression) {
     case 'happy':
-      // Smile
       mouthPath = `M${-mouthWidth / 2} ${mouthY} Q0 ${mouthY + 4 * scale} ${mouthWidth / 2} ${mouthY}`
       break
     case 'excited':
-      // Big smile
       mouthPath = `M${-mouthWidth / 2} ${mouthY} Q0 ${mouthY + 6 * scale} ${mouthWidth / 2} ${mouthY}`
       eyeLY = eyeY - 1 * scale
       eyeRY = eyeY - 1 * scale
       break
     case 'focused':
-      // Neutral straight line
       mouthPath = `M${-mouthWidth / 2} ${mouthY} L${mouthWidth / 2} ${mouthY}`
       break
     case 'sleepy':
-      // Slight frown
-      mouthPath = `M${-mouthWidth / 2} ${mouthY + 2 * scale} Q0 ${mouthY - 1 * scale} ${mouthWidth / 2} ${mouthY + 2 * scale}`
+      // Two horizontal lines (no smile) — dormant indicator
+      mouthPath = `M${-mouthWidth / 2} ${mouthY} L${mouthWidth / 2} ${mouthY}`
       eyeLY = eyeY + 1 * scale
       eyeRY = eyeY + 1 * scale
       break
     case 'worried':
-      // Wavy mouth
       mouthPath = `M${-mouthWidth / 2} ${mouthY} Q${-mouthWidth / 4} ${mouthY + 2 * scale} 0 ${mouthY} Q${mouthWidth / 4} ${mouthY - 2 * scale} ${mouthWidth / 2} ${mouthY}`
       break
     case 'sad':
-      // Frown
       mouthPath = `M${-mouthWidth / 2} ${mouthY + 2 * scale} Q0 ${mouthY - 3 * scale} ${mouthWidth / 2} ${mouthY + 2 * scale}`
       break
     case 'neutral':
     default:
-      // Small smile
       mouthPath = `M${-mouthWidth / 2} ${mouthY} Q0 ${mouthY + 2 * scale} ${mouthWidth / 2} ${mouthY}`
       break
   }
 
   return (
     <g>
-      {/* Eyes */}
       <circle cx={20 * scale - eyeSpacing} cy={eyeLY} r={eyeRadius} fill="#2D2A4B" />
       <circle cx={20 * scale + eyeSpacing} cy={eyeRY} r={eyeRadius} fill="#2D2A4B" />
-
-      {/* Mouth */}
       <path
         d={mouthPath}
         stroke="#2D2A4B"
@@ -188,26 +172,31 @@ function FaceExpression({ expression, size }: { expression: Expression; size: nu
   )
 }
 
-// ── Pin SVG ─────────────────────────────────────────────────────────────────
+// ── Main pin SVG (teardrop shape — Doc 01 §3.2) ────────────────────────────
 
 function PinSVG({
   color,
-  size,
+  width,
+  height,
   expression,
   showShadow = true,
 }: {
   color: string
-  size: number
+  width: number
+  height: number
   expression: Expression
   showShadow?: boolean
 }) {
-  const scale = size / 40
+  const scale = width / 40
+
+  // Use gradient for live/active states, solid for dormant/inactive
+  const useGradient = color !== 'var(--tgo-surface-1)' && color !== 'var(--tgo-network-dormant)'
 
   return (
     <svg
-      width={size}
-      height={size * 1.2}
-      viewBox="0 0 40 48"
+      width={width}
+      height={height}
+      viewBox="0 0 40 52"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       style={{
@@ -217,88 +206,24 @@ function PinSVG({
       }}
     >
       <defs>
-        <linearGradient id="pinGradient" x1="20" y1="0" x2="20" y2="48" gradientUnits="userSpaceOnUse">
+        <linearGradient id="puntoTgoGradient" x1="20" y1="0" x2="20" y2="52" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#FFB347" />
           <stop offset="50%" stopColor="#FF8C42" />
           <stop offset="100%" stopColor="#F74211" />
         </linearGradient>
       </defs>
 
-      {/* Pin body */}
+      {/* Pin body (teardrop) */}
       <path
-        d="M20 48C20 48 40 34 40 20C40 9.0 31.0 0 20 0C9.0 0 0 9.0 0 20C0 34 20 48 20 48Z"
-        fill={color === 'var(--tgo-surface-1)' || color === 'var(--tgo-network-dormant)'
-          ? color
-          : 'url(#pinGradient)'
-        }
+        d="M20 52C20 52 40 36 40 22C40 10 31 0 20 0C9 0 0 10 0 22C0 36 20 52 20 52Z"
+        fill={useGradient ? 'url(#puntoTgoGradient)' : color}
       />
 
       {/* White circle for face */}
       <circle cx="20" cy="20" r="12" fill="white" />
 
       {/* Face */}
-      <FaceExpression expression={expression} size={size} />
-    </svg>
-  )
-}
-
-// ── Avatar SVG ──────────────────────────────────────────────────────────────
-
-function AvatarSVG({
-  color,
-  size,
-  expression,
-}: {
-  color: string
-  size: number
-  expression: Expression
-}) {
-  const scale = size / 40
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 40 40"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Background circle */}
-      <circle cx="20" cy="20" r="20" fill={color} />
-
-      {/* Inner white circle */}
-      <circle cx="20" cy="20" r="14" fill="white" />
-
-      {/* Face */}
-      <FaceExpression expression={expression} size={size} />
-    </svg>
-  )
-}
-
-// ── Inline SVG (just face) ─────────────────────────────────────────────────
-
-function InlineSVG({
-  color,
-  size,
-  expression,
-}: {
-  color: string
-  size: number
-  expression: Expression
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 40 40"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Colored circle background */}
-      <circle cx="20" cy="20" r="20" fill={color} />
-
-      {/* Face */}
-      <FaceExpression expression={expression} size={size} />
+      <FaceExpression expression={expression} size={width} />
     </svg>
   )
 }
@@ -321,7 +246,7 @@ const animationStyles: Record<AnimationType, React.CSSProperties> = {
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function PuntoTGO({
-  variant = 'avatar',
+  variant = 'pin',
   status = 'idle',
   networkStatus,
   size = 'md',
@@ -330,7 +255,7 @@ export default function PuntoTGO({
   onClick,
   className = '',
 }: PuntoTGOProps) {
-  const pixelSize = SIZE_MAP[size]
+  const dimensions = SIZE_MAP[size]
 
   // Determine expression
   const expression = useMemo(() => {
@@ -360,34 +285,15 @@ export default function PuntoTGO({
     justifyContent: 'center',
   }
 
-  const content = useMemo(() => {
-    switch (variant) {
-      case 'pin':
-        return (
-          <PinSVG
-            color={color}
-            size={pixelSize}
-            expression={expression}
-          />
-        )
-      case 'avatar':
-        return (
-          <AvatarSVG
-            color={color}
-            size={pixelSize}
-            expression={expression}
-          />
-        )
-      case 'inline':
-        return (
-          <InlineSVG
-            color={color}
-            size={pixelSize}
-            expression={expression}
-          />
-        )
-    }
-  }, [variant, color, pixelSize, expression])
+  // All variants now use the pin shape
+  const content = useMemo(() => (
+    <PinSVG
+      color={color}
+      width={dimensions.width}
+      height={dimensions.height}
+      expression={expression}
+    />
+  ), [color, dimensions, expression])
 
   if (onClick) {
     return (

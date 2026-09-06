@@ -30,7 +30,6 @@ interface Props {
   onClearFilters: () => void
   searchQuery: string
   setSearchQuery: (q: string) => void
-  onOpenLeadModal?: () => void
 }
 
 const RADIUS_OPTIONS = [
@@ -47,7 +46,6 @@ export default function ExploreHeader({
   allCuisines, networkCount, listedCount,
   activeFilters, filteredCount,
   onClearFilters, searchQuery, setSearchQuery,
-  onOpenLeadModal,
 }: Props) {
   const [showFilters, setShowFilters] = useState(false)
   const [showAddressSelector, setShowAddressSelector] = useState(false)
@@ -73,22 +71,7 @@ export default function ExploreHeader({
             className="h-7 w-auto"
             unoptimized
           />
-          {onOpenLeadModal && (
-            <button
-              onClick={onOpenLeadModal}
-              className="ml-auto"
-              style={{
-                color: 'var(--tgo-text-muted)',
-                fontSize: 'var(--tgo-type-caption)',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: 'var(--tgo-tracking-widest)',
-              }}
-            >
-              Soy dueño →
-            </button>
-          )}
-          {gpsError && !onOpenLeadModal && (
+          {gpsError && (
             <p
               className="ml-auto flex items-center gap-1"
               style={{
