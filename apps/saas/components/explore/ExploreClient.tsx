@@ -104,11 +104,6 @@ function ExploreClientInner() {
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [prevView, setPrevView] = useState<View>('home')
 
-  const handleCategorySelect = useCallback((name: string) => {
-    setActiveCuisine(name === 'Restaurantes' ? null : name)
-    setView('list')
-  }, [setActiveCuisine, setView])
-
   const handleNavigate = useCallback((r: RestaurantCardData) => {
     setTenantSlug(r.id)
     router.push(`/app/${r.id}?type=${r.type}`)
