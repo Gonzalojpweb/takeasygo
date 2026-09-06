@@ -484,10 +484,6 @@ function ExploreClientInner() {
                 onClearFilters={() => { setActiveCuisine(null); setOpenNowOnly(false); setSearchQuery('') }}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                onOpenLeadModal={() => {
-                  trackExploreEvent({ eventType: 'click_lead' })
-                  setShowLeadModal(true)
-                }}
               />
               <div className="h-full overflow-y-auto pb-24" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
               {filtered.length === 0 ? (

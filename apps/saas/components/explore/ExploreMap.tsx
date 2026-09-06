@@ -23,34 +23,61 @@ function distLabel(m: number | null) {
 }
 
 // ── PuntoTGO to HTML string (for L.divIcon) ──────────────────────────────────
+// Matches PuntoTGO.tsx exactly — pin (teardrop) shape per Doc 01 §3.2.
+// Reference: tgoicon.PNG
 
 function renderPuntoTGOToHTML({
   networkStatus,
+  isOperational = true,
   size = 40,
 }: {
   networkStatus: NetworkStatus
+  isOperational?: boolean
   size?: number
 }) {
-  // We render a simple SVG that matches PuntoTGO avatar variant
-  const color = networkStatus === 'live' ? 'var(--tgo-network-live)' : 'var(--tgo-network-dormant)'
-  const expression = networkStatus === 'live' ? 'happy' : 'sleepy'
+  const isLive = networkStatus === 'live' && isOperational
+  const height = Math.round(size * 1.3)
 
-  // Simple face based on expression
-  let mouthPath = ''
-  if (expression === 'happy') {
-    mouthPath = 'M17 21 Q20 24 23 21'
-  } else {
-    mouthPath = 'M17 22 Q20 20 23 22'
-  }
+  // Pin color: gradient for live, solid grey for dormant
+  const useGradient = isLive
+  const pinFill = useGradient ? 'url(#puntoTgoGradientMap)' : 'var(--tgo-network-dormant, #9CA3AF)'
+
+  // Expression: happy for live, sleepy for dormant (flat line mouth)
+  const eyeY = isLive ? 16 : 17
+  const eyeRadius = isLive ? 1.8 : 1.5
+  const mouthPath = isLive
+    ? 'M17 21 Q20 24 23 21'  // smile
+    : 'M17 22 L23 22'        // flat line (sleepy/dormant)
+
+  // Pulse animation for live
+  const pulseStyle = isLive
+    ? 'animation: punto-tgo-pulse 2s ease-in-out infinite;'
+    : ''
 
   return `
-    <div style="transform:translate(-${size / 2}px, -${size}px);">
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
+    <div style="transform:translate(-${size / 2}px, -${height}px); ${pulseStyle}">
+      <svg width="${size}" height="${height}" viewBox="0 0 40 52" fill="none" xmlns="http://www.w3.org/2000/svg"
            style="filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25));">
-        <circle cx="20" cy="20" r="20" fill="${color}"/>
-        <circle cx="20" cy="20" r="14" fill="white"/>
-        <circle cx="15" cy="16" r="1.8" fill="#2D2A4B"/>
-        <circle cx="25" cy="16" r="1.8" fill="#2D2A4B"/>
+        <defs>
+          <linearGradient id="puntoTgoGradientMap" x1="20" y1="0" x2="20" y2="52" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FFB347"/>
+            <stop offset="50%" stop-color="#FF8C42"/>
+            <stop offset="100%" stop-color="#F74211"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Pin body (teardrop) -->
+        <path d="M20 52C20 52 40 36 40 22C40 10 31 0 20 0C9 0 0 10 0 22C0 36 20 52 20 52Z"
+              fill="${pinFill}"/>
+
+        <!-- White circle for face -->
+        <circle cx="20" cy="20" r="12" fill="white"/>
+
+        <!-- Eyes -->
+        <circle cx="15" cy="${eyeY}" r="${eyeRadius}" fill="#2D2A4B"/>
+        <circle cx="25" cy="${eyeY}" r="${eyeRadius}" fill="#2D2A4B"/>
+
+        <!-- Mouth -->
         <path d="${mouthPath}" stroke="#2D2A4B" stroke-width="1.5" stroke-linecap="round" fill="none"/>
       </svg>
     </div>`
@@ -495,6 +522,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
         const html = isNetwork
           ? renderPuntoTGOToHTML({
               networkStatus: isOperational ? 'live' : 'dormant',
+              isOperational,
               size: 40,
             })
           : pinSvg(
