@@ -17,9 +17,9 @@ import { type NetworkStatus } from '@/components/tgo/PuntoTGO'
 import { SmartGreeting } from '@/components/tgo'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, ChevronUp } from 'lucide-react'
 import { LiveCityMetrics } from '@/components/tgo'
-import HomeSheet from './HomeSheet'
+import HomeSheet, { type HomeSheetHandle } from './HomeSheet'
 import AmbientCard from './AmbientCard'
 
 interface Props {
@@ -97,6 +97,7 @@ export default function HomeFullbleed({
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
+  const sheetRef = useRef<HomeSheetHandle>(null)
   const [mapReady, setMapReady] = useState(false)
 
   const hour = new Date().getHours()
@@ -360,8 +361,34 @@ export default function HomeFullbleed({
         intervalMs={6000}
       />
 
+      {/* ── FLOATING TRIGGER (above nav, opens sheet) ────────────────── */}
+      <button
+        onClick={() => { haptic.impact('light'); sheetRef.current?.snapTo('half') }}
+        className="absolute inset-x-0 z-[1001] flex justify-center pointer-events-auto"
+        style={{ bottom: 'calc(64px + env(safe-area-inset-bottom, 0px) + 8px)' }}
+      >
+        <div
+          className="flex items-center gap-1.5 px-4 py-2 active:scale-[0.96] transition-transform"
+          style={{
+            backgroundColor: 'var(--tgo-surface-0)',
+            borderRadius: 'var(--tgo-radius-pill)',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+            border: '1px solid var(--tgo-border)',
+          }}
+        >
+          <span
+            className="text-xs font-bold uppercase tracking-wider"
+            style={{ color: 'var(--tgo-text-primary)' }}
+          >
+            Cerca de vos
+          </span>
+          <ChevronUp size={14} style={{ color: 'var(--tgo-brand)' }} />
+        </div>
+      </button>
+
       {/* ── BOTTOM SHEET (peek / half / full) ──────────────────────────── */}
       <HomeSheet
+        ref={sheetRef}
         userLat={userLat}
         userLng={userLng}
         restaurants={restaurants}
