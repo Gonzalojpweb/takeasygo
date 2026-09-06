@@ -233,18 +233,6 @@ const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
     })
     .slice(0, 6)
 
-  const allValid = restaurants
-    .filter(r => r.lat !== null && r.lng !== null)
-    .sort((a, b) => {
-      const aOpen = a.isOpenNow === true ? 0 : 1
-      const bOpen = b.isOpenNow === true ? 0 : 1
-      if (aOpen !== bOpen) return aOpen - bOpen
-      const aNetwork = a.type === 'network' ? 0 : 1
-      const bNetwork = b.type === 'network' ? 0 : 1
-      if (aNetwork !== bNetwork) return aNetwork - bNetwork
-      return (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity)
-    })
-
   if (sheetH === 0 || fullH === 0) return null
 
   return (
@@ -320,33 +308,6 @@ const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
                 onSelect={() => onSelect(r)}
               />
             ))}
-
-            {/* ── FULL: All restaurants ──────────────────────────────── */}
-            {position === 'full' && allValid.length > topPicks.length && (
-              <>
-                <div
-                  className="px-4 py-2"
-                  style={{
-                    borderTop: '1px solid var(--tgo-border)',
-                    borderBottom: '1px solid var(--tgo-border)',
-                  }}
-                >
-                  <p
-                    className="text-[10px] font-bold uppercase tracking-wider"
-                    style={{ color: 'var(--tgo-text-muted)' }}
-                  >
-                    Todas las opciones
-                  </p>
-                </div>
-                {allValid.slice(6).map((r) => (
-                  <SheetItem
-                    key={r.id}
-                    r={r}
-                    onSelect={() => onSelect(r)}
-                  />
-                ))}
-              </>
-            )}
           </div>
         )}
       </div>
