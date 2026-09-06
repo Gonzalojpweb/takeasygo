@@ -9,15 +9,16 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { EmptyState } from '@/components/tgo'
 import { useHaptic } from '@/components/tgo/useHaptic'
+import PuntoTGO from '@/components/tgo/PuntoTGO'
 
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  awaiting_payment: { label: 'Esperando pago', color: 'var(--tgo-state-warning)', bg: 'rgba(245, 158, 11, 0.1)', icon: <Clock size={11} /> },
-  pending:          { label: 'Recibido',        color: 'var(--tgo-state-info)', bg: 'rgba(59, 130, 246, 0.1)', icon: <Clock size={11} /> },
-  confirmed:        { label: 'Confirmado',      color: 'var(--tgo-state-info)', bg: 'rgba(59, 130, 246, 0.1)', icon: <CheckCircle2 size={11} /> },
-  preparing:        { label: 'Preparando',      color: 'var(--tgo-state-warning)', bg: 'rgba(245, 158, 11, 0.1)', icon: <Loader2 size={11} className="animate-spin" /> },
-  ready:            { label: '¡Listo!',         color: 'var(--tgo-state-activity)', bg: 'rgba(47, 191, 113, 0.1)', icon: <CheckCircle2 size={11} /> },
+  awaiting_payment: { label: 'Esperando pago', color: 'var(--tgo-state-warning)', bg: 'var(--tgo-state-warning-soft)', icon: <Clock size={11} /> },
+  pending:          { label: 'Recibido',        color: 'var(--tgo-state-info)', bg: 'var(--tgo-state-info-soft)', icon: <Clock size={11} /> },
+  confirmed:        { label: 'Confirmado',      color: 'var(--tgo-state-info)', bg: 'var(--tgo-state-info-soft)', icon: <CheckCircle2 size={11} /> },
+  preparing:        { label: 'Preparando',      color: 'var(--tgo-state-warning)', bg: 'var(--tgo-state-warning-soft)', icon: <Loader2 size={11} className="animate-spin" /> },
+  ready:            { label: '¡Listo!',         color: 'var(--tgo-state-activity)', bg: 'var(--tgo-state-activity-soft)', icon: <CheckCircle2 size={11} /> },
   delivered:        { label: 'Entregado',       color: 'var(--tgo-text-muted)', bg: 'var(--tgo-surface-1)', icon: <CheckCircle2 size={11} /> },
-  cancelled:        { label: 'Cancelado',       color: 'var(--tgo-state-danger)', bg: 'rgba(217, 45, 32, 0.1)', icon: <XCircle size={11} /> },
+  cancelled:        { label: 'Cancelado',       color: 'var(--tgo-state-danger)', bg: 'var(--tgo-state-danger-soft)', icon: <XCircle size={11} /> },
 }
 
 interface OrderItem {
@@ -86,13 +87,40 @@ export default function OrdersView() {
   // Unauthenticated state
   if (authStatus === 'unauthenticated') {
     return (
-      <div className="h-full" style={{ backgroundColor: 'var(--tgo-card)' }}>
-        <EmptyState
-          icon={<LogIn size={48} />}
-          title="Tus pedidos"
-          subtitle="Iniciá sesión para ver el historial de tus compras y hacer seguimiento en tiempo real."
-            action={{ label: "Iniciar sesión", onClick: () => { haptic.impact('light'); router.push('/login?callbackUrl=/app') } }}
-        />
+      <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
+        {/* Header */}
+        <div className="px-5 pt-12 pb-4">
+          <h1 className="font-extrabold text-[22px]" style={{ color: 'var(--tgo-text-primary)' }}>Tus pedidos</h1>
+        </div>
+
+        {/* Empty state */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8 pb-24">
+          <PuntoTGO expression="sleepy" size="xl" animate={false} />
+
+          <h2
+            className="font-extrabold text-base mt-6 mb-2 text-center"
+            style={{ color: 'var(--tgo-text-primary)' }}
+          >
+            Todavía no hay nada acá
+          </h2>
+          <p
+            className="text-[13px] text-center leading-relaxed mb-8 max-w-[260px]"
+            style={{ color: 'var(--tgo-text-muted)' }}
+          >
+            Cuando hagas tu primer pedido en la red, vas a poder seguirlo en tiempo real desde esta pantalla.
+          </p>
+
+          <button
+            onClick={() => { haptic.impact('light'); router.push('/login?callbackUrl=/app') }}
+            className="px-8 py-3 rounded-full font-bold text-sm transition-all active:scale-[0.97]"
+            style={{
+              backgroundColor: 'var(--tgo-brand)',
+              color: 'var(--tgo-text-inverse)',
+            }}
+          >
+            Iniciar sesión
+          </button>
+        </div>
       </div>
     )
   }
@@ -100,11 +128,12 @@ export default function OrdersView() {
   // Loading state
   if (loading && orders.length === 0) {
     return (
-      <div className="h-full" style={{ backgroundColor: 'var(--tgo-card)' }}>
-        <div className="sticky top-0 px-4 py-4" style={{ backgroundColor: 'var(--tgo-card)', borderBottom: '1px solid var(--tgo-border)' }}>
-          <h2 className="font-black text-xl" style={{ color: 'var(--tgo-text-primary)' }}>Mis pedidos</h2>
+      <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
+        {/* Header */}
+        <div className="px-5 pt-12 pb-4">
+          <h1 className="font-extrabold text-[22px]" style={{ color: 'var(--tgo-text-primary)' }}>Tus pedidos</h1>
         </div>
-        <div className="p-4 space-y-3">
+        <div className="p-5 space-y-3">
           {[1,2,3].map(i => (
             <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ backgroundColor: 'var(--tgo-surface-1)' }} />
           ))}
@@ -115,33 +144,81 @@ export default function OrdersView() {
 
   // Empty state
   if (!loading && orders.length === 0) {
+    const userInitial = session?.user?.name?.[0]?.toUpperCase() ?? session?.user?.email?.[0]?.toUpperCase() ?? '?'
+
     return (
-      <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--tgo-card)' }}>
-        <div className="sticky top-0 px-4 py-4" style={{ backgroundColor: 'var(--tgo-card)', borderBottom: '1px solid var(--tgo-border)' }}>
-          <h2 className="font-black text-xl" style={{ color: 'var(--tgo-text-primary)' }}>Mis pedidos</h2>
+      <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-12 pb-4">
+          <h1 className="font-extrabold text-[22px]" style={{ color: 'var(--tgo-text-primary)' }}>Tus pedidos</h1>
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm"
+            style={{
+              backgroundColor: 'var(--tgo-brand)',
+              color: 'var(--tgo-text-inverse)',
+            }}
+          >
+            {userInitial}
+          </div>
         </div>
-        <div className="flex-1">
-          <EmptyState
-            icon={<ShoppingBag size={48} />}
-            title="Todavía no hiciste pedidos"
-            subtitle="Explorá los restaurantes cercanos y hacé tu primer pedido."
-            action={{ label: "Explorar ahora", onClick: () => { haptic.impact('light'); router.push('/app') } }}
-          />
+
+        {/* Empty state */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8 pb-24">
+          <PuntoTGO expression="sleepy" size="xl" animate={false} />
+
+          <h2
+            className="font-extrabold text-base mt-6 mb-2 text-center"
+            style={{ color: 'var(--tgo-text-primary)' }}
+          >
+            Todavía no hay nada acá
+          </h2>
+          <p
+            className="text-[13px] text-center leading-relaxed mb-8 max-w-[260px]"
+            style={{ color: 'var(--tgo-text-muted)' }}
+          >
+            Cuando hagas tu primer pedido en la red, vas a poder seguirlo en tiempo real desde esta pantalla.
+          </p>
+
+          <button
+            onClick={() => { haptic.impact('light'); router.push('/app') }}
+            className="px-8 py-3 rounded-full font-bold text-sm transition-all active:scale-[0.97]"
+            style={{
+              backgroundColor: 'var(--tgo-brand)',
+              color: 'var(--tgo-text-inverse)',
+            }}
+          >
+            Explorar cerca tuyo
+          </button>
         </div>
       </div>
     )
   }
 
+  const userInitial = session?.user?.name?.[0]?.toUpperCase() ?? session?.user?.email?.[0]?.toUpperCase() ?? '?'
+
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-24" style={{ backgroundColor: 'var(--tgo-card)' }}>
+    <div className="h-full overflow-y-auto no-scrollbar pb-24" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
       {/* Header */}
-      <div className="sticky top-0 backdrop-blur-xl px-4 py-4 z-10" style={{ backgroundColor: 'color-mix(in srgb, var(--tgo-card) 90%, transparent)', borderBottom: '1px solid var(--tgo-border)' }}>
-        <h2 className="font-black text-xl" style={{ color: 'var(--tgo-text-primary)' }}>Mis pedidos</h2>
-        <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--tgo-text-muted)' }}>{orders.length} pedido{orders.length !== 1 ? 's' : ''}</p>
+      <div className="sticky top-0 backdrop-blur-xl px-5 pt-12 pb-4 z-10" style={{ backgroundColor: 'color-mix(in srgb, var(--tgo-surface-0) 90%, transparent)', borderBottom: '1px solid var(--tgo-border)' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-extrabold text-[22px]" style={{ color: 'var(--tgo-text-primary)' }}>Tus pedidos</h1>
+            <p className="text-[11px] font-semibold mt-0.5" style={{ color: 'var(--tgo-text-muted)' }}>{orders.length} pedido{orders.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm"
+            style={{
+              backgroundColor: 'var(--tgo-brand)',
+              color: 'var(--tgo-text-inverse)',
+            }}
+          >
+            {userInitial}
+          </div>
+        </div>
       </div>
 
       {/* Orders list */}
-      <div className="p-4 space-y-3">
+      <div className="p-5 space-y-3">
         <AnimatePresence>
           {orders.map((order, i) => {
             const badge = STATUS_BADGE[order.status] ?? STATUS_BADGE.pending
@@ -166,7 +243,7 @@ export default function OrdersView() {
                   {isActive && (
                     <div
                       className="absolute top-3 right-3 w-2 h-2 rounded-full animate-pulse"
-                      style={{ backgroundColor: order.tenant?.primaryColor ?? '#f74211' }}
+                      style={{ backgroundColor: order.tenant?.primaryColor ?? 'var(--tgo-brand)' }}
                     />
                   )}
 
