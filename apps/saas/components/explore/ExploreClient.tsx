@@ -646,6 +646,11 @@ function ExploreClientInner() {
                   userLng={coords.lng}
                   restaurants={restaurants}
                   onSelect={handleNavigate}
+                  metrics={{
+                    openCount: networkCount,
+                    promoCount: listedCount,
+                    newCount: 0,
+                  }}
                 />
               ) : (
                 <div
