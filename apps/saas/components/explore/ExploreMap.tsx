@@ -15,6 +15,11 @@ interface Props {
   userLng: number
   restaurants: RestaurantCardData[]
   onSelect: (r: RestaurantCardData) => void
+  metrics?: {
+    openCount: number
+    promoCount: number
+    newCount: number
+  }
 }
 
 function distLabel(m: number | null) {
@@ -410,7 +415,7 @@ function BottomSheet({ r, onClose, onNavigate }: {
 const ZOOM_CLUSTER = 14   // Below this: clusters dominate
 const ZOOM_FULL = 16      // Above this: all pins visible
 
-export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: Props) {
+export default function ExploreMap({ userLat, userLng, restaurants, onSelect, metrics }: Props) {
   const haptic = useHaptic()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
@@ -600,6 +605,29 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect }: 
         iconSize: [36, 36],
       })
       L.marker([userLat, userLng], { icon: userIcon }).addTo(map)
+
+      // Activity indicators from LiveCityMetrics (Doc 01 §1.2)
+      // Small pulsing dots representing live activity in the area
+      if (metrics && (metrics.openCount > 0 || metrics.promoCount > 0 || metrics.newCount > 0)) {
+        const totalDots = Math.min(metrics.openCount + metrics.promoCount + metrics.newCount, 12)
+        const activityIcon = L.divIcon({
+          className: '',
+          html: `
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--tgo-network-live);opacity:0.6;animation:punto-tgo-pulse-dot 2s ease-in-out infinite;"></div>
+          `,
+          iconSize: [8, 8],
+        })
+
+        // Place dots in a random pattern around user location
+        const seed = userLat * 1000 + userLng
+        for (let i = 0; i < totalDots; i++) {
+          const angle = (seed + i * 137.508) * (Math.PI / 180) // Golden angle for distribution
+          const radius = 0.002 + (i * 0.0005) // Spread dots outward
+          const dotLat = userLat + Math.cos(angle) * radius
+          const dotLng = userLng + Math.sin(angle) * radius
+          L.marker([dotLat, dotLng], { icon: activityIcon, interactive: false }).addTo(map)
+        }
+      }
 
       // Initial render
       renderMarkers(map, L, restaurants)

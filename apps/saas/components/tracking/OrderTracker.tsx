@@ -15,6 +15,21 @@ import PostDeliveryCelebration from './PostDeliveryCelebration'
 import CancelOrderModal from './CancelOrderModal'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import { captureHiddenRewardRedeemed } from '@/lib/tia/events'
+import PuntoTGO, { type OrderStatus } from '@/components/tgo/PuntoTGO'
+
+// Map tracking statuses to PuntoTGO order statuses
+const TRACKING_TO_PUNTO_TGO: Record<string, OrderStatus> = {
+  awaiting_payment: 'idle',
+  awaiting_confirmation: 'confirmed',
+  pending: 'confirmed',
+  confirmed: 'confirmed',
+  preparing: 'preparing',
+  ready: 'ready',
+  en_ruta: 'delivering',
+  arrived: 'arriving',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+}
 
 const STATUS_STEPS = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
 
@@ -542,7 +557,7 @@ export default function OrderTracker({
           <>
             <div key={status} className="animate-[scale-in_0.4s_ease-out]">
               <div className={`
-                text-6xl mb-4
+                mb-4
                 ${status === 'ready' ? 'animate-bounce' : ''}
                 ${status === 'preparing' ? 'animate-[wiggle_3s_ease-in-out_infinite]' : ''}
                 ${status === 'confirmed' ? '' : ''}
@@ -561,7 +576,14 @@ export default function OrderTracker({
                     />
                   </svg>
                 ) : (
-                  info.emoji
+                  <div className="flex justify-center">
+                    <PuntoTGO
+                      variant="pin"
+                      status={TRACKING_TO_PUNTO_TGO[status] || 'idle'}
+                      size="xl"
+                      animate={!!info.pulse}
+                    />
+                  </div>
                 )}
               </div>
               <h1 className="text-2xl font-black mb-2">{info.label}</h1>

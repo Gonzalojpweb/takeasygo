@@ -52,6 +52,10 @@ const ExperiencesModule = dynamic(
   () => import('./DiscoveryFeed/ExperiencesModule').then(m => ({ default: m.ExperiencesModule })),
   { ssr: false }
 )
+const HomeMapHero = dynamic(
+  () => import('./HomeMapHero').then(m => ({ default: m.default })),
+  { ssr: false }
+)
 
 // Re-export CATEGORY_CONFIG for the categories useMemo
 import { CATEGORY_CONFIG } from './DiscoveryFeed/CategoriesModule'
@@ -337,7 +341,24 @@ export default function DiscoveryFeed({
         )
       })()}
 
-      {/* 2. Brand Block — Pills */}
+      {/* 2. Map Hero — protagonista de Home (Doc 01 §1.1) */}
+      {currentAddress && (
+        <div style={{ padding: '0 var(--tgo-page-padding) 16px' }}>
+          <HomeMapHero
+            userLat={currentAddress.coordinates.lat}
+            userLng={currentAddress.coordinates.lng}
+            restaurants={nearbyTenants}
+            onSelect={handleNavigate}
+            metrics={{
+              openCount: nearbyTenants.filter((r: any) => r.isOpenNow === true).length,
+              promoCount: promotions.length,
+              newCount: nearbyTenants.filter((r: any) => r.isNew).length,
+            }}
+          />
+        </div>
+      )}
+
+      {/* 3. Brand Block — Pills */}
       <div
         style={{
           padding: '0 var(--tgo-page-padding) 20px',
@@ -367,7 +388,7 @@ export default function DiscoveryFeed({
         </div>
       </div>
 
-      {/* 3. QuickFilters */}
+      {/* 4. QuickFilters */}
       <div style={{ paddingInline: 'var(--tgo-page-padding)', marginBottom: 'var(--tgo-space-4)' }}>
         <QuickFiltersModule
           activeFilter={activeFilter}
@@ -375,7 +396,7 @@ export default function DiscoveryFeed({
         />
       </div>
 
-      {/* 4. Ahora mismo — resumen de ciudad */}
+      {/* 5. Ahora mismo — resumen de ciudad */}
       <Section
         title="Ahora mismo"
         verticalPadding="var(--tgo-space-4)"
@@ -393,7 +414,7 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 5. Explorar Categorías (lazy) */}
+      {/* 6. Explorar Categorías (lazy) */}
       {categories.length > 0 && (
         <Section
           title={microcopy.discovery.sections.categories}

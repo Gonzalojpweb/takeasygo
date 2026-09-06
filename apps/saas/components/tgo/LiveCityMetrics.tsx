@@ -2,11 +2,9 @@
 
 // ── LiveCityMetrics ───────────────────────────────────────────────────────────
 //
-// Card que muestra métricas vivas de la ciudad.
+// Card compacta que muestra métricas vivas de la ciudad.
 // Doc 01 §1.2: Un solo color de acento (--tgo-brand), jerarquía por tamaño.
-//
-// Uso:
-//   <LiveCityMetrics openCount={18} promoCount={4} newCount={3} avgPickup={11} />
+// Los puntos de actividad ahora se muestran en el mapa (ExploreMap).
 
 import AnimatedNumber from '@/components/tgo/AnimatedNumber'
 
@@ -48,19 +46,18 @@ export default function LiveCityMetrics({
     <div
       style={{
         margin: '0 var(--tgo-page-padding)',
-        padding: '18px 16px',
-        borderRadius: 22,
+        padding: '12px 14px',
+        borderRadius: 16,
         background: 'var(--tgo-text-primary)',
-        boxShadow: '0 8px 24px rgba(45, 42, 75, 0.35)',
+        boxShadow: '0 4px 12px rgba(45, 42, 75, 0.25)',
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        {/* Pulsing green dot — only element with pulse-live (Doc 01 §2.5) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         <span
           style={{
-            width: 8,
-            height: 8,
+            width: 6,
+            height: 6,
             borderRadius: '50%',
             backgroundColor: 'var(--tgo-network-live)',
             flexShrink: 0,
@@ -69,7 +66,7 @@ export default function LiveCityMetrics({
         />
         <span
           style={{
-            fontSize: 11.5,
+            fontSize: 10,
             fontWeight: 700,
             color: '#FFFFFF',
             letterSpacing: '0.08em',
@@ -81,7 +78,7 @@ export default function LiveCityMetrics({
       </div>
 
       {/* Stats grid — single accent color, hierarchy by size */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
         {STATS.map((s) => {
           const val = values[s.key]
           if (val === null && s.key === 'espera') return null
@@ -92,13 +89,13 @@ export default function LiveCityMetrics({
                 suffix={s.key === 'espera' ? 'min' : undefined}
                 numberStyle={{
                   color: 'var(--tgo-brand)',
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: 700,
                   lineHeight: 1,
                 }}
                 suffixStyle={{
                   color: 'var(--tgo-brand)',
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: 700,
                   lineHeight: 1,
                   marginLeft: 1,
@@ -107,9 +104,9 @@ export default function LiveCityMetrics({
               <p
                 style={{
                   color: 'rgba(255, 255, 255, 0.65)',
-                  fontSize: 9.5,
+                  fontSize: 8.5,
                   lineHeight: 1,
-                  marginTop: 4,
+                  marginTop: 3,
                   textTransform: 'lowercase' as const,
                 }}
               >
