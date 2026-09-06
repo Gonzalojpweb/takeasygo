@@ -30,7 +30,7 @@ export default function NetworkCounterHeader({
     >
       {/* Network counter with PuntoTGO mini */}
       <div className="flex items-center gap-1.5">
-        <PuntoTGO variant="inline" size="xs" networkStatus="live" />
+        <PuntoTGO expression="happy" size="xs" />
         <span
           style={{
             color: 'var(--tgo-text-primary)',

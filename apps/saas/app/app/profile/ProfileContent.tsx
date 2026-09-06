@@ -163,7 +163,7 @@ export default function ProfileContent() {
 
           <BlurFade delay={0.1}>
             <div className="mb-6">
-              <PuntoTGO variant="avatar" size="xl" status="idle" />
+              <PuntoTGO size="xl" expression="happy" />
             </div>
           </BlurFade>
 
