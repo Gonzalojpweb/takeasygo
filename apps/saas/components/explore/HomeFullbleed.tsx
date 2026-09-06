@@ -372,7 +372,7 @@ export default function HomeFullbleed({
       <div
         className="absolute inset-x-0 top-0 z-20"
         style={{
-          background: 'linear-gradient(to bottom, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.7) 70%, transparent 100%)',
+          backgroundColor: 'rgba(255,255,255,0.92)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
         }}
       >
