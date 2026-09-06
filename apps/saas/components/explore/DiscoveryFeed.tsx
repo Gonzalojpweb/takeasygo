@@ -29,7 +29,7 @@ import { useHaptic } from '@/components/tgo/useHaptic'
 import dynamic from 'next/dynamic'
 
 const HomeMapHero = dynamic(
-  () => import('./HomeMapHero').then(m => ({ default: m.HomeMapHero })),
+  () => import('./HomeMapHero'),
   { ssr: false }
 )
 const CategoriesModule = dynamic(
