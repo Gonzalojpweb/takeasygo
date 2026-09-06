@@ -6,12 +6,12 @@
 // Ocupa la parte superior del Home, con overlay de saludo y métricas.
 // Los pines se muestran en vivo con PuntoTGO.
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import 'leaflet/dist/leaflet.css'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import Supercluster from 'supercluster'
-import PuntoTGO, { type OrderStatus, type NetworkStatus } from '@/components/tgo/PuntoTGO'
+import { type NetworkStatus } from '@/components/tgo/PuntoTGO'
 import { SmartGreeting } from '@/components/tgo'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
@@ -150,40 +150,43 @@ export default function HomeMapHero({
 
     if (restaurants.length === 0) return
 
+    const valid = restaurants.filter(r => r.lat !== null && r.lng !== null)
+    if (valid.length === 0) return
+
     const cluster = new Supercluster({ radius: 60, maxZoom: 17 })
     cluster.load(
-      restaurants.map((r) => ({
-        type: 'Feature',
+      valid.map((r) => ({
+        type: 'Feature' as const,
         properties: { id: r.id, type: r.type },
         geometry: {
-          type: 'Point',
-          coordinates: [r.lng, r.lat],
+          type: 'Point' as const,
+          coordinates: [r.lng!, r.lat!],
         },
-      }))
+      })) as any
     )
 
     const bounds = map.getBounds()
-    const bbox = [
+    const bbox: [number, number, number, number] = [
       bounds.getWest(),
       bounds.getSouth(),
       bounds.getEast(),
       bounds.getNorth(),
-    ] as [number, number, number, number]
+    ]
 
     let features: any[]
     try {
       features = cluster.getClusters(bbox, map.getZoom())
     } catch {
-      features = restaurants.map((r) => ({
-        type: 'Feature',
+      features = valid.map((r) => ({
+        type: 'Feature' as const,
         properties: { id: r.id, type: r.type },
-        geometry: { type: 'Point', coordinates: [r.lng, r.lat] },
+        geometry: { type: 'Point' as const, coordinates: [r.lng!, r.lat!] },
       }))
     }
 
     features.forEach((f: any) => {
       const isCluster = f.properties.cluster
-      const r = restaurants.find(
+      const r = valid.find(
         (rest) => rest.id === (isCluster ? null : f.properties.id)
       )
 
@@ -237,9 +240,9 @@ export default function HomeMapHero({
       const isNetwork = r.type === 'network'
       const networkStatus: NetworkStatus = isNetwork
         ? r.isOperational === false
-          ? 'degraded'
+          ? 'dormant'
           : 'live'
-        : 'directory'
+        : 'dormant'
 
       const html = renderPuntoTGOToHTML({
         networkStatus,
