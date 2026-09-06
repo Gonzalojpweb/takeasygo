@@ -32,7 +32,7 @@ export default function CategoryCard({
         style={{
           width: 58,
           height: 58,
-          borderRadius: 'var(--tgo-radius-lg)',
+          borderRadius: 'var(--tgo-radius-md)',
           backgroundColor: bg,
           boxShadow: 'var(--shadow-card)',
           border: '1px solid var(--tgo-border)',

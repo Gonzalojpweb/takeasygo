@@ -9,29 +9,29 @@
 // Modulos: HomeHeader → BrandBlock → QuickFilters → Categories →
 //          OpenNow → Nearby → Experiences
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { microcopy } from '@/components/tgo/microcopy'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTenant } from '@/contexts/TenantContext'
 import { useLocation } from './LocationContext'
-import { Share2, Users, Sun, Moon } from 'lucide-react'
-import { toast } from 'sonner'
-import { captureHomeShared } from '@/lib/tia/events'
 
 // TGO Primitives
-import { Section, LiveCityMetrics, SolidIconPill } from '@/components/tgo'
+import { Section, LiveCityMetrics } from '@/components/tgo'
 import PullToRefresh from '@/components/tgo/PullToRefresh'
 
 // Components
 import Image from 'next/image'
 import { User } from 'lucide-react'
-import { SmartGreeting } from '@/components/tgo'
 import { useHaptic } from '@/components/tgo/useHaptic'
 
 // Lazy-loaded below-fold modules
 import dynamic from 'next/dynamic'
 
+const HomeMapHero = dynamic(
+  () => import('./HomeMapHero').then(m => ({ default: m.HomeMapHero })),
+  { ssr: false }
+)
 const CategoriesModule = dynamic(
   () => import('./DiscoveryFeed/CategoriesModule').then(m => ({ default: m.CategoriesModule })),
   { ssr: false }
@@ -50,10 +50,6 @@ const TimeBasedModule = dynamic(
 )
 const ExperiencesModule = dynamic(
   () => import('./DiscoveryFeed/ExperiencesModule').then(m => ({ default: m.ExperiencesModule })),
-  { ssr: false }
-)
-const HomeMapHero = dynamic(
-  () => import('./HomeMapHero').then(m => ({ default: m.default })),
   { ssr: false }
 )
 
@@ -137,25 +133,6 @@ export default function DiscoveryFeed({
   const [preferredCuisines, setPreferredCuisines] = useState<string[]>([])
   const [showAllCategories, setShowAllCategories] = useState(false)
 
-  const handleShare = useCallback(async () => {
-    const shareData = {
-      title: 'TGO',
-      text: 'Descubrí restaurantes cerca tuyo con beneficios exclusivos',
-      url: 'https://takeasygo.com/apps',
-    }
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData)
-        captureHomeShared('native')
-      } else {
-        await navigator.clipboard.writeText(shareData.url)
-        captureHomeShared('clipboard')
-        toast('Link copiado')
-      }
-    } catch {
-      // Usuario canceló el share
-    }
-  }, [])
   // Fetch user preferences for personalization
   useEffect(() => {
     if (session?.user?.id) {
@@ -311,84 +288,21 @@ export default function DiscoveryFeed({
         </button>
       </div>
 
-      {/* 1. Greeting Card */}
-      {(() => {
-        const hour = new Date().getHours()
-        const isDay = hour >= 6 && hour < 19
-        return (
-          <div
-            style={{
-              backgroundColor: 'var(--tgo-card)',
-              borderRadius: 'var(--tgo-radius-lg)',
-              padding: '16px var(--tgo-page-padding)',
-              margin: '0 var(--tgo-page-padding) 16px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ paddingTop: 2, flexShrink: 0 }}>
-                {isDay ? (
-                  <Sun size={20} style={{ color: 'var(--tgo-state-discovery)' }} />
-                ) : (
-                  <Moon size={20} style={{ color: 'var(--tgo-state-trust)' }} />
-                )}
-              </div>
-              <SmartGreeting
-                userName={userName || session?.user?.name?.split(' ')[0] || ''}
-                interval={10000}
-              />
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* 2. Map Hero — protagonista de Home (Doc 01 §1.1) */}
-      {currentAddress && (
-        <div style={{ padding: '0 var(--tgo-page-padding) 16px' }}>
+      {/* 1. Mapa vivo — protagonista del Home estilo Waze */}
+      {currentAddress && nearbyTenants.length > 0 && (
+        <div style={{ marginBottom: 'var(--tgo-space-4)' }}>
           <HomeMapHero
             userLat={currentAddress.coordinates.lat}
             userLng={currentAddress.coordinates.lng}
             restaurants={nearbyTenants}
-            onSelect={handleNavigate}
-            metrics={{
-              openCount: nearbyTenants.filter((r: any) => r.isOpenNow === true).length,
-              promoCount: promotions.length,
-              newCount: nearbyTenants.filter((r: any) => r.isNew).length,
-            }}
+            onSelect={(r) => handleNavigate({ id: r.id, type: r.type })}
+            openCount={nearbyTenants.filter((r: any) => r.isOpenNow === true).length}
+            onSeeAll={() => router.push('/app/map')}
           />
         </div>
       )}
 
-      {/* 3. Brand Block — Pills */}
-      <div
-        style={{
-          padding: '0 var(--tgo-page-padding) 20px',
-        }}
-      >
-        <div className="flex items-center justify-center gap-5">
-          <SolidIconPill
-            bgColor="var(--tgo-state-trust)"
-            title="@tgo.app"
-            subtitle="Seguinos"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-              </svg>
-            }
-            href="https://instagram.com/tgo.app"
-          />
-          <SolidIconPill
-            bgColor="var(--tgo-state-discovery)"
-            title="Compartí"
-            subtitle="Conocidos"
-            icon={<Share2 size={14} />}
-            onClick={() => { haptic.impact('light'); handleShare() }}
-          />
-        </div>
-      </div>
-
-      {/* 4. QuickFilters */}
+      {/* 2. QuickFilters */}
       <div style={{ paddingInline: 'var(--tgo-page-padding)', marginBottom: 'var(--tgo-space-4)' }}>
         <QuickFiltersModule
           activeFilter={activeFilter}
@@ -396,7 +310,7 @@ export default function DiscoveryFeed({
         />
       </div>
 
-      {/* 5. Ahora mismo — resumen de ciudad */}
+      {/* 3. Ahora mismo — resumen de ciudad */}
       <Section
         title="Ahora mismo"
         verticalPadding="var(--tgo-space-4)"
@@ -414,7 +328,7 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 6. Explorar Categorías (lazy) */}
+      {/* 4. Explorar Categorías (lazy) */}
       {categories.length > 0 && (
         <Section
           title={microcopy.discovery.sections.categories}
@@ -430,7 +344,7 @@ export default function DiscoveryFeed({
         </Section>
       )}
 
-      {/* 6. Cerca de vos — Nearby */}
+      {/* 5. Cerca de vos — Nearby */}
       <Section
         title={microcopy.discovery.sections.nearYou}
         subtitle={filteredNearby.length > 0 ? `${filteredNearby.length} lugares cerca` : microcopy.discovery.sections.nearYouSub}
@@ -442,7 +356,7 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 7. Recién llegados a la red (lazy) */}
+      {/* 6. Recién llegados a la red (lazy) */}
       <Section
         title={microcopy.discovery.sections.newInNetwork}
         subtitle={microcopy.discovery.sections.newInNetworkSub}
@@ -454,7 +368,7 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 8. Para este momento (lazy) */}
+      {/* 7. Para este momento (lazy) */}
       <Section
         title={microcopy.discovery.sections.timeBased}
         verticalPadding="var(--tgo-space-4)"
@@ -465,7 +379,7 @@ export default function DiscoveryFeed({
         />
       </Section>
 
-      {/* 9. Hoy podés aprovechar (lazy) */}
+      {/* 8. Hoy podés aprovechar (lazy) */}
       <Section
         title={microcopy.discovery.sections.experiences}
         subtitle={allExperiences.length > 0 ? 'Lo que tenés como miembro' : 'Próximamente'}
@@ -475,7 +389,6 @@ export default function DiscoveryFeed({
         <ExperiencesModule experiences={allExperiences} />
       </Section>
 
-      {/* B2B CTA */}
       </div>
     </PullToRefresh>
   )
