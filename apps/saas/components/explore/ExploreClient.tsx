@@ -43,6 +43,11 @@ const HomeFullbleed = dynamic(() => import('./HomeFullbleed'), {
 import HomeView from './HomeView'
 import OrdersView from './OrdersView'
 
+const CategoriesModule = dynamic(
+  () => import('./DiscoveryFeed/CategoriesModule').then(m => ({ default: m.CategoriesModule })),
+  { ssr: false }
+)
+
 type View = 'home' | 'list' | 'map' | 'orders'
 
 const BUENOS_AIRES = { lat: -34.6037, lng: -58.3816 }
@@ -103,6 +108,7 @@ function ExploreClientInner() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [prevView, setPrevView] = useState<View>('home')
+  const [showAllCategories, setShowAllCategories] = useState(false)
 
   const handleNavigate = useCallback((r: RestaurantCardData) => {
     setTenantSlug(r.id)
@@ -556,6 +562,24 @@ function ExploreClientInner() {
                 />
               ) : (
                 <div className="space-y-6 pt-2">
+
+                  {/* ── Categorías (grid de cocinas) ── */}
+                  {allCuisines.length > 0 && (
+                    <Section
+                      title="Cocinas"
+                      subtitle="Explorá por tipo de comida"
+                    >
+                      <CategoriesModule
+                        categories={allCuisines}
+                        showAll={showAllCategories}
+                        onToggleShowAll={() => setShowAllCategories(!showAllCategories)}
+                        onSelect={(name) => {
+                          haptic.selection()
+                          setActiveCuisine(name === activeCuisine ? null : name)
+                        }}
+                      />
+                    </Section>
+                  )}
 
                   {/* ── Featured (network restaurants) horizontal scroll ── */}
                   {featuredRestaurants.length > 0 && (
