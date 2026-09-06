@@ -3,8 +3,8 @@
 // ── LiveCityMetrics ───────────────────────────────────────────────────────────
 //
 // Card compacta que muestra métricas vivas de la ciudad.
-// Doc 01 §1.2: Un solo color de acento (--tgo-brand), jerarquía por tamaño.
-// Los puntos de actividad ahora se muestran en el mapa (ExploreMap).
+// Fondo navy (#2D2A4B) para transmitir confianza institucional.
+// Colores por stat: abiertos=Activity, promos=Discovery, nuevos=Brand, espera=white.
 
 import AnimatedNumber from '@/components/tgo/AnimatedNumber'
 
@@ -16,10 +16,10 @@ interface LiveCityMetricsProps {
 }
 
 const STATS = [
-  { key: 'abiertos' },
-  { key: 'promos' },
-  { key: 'nuevos' },
-  { key: 'espera' },
+  { key: 'abiertos', color: 'var(--tgo-state-activity)' },
+  { key: 'promos', color: 'var(--tgo-state-discovery)' },
+  { key: 'nuevos', color: 'var(--tgo-brand)' },
+  { key: 'espera', color: '#FFFFFF' },
 ] as const
 
 const LABELS: Record<string, string> = {
@@ -46,55 +46,36 @@ export default function LiveCityMetrics({
     <div
       style={{
         margin: '0 var(--tgo-page-padding)',
-        padding: '12px 14px',
+        padding: '14px 16px',
         borderRadius: 16,
-        background: 'var(--tgo-surface-2)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        background: '#2D2A4B',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
       }}
     >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            backgroundColor: 'var(--tgo-network-live)',
-            flexShrink: 0,
-            animation: 'punto-tgo-pulse-dot 1.8s ease-in-out infinite',
-          }}
-        />
-        <span
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: 'var(--tgo-text-inverse)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase' as const,
-          }}
-        >
-          La ciudad ahora mismo
-        </span>
-      </div>
-
-      {/* Stats grid — single accent color, hierarchy by size */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-        {STATS.map((s) => {
+      {/* Stats grid — 4 columns with vertical separators */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+        {STATS.map((s, i) => {
           const val = values[s.key]
           if (val === null && s.key === 'espera') return null
           return (
-            <div key={s.key} style={{ textAlign: 'center' }}>
+            <div
+              key={s.key}
+              style={{
+                textAlign: 'center',
+                borderRight: i < STATS.length - 1 ? '1px solid rgba(255, 255, 255, 0.14)' : 'none',
+              }}
+            >
               <AnimatedNumber
                 value={val ?? 0}
                 suffix={s.key === 'espera' ? 'min' : undefined}
                 numberStyle={{
-                  color: 'var(--tgo-brand)',
+                  color: s.color,
                   fontSize: 18,
                   fontWeight: 700,
                   lineHeight: 1,
                 }}
                 suffixStyle={{
-                  color: 'var(--tgo-brand)',
+                  color: s.color,
                   fontSize: 11,
                   fontWeight: 700,
                   lineHeight: 1,
@@ -103,10 +84,11 @@ export default function LiveCityMetrics({
               />
               <p
                 style={{
-                  color: 'var(--tgo-text-muted)',
-                  fontSize: 8.5,
+                  color: 'rgba(255, 255, 255, 0.65)',
+                  fontSize: 10,
+                  fontWeight: 600,
                   lineHeight: 1,
-                  marginTop: 3,
+                  marginTop: 4,
                   textTransform: 'lowercase' as const,
                 }}
               >
@@ -116,13 +98,6 @@ export default function LiveCityMetrics({
           )
         })}
       </div>
-
-      <style>{`
-        @keyframes punto-tgo-pulse-dot {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.4); opacity: 0.6; }
-        }
-      `}</style>
     </div>
   )
 }

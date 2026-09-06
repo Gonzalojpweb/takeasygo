@@ -14,7 +14,7 @@ import { motion, useMotionValue, animate } from 'framer-motion'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import PuntoTGO, { type LcsFaceExpression } from '@/components/tgo/PuntoTGO'
-import { Clock } from 'lucide-react'
+import { Clock, ArrowUp } from 'lucide-react'
 
 interface Props {
   userLat: number
@@ -30,11 +30,11 @@ function distLabel(m: number | null) {
 }
 
 // ── Sheet positions ───────────────────────────────────────────────────────
-// PEEK = handle + "ciudad ahora mismo" (~80px visible from bottom)
+// PEEK = handle + stats row + hint (~180px visible from bottom)
 // HALF = 4-6 picks (~340px visible from bottom)
 // FULL = 88% of viewport
 
-const PEEK_VISIBLE = 80
+const PEEK_VISIBLE = 180
 const HALF_VISIBLE = 340
 const FULL_RATIO = 0.88
 
@@ -158,6 +158,22 @@ const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
   const [position, setPosition] = useState<'peek' | 'half' | 'full'>('peek')
   const haptic = useHaptic()
 
+  // Swipe hint: show only first time, persist in localStorage
+  const [showHint, setShowHint] = useState(true)
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem('tgo-sheet-hint-seen')
+      if (seen === 'true') setShowHint(false)
+    } catch {}
+  }, [])
+
+  const hideHint = useCallback(() => {
+    if (showHint) {
+      setShowHint(false)
+      try { localStorage.setItem('tgo-sheet-hint-seen', 'true') } catch {}
+    }
+  }, [showHint])
+
   // y = pixels HIDDEN below viewport. 0 = fully visible, fullH = fully hidden.
   const y = useMotionValue(0)
 
@@ -203,9 +219,9 @@ const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
       damping: 35,
     })
     if (snapped === peekHidden) setPosition('peek')
-    else if (snapped === halfHidden) setPosition('half')
-    else setPosition('full')
-  }, [y, peekHidden, halfHidden, fullHidden])
+    else if (snapped === halfHidden) { setPosition('half'); hideHint() }
+    else { setPosition('full'); hideHint() }
+  }, [y, peekHidden, halfHidden, fullHidden, hideHint])
 
   // Programmatic snap
   const snapToPosition = useCallback((pos: 'peek' | 'half' | 'full') => {
@@ -216,7 +232,8 @@ const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
       damping: 35,
     })
     setPosition(pos)
-  }, [y, peekHidden, halfHidden, fullHidden])
+    if (pos !== 'peek') hideHint()
+  }, [y, peekHidden, halfHidden, fullHidden, hideHint])
 
   // Expose snapTo to parent via ref
   useImperativeHandle(ref, () => ({ snapTo: snapToPosition }), [snapToPosition])
@@ -281,6 +298,24 @@ const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
 
         {/* ── PEEK: City metrics summary ─────────────────────────────── */}
         {children}
+
+        {/* ── SWIPE HINT (first time only) ────────────────────────────── */}
+        {showHint && (
+          <div
+            className="flex items-center justify-center gap-1.5 py-2"
+            style={{ color: 'var(--tgo-text-muted)' }}
+          >
+            <ArrowUp size={12} />
+            <span
+              style={{
+                fontSize: 10.5,
+                fontWeight: 500,
+              }}
+            >
+              Deslizá para ver opciones cerca tuyo
+            </span>
+          </div>
+        )}
 
         {/* ── HALF: Top picks (4-6 items) ────────────────────────────── */}
         {position !== 'peek' && (

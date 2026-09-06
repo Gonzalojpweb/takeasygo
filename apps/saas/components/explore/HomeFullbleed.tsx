@@ -17,10 +17,28 @@ import PuntoTGO, { type LcsFaceExpression } from '@/components/tgo/PuntoTGO'
 import { SmartGreeting } from '@/components/tgo'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
-import { Sun, Moon, ChevronUp } from 'lucide-react'
+import { Sun, Moon, ChevronUp, ArrowUp } from 'lucide-react'
 import { LiveCityMetrics } from '@/components/tgo'
 import HomeSheet, { type HomeSheetHandle } from './HomeSheet'
 import AmbientCard from './AmbientCard'
+
+// ── Greeting helpers ───────────────────────────────────────────────────────
+type DayPeriod = 'morning' | 'afternoon' | 'night'
+
+function getDayPeriod(): DayPeriod {
+  const hour = new Date().getHours()
+  if (hour >= 6 && hour < 12) return 'morning'
+  if (hour >= 12 && hour < 19) return 'afternoon'
+  return 'night'
+}
+
+function getPeriodLabel(): string {
+  switch (getDayPeriod()) {
+    case 'morning': return 'Buenos días'
+    case 'afternoon': return 'Buenas tardes'
+    case 'night': return 'Buenas noches'
+  }
+}
 
 interface Props {
   userLat: number
@@ -99,7 +117,7 @@ function renderPuntoTGOToHTML({
   if (isNew) {
     newBadgeSvg = `
       <g transform="translate(10, 42)">
-        <rect x="0" y="0" width="20" height="8" rx="4" fill="#3B82F6" stroke="#FFFFFF" stroke-width="0.8"/>
+        <rect x="0" y="0" width="20" height="8" rx="4" fill="#4E7FD1" stroke="#FFFFFF" stroke-width="0.8"/>
         <text x="10" y="6" text-anchor="middle" fill="#FFFFFF" font-size="5" font-weight="900" font-family="system-ui, sans-serif">NUEVO</text>
       </g>
     `
@@ -352,13 +370,26 @@ export default function HomeFullbleed({
 
       {/* ── FLOATING HEADER ────────────────────────────────────────────── */}
       <div
-        className="absolute inset-x-0 top-0 z-20 flex items-center justify-between"
+        className="absolute inset-x-0 top-0 z-20 flex items-start justify-between"
         style={{
           padding: '12px 20px',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
         }}
       >
-        <Image src="/tgoicon.png" alt="TGO" width={28} height={28} unoptimized />
+        {/* Greeting: left-aligned, two lines */}
+        <div className="flex flex-col gap-0.5">
+          <span
+            className="text-sm font-semibold"
+            style={{ color: 'var(--tgo-text-primary)' }}
+          >
+            {getPeriodLabel()}
+          </span>
+          <SmartGreeting
+            userName=""
+            static
+            interval={10000}
+          />
+        </div>
         <button
           onClick={() => window.location.href = '/app/profile'}
           style={{
@@ -393,62 +424,12 @@ export default function HomeFullbleed({
         </button>
       </div>
 
-      {/* ── GREETING PILL (centered, below header) ─────────────────────── */}
-      <div
-        className="absolute inset-x-0 top-12 z-20 flex justify-center pointer-events-none"
-      >
-        <div
-          className="flex items-center gap-2 px-4 py-2"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.92)',
-            borderRadius: 'var(--tgo-radius-pill)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-            backdropFilter: 'blur(12px)',
-          }}
-        >
-          {isDay ? (
-            <Sun size={14} style={{ color: 'var(--tgo-brand)' }} />
-          ) : (
-            <Moon size={14} style={{ color: 'var(--tgo-state-trust)' }} />
-          )}
-          <SmartGreeting
-            userName={session?.user?.name?.split(' ')[0] || ''}
-            interval={10000}
-          />
-        </div>
-      </div>
-
       {/* ── AMBIENT CARD (1 a la vez, sobre el mapa) ──────────────────── */}
       <AmbientCard
         restaurants={restaurants}
         onSelect={onSelect}
         intervalMs={6000}
       />
-
-      {/* ── FLOATING TRIGGER (above nav, opens sheet) ────────────────── */}
-      <button
-        onClick={() => { haptic.impact('light'); sheetRef.current?.snapTo('half') }}
-        className="absolute inset-x-0 z-[1001] flex justify-center pointer-events-auto"
-        style={{ bottom: 'calc(64px + env(safe-area-inset-bottom, 0px) + 8px)' }}
-      >
-        <div
-          className="flex items-center gap-1.5 px-4 py-2 active:scale-[0.96] transition-transform"
-          style={{
-            backgroundColor: 'var(--tgo-surface-0)',
-            borderRadius: 'var(--tgo-radius-pill)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
-            border: '1px solid var(--tgo-border)',
-          }}
-        >
-          <span
-            className="text-xs font-bold uppercase tracking-wider"
-            style={{ color: 'var(--tgo-text-primary)' }}
-          >
-            Cerca de vos
-          </span>
-          <ChevronUp size={14} style={{ color: 'var(--tgo-brand)' }} />
-        </div>
-      </button>
 
       {/* ── BOTTOM SHEET (peek / half / full) ──────────────────────────── */}
       <HomeSheet

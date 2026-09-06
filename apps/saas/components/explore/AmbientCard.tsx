@@ -136,7 +136,7 @@ export default function AmbientCard({
     <div
       className="absolute inset-x-0 z-20 pointer-events-none"
       style={{
-        top: 100, // below greeting + chips
+        top: 72, // below header greeting
         paddingInline: 20,
       }}
     >
