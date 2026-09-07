@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Big_Shoulders, IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google'
+import './globals-tgo.css'
 
 const bigShoulders = Big_Shoulders({
   subsets: ['latin'],
@@ -38,17 +39,9 @@ export default function TgoLayout({ children }: { children: React.ReactNode }) {
       lang="es"
       className={`${bigShoulders.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable}`}
       data-tgo-landing
+      suppressHydrationWarning
     >
-      <body
-        style={{
-          fontFamily: 'var(--font-ibm-plex-sans), sans-serif',
-          background: 'var(--tgo-paper)',
-          color: 'var(--tgo-text-on-paper)',
-          overflowX: 'hidden',
-        }}
-      >
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   )
 }

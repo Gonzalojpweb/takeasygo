@@ -33,6 +33,7 @@ export default function Restaurantes() {
           </div>
           <Link
             href="#"
+            className="tgo-rest-btn"
             style={{
               background: 'transparent',
               border: '1px solid var(--tgo-line-on-ink)',

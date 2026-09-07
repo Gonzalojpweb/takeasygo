@@ -47,6 +47,7 @@ export default function ClubTgo() {
             </p>
             <Link
               href="#"
+              className="tgo-club-btn"
               style={{
                 display: 'inline-block',
                 marginTop: 24,

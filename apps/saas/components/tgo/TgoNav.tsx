@@ -62,6 +62,7 @@ export default function TgoNav() {
 
         <Link
           href="/app"
+          className="tgo-nav-cta"
           style={{
             background: 'var(--tgo-signal)',
             color: '#fff',

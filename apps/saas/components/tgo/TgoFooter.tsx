@@ -30,7 +30,7 @@ export default function TgoFooter() {
           <span style={{ fontFamily: 'var(--font-big-shoulders), sans-serif', fontWeight: 800 }}>TGO</span>
         </div>
 
-        <div style={{ display: 'flex', gap: 26, fontSize: 13 }}>
+        <div className="tgo-footer-links" style={{ display: 'flex', gap: 26, fontSize: 13 }}>
           <a href="#">Términos</a>
           <a href="#">Privacidad</a>
           <a href="#">Ayuda</a>
