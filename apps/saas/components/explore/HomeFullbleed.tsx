@@ -194,12 +194,12 @@ export default function HomeFullbleed({
 
       const CARTO_API_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY
       const tileUrl = CARTO_API_KEY
-        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png?api_key=${CARTO_API_KEY}`
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?api_key=${CARTO_API_KEY}`
         : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 
       const map = L.map(mapRef.current, {
         center: [userLat, userLng],
-        zoom: 15,
+        zoom: 16,
         zoomControl: false,
         attributionControl: false,
         scrollWheelZoom: false,

@@ -91,7 +91,7 @@ function MiniMap({ lat, lng }: { lat: number; lng: number }) {
 
       const cartoKey = process.env.NEXT_PUBLIC_CARTO_API_KEY || ''
       const tileUrl = cartoKey
-        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png?api_key=${cartoKey}`
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?api_key=${cartoKey}`
         : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
       L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map)
 
