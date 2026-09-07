@@ -3,9 +3,9 @@
 // ── RestaurantDetailOverlay ───────────────────────────────────────────────────
 //
 // Full-screen overlay that renders RestaurantDetail without navigating away.
-// Fetches restaurant data (reviews, ICO, gallery) client-side.
+// Pushes a history entry so browser back closes the overlay instead of navigating.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import RestaurantDetail from './RestaurantDetail'
@@ -26,6 +26,14 @@ export default function RestaurantDetailOverlay({ restaurant: r, onBack }: Props
     gallery: string[]
   } | null>(null)
 
+  // Push a history entry so back button closes overlay instead of navigating away
+  useEffect(() => {
+    window.history.pushState({ tgoOverlay: true }, '')
+    const handlePop = () => onBack()
+    window.addEventListener('popstate', handlePop)
+    return () => window.removeEventListener('popstate', handlePop)
+  }, [onBack])
+
   useEffect(() => {
     let cancelled = false
     fetch(`/api/explore/gallery/${r.id}`)
@@ -44,12 +52,11 @@ export default function RestaurantDetailOverlay({ restaurant: r, onBack }: Props
     return () => { cancelled = true }
   }, [r.id])
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     onBack()
-  }
+  }, [onBack])
 
   const handleNavigateToMenu = () => {
-    // Navigate to the actual restaurant page for menu/checkout
     router.push(`/app/${r.id}?type=${r.type}`)
   }
 
