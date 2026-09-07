@@ -892,6 +892,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           styles={tenant.branding?.bestSellers}
           locationName={location.name}
           primaryColor={branding.primaryColor}
+          mode="dine-in"
           onAdd={(item) => {
             const enriched = categories.flatMap((c: any) => [
               ...(c.items ?? []),

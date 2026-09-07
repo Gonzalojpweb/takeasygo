@@ -51,7 +51,10 @@ export default async function DineInMenuPage({ params }: Props) {
   const menuDoc = await Menu.findOne({ tenantId: tenantDoc._id, locationId, isActive: true }).lean()
   if (!menuDoc) notFound()
 
-  const bestSellers = await getBestSellers(tenantDoc._id, locationId).catch(() => [])
+  const bestSellers = await getBestSellers(tenantDoc._id, locationId, 'dine-in').catch((err) => {
+    console.error('[bestSellers] Error fetching dine-in best sellers:', err)
+    return []
+  })
 
   return (
     <DineInMenuView

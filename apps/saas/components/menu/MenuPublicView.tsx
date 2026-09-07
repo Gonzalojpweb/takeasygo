@@ -1130,6 +1130,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             styles={tenant.branding?.bestSellers}
             locationName={location.name}
             primaryColor={primary}
+            mode={mode}
             onAdd={(item) => {
               bestSellerRef.current = true
               const enriched = categories.flatMap((c: any) => [
