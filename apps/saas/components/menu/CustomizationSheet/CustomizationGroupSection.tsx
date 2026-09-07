@@ -68,9 +68,9 @@ export default function CustomizationGroupSection({
         )}
       </div>
 
-      {/* Layout: grid 4-col for photos ≤6 */}
+      {/* Layout: 2-col compact list for photos ≤6 */}
       {useGridLayout && (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           {group.options.map((opt) => {
             const img = opt.imageUrl || optionImageRegistry?.[opt.name]
             return (
