@@ -1,0 +1,34 @@
+/*
+ * TGO Landing Design Tokens
+ * From tgo-landing-v2.html mockup
+ * Scoped to [data-tgo-landing] to avoid conflicts with SaaS tokens
+ */
+
+[data-tgo-landing] {
+  --tgo-ink: #14171C;
+  --tgo-ink-soft: #262B33;
+  --tgo-paper: #EDEAE1;
+  --tgo-paper-alt: #E2DDCC;
+  --tgo-line-on-paper: rgba(20, 23, 28, 0.14);
+  --tgo-line-on-ink: rgba(255, 255, 255, 0.14);
+  --tgo-signal: #F74211;
+  --tgo-signal-dark: #B92E0C;
+  --tgo-text-on-paper: #14171C;
+  --tgo-text-on-paper-soft: #565149;
+  --tgo-text-on-ink: #F3F1EA;
+  --tgo-text-on-ink-soft: #9A9E8F;
+  --tgo-go: #2FBF71;
+  --tgo-amber: #FAB300;
+  --tgo-violet: #6C4CF0;
+}
+
+/* Animations */
+@keyframes tgo-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes tgo-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -526,9 +526,7 @@ function ExploreClientInner() {
 
           {/* === LIST VIEW (Descubrí) === */}
           {view === 'list' && (
-          <div className="absolute inset-0" style={{
-            flexDirection: 'column',
-          }}>
+          <div className="absolute inset-0 flex flex-col">
             <ExploreHeader
               gpsError={gpsError}
               activeFilters={activeFilters}
