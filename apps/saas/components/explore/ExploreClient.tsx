@@ -25,10 +25,12 @@ import { useHaptic } from '@/components/tgo/useHaptic'
 
 const ExploreMap = dynamic(() => import('./ExploreMap'), {
   ssr: false,
+  loading: () => null,
 })
 
 const HomeFullbleed = dynamic(() => import('./HomeFullbleed'), {
   ssr: false,
+  loading: () => null,
 })
 
 import HomeView from './HomeView'
@@ -36,7 +38,7 @@ import OrdersView from './OrdersView'
 
 const CategoriesModule = dynamic(
   () => import('./DiscoveryFeed/CategoriesModule').then(m => ({ default: m.CategoriesModule })),
-  { ssr: false }
+  { ssr: false, loading: () => null }
 )
 
 type View = 'home' | 'list' | 'map' | 'orders'
@@ -472,8 +474,8 @@ function ExploreClientInner() {
           {fetching && !hasLoadedOnce.current && <FetchOverlay />}
 
           {/* === HOME VIEW === */}
-          {view === 'home' && (
-            coords ? (
+          <div className="absolute inset-0" style={{ display: view === 'home' ? 'block' : 'none' }}>
+            {coords ? (
               <HomeFullbleed
                 userLat={coords.lat}
                 userLng={coords.lng}
@@ -500,23 +502,168 @@ function ExploreClientInner() {
                   style={{
                     width: 32,
                     height: 32,
-                    borderRadius: 'var(--tgo-radius-pill)',
-                    border: '2px solid var(--tgo-border)',
-                    borderTopColor: 'var(--tgo-text-muted)',
+                    border: '3px solid var(--tgo-border)',
+                    borderTopColor: 'var(--tgo-brand)',
+                    borderRadius: '50%',
                   }}
                 />
-                <p
-                  style={{
-                    color: 'var(--tgo-text-muted)',
-                    fontSize: 10,
-                    fontWeight: 700,
-                  }}
-                >
+                <p style={{ color: 'var(--tgo-text-muted)', fontSize: 13 }}>
                   Localizando posición en el mapa...
                 </p>
               </div>
-            )
-          )}
+            )}
+          </div>
+
+          {/* === LIST VIEW (Descubrí) === */}
+          <div className="absolute inset-0" style={{ display: view === 'list' ? 'flex' : 'none', flexDirection: 'column' }}>
+            <ExploreHeader
+              gpsError={gpsError}
+              activeFilters={activeFilters}
+              toggleFilter={toggleFilter}
+              activeCuisine={activeCuisine}
+              setActiveCuisine={setActiveCuisine}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+            />
+            <div className="flex-1 overflow-y-auto pb-28" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
+            {filtered.length === 0 ? (
+                <EmptyState
+                  icon={<span style={{ fontSize: 28 }}>📍</span>}
+                  title={activeFilters.size > 0 ? 'Sin resultados' : 'Sin restaurantes en este radio'}
+                  subtitle={
+                    activeFilters.size > 0
+                      ? 'Probá cambiando los filtros o ampliando el radio de búsqueda'
+                      : 'Probá ampliar el radio de búsqueda para encontrar opciones cerca'
+                  }
+                  action={
+                    activeFilters.size > 0
+                      ? {
+                          label: 'Limpiar filtros',
+                          onClick: () => {
+                            haptic.selection()
+                            setActiveCuisine(null)
+                            setActiveFilters(new Set())
+                            setSearchQuery('')
+                          },
+                        }
+                      : undefined
+                  }
+                />
+              ) : (
+                <div className="space-y-6 pt-2">
+                  {/* ── Categorías (grid de cocinas) ── */}
+                  {allCuisines.length > 0 && (
+                    <Section title="Cocinas" subtitle="Explorá por tipo de comida">
+                      <CategoriesModule
+                        categories={allCuisines}
+                        showAll={showAllCategories}
+                        onToggleShowAll={() => setShowAllCategories(!showAllCategories)}
+                        onSelect={(name) => {
+                          haptic.selection()
+                          setActiveCuisine(name === activeCuisine ? null : name)
+                        }}
+                        selectedCuisine={activeCuisine}
+                      />
+                    </Section>
+                  )}
+
+                  {/* ── Featured (network restaurants) horizontal scroll ── */}
+                  {featuredRestaurants.length > 0 && (
+                    <Section title="Recomendados para vos" subtitle="Opciones que tienen sentido ahora mismo">
+                      <HorizontalScroller>
+                        {featuredRestaurants.map((r) => {
+                          const isClosed = r.isOpenNow === false
+                          const isResting = isClosed || r.isOperational === false
+                          const hasWink = r.hasWinkOffer === true || r.loyaltyInfo?.hasActivePromo === true
+                          const expression = isResting ? 'sleepy' : (hasWink ? 'wink' : 'happy')
+                          const distLabel = r.distanceM != null
+                            ? (r.distanceM < 1000 ? `${r.distanceM} m` : `${(r.distanceM / 1000).toFixed(1)} km`)
+                            : undefined
+
+                          return (
+                            <DiscoverCard
+                              key={r.id}
+                              name={r.name}
+                              cuisineType={r.cuisineTypes}
+                              rating={r.averageRating ?? undefined}
+                              distanceLabel={distLabel}
+                              logoUrl={r.logoUrl}
+                              placeholderColor={r.primaryColor}
+                              isNetwork={r.type === 'network'}
+                              isOpenNow={r.isOpenNow === true}
+                              expression={expression}
+                              onClick={() => handleNavigate(r)}
+                            />
+                          )
+                        })}
+                      </HorizontalScroller>
+                    </Section>
+                  )}
+
+                  {/* ── Promos (real promotion details from /api/explore/promotions) ── */}
+                  {promotions.length > 0 && (
+                    <Section title="Hoy podés aprovechar" subtitle="Ofertas disponibles cerca tuyo">
+                      <HorizontalScroller>
+                        {promotions.map((promo) => (
+                          <ExplorePromoCard
+                            key={promo.id}
+                            promo={promo}
+                            onClick={() => {
+                              if (promo.tenantSlug) {
+                                const restaurant = restaurants.find(r => r.tenantSlug === promo.tenantSlug)
+                                if (restaurant) handleNavigate(restaurant)
+                              }
+                            }}
+                          />
+                        ))}
+                      </HorizontalScroller>
+                    </Section>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* === MAP VIEW === */}
+          <div className="absolute inset-0" style={{ display: view === 'map' ? 'block' : 'none' }}>
+            {coords ? (
+              <ExploreMap
+                userLat={coords.lat}
+                userLng={coords.lng}
+                restaurants={restaurants}
+                onSelect={handleNavigate}
+                metrics={{
+                  openCount: networkCount,
+                  promoCount: listedCount,
+                  newCount: 0,
+                }}
+              />
+            ) : (
+              <div
+                className="flex flex-col items-center justify-center h-full gap-3"
+                style={{ backgroundColor: 'var(--tgo-surface-1)' }}
+              >
+                <div
+                  className="animate-spin"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    border: '3px solid var(--tgo-border)',
+                    borderTopColor: 'var(--tgo-brand)',
+                    borderRadius: '50%',
+                  }}
+                />
+                <p style={{ color: 'var(--tgo-text-muted)', fontSize: 13 }}>
+                  Localizando posición en el mapa...
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* === ORDERS VIEW === */}
+          <div className="absolute inset-0" style={{ display: view === 'orders' ? 'block' : 'none', backgroundColor: 'var(--tgo-surface-0)' }}>
+            <OrdersView />
+          </div>
 
           {/* === LIST VIEW === */}
           {view === 'list' && (
