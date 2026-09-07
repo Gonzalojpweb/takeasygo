@@ -97,20 +97,7 @@ export default function ProfileContent() {
   }, [session, tenantSlug])
 
   if (loading) {
-    return (
-      <div
-        className="flex flex-col h-full items-center justify-center"
-        style={{ backgroundColor: 'var(--tgo-surface-0)' }}
-      >
-        <div
-          className="w-8 h-8 rounded-full border-2 animate-spin"
-          style={{
-            borderColor: 'var(--tgo-text-muted)',
-            borderTopColor: 'transparent',
-          }}
-        />
-      </div>
-    )
+    return null
   }
 
   const cardStyle: React.CSSProperties = {
