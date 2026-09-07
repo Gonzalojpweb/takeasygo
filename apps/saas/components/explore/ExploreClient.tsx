@@ -14,6 +14,7 @@ import PushSubscriber from './PushSubscriber'
 import { FetchOverlay } from './ExploreLoadingSkeleton'
 import DiscoverCard from './DiscoverCard'
 import ExplorePromoCard, { type ExplorePromo } from './ExplorePromoCard'
+import RestaurantDetailOverlay from './RestaurantDetailOverlay'
 
 import { AnimatedLogoLoader } from '@/components/tgo'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
@@ -101,6 +102,7 @@ function ExploreClientInner() {
   const [prevView, setPrevView] = useState<View>('home')
   const [showAllCategories, setShowAllCategories] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
+  const [selectedRestaurant, setSelectedRestaurant] = useState<RestaurantCardData | null>(null)
 
   const toggleFilter = useCallback((f: string) => {
     setActiveFilters(prev => {
@@ -112,9 +114,8 @@ function ExploreClientInner() {
   }, [])
 
   const handleNavigate = useCallback((r: RestaurantCardData) => {
-    setTenantSlug(r.id)
-    router.push(`/app/${r.id}?type=${r.type}`)
-  }, [setTenantSlug, router])
+    setSelectedRestaurant(r)
+  }, [])
 
   // ── GPS con cache en sessionStorage ────────────────────────────────────
   const GPS_CACHE_KEY = 'tgo_gps_cache'
@@ -178,6 +179,13 @@ function ExploreClientInner() {
 
   // Dynamic splash: wait for data + animation full cycle (~4.5s)
   useEffect(() => {
+    // Skip splash if already shown this session (prevents flash on tab switch / back navigation)
+    if (sessionStorage.getItem(SPLASH_CACHE_KEY) === 'true') {
+      setShowSplash(false)
+      setSplashReady(true)
+      return
+    }
+
     // Animation is the app's hook — always play on first session visit
     const minDelay = new Promise((resolve) => setTimeout(resolve, 4500))
     const dataLoad = Promise.allSettled([
@@ -848,6 +856,13 @@ function ExploreClientInner() {
         {/* ── Bottom Nav ─────────────────────────────────────────────── */}
         <BottomNav />
 
+        {/* ── Restaurant Detail Overlay ────────────────────────────── */}
+        {selectedRestaurant && (
+          <RestaurantDetailOverlay
+            restaurant={selectedRestaurant}
+            onBack={() => setSelectedRestaurant(null)}
+          />
+        )}
 
       </div>
     </div>
