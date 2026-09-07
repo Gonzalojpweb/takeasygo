@@ -482,10 +482,8 @@ function ExploreClientInner() {
           {fetching && !hasLoadedOnce.current && <FetchOverlay />}
 
           {/* === HOME VIEW === */}
-          <div className="absolute inset-0" style={{
-            visibility: view === 'home' ? 'visible' : 'hidden',
-            pointerEvents: view === 'home' ? 'auto' : 'none',
-          }}>
+          {view === 'home' && (
+          <div className="absolute inset-0">
             {coords ? (
               <HomeFullbleed
                 userLat={coords.lat}
@@ -524,12 +522,12 @@ function ExploreClientInner() {
               </div>
             )}
           </div>
+          )}
 
           {/* === LIST VIEW (Descubrí) === */}
+          {view === 'list' && (
           <div className="absolute inset-0" style={{
             flexDirection: 'column',
-            visibility: view === 'list' ? 'visible' : 'hidden',
-            pointerEvents: view === 'list' ? 'auto' : 'none',
           }}>
             <ExploreHeader
               gpsError={gpsError}
@@ -638,12 +636,11 @@ function ExploreClientInner() {
               )}
             </div>
           </div>
+          )}
 
           {/* === MAP VIEW === */}
-          <div className="absolute inset-0" style={{
-            visibility: view === 'map' ? 'visible' : 'hidden',
-            pointerEvents: view === 'map' ? 'auto' : 'none',
-          }}>
+          {view === 'map' && (
+          <div className="absolute inset-0">
             {coords ? (
               <ExploreMap
                 userLat={coords.lat}
@@ -677,194 +674,15 @@ function ExploreClientInner() {
               </div>
             )}
           </div>
-
-          {/* === ORDERS VIEW === */}
-          <div className="absolute inset-0" style={{
-            visibility: view === 'orders' ? 'visible' : 'hidden',
-            pointerEvents: view === 'orders' ? 'auto' : 'none',
-            backgroundColor: 'var(--tgo-surface-0)',
-          }}>
-            <OrdersView />
-          </div>
-
-          {/* === LIST VIEW === */}
-          {view === 'list' && (
-            <>
-              <ExploreHeader
-                gpsError={gpsError}
-                activeFilters={activeFilters}
-                toggleFilter={toggleFilter}
-                activeCuisine={activeCuisine}
-                setActiveCuisine={setActiveCuisine}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-              />
-              <div className="h-full overflow-y-auto pb-28" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
-              {filtered.length === 0 ? (
-                <EmptyState
-                  icon={<span style={{ fontSize: 28 }}>📍</span>}
-                  title={activeFilters.size > 0 ? 'Sin resultados' : 'Sin restaurantes en este radio'}
-                  subtitle={
-                    activeFilters.size > 0
-                      ? 'Probá cambiando los filtros o ampliando el radio de búsqueda'
-                      : 'Probá ampliar el radio de búsqueda para encontrar opciones cerca'
-                  }
-                  action={
-                    activeFilters.size > 0
-                      ? {
-                          label: 'Limpiar filtros',
-                          onClick: () => {
-                            haptic.selection()
-                            setActiveCuisine(null)
-                            setActiveFilters(new Set())
-                            setSearchQuery('')
-                          },
-                        }
-                      : undefined
-                  }
-                  variant="search"
-                />
-              ) : (
-                <div className="space-y-6 pt-2">
-
-                  {/* ── Categorías (grid de cocinas) ── */}
-                  {allCuisines.length > 0 && (
-                    <Section
-                      title="Cocinas"
-                      subtitle="Explorá por tipo de comida"
-                    >
-                      <CategoriesModule
-                        categories={allCuisines}
-                        showAll={showAllCategories}
-                        onToggleShowAll={() => setShowAllCategories(!showAllCategories)}
-                        onSelect={(name) => {
-                          haptic.selection()
-                          setActiveCuisine(name === activeCuisine ? null : name)
-                        }}
-                        selectedCuisine={activeCuisine}
-                      />
-                    </Section>
-                  )}
-
-                  {/* ── Featured (network restaurants) horizontal scroll ── */}
-                  {featuredRestaurants.length > 0 && (
-                    <Section
-                      title="Recomendados para vos"
-                      subtitle="Opciones que tienen sentido ahora mismo"
-                    >
-                      <HorizontalScroller>
-                        {featuredRestaurants.map((r) => {
-                          const isClosed = r.isOpenNow === false
-                          const isResting = isClosed || r.isOperational === false
-                          const hasWink = r.hasWinkOffer === true || r.loyaltyInfo?.hasActivePromo === true
-                          const expression = isResting ? 'sleepy' : (hasWink ? 'wink' : 'happy')
-                          const distLabel = r.distanceM != null
-                            ? (r.distanceM < 1000 ? `${r.distanceM} m` : `${(r.distanceM / 1000).toFixed(1)} km`)
-                            : undefined
-
-                          return (
-                            <DiscoverCard
-                              key={r.id}
-                              name={r.name}
-                              cuisineType={r.cuisineTypes}
-                              rating={r.averageRating ?? undefined}
-                              distanceLabel={distLabel}
-                              logoUrl={r.logoUrl}
-                              placeholderColor={r.primaryColor}
-                              isNetwork={r.type === 'network'}
-                              isOpenNow={r.isOpenNow === true}
-                              expression={expression}
-                              onClick={() => handleNavigate(r)}
-                            />
-                          )
-                        })}
-                      </HorizontalScroller>
-                    </Section>
-                  )}
-
-                  {/* ── Promos (real promotion details from /api/explore/promotions) ── */}
-                  {promotions.length > 0 && (
-                    <Section
-                      title="Hoy podés aprovechar"
-                      subtitle="Ofertas disponibles cerca tuyo"
-                    >
-                      <HorizontalScroller>
-                        {promotions.map((promo) => (
-                          <ExplorePromoCard
-                            key={promo.id}
-                            promo={promo}
-                            onClick={() => {
-                              // Navigate to restaurant if tenantSlug is available
-                              if (promo.tenantSlug) {
-                                const restaurant = restaurants.find(r => r.tenantSlug === promo.tenantSlug)
-                                if (restaurant) handleNavigate(restaurant)
-                              }
-                            }}
-                          />
-                        ))}
-                      </HorizontalScroller>
-                    </Section>
-                  )}
-
-
-
-                  <div className="h-32" />
-                </div>
-              )}
-            </div>
-            </>
           )}
 
           {/* === ORDERS VIEW === */}
           {view === 'orders' && (
-            <div className="h-full" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
-              <OrdersView />
-            </div>
+          <div className="absolute inset-0" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
+            <OrdersView />
+          </div>
           )}
 
-          {/* === MAP VIEW === */}
-          {view === 'map' && (
-            <div className="h-full w-full">
-              {coords ? (
-                <ExploreMap
-                  userLat={coords.lat}
-                  userLng={coords.lng}
-                  restaurants={restaurants}
-                  onSelect={handleNavigate}
-                  metrics={{
-                    openCount: networkCount,
-                    promoCount: listedCount,
-                    newCount: 0,
-                  }}
-                />
-              ) : (
-                <div
-                  className="flex flex-col items-center justify-center h-full gap-3"
-                  style={{ backgroundColor: 'var(--tgo-surface-1)' }}
-                >
-                  <div
-                    className="animate-spin"
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 'var(--tgo-radius-pill)',
-                      border: '2px solid var(--tgo-border)',
-                      borderTopColor: 'var(--tgo-text-muted)',
-                    }}
-                  />
-                  <p
-                    style={{
-                      color: 'var(--tgo-text-muted)',
-                      fontSize: 10,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Localizando posición en el mapa...
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* ── Bottom Nav ─────────────────────────────────────────────── */}
