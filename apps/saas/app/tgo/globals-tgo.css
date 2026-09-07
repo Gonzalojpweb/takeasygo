@@ -1,9 +1,29 @@
 /*
- * TGO Landing Design Tokens
+ * TGO Landing — Global Styles + Design Tokens
  * From tgo-landing-v2.html mockup
- * Scoped to [data-tgo-landing] to avoid conflicts with SaaS tokens
  */
 
+/* ── Global Resets (aplican al documento) ── */
+[data-tgo-landing] *,
+[data-tgo-landing] *::before,
+[data-tgo-landing] *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+[data-tgo-landing] {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-tgo-landing] a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ── Design Tokens ── */
 [data-tgo-landing] {
   --tgo-ink: #14171C;
   --tgo-ink-soft: #262B33;
@@ -22,7 +42,33 @@
   --tgo-violet: #6C4CF0;
 }
 
-/* Animations */
+/* ── Utility: Display (condensed headings) ── */
+[data-tgo-landing] .display {
+  font-family: var(--font-big-shoulders), 'Big Shoulders', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  line-height: 0.94;
+}
+
+/* ── Utility: Mono ── */
+[data-tgo-landing] .mono {
+  font-family: var(--font-ibm-plex-mono), 'IBM Plex Mono', monospace;
+}
+
+/* ── Utility: Wrap (max-width container) ── */
+[data-tgo-landing] .wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* ── Utility: Section padding ── */
+[data-tgo-landing] section {
+  padding: 88px 0;
+}
+
+/* ── Animations ── */
 @keyframes tgo-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -31,4 +77,54 @@
 @keyframes tgo-fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Nav Hover States ── */
+[data-tgo-landing] .tgo-nav-links a {
+  transition: color 0.15s ease;
+}
+[data-tgo-landing] .tgo-nav-links a:hover {
+  color: var(--tgo-text-on-ink);
+}
+
+/* ── Nav CTA Hover ── */
+[data-tgo-landing] .tgo-nav-cta {
+  transition: opacity 0.15s ease;
+}
+[data-tgo-landing] .tgo-nav-cta:hover {
+  opacity: 0.9;
+}
+
+/* ── Restaurantes Button Hover ── */
+[data-tgo-landing] .tgo-rest-btn {
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+[data-tgo-landing] .tgo-rest-btn:hover {
+  border-color: var(--tgo-signal);
+  color: var(--tgo-signal);
+}
+
+/* ── Footer Links Hover ── */
+[data-tgo-landing] .tgo-footer-links a {
+  transition: color 0.15s ease;
+}
+[data-tgo-landing] .tgo-footer-links a:hover {
+  color: var(--tgo-text-on-ink);
+}
+
+/* ── Club Button Hover ── */
+[data-tgo-landing] .tgo-club-btn {
+  transition: opacity 0.15s ease;
+}
+[data-tgo-landing] .tgo-club-btn:hover {
+  opacity: 0.9;
+}
+
+/* ── CTA Button Hover ── */
+[data-tgo-landing] .tgo-cta-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+[data-tgo-landing] .tgo-cta-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

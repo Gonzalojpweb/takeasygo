@@ -34,6 +34,7 @@ export default function FinalCta() {
 
         <Link
           href="/app"
+          className="tgo-cta-btn"
           style={{
             display: 'inline-flex',
             alignItems: 'center',

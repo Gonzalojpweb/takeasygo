@@ -96,6 +96,7 @@ export default function TgoHero() {
         <div style={{ marginTop: 34, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
           <Link
             href="/app"
+            className="tgo-cta-btn"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
