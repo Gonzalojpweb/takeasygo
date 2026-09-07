@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useHaptic } from '@/components/tgo/useHaptic'
-import { Percent, Sparkles, Users } from 'lucide-react'
+import { Percent, Sparkles, MapPin } from 'lucide-react'
 
 interface Props {
   restaurants: RestaurantCardData[]
@@ -65,8 +65,8 @@ export default function AmbientCard({
         title: r.loyaltyInfo?.promoTypes?.[0] || 'Promo activa',
         subtitle: `${r.name} — ${distLabel(r.distanceM)}`,
         restaurant: r,
-        color: 'var(--tgo-state-reward)',
-        bg: 'var(--tgo-state-reward-soft)',
+        color: 'var(--tgo-state-action)',
+        bg: 'var(--tgo-state-action-soft)',
       })
     }
 
@@ -93,12 +93,12 @@ export default function AmbientCard({
       result.push({
         id: `activity-${r.id}`,
         type: 'activity',
-        icon: <Users size={14} />,
+        icon: <MapPin size={14} />,
         title: 'Cerca tuyo',
         subtitle: `${r.name} — ${r.cuisineTypes[0] || 'Abierto'}`,
         restaurant: r,
-        color: 'var(--tgo-state-activity)',
-        bg: 'var(--tgo-state-activity-soft)',
+        color: 'var(--tgo-state-proximity)',
+        bg: 'var(--tgo-state-proximity-soft)',
       })
     }
 
@@ -136,7 +136,7 @@ export default function AmbientCard({
     <div
       className="absolute inset-x-0 z-20 pointer-events-none"
       style={{
-        top: 100, // below header greeting
+        top: 112, // below header greeting + extra spacing
         paddingInline: 20,
       }}
     >
