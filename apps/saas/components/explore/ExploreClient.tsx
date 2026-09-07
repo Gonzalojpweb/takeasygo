@@ -482,7 +482,10 @@ function ExploreClientInner() {
           {fetching && !hasLoadedOnce.current && <FetchOverlay />}
 
           {/* === HOME VIEW === */}
-          <div className="absolute inset-0" style={{ display: view === 'home' ? 'block' : 'none' }}>
+          <div className="absolute inset-0" style={{
+            visibility: view === 'home' ? 'visible' : 'hidden',
+            pointerEvents: view === 'home' ? 'auto' : 'none',
+          }}>
             {coords ? (
               <HomeFullbleed
                 userLat={coords.lat}
@@ -523,7 +526,11 @@ function ExploreClientInner() {
           </div>
 
           {/* === LIST VIEW (Descubrí) === */}
-          <div className="absolute inset-0" style={{ display: view === 'list' ? 'flex' : 'none', flexDirection: 'column' }}>
+          <div className="absolute inset-0" style={{
+            flexDirection: 'column',
+            visibility: view === 'list' ? 'visible' : 'hidden',
+            pointerEvents: view === 'list' ? 'auto' : 'none',
+          }}>
             <ExploreHeader
               gpsError={gpsError}
               activeFilters={activeFilters}
@@ -633,7 +640,10 @@ function ExploreClientInner() {
           </div>
 
           {/* === MAP VIEW === */}
-          <div className="absolute inset-0" style={{ display: view === 'map' ? 'block' : 'none' }}>
+          <div className="absolute inset-0" style={{
+            visibility: view === 'map' ? 'visible' : 'hidden',
+            pointerEvents: view === 'map' ? 'auto' : 'none',
+          }}>
             {coords ? (
               <ExploreMap
                 userLat={coords.lat}
@@ -669,7 +679,11 @@ function ExploreClientInner() {
           </div>
 
           {/* === ORDERS VIEW === */}
-          <div className="absolute inset-0" style={{ display: view === 'orders' ? 'block' : 'none', backgroundColor: 'var(--tgo-surface-0)' }}>
+          <div className="absolute inset-0" style={{
+            visibility: view === 'orders' ? 'visible' : 'hidden',
+            pointerEvents: view === 'orders' ? 'auto' : 'none',
+            backgroundColor: 'var(--tgo-surface-0)',
+          }}>
             <OrdersView />
           </div>
 
