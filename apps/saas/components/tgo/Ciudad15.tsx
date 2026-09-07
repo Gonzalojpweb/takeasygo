@@ -1,3 +1,39 @@
+'use client'
+
+import { OrbitingCircles } from '@/registry/magicui/orbiting-circles'
+import { TgoFaceActivo, TgoFaceDescansando, TgoFaceGuiño, TgoFaceReferente, TgoLogoCenter } from './TgoIcons'
+
+const restaurantLogos = [
+  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1786553835/takeasygo/pizza-crash/w3iqovmvzkxdhofdjbch.png', alt: 'Pizza Crash' },
+  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1771737217/log_qe3u6a.png', alt: 'Parrilla Compadres' },
+  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779499780/takeasygo/kekelarry/dyxu6loezfulf3sudzq2.png', alt: 'Keke&Larry' },
+  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1780510318/takeasygo/bryant-coffee/jygjecmkid3cnbjbnlv7.png', alt: 'Bryant Cafe' },
+  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781406329/takeasygo/sazon-del-per/d7ogrmzcrpm08tmr55p2.png', alt: 'Sazón del Perú' },
+  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1785255722/takeasygo/losmuchachosdepuntoybanca/at0oxv1kspsnoj0nkhu8.png', alt: 'Los Muchachos' },
+  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1785540663/takeasygo/chopisburger/iockxpkwcupfwvvh3rtv.png', alt: 'Chopis Burgers' },
+]
+
+function RestaurantLogoIcon({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: 10,
+        background: '#fff',
+        border: '1px solid var(--tgo-line-on-paper)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        boxShadow: '0 2px 8px rgba(20,23,28,0.08)',
+      }}
+    >
+      <img src={src} alt={alt} style={{ width: 30, height: 30, objectFit: 'contain' }} />
+    </div>
+  )
+}
+
 export default function Ciudad15() {
   return (
     <section id="ciudad" style={{ padding: '88px 0' }}>
@@ -13,50 +49,63 @@ export default function Ciudad15() {
         }}
         className="tgo-two-col"
       >
-        {/* Radar */}
-        <div style={{ position: 'relative', width: '100%', maxWidth: 400, aspectRatio: '1', margin: '0 auto' }}>
-          <svg viewBox="0 0 400 400" fill="none" style={{ width: '100%', height: '100%' }}>
-            <circle cx="200" cy="200" r="190" stroke="#C9C3AF" strokeWidth="1" />
-            <circle cx="200" cy="200" r="128" stroke="#C9C3AF" strokeWidth="1" />
-            <circle cx="200" cy="200" r="66" fill="#F9E4DC" stroke="#F74211" strokeWidth="1.5" />
-            <circle cx="200" cy="200" r="20" fill="#F74211" />
+        {/* Orbiting Circles */}
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: 400,
+            aspectRatio: '1',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Inner orbit — restaurant logos */}
+          <OrbitingCircles iconSize={44} radius={110} speed={0.6}>
+            {restaurantLogos.map((logo) => (
+              <RestaurantLogoIcon key={logo.alt} src={logo.src} alt={logo.alt} />
+            ))}
+          </OrbitingCircles>
 
-            {/* Category icons */}
-            <g transform="translate(200,78)">
-              <rect x="-20" y="-20" width="40" height="40" rx="8" fill="#fff" stroke="#C9C3AF" />
-              <path d="M-9 4h18M-9 4c0-6 3-11 9-11s9 5 9 11M-9 -3h18" stroke="#14171C" strokeWidth="1.8" strokeLinecap="round" fill="none" transform="translate(0,4)" />
-            </g>
-            <g transform="translate(330,140)">
-              <rect x="-20" y="-20" width="40" height="40" rx="8" fill="#fff" stroke="#C9C3AF" />
-              <ellipse cx="0" cy="2" rx="10" ry="7" stroke="#14171C" strokeWidth="1.8" fill="none" />
-              <path d="M-9 -2h18" stroke="#14171C" strokeWidth="1.8" />
-            </g>
-            <g transform="translate(70,150)">
-              <rect x="-20" y="-20" width="40" height="40" rx="8" fill="#fff" stroke="#C9C3AF" />
-              <path d="M-10 8c0-9 4-16 10-16s10 7 10 16" stroke="#14171C" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-              <path d="M-11 8h22" stroke="#14171C" strokeWidth="1.8" strokeLinecap="round" />
-            </g>
-            <g transform="translate(280,318)">
-              <rect x="-20" y="-20" width="40" height="40" rx="8" fill="#fff" stroke="#C9C3AF" />
-              <ellipse cx="0" cy="0" rx="11" ry="6" stroke="#14171C" strokeWidth="1.8" fill="none" />
-            </g>
-          </svg>
+          {/* Outer orbit — TGO face icons */}
+          <OrbitingCircles iconSize={36} radius={170} speed={0.3} reverse>
+            <TgoFaceActivo size={36} />
+            <TgoFaceDescansando size={36} />
+            <TgoFaceGuiño size={36} />
+            <TgoFaceReferente size={36} />
+          </OrbitingCircles>
 
+          {/* Center label */}
           <div
             style={{
               position: 'absolute',
-              bottom: '6%',
+              top: '50%',
               left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'var(--tgo-ink)',
-              color: 'var(--tgo-text-on-ink)',
-              fontFamily: 'var(--font-ibm-plex-mono), monospace',
-              fontSize: 11,
-              padding: '6px 9px',
-              borderRadius: 5,
+              transform: 'translate(-50%, -50%)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 8,
+              zIndex: 10,
             }}
           >
-            15 min a pie
+            <TgoLogoCenter size={48} />
+            <div
+              style={{
+                background: 'var(--tgo-ink)',
+                color: 'var(--tgo-text-on-ink)',
+                fontFamily: 'var(--font-ibm-plex-mono), monospace',
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '6px 10px',
+                borderRadius: 5,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              15 min a pie
+            </div>
           </div>
         </div>
 

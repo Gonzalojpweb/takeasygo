@@ -556,9 +556,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect, me
       // CartoDB Voyager with API key (required since 2024)
       // @2x tiles for sharper labels and icons on HiDPI screens
       const cartoKey = process.env.NEXT_PUBLIC_CARTO_API_KEY || ''
-      const tileUrl = cartoKey
-        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?api_key=${cartoKey}`
-        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
       const tileLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
         attribution: cartoKey

@@ -79,6 +79,11 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes tgo-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ── Nav Hover States ── */
 [data-tgo-landing] .tgo-nav-links a {
   transition: color 0.15s ease;

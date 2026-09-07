@@ -90,9 +90,7 @@ function MiniMap({ lat, lng }: { lat: number; lng: number }) {
       }).setView([lat, lng], 16)
 
       const cartoKey = process.env.NEXT_PUBLIC_CARTO_API_KEY || ''
-      const tileUrl = cartoKey
-        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?api_key=${cartoKey}`
-        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
       L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map)
 
       const icon = L.divIcon({
