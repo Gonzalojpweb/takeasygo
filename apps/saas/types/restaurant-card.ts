@@ -44,6 +44,7 @@ export interface RestaurantCardData {
   // Directory enrichment fields
   description?: string
   heroImageUrl?: string
+  gallery?: string[]
   website?: string
   instagram?: string
   facebook?: string

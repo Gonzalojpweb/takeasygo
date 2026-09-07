@@ -11,6 +11,7 @@ import KriptonSettings from './KriptonSettings'
 import TransferSettings from './TransferSettings'
 import CashSettings from '@/components/admin/CashSettings'
 import PaymentSurchargeSettings from './PaymentSurchargeSettings'
+import GalleryManager from './GalleryManager'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toCents, toPesos } from '@takeasygo/business'
 import {
@@ -134,6 +135,11 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     ]))
   )
   const [heroSaving, setHeroSaving] = useState<string | null>(null)
+
+  // Location gallery state
+  const [galleryMap, setGalleryMap] = useState<Record<string, string[]>>(
+    Object.fromEntries(locations.map((l: any) => [l._id, l.gallery ?? []]))
+  )
 
   // Reservation config state
   type OperatingHourConfig = { days: number[]; open: string; close: string }
@@ -611,6 +617,23 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     } catch {
       toast.error('Error al guardar preferencia')
     }
+  }
+
+  // ── Gallery functions ────────────────────────────────────────────────────────
+  async function saveGalleryToDB(locationId: string, gallery: string[]) {
+    const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gallery }),
+    })
+    if (!res.ok) throw new Error()
+  }
+
+  function handleGalleryUpdate(locationId: string, gallery: string[]) {
+    setGalleryMap(p => ({ ...p, [locationId]: gallery }))
+    saveGalleryToDB(locationId, gallery)
+      .then(() => toast.success('Galería actualizada'))
+      .catch(() => toast.error('Error al guardar galería'))
   }
 
   const labelCls = "text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50 mb-2 block"
@@ -1409,6 +1432,16 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               Eliminar portada
                             </Button>
                           )}
+                        </div>
+
+                        {/* ── Gallery ── */}
+                        <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl">
+                          <GalleryManager
+                            tenantSlug={tenantSlug}
+                            locationId={loc._id}
+                            gallery={galleryMap[loc._id] ?? []}
+                            onUpdate={(g) => handleGalleryUpdate(loc._id, g)}
+                          />
                         </div>
 
                         {/* ── Service Hours ── */}

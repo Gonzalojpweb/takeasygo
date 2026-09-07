@@ -73,6 +73,7 @@ export interface ILocation extends Document {
     url: string
     showLogo: boolean
   }
+  gallery: string[]
   cuisineTypes: string[]
   timezone: string
   /** Índice de color para identificación visual de sede en el admin (0-7) */
@@ -258,6 +259,7 @@ settings: {
       url: { type: String, default: '' },
       showLogo: { type: Boolean, default: true },
     },
+    gallery: { type: [String], default: [], validate: { validator: (v: string[]) => v.length <= 8, message: 'Gallery max 8 images' } },
     cuisineTypes: { type: [String], default: [] },
     timezone: { type: String, required: true, default: 'America/Argentina/Buenos_Aires' },
     colorIndex: { type: Number, default: 0, min: 0, max: 7 },

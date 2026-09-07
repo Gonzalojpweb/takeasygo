@@ -50,7 +50,7 @@ export async function PUT(
     // cuando el body solo trae parciales
     const existing = await Location.findOne({ _id: locationId, tenantId: tenant._id }).lean() as Record<string, any> | null
     const merged: Record<string, any> = {}
-    const subdocKeys = ['deliveryConfig', 'settings', 'serviceHours', 'scheduledOrdersConfig', 'reservationConfig', 'hero']
+    const subdocKeys = ['deliveryConfig', 'settings', 'serviceHours', 'scheduledOrdersConfig', 'reservationConfig', 'hero', 'gallery']
 
     for (const [key, value] of Object.entries(body)) {
       if (subdocKeys.includes(key) && typeof value === 'object' && value !== null && !Array.isArray(value) && existing?.[key]) {
