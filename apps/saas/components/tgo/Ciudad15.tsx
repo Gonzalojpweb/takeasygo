@@ -1,42 +1,8 @@
 'use client'
 
-import { OrbitingCircles } from '@/registry/magicui/orbiting-circles'
-import { TgoFaceActivo, TgoFaceDescansando, TgoFaceGuiño, TgoFaceReferente, TgoLogoCenter } from './TgoIcons'
-
-const restaurantLogos = [
-  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1786553835/takeasygo/pizza-crash/w3iqovmvzkxdhofdjbch.png', alt: 'Pizza Crash' },
-  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1771737217/log_qe3u6a.png', alt: 'Parrilla Compadres' },
-  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779499780/takeasygo/kekelarry/dyxu6loezfulf3sudzq2.png', alt: 'Keke&Larry' },
-  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1780510318/takeasygo/bryant-coffee/jygjecmkid3cnbjbnlv7.png', alt: 'Bryant Cafe' },
-  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781406329/takeasygo/sazon-del-per/d7ogrmzcrpm08tmr55p2.png', alt: 'Sazón del Perú' },
-  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1785255722/takeasygo/losmuchachosdepuntoybanca/at0oxv1kspsnoj0nkhu8.png', alt: 'Los Muchachos' },
-  { src: 'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1785540663/takeasygo/chopisburger/iockxpkwcupfwvvh3rtv.png', alt: 'Chopis Burgers' },
-]
-
-function RestaurantLogoIcon({ src, alt }: { src: string; alt: string }) {
-  return (
-    <div
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: 10,
-        background: '#fff',
-        border: '1px solid var(--tgo-line-on-paper)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        boxShadow: '0 2px 8px rgba(20,23,28,0.08)',
-      }}
-    >
-      <img src={src} alt={alt} style={{ width: 30, height: 30, objectFit: 'contain' }} />
-    </div>
-  )
-}
-
 export default function Ciudad15() {
   return (
-    <section id="ciudad" style={{ padding: '88px 0' }}>
+    <section id="ciudad" style={{ padding: '88px 0', overflow: 'hidden' }}>
       <div
         style={{
           maxWidth: 1160,
@@ -49,7 +15,7 @@ export default function Ciudad15() {
         }}
         className="tgo-two-col"
       >
-        {/* Orbiting Circles */}
+        {/* Radar — static SVG */}
         <div
           style={{
             position: 'relative',
@@ -57,55 +23,70 @@ export default function Ciudad15() {
             maxWidth: 400,
             aspectRatio: '1',
             margin: '0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            overflow: 'hidden',
           }}
         >
-          {/* Inner orbit — restaurant logos */}
-          <OrbitingCircles iconSize={44} radius={110} speed={0.6}>
-            {restaurantLogos.map((logo) => (
-              <RestaurantLogoIcon key={logo.alt} src={logo.src} alt={logo.alt} />
-            ))}
-          </OrbitingCircles>
+          <svg viewBox="0 0 400 400" fill="none" style={{ width: '100%', height: '100%' }}>
+            {/* Concentric circles */}
+            <circle cx="200" cy="200" r="190" stroke="#C9C3AF" strokeWidth="1" />
+            <circle cx="200" cy="200" r="128" stroke="#C9C3AF" strokeWidth="1" />
+            <circle cx="200" cy="200" r="66" fill="#F9E4DC" stroke="#F74211" strokeWidth="1.5" />
 
-          {/* Outer orbit — TGO face icons */}
-          <OrbitingCircles iconSize={36} radius={170} speed={0.3} reverse>
-            <TgoFaceActivo size={36} />
-            <TgoFaceDescansando size={36} />
-            <TgoFaceGuiño size={36} />
-            <TgoFaceReferente size={36} />
-          </OrbitingCircles>
+            {/* Center pin */}
+            <g transform="translate(200,200)">
+              <circle r="22" fill="#F74211" />
+              <circle r="14" fill="#fff" />
+              <circle cx="-4" cy="-2" r="1.8" fill="#14171C" />
+              <circle cx="4" cy="-2" r="1.8" fill="#14171C" />
+              <path d="M-5 4c2.5 3 7.5 3 10 0" stroke="#14171C" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+            </g>
 
-          {/* Center label */}
+            {/* Category icons — static positions on circles */}
+            {/* Top — Sandwich icon (r=190 ring) */}
+            <g transform="translate(200,60)">
+              <rect x="-18" y="-18" width="36" height="36" rx="7" fill="#fff" stroke="#C9C3AF" />
+              <path d="M-8 4h16M-8 4c0-5 2.5-9 8-9s8 4 8 9M-8 -2h16" stroke="#14171C" strokeWidth="1.6" strokeLinecap="round" fill="none" transform="translate(0,3)" />
+            </g>
+
+            {/* Right — Coffee icon (r=128 ring) */}
+            <g transform="translate(328,160)">
+              <rect x="-18" y="-18" width="36" height="36" rx="7" fill="#fff" stroke="#C9C3AF" />
+              <ellipse cx="0" cy="2" rx="9" ry="6" stroke="#14171C" strokeWidth="1.6" fill="none" />
+              <path d="M-8 -2h16" stroke="#14171C" strokeWidth="1.6" />
+            </g>
+
+            {/* Left — Cup icon (r=128 ring) */}
+            <g transform="translate(72,170)">
+              <rect x="-18" y="-18" width="36" height="36" rx="7" fill="#fff" stroke="#C9C3AF" />
+              <path d="M-9 8c0-8 3.5-14 9-14s9 6 9 14" stroke="#14171C" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+              <path d="M-10 8h20" stroke="#14171C" strokeWidth="1.6" strokeLinecap="round" />
+            </g>
+
+            {/* Bottom — Egg/dish icon (r=190 ring) */}
+            <g transform="translate(280,330)">
+              <rect x="-18" y="-18" width="36" height="36" rx="7" fill="#fff" stroke="#C9C3AF" />
+              <ellipse cx="0" cy="0" rx="10" ry="5.5" stroke="#14171C" strokeWidth="1.6" fill="none" />
+            </g>
+          </svg>
+
+          {/* "15 min a pie" badge */}
           <div
             style={{
               position: 'absolute',
-              top: '50%',
+              bottom: '8%',
               left: '50%',
-              transform: 'translate(-50%, -50%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 8,
-              zIndex: 10,
+              transform: 'translateX(-50%)',
+              background: 'var(--tgo-ink)',
+              color: 'var(--tgo-text-on-ink)',
+              fontFamily: 'var(--font-ibm-plex-mono), monospace',
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '6px 10px',
+              borderRadius: 5,
+              whiteSpace: 'nowrap',
             }}
           >
-            <TgoLogoCenter size={48} />
-            <div
-              style={{
-                background: 'var(--tgo-ink)',
-                color: 'var(--tgo-text-on-ink)',
-                fontFamily: 'var(--font-ibm-plex-mono), monospace',
-                fontSize: 11,
-                fontWeight: 600,
-                padding: '6px 10px',
-                borderRadius: 5,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              15 min a pie
-            </div>
+            15 min a pie
           </div>
         </div>
 
@@ -149,7 +130,10 @@ export default function Ciudad15() {
 
       <style>{`
         @media (max-width: 860px) {
-          .tgo-two-col { grid-template-columns: 1fr !important; gap: 40px !important; }
+          .tgo-two-col {
+            grid-template-columns: 1fr !important;
+            gap: 40px !important;
+          }
         }
       `}</style>
     </section>
