@@ -447,7 +447,7 @@ export default function HomeFullbleed({
         {/* Peek content: "Ciudad ahora mismo" metrics */}
         <div
           className="px-4 py-3"
-          style={{ borderBottom: '1px solid var(--tgo-border)' }}
+          style={{ borderBottom: '1px solid var(--tgo-border)', marginTop: 8 }}
         >
           <LiveCityMetrics
             openCount={openCount}
