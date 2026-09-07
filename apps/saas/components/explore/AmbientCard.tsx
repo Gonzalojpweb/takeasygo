@@ -162,12 +162,12 @@ export default function AmbientCard({
               }}
               className="w-full flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
               style={{
-                backgroundColor: 'rgba(255,255,255,0.95)',
+                backgroundColor: current.bg,
                 borderRadius: 'var(--tgo-radius-xl)',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                boxShadow: `0 4px 16px ${current.color}25`,
                 backdropFilter: 'blur(12px)',
                 padding: '10px 14px',
-                border: `1px solid ${current.color}20`,
+                border: `1px solid ${current.color}30`,
               }}
             >
               {/* Icon badge */}
@@ -177,8 +177,9 @@ export default function AmbientCard({
                   width: 32,
                   height: 32,
                   borderRadius: 'var(--tgo-radius-md)',
-                  backgroundColor: current.bg,
+                  backgroundColor: '#fff',
                   color: current.color,
+                  boxShadow: `0 2px 8px ${current.color}20`,
                 }}
               >
                 {current.icon}
@@ -188,13 +189,13 @@ export default function AmbientCard({
               <div className="flex-1 min-w-0">
                 <p
                   className="text-xs font-bold truncate"
-                  style={{ color: 'var(--tgo-text-primary)' }}
+                  style={{ color: current.color }}
                 >
                   {current.title}
                 </p>
                 <p
                   className="text-[11px] truncate"
-                  style={{ color: 'var(--tgo-text-muted)' }}
+                  style={{ color: 'var(--tgo-text-primary)', opacity: 0.7 }}
                 >
                   {current.subtitle}
                 </p>
@@ -208,8 +209,8 @@ export default function AmbientCard({
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
-                  backgroundColor: current.bg,
-                  color: current.color,
+                  backgroundColor: current.color,
+                  color: '#fff',
                 }}
               >
                 {current.type === 'promo' ? 'Oferta' : current.type === 'new' ? 'Nuevo' : 'Abierto'}
