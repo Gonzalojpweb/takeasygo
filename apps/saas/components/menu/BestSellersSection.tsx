@@ -23,6 +23,7 @@ interface Props {
   styles?: BestSellersStyles
   locationName?: string
   primaryColor: string
+  mode?: 'takeaway' | 'dine-in' | 'business'
 }
 
 export default function BestSellersSection({
@@ -31,6 +32,7 @@ export default function BestSellersSection({
   styles = {},
   locationName,
   primaryColor,
+  mode = 'takeaway',
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const sectionRef = useRef<HTMLDivElement>(null)
@@ -58,6 +60,12 @@ export default function BestSellersSection({
   const badgeBg = styles.badgeBgColor || '#ef4444'
   const title = styles.sectionTitle || 'Los más vendidos'
   const subtitle = styles.sectionSubtitle || (locationName ? `Lo que más están pidiendo en ${locationName}` : '')
+
+  function resolvePrice(item: BestSellerItem): number {
+    if (mode === 'takeaway' && item.takeawayPrice != null) return item.takeawayPrice
+    if (mode === 'business' && item.businessPrice != null) return item.businessPrice
+    return item.price
+  }
 
   function scroll(dir: 'left' | 'right') {
     if (!scrollRef.current) return
@@ -159,7 +167,7 @@ export default function BestSellersSection({
 
                 <div className="flex items-center justify-between mt-3">
                   <span className="text-xl font-bold" style={{ color: accent }}>
-                    ${toPesos(item.price).toLocaleString('es-AR')}
+                    ${toPesos(resolvePrice(item)).toLocaleString('es-AR')}
                   </span>
 
                   <button

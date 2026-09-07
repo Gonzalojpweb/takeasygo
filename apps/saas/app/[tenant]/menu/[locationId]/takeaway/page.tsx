@@ -55,7 +55,10 @@ export default async function TakeawayMenuPage({ params }: Props) {
   const location = JSON.parse(JSON.stringify(locationDoc))
   const menu = sanitizeMenuForPublic(JSON.parse(JSON.stringify(menuDoc)))
 
-  const bestSellers = await getBestSellers(tenantDoc._id, locationId).catch(() => [])
+  const bestSellers = await getBestSellers(tenantDoc._id, locationId, 'takeaway').catch((err) => {
+    console.error('[bestSellers] Error fetching takeaway best sellers:', err)
+    return []
+  })
 
   return (
     <MenuPublicView

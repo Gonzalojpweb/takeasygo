@@ -7,6 +7,8 @@ export interface BestSellerItem {
   name: string
   description?: string
   price: number
+  takeawayPrice?: number
+  businessPrice?: number
   imageUrl?: string
   count: number
   revenue: number
@@ -15,8 +17,9 @@ export interface BestSellerItem {
 export async function getBestSellers(
   tenantId: Types.ObjectId | string,
   locationId: string,
-  limit = 10,
-  minThreshold = 5,
+  mode: 'takeaway' | 'dine-in' | 'business' = 'takeaway',
+  limit = 6,
+  minThreshold = 3,
 ): Promise<BestSellerItem[]> {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
@@ -24,9 +27,11 @@ export async function getBestSellers(
     {
       $match: {
         tenantId: new Types.ObjectId(tenantId as string),
+        locationId: new Types.ObjectId(locationId),
         deletedAt: null,
         createdAt: { $gte: thirtyDaysAgo },
         status: { $nin: ['cancelled'] },
+        orderMode: mode,
       },
     },
     { $unwind: '$items' },
@@ -38,7 +43,7 @@ export async function getBestSellers(
       },
     },
     { $sort: { count: -1 } },
-    { $limit: 10 },
+    { $limit: limit },
     { $project: { name: '$_id', count: 1, revenue: 1, _id: 0 } },
   ])
 
@@ -73,6 +78,8 @@ export async function getBestSellers(
         name: String(match.name ?? ''),
         description: match.description ? String(match.description) : undefined,
         price: Number(match.price ?? 0),
+        takeawayPrice: match.takeawayPrice != null ? Number(match.takeawayPrice) : undefined,
+        businessPrice: match.businessPrice != null ? Number(match.businessPrice) : undefined,
         imageUrl: match.imageUrl ? String(match.imageUrl) : undefined,
         count: tp.count,
         revenue: tp.revenue,
