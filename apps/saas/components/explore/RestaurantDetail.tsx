@@ -239,6 +239,7 @@ export default function RestaurantDetail({
   const isNetwork = r.type === 'network'
   const [isFavorite, setIsFavorite] = useState(false)
   const [showAllHours, setShowAllHours] = useState(false)
+  const [showGallery, setShowGallery] = useState(false)
   const haptic = useHaptic()
 
   const hasIcoRing = icoRing !== 'none'
@@ -258,10 +259,10 @@ export default function RestaurantDetail({
               alt={r.name}
               className="w-full h-full object-cover"
             />
-            <div
-              className="absolute inset-0"
-              style={{ background: 'linear-gradient(to top, var(--tgo-surface-0) 0%, rgba(0,0,0,0.2) 100%)' }}
-            />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.1) 30%, rgba(0,0,0,0.1) 70%, var(--tgo-surface-0) 100%)' }}
+          />
           </>
         ) : (
           <div
@@ -333,8 +334,9 @@ export default function RestaurantDetail({
 
         {/* Gallery chip */}
         {gallery.length > 0 && (
-          <div
-            className="absolute bottom-3 right-4 z-10 flex items-center gap-1"
+          <button
+            onClick={() => setShowGallery(true)}
+            className="absolute bottom-3 right-4 z-10 flex items-center gap-1 active:scale-95 transition-transform"
             style={{
               padding: '5px 10px',
               borderRadius: 8,
@@ -346,7 +348,7 @@ export default function RestaurantDetail({
             <span style={{ color: '#fff', fontSize: 11, fontWeight: 600 }}>
               {gallery.length} foto{gallery.length !== 1 ? 's' : ''}
             </span>
-          </div>
+          </button>
         )}
       </div>
 
@@ -554,6 +556,43 @@ export default function RestaurantDetail({
           </div>
         )}
 
+        {/* ── GALLERY ──────────────────────────────────────────────────── */}
+        {gallery.length > 0 && (
+          <div style={{ marginTop: 24 }}>
+            <div className="flex items-center justify-between" style={{ paddingInline: 20, marginBottom: 12 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--tgo-text-primary)' }}>
+                Galería
+              </h2>
+              <button
+                onClick={() => setShowGallery(true)}
+                style={{ fontSize: 12, fontWeight: 600, color: 'var(--tgo-brand)' }}
+              >
+                Ver todas
+              </button>
+            </div>
+            <div className="overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+              <div className="flex gap-2 px-5 pb-2" style={{ minWidth: 'min-content' }}>
+                {gallery.slice(0, 4).map((url, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setShowGallery(true)}
+                    className="shrink-0 active:scale-95 transition-transform"
+                    style={{
+                      width: 120,
+                      height: 90,
+                      borderRadius: 12,
+                      overflow: 'hidden',
+                      scrollSnapAlign: 'start',
+                    }}
+                  >
+                    <img src={url} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── REVIEWS ──────────────────────────────────────────────────── */}
         {reviews.length > 0 && (
           <div style={{ marginTop: 24 }}>
@@ -653,6 +692,38 @@ export default function RestaurantDetail({
           </div>
         )}
       </div>
+
+      {/* ── GALLERY LIGHTBOX ──────────────────────────────────────────── */}
+      {showGallery && (
+        <div
+          className="fixed inset-0 z-[3000] flex flex-col"
+          style={{ backgroundColor: 'rgba(0,0,0,0.95)' }}
+          onClick={() => setShowGallery(false)}
+        >
+          <div className="flex items-center justify-between p-4 shrink-0">
+            <span style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>
+              {gallery.length} fotos
+            </span>
+            <button
+              onClick={() => setShowGallery(false)}
+              style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}
+            >
+              Cerrar
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto flex flex-col items-center gap-4 p-4">
+            {gallery.map((url, idx) => (
+              <img
+                key={idx}
+                src={url}
+                alt={`Foto ${idx + 1}`}
+                className="w-full max-w-md rounded-xl"
+                style={{ objectFit: 'contain' }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
