@@ -614,7 +614,7 @@ function ExploreClientInner() {
                   {/* ── Promos (real promotion details from /api/explore/promotions) ── */}
                   {promotions.length > 0 && (
                     <Section title="Hoy podés aprovechar" subtitle="Ofertas disponibles cerca tuyo">
-                      <HorizontalScroller>
+                      <div className="space-y-3 px-[var(--tgo-page-padding)]">
                         {promotions.map((promo) => (
                           <ExplorePromoCard
                             key={promo.id}
@@ -627,7 +627,7 @@ function ExploreClientInner() {
                             }}
                           />
                         ))}
-                      </HorizontalScroller>
+                      </div>
                     </Section>
                   )}
                 </div>
