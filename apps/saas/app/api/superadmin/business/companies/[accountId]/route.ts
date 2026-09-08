@@ -213,9 +213,15 @@ export async function DELETE(
     if (authError) return authError
 
     const { accountId } = await params
+    const email = request.nextUrl.searchParams.get('email')
     await connectDB()
 
-    const account = await CorporateAccount.findByIdAndDelete(accountId)
+    let account = await CorporateAccount.findByIdAndDelete(accountId)
+
+    if (!account && email) {
+      account = await CorporateAccount.findOneAndDelete({ companyAdminEmail: email.toLowerCase().trim() })
+    }
+
     if (!account) return NextResponse.json({ error: 'Empresa no encontrada' }, { status: 404 })
 
     return NextResponse.json({ message: 'Empresa eliminada' })
