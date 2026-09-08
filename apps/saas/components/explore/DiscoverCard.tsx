@@ -55,27 +55,27 @@ export default function DiscoverCard({
       onClick={onClick}
       className="shrink-0 text-left active:scale-[0.97] transition-transform relative"
       style={{
-        width: 240,
-        height: 110,
-        padding: '14px 16px',
-        borderRadius: 18,
+        width: 280,
+        height: 130,
+        padding: '16px',
+        borderRadius: 20,
         backgroundColor: 'var(--tgo-surface-1)',
         border: '1px solid var(--tgo-border)',
         display: 'flex',
         alignItems: 'center',
-        gap: 14,
+        gap: 16,
       }}
     >
       {/* Status badge — top right */}
       {isClosed && (
         <span
-          className="absolute top-2.5 right-3 px-2 py-0.5"
+          className="absolute top-3 right-3 px-2 py-1"
           style={{
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
-            borderRadius: 4,
+            borderRadius: 6,
             backgroundColor: 'var(--tgo-state-inactive-soft)',
             color: 'var(--tgo-state-inactive)',
           }}
@@ -85,13 +85,13 @@ export default function DiscoverCard({
       )}
       {isOpen && !hasPromo && (
         <span
-          className="absolute top-2.5 right-3 px-2 py-0.5"
+          className="absolute top-3 right-3 px-2 py-1"
           style={{
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
-            borderRadius: 4,
+            borderRadius: 6,
             backgroundColor: 'var(--tgo-state-activity-soft)',
             color: 'var(--tgo-state-activity)',
           }}
@@ -101,13 +101,13 @@ export default function DiscoverCard({
       )}
       {hasPromo && (
         <span
-          className="absolute top-2.5 right-3 px-2 py-0.5"
+          className="absolute top-3 right-3 px-2 py-1"
           style={{
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
-            borderRadius: 4,
+            borderRadius: 6,
             backgroundColor: 'var(--tgo-state-reward-soft)',
             color: 'var(--tgo-state-reward)',
           }}
@@ -121,9 +121,9 @@ export default function DiscoverCard({
         <div
           className="flex items-center justify-center overflow-hidden"
           style={{
-            width: 60,
-            height: 60,
-            borderRadius: 16,
+            width: 70,
+            height: 70,
+            borderRadius: 18,
             backgroundColor: logoUrl ? 'transparent' : placeholderColor,
             border: logoUrl ? '1px solid var(--tgo-border)' : 'none',
           }}
@@ -166,7 +166,7 @@ export default function DiscoverCard({
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         {/* Name */}
         <p
-          className="font-bold text-[15px] leading-tight truncate"
+          className="font-bold text-base leading-snug truncate"
           style={{ color: 'var(--tgo-text-primary)' }}
         >
           {name}
@@ -175,7 +175,7 @@ export default function DiscoverCard({
         {/* Category */}
         {cuisineType && cuisineType.length > 0 && (
           <p
-            className="text-[12px] truncate mt-0.5"
+            className="text-sm truncate mt-1"
             style={{ color: 'var(--tgo-text-muted)' }}
           >
             {cuisineType[0]}
@@ -183,16 +183,16 @@ export default function DiscoverCard({
         )}
 
         {/* Meta: rating + distance */}
-        <div className="flex items-center gap-1.5 mt-1.5">
+        <div className="flex items-center gap-2 mt-1.5">
           {rating != null && rating > 0 && (
-            <span className="inline-flex items-center gap-0.5 text-[12px] font-semibold" style={{ color: 'var(--tgo-text-primary)' }}>
-              <Star size={11} fill="var(--tgo-state-discovery)" stroke="var(--tgo-state-discovery)" />
+            <span className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: 'var(--tgo-text-primary)' }}>
+              <Star size={13} fill="var(--tgo-state-discovery)" stroke="var(--tgo-state-discovery)" />
               {rating.toFixed(1)}
             </span>
           )}
           {distanceLabel && (
-            <span className="inline-flex items-center gap-0.5 text-[12px]" style={{ color: 'var(--tgo-text-muted)' }}>
-              <MapPin size={10} />
+            <span className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--tgo-text-muted)' }}>
+              <MapPin size={11} />
               {distanceLabel}
             </span>
           )}
