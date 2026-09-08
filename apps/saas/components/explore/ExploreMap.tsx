@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import 'leaflet/dist/leaflet.css'
-import { ShoppingBag, MapPinIcon, X, Clock, Phone, ExternalLink, BookOpen } from 'lucide-react'
+import { ShoppingBag, Phone, Heart, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import Supercluster from 'supercluster'
@@ -168,9 +168,8 @@ function HoverCard({ r, pos, containerW, containerH }: {
   containerW: number
   containerH: number
 }) {
-  const isNetwork = r.type === 'network'
   const cardW = 260
-  const cardH = 150
+  const cardH = 180
   const gap = 20
 
   let left = pos.x + gap
@@ -185,59 +184,55 @@ function HoverCard({ r, pos, containerW, containerH }: {
       style={{ left, top, width: cardW }}
     >
       <div
-        className="rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        className="rounded-[20px] overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
         style={{
           backgroundColor: 'var(--tgo-surface-1)',
           border: '1px solid var(--tgo-border)',
           boxShadow: '0 16px 48px rgba(0,0,0,0.2)',
         }}
       >
-        <div
-          className="h-1.5 w-full"
-          style={{ backgroundColor: isNetwork ? (r.isOperational === false ? 'var(--tgo-state-discovery)' : 'var(--tgo-brand-primary)') : 'var(--tgo-state-inactive)' }}
-        />
-        <div className="p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <span
-              className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-[1px] rounded-full"
-              style={{
-                backgroundColor: isNetwork
-                  ? (r.isOperational === false ? 'var(--tgo-state-discovery-soft)' : 'var(--tgo-brand-primary-soft)')
-                  : 'var(--tgo-state-inactive-soft)',
-                color: isNetwork
-                  ? (r.isOperational === false ? 'var(--tgo-state-discovery)' : 'var(--tgo-brand-primary)')
-                  : 'var(--tgo-state-inactive)',
-              }}
-            >
-              {isNetwork
-                ? (r.isOperational === false ? 'Catálogo' : 'En Red')
-                : 'Directorio'}
-            </span>
-            <span style={{ color: 'var(--tgo-text-muted)' }} className="text-[10px] ml-auto">{distLabel(r.distanceM)}</span>
+        <div className="px-5 pt-4 pb-4">
+          {/* Label */}
+          <p
+            className="text-[10px] font-bold uppercase tracking-wider mb-1"
+            style={{ color: 'var(--tgo-state-action)', fontFamily: 'var(--font-ibm-plex-mono), monospace' }}
+          >
+            Seleccionado para vos
+          </p>
+
+          {/* Name + Heart */}
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-bold text-lg leading-tight truncate" style={{ color: 'var(--tgo-text-primary)' }}>
+              {r.name}
+            </h3>
+            <Heart size={16} className="shrink-0 mt-1" style={{ color: 'var(--tgo-text-muted)' }} />
           </div>
-          <p className="font-bold text-sm leading-tight" style={{ color: 'var(--tgo-text-primary)' }}>{r.name}</p>
-          <p className="text-[11px] truncate" style={{ color: 'var(--tgo-text-muted)' }}>{r.address}</p>
-          {isNetwork && r.estimatedPickupTime && (
-            <p className="text-[11px] font-semibold flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
-              <Clock size={10} /> ~{r.estimatedPickupTime} min
-            </p>
-          )}
-          {r.isOpenNow === true && (
-            <p className="text-[9px] font-semibold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--tgo-state-success)' }} />
-              Abierto ahora
-            </p>
-          )}
-          {r.isOpenNow === false && (
-            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--tgo-state-inactive)' }}>
-              Cerrado ahora
-            </p>
-          )}
-          {isNetwork && r.isOperational === false && (
-            <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--tgo-state-discovery)' }}>
-              Catálogo / Próximamente
-            </p>
-          )}
+
+          {/* Address */}
+          <p className="text-xs truncate mt-0.5" style={{ color: 'var(--tgo-text-muted)' }}>
+            {r.address}
+          </p>
+
+          {/* Chips: rating · distance · mode */}
+          <div className="flex items-center gap-2 mt-2.5">
+            {r.averageRating != null && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold" style={{ color: 'var(--tgo-text-primary)' }}>
+                <Star size={11} fill="var(--tgo-state-discovery)" stroke="var(--tgo-state-discovery)" />
+                {r.averageRating.toFixed(1)}
+              </span>
+            )}
+            {r.distanceM != null && (
+              <span className="text-[11px]" style={{ color: 'var(--tgo-text-muted)' }}>
+                {r.isOpenNow === false ? '·' : '·'} {distLabel(r.distanceM)}
+              </span>
+            )}
+            {r.deliveryEnabled && (
+              <span className="text-[11px]" style={{ color: 'var(--tgo-text-muted)' }}>· Delivery</span>
+            )}
+            {r.orderModes.includes('takeaway') && (
+              <span className="text-[11px]" style={{ color: 'var(--tgo-text-muted)' }}>· Takeaway</span>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -265,121 +260,108 @@ function BottomSheet({ r, onClose, onNavigate }: {
             border: '1px solid var(--tgo-border)',
           }}
         >
-          <div className="flex justify-center pt-3 pb-2" onClick={onClose} role="button" aria-label="Cerrar">
+          {/* Drag handle */}
+          <div className="flex justify-center pt-3 pb-1" onClick={onClose} role="button" aria-label="Cerrar">
             <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'var(--tgo-border)' }} />
           </div>
 
-          <div className="px-6 pt-2 pb-8 space-y-4">
-            <div className="flex items-start gap-4">
-              {isNetwork && r.logoUrl && (
-                <div
-                  className="shrink-0 w-16 h-16 rounded-2xl overflow-hidden"
-                  style={{ border: '1px solid var(--tgo-border)' }}
-                >
-                  <img src={r.logoUrl} alt="" className="w-full h-full object-cover" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-[1px] rounded-full"
-                    style={{
-                      backgroundColor: isNetwork
-                        ? (r.isOperational === false ? 'var(--tgo-state-discovery-soft)' : 'var(--tgo-brand-primary-soft)')
-                        : 'var(--tgo-state-inactive-soft)',
-                      color: isNetwork
-                        ? (r.isOperational === false ? 'var(--tgo-state-discovery)' : 'var(--tgo-brand-primary)')
-                        : 'var(--tgo-state-inactive)',
-                    }}
-                  >
-                    {isNetwork
-                      ? (r.isOperational === false ? 'Catálogo' : 'En Red')
-                      : 'Directorio'}
-                  </span>
-                  <span className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>{distLabel(r.distanceM)}</span>
-                </div>
-                <h3 className="font-bold text-xl leading-tight truncate" style={{ color: 'var(--tgo-text-primary)' }}>{r.name}</h3>
-                <p className="text-sm mt-0.5 truncate" style={{ color: 'var(--tgo-text-muted)' }}>{r.address}</p>
-                {r.isOpenNow === true && (
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mt-1 flex items-center gap-1" style={{ color: 'var(--tgo-state-success)' }}>
-                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--tgo-state-success)' }} />
-                    Abierto ahora
-                  </p>
-                )}
-                {r.isOpenNow === false && (
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mt-1" style={{ color: 'var(--tgo-state-inactive)' }}>
-                    Cerrado ahora
-                  </p>
-                )}
-                {isNetwork && r.isOperational === false && (
-                   <p className="text-[9px] font-semibold uppercase tracking-wider mt-1 animate-pulse" style={{ color: 'var(--tgo-state-discovery)' }}>
-                     Proximamente takeaway
-                   </p>
-                )}
-                {r.isNew && (
-                  <div className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--tgo-state-discovery-soft)' }}>
-                    <span className="text-[10px]">✨</span>
-                    <span className="text-[10px] font-bold" style={{ color: 'var(--tgo-state-discovery)' }}>
-                      Nuevo para vos
-                    </span>
-                  </div>
-                )}
-              </div>
+          <div className="px-5 pt-2 pb-6">
+            {/* Label */}
+            <p
+              className="text-[10px] font-bold uppercase tracking-wider mb-1"
+              style={{ color: 'var(--tgo-state-action)', fontFamily: 'var(--font-ibm-plex-mono), monospace' }}
+            >
+              Seleccionado para vos
+            </p>
+
+            {/* Name + Heart */}
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="font-bold text-xl leading-tight truncate flex-1" style={{ color: 'var(--tgo-text-primary)' }}>
+                {r.name}
+              </h3>
+              <Heart size={18} className="shrink-0 mt-1" style={{ color: 'var(--tgo-text-muted)' }} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            {/* Address */}
+            <p className="text-sm truncate mt-0.5" style={{ color: 'var(--tgo-text-muted)' }}>
+              {r.address}
+            </p>
+
+            {/* Chips: rating · distance · mode */}
+            <div className="flex items-center gap-2 mt-2.5">
+              {r.averageRating != null && (
+                <span className="inline-flex items-center gap-0.5 text-xs font-semibold" style={{ color: 'var(--tgo-text-primary)' }}>
+                  <Star size={12} fill="var(--tgo-state-discovery)" stroke="var(--tgo-state-discovery)" />
+                  {r.averageRating.toFixed(1)}
+                </span>
+              )}
+              {r.distanceM != null && (
+                <span className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>
+                  · {distLabel(r.distanceM)}
+                </span>
+              )}
+              {r.deliveryEnabled && (
+                <span className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>· Delivery</span>
+              )}
+              {r.orderModes.includes('takeaway') && (
+                <span className="text-xs" style={{ color: 'var(--tgo-text-muted)' }}>· Takeaway</span>
+              )}
+            </div>
+
+            {/* CTA */}
+            <div className="mt-5">
               {isNetwork ? (
                 r.isOperational === false ? (
                   <button
                     onClick={onNavigate}
-                    className="col-span-2 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold active:scale-95 transition-transform"
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm active:scale-95 transition-transform"
                     style={{
-                      backgroundColor: 'transparent',
-                      color: '#854F0B',
-                      border: '1.5px solid var(--tgo-state-discovery)',
+                      backgroundColor: 'var(--tgo-surface-2)',
+                      color: 'var(--tgo-text-primary)',
+                      border: '1.5px solid var(--tgo-border)',
                     }}
                   >
-                    <BookOpen size={16} /> Ver carta
+                    Ver carta
                   </button>
                 ) : (
                   <button
                     onClick={onNavigate}
-                    className="col-span-2 flex items-center justify-center gap-2.5 py-4 rounded-2xl text-white font-bold transition-transform active:scale-95"
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
                     style={{
                       backgroundColor: 'var(--tgo-state-action)',
                       boxShadow: '0 4px 16px var(--tgo-state-action-soft)',
                     }}
                   >
-                    <ShoppingBag size={18} /> Ver menú y pedir
+                    <ShoppingBag size={16} /> Ver menú y pedir
+                    <span className="ml-auto text-white/60">›</span>
                   </button>
                 )
               ) : (
-                <>
+                <div className="flex gap-3">
                   {r.phone && (
                     <a
                       href={`tel:${r.phone}`}
-                      className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold active:scale-95"
+                      className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm active:scale-95"
                       style={{
                         backgroundColor: 'var(--tgo-state-trust)',
                         color: 'var(--tgo-text-inverse)',
-                        border: '1px solid var(--tgo-state-trust)',
                       }}
                     >
-                      <Phone size={16} /> Llamar
+                      <Phone size={14} /> Llamar
                     </a>
                   )}
                   <button
                     onClick={onNavigate}
-                    className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold active:scale-95"
+                    className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm active:scale-95"
                     style={{
                       backgroundColor: 'transparent',
                       color: 'var(--tgo-state-trust)',
                       border: '1.5px solid var(--tgo-state-trust)',
                     }}
                   >
-                    <MapPinIcon size={16} /> Detalle
+                    Detalle
                   </button>
-                </>
+                </div>
               )}
             </div>
           </div>
