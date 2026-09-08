@@ -2,9 +2,8 @@
 
 // ── DiscoverCard ─────────────────────────────────────────────────────────────
 //
-// Card horizontal para secciones "Recomendados" de Descubrí.
-// Layout: logo izquierda + contenido derecha, badge status top-right.
-// Estilo similar a Farmacity/ON FIT del referente visual.
+// Card horizontal para "Recomendados" de Descubrí.
+// Ancha (320px) para que el texto respire sin scroll interno.
 
 import PuntoTGO from '@/components/tgo/PuntoTGO'
 import { Star, MapPin } from 'lucide-react'
@@ -55,15 +54,15 @@ export default function DiscoverCard({
       onClick={onClick}
       className="shrink-0 text-left active:scale-[0.97] transition-transform relative"
       style={{
-        width: 280,
-        height: 130,
-        padding: '16px',
+        width: 320,
+        padding: '14px 16px',
         borderRadius: 20,
         backgroundColor: 'var(--tgo-surface-1)',
         border: '1px solid var(--tgo-border)',
         display: 'flex',
-        alignItems: 'center',
-        gap: 16,
+        alignItems: 'flex-start',
+        gap: 14,
+        overflow: 'hidden',
       }}
     >
       {/* Status badge — top right */}
@@ -78,6 +77,7 @@ export default function DiscoverCard({
             borderRadius: 6,
             backgroundColor: 'var(--tgo-state-inactive-soft)',
             color: 'var(--tgo-state-inactive)',
+            zIndex: 2,
           }}
         >
           CERRADO
@@ -94,6 +94,7 @@ export default function DiscoverCard({
             borderRadius: 6,
             backgroundColor: 'var(--tgo-state-activity-soft)',
             color: 'var(--tgo-state-activity)',
+            zIndex: 2,
           }}
         >
           ABIERTO
@@ -110,6 +111,7 @@ export default function DiscoverCard({
             borderRadius: 6,
             backgroundColor: 'var(--tgo-state-reward-soft)',
             color: 'var(--tgo-state-reward)',
+            zIndex: 2,
           }}
         >
           PROMO
@@ -121,68 +123,44 @@ export default function DiscoverCard({
         <div
           className="flex items-center justify-center overflow-hidden"
           style={{
-            width: 70,
-            height: 70,
+            width: 72,
+            height: 72,
             borderRadius: 18,
             backgroundColor: logoUrl ? 'transparent' : placeholderColor,
             border: logoUrl ? '1px solid var(--tgo-border)' : 'none',
           }}
         >
           {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={name}
-              className="w-full h-full object-cover"
-            />
+            <img src={logoUrl} alt={name} className="w-full h-full object-cover" />
           ) : (
-            <span
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: 'var(--tgo-text-inverse)',
-              }}
-            >
+            <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--tgo-text-inverse)' }}>
               {initials}
             </span>
           )}
         </div>
 
-        {/* PuntoTGO badge */}
         {isNetwork && (
           <div
             className="absolute"
-            style={{
-              bottom: -3,
-              right: -5,
-              filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.2))',
-            }}
+            style={{ bottom: -3, right: -5, filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.2))' }}
           >
             <PuntoTGO expression={expression} size="xs" animate={false} />
           </div>
         )}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0 flex flex-col justify-center">
-        {/* Name */}
-        <p
-          className="font-bold text-base leading-snug truncate"
-          style={{ color: 'var(--tgo-text-primary)' }}
-        >
+      {/* Content — wraps naturally */}
+      <div className="flex-1 min-w-0 flex flex-col pr-6">
+        <p className="text-[15px] font-bold leading-snug" style={{ color: 'var(--tgo-text-primary)' }}>
           {name}
         </p>
 
-        {/* Category */}
         {cuisineType && cuisineType.length > 0 && (
-          <p
-            className="text-sm truncate mt-1"
-            style={{ color: 'var(--tgo-text-muted)' }}
-          >
+          <p className="text-sm mt-1" style={{ color: 'var(--tgo-text-muted)' }}>
             {cuisineType[0]}
           </p>
         )}
 
-        {/* Meta: rating + distance */}
         <div className="flex items-center gap-2 mt-1.5">
           {rating != null && rating > 0 && (
             <span className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: 'var(--tgo-text-primary)' }}>
