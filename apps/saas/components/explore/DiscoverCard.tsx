@@ -2,12 +2,12 @@
 
 // ── DiscoverCard ─────────────────────────────────────────────────────────────
 //
-// Card vertical para secciones "Recomendados" y "Hoy podés aprovechar" de Descubrí.
-// 132px ancho, avatar 52×52, PuntoTGO badge, tag de estado, info centrada.
-// TGO Foundations: tokens para todo, sin colores hardcodeados.
+// Card horizontal para secciones "Recomendados" de Descubrí.
+// Layout: logo izquierda + contenido derecha, badge status top-right.
+// Estilo similar a Farmacity/ON FIT del referente visual.
 
 import PuntoTGO from '@/components/tgo/PuntoTGO'
-import { Star } from 'lucide-react'
+import { Star, MapPin } from 'lucide-react'
 
 interface Props {
   name: string
@@ -47,31 +47,85 @@ export default function DiscoverCard({
 }: Props) {
   const initials = getInitials(name)
   const hasPromo = promoLabel && promoLabel.length > 0
+  const isOpen = isOpenNow === true
+  const isClosed = isOpenNow === false
 
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center shrink-0 active:scale-[0.97] transition-transform"
+      className="shrink-0 text-left active:scale-[0.97] transition-transform relative"
       style={{
-        width: 132,
-        height: 164,
-        padding: '14px 12px',
+        width: 220,
+        height: 100,
+        padding: '12px 14px',
         borderRadius: 18,
-        backgroundColor: 'var(--tgo-surface-2)',
+        backgroundColor: 'var(--tgo-surface-1)',
         border: '1px solid var(--tgo-border)',
-        justifyContent: 'space-between',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
       }}
     >
-      {/* Avatar container */}
-      <div className="relative mb-2">
-        {/* Avatar */}
+      {/* Status badge — top right */}
+      {isClosed && (
+        <span
+          className="absolute top-2 right-2 px-1.5 py-0.5"
+          style={{
+            fontSize: 8,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            borderRadius: 4,
+            backgroundColor: 'var(--tgo-state-inactive-soft)',
+            color: 'var(--tgo-state-inactive)',
+          }}
+        >
+          CERRADO
+        </span>
+      )}
+      {isOpen && !hasPromo && (
+        <span
+          className="absolute top-2 right-2 px-1.5 py-0.5"
+          style={{
+            fontSize: 8,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            borderRadius: 4,
+            backgroundColor: 'var(--tgo-state-activity-soft)',
+            color: 'var(--tgo-state-activity)',
+          }}
+        >
+          ABIERTO
+        </span>
+      )}
+      {hasPromo && (
+        <span
+          className="absolute top-2 right-2 px-1.5 py-0.5"
+          style={{
+            fontSize: 8,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            borderRadius: 4,
+            backgroundColor: 'var(--tgo-state-reward-soft)',
+            color: 'var(--tgo-state-reward)',
+          }}
+        >
+          PROMO
+        </span>
+      )}
+
+      {/* Logo */}
+      <div className="relative shrink-0">
         <div
           className="flex items-center justify-center overflow-hidden"
           style={{
-            width: 52,
-            height: 52,
+            width: 56,
+            height: 56,
             borderRadius: 14,
-            backgroundColor: placeholderColor,
+            backgroundColor: logoUrl ? 'transparent' : placeholderColor,
+            border: logoUrl ? '1px solid var(--tgo-border)' : 'none',
           }}
         >
           {logoUrl ? (
@@ -98,8 +152,8 @@ export default function DiscoverCard({
           <div
             className="absolute"
             style={{
-              bottom: -4,
-              right: -6,
+              bottom: -3,
+              right: -5,
               filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.2))',
             }}
           >
@@ -108,85 +162,42 @@ export default function DiscoverCard({
         )}
       </div>
 
-      {/* Tag */}
-      {hasPromo ? (
-        <span
-          className="mb-1.5"
-          style={{
-            padding: '2px 8px',
-            borderRadius: 'var(--tgo-radius-pill)',
-            fontSize: 9,
-            fontWeight: 700,
-            backgroundColor: 'var(--tgo-state-discovery-soft)',
-            color: 'var(--tgo-state-discovery)',
-          }}
-        >
-          {promoLabel}
-        </span>
-      ) : isOpenNow ? (
-        <span
-          className="mb-1.5"
-          style={{
-            padding: '2px 8px',
-            borderRadius: 'var(--tgo-radius-pill)',
-            fontSize: 9,
-            fontWeight: 700,
-            backgroundColor: 'var(--tgo-state-activity-soft)',
-            color: 'var(--tgo-state-activity)',
-          }}
-        >
-          ABIERTO
-        </span>
-      ) : (
-        <div className="mb-1.5" />
-      )}
-
-      {/* Name */}
-      <p
-        className="text-center truncate w-full"
-        style={{
-          fontSize: 13,
-          fontWeight: 700,
-          color: 'var(--tgo-text-primary)',
-          lineHeight: 1.2,
-        }}
-      >
-        {name}
-      </p>
-
-      {/* Category + stars */}
-      <div
-        className="flex items-center gap-1 mt-0.5"
-        style={{
-          fontSize: 10,
-          color: 'var(--tgo-text-muted)',
-        }}
-      >
-        {cuisineType && cuisineType.length > 0 && (
-          <span>{cuisineType[0]}</span>
-        )}
-        {rating != null && rating > 0 && (
-          <>
-            <span>·</span>
-            <Star size={9} fill="var(--tgo-state-warning)" stroke="none" />
-            <span>{rating.toFixed(1)}</span>
-          </>
-        )}
-      </div>
-
-      {/* Distance */}
-      {distanceLabel && (
+      {/* Content */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        {/* Name */}
         <p
-          className="mt-0.5"
-          style={{
-            fontSize: 10,
-            fontWeight: 500,
-            color: 'var(--tgo-text-muted)',
-          }}
+          className="font-bold text-[14px] leading-tight truncate"
+          style={{ color: 'var(--tgo-text-primary)' }}
         >
-          {distanceLabel}
+          {name}
         </p>
-      )}
+
+        {/* Category */}
+        {cuisineType && cuisineType.length > 0 && (
+          <p
+            className="text-[11px] truncate mt-0.5"
+            style={{ color: 'var(--tgo-text-muted)' }}
+          >
+            {cuisineType[0]}
+          </p>
+        )}
+
+        {/* Meta: rating + distance */}
+        <div className="flex items-center gap-1.5 mt-1">
+          {rating != null && rating > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold" style={{ color: 'var(--tgo-text-primary)' }}>
+              <Star size={10} fill="var(--tgo-state-discovery)" stroke="var(--tgo-state-discovery)" />
+              {rating.toFixed(1)}
+            </span>
+          )}
+          {distanceLabel && (
+            <span className="inline-flex items-center gap-0.5 text-[11px]" style={{ color: 'var(--tgo-text-muted)' }}>
+              <MapPin size={9} />
+              {distanceLabel}
+            </span>
+          )}
+        </div>
+      </div>
     </button>
   )
 }
