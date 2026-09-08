@@ -166,7 +166,7 @@ export default function DiscoverCard({
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         {/* Name */}
         <p
-          className="font-bold text-base leading-snug truncate"
+          className="font-bold text-base leading-snug line-clamp-2"
           style={{ color: 'var(--tgo-text-primary)' }}
         >
           {name}
@@ -175,7 +175,7 @@ export default function DiscoverCard({
         {/* Category */}
         {cuisineType && cuisineType.length > 0 && (
           <p
-            className="text-sm truncate mt-1"
+            className="text-sm line-clamp-1 mt-1"
             style={{ color: 'var(--tgo-text-muted)' }}
           >
             {cuisineType[0]}
