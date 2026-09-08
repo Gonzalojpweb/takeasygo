@@ -3,7 +3,7 @@
 // ── ExplorePromoCard ─────────────────────────────────────────────────────────
 //
 // Card horizontal para "Hoy podés aprovechar".
-// Layout: imagen promo izquierda + contenido derecha con aire suficiente.
+// Ancha (320px) para que el texto respire sin scroll interno.
 
 import PuntoTGO from '@/components/tgo/PuntoTGO'
 import { useHaptic } from '@/components/tgo/useHaptic'
@@ -79,15 +79,15 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
       onClick={() => { haptic.impact('light'); onClick?.() }}
       className="shrink-0 text-left active:scale-[0.97] transition-transform relative"
       style={{
-        width: 280,
-        height: 130,
-        padding: '16px',
+        width: 320,
+        padding: '14px 16px',
         borderRadius: 20,
         backgroundColor: 'var(--tgo-surface-1)',
         border: '1px solid var(--tgo-border)',
         display: 'flex',
-        alignItems: 'center',
-        gap: 16,
+        alignItems: 'flex-start',
+        gap: 14,
+        overflow: 'hidden',
       }}
     >
       {/* Type badge — top right */}
@@ -101,6 +101,7 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
           borderRadius: 6,
           backgroundColor: typeColor,
           color: '#FFFFFF',
+          zIndex: 2,
         }}
       >
         {typeLabel}
@@ -113,7 +114,7 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
           style={{
             width: 80,
             height: 80,
-            borderRadius: 16,
+            borderRadius: 14,
             backgroundColor: `${typeColor}12`,
             border: '1px solid var(--tgo-border)',
           }}
@@ -142,56 +143,34 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0 flex flex-col justify-center pr-10">
-        {/* Tenant name */}
+      {/* Content — wraps naturally, plenty of room */}
+      <div className="flex-1 min-w-0 flex flex-col pr-6">
         {promo.tenantName && (
-          <p
-            className="text-xs truncate mb-0.5"
-            style={{ color: 'var(--tgo-text-muted)' }}
-          >
+          <p className="text-xs mb-0.5" style={{ color: 'var(--tgo-text-muted)' }}>
             {promo.tenantName}
           </p>
         )}
 
-        {/* Title */}
-        <p
-          className="text-base font-bold leading-snug"
-          style={{ color: 'var(--tgo-text-primary)' }}
-        >
+        <p className="text-[15px] font-bold leading-snug" style={{ color: 'var(--tgo-text-primary)' }}>
           {promo.title}
         </p>
 
-        {/* Short description */}
         {promo.shortDescription && (
-          <p
-            className="text-xs truncate mt-1"
-            style={{ color: 'var(--tgo-text-muted)' }}
-          >
+          <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--tgo-text-muted)' }}>
             {promo.shortDescription}
           </p>
         )}
 
-        {/* Price + discount */}
         {hasDiscount && (
-          <div className="flex items-center gap-2 mt-1.5">
-            <span
-              className="text-sm font-bold"
-              style={{ color: 'var(--tgo-state-reward)' }}
-            >
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <span className="text-sm font-bold" style={{ color: 'var(--tgo-state-reward)' }}>
               {formatPrice(promo.price, promo.currency)}
             </span>
-            <span
-              className="text-xs line-through"
-              style={{ color: 'var(--tgo-text-muted)' }}
-            >
+            <span className="text-xs line-through" style={{ color: 'var(--tgo-text-muted)' }}>
               {formatPrice(promo.originalPrice, promo.currency)}
             </span>
             {discountPercent > 0 && (
-              <span
-                className="text-xs font-bold"
-                style={{ color: 'var(--tgo-state-reward)' }}
-              >
+              <span className="text-xs font-bold" style={{ color: 'var(--tgo-state-reward)' }}>
                 -{discountPercent}%
               </span>
             )}
