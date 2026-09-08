@@ -2,8 +2,9 @@
 
 // ── ExplorePromoCard ─────────────────────────────────────────────────────────
 //
-// Card horizontal para mostrar una promoción real en "Hoy podés aprovechar".
-// Muestra: imagen de la promo, título, descripción, precio con descuento, restaurante.
+// Card horizontal compacta para "Hoy podés aprovechar".
+// Mismo estilo que DiscoverCard pero más chica.
+// Layout: logo izquierda + contenido derecha.
 
 import PuntoTGO from '@/components/tgo/PuntoTGO'
 import { useHaptic } from '@/components/tgo/useHaptic'
@@ -77,26 +78,45 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
   return (
     <button
       onClick={() => { haptic.impact('light'); onClick?.() }}
-      className="shrink-0 text-left active:scale-[0.97] transition-transform flex flex-col items-center"
+      className="shrink-0 text-left active:scale-[0.97] transition-transform relative"
       style={{
-        width: 132,
-        height: 164,
-        padding: '14px 12px',
-        borderRadius: 18,
-        backgroundColor: 'var(--tgo-surface-2)',
+        width: 190,
+        height: 90,
+        padding: '10px 12px',
+        borderRadius: 16,
+        backgroundColor: 'var(--tgo-surface-1)',
         border: '1px solid var(--tgo-border)',
-        justifyContent: 'space-between',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
       }}
     >
-      {/* Image / Avatar */}
-      <div className="relative mb-2">
+      {/* Type badge — top right */}
+      <span
+        className="absolute top-2 right-2 px-1.5 py-0.5"
+        style={{
+          fontSize: 7,
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
+          borderRadius: 4,
+          backgroundColor: typeColor,
+          color: '#FFFFFF',
+        }}
+      >
+        {typeLabel}
+      </span>
+
+      {/* Logo / Image */}
+      <div className="relative shrink-0">
         <div
           className="relative overflow-hidden"
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: 14,
+            width: 48,
+            height: 48,
+            borderRadius: 12,
             backgroundColor: `${typeColor}15`,
+            border: promo.tenantLogo ? '1px solid var(--tgo-border)' : 'none',
           }}
         >
           {promo.imageUrl ? (
@@ -107,101 +127,76 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
               className="object-cover"
               unoptimized
             />
+          ) : promo.tenantLogo ? (
+            <Image
+              src={promo.tenantLogo}
+              alt={promo.tenantName || ''}
+              fill
+              className="object-cover"
+              unoptimized
+            />
           ) : (
             <div className="flex items-center justify-center w-full h-full">
-              <PuntoTGO expression="wink" size="sm" />
+              <PuntoTGO expression="wink" size="xs" animate={false} />
             </div>
           )}
-        </div>
-
-        {/* Type badge */}
-        <div
-          className="absolute -bottom-1 -right-1 px-1 py-0"
-          style={{
-            borderRadius: 'var(--tgo-radius-pill)',
-            backgroundColor: typeColor,
-            color: '#FFFFFF',
-            fontSize: 7,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.03em',
-            lineHeight: '14px',
-          }}
-        >
-          {typeLabel}
         </div>
       </div>
 
-      {/* Content — centered like DiscoverCard */}
-      <div className="flex flex-col items-center text-center w-full">
+      {/* Content */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
         {/* Tenant name */}
-        <div className="flex items-center gap-1 mb-0.5">
-          {promo.tenantLogo && (
-            <div
-              className="relative shrink-0"
-              style={{ width: 10, height: 10, borderRadius: '50%', overflow: 'hidden' }}
-            >
-              <Image
-                src={promo.tenantLogo}
-                alt=""
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            </div>
-          )}
-          <span
-            className="text-[8px] font-semibold truncate max-w-[90px]"
+        {promo.tenantName && (
+          <p
+            className="text-[10px] truncate"
             style={{ color: 'var(--tgo-text-muted)' }}
           >
             {promo.tenantName}
-          </span>
-        </div>
+          </p>
+        )}
 
         {/* Title */}
         <p
-          className="text-[11px] font-bold truncate max-w-[110px]"
+          className="text-[13px] font-bold leading-tight truncate"
           style={{ color: 'var(--tgo-text-primary)' }}
         >
           {promo.title}
         </p>
 
-        {/* Short description */}
-        {promo.shortDescription && (
-          <p
-            className="text-[9px] truncate max-w-[110px] mt-0.5"
-            style={{ color: 'var(--tgo-text-muted)' }}
-          >
-            {promo.shortDescription}
-          </p>
-        )}
-
-        {/* Price */}
+        {/* Price + discount */}
         {hasDiscount && (
-          <div className="flex items-center gap-1 mt-1">
+          <div className="flex items-center gap-1.5 mt-1">
             <span
-              className="text-[11px] font-bold"
+              className="text-[12px] font-bold"
               style={{ color: 'var(--tgo-state-reward)' }}
             >
               {formatPrice(promo.price, promo.currency)}
             </span>
             <span
-              className="text-[8px] line-through"
+              className="text-[9px] line-through"
               style={{ color: 'var(--tgo-text-muted)' }}
             >
               {formatPrice(promo.originalPrice, promo.currency)}
             </span>
+            {discountPercent > 0 && (
+              <span
+                className="text-[9px] font-bold"
+                style={{ color: 'var(--tgo-state-reward)' }}
+              >
+                -{discountPercent}%
+              </span>
+            )}
           </div>
         )}
 
-        {/* Discount badge */}
-        {discountPercent > 0 && (
-          <span
-            className="text-[8px] font-bold mt-0.5"
-            style={{ color: 'var(--tgo-state-reward)' }}
+        {/* Short description fallback */}
+        {!hasDiscount && promo.shortDescription && (
+          <p
+            className="text-[10px] truncate mt-0.5"
+            style={{ color: 'var(--tgo-text-muted)' }}
           >
-            -{discountPercent}%
-          </span>
+            {promo.shortDescription}
+          </p>
         )}
       </div>
     </button>
