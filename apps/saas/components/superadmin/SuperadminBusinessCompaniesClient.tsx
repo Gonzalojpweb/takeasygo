@@ -172,12 +172,13 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       })
-      if (!res.ok) throw new Error()
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Error al cambiar estado')
       setCompanies(prev => prev.map(c => c._id === company._id ? { ...c, status: newStatus } : c))
       toast.success(newStatus === 'active' ? 'Empresa reactivada' : 'Empresa suspendida')
       router.refresh()
-    } catch {
-      toast.error('Error al cambiar estado')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al cambiar estado')
     }
   }
 
@@ -288,12 +289,13 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
       const res = await fetch(`/api/superadmin/business/companies/${company._id}`, {
         method: 'DELETE',
       })
-      if (!res.ok) throw new Error()
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Error al eliminar empresa')
       setCompanies(prev => prev.filter(c => c._id !== company._id))
       toast.success('Empresa eliminada')
       router.refresh()
-    } catch {
-      toast.error('Error al eliminar empresa')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar empresa')
     }
   }
 
