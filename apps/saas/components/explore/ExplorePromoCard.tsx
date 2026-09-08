@@ -2,10 +2,9 @@
 
 // ── ExplorePromoCard ─────────────────────────────────────────────────────────
 //
-// Card horizontal para "Hoy podés aprovechar".
-// Ancha (320px) para que el texto respire sin scroll interno.
+// Card full-width para "Hoy podés aprovechar".
+// Tamaño fijo consistente — todas las cards miden igual.
 
-import PuntoTGO from '@/components/tgo/PuntoTGO'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import Image from 'next/image'
 
@@ -77,104 +76,121 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
   return (
     <button
       onClick={() => { haptic.impact('light'); onClick?.() }}
-      className="shrink-0 text-left active:scale-[0.97] transition-transform relative"
+      className="text-left active:scale-[0.98] transition-transform relative w-full overflow-hidden"
       style={{
-        width: 320,
-        padding: '14px 16px',
+        height: 140,
         borderRadius: 20,
-        backgroundColor: 'var(--tgo-surface-1)',
-        border: '1px solid var(--tgo-border)',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 14,
-        overflow: 'hidden',
+        backgroundColor: 'var(--tgo-ink)',
+        position: 'relative',
       }}
     >
-      {/* Type badge — top right */}
-      <span
-        className="absolute top-3 right-3 px-2 py-1"
+      {/* Promo image — overlapping from top */}
+      <div
+        className="absolute"
         style={{
+          top: -12,
+          left: 16,
+          width: 64,
+          height: 64,
+          borderRadius: 14,
+          overflow: 'hidden',
+          border: '3px solid var(--tgo-ink)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          zIndex: 2,
+        }}
+      >
+        {promo.imageUrl ? (
+          <Image
+            src={promo.imageUrl}
+            alt={promo.title}
+            fill
+            className="object-cover"
+            unoptimized
+          />
+        ) : (
+          <div className="w-full h-full" style={{ backgroundColor: 'var(--tgo-surface-2)' }} />
+        )}
+      </div>
+
+      {/* Badge — top right */}
+      <span
+        className="absolute"
+        style={{
+          top: 10,
+          right: 16,
+          padding: '3px 8px',
           fontSize: 9,
           fontWeight: 700,
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
-          borderRadius: 6,
-          backgroundColor: typeColor,
-          color: '#FFFFFF',
+          borderRadius: 5,
+          backgroundColor: '#FFFFFF',
+          color: 'var(--tgo-ink)',
           zIndex: 2,
         }}
       >
         {typeLabel}
       </span>
 
-      {/* Promo Image */}
-      <div className="relative shrink-0">
-        <div
-          className="relative overflow-hidden"
-          style={{
-            width: 80,
-            height: 80,
-            borderRadius: 14,
-            backgroundColor: `${typeColor}12`,
-            border: '1px solid var(--tgo-border)',
-          }}
-        >
-          {promo.imageUrl ? (
-            <Image
-              src={promo.imageUrl}
-              alt={promo.title}
-              fill
-              className="object-cover"
-              unoptimized
-            />
-          ) : promo.tenantLogo ? (
-            <Image
-              src={promo.tenantLogo}
-              alt={promo.tenantName || ''}
-              fill
-              className="object-cover"
-              unoptimized
-            />
-          ) : (
-            <div className="flex items-center justify-center w-full h-full">
-              <PuntoTGO expression="wink" size="sm" animate={false} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Content — wraps naturally, plenty of room */}
-      <div className="flex-1 min-w-0 flex flex-col pr-6">
+      {/* Content */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 12,
+          left: 96,
+          right: 16,
+          bottom: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+        }}
+      >
+        {/* Tenant */}
         {promo.tenantName && (
-          <p className="text-xs mb-0.5" style={{ color: 'var(--tgo-text-muted)' }}>
+          <p
+            className="text-xs truncate"
+            style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 2 }}
+          >
             {promo.tenantName}
           </p>
         )}
 
-        <p className="text-[15px] font-bold leading-snug" style={{ color: 'var(--tgo-text-primary)' }}>
+        {/* Title — max 2 lines */}
+        <p
+          className="font-bold text-[15px] leading-snug"
+          style={{
+            color: '#FFFFFF',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
           {promo.title}
         </p>
 
-        {promo.shortDescription && (
-          <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--tgo-text-muted)' }}>
-            {promo.shortDescription}
-          </p>
-        )}
-
+        {/* Price row */}
         {hasDiscount && (
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <span className="text-sm font-bold" style={{ color: 'var(--tgo-state-reward)' }}>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="text-sm font-bold" style={{ color: typeColor }}>
               {formatPrice(promo.price, promo.currency)}
             </span>
-            <span className="text-xs line-through" style={{ color: 'var(--tgo-text-muted)' }}>
+            <span className="text-xs line-through" style={{ color: 'rgba(255,255,255,0.35)' }}>
               {formatPrice(promo.originalPrice, promo.currency)}
             </span>
             {discountPercent > 0 && (
-              <span className="text-xs font-bold" style={{ color: 'var(--tgo-state-reward)' }}>
+              <span className="text-xs font-bold" style={{ color: typeColor }}>
                 -{discountPercent}%
               </span>
             )}
           </div>
+        )}
+
+        {/* Conditions */}
+        {promo.conditions && !hasDiscount && (
+          <p className="text-xs mt-1 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            {promo.conditions}
+          </p>
         )}
       </div>
     </button>
