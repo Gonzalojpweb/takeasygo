@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Eye, EyeOff } from 'lucide-react'
 import { toPesos } from '@takeasygo/business'
 import { cn } from '@/lib/utils'
+import posthog from 'posthog-js'
 
 interface KPIsMesProps {
   tenantSlug: string
@@ -31,6 +32,7 @@ export default function KPIsMes({ tenantSlug, data: prefetchedData }: KPIsMesPro
   const [data, setData] = useState<KPIsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [revenueHidden, setRevenueHidden] = useState(true)
 
   useEffect(() => {
     if (prefetchedData) {
@@ -99,7 +101,25 @@ export default function KPIsMes({ tenantSlug, data: prefetchedData }: KPIsMesPro
       <Card className="bg-card border-2 border-border/60 shadow-lg rounded-2xl overflow-hidden group hover:shadow-2xl hover:border-primary/30 transition-all duration-500">
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground mb-1">Ingresos del mes</p>
-          <p className="text-xl font-bold text-foreground tabular-nums">{fmtPesos(data.revenue)}</p>
+          <div className="flex items-center gap-1.5">
+            <p className={cn(
+              'text-xl font-bold text-foreground tabular-nums',
+              revenueHidden && 'blur-md select-none'
+            )}>
+              {fmtPesos(data.revenue)}
+            </p>
+            <button
+              onClick={() => {
+                const next = !revenueHidden
+                setRevenueHidden(next)
+                posthog.capture('superadmin.revenue_toggled', { tenantSlug, visible: next })
+              }}
+              className="text-muted-foreground/30 hover:text-muted-foreground transition-colors shrink-0"
+              title={revenueHidden ? 'Mostrar' : 'Ocultar'}
+            >
+              {revenueHidden ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
           <div className="flex items-center gap-1.5 mt-1.5">
             <span
               className={cn(
@@ -108,7 +128,8 @@ export default function KPIsMes({ tenantSlug, data: prefetchedData }: KPIsMesPro
                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                   : growthNum < 0
                     ? 'bg-destructive/10 text-destructive border-destructive/20'
-                    : 'bg-muted text-muted-foreground border-border/40'
+                    : 'bg-muted text-muted-foreground border-border/40',
+                revenueHidden && 'blur-md select-none'
               )}
             >
               {isGrowthPositive ? '↑' : growthNum < 0 ? '↓' : ''}

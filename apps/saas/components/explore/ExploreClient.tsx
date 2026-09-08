@@ -357,7 +357,7 @@ function ExploreClientInner() {
         const res = await fetch(`/api/explore/promotions?lat=${coords.lat}&lng=${coords.lng}`)
         if (!res.ok) return
         const data = await res.json()
-        setPromotions(data.promotions ?? [])
+        setPromotions((data.promotions ?? []).map((p: any) => ({ ...p, id: p.id ?? p._id })))
       } catch {}
     }
     fetchPromos()
@@ -537,7 +537,7 @@ function ExploreClientInner() {
               setSearchQuery={setSearchQuery}
             />
             <div className="flex-1 overflow-y-auto pb-28" style={{ backgroundColor: 'var(--tgo-surface-0)' }}>
-            {filtered.length === 0 ? (
+            {filtered.length === 0 && (
                 <EmptyState
                   icon={<span style={{ fontSize: 28 }}>📍</span>}
                   title={activeFilters.size > 0 ? 'Sin resultados' : 'Sin restaurantes en este radio'}
@@ -560,7 +560,7 @@ function ExploreClientInner() {
                       : undefined
                   }
                 />
-              ) : (
+              )}
                 <div className="space-y-6 pt-2">
                   {/* ── Categorías (grid de cocinas) ── */}
                   {allCuisines.length > 0 && (
@@ -631,7 +631,6 @@ function ExploreClientInner() {
                     </Section>
                   )}
                 </div>
-              )}
             </div>
           </div>
           )}
