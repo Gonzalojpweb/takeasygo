@@ -326,14 +326,14 @@ function BottomSheet({ r, onClose, onNavigate }: {
                 ) : (
                   <button
                     onClick={onNavigate}
-                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
+                    className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-white font-bold text-sm active:scale-95 transition-transform"
                     style={{
                       backgroundColor: 'var(--tgo-state-action)',
                       boxShadow: '0 4px 16px var(--tgo-state-action-soft)',
                     }}
                   >
-                    <ShoppingBag size={16} /> Ver menú y pedir
-                    <span className="ml-auto text-white/60">›</span>
+                    <ShoppingBag size={16} />
+                    <span>Ver menú y pedir</span>
                   </button>
                 )
               ) : (

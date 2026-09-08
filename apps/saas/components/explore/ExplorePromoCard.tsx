@@ -80,22 +80,22 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
       onClick={() => { haptic.impact('light'); onClick?.() }}
       className="shrink-0 text-left active:scale-[0.97] transition-transform relative"
       style={{
-        width: 190,
-        height: 90,
-        padding: '10px 12px',
+        width: 210,
+        height: 100,
+        padding: '12px 14px',
         borderRadius: 16,
         backgroundColor: 'var(--tgo-surface-1)',
         border: '1px solid var(--tgo-border)',
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
+        gap: 12,
       }}
     >
       {/* Type badge — top right */}
       <span
-        className="absolute top-2 right-2 px-1.5 py-0.5"
+        className="absolute top-2.5 right-3 px-2 py-0.5"
         style={{
-          fontSize: 7,
+          fontSize: 8,
           fontWeight: 700,
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
@@ -112,9 +112,9 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
         <div
           className="relative overflow-hidden"
           style={{
-            width: 48,
-            height: 48,
-            borderRadius: 12,
+            width: 52,
+            height: 52,
+            borderRadius: 14,
             backgroundColor: `${typeColor}15`,
             border: promo.tenantLogo ? '1px solid var(--tgo-border)' : 'none',
           }}
@@ -148,7 +148,7 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
         {/* Tenant name */}
         {promo.tenantName && (
           <p
-            className="text-[10px] truncate"
+            className="text-[11px] truncate"
             style={{ color: 'var(--tgo-text-muted)' }}
           >
             {promo.tenantName}
@@ -157,7 +157,7 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
 
         {/* Title */}
         <p
-          className="text-[13px] font-bold leading-tight truncate"
+          className="text-[14px] font-bold leading-tight truncate"
           style={{ color: 'var(--tgo-text-primary)' }}
         >
           {promo.title}
@@ -167,20 +167,20 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
         {hasDiscount && (
           <div className="flex items-center gap-1.5 mt-1">
             <span
-              className="text-[12px] font-bold"
+              className="text-[13px] font-bold"
               style={{ color: 'var(--tgo-state-reward)' }}
             >
               {formatPrice(promo.price, promo.currency)}
             </span>
             <span
-              className="text-[9px] line-through"
+              className="text-[10px] line-through"
               style={{ color: 'var(--tgo-text-muted)' }}
             >
               {formatPrice(promo.originalPrice, promo.currency)}
             </span>
             {discountPercent > 0 && (
               <span
-                className="text-[9px] font-bold"
+                className="text-[10px] font-bold"
                 style={{ color: 'var(--tgo-state-reward)' }}
               >
                 -{discountPercent}%
@@ -192,7 +192,7 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
         {/* Short description fallback */}
         {!hasDiscount && promo.shortDescription && (
           <p
-            className="text-[10px] truncate mt-0.5"
+            className="text-[11px] truncate mt-0.5"
             style={{ color: 'var(--tgo-text-muted)' }}
           >
             {promo.shortDescription}
