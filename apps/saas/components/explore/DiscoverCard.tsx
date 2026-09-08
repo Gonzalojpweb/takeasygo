@@ -55,23 +55,23 @@ export default function DiscoverCard({
       onClick={onClick}
       className="shrink-0 text-left active:scale-[0.97] transition-transform relative"
       style={{
-        width: 220,
-        height: 100,
-        padding: '12px 14px',
+        width: 240,
+        height: 110,
+        padding: '14px 16px',
         borderRadius: 18,
         backgroundColor: 'var(--tgo-surface-1)',
         border: '1px solid var(--tgo-border)',
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 14,
       }}
     >
       {/* Status badge — top right */}
       {isClosed && (
         <span
-          className="absolute top-2 right-2 px-1.5 py-0.5"
+          className="absolute top-2.5 right-3 px-2 py-0.5"
           style={{
-            fontSize: 8,
+            fontSize: 9,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
@@ -85,9 +85,9 @@ export default function DiscoverCard({
       )}
       {isOpen && !hasPromo && (
         <span
-          className="absolute top-2 right-2 px-1.5 py-0.5"
+          className="absolute top-2.5 right-3 px-2 py-0.5"
           style={{
-            fontSize: 8,
+            fontSize: 9,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
@@ -101,9 +101,9 @@ export default function DiscoverCard({
       )}
       {hasPromo && (
         <span
-          className="absolute top-2 right-2 px-1.5 py-0.5"
+          className="absolute top-2.5 right-3 px-2 py-0.5"
           style={{
-            fontSize: 8,
+            fontSize: 9,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
@@ -121,9 +121,9 @@ export default function DiscoverCard({
         <div
           className="flex items-center justify-center overflow-hidden"
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 14,
+            width: 60,
+            height: 60,
+            borderRadius: 16,
             backgroundColor: logoUrl ? 'transparent' : placeholderColor,
             border: logoUrl ? '1px solid var(--tgo-border)' : 'none',
           }}
@@ -166,7 +166,7 @@ export default function DiscoverCard({
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         {/* Name */}
         <p
-          className="font-bold text-[14px] leading-tight truncate"
+          className="font-bold text-[15px] leading-tight truncate"
           style={{ color: 'var(--tgo-text-primary)' }}
         >
           {name}
@@ -175,7 +175,7 @@ export default function DiscoverCard({
         {/* Category */}
         {cuisineType && cuisineType.length > 0 && (
           <p
-            className="text-[11px] truncate mt-0.5"
+            className="text-[12px] truncate mt-0.5"
             style={{ color: 'var(--tgo-text-muted)' }}
           >
             {cuisineType[0]}
@@ -183,16 +183,16 @@ export default function DiscoverCard({
         )}
 
         {/* Meta: rating + distance */}
-        <div className="flex items-center gap-1.5 mt-1">
+        <div className="flex items-center gap-1.5 mt-1.5">
           {rating != null && rating > 0 && (
-            <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold" style={{ color: 'var(--tgo-text-primary)' }}>
-              <Star size={10} fill="var(--tgo-state-discovery)" stroke="var(--tgo-state-discovery)" />
+            <span className="inline-flex items-center gap-0.5 text-[12px] font-semibold" style={{ color: 'var(--tgo-text-primary)' }}>
+              <Star size={11} fill="var(--tgo-state-discovery)" stroke="var(--tgo-state-discovery)" />
               {rating.toFixed(1)}
             </span>
           )}
           {distanceLabel && (
-            <span className="inline-flex items-center gap-0.5 text-[11px]" style={{ color: 'var(--tgo-text-muted)' }}>
-              <MapPin size={9} />
+            <span className="inline-flex items-center gap-0.5 text-[12px]" style={{ color: 'var(--tgo-text-muted)' }}>
+              <MapPin size={10} />
               {distanceLabel}
             </span>
           )}

@@ -305,10 +305,10 @@ html.lenis body {
 
   /* ── Surface Layer (Superficies y Elevaciones) ───────────────────── */
   /* Doc 01 target: --tgo-bg | Legacy: --tgo-surface-0 */
-  --tgo-bg: #E7E2E3;
+  --tgo-bg: #faf9f9;
   --tgo-surface-1: #ECEAE9;
   --tgo-surface-2: #FFFFFF;
-  --tgo-surface-3: #E7E2E3;
+  --tgo-surface-3: #faf9f9;
 
   /* Backwards-compatible alias (deprecated — use --tgo-bg instead) */
   --tgo-surface-0: var(--tgo-bg);
