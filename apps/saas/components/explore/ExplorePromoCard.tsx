@@ -143,11 +143,11 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 flex flex-col justify-center pr-10">
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
         {/* Tenant name */}
         {promo.tenantName && (
           <p
-            className="text-xs truncate mb-0.5"
+            className="text-xs line-clamp-1 mb-0.5"
             style={{ color: 'var(--tgo-text-muted)' }}
           >
             {promo.tenantName}
@@ -156,7 +156,7 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
 
         {/* Title */}
         <p
-          className="text-base font-bold leading-snug"
+          className="text-base font-bold leading-snug line-clamp-2"
           style={{ color: 'var(--tgo-text-primary)' }}
         >
           {promo.title}
@@ -165,7 +165,7 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
         {/* Short description */}
         {promo.shortDescription && (
           <p
-            className="text-xs truncate mt-1"
+            className="text-xs line-clamp-1 mt-1"
             style={{ color: 'var(--tgo-text-muted)' }}
           >
             {promo.shortDescription}
