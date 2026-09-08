@@ -172,12 +172,13 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       })
-      if (!res.ok) throw new Error()
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Error al cambiar estado')
       setCompanies(prev => prev.map(c => c._id === company._id ? { ...c, status: newStatus } : c))
       toast.success(newStatus === 'active' ? 'Empresa reactivada' : 'Empresa suspendida')
       router.refresh()
-    } catch {
-      toast.error('Error al cambiar estado')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al cambiar estado')
     }
   }
 
@@ -285,15 +286,16 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
   async function handleDelete(company: Company) {
     if (!confirm(`¿Eliminar permanentemente "${company.companyName}"?\nEsta acción no se puede deshacer.`)) return
     try {
-      const res = await fetch(`/api/superadmin/business/companies/${company._id}`, {
+      const res = await fetch(`/api/superadmin/business/companies/${company._id}?email=${encodeURIComponent(company.companyAdminEmail)}`, {
         method: 'DELETE',
       })
-      if (!res.ok) throw new Error()
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok && res.status !== 404) throw new Error(data.error || 'Error al eliminar empresa')
       setCompanies(prev => prev.filter(c => c._id !== company._id))
-      toast.success('Empresa eliminada')
+      toast.success(res.status === 404 ? 'Registro fantasma limpiado' : 'Empresa eliminada')
       router.refresh()
-    } catch {
-      toast.error('Error al eliminar empresa')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar empresa')
     }
   }
 

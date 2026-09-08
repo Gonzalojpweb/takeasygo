@@ -197,14 +197,12 @@ export default function GlobalPromotionsPage() {
     if (!confirm('¿Estás seguro de eliminar esta promoción global?')) return
     try {
       const res = await fetch(`/api/superadmin/promotions/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        toast.success('Promoción eliminada')
-        setPromotions(prev => prev.filter(p => p._id !== id))
-      } else {
-        toast.error('Error al eliminar')
-      }
-    } catch {
-      toast.error('Error de red')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Error al eliminar')
+      toast.success('Promoción eliminada')
+      setPromotions(prev => prev.filter(p => p._id !== id))
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar')
     }
   }
 
