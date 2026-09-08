@@ -286,13 +286,13 @@ export default function SuperadminBusinessCompaniesClient({ companies: initial, 
   async function handleDelete(company: Company) {
     if (!confirm(`¿Eliminar permanentemente "${company.companyName}"?\nEsta acción no se puede deshacer.`)) return
     try {
-      const res = await fetch(`/api/superadmin/business/companies/${company._id}`, {
+      const res = await fetch(`/api/superadmin/business/companies/${company._id}?email=${encodeURIComponent(company.companyAdminEmail)}`, {
         method: 'DELETE',
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Error al eliminar empresa')
+      if (!res.ok && res.status !== 404) throw new Error(data.error || 'Error al eliminar empresa')
       setCompanies(prev => prev.filter(c => c._id !== company._id))
-      toast.success('Empresa eliminada')
+      toast.success(res.status === 404 ? 'Registro fantasma limpiado' : 'Empresa eliminada')
       router.refresh()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar empresa')
