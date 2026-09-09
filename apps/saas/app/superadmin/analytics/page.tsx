@@ -10,7 +10,9 @@ import InfoTooltip from '@/components/ui/info-tooltip'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 import AnalyticsTabBar from '@/components/superadmin/AnalyticsTabBar'
+import RevenueVisibilityWidget from '@/components/superadmin/RevenueVisibilityWidget'
 import { toPesos } from '@takeasygo/business'
+import { queryPostHog } from '@/lib/tia/posthog'
 
 export default async function SuperAdminAnalyticsPage() {
   await connectDB()
@@ -141,6 +143,73 @@ export default async function SuperAdminAnalyticsPage() {
 
   // ARPU — revenue del mes dividido tenants activos
   const arpu = totalTenants > 0 ? Math.round(thisMonth.total / totalTenants) : 0
+
+  // Revenue visibility: tenant slugs for filter dropdown
+  const allTenants = await Tenant.find({}).select('slug').lean()
+  const tenantSlugs = allTenants.map((t: any) => t.slug).filter(Boolean).sort()
+
+  // Revenue visibility: initial PostHog data (30 days, all tenants)
+  const revenueVisResult = await queryPostHog({
+    kind: 'TrendsQuery',
+    dateRange: { date_from: '-30d' },
+    series: [{ kind: 'EventsNode', event: 'superadmin.revenue_toggled', name: 'superadmin.revenue_toggled' }],
+    interval: 'day',
+  })
+  const revenueVisTotal = revenueVisResult?.results?.[0]?.data?.reduce((s: number, v: number) => s + v, 0) ?? 0
+
+  // Parse breakdown by visible
+  const revenueVisBreakdownResult = await queryPostHog({
+    kind: 'TrendsQuery',
+    dateRange: { date_from: '-30d' },
+    series: [{ kind: 'EventsNode', event: 'superadmin.revenue_toggled', name: 'superadmin.revenue_toggled' }],
+    breakdown: [{ key: 'visible', type: 'event' }],
+    breakdown_hide_other: false,
+  })
+  const revenueVisibleData: Record<string, number> = {}
+  if (revenueVisBreakdownResult?.results) {
+    for (const r of revenueVisBreakdownResult.results) {
+      const label = r.breakdown_value ?? 'unknown'
+      const sum = r.data?.reduce((s: number, v: number) => s + v, 0) ?? 0
+      revenueVisibleData[label] = sum
+    }
+  }
+
+  // Parse tenant breakdown
+  const revenueTenantResult = await queryPostHog({
+    kind: 'TrendsQuery',
+    dateRange: { date_from: '-30d' },
+    series: [{ kind: 'EventsNode', event: 'superadmin.revenue_toggled', name: 'superadmin.revenue_toggled' }],
+    breakdown: [{ key: 'tenantSlug', type: 'event' }],
+    breakdown_hide_other: false,
+  })
+  const revenueTenantBreakdown: { slug: string; count: number }[] = []
+  if (revenueTenantResult?.results) {
+    for (const r of revenueTenantResult.results) {
+      const slug = r.breakdown_value ?? 'unknown'
+      const sum = r.data?.reduce((s: number, v: number) => s + v, 0) ?? 0
+      if (sum > 0) revenueTenantBreakdown.push({ slug, count: sum })
+    }
+    revenueTenantBreakdown.sort((a, b) => b.count - a.count)
+  }
+
+  // Parse trend
+  const revenueTrend: { date: string; count: number }[] = []
+  if (revenueVisResult?.results?.[0]) {
+    const labels = revenueVisResult.results[0].labels ?? []
+    const data = revenueVisResult.results[0].data ?? []
+    for (let i = 0; i < labels.length; i++) {
+      revenueTrend.push({ date: labels[i], count: data[i] ?? 0 })
+    }
+  }
+
+  const revenueVisibilityData = {
+    totalCount: revenueVisTotal,
+    visibleData: revenueVisibleData,
+    tenantBreakdown: revenueTenantBreakdown,
+    trend: revenueTrend,
+    days: 30,
+    tenantSlug: null,
+  }
 
   // Explore metrics
   const exploreFunnelStats = exploreFunnel[0] || { pageviews: 0, restaurantViews: 0, menuClicks: 0, searches: 0 }
@@ -563,6 +632,12 @@ export default async function SuperAdminAnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Revenue Visibility Tracking */}
+      <RevenueVisibilityWidget
+        initialData={revenueVisibilityData}
+        tenantSlugs={tenantSlugs}
+      />
     </div>
   )
 }

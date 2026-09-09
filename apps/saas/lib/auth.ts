@@ -26,6 +26,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         userRole: u.role ?? '',
         details: { userRole: u.role },
       })
+      // Track last login time
+      if (u.id) {
+        const { default: User } = await import('@/models/User')
+        await connectDB()
+        await User.findByIdAndUpdate(u.id, { lastLoginAt: new Date() }).catch((err) => {
+          console.error('[auth] Failed to update lastLoginAt:', err.message)
+        })
+      }
     },
     async signOut(message) {
       const token = 'token' in message ? message.token : null

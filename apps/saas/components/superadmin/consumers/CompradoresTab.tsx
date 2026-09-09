@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Users, Search, Loader2, ChevronLeft, ChevronRight,
-  ArrowUpDown, Store, ShoppingCart, DollarSign, Clock, Award,
+  ArrowUpDown, Store, Award, AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import ConsumerDetailModal from './ConsumerDetailModal'
+import ConsumerDetailModal from '../ConsumerDetailModal'
 import { toPesos } from '@takeasygo/business'
+import { useDebounce } from '@/hooks/useDebounce'
 
 interface Consumer {
   _id: string
@@ -31,12 +32,25 @@ interface Tenant {
   slug: string
 }
 
-export default function ConsumersList() {
+function SortHeader({ field, label, sortBy, onSort }: { field: string; label: string; sortBy: string; onSort: (f: string) => void }) {
+  return (
+    <button
+      onClick={() => onSort(field)}
+      className="flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-muted-foreground/50 hover:text-foreground transition-colors"
+    >
+      {label}
+      <ArrowUpDown size={12} className={cn(sortBy === field ? 'text-primary' : 'opacity-30')} />
+    </button>
+  )
+}
+
+export default function CompradoresTab() {
   const [consumers, setConsumers] = useState<Consumer[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [tenantId, setTenantId] = useState('')
   const [tenants, setTenants] = useState<Tenant[]>([])
@@ -44,11 +58,14 @@ export default function ConsumersList() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [selectedConsumer, setSelectedConsumer] = useState<Consumer | null>(null)
 
+  const debouncedSearch = useDebounce(search, 300)
+
   const fetchConsumers = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams()
-      if (search) params.set('search', search)
+      if (debouncedSearch) params.set('search', debouncedSearch)
       if (tenantId) params.set('tenantId', tenantId)
       params.set('page', String(page))
       params.set('limit', '20')
@@ -59,14 +76,15 @@ export default function ConsumersList() {
       if (!res.ok) throw new Error()
       const data = await res.json()
       setConsumers(data.consumers || [])
-      setTotal(data.total)
-      setTotalPages(data.totalPages)
+      setTotal(data.total ?? 0)
+      setTotalPages(data.totalPages ?? 1)
     } catch {
-      toast.error('Error al cargar consumidores')
+      setError('Error al cargar compradores')
+      toast.error('Error al cargar compradores')
     } finally {
       setLoading(false)
     }
-  }, [search, tenantId, page, sortBy, sortOrder])
+  }, [debouncedSearch, tenantId, page, sortBy, sortOrder])
 
   const fetchTenants = useCallback(async () => {
     try {
@@ -90,32 +108,10 @@ export default function ConsumersList() {
     setPage(1)
   }
 
-  const SortHeader = ({ field, label }: { field: string; label: string }) => (
-    <button
-      onClick={() => handleSort(field)}
-      className="flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-muted-foreground/50 hover:text-foreground transition-colors"
-    >
-      {label}
-      <ArrowUpDown size={12} className={cn(sortBy === field ? 'text-primary' : 'opacity-30')} />
-    </button>
-  )
-
   const formatCurrency = (n: number) => `$${toPesos(n).toLocaleString('es-AR')}`
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Users size={20} className="text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold">Consumidores</h1>
-            <p className="text-xs text-muted-foreground">{total} registros</p>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -125,7 +121,8 @@ export default function ConsumersList() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Buscar por nombre o email..."
-            className="w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-xl pl-10 pr-4 py-2.5 outline-none transition-all"
+            aria-label="Buscar por nombre o email"
+            className="w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-background text-foreground text-sm font-medium rounded-xl pl-10 pr-4 py-2.5 outline-none transition-all"
           />
         </div>
         <select
@@ -143,33 +140,40 @@ export default function ConsumersList() {
       {/* Table */}
       <div className="bg-card border-2 border-border/60 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" aria-label="Lista de compradores">
             <thead>
               <tr className="border-b border-border/40 bg-muted/20">
-                <th className="text-left px-5 py-4"><SortHeader field="name" label="Nombre" /></th>
-                <th className="text-left px-5 py-4"><SortHeader field="email" label="Email" /></th>
+                <th className="text-left px-5 py-4"><SortHeader field="name" label="Nombre" sortBy={sortBy} onSort={handleSort} /></th>
+                <th className="text-left px-5 py-4"><SortHeader field="email" label="Email" sortBy={sortBy} onSort={handleSort} /></th>
                 <th className="text-left px-5 py-4 hidden md:table-cell">Teléfono</th>
-                <th className="text-left px-5 py-4 hidden lg:table-cell"><SortHeader field="tenantIds" label="Tenants" /></th>
-                <th className="text-right px-5 py-4"><SortHeader field="totalOrders" label="Órdenes" /></th>
-                <th className="text-right px-5 py-4"><SortHeader field="totalSpent" label="Total" /></th>
-                <th className="text-right px-5 py-4 hidden md:table-cell"><SortHeader field="lastOrderAt" label="Última" /></th>
+                <th className="text-left px-5 py-4 hidden lg:table-cell"><SortHeader field="tenantIds" label="Tenants" sortBy={sortBy} onSort={handleSort} /></th>
+                <th className="text-right px-5 py-4"><SortHeader field="totalOrders" label="Órdenes" sortBy={sortBy} onSort={handleSort} /></th>
+                <th className="text-right px-5 py-4"><SortHeader field="totalSpent" label="Total" sortBy={sortBy} onSort={handleSort} /></th>
+                <th className="text-right px-5 py-4 hidden md:table-cell"><SortHeader field="lastOrderAt" label="Última" sortBy={sortBy} onSort={handleSort} /></th>
                 <th className="text-center px-5 py-4">Club</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center">
+                  <td colSpan={8} className="py-16 text-center" role="status" aria-label="Cargando">
                     <Loader2 size={24} className="animate-spin mx-auto text-muted-foreground" />
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center">
+                    <AlertTriangle size={40} className="mx-auto text-destructive/50 mb-3" />
+                    <p className="text-destructive font-medium">{error}</p>
                   </td>
                 </tr>
               ) : consumers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-16 text-center">
                     <Users size={40} className="mx-auto text-muted-foreground/30 mb-3" />
-                    <p className="text-muted-foreground font-medium">No hay consumidores</p>
+                    <p className="text-muted-foreground font-medium">No hay compradores</p>
                     <p className="text-xs text-muted-foreground/50 mt-1">
-                      Los consumidores se crean automáticamente cuando se realizan pedidos
+                      Los compradores se crean automáticamente cuando se realizan pedidos
                     </p>
                   </td>
                 </tr>
