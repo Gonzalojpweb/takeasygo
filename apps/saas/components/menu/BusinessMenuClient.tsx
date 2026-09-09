@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Building2, Loader2, CheckCircle, ShieldCheck, X, Users, Plus, LogIn, BarChart3 } from 'lucide-react'
+import { Building2, Loader2, CheckCircle, ShieldCheck, X, Users, Plus, LogIn, BarChart3, Store, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { privacidad } from '@/lib/legal-content'
 import MenuPublicView from '@/components/menu/MenuPublicView'
 import BusinessGuideSheet from '@/components/business/BusinessGuideSheet'
+import CorporateDirectory from '@/components/business/CorporateDirectory'
 
 interface Props {
   tenant: any
@@ -16,7 +17,7 @@ interface Props {
 
 export default function BusinessMenuClient({ tenant, location, menu }: Props) {
   const [email, setEmail] = useState('')
-  const [step, setStep] = useState<'verify' | 'mode_select' | 'menu' | 'group_join'>('verify')
+  const [step, setStep] = useState<'verify' | 'mode_select' | 'directory' | 'menu' | 'group_join'>('verify')
   const [loading, setLoading] = useState(false)
   const [role, setRole] = useState<string>('')
   const [groupToken, setGroupToken] = useState('')
@@ -297,6 +298,24 @@ export default function BusinessMenuClient({ tenant, location, menu }: Props) {
               </div>
             </button>
 
+            {/* Restaurant directory */}
+            <button
+              onClick={() => setStep('directory')}
+              className="w-full p-5 rounded-2xl bg-card border-2 border-border/60 hover:border-primary/40 text-left transition-all active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Store size={22} className="text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold">Ver restaurantes</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Explorá todos los locales disponibles para tu empresa
+                  </p>
+                </div>
+              </div>
+            </button>
+
             {/* Group session - only for company admin */}
             {isCompanyAdmin && (
               <button
@@ -380,6 +399,43 @@ export default function BusinessMenuClient({ tenant, location, menu }: Props) {
           </div>
         </div>
         <BusinessGuideSheet open={guideOpen} onOpenChange={setGuideOpen} tenantName={tenant.name} />
+      </>
+    )
+  }
+
+  if (step === 'directory') {
+    const corporateAccountId = sessionStorage.getItem('businessCorporateAccountId')
+    if (!corporateAccountId) return null
+
+    return (
+      <>
+        <div className="min-h-screen bg-[#fafafa]">
+          {/* Header with back button */}
+          <div className="sticky top-0 z-10 bg-[#fafafa]/95 backdrop-blur-md border-b border-border/60 px-4 py-3">
+            <div className="max-w-2xl mx-auto flex items-center gap-3">
+              <button
+                onClick={() => setStep('mode_select')}
+                className="w-9 h-9 rounded-full bg-card border border-border/60 flex items-center justify-center hover:bg-muted transition-colors"
+              >
+                <ArrowLeft size={16} className="text-muted-foreground" />
+              </button>
+              <div>
+                <h1 className="text-lg font-bold text-foreground">Restaurantes</h1>
+                <p className="text-xs text-muted-foreground">Explorá los locales disponibles para tu empresa</p>
+              </div>
+            </div>
+          </div>
+          <div className="max-w-2xl mx-auto p-4">
+            <CorporateDirectory
+              corporateAccountId={corporateAccountId}
+              compact
+              onSelect={(restaurant) => {
+                // Navigate to restaurant menu: /{tenantSlug}/menu/{locationId}/business
+                window.location.href = `/${restaurant.tenantSlug}/menu/${restaurant.locationId}/business`
+              }}
+            />
+          </div>
+        </div>
       </>
     )
   }
