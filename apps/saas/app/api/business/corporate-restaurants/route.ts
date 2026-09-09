@@ -4,6 +4,7 @@ import CorporateAccount from '@/models/CorporateAccount'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { checkIsOpenNow } from '@/lib/service-hours'
+import mongoose from 'mongoose'
 
 export async function GET(req: Request) {
   try {
@@ -27,13 +28,9 @@ export async function GET(req: Request) {
 
     await connectDB()
 
-    // Use findOne to handle both ObjectId and string _id (legacy data)
-    let account = await CorporateAccount.findOne({ _id: corporateAccountId }).lean()
-    if (!account) {
-      // Fallback: try raw collection query for string _id
-      const rawAccount = await CorporateAccount.collection.findOne({ _id: corporateAccountId })
-      if (rawAccount) account = rawAccount as any
-    }
+    // Query using native driver to handle string _id (legacy data in corporateaccounts)
+    const db = mongoose.connection.db!
+    const account = await db.collection('corporateaccounts').findOne({ _id: corporateAccountId })
     if (!account || account.status !== 'active') {
       return NextResponse.json({ error: 'Cuenta corporativa no encontrada o inactiva' }, { status: 404 })
     }
