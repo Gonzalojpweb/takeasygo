@@ -23,6 +23,7 @@ export interface IUser extends Document {
   resetToken: string | null
   resetTokenExpiry: Date | null
   emailVerified: Date | null
+  lastLoginAt: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -109,6 +110,10 @@ const UserSchema = new Schema<IUser>(
       select: false,
     },
     emailVerified: {
+      type: Date,
+      default: null,
+    },
+    lastLoginAt: {
       type: Date,
       default: null,
     },
