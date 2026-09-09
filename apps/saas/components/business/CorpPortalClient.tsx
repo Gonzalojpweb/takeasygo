@@ -3,19 +3,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Building2, Loader2, CheckCircle, ShieldCheck, Search, Download,
-  Trash2, Calendar, Filter, X, ArrowLeft, Users, ClipboardList, BarChart3,
+  Trash2, Calendar, Filter, X, ArrowLeft, Users, ClipboardList, BarChart3, Store,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { privacidad, canalCorporativo } from '@/lib/legal-content'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
+import CorporateDirectory from './CorporateDirectory'
 
 interface Props {
   tenant: any
 }
 
-type Tab = 'dashboard' | 'history' | 'employees'
+type Tab = 'dashboard' | 'history' | 'employees' | 'restaurants'
 
 interface OrderSummary {
   totalConsumed: number
@@ -441,6 +442,7 @@ export default function CorpPortalClient({ tenant }: Props) {
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'history', label: 'Historial', icon: ClipboardList },
+    { id: 'restaurants', label: 'Restaurantes', icon: Store },
     { id: 'employees', label: 'Empleados', icon: Users },
   ]
 
@@ -762,6 +764,13 @@ export default function CorpPortalClient({ tenant }: Props) {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ── RESTAURANTS TAB ────────────────────────────────────────── */}
+        {tab === 'restaurants' && corporateAccountId && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <CorporateDirectory corporateAccountId={corporateAccountId} />
           </div>
         )}
 
