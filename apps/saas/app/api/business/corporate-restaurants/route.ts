@@ -4,7 +4,6 @@ import CorporateAccount from '@/models/CorporateAccount'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { checkIsOpenNow } from '@/lib/service-hours'
-import mongoose from 'mongoose'
 
 export async function GET(req: Request) {
   try {
@@ -16,35 +15,39 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'corporateAccountId requerido' }, { status: 400 })
     }
 
-    // Security: caller email is required to verify membership
     if (!callerEmail) {
       return NextResponse.json({ error: 'Email del llamador requerido' }, { status: 400 })
     }
 
-    // Validate corporateAccountId is a valid ObjectId
     if (!/^[0-9a-fA-F]{24}$/.test(corporateAccountId)) {
       return NextResponse.json({ error: 'corporateAccountId inválido' }, { status: 400 })
     }
 
     await connectDB()
 
-    // Query using native driver to handle string _id (legacy data in corporateaccounts)
-    const db = mongoose.connection.db!
-    const account = await db.collection('corporateaccounts').findOne({ _id: corporateAccountId })
-    if (!account || account.status !== 'active') {
-      return NextResponse.json({ error: 'Cuenta corporativa no encontrada o inactiva' }, { status: 404 })
-    }
-
-    // Security: verify caller email belongs to this corporate account
+    // Query by email fields (string-safe) then match corporateAccountId via toString().
+    // This avoids the string _id vs ObjectId type mismatch in the corporateaccounts collection.
     const normalizedCallerEmail = callerEmail.toLowerCase().trim()
-    const isAdmin = account.companyAdminEmail === normalizedCallerEmail
-    const isEmployee = (account.employeeEmails || []).map((e: string) => e.toLowerCase().trim()).includes(normalizedCallerEmail)
+    const candidates = await CorporateAccount.find({
+      $and: [
+        { status: 'active' },
+        { $or: [{ companyAdminEmail: normalizedCallerEmail }, { employeeEmails: normalizedCallerEmail }] },
+      ],
+    }).lean()
 
-    if (!isAdmin && !isEmployee) {
-      return NextResponse.json({ error: 'No tenés acceso a esta cuenta corporativa' }, { status: 403 })
+    const account = candidates.find(a => a._id.toString() === corporateAccountId)
+    if (!account) {
+      return NextResponse.json({ error: 'Cuenta corporativa no encontrada o sin acceso' }, { status: 404 })
     }
 
-    // Resolve tenants based on accessMode
+    const isAdmin = account.companyAdminEmail === normalizedCallerEmail
+    if (!isAdmin) {
+      const isEmployee = (account.employeeEmails || []).map((e: string) => e.toLowerCase().trim()).includes(normalizedCallerEmail)
+      if (!isEmployee) {
+        return NextResponse.json({ error: 'No tenés acceso a esta cuenta corporativa' }, { status: 403 })
+      }
+    }
+
     let tenants: any[]
     if (account.accessMode === 'all') {
       tenants = await Tenant.find({ isActive: true }).select('_id name slug business logoUrl heroImageUrl').lean()
@@ -55,17 +58,14 @@ export async function GET(req: Request) {
       }).select('_id name slug business logoUrl heroImageUrl').lean()
     }
 
-    // Get all locations for these tenants
     const tenantIds = tenants.map((t: any) => t._id)
     const locations = await Location.find({
       tenantId: { $in: tenantIds },
       isActive: true,
     }).select('tenantId name slug address coordinates serviceHours orderModes cuisineTypes deliveryConfig timezone').lean()
 
-    // Build tenant lookup
     const tenantMap = Object.fromEntries(tenants.map((t: any) => [t._id.toString(), t]))
 
-    // Build restaurant list
     const restaurants = locations.map((loc: any) => {
       const tenant = tenantMap[loc.tenantId.toString()]
       const orderModes = loc.orderModes || []
@@ -91,7 +91,6 @@ export async function GET(req: Request) {
       }
     })
 
-    // Filter: only tenants with business enabled
     const businessEnabled = restaurants.filter((r: any) => r.businessEnabled)
 
     return NextResponse.json({
