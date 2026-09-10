@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Users, Heart, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import SegmentDistributionChart from './charts/SegmentDistributionChart'
 import LTVDashboard from './LTVDashboard'
 import RetentionFunnel from './RetentionFunnel'

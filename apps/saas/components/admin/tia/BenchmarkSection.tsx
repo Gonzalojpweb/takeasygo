@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react'
 import InfoTooltip from './InfoTooltip'
 import type { BenchmarkComparison } from '@/lib/tia/reporting/types'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface ApiProps {
   tenantSlug: string

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { DollarSign } from 'lucide-react'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import Link from 'next/link'
 
 export function ComisionesBanner({ tenantSlug, data: prefetchedData }: { tenantSlug: string; data?: number }) {

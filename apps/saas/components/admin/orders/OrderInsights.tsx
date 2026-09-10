@@ -3,7 +3,7 @@
 import { ShoppingBag, Clock, Package, Truck, CheckCircle2 } from 'lucide-react'
 import { BoardInsightsShell } from '@/components/shared/operations-board'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import type { BoardInsightsRenderProps } from '@/components/shared/operations-board'
 
 interface OrderItem {

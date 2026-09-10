@@ -11,7 +11,7 @@ import {
   ArrowRightLeft, Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 

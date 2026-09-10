@@ -1,7 +1,7 @@
 'use client'
 
 import { Eye, MousePointerClick, ShoppingCart, TrendingUp } from 'lucide-react'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import type { BestSellersAnalyticsData } from '@/lib/tia/metrics'
 
 interface Props {

@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocation } from '@/components/explore/LocationContext'
 import BottomNav from '@/components/explore/BottomNav'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface Promo {
   _id: string

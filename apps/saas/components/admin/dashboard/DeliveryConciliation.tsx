@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Truck, Calendar } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface DeliveryDay {
   date: string

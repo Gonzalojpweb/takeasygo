@@ -23,7 +23,7 @@ import { useRouter } from 'next/navigation'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { toCents, toPesos } from '@takeasygo/business'
+import { toCents, toPesos } from '@takeasygo/business/browser'
 import ScheduleEditor, { type ScheduleSlot } from '@/components/admin/ScheduleEditor'
 
 // Fechas especiales de upselling (misma lógica que upsell-menu.ts)

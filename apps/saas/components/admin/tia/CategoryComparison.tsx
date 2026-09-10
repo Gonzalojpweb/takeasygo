@@ -2,7 +2,7 @@
 
 import InfoTooltip from './InfoTooltip'
 import type { CategoryData } from '@/lib/tia/metrics'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface Props {
   data: CategoryData[]

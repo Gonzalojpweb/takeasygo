@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { ChevronLeft } from 'lucide-react'
 
 export default function CheckoutMiniHeader() {

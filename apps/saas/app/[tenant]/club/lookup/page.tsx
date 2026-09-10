@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { QrCode, Search, Loader2, Smartphone, CreditCard } from 'lucide-react'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { toast } from 'sonner'
 import AddToWalletButtons from '@/components/wallet/AddToWalletButtons'
 

@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import { CustomerSegmentBadge, CustomerHealthScore } from './cis'
 import { SegmentDistributionChart } from './cis/charts'
 import ConsumerDetailModal from './crm/ConsumerDetailModal'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CRMView — Tabla de clientes con filtros CIS integrados

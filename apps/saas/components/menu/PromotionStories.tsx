@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, ShoppingCart, Gift } from 'lucide-react'
 import Link from 'next/link'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface StoryPromotion {
   _id: string

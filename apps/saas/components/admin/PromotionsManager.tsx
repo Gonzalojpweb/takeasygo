@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { cn } from '@/lib/utils'
-import { toCents, toPesos } from '@takeasygo/business'
+import { toCents, toPesos } from '@takeasygo/business/browser'
 import PromoPickerPreview from '@/components/admin/PromoPickerPreview'
 
 type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'

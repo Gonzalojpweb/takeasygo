@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { captureDishViewed } from '@/lib/tia/events'
-import { calculateHalfHalfPrice } from '@takeasygo/business'
+import { calculateHalfHalfPrice } from '@takeasygo/business/browser'
 import type { CartItem, SelectedCustomization, SelectedCustomizationOption, SelectedVariant } from '@/types/cart'
 
 import SheetHeader from './SheetHeader'

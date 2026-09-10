@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from '
 import Link from 'next/link'
 import Image from 'next/image'
 import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,

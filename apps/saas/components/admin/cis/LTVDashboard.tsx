@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { DollarSign, Users, TrendingUp, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { CustomerSegmentBadge } from '../cis'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LTVDashboard — Dashboard consolidado de Lifetime Value

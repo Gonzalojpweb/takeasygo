@@ -1,7 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface OptionPhotoCardProps {
   name: string

@@ -10,7 +10,7 @@ import {
   AlertCircle, Search, RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface Props {
   tenantSlug: string

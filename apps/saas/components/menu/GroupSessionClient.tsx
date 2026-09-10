@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import MenuPublicView from '@/components/menu/MenuPublicView'
 import GroupAddConfirmModal from '@/components/menu/GroupAddConfirmModal'
 

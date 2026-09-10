@@ -21,7 +21,7 @@ import {
   ShoppingBag,
 } from 'lucide-react'
 import Link from 'next/link'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface Person {
   _id: string
