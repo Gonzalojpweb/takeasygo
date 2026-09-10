@@ -19,6 +19,15 @@ describe('calculateFinalTotal - transferencia', () => {
     expect(r.platformFeeAmount).toBe(1050) // 1.5% de 70000
   })
 
+  it('Transferencia + Delivery con deliveryCost → recargo SOLO sobre subtotal (sin delivery)', () => {
+    // baseTotal = 70000 (subtotal 68000 + delivery 2000)
+    const r = calculateFinalTotal(70000, 'transfer', tenant, platformConfig, undefined, 'delivery', 2000)
+    // surcharge = 1.5% de 68000 (subtotal) = 1020, NO de 70000
+    expect(r.surchargeAmount).toBe(1020)
+    expect(r.platformFeeAmount).toBe(1020) // platformFeeAmount = surchargeAmount
+    expect(r.finalTotal).toBe(71020) // 70000 + 1020
+  })
+
   it('Transferencia + Takeaway → NO cobra NINGÚN monto extra (0% recargo, 0% comisión = Precio de Carta)', () => {
     const r = calculateFinalTotal(70000, 'transfer', tenant, platformConfig, undefined, 'takeaway')
     expect(r.finalTotal).toBe(70000) // Precio de carta puro
@@ -41,6 +50,20 @@ describe('calculateFinalTotal - transferencia', () => {
 
     expect(deliveryFees).toBe(0.015) // 1.5%
     expect(takeawayFees).toBe(0) // 0%
+  })
+
+  it('Transferencia + 0% recargo del tenant → comisión usa % default de plataforma (absorbida por restaurante)', () => {
+    const tenantNoSurcharge = {
+      transfer: { commissionPercent: 0 }, // 0% recargo → restaurante absorbe
+    }
+    const pcConDefault = { platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 1 } } // 1% default transfer
+    // baseTotal = 50000 (subtotal 48000 + delivery 2000)
+    const r = calculateFinalTotal(50000, 'transfer', tenantNoSurcharge, pcConDefault, undefined, 'delivery', 2000)
+    expect(r.surchargeAmount).toBe(0) // cliente no paga nada extra
+    expect(r.surchargePercent).toBe(0)
+    // platformFeeAmount = 1% de 48000 (subtotal) = 480 → restaurante le debe esto a TakeasyGO
+    expect(r.platformFeeAmount).toBe(480)
+    expect(r.finalTotal).toBe(50000) // cliente paga solo subtotal + delivery, sin recargo
   })
 })
 
