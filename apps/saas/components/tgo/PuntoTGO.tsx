@@ -31,6 +31,7 @@ export interface PuntoTGOProps {
   ring?: LcsRingScale
   hasCrown?: boolean
   isNew?: boolean
+  inverted?: boolean     // white pin + orange face (for orange/brand backgrounds)
   size?: PuntoTGOSize
   animate?: boolean
   onClick?: () => void
@@ -206,6 +207,7 @@ function PinSVG({
   ring = 'none',
   hasCrown = false,
   isNew = false,
+  inverted = false,
   width,
   height,
 }: {
@@ -213,6 +215,7 @@ function PinSVG({
   ring?: LcsRingScale
   hasCrown?: boolean
   isNew?: boolean
+  inverted?: boolean
   width: number
   height: number
 }) {
@@ -256,14 +259,29 @@ function PinSVG({
       {/* Pin body (Teardrop shape — Doc 01 §3.2) */}
       <path
         d="M20 52C20 52 40 36 40 22C40 10 31 0 20 0C9 0 0 10 0 22C0 36 20 52 20 52Z"
-        fill={isSleepy ? '#9CA3AF' : 'url(#puntoTgoGradient)'}
+        fill={inverted ? '#FFFFFF' : isSleepy ? '#9CA3AF' : 'url(#puntoTgoGradient)'}
       />
 
-      {/* White circle for face */}
-      <circle cx="20" cy="20" r="12" fill="white" />
+      {/* Face circle */}
+      <circle cx="20" cy="20" r="12" fill={inverted ? 'var(--tgo-brand, #F74211)' : 'white'} />
 
       {/* Face Expression (Eje 1: Real-time Operational Status) */}
-      <FaceExpression expression={expression} />
+      {!inverted && <FaceExpression expression={expression} />}
+
+      {/* Inverted face — simple smile on brand-colored circle */}
+      {inverted && (
+        <g>
+          <circle cx="15" cy="18" r="1.8" fill="#FFFFFF" />
+          <circle cx="25" cy="18" r="1.8" fill="#FFFFFF" />
+          <path
+            d="M15 23 Q20 28 25 23"
+            stroke="#FFFFFF"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </g>
+      )}
 
       {/* Crown Accessory (Special Top ICO Exception) */}
       {hasCrown && <CrownAccessory />}
@@ -305,6 +323,7 @@ export default function PuntoTGO({
   ring = 'none',
   hasCrown = false,
   isNew = false,
+  inverted = false,
   size = 'md',
   animate = true,
   onClick,
@@ -334,6 +353,7 @@ export default function PuntoTGO({
       ring={ring}
       hasCrown={hasCrown}
       isNew={isNew}
+      inverted={inverted}
       width={dimensions.width}
       height={dimensions.height}
     />

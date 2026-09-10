@@ -3,13 +3,14 @@
 // ── TGO Splash / Onboarding Intro ────────────────────────────────────────────
 //
 // Splash screen con fondo --tgo-brand, pin blanco invertido y botón "Comenzar".
-// SVG inline + CSS keyframes, sin dependencias externas.
+// Usa <PuntoTGO /> compartido (mismo icono que perfil, home, etc.)
 //
 // Uso:
 //   <AnimatedLogoLoader />                                      — loader inline (loading.tsx)
 //   <AnimatedLogoLoader interactive onDismiss={fn} />           — splash interactivo (ExploreClient)
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import PuntoTGO from './PuntoTGO'
 
 interface AnimatedLogoLoaderProps {
   fullScreen?: boolean
@@ -90,29 +91,21 @@ export default function AnimatedLogoLoader({
         .tgo-loader-icon-wrap {
           width: min(60vw, 340px);
           filter: drop-shadow(0 30px 60px rgba(0,0,0,0.18));
-        }
-        .tgo-loader-icon-wrap svg {
-          display: block;
-          width: 100%;
-          height: auto;
-          overflow: visible;
-        }
-
-        /* Base states (pre-animation) */
-        .tgo-loader .pin-group {
           transform: translateY(-260px) rotate(-9deg) scale(0.85);
           opacity: 0;
-          transform-origin: 100px 150px;
         }
-        .tgo-loader .shadow {
-          opacity: 0;
-          transform: scale(0.3);
-          transform-origin: 100px 152px;
+
+        /* Playing state — compressed to ~2.5s */
+        .tgo-loader.playing .tgo-loader-icon-wrap {
+          animation: tgoPinDrop .8s cubic-bezier(.34,1.45,.55,1) .1s forwards;
         }
-        .tgo-loader .ring {
-          stroke-dasharray: 100 100;
-          stroke-dashoffset: 100;
+        .tgo-loader.playing .wordmark {
+          animation: tgoFadeUp .6s ease-out 1.7s forwards;
         }
+        .tgo-loader.playing .tgo-splash-btn {
+          animation: tgoBtnEnter .5s ease-out 2.5s forwards;
+        }
+
         .tgo-loader .wordmark {
           opacity: 0;
           transform: translateY(8px);
@@ -122,39 +115,12 @@ export default function AnimatedLogoLoader({
           transform: translateY(12px);
         }
 
-        /* Playing state — compressed to ~2.5s */
-        .tgo-loader.playing .pin-group {
-          animation: tgoPinDrop .8s cubic-bezier(.34,1.45,.55,1) .1s forwards;
-        }
-        .tgo-loader.playing .shadow {
-          animation: tgoShadowGrow .8s ease-out .1s forwards;
-        }
-        .tgo-loader.playing .ring {
-          animation: tgoRingDraw .9s cubic-bezier(.45,.05,.25,1) .9s forwards;
-        }
-        .tgo-loader.playing .wordmark {
-          animation: tgoFadeUp .6s ease-out 1.7s forwards;
-        }
-        .tgo-loader.playing .tgo-splash-btn {
-          animation: tgoBtnEnter .5s ease-out 2.5s forwards;
-        }
-
         @keyframes tgoPinDrop {
           0%   { transform: translateY(-260px) rotate(-9deg) scale(0.85); opacity: 0; }
           55%  { transform: translateY(10px) rotate(2deg) scale(1.05); opacity: 1; }
           72%  { transform: translateY(-8px) rotate(-1deg) scale(0.97); }
           88%  { transform: translateY(3px) rotate(0.5deg) scale(1.01); }
           100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
-        }
-        @keyframes tgoShadowGrow {
-          0%   { opacity: 0; transform: scale(0.25); }
-          55%  { opacity: .08; transform: scale(0.7); }
-          72%  { opacity: .18; transform: scale(1.18); }
-          100% { opacity: .14; transform: scale(1); }
-        }
-        @keyframes tgoRingDraw {
-          from { stroke-dashoffset: 100; }
-          to   { stroke-dashoffset: 0; }
         }
         @keyframes tgoFadeUp {
           to { opacity: 1; transform: translateY(0); }
@@ -166,17 +132,12 @@ export default function AnimatedLogoLoader({
 
         /* Reduced motion */
         @media (prefers-reduced-motion: reduce) {
-          .tgo-loader .pin-group,
-          .tgo-loader .shadow,
-          .tgo-loader .ring,
+          .tgo-loader-icon-wrap,
           .tgo-loader .wordmark,
           .tgo-loader .tgo-splash-btn {
             animation: none !important;
             opacity: 1 !important;
             transform: none !important;
-          }
-          .tgo-loader .ring {
-            stroke-dashoffset: 0 !important;
           }
         }
 
@@ -189,38 +150,7 @@ export default function AnimatedLogoLoader({
       `}</style>
 
       <div className="tgo-loader-icon-wrap">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <filter id="tgoBlur6" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur stdDeviation="6" />
-            </filter>
-          </defs>
-
-          {/* Landing shadow */}
-          <ellipse className="shadow" cx="100" cy="152" rx="24" ry="6" fill="#000000" opacity="0.15" />
-
-          {/* Pin — white */}
-          <g className="pin-group">
-            <path
-              d="M100,50 C118.5,50 133,64.5 133,83 C133,108 100,150 100,150 C100,150 67,108 67,83 C67,64.5 81.5,50 100,50 Z"
-              fill="#FFFFFF"
-            />
-            {/* Face — brand color */}
-            <circle cx="100" cy="80" r="14" fill="var(--tgo-brand, #F74211)" />
-          </g>
-
-          {/* Ring — white, subtle */}
-          <path
-            className="ring"
-            d="M171.8,69.5 A78,78 0 1 1 130.5,28.2"
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="9"
-            strokeLinecap="round"
-            opacity="0.3"
-            pathLength="100"
-          />
-        </svg>
+        <PuntoTGO inverted size="xl" animate={false} />
       </div>
 
       {/* Wordmark */}
