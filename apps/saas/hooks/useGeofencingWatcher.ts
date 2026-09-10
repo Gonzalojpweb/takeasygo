@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { haversineDistance } from '@/lib/geofencing'
+import { haversineDistance } from '@/lib/geo'
 
 interface WatchedLocation {
   tenantSlug: string

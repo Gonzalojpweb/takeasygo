@@ -7,7 +7,7 @@ import PushSubscription from '@/models/PushSubscription'
 import Feedback from '@/models/Feedback'
 import webpush from 'web-push'
 import { requireAuth } from '@/lib/apiAuth'
-import { haversineDistance } from '@/lib/geofencing'
+import { haversineDistance } from '@/lib/geo'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
