@@ -16,6 +16,7 @@ import CancelOrderModal from './CancelOrderModal'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import { captureHiddenRewardRedeemed } from '@/lib/tia/events'
 import PuntoTGO, { type LcsFaceExpression } from '@/components/tgo/PuntoTGO'
+import RedProximityBanner from './RedProximityBanner'
 
 // Map tracking statuses to Living City System face expressions
 const TRACKING_TO_LCS_EXPRESSION: Record<string, LcsFaceExpression> = {
@@ -103,7 +104,7 @@ interface Props {
     cvu: string | null
   } | null
   initialReviewUrl?: string | null
-  orderItems: { _id: string; name: string; quantity: number; menuItemId?: string }[]
+  orderItems: { _id: string; name: string; quantity: number; subtotal?: number; menuItemId?: string }[]
   orderTotal: number
 }
 
@@ -944,6 +945,31 @@ export default function OrderTracker({
             discountAmount={loyaltyDiscountAmount}
             pointsUsed={loyaltyPointsUsed}
           />
+        </div>
+      )}
+
+      {/* Footer */}
+      {['delivered', 'cancelled'].includes(status) ? (
+        <RedProximityBanner tenantSlug={tenantSlug} tenantName={tenantName} />
+      ) : (
+        <div className="rounded-2xl p-4 mb-6"
+          style={{ backgroundColor: primaryColor + '08', border: `1px solid ${primaryColor}20` }}>
+          <h2 className="font-semibold text-sm opacity-50 uppercase tracking-wide mb-3">Tu pedido</h2>
+          <div className="space-y-2">
+            {orderItems.map((item) => (
+              <div key={item._id} className="flex justify-between text-sm">
+                <span className="opacity-80">{item.quantity}x {item.name}</span>
+                {item.subtotal != null && (
+                  <span className="font-medium">${toPesos(item.subtotal).toLocaleString('es-AR')}</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="border-t mt-3 pt-3 flex justify-between font-bold"
+            style={{ borderColor: primaryColor + '20' }}>
+            <span>Total</span>
+            <span style={{ color: primaryColor }}>${toPesos(orderTotal).toLocaleString('es-AR')}</span>
+          </div>
         </div>
       )}
 
