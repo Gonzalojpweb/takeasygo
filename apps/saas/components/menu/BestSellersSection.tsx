@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { captureBestSellerViewed, captureBestSellerClicked } from '@/lib/tia/events'
 import type { BestSellerItem } from '@/lib/tia/bestSellers'
 

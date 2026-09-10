@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Star, TrendingUp, Lock, Package } from 'lucide-react'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { toast } from 'sonner'
 import confetti from 'canvas-confetti'
 import { useNotificationSound } from '@/hooks/useNotificationSound'

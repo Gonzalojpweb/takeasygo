@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { TrendingUp, ShieldCheck } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface MarginRecoveryData {
   totalSurcharge: number

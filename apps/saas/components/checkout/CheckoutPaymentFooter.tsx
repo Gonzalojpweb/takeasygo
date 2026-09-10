@@ -2,7 +2,7 @@
 
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { toast } from 'sonner'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { useRouter } from 'next/navigation'
 import { captureCheckoutStarted, captureRewardAdvanceAccepted } from '@/lib/tia/events'
 import { captureCheckoutStarted as captureCheckoutStartedMongo } from '@/lib/events'

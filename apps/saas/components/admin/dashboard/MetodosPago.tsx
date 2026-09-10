@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { cn } from '@/lib/utils'
 
 interface MetodosPagoProps {

@@ -1,7 +1,7 @@
 'use client'
 
 import { TrendingUp, ShoppingBag, Zap, DollarSign } from 'lucide-react'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface UpsellRow {
   name: string

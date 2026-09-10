@@ -2,7 +2,7 @@
 
 import { X, Plus } from 'lucide-react'
 import { ensureContrast } from '@/lib/color-utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 function tn(obj: any, field: 'name' | 'description', locale: 'es' | 'en'): string {
   if (locale === 'en') {

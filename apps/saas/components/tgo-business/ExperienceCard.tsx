@@ -11,7 +11,7 @@
 // Se siente como una oportunidad, no como publicidad.
 
 import Link from 'next/link'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 export type ExperienceType =
   | 'promo'

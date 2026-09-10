@@ -1,7 +1,7 @@
 'use client'
 
 import { useCheckout } from '@/contexts/CheckoutContext'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 export default function OrderSummaryWithUpsell() {
   const { state, subtotal, baseTotal, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, selectedRewardItem, hiddenRewardClaims } = useCheckout()

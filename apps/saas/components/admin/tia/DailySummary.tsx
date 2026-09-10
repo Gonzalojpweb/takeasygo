@@ -3,7 +3,7 @@
 import { ShoppingBag, DollarSign, Users, Gift, Clock, TrendingUp } from 'lucide-react'
 import InfoTooltip from './InfoTooltip'
 import type { DailySummaryData } from '@/lib/tia/metrics'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface Props {
   data: DailySummaryData

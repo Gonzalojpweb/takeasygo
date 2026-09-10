@@ -1,6 +1,6 @@
 'use client'
 
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface VariantInfo {
   _id?: string

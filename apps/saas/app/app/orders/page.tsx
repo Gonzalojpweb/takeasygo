@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { ShoppingBag, Clock, CheckCircle, XCircle, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react'
 import BottomNav from '@/components/explore/BottomNav'
 import { BlurFade } from '@/components/ui/blur-fade'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 type OrderStatus = 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
 

@@ -4,7 +4,7 @@ import { TrendingUp, Star } from 'lucide-react'
 import InfoTooltip from './InfoTooltip'
 import type { TopProductsData } from '@/lib/tia/metrics'
 import type { ProductReport } from '@/lib/tia/reporting/types'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface Props {
   data: TopProductsData

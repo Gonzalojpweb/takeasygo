@@ -12,7 +12,7 @@ import {
     Printer, PlusCircle, CheckCircle2, Banknote
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { toast } from 'sonner'
 import UpsellAnalytics from '@/components/admin/UpsellAnalytics'
 

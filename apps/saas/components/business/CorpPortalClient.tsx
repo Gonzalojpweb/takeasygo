@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { privacidad, canalCorporativo } from '@/lib/legal-content'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import CorporateDirectory from './CorporateDirectory'
 
 interface Props {

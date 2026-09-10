@@ -16,7 +16,7 @@ import {
   Tag
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 export default function POSSettingsPage() {
   const { tenant } = useParams()

@@ -8,7 +8,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import ConsumerDetailModal from '../ConsumerDetailModal'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { useDebounce } from '@/hooks/useDebounce'
 
 interface Consumer {

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { DollarSign, ArrowRightLeft, CreditCard, CheckCircle2, AlertTriangle, Loader2, ChevronDown, ChevronUp, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 interface CommissionData {
   transfer: {

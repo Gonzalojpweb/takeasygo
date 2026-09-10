@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Clock, MapPin, ShoppingBag, Truck, UtensilsCrossed, Briefcase } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import type { BoardCardRenderProps } from '@/components/shared/operations-board'
 
 interface OrderItem {

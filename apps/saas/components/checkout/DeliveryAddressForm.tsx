@@ -2,7 +2,7 @@
 
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { toast } from 'sonner'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 
 export default function DeliveryAddressForm() {
   const { state, dispatch } = useCheckout()

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business'
+import { toPesos } from '@takeasygo/business/browser'
 import { CustomerSegmentBadge, CustomerHealthScore, CustomerInsights } from '../cis'
 import { HealthScoreTrendChart } from '../cis/charts'
 
