@@ -93,16 +93,10 @@ export const EXPERIENCE_OPTIONS: ExperienceOption[] = [
   { id: 'clubes_beneficios', label: 'Clubes de beneficios' },
 ]
 
-// ── Onboarding Steps ────────────────────────────────────────────────
-export type OnboardingStep =
-  | 'welcome'
-  | 'conocerte'
-  | 'auth'
-  | 'greeting'
-  | 'notifications'
-  | 'manifest'
+// ── Onboarding Steps (simplified: 11 → 4) ─────────────────────────
+export type OnboardingStep = 'name' | 'age' | 'zone' | 'auth'
 
-// ── Conocerte sub-steps ─────────────────────────────────────────────
+// ── Legacy sub-steps (kept for Home/Profile deferred flows) ─────────
 export type ConocerteStep = 'name' | 'age' | 'zone' | 'cuisine' | 'experience' | 'privacy'
 
 // ── Onboarding Data (accumulated across steps) ──────────────────────

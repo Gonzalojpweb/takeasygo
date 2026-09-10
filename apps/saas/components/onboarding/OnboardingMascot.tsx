@@ -13,7 +13,7 @@
 import { motion, useAnimationFrame } from 'framer-motion'
 import { useRef, useState } from 'react'
 
-type MascotStep = 'welcome' | 'name' | 'age'
+type MascotStep = 'name' | 'age'
 
 interface OnboardingMascotProps {
   step: MascotStep
@@ -21,7 +21,6 @@ interface OnboardingMascotProps {
 
 // Pin vertical offset per step (px from default position)
 const PIN_OFFSETS: Record<MascotStep, number> = {
-  welcome: 0,
   name: 6,
   age: 14,
 }
@@ -29,7 +28,6 @@ const PIN_OFFSETS: Record<MascotStep, number> = {
 // Dot position inside the SVG viewBox (200x200)
 // Bigger range = more noticeable movement
 const DOT_POSITIONS: Record<MascotStep, { cx: number; cy: number }> = {
-  welcome: { cx: 100, cy: 78 },
   name:    { cx: 100, cy: 68 },  // moves UP — "pay attention to me"
   age:     { cx: 100, cy: 90 },  // moves DOWN — "settle in"
 }
@@ -93,8 +91,8 @@ export default function OnboardingMascot({ step }: OnboardingMascotProps) {
           cx="100"
           cy="155"
           animate={{
-            rx: step === 'welcome' ? 22 : step === 'name' ? 18 : 24,
-            ry: step === 'welcome' ? 5 : step === 'name' ? 4 : 6,
+            rx: step === 'name' ? 18 : 24,
+            ry: step === 'name' ? 4 : 6,
             opacity: step === 'name' ? 0.15 : 0.25,
           }}
           transition={{ type: 'spring', stiffness: 150, damping: 16 }}

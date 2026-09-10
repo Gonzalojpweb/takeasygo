@@ -1,26 +1,39 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { OnboardingData, ConocerteStep } from './constants'
 import NameStage from './stages/NameStage'
 import AgeStage from './stages/AgeStage'
 import ZoneStage from './stages/ZoneStage'
-import CuisineStage from './stages/CuisineStage'
-import ExperienceStage from './stages/ExperienceStage'
-import PrivacyStage from './stages/PrivacyStage'
 
 interface OnboardingWizardProps {
   initialData: OnboardingData
+  initialStep?: number
+  hasGpsLocation?: boolean
   onComplete: (data: OnboardingData) => void
   onStepChange?: (step: number) => void
 }
 
-const STEPS: ConocerteStep[] = ['name', 'age', 'zone', 'cuisine', 'experience', 'privacy']
+const STEPS: ConocerteStep[] = ['name', 'age', 'zone']
 
-export default function OnboardingWizard({ initialData, onComplete, onStepChange }: OnboardingWizardProps) {
-  const [currentStep, setCurrentStep] = useState(0)
+export default function OnboardingWizard({
+  initialData,
+  initialStep = 0,
+  hasGpsLocation = false,
+  onComplete,
+  onStepChange,
+}: OnboardingWizardProps) {
+  const [currentStep, setCurrentStep] = useState(initialStep)
   const [data, setData] = useState<OnboardingData>(initialData)
+
+  // Skip zone if GPS already resolved
+  useEffect(() => {
+    if (hasGpsLocation && currentStep === 2) {
+      // Zone step — GPS resolved, skip to complete
+      onComplete(data)
+    }
+  }, [hasGpsLocation, currentStep, data, onComplete])
 
   const updateData = useCallback((partial: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...partial }))
@@ -29,12 +42,17 @@ export default function OnboardingWizard({ initialData, onComplete, onStepChange
   const goNext = useCallback(() => {
     if (currentStep < STEPS.length - 1) {
       const next = currentStep + 1
+      // Skip zone if GPS resolved
+      if (next === 2 && hasGpsLocation) {
+        onComplete(data)
+        return
+      }
       setCurrentStep(next)
       onStepChange?.(next)
     } else {
       onComplete(data)
     }
-  }, [currentStep, data, onComplete, onStepChange])
+  }, [currentStep, data, hasGpsLocation, onComplete, onStepChange])
 
   const goBack = useCallback(() => {
     if (currentStep > 0) {
@@ -107,25 +125,6 @@ export default function OnboardingWizard({ initialData, onComplete, onStepChange
               onChange={(zone) => updateData({ zone })}
               onNext={goNext}
             />
-          )}
-          {STEPS[currentStep] === 'cuisine' && (
-            <CuisineStage
-              key="cuisine"
-              value={data.cuisinePreferences}
-              onChange={(cuisinePreferences) => updateData({ cuisinePreferences })}
-              onNext={goNext}
-            />
-          )}
-          {STEPS[currentStep] === 'experience' && (
-            <ExperienceStage
-              key="experience"
-              value={data.experiencePreferences}
-              onChange={(experiencePreferences) => updateData({ experiencePreferences })}
-              onNext={goNext}
-            />
-          )}
-          {STEPS[currentStep] === 'privacy' && (
-            <PrivacyStage key="privacy" onNext={goNext} />
           )}
         </AnimatePresence>
       </div>
