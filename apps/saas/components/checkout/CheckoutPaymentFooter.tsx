@@ -116,6 +116,24 @@ export default function CheckoutPaymentFooter() {
         orderBody.scheduledPickupAt = scheduledPickupAt
       }
 
+      if (!deliveryMode && navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 3000,
+              maximumAge: 300000,
+            })
+          })
+          orderBody.customer.pickupLocation = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }
+        } catch {
+          // Permiso denegado o timeout — proceder sin ubicación
+        }
+      }
+
       const orderRes = await fetch(`/api/${tenantSlug}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
