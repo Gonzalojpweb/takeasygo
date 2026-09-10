@@ -13,11 +13,13 @@ import { filterVisibleOrders } from '@/lib/order-visibility'
 
 interface OrderItem extends BoardItem {
   orderNumber: string
-  customer: { name: string; phone?: string; email?: string; phoneHash?: string }
+  customer: { name: string; phone?: string; email?: string; phoneHash?: string; pickupLocation?: { lat: number; lng: number } }
   orderMode?: string
   total: number
   locationId?: string
   locationName?: string
+  locationLat?: number | null
+  locationLng?: number | null
   orderTiming?: string
   scheduledPickupAt?: string
   deliveryAddress?: any

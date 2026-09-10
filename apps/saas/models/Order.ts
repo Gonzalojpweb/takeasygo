@@ -167,6 +167,7 @@ export interface IOrder extends Document {
     phone: string
     email: string
     phoneHash?: string
+    pickupLocation?: { lat: number; lng: number }
   }
   payment: {
     status: PaymentStatus
@@ -482,6 +483,10 @@ const OrderSchema = new Schema(
       phone: { type: String, default: '', trim: true },
       email: { type: String, default: '', trim: true },
       phoneHash: { type: String, default: null, index: true },
+      pickupLocation: {
+        lat: { type: Number, default: null },
+        lng: { type: Number, default: null },
+      },
     },
     payment: {
       status: {

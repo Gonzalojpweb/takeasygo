@@ -1,15 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import 'leaflet/dist/leaflet.css'
 import {
   Clock, MapPin, Phone, Mail, Printer, MessageCircle,
   CreditCard, Wallet, BadgePercent, Gift, Star, ChevronDown,
   Truck, UtensilsCrossed, Building2, ShoppingBag, History, FileText,
+  Navigation2,
 } from 'lucide-react'
 import OrderStatusButton from '../OrderStatusButton'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
 import { toast } from 'sonner'
+import { haversineDistance } from '@/lib/geofencing'
 import type { BoardContextPanelRenderProps } from '@/components/shared/operations-board'
 
 interface OrderItem {
@@ -18,7 +21,7 @@ interface OrderItem {
   createdAt: string
   orderNumber: string
   orderMode?: string
-  customer: { name: string; phone?: string; email?: string; phoneHash?: string }
+  customer: { name: string; phone?: string; email?: string; phoneHash?: string; pickupLocation?: { lat: number; lng: number } }
   total: number
   subtotal?: number
   discountAmount?: number
@@ -40,6 +43,8 @@ interface OrderItem {
   rewardItems?: any[]
   printLog?: any[]
   locationName?: string
+  locationLat?: number | null
+  locationLng?: number | null
   source?: string
 }
 
@@ -254,6 +259,123 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
 }
 
 /* ═══════════════════════════════════════════════════════════
+   MAPA DE UBICACIÓN PICKUP (TAKEAWAY)
+   ═══════════════════════════════════════════════════════════ */
+
+function PickupLocationMap({
+  customerLat,
+  customerLng,
+  restaurantLat,
+  restaurantLng,
+}: {
+  customerLat: number
+  customerLng: number
+  restaurantLat: number
+  restaurantLng: number
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
+
+    const initMap = async () => {
+      const L = await import('leaflet')
+
+      const map = L.map(containerRef.current!, {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: true,
+        scrollWheelZoom: false,
+        doubleClickZoom: true,
+        touchZoom: true,
+      })
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map)
+
+      // Pin del restaurante (naranja)
+      const restaurantIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:var(--tgo-brand,#F74211);border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      })
+      L.marker([restaurantLat, restaurantLng], { icon: restaurantIcon }).addTo(map)
+
+      // Pin del cliente (azul)
+      const customerIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      })
+      L.marker([customerLat, customerLng], { icon: customerIcon }).addTo(map)
+
+      // Ajustar vista para mostrar ambos puntos
+      const bounds = L.latLngBounds(
+        [restaurantLat, restaurantLng],
+        [customerLat, customerLng]
+      )
+      map.fitBounds(bounds, { padding: [30, 30] })
+
+      mapRef.current = map
+    }
+
+    initMap()
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
+    }
+  }, [customerLat, customerLng, restaurantLat, restaurantLng])
+
+  const distanceM = haversineDistance(
+    { lat: restaurantLat, lng: restaurantLng },
+    { lat: customerLat, lng: customerLng }
+  )
+  const distanceLabel = distanceM < 1000
+    ? `${Math.round(distanceM)} m`
+    : `${(distanceM / 1000).toFixed(1)} km`
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5">
+        <Navigation2 size={10} className="text-muted-foreground/60" />
+        <p className="text-[11px] text-muted-foreground/70">
+          Ubicación aproximada del cliente al confirmar el pedido
+        </p>
+      </div>
+      <p className="text-[11px] text-muted-foreground/70">
+        ~{distanceLabel} del local
+      </p>
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: 140,
+          borderRadius: 8,
+          border: '1px solid var(--border, #e5e7eb)',
+        }}
+      />
+      <div className="flex items-center gap-3 text-[10px] text-muted-foreground/50">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2 h-2 rounded-full bg-[var(--tgo-brand,#F74211)]" />
+          Local
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+          Cliente
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
    TAB: DETALLES
    ═══════════════════════════════════════════════════════════ */
 
@@ -293,6 +415,18 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
           </div>
         </div>
       </Section>
+
+      {/* ── Ubicación pickup (takeaway) ────────────────── */}
+      {item.orderMode === 'takeaway' && typeof item.customer?.pickupLocation?.lat === 'number' && typeof item.customer?.pickupLocation?.lng === 'number' && item.locationLat != null && item.locationLng != null && (
+        <Section title="Ubicación pickup">
+          <PickupLocationMap
+            customerLat={item.customer.pickupLocation.lat}
+            customerLng={item.customer.pickupLocation.lng}
+            restaurantLat={item.locationLat}
+            restaurantLng={item.locationLng}
+          />
+        </Section>
+      )}
 
       {/* ── Entrega ─────────────────────────────────────── */}
       {item.orderMode === 'delivery' && item.deliveryAddress && (

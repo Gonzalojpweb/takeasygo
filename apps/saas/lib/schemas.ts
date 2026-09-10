@@ -58,6 +58,10 @@ export const createOrderSchema = z.object({
       .or(z.literal(''))
       .transform(v => v ?? ''),
     birthDate: z.string().optional(), // formato YYYY-MM-DD
+    pickupLocation: z.object({
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+    }).optional(),
   }),
   notes: z.string().max(500).trim().default(''),
   mode: z.enum(['takeaway', 'dine-in', 'business', 'delivery']),

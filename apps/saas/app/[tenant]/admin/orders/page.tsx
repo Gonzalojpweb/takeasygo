@@ -56,7 +56,7 @@ export default async function OrdersPage() {
   const locations = await Location.find({ tenantId }).lean()
 
   const locationMap = Object.fromEntries(
-    locations.map((l: any) => [l._id.toString(), l.name])
+    locations.map((l: any) => [l._id.toString(), { name: l.name, lat: l.geo?.coordinates?.[1], lng: l.geo?.coordinates?.[0] }])
   )
 
   const serializedLocations = JSON.parse(JSON.stringify(locations)).map((l: any) => ({
@@ -74,7 +74,9 @@ export default async function OrdersPage() {
       phone: safeDecrypt(o.customer.phone),
       email: safeDecrypt(o.customer.email),
     },
-    locationName: locationMap[o.locationId?.toString()] || 'Sede',
+    locationName: locationMap[o.locationId?.toString()]?.name || 'Sede',
+    locationLat: locationMap[o.locationId?.toString()]?.lat ?? null,
+    locationLng: locationMap[o.locationId?.toString()]?.lng ?? null,
   }))
 
   // Recent ratings for admin toast (piggyback on board refresh)

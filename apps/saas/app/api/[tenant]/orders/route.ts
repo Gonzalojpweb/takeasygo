@@ -212,6 +212,15 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const { success: orderRateOk } = await rateLimit(`order-create:${tenantSlug}:${ip}`, 10, 60_000)
+    if (!orderRateOk) {
+      return NextResponse.json(
+        { error: 'Demasiados pedidos. Esperá un momento e intentá de nuevo.' },
+        { status: 429 }
+      )
+    }
+
     // Resolver la QrPromo activa para calcular el descuento correcto
     let activeQrPromo: any = null
     const rawBody = await request.json()
@@ -1301,6 +1310,10 @@ export async function POST(
       phoneHash: body.customer.phone ? hashPhone(body.customer.phone) : null,
     }
 
+    const pickupLocation = body.customer?.pickupLocation
+      ? { lat: body.customer.pickupLocation.lat, lng: body.customer.pickupLocation.lng }
+      : null
+
     // ── Crear LoyaltyMember ANTES de la orden (B8: evitar race condition con webhook) ──
     // Si joinClub está activo, creamos el miembro primero para que el webhook de MP
     // encuentre el member cuando intente acreditar puntos.
@@ -1399,7 +1412,10 @@ export async function POST(
       discountAmount,
       qrPromoApplied,
       total: pricing.finalTotal,
-      customer: encryptedCustomer,
+      customer: {
+        ...encryptedCustomer,
+        ...(pickupLocation && { pickupLocation }),
+      },
       'payment.method': paymentMethod,
       'payment.baseTotal': pricing.baseTotal,
       'payment.surchargePercent': pricing.surchargePercent,
