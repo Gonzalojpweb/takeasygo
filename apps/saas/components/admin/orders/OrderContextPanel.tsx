@@ -12,7 +12,7 @@ import OrderStatusButton from '../OrderStatusButton'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business'
 import { toast } from 'sonner'
-import { haversineDistance } from '@/lib/geofencing'
+import { haversineDistance } from '@/lib/geo'
 import type { BoardContextPanelRenderProps } from '@/components/shared/operations-board'
 
 interface OrderItem {
