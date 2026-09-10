@@ -1380,8 +1380,10 @@ export async function POST(
     }
 
     // ── Calcular pricing dinámico ────────────────────────────────────
+    // deliveryCostCalc se pasa para que el recargo de transferencia se calcule
+    // solo sobre subtotal (sin delivery) — el delivery es passthrough al repartidor.
     const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean() as any
-    const pricing = calculateFinalTotal(total, paymentMethod as any, tenant, platformConfig || {}, undefined, body.mode)
+    const pricing = calculateFinalTotal(total, paymentMethod as any, tenant, platformConfig || {}, undefined, body.mode, deliveryCostCalc)
 
     const order = await Order.create({
       tenantId: tenant._id,
