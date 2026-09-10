@@ -1,29 +1,79 @@
 'use client'
 
-// ── TGO Animated Logo Loader ─────────────────────────────────────────────────
+// ── TGO Splash / Onboarding Intro ────────────────────────────────────────────
 //
-// Pin-drop animation del logo TGO.
+// Splash screen con fondo --tgo-brand, pin blanco invertido y botón "Comenzar".
 // SVG inline + CSS keyframes, sin dependencias externas.
 //
 // Uso:
-//   <AnimatedLogoLoader />                    — fullscreen overlay
-//   <AnimatedLogoLoader fullScreen={false} /> — inline (para loading.tsx)
+//   <AnimatedLogoLoader />                                      — loader inline (loading.tsx)
+//   <AnimatedLogoLoader interactive onDismiss={fn} />           — splash interactivo (ExploreClient)
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface AnimatedLogoLoaderProps {
   fullScreen?: boolean
+  interactive?: boolean         // true = splash con botón "Comenzar"
+  dataReady?: Promise<unknown>  // Promise de las 3 promises del padre
+  onReady?: () => void          // se llama cuando la secuencia visual termina (~2.5s)
+  onDismiss?: () => void        // se llama cuando el usuario toca "Comenzar"
 }
 
-export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLoaderProps) {
+export default function AnimatedLogoLoader({
+  fullScreen = true,
+  interactive = false,
+  dataReady,
+  onReady,
+  onDismiss,
+}: AnimatedLogoLoaderProps) {
   const [playing, setPlaying] = useState(false)
+  const [logoSequenceDone, setLogoSequenceDone] = useState(false)
+  const [buttonSpinner, setButtonSpinner] = useState(false)
+  const dismissCalledRef = useRef(false)
 
+  // ── Start animation on mount ─────────────────────────────────────────────
   useEffect(() => {
-    // Force reflow then start animation
     requestAnimationFrame(() => {
       requestAnimationFrame(() => setPlaying(true))
     })
   }, [])
+
+  // ── Logo sequence done at ~2.5s ──────────────────────────────────────────
+  useEffect(() => {
+    if (!playing) return
+    const timer = setTimeout(() => {
+      setLogoSequenceDone(true)
+      onReady?.()
+    }, 2500)
+    return () => clearTimeout(timer)
+  }, [playing, onReady])
+
+  // ── Reduced motion: skip straight to done ────────────────────────────────
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setLogoSequenceDone(true)
+      onReady?.()
+    }
+  }, [onReady])
+
+  // ── Dismiss handler ──────────────────────────────────────────────────────
+  const handleDismiss = useCallback(async () => {
+    if (dismissCalledRef.current) return
+    dismissCalledRef.current = true
+
+    if (!dataReady) {
+      // No promise passed — dismiss immediately
+      onDismiss?.()
+      return
+    }
+
+    setButtonSpinner(true)
+
+    // Wait for data or 1.5s safety cap
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 1500))
+    await Promise.race([dataReady, timeout])
+    onDismiss?.()
+  }, [dataReady, onDismiss])
 
   const content = (
     <div style={{
@@ -39,7 +89,7 @@ export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLo
       <style>{`
         .tgo-loader-icon-wrap {
           width: min(60vw, 340px);
-          filter: drop-shadow(0 30px 60px rgba(0,0,0,0.55));
+          filter: drop-shadow(0 30px 60px rgba(0,0,0,0.18));
         }
         .tgo-loader-icon-wrap svg {
           display: block;
@@ -59,15 +109,6 @@ export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLo
           transform: scale(0.3);
           transform-origin: 100px 152px;
         }
-        .tgo-loader .dot {
-          transform: translate(0px, 0px) scale(1);
-          transform-origin: 100px 80px;
-        }
-        .tgo-loader .dot-glow {
-          opacity: 0;
-          transform: scale(0.6);
-          transform-origin: 155px 45px;
-        }
         .tgo-loader .ring {
           stroke-dasharray: 100 100;
           stroke-dashoffset: 100;
@@ -76,29 +117,26 @@ export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLo
           opacity: 0;
           transform: translateY(8px);
         }
+        .tgo-loader .tgo-splash-btn {
+          opacity: 0;
+          transform: translateY(12px);
+        }
 
-        /* Playing state */
+        /* Playing state — compressed to ~2.5s */
         .tgo-loader.playing .pin-group {
-          animation: tgoPinDrop .95s cubic-bezier(.34,1.45,.55,1) .15s forwards;
+          animation: tgoPinDrop .8s cubic-bezier(.34,1.45,.55,1) .1s forwards;
         }
         .tgo-loader.playing .shadow {
-          animation: tgoShadowGrow .95s ease-out .15s forwards;
-        }
-        .tgo-loader.playing .dot {
-          animation:
-            tgoDotTravel 1.05s cubic-bezier(.31,.85,.29,1.28) 1.1s forwards,
-            tgoDotIdlePulse 2.2s ease-in-out 3.55s infinite alternate;
-        }
-        .tgo-loader.playing .dot-glow {
-          animation:
-            tgoGlowTravel 1.05s cubic-bezier(.31,.85,.29,1.28) 1.1s forwards,
-            tgoGlowIdlePulse 2.2s ease-in-out 3.55s infinite alternate;
+          animation: tgoShadowGrow .8s ease-out .1s forwards;
         }
         .tgo-loader.playing .ring {
-          animation: tgoRingDraw 1.25s cubic-bezier(.45,.05,.25,1) 2.05s forwards;
+          animation: tgoRingDraw .9s cubic-bezier(.45,.05,.25,1) .9s forwards;
         }
         .tgo-loader.playing .wordmark {
-          animation: tgoFadeUp .8s ease-out 3.35s forwards;
+          animation: tgoFadeUp .6s ease-out 1.7s forwards;
+        }
+        .tgo-loader.playing .tgo-splash-btn {
+          animation: tgoBtnEnter .5s ease-out 2.5s forwards;
         }
 
         @keyframes tgoPinDrop {
@@ -110,27 +148,9 @@ export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLo
         }
         @keyframes tgoShadowGrow {
           0%   { opacity: 0; transform: scale(0.25); }
-          55%  { opacity: .12; transform: scale(0.7); }
-          72%  { opacity: .32; transform: scale(1.18); }
-          100% { opacity: .24; transform: scale(1); }
-        }
-        @keyframes tgoDotTravel {
-          0%   { transform: translate(0px, 0px) scale(1); }
-          18%  { transform: translate(-2px, -4px) scale(1.32); }
-          100% { transform: translate(55px, -35px) scale(0.92); }
-        }
-        @keyframes tgoGlowTravel {
-          0%   { opacity: 0; transform: translate(-55px, 35px) scale(0.6); }
-          18%  { opacity: .55; transform: translate(-57px, 31px) scale(0.9); }
-          100% { opacity: .55; transform: translate(0px, 0px) scale(1); }
-        }
-        @keyframes tgoDotIdlePulse {
-          0%   { filter: drop-shadow(0 0 0 rgba(247,66,17,0)); }
-          100% { filter: drop-shadow(0 0 7px rgba(247,66,17,.75)); }
-        }
-        @keyframes tgoGlowIdlePulse {
-          0%   { opacity: .4; transform: translate(55px, -35px) scale(0.9); }
-          100% { opacity: .7; transform: translate(55px, -35px) scale(1.25); }
+          55%  { opacity: .08; transform: scale(0.7); }
+          72%  { opacity: .18; transform: scale(1.18); }
+          100% { opacity: .14; transform: scale(1); }
         }
         @keyframes tgoRingDraw {
           from { stroke-dashoffset: 100; }
@@ -139,24 +159,21 @@ export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLo
         @keyframes tgoFadeUp {
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes tgoBtnEnter {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
 
         /* Reduced motion */
         @media (prefers-reduced-motion: reduce) {
           .tgo-loader .pin-group,
           .tgo-loader .shadow,
-          .tgo-loader .dot,
-          .tgo-loader .dot-glow,
-          .tgo-loader .wordmark {
+          .tgo-loader .ring,
+          .tgo-loader .wordmark,
+          .tgo-loader .tgo-splash-btn {
             animation: none !important;
             opacity: 1 !important;
             transform: none !important;
-          }
-          .tgo-loader .dot {
-            transform: translate(55px, -35px) scale(0.92) !important;
-          }
-          .tgo-loader .dot-glow {
-            transform: translate(55px, -35px) scale(1) !important;
-            opacity: .5 !important;
           }
           .tgo-loader .ring {
             stroke-dashoffset: 0 !important;
@@ -174,44 +191,33 @@ export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLo
       <div className="tgo-loader-icon-wrap">
         <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <linearGradient id="tgoBgGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="var(--tgo-state-trust, #1c1d38)" />
-              <stop offset="100%" stopColor="#111225" />
-            </linearGradient>
             <filter id="tgoBlur6" x="-100%" y="-100%" width="300%" height="300%">
               <feGaussianBlur stdDeviation="6" />
             </filter>
           </defs>
 
-          {/* Background */}
-          <rect x="0" y="0" width="200" height="200" rx="46" fill="url(#tgoBgGrad)" />
-
           {/* Landing shadow */}
-          <ellipse className="shadow" cx="100" cy="152" rx="24" ry="6" fill="#000000" />
+          <ellipse className="shadow" cx="100" cy="152" rx="24" ry="6" fill="#000000" opacity="0.15" />
 
-          {/* Pin */}
+          {/* Pin — white */}
           <g className="pin-group">
             <path
               d="M100,50 C118.5,50 133,64.5 133,83 C133,108 100,150 100,150 C100,150 67,108 67,83 C67,64.5 81.5,50 100,50 Z"
-              fill="var(--tgo-card, #f3eee2)"
+              fill="#FFFFFF"
             />
-            <circle cx="100" cy="80" r="14" fill="var(--tgo-state-trust, #14152a)" />
+            {/* Face — brand color */}
+            <circle cx="100" cy="80" r="14" fill="var(--tgo-brand, #F74211)" />
           </g>
 
-          {/* Glow */}
-          <circle className="dot-glow" cx="100" cy="80" r="20" fill="var(--tgo-brand-primary, #f74211)" filter="url(#tgoBlur6)" />
-
-          {/* Orange dot */}
-          <circle className="dot" cx="100" cy="80" r="14" fill="var(--tgo-brand-primary, #f74211)" />
-
-          {/* Ring */}
+          {/* Ring — white, subtle */}
           <path
             className="ring"
             d="M171.8,69.5 A78,78 0 1 1 130.5,28.2"
             fill="none"
-            stroke="var(--tgo-card, #f3eee2)"
+            stroke="#FFFFFF"
             strokeWidth="9"
             strokeLinecap="round"
+            opacity="0.3"
             pathLength="100"
           />
         </svg>
@@ -220,23 +226,77 @@ export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLo
       {/* Wordmark */}
       <div className="wordmark" style={{ textAlign: 'center' }}>
         <div style={{
-          fontSize: 22,
+          fontSize: '2.125rem',
           letterSpacing: '2.5px',
-          color: 'var(--tgo-card, #f3eee2)',
-          fontWeight: 600,
+          color: '#FFFFFF',
+          fontWeight: 700,
         }}>
-          T<span style={{ color: 'var(--tgo-brand-primary, #f74211)' }}>GO</span>
+          TGO
         </div>
         <div style={{
           marginTop: 6,
-          fontSize: 12,
-          letterSpacing: '1.5px',
+          fontSize: '0.8125rem',
+          letterSpacing: '0.1em',
           textTransform: 'uppercase' as const,
-          color: '#8b8ca3',
+          color: 'rgba(255,255,255,0.85)',
+          fontWeight: 600,
         }}>
           Cerca de vos
         </div>
       </div>
+
+      {/* Comenzar button — only in interactive mode */}
+      {interactive && (
+        <button
+          className="tgo-splash-btn"
+          onClick={handleDismiss}
+          disabled={buttonSpinner}
+          style={{
+            marginTop: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '14px 32px',
+            borderRadius: 9999,
+            border: 'none',
+            background: '#FFFFFF',
+            color: 'var(--tgo-brand, #F74211)',
+            fontSize: '1rem',
+            fontWeight: 600,
+            cursor: buttonSpinner ? 'wait' : 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            minWidth: 160,
+            minHeight: 48,
+          }}
+          onMouseEnter={(e) => {
+            if (!buttonSpinner) {
+              e.currentTarget.style.transform = 'scale(1.02)'
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)'
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'
+          }}
+        >
+          {buttonSpinner ? (
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ animation: 'tgo-spin .6s linear infinite' }}>
+              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+              <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <>Comenzar <span aria-hidden="true">→</span></>
+          )}
+        </button>
+      )}
+
+      <style>{`
+        @keyframes tgo-spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 
@@ -251,7 +311,7 @@ export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLo
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--tgo-state-trust, #0b0c18)',
+          background: 'var(--tgo-brand, #F74211)',
         }}
       >
         {content}
@@ -268,7 +328,7 @@ export default function AnimatedLogoLoader({ fullScreen = true }: AnimatedLogoLo
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--tgo-state-trust, #0b0c18)',
+        background: 'var(--tgo-brand, #F74211)',
       }}
     >
       {content}

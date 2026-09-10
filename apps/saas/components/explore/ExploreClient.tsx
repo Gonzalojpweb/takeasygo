@@ -142,13 +142,14 @@ function ExploreClientInner() {
   const [gpsLoading, setGpsLoading] = useState(false)
   const [gpsResolved, setGpsResolved] = useState(!!readGpsCache())
 
-  // ── Splash + Onboarding Logic (dynamic duration) ──────────────────────
+  // ── Splash + Onboarding Logic ─────────────────────────────────────────
   const SPLASH_CACHE_KEY = 'tgo_splash_shown'
   const ONBOARDING_CACHE_KEY = 'takeasy_onboarding_seen'
   const [showSplash, setShowSplash] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [splashReady, setSplashReady] = useState(false)
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(true) // Default true for SSR
+  const dataLoadRef = useRef<Promise<PromiseSettledResult<void>[]> | null>(null)
 
   useEffect(() => {
     sidRef.current = getOrCreateSessionId()
@@ -177,18 +178,16 @@ function ExploreClientInner() {
     setHasSeenOnboarding(seen)
   }, [])
 
-  // Dynamic splash: wait for data + animation full cycle (~4.5s)
+  // Splash: skip if already shown this session, otherwise fire data load
   useEffect(() => {
-    // Skip splash if already shown this session (prevents flash on tab switch / back navigation)
     if (sessionStorage.getItem(SPLASH_CACHE_KEY) === 'true') {
       setShowSplash(false)
       setSplashReady(true)
       return
     }
 
-    // Animation is the app's hook — always play on first session visit
-    const minDelay = new Promise((resolve) => setTimeout(resolve, 4500))
-    const dataLoad = Promise.allSettled([
+    // Fire data promises immediately — timing controlled by splash button
+    dataLoadRef.current = Promise.allSettled([
       fetch('/api/auth/session').then(() => {}).catch(() => {}),
       fetch('/api/explore/nearby?lat=-34.6037&lng=-58.3816&radius=2000').then(() => {}).catch(() => {}),
       new Promise<void>((resolve) => {
@@ -203,12 +202,17 @@ function ExploreClientInner() {
         }
       }),
     ])
+  }, [])
 
-    Promise.all([minDelay, dataLoad]).then(() => {
-      setShowSplash(false)
-      sessionStorage.setItem(SPLASH_CACHE_KEY, 'true')
-      setSplashReady(true)
-    })
+  // Dismiss splash: wait for data or 1.5s safety cap
+  const handleSplashDismiss = useCallback(async () => {
+    if (dataLoadRef.current) {
+      const timeout = new Promise<void>((resolve) => setTimeout(resolve, 1500))
+      await Promise.race([dataLoadRef.current, timeout])
+    }
+    setShowSplash(false)
+    sessionStorage.setItem(SPLASH_CACHE_KEY, 'true')
+    setSplashReady(true)
   }, [])
 
   // After splash ends + client hydrated, show onboarding if needed
@@ -418,7 +422,11 @@ function ExploreClientInner() {
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
-            <AnimatedLogoLoader />
+            <AnimatedLogoLoader
+              interactive
+              dataReady={dataLoadRef.current ?? undefined}
+              onDismiss={handleSplashDismiss}
+            />
           </motion.div>
         )}
         {showOnboarding && <OnboardingFlow key="onboarding" onComplete={handleOnboardingComplete} />}
