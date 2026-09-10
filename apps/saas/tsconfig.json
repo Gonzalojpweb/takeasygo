@@ -24,6 +24,7 @@
       "@takeasygo/types": ["../../packages/types/src"],
       "@takeasygo/db": ["../../packages/db/src"],
       "@takeasygo/business": ["../../packages/business/src"],
+      "@takeasygo/business/browser": ["../../packages/business/src/browser.ts"],
       "@takeasygo/ui": ["../../packages/ui/src"]
     }
   },
