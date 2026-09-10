@@ -178,6 +178,20 @@ export default function AuthStage({ userName, onComplete, onPersistData }: AuthS
                 Continuar con email
               </motion.button>
             </div>
+
+            {/* Privacy microcopy */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8, duration: 0.5 }}
+              className="text-[11px] text-center mt-6 leading-relaxed max-w-[280px]"
+              style={{ color: 'var(--tgo-surface-3)' }}
+            >
+              Al continuar, tus datos están protegidos.{' '}
+              <span style={{ color: 'var(--tgo-text-muted)', textDecoration: 'underline' }}>
+                Ver política de privacidad
+              </span>
+            </motion.p>
           </motion.div>
         ) : emailSent ? (
           /* ── Email sent confirmation ─────────────────────── */
