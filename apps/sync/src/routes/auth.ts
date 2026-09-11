@@ -1,6 +1,7 @@
 import { Router } from "express"
 import mongoose from "mongoose"
-import { signJwt, HUB_TOKEN_TTL_MS, SAAS_TO_POS_ROLE } from "@takeasygo/business"
+import { signJwt, HUB_TOKEN_TTL_MS } from "@takeasygo/business/jwt"
+import { SAAS_TO_POS_ROLE } from "@takeasygo/business"
 import { config } from "../config"
 import { validate, loginSchema } from "../middleware/validation"
 import { UserModel, LocationModel } from "@takeasygo/db"

@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express"
-import { verifyJwt, SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES } from "@takeasygo/business"
+import { verifyJwt } from "@takeasygo/business/jwt"
+import { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES } from "@takeasygo/business"
 import { config } from "../config"
 import type { Role, DeviceType } from "@takeasygo/types"
 

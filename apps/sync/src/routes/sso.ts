@@ -1,7 +1,7 @@
 import { Router } from "express"
 import { randomUUID } from "node:crypto"
 import Redis from "ioredis"
-import { signJwt } from "@takeasygo/business"
+import { signJwt } from "@takeasygo/business/jwt"
 import { config } from "../config"
 
 const SSO_TOKEN_TTL_MS = 60_000

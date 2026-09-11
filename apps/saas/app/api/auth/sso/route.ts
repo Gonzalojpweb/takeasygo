@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
-import { verifyJwt } from '@takeasygo/business'
+import { verifyJwt } from '@takeasygo/business/jwt'
 import { Redis } from '@upstash/redis'
 import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'

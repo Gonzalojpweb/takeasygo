@@ -1,4 +1,4 @@
-import { validateEventSignature } from "@takeasygo/business"
+import { validateEventSignature } from "@takeasygo/business/sync-events"
 import Redis from "ioredis"
 import { config } from "../config"
 

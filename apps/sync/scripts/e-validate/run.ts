@@ -28,7 +28,7 @@ import {
   UserModel,
   SyncOrderModel,
 } from "@takeasygo/db"
-import { verifyJwt } from "@takeasygo/business"
+import { verifyJwt } from "@takeasygo/business/jwt"
 
 const ROOT = resolve(process.cwd())
 const SYNC_DIR = join(ROOT, "apps", "sync")

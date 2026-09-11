@@ -6,7 +6,9 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./dist/index.js",
-    "./browser": "./dist/browser.js"
+    "./browser": "./dist/browser.js",
+    "./sync-events": "./dist/sync-events.js",
+    "./jwt": "./dist/jwt.js"
   },
   "scripts": {
     "build": "tsc",
