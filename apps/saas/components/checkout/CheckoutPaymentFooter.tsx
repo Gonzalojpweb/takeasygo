@@ -1,21 +1,71 @@
 'use client'
 
+import { useState, useCallback } from 'react'
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { toast } from 'sonner'
 import { toPesos } from '@takeasygo/business/browser'
 import { useRouter } from 'next/navigation'
+import { MapPin, Loader2, CheckCircle2 } from 'lucide-react'
 import { captureCheckoutStarted, captureRewardAdvanceAccepted } from '@/lib/tia/events'
 import { captureCheckoutStarted as captureCheckoutStartedMongo } from '@/lib/events'
+
+type GeoStatus = 'idle' | 'loading' | 'granted' | 'denied' | 'error'
 
 export default function CheckoutPaymentFooter() {
   const { state, dispatch, steps, baseTotal, total, subtotal, discountAmount, deliveryCost, selectedRewardItem, rewardNeedsAdvance, missingPoints, canUseSos, effectiveAdvanceLimit, transferData } = useCheckout()
   const router = useRouter()
+  const [geoStatus, setGeoStatus] = useState<GeoStatus>('idle')
+  const [pickupLocation, setPickupLocation] = useState<{ lat: number; lng: number } | null>(null)
   const {
     currentStep, cart, form, mode, deliveryMode, tenantSlug, locationId,
     scheduleOrder, scheduledPickupAt, deliveryAddress, deliveryQuote, deliveryConfirmed,
     activeQrPromo, promoCode, joinClub, loyaltyConfig, selectedRewardItemId,
     kriptonEnabled, transferEnabled, selectedPaymentMethod, loading, redirectingToMp,
   } = state
+
+  const requestGeoLocation = useCallback(async () => {
+    if (!navigator.geolocation) {
+      setGeoStatus('error')
+      toast.info('Tu navegador no soporta geolocalización')
+      return
+    }
+
+    setGeoStatus('loading')
+
+    try {
+      const permission = await navigator.permissions.query({ name: 'geolocation' })
+      if (permission.state === 'denied') {
+        setGeoStatus('denied')
+        toast.info('Permiso de ubicación bloqueado. Activalo en la configuración del navegador.', { duration: 8000 })
+        return
+      }
+    } catch {
+      // permissions API not supported — proceed with getCurrentPosition
+    }
+
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 300000,
+        })
+      })
+      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+      setPickupLocation(loc)
+      setGeoStatus('granted')
+      toast.success('Ubicación capturada ✓', { duration: 2000 })
+    } catch (err: any) {
+      console.warn('[Geolocation] Error:', err?.message || err)
+      if (err?.code === 1) {
+        setGeoStatus('denied')
+        toast.info('Permiso de ubicación denegado. Podés habilitarlo en la configuración del navegador.', { duration: 8000 })
+      } else {
+        setGeoStatus('error')
+        toast.info('No se pudo obtener tu ubicación. Podés continuar sin ella.', { duration: 5000 })
+      }
+    }
+  }, [])
 
   const customerStepIndex = deliveryMode ? 2 : 1
   const isLastStep = currentStep === steps.length - 1
@@ -116,22 +166,8 @@ export default function CheckoutPaymentFooter() {
         orderBody.scheduledPickupAt = scheduledPickupAt
       }
 
-      if (!deliveryMode && navigator.geolocation) {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: false,
-              timeout: 3000,
-              maximumAge: 300000,
-            })
-          })
-          orderBody.customer.pickupLocation = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          }
-        } catch {
-          // Permiso denegado o timeout — proceder sin ubicación
-        }
+      if (!deliveryMode && pickupLocation) {
+        orderBody.customer.pickupLocation = pickupLocation
       }
 
       const orderRes = await fetch(`/api/${tenantSlug}/orders`, {
@@ -299,6 +335,38 @@ export default function CheckoutPaymentFooter() {
               {buttonText}
             </button>
           </div>
+
+          {!deliveryMode && isLastStep && geoStatus !== 'granted' && (
+            <button
+              type="button"
+              onClick={requestGeoLocation}
+              disabled={geoStatus === 'loading'}
+              className="w-full mt-2 py-3 rounded-xl border-2 border-dashed border-zinc-300 text-zinc-600 text-sm font-medium flex items-center justify-center gap-2 hover:border-zinc-400 hover:bg-zinc-50 transition-colors disabled:opacity-60"
+            >
+              {geoStatus === 'loading' ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Obteniendo ubicación...
+                </>
+              ) : geoStatus === 'denied' ? (
+                <>
+                  <MapPin size={16} />
+                  Ubicación bloqueada — activala en la config del navegador
+                </>
+              ) : (
+                <>
+                  <MapPin size={16} />
+                  Usar mi ubicación para pickup
+                </>
+              )}
+            </button>
+          )}
+          {!deliveryMode && isLastStep && geoStatus === 'granted' && (
+            <div className="w-full mt-2 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium flex items-center justify-center gap-2">
+              <CheckCircle2 size={16} />
+              Ubicación capturada para pickup ✓
+            </div>
+          )}
         </div>
       </div>
 
