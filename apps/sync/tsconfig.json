@@ -4,8 +4,13 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "paths": {
+      "@takeasygo/business": ["../../packages/business/src"],
+      "@takeasygo/business/jwt": ["../../packages/business/src/jwt.ts"],
+      "@takeasygo/business/sync-events": ["../../packages/business/src/sync-events.ts"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "scripts"],
   "exclude": ["node_modules", "dist"]
 }

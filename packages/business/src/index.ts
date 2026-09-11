@@ -15,17 +15,10 @@ export {
   HIDDEN_REWARDS_LIMIT,
 } from "./plans"
 export { canPerformAction, PERMISSIONS } from "./authorization"
-export { validateEventSignature, createEventSignature } from "./sync-events"
-export {
-
-  signJwt,
-  verifyJwt,
-  decodeJwt,
-  isJwtExpiringSoon,
-  HUB_TOKEN_TTL_MS,
-  SPOKE_TOKEN_TTL_MS,
-} from "./jwt"
-export type { KeyPair } from "./jwt"
+// sync-events and jwt removed from barrel — they use node:crypto and must NOT
+// be bundled for client. Import directly:
+//   import { ... } from '@takeasygo/business/sync-events'
+//   import { ... } from '@takeasygo/business/jwt'
 export {
   generateSalt,
   deriveKey,

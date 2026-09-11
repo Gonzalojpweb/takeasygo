@@ -2,7 +2,7 @@ import { Server as SocketServer } from "socket.io"
 import type { Server as HttpServer } from "node:http"
 import { createAdapter } from "@socket.io/redis-adapter"
 import Redis from "ioredis"
-import { verifyJwt } from "@takeasygo/business"
+import { verifyJwt } from "@takeasygo/business/jwt"
 import { LocationModel } from "@takeasygo/db"
 import { config } from "../config"
 
