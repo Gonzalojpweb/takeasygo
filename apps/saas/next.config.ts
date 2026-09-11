@@ -32,7 +32,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['mongoose', 'agent-base', 'undici'],
-  transpilePackages: ['@takeasygo/business', '@takeasygo/types'],
+  transpilePackages: ['@takeasygo/types'],
   async rewrites() {
     return [
       {
