@@ -270,11 +270,12 @@ function PickupLocationMap({
 }: {
   customerLat: number
   customerLng: number
-  restaurantLat: number
-  restaurantLng: number
+  restaurantLat?: number | null
+  restaurantLng?: number | null
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
+  const hasRestaurant = typeof restaurantLat === 'number' && typeof restaurantLng === 'number'
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -295,14 +296,16 @@ function PickupLocationMap({
         maxZoom: 19,
       }).addTo(map)
 
-      // Pin del restaurante (naranja)
-      const restaurantIcon = L.divIcon({
-        className: '',
-        html: `<div style="width:14px;height:14px;border-radius:50%;background:var(--tgo-brand,#F74211);border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
-      })
-      L.marker([restaurantLat, restaurantLng], { icon: restaurantIcon }).addTo(map)
+      if (hasRestaurant) {
+        // Pin del restaurante (naranja)
+        const restaurantIcon = L.divIcon({
+          className: '',
+          html: `<div style="width:14px;height:14px;border-radius:50%;background:var(--tgo-brand,#F74211);border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+          iconSize: [14, 14],
+          iconAnchor: [7, 7],
+        })
+        L.marker([restaurantLat!, restaurantLng!], { icon: restaurantIcon }).addTo(map)
+      }
 
       // Pin del cliente (azul)
       const customerIcon = L.divIcon({
@@ -313,12 +316,16 @@ function PickupLocationMap({
       })
       L.marker([customerLat, customerLng], { icon: customerIcon }).addTo(map)
 
-      // Ajustar vista para mostrar ambos puntos
-      const bounds = L.latLngBounds(
-        [restaurantLat, restaurantLng],
-        [customerLat, customerLng]
-      )
-      map.fitBounds(bounds, { padding: [30, 30] })
+      // Ajustar vista
+      if (hasRestaurant) {
+        const bounds = L.latLngBounds(
+          [restaurantLat!, restaurantLng!],
+          [customerLat, customerLng]
+        )
+        map.fitBounds(bounds, { padding: [30, 30] })
+      } else {
+        map.setView([customerLat, customerLng], 15)
+      }
 
       mapRef.current = map
     }
@@ -331,15 +338,19 @@ function PickupLocationMap({
         mapRef.current = null
       }
     }
-  }, [customerLat, customerLng, restaurantLat, restaurantLng])
+  }, [customerLat, customerLng, restaurantLat, restaurantLng, hasRestaurant])
 
-  const distanceM = haversineDistance(
-    { lat: restaurantLat, lng: restaurantLng },
-    { lat: customerLat, lng: customerLng }
-  )
-  const distanceLabel = distanceM < 1000
-    ? `${Math.round(distanceM)} m`
-    : `${(distanceM / 1000).toFixed(1)} km`
+  const distanceM = hasRestaurant
+    ? haversineDistance(
+        { lat: restaurantLat!, lng: restaurantLng! },
+        { lat: customerLat, lng: customerLng }
+      )
+    : null
+  const distanceLabel = distanceM != null
+    ? distanceM < 1000
+      ? `${Math.round(distanceM)} m`
+      : `${(distanceM / 1000).toFixed(1)} km`
+    : null
 
   return (
     <div className="space-y-2">
@@ -349,9 +360,11 @@ function PickupLocationMap({
           Ubicación aproximada del cliente al confirmar el pedido
         </p>
       </div>
-      <p className="text-[11px] text-muted-foreground/70">
-        ~{distanceLabel} del local
-      </p>
+      {distanceLabel && (
+        <p className="text-[11px] text-muted-foreground/70">
+          ~{distanceLabel} del local
+        </p>
+      )}
       <div
         ref={containerRef}
         style={{
@@ -362,10 +375,12 @@ function PickupLocationMap({
         }}
       />
       <div className="flex items-center gap-3 text-[10px] text-muted-foreground/50">
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2 h-2 rounded-full bg-[var(--tgo-brand,#F74211)]" />
-          Local
-        </span>
+        {hasRestaurant && (
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-[var(--tgo-brand,#F74211)]" />
+            Local
+          </span>
+        )}
         <span className="flex items-center gap-1">
           <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
           Cliente
@@ -417,7 +432,7 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
       </Section>
 
       {/* ── Ubicación pickup (takeaway) ────────────────── */}
-      {item.orderMode === 'takeaway' && typeof item.customer?.pickupLocation?.lat === 'number' && typeof item.customer?.pickupLocation?.lng === 'number' && item.locationLat != null && item.locationLng != null && (
+      {item.orderMode === 'takeaway' && typeof item.customer?.pickupLocation?.lat === 'number' && typeof item.customer?.pickupLocation?.lng === 'number' && (
         <Section title="Ubicación pickup">
           <PickupLocationMap
             customerLat={item.customer.pickupLocation.lat}
