@@ -380,8 +380,8 @@ export async function getRegisterHistoryByDate(
         r.closedAt >= fromDate &&
         r.closedAt <= toDate
     )
-    .reverse()
     .sortBy("closedAt")
+    .then((list) => list.reverse())
 }
 
 /**

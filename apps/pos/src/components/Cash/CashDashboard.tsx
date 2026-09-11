@@ -95,11 +95,11 @@ export function CashDashboard() {
 
   // ── Fetch failed events on mount (for badge in tab) ───────────────
   useEffect(() => {
-    if (!jwt || !tenantId) return
-    fetchFailedCashSaleEvents(tenantId, jwt)
+    if (!jwt) return
+    fetchFailedCashSaleEvents(jwt)
       .then((f) => setFailedEvents(f))
       .catch(() => {})
-  }, [jwt, tenantId])
+  }, [jwt])
 
   const handleOpenRegister = useCallback(async () => {
     const amount = parseFloat(initialAmount)
@@ -628,8 +628,8 @@ export function CashDashboard() {
         // Movimientos huérfanos pendientes (client-side, Dexie)
         getPending().then((p) => setPendingMovements(p))
         // Eventos fallidos del Sync Layer (server-side, MongoDB)
-        if (jwt && tenantId) {
-          fetchFailedCashSaleEvents(tenantId, jwt)
+        if (jwt) {
+          fetchFailedCashSaleEvents(jwt)
             .then((f) => setFailedEvents(f))
             .catch(() => setFailedEvents([]))
         }

@@ -6,11 +6,13 @@ import { db } from "../../db/dexie"
 import { formatCurrency, formatTime } from "../../utils/format"
 
 type Period = "today" | "week" | "month"
+type ChannelFilter = "all" | "pos" | "external"
 
 export function SalesDashboard() {
   const { state } = useAuth()
   const tenantId = state.status === "authenticated" ? state.tenantId : undefined
   const [period, setPeriod] = useState<Period>("today")
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all")
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null)
   const { setContextPanel, setActionBar } = useLayout()
 
@@ -42,8 +44,13 @@ export function SalesDashboard() {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
     const start = period === "today" ? todayStart : period === "week" ? weekStart : monthStart
-    return completedOrders.filter((o) => new Date(o.createdAt) >= start)
-  }, [completedOrders, period, now])
+    return completedOrders.filter((o) => {
+      if (new Date(o.createdAt) < start) return false
+      if (channelFilter === "pos" && o.source !== "pos") return false
+      if (channelFilter === "external" && o.source !== "external" && o.source !== "takeasygo") return false
+      return true
+    })
+  }, [completedOrders, period, channelFilter, now])
 
   const metrics = useMemo(() => {
     const totalSales = periodOrders.length
@@ -109,7 +116,7 @@ export function SalesDashboard() {
         subtitle: `${period === "today" ? "Hoy" : period === "week" ? "Esta semana" : "Este mes"} — ${metrics.totalSales} ventas`,
         body: (
           <div style={{ padding: "var(--sp-3)" }}>
-            <div style={{ display: "flex", justifyContent: "space-around", marginBottom: "var(--sp-4)" }}>
+            <div style={{ display: "flex", justifyContent: "space-around", marginBottom: "var(--sp-3)" }}>
               {(["today", "week", "month"] as Period[]).map((p) => (
                 <button
                   key={p}
@@ -117,6 +124,17 @@ export function SalesDashboard() {
                   onClick={() => setPeriod(p)}
                 >
                   {p === "today" ? "Hoy" : p === "week" ? "Semana" : "Mes"}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: "var(--sp-1)", marginBottom: "var(--sp-4)" }}>
+              {(["all", "pos", "external"] as ChannelFilter[]).map((c) => (
+                <button
+                  key={c}
+                  className={`btn btn-xs ${channelFilter === c ? "btn-secondary" : "btn-ghost"}`}
+                  onClick={() => setChannelFilter(c)}
+                >
+                  {c === "all" ? "Todos" : c === "pos" ? "Mostrador" : "Externos (SaaS)"}
                 </button>
               ))}
             </div>
@@ -139,7 +157,7 @@ export function SalesDashboard() {
       })
       setActionBar(null)
     }
-  }, [loading, selectedOrder, period, metrics, periodOrders, orders, setContextPanel, setActionBar])
+  }, [loading, selectedOrder, period, channelFilter, metrics, periodOrders, orders, setContextPanel, setActionBar])
 
   const PERIOD_LABEL = { today: "Hoy", week: "Esta semana", month: "Este mes" }
 
@@ -148,18 +166,32 @@ export function SalesDashboard() {
       <div className="workspace-header">
         <div>
           <div className="workspace-title">Ventas</div>
-          <div className="workspace-subtitle">{PERIOD_LABEL[period]} — {metrics.totalSales} ventas, {formatCurrency(metrics.totalRevenue)}</div>
+          <div className="workspace-subtitle">{PERIOD_LABEL[period]} — {metrics.totalSales} ventas ({channelFilter === "all" ? "Todos" : channelFilter === "pos" ? "Mostrador" : "Externos (SaaS)"}), {formatCurrency(metrics.totalRevenue)}</div>
         </div>
-        <div className="workspace-actions">
-          {(["today", "week", "month"] as Period[]).map((p) => (
-            <button
-              key={p}
-              className={`category-tab ${period === p ? "active" : ""}`}
-              onClick={() => { setPeriod(p); setSelectedOrder(null) }}
-            >
-              {p === "today" ? "Hoy" : p === "week" ? "Semana" : "Mes"}
-            </button>
-          ))}
+        <div className="workspace-actions" style={{ gap: 8 }}>
+          <div style={{ display: "flex", gap: 4, background: "var(--surface-secondary, #f5f5f5)", padding: 3, borderRadius: 6 }}>
+            {(["all", "pos", "external"] as ChannelFilter[]).map((c) => (
+              <button
+                key={c}
+                className={`category-tab ${channelFilter === c ? "active" : ""}`}
+                style={{ padding: "4px 10px", fontSize: "12px" }}
+                onClick={() => { setChannelFilter(c); setSelectedOrder(null) }}
+              >
+                {c === "all" ? "Todos" : c === "pos" ? "Mostrador" : "Externos (SaaS)"}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {(["today", "week", "month"] as Period[]).map((p) => (
+              <button
+                key={p}
+                className={`category-tab ${period === p ? "active" : ""}`}
+                onClick={() => { setPeriod(p); setSelectedOrder(null) }}
+              >
+                {p === "today" ? "Hoy" : p === "week" ? "Semana" : "Mes"}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

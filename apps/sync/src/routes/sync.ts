@@ -3,7 +3,7 @@ import { Router } from "express"
 import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
 import { getPendingOrders, updateOrderStatus } from "../services/order-translator"
-import { getTenantConflicts } from "../services/conflict-resolver"
+import { getTenantConflicts, resolveConflict } from "../services/conflict-resolver"
 import { validateEvent } from "../services/event-validator"
 import { validate, syncReplaySchema } from "../middleware/validation"
 import { getDeviceSecret } from "./pairing"
@@ -133,7 +133,6 @@ export function syncRouter(
       const auth = req.auth!
       const { eventId } = req.params
 
-      const { resolveConflict } = await import("../services/conflict-resolver")
       const resolved = resolveConflict(auth.tenantId, eventId, auth.sub)
 
       if (!resolved) {

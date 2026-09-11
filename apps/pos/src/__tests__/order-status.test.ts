@@ -186,6 +186,19 @@ describe("Order status transitions", () => {
       })
     })
 
+    it("transitions pending → delivered (POS counter sale)", async () => {
+      mockOrders.push(makeOrder({ status: "pending", source: "pos" }))
+
+      await deliverOrder("tenant-1", "order-1")
+
+      expect(mockOrders[0].status).toBe("delivered")
+      expect(enqueue).toHaveBeenCalledWith("tenant-1", "order.delivered", {
+        orderId: "order-1",
+        tableId: undefined,
+        total: 500,
+      })
+    })
+
     it("rejects invalid transition: preparing → delivered", async () => {
       mockOrders.push(makeOrder({ status: "preparing" }))
 

@@ -1,5 +1,7 @@
 import type { Order, PaymentMethod } from "@takeasygo/types"
 import { db } from "../db/dexie"
+import { enqueue } from "./event-queue"
+import { notifyStatusToSyncLayer } from "./sync-api"
 
 // ============================================================================
 // External Orders — Persistencia de pedidos TakeasyGO en Dexie
@@ -177,6 +179,7 @@ interface TransformExternalOrderParams {
   total: number
   notes?: string
   serverId?: string
+  jwt?: string
 }
 
 /**
@@ -221,6 +224,17 @@ export async function transformExternalOrder(
   const updated = await db.orders.get(orderId)
   if (!updated) {
     throw new Error(`[external-orders] Order ${orderId} disappeared after update`)
+  }
+
+  await enqueue(tenantId, "order.confirmed", {
+    orderId,
+    items,
+    total,
+    source: "external",
+  })
+
+  if (params.jwt) {
+    notifyStatusToSyncLayer(orderId, "confirmed", params.jwt).catch(() => {})
   }
 
   return updated

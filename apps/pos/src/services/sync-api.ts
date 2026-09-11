@@ -38,6 +38,7 @@ export async function replayEvents(
   })
 
   if (!res.ok) {
+    checkAuth(res)
     const err = await res.json().catch(() => ({ error: "Network error" }))
     throw new Error(err.error ?? `Replay failed (${res.status})`)
   }
@@ -92,12 +93,11 @@ export interface FailedCashSaleEvent {
 }
 
 export async function fetchFailedCashSaleEvents(
-  tenantId: string,
   jwt: string
 ): Promise<FailedCashSaleEvent[]> {
   try {
     const res = await fetch(
-      `${SYNC_URL}/api/v1/cash-sale?status=failed&tenantId=${tenantId}`,
+      `${SYNC_URL}/api/v1/cash-sale?status=failed`,
       {
         headers: {
           Authorization: `Bearer ${jwt}`,
@@ -146,7 +146,6 @@ export interface PendingSyncOrder {
 }
 
 export async function fetchPendingOrders(
-  _tenantId: string,
   jwt: string
 ): Promise<PendingSyncOrder[]> {
   try {

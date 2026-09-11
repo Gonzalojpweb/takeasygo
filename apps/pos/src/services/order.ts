@@ -9,7 +9,7 @@ import { notifyStatusToSyncLayer } from "./sync-api"
 // ============================================================================
 
 const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending: ["confirmed", "preparing", "cancelled"],
+  pending: ["confirmed", "preparing", "cancelled", "delivered"],
   confirmed: ["preparing", "cancelled"],
   preparing: ["ready", "cancelled"],
   ready: ["en_ruta", "delivered", "cancelled"],
@@ -194,7 +194,8 @@ export async function updateItemQuantity(
 
 export async function confirmOrder(
   tenantId: string,
-  orderId: string
+  orderId: string,
+  jwt?: string
 ): Promise<void> {
   const order = await db.orders.get(orderId)
   if (!order) throw new Error(`[order] Order ${orderId} not found`)
@@ -213,6 +214,10 @@ export async function confirmOrder(
     items: order.items,
     total: order.total,
   })
+
+  if (jwt) {
+    notifyStatusToSyncLayer(orderId, "confirmed", jwt).catch(() => {})
+  }
 }
 
 export async function prepareOrder(
