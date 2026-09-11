@@ -8,6 +8,8 @@ import {
   freeTable,
   reserveTable,
   closeTable,
+  markNeedsAttention,
+  markNeedsBill,
 } from "../services/table"
 
 export function useTables() {
@@ -44,6 +46,14 @@ export function useTables() {
       closeTable: (tableId: string) => {
         if (!tenantId) throw new Error("[useTables] Not authenticated")
         return closeTable(tenantId, tableId)
+      },
+      markNeedsAttention: (tableId: string) => {
+        if (!tenantId) throw new Error("[useTables] Not authenticated")
+        return markNeedsAttention(tenantId, tableId)
+      },
+      markNeedsBill: (tableId: string, needsBill: boolean) => {
+        if (!tenantId) throw new Error("[useTables] Not authenticated")
+        return markNeedsBill(tenantId, tableId, needsBill)
       },
     }),
     [tenantId]

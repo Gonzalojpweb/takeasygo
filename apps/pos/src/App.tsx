@@ -101,7 +101,7 @@ function App() {
     cleanupPendingStatusUpdates().catch(() => {})
 
     // Fetch pending orders from SyncLayer on connect/reconnect
-    fetchPendingOrders(state.tenantId!, state.jwt!.accessToken).then((pending) => {
+    fetchPendingOrders(state.jwt!.accessToken).then((pending) => {
       if (pending.length > 0) {
         pending.forEach((o) => {
           persistExternalOrder({
@@ -186,7 +186,7 @@ function App() {
       }
 
       // ── Fetch pending orders from SyncLayer on reconnect ──
-      fetchPendingOrders(state.tenantId!, state.jwt!.accessToken).then((pending) => {
+      fetchPendingOrders(state.jwt!.accessToken).then((pending) => {
         if (pending.length > 0) {
           pending.forEach((o) => {
             persistExternalOrder({
@@ -217,7 +217,6 @@ function App() {
       // pudo entregar (status: "failed") y los muestra en Pendientes
       // para que el manager los asigne manualmente.
       const failedEvents = await fetchFailedCashSaleEvents(
-        state.tenantId!,
         state.jwt!.accessToken
       )
       if (failedEvents.length > 0) {

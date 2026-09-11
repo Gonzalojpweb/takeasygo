@@ -24,6 +24,8 @@ import { enqueueCashSaleDelivery, type CashSaleJobData } from "../queues/cash-sa
 // - GET /, POST /:id/retry: JWT auth (POS o SaaS admin)
 // ============================================================================
 
+import { authMiddleware } from "../auth/middleware"
+
 const cashSaleSchema = z.object({
   orderId: z.string().min(1),
   tenantId: z.string().min(1),
@@ -164,20 +166,23 @@ export function cashSaleRouter(
   })
 
   /**
-   * GET /api/v1/cash-sale?status=failed&tenantId=X
+   * GET /api/v1/cash-sale?status=failed
    *
    * Lista eventos de cash sale por status. Usado por el POS para mostrar
    * eventos fallidos al manager en la escena "Pendientes".
    *
-   * Auth: JWT (montado después de authMiddleware en index.ts).
+   * Auth: JWT via authMiddleware.
    */
-  router.get("/", async (req, res) => {
+  router.get("/", authMiddleware, async (req, res) => {
     try {
-      const auth = req.auth!
-      const { status, tenantId } = req.query
+      const auth = req.auth
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" })
+      }
+      const { status } = req.query
 
       const filter: Record<string, any> = {
-        tenantId: tenantId ?? auth.tenantId,
+        tenantId: auth.tenantId,
       }
       if (status && ["pending", "delivered", "failed"].includes(status as string)) {
         filter.status = status
@@ -201,11 +206,14 @@ export function cashSaleRouter(
    * Re-intenta un evento fallido. Resetea status a "pending" y re-encola.
    * Usado por el manager cuando ve eventos fallidos en el POS.
    *
-   * Auth: JWT.
+   * Auth: JWT via authMiddleware.
    */
-  router.post("/:eventId/retry", async (req, res) => {
+  router.post("/:eventId/retry", authMiddleware, async (req, res) => {
     try {
-      const auth = req.auth!
+      const auth = req.auth
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" })
+      }
       const { eventId } = req.params
 
       const event = await CashSaleEventModel.findById(eventId).lean()

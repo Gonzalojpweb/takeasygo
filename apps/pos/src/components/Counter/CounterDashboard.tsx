@@ -532,12 +532,16 @@ export function CounterDashboard() {
         await processPayment(order.id, Math.ceil(cartTotal / methods.length), `Pedido ${selectedTable ? `M${selectedTable.number}` : "mostrador"}`, method)
       }
 
+      if (tenantId) {
+        await deliverOrder(tenantId, order.id, jwt)
+      }
+
       setScene("cierre")
     } catch (err) {
       console.error("[Counter] Payment failed:", err)
       showErrorToast("Error al procesar el pago. Intente nuevamente.")
     }
-  }, [processPayment, cartTotal, cart, selectedTableId, selectedTable, createOrder, occupyTable])
+  }, [processPayment, cartTotal, cart, selectedTableId, selectedTable, createOrder, occupyTable, tenantId, jwt])
 
   const handleNewSale = useCallback(() => {
     setCart([])

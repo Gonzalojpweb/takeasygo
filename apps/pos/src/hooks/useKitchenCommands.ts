@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "../db/dexie"
 import { useAuth } from "./useAuth"
-import { startPreparing, markReady } from "../services/command"
+import { startPreparing, markReady, confirmAndSendToKitchen } from "../services/command"
 
 export function useKitchenCommands() {
   const { state } = useAuth()
@@ -24,6 +24,10 @@ export function useKitchenCommands() {
 
   const actions = useMemo(
     () => ({
+      confirmAndSendToKitchen: (orderId: string) => {
+        if (!tenantId) throw new Error("[useKitchenCommands] Not authenticated")
+        return confirmAndSendToKitchen(tenantId, orderId)
+      },
       startPreparing: (orderId: string) => {
         if (!tenantId) throw new Error("[useKitchenCommands] Not authenticated")
         return startPreparing(tenantId, orderId)

@@ -105,7 +105,9 @@ function summarizeByPaymentMethod(
 ): Record<PaymentMethod, number> {
   const result: Record<string, number> = {}
   for (const m of movements) {
-    result[m.paymentMethod] = (result[m.paymentMethod] ?? 0) + m.amount
+    const isNegative = m.type === "refund" || m.type === "expense" || m.type === "withdrawal"
+    const val = isNegative ? -m.amount : m.amount
+    result[m.paymentMethod] = (result[m.paymentMethod] ?? 0) + val
   }
   return result as Record<PaymentMethod, number>
 }

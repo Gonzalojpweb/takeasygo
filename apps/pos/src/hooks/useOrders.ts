@@ -16,6 +16,7 @@ import {
 export function useOrders() {
   const { state } = useAuth()
   const tenantId = state.status === "authenticated" ? state.tenantId : undefined
+  const jwt = state.status === "authenticated" ? state.jwt?.accessToken : undefined
 
   const orders = useLiveQuery(
     () => (tenantId ? db.orders.where("tenantId").equals(tenantId).toArray() : []),
@@ -39,7 +40,7 @@ export function useOrders() {
       },
       confirmOrder: (orderId: string) => {
         if (!tenantId) throw new Error("[useOrders] Not authenticated")
-        return confirmOrder(tenantId, orderId)
+        return confirmOrder(tenantId, orderId, jwt)
       },
       addItem: (orderId: string, item: OrderItem) => {
         if (!tenantId) throw new Error("[useOrders] Not authenticated")
@@ -55,14 +56,14 @@ export function useOrders() {
       },
       cancelOrder: (orderId: string) => {
         if (!tenantId) throw new Error("[useOrders] Not authenticated")
-        return cancelOrder(tenantId, orderId)
+        return cancelOrder(tenantId, orderId, jwt)
       },
       deliverOrder: (orderId: string) => {
         if (!tenantId) throw new Error("[useOrders] Not authenticated")
-        return deliverOrder(tenantId, orderId)
+        return deliverOrder(tenantId, orderId, jwt)
       },
     }),
-    [tenantId]
+    [tenantId, jwt]
   )
 
   return {

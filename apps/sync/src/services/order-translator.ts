@@ -49,6 +49,8 @@ export async function createTranslatedOrder(
     surchargeAmount: data.surchargeAmount,
     menuVersion: data.menuVersion,
     externalOrderId: data.externalOrderId ?? undefined,
+    customerId: data.customerId ?? undefined,
+    notes: data.notes ?? undefined,
     paymentMethod: data.paymentMethod ?? undefined,
   })
 
@@ -111,5 +113,7 @@ export async function getPendingOrders(
     surchargeAmount: (doc as any).surchargeAmount,
     menuVersion: doc.menuVersion,
     externalOrderId: doc.externalOrderId ?? undefined,
+    customerId: (doc as any).customerId ?? undefined,
+    notes: (doc as any).notes ?? undefined,
   }))
 }

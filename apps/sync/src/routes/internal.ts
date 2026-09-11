@@ -229,7 +229,6 @@ export function internalRouter(
         filter.locationId = locationId
       }
 
-      const { SyncOrderModel } = await import("@takeasygo/db")
       const docs = await SyncOrderModel.find(filter).sort({ createdAt: -1 }).limit(50).lean()
 
       const orders = docs.map((doc: any) => ({
