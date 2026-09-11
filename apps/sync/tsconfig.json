@@ -6,9 +6,9 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "paths": {
-      "@takeasygo/business": ["../../packages/business/src"],
-      "@takeasygo/business/jwt": ["../../packages/business/src/jwt.ts"],
-      "@takeasygo/business/sync-events": ["../../packages/business/src/sync-events.ts"]
+      "@takeasygo/business": ["../../packages/business/dist"],
+      "@takeasygo/business/jwt": ["../../packages/business/dist/jwt"],
+      "@takeasygo/business/sync-events": ["../../packages/business/dist/sync-events"]
     }
   },
   "include": ["src"],
