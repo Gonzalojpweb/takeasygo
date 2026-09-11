@@ -25,6 +25,8 @@ export interface SyncOrderDocument extends Document {
   surchargeAmount?: number
   menuVersion: number
   externalOrderId?: string
+  customerId?: string
+  notes?: string
   paymentMethod?: string
   createdAt: Date
   updatedAt: Date
@@ -70,6 +72,8 @@ export const SyncOrderSchema = new Schema<SyncOrderDocument>(
     surchargeAmount: { type: Number, default: 0 },
     menuVersion: { type: Number, required: true },
     externalOrderId: { type: String },
+    customerId: { type: String },
+    notes: { type: String },
     paymentMethod: { type: String },
     syncedAt: { type: Date },
   },
