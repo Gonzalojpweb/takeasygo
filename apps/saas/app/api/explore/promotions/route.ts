@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import Promotion from '@/models/Promotion'
+import RestaurantDirectory from '@/models/RestaurantDirectory'
 import { NextRequest, NextResponse } from 'next/server'
 
 const SEARCH_RADIUS_M = 20000
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    // 1. Nearby locations (normal geo query)
+    // 1. Nearby locations (network restaurants)
     const nearbyLocations = await Location.aggregate([
       {
         $geoNear: {
@@ -32,7 +33,25 @@ export async function GET(request: NextRequest) {
       { $limit: 30 }
     ])
 
-    // 2. AlwaysVisible tenants — their locations regardless of distance
+    // 2. Nearby directory restaurants (listed/claimed)
+    let directoryRestaurants: any[] = []
+    try {
+      directoryRestaurants = await RestaurantDirectory.aggregate([
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [lng, lat] },
+            distanceField: 'distanceM',
+            maxDistance: SEARCH_RADIUS_M,
+            spherical: true,
+            query: { status: { $in: ['listed', 'claimed', 'converted'] } },
+          },
+        },
+        { $limit: 30 },
+        { $project: { _id: 1, name: 1 } },
+      ])
+    } catch {}
+
+    // 3. AlwaysVisible tenants — their locations regardless of distance
     const alwaysVisibleTenants = await Tenant.find(
       { alwaysVisible: true, status: 'active' }
     ).select('_id').lean()
@@ -47,9 +66,11 @@ export async function GET(request: NextRequest) {
         }).limit(30).lean()
       : []
 
-    // 3. Merge and deduplicate
+    // 4. Merge and deduplicate
     const allLocations = [...nearbyLocations, ...alwaysVisibleLocations]
-    const tenantIds = [...new Set(allLocations.map(l => l.tenantId?.toString()))].filter(Boolean)
+    const networkTenantIds = allLocations.map(l => l.tenantId?.toString()).filter(Boolean)
+    const directoryIds = directoryRestaurants.map(r => r._id?.toString()).filter(Boolean)
+    const tenantIds = [...new Set([...networkTenantIds, ...directoryIds])]
 
     const tenants = await Tenant.find({
       _id: { $in: tenantIds },

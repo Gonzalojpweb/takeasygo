@@ -76,6 +76,11 @@ function ExploreClientInner() {
   const { setTenantSlug } = useTenant()
   const sidRef = useRef<string>('')
 
+  // Preload Leaflet so map view loads instantly
+  useEffect(() => {
+    import('leaflet')
+  }, [])
+
   const [view, setView] = useState<View>('home')
   const readExploreCache = () => {
     try {
