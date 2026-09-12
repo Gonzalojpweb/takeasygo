@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
@@ -59,7 +59,7 @@ export default function BestSellersSection({
   const cardBg = styles.cardBgColor || '#ffffff'
   const badgeBg = styles.badgeBgColor || '#ef4444'
   const title = styles.sectionTitle || 'Los más vendidos'
-  const subtitle = styles.sectionSubtitle || (locationName ? `Lo que más están pidiendo en ${locationName}` : '')
+  const subtitle = styles.sectionSubtitle || (locationName ? `Lo que más piden en ${locationName}` : '')
 
   function resolvePrice(item: BestSellerItem): number {
     if (mode === 'takeaway' && item.takeawayPrice != null) return item.takeawayPrice
@@ -79,103 +79,108 @@ export default function BestSellersSection({
   }
 
   return (
-    <section ref={sectionRef} className="mt-8 px-5">
-      <div className="flex items-end justify-between mb-5">
-        <div>
-          <h2 className="text-2xl font-bold" style={{ color: primaryColor }}>
+    <section ref={sectionRef} className="mt-6 px-4">
+      {/* Header */}
+      <div className="flex items-end justify-between mb-3">
+        <div className="min-w-0">
+          <h2 className="text-base font-bold truncate" style={{ color: primaryColor }}>
             🔥 {title}
           </h2>
           {subtitle && (
-            <p className="text-sm text-zinc-500 mt-0.5">
+            <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
               {subtitle}
             </p>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 shrink-0 ml-2">
           <button
             onClick={() => scroll('left')}
-            className="w-8 h-8 rounded-full flex items-center justify-center active:bg-zinc-100 transition-colors"
+            className="w-7 h-7 rounded-full flex items-center justify-center active:bg-zinc-100 transition-colors"
           >
-            <ChevronLeft size={20} className="text-zinc-400" />
+            <ChevronLeft size={16} className="text-zinc-400" />
           </button>
           <button
             onClick={() => scroll('right')}
-            className="w-8 h-8 rounded-full flex items-center justify-center active:bg-zinc-100 transition-colors"
+            className="w-7 h-7 rounded-full flex items-center justify-center active:bg-zinc-100 transition-colors"
           >
-            <ChevronRight size={20} className="text-zinc-400" />
+            <ChevronRight size={16} className="text-zinc-400" />
           </button>
         </div>
       </div>
 
+      {/* Cards scroll */}
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-1 px-1"
+        className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-hide -mx-1 px-1"
       >
         {bestSellers.map((item, index) => (
           <div
             key={item._id}
-            className="w-[58%] flex-shrink-0 snap-start"
+            className="w-[46%] flex-shrink-0 snap-start"
           >
             <div
               className={cn(
-                'rounded-3xl overflow-hidden shadow-sm border border-zinc-100 active:scale-[0.97] transition-all duration-200 cursor-pointer'
+                'rounded-2xl overflow-hidden border border-zinc-100 active:scale-[0.97] transition-all duration-200 cursor-pointer'
               )}
               style={{ backgroundColor: cardBg }}
               onClick={() => handleCardClick(item, index)}
             >
-              <div className="relative h-44">
+              {/* Image */}
+              <div className="relative h-28">
                 {item.imageUrl ? (
                   <Image
-                    src={cloudinaryUrl(item.imageUrl, { w: 600 })}
+                    src={cloudinaryUrl(item.imageUrl, { w: 400 })}
                     alt={item.name}
                     fill
-                    sizes="58vw"
+                    sizes="46vw"
                     className="object-cover food-photo"
                     placeholder="blur"
                     blurDataURL={cloudinaryBlurUrl(item.imageUrl)}
                     priority={index === 0}
                   />
                 ) : (
-                  <div className="w-full h-full bg-zinc-200 flex items-center justify-center text-4xl text-zinc-400">
+                  <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-2xl text-zinc-300">
                     🍽️
                   </div>
                 )}
-                <div
-                  className="absolute top-3 right-3 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10"
+                {/* Badge */}
+                <span
+                  className="absolute top-2 right-2 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm"
                   style={{ backgroundColor: badgeBg }}
                 >
-                  🔥 Más vendido
-                </div>
+                  🔥 Top
+                </span>
               </div>
 
-              <div className="p-4">
-                <h3 className="font-bold text-sm leading-tight text-zinc-900">
+              {/* Content */}
+              <div className="p-2.5">
+                <h3 className="font-semibold text-[13px] leading-tight text-zinc-900 line-clamp-1">
                   {item.name}
                 </h3>
 
                 {item.description && (
-                  <p className="text-[12px] text-zinc-600 line-clamp-2 mt-2">
+                  <p className="text-[10px] text-zinc-500 line-clamp-1 mt-0.5">
                     {item.description}
                   </p>
                 )}
 
                 {item.count > 0 && (
-                  <p className="text-[11px] text-zinc-400 font-medium mt-1.5">
-                    🔥 {item.count.toLocaleString()} pedidos este mes
+                  <p className="text-[9px] text-zinc-400 mt-1">
+                    🔥 {item.count.toLocaleString()} pedidos/mes
                   </p>
                 )}
 
-                <div className="flex items-center justify-between mt-3">
-                  <span className="text-xl font-bold" style={{ color: accent }}>
+                {/* Price + Add row */}
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-sm font-bold" style={{ color: accent }}>
                     ${toPesos(resolvePrice(item)).toLocaleString('es-AR')}
                   </span>
-
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       handleCardClick(item, index)
                     }}
-                    className="text-white px-6 py-2 rounded-2xl font-semibold text-sm active:scale-95 transition-all"
+                    className="text-white px-3 py-1 rounded-xl font-semibold text-[11px] active:scale-95 transition-all leading-none"
                     style={{ backgroundColor: accent }}
                   >
                     Agregar
