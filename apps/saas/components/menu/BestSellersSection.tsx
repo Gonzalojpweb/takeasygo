@@ -83,7 +83,10 @@ export default function BestSellersSection({
       {/* Header */}
       <div className="flex items-end justify-between mb-3">
         <div className="min-w-0">
-          <h2 className="text-base font-bold truncate" style={{ color: primaryColor }}>
+          <h2
+            className="font-bold uppercase tracking-wide"
+            style={{ color: primaryColor, fontSize: 18 }}
+          >
             🔥 {title}
           </h2>
           {subtitle && (
@@ -159,7 +162,10 @@ export default function BestSellersSection({
                 </h3>
 
                 {item.description && (
-                  <p className="text-[10px] text-zinc-500 line-clamp-1 mt-0.5">
+                  <p
+                    className="text-[10px] text-zinc-500 mt-0.5"
+                    style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}
+                  >
                     {item.description}
                   </p>
                 )}
@@ -172,7 +178,7 @@ export default function BestSellersSection({
 
                 {/* Price + Add row */}
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-sm font-bold" style={{ color: accent }}>
+                  <span className="font-bold" style={{ color: accent, fontSize: 16 }}>
                     ${toPesos(resolvePrice(item)).toLocaleString('es-AR')}
                   </span>
                   <button
@@ -180,7 +186,7 @@ export default function BestSellersSection({
                       e.stopPropagation()
                       handleCardClick(item, index)
                     }}
-                    className="text-white px-3 py-1 rounded-xl font-semibold text-[11px] active:scale-95 transition-all leading-none"
+                    className="text-white px-4 py-2 rounded-xl font-semibold text-[11px] active:scale-95 transition-all leading-none"
                     style={{ backgroundColor: accent }}
                   >
                     Agregar
