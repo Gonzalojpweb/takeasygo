@@ -385,6 +385,14 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect, me
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const markersRef = useRef<any[]>([])
   const superclusterRef = useRef<Supercluster | null>(null)
+  const restaurantsRef = useRef<RestaurantCardData[]>(restaurants)
+
+  // Keep ref in sync with latest restaurants prop (fixes closure staleness)
+  useEffect(() => {
+    restaurantsRef.current = restaurants
+  }, [restaurants])
+
+  const [mapReady, setMapReady] = useState(false)
 
   const [hovered, setHovered] = useState<RestaurantCardData | null>(null)
   const [hoveredPos, setHoveredPos] = useState<CardPos | null>(null)
@@ -594,14 +602,15 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect, me
       }
 
       // Initial render
-      renderMarkers(map, L, restaurants)
+      renderMarkers(map, L, restaurantsRef.current)
 
-      // Re-render on zoom/end (handles clustering dynamically)
+      // Re-render on zoom/end (uses ref to avoid stale closure)
       map.on('zoomend moveend', () => {
-        renderMarkers(map, L, restaurants)
+        renderMarkers(map, L, restaurantsRef.current)
       })
 
       mapRef.current = map
+      setMapReady(true)
 
       const updateSize = () => {
         if (containerRef.current) {
@@ -624,6 +633,14 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect, me
       }
     }
   }, [userLat, userLng, restaurants, isTouch, showCard, hideCard, onSelect, renderMarkers])
+
+  // Re-render markers when restaurants change (after initial map load)
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return
+    import('leaflet').then(L => {
+      if (mapRef.current) renderMarkers(mapRef.current, L, restaurants)
+    })
+  }, [restaurants, mapReady, renderMarkers])
 
   return (
     <div className="relative w-full h-full" style={{ backgroundColor: 'var(--tgo-bg)' }}>
