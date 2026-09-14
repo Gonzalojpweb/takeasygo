@@ -24,13 +24,21 @@ async function withRetry<T>(
       return await fn()
     } catch (err: any) {
       const status = err?.code || err?.status || err?.response?.status
-      if (status === 429 && attempt < maxRetries) {
+      const isRateLimited =
+        status === 429 ||
+        (status === 403 && (
+          err?.errors?.[0]?.reason === 'rateLimitExceeded' ||
+          err?.message?.includes('rateLimitExceeded') ||
+          err?.message?.includes('Rate Limit')
+        ))
+
+      if (isRateLimited && attempt < maxRetries) {
         const retryAfter = err?.headers?.['retry-after']
         const delayMs = retryAfter
           ? parseInt(retryAfter, 10) * 1000
           : baseDelayMs * Math.pow(2, attempt)
         console.warn(
-          `[google-contacts] ${label} 429 rate-limited, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`
+          `[google-contacts] ${label} ${status} rate-limited, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`
         )
         await sleep(delayMs)
         continue
