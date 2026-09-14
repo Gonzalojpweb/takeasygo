@@ -1,8 +1,14 @@
 /**
  * Cron Job: Google Contacts sync automático
  *
- * Se ejecuta periódicamente para sincronizar contacts de tenants
+ * Se ejecuta periódicamente para sincronizar contactos de tenants
  * cuyo superadmin tiene Google Contacts conectado.
+ *
+ * Features:
+ * - Incremental sync via lastSyncCursor (updatedAt filter per tenant)
+ * - Rate limit: 1s delay between users, 500ms between tenants
+ * - 429 retry handled in batchCreateContacts / listAllConnections (withRetry)
+ * - 10k cap per tenant, cursor saved for next run
  *
  * URL: /api/cron/google-contacts-sync
  * Método: GET (con header Authorization: Bearer CRON_SECRET)
@@ -13,7 +19,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import Consumer from '@/models/Consumer'
-import CustomerProfile from '@/models/CustomerProfile'
 import { safeDecrypt } from '@/lib/crypto'
 import {
   getAuthenticatedClientForUser,
@@ -27,6 +32,12 @@ import {
 const CRON_SECRET = process.env.CRON_SECRET
 const MAX_CONTACTS_PER_TENANT = 10_000
 const PAGE_SIZE = 500
+const DELAY_BETWEEN_USERS_MS = 1_000
+const DELAY_BETWEEN_TENANTS_MS = 500
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms))
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -70,7 +81,14 @@ export async function GET(request: NextRequest) {
 
     let totalTenantsSynced = 0
 
-    for (const user of connectedUsers) {
+    for (let userIdx = 0; userIdx < connectedUsers.length; userIdx++) {
+      const user = connectedUsers[userIdx]
+
+      // Delay between users (rate limit)
+      if (userIdx > 0) {
+        await sleep(DELAY_BETWEEN_USERS_MS)
+      }
+
       try {
         const auth = await getAuthenticatedClientForUser(user._id.toString())
         if (!auth) {
@@ -90,7 +108,7 @@ export async function GET(request: NextRequest) {
         }
 
         const tenants = await Tenant.find(tenantFilter)
-          .select('_id name slug')
+          .select('_id name slug googleContacts.lastSyncCursor')
           .lean()
 
         // Build shared dedup map from existing Google contacts
@@ -107,9 +125,21 @@ export async function GET(request: NextRequest) {
           error: string | null
         }> = []
 
-        for (const tenant of tenants) {
+        for (let tenantIdx = 0; tenantIdx < tenants.length; tenantIdx++) {
+          const tenant = tenants[tenantIdx]
+
+          // Delay between tenants (rate limit)
+          if (tenantIdx > 0) {
+            await sleep(DELAY_BETWEEN_TENANTS_MS)
+          }
+
           try {
+            // Incremental sync: use lastSyncCursor to filter by updatedAt
+            const cursor = (tenant as any).googleContacts?.lastSyncCursor
             const consumerFilter: Record<string, any> = { tenantIds: tenant._id }
+            if (cursor) {
+              consumerFilter.updatedAt = { $gt: new Date(cursor) }
+            }
 
             let consumers: any[] = []
             let skip = 0
@@ -126,6 +156,20 @@ export async function GET(request: NextRequest) {
               consumers.push(...batch)
               skip += PAGE_SIZE
               if (batch.length < PAGE_SIZE) hasMore = false
+            }
+
+            // If no consumers found and no cursor, this tenant has no data
+            if (consumers.length === 0 && !cursor) {
+              tenantResults.push({
+                tenantId: tenant._id.toString(),
+                tenantName: tenant.name,
+                created: 0,
+                skipped: 0,
+                total: 0,
+                errors: 0,
+                error: null,
+              })
+              continue
             }
 
             const candidates = consumers.map((c) => {
@@ -151,9 +195,19 @@ export async function GET(request: NextRequest) {
               }
             }
 
+            // Save cursor: the most recent updatedAt from this batch
+            const newCursor = consumers.length > 0
+              ? consumers[0].updatedAt // Already sorted by updatedAt desc
+              : new Date()
+
             await Tenant.updateOne(
               { _id: tenant._id },
-              { $set: { 'googleContacts.lastSyncAt': new Date() } }
+              {
+                $set: {
+                  'googleContacts.lastSyncAt': new Date(),
+                  'googleContacts.lastSyncCursor': new Date(newCursor),
+                },
+              }
             )
 
             tenantResults.push({
