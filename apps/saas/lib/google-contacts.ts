@@ -9,6 +9,38 @@ const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
 ]
 
+// ── Rate-limit retry helper ──────────────────────────────────────────────────
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  { maxRetries = 3, baseDelayMs = 1000, label = '' } = {}
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (err: any) {
+      const status = err?.code || err?.status || err?.response?.status
+      if (status === 429 && attempt < maxRetries) {
+        const retryAfter = err?.headers?.['retry-after']
+        const delayMs = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : baseDelayMs * Math.pow(2, attempt)
+        console.warn(
+          `[google-contacts] ${label} 429 rate-limited, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`
+        )
+        await sleep(delayMs)
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error(`${label} max retries exceeded`)
+}
+
 function getOAuth2Client(redirectUri?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   return new google.auth.OAuth2(
@@ -169,12 +201,15 @@ export async function listAllConnections(
 
   let pageToken: string | undefined
   do {
-    const res = await people.people.connections.list({
-      resourceName: 'people/me',
-      pageSize: 1000,
-      pageToken,
-      personFields: 'names,emailAddresses,phoneNumbers',
-    })
+    const res = await withRetry(
+      () => people.people.connections.list({
+        resourceName: 'people/me',
+        pageSize: 1000,
+        pageToken,
+        personFields: 'names,emailAddresses,phoneNumbers',
+      }),
+      { label: 'listAllConnections' }
+    )
 
     for (const person of res.data.connections || []) {
       results.push({
@@ -216,9 +251,12 @@ export async function batchCreateContacts(
     }))
 
     try {
-      await people.people.batchCreateContacts({
-        requestBody: { contacts: requests },
-      })
+      await withRetry(
+        () => people.people.batchCreateContacts({
+          requestBody: { contacts: requests },
+        }),
+        { label: `batchCreateContacts[${i}-${i + batch.length}]` }
+      )
       created += batch.length
     } catch (err: any) {
       console.error('[google-contacts] batch create error:', err.message)

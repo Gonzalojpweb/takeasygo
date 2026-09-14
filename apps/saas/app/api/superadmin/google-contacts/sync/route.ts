@@ -16,6 +16,11 @@ import {
 
 const MAX_CONTACTS_PER_TENANT = 10_000
 const PAGE_SIZE = 500
+const DELAY_BETWEEN_TENANTS_MS = 500
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms))
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,7 +59,14 @@ export async function POST(request: NextRequest) {
 
     const results: Record<string, { created: number; skipped: number; total: number; errors: number }> = {}
 
-    for (const tenantId of tenantIds) {
+    for (let i = 0; i < tenantIds.length; i++) {
+      const tenantId = tenantIds[i]
+
+      // Delay between tenants (rate limit)
+      if (i > 0) {
+        await sleep(DELAY_BETWEEN_TENANTS_MS)
+      }
+
       const tenant = await Tenant.findById(tenantId).lean()
       if (!tenant) {
         results[tenantId] = { created: 0, skipped: 0, total: 0, errors: 0 }
