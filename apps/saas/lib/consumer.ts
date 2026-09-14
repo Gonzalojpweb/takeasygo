@@ -1,5 +1,5 @@
 import { encrypt, hashEmail } from '@/lib/crypto'
-import Consumer, { type IConsumer } from '@/models/Consumer'
+import Consumer, { type IConsumer, type ConsumerSource } from '@/models/Consumer'
 import type { Types } from 'mongoose'
 
 interface OrderConsumerData {
@@ -12,10 +12,11 @@ interface OrderConsumerData {
   createdAt: Date
   isCorporate?: boolean
   corporateAccountId?: Types.ObjectId | string | null
+  source: ConsumerSource
 }
 
 export async function upsertConsumerFromOrder(data: OrderConsumerData): Promise<boolean> {
-  const { name, email, phone, phoneHash, tenantId, total, createdAt, isCorporate, corporateAccountId } = data
+  const { name, email, phone, phoneHash, tenantId, total, createdAt, isCorporate, corporateAccountId, source } = data
   const emailH = hashEmail(email)
 
   const orConditions: Record<string, any>[] = []
@@ -37,6 +38,7 @@ export async function upsertConsumerFromOrder(data: OrderConsumerData): Promise<
     setFields.isCorporate = true
     if (corporateAccountId) setFields.corporateAccountId = corporateAccountId
   }
+  setFields.source = source
 
   const update: Record<string, any> = {
     $set: setFields,
@@ -71,8 +73,9 @@ export async function upsertConsumerFromLoyaltyMember(data: {
   phone: string
   phoneHash: string
   tenantId: Types.ObjectId | string
+  source: ConsumerSource
 }): Promise<void> {
-  const { name, email, phone, phoneHash, tenantId } = data
+  const { name, email, phone, phoneHash, tenantId, source } = data
   const emailH = hashEmail(email)
 
   const orConditions: Record<string, any>[] = []
@@ -88,6 +91,7 @@ export async function upsertConsumerFromLoyaltyMember(data: {
   }
   if (phoneHash) setFields.phoneHash = phoneHash
   if (emailH) setFields.emailHash = emailH
+  setFields.source = source
 
   const update: Record<string, any> = {
     $set: setFields,

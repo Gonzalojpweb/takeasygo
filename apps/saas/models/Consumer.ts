@@ -1,5 +1,18 @@
 import mongoose, { Schema, Document, Types } from 'mongoose'
 
+export type ConsumerSource =
+  | 'checkout'
+  | 'qr_scan'
+  | 'admin'
+  | 'manual_import'
+  | 'explore'
+  | 'promotion'
+  | 'hidden_reward'
+  | 'corporate_session'
+  | 'pos_manual'
+  | 'backfill'
+  | 'unknown'
+
 export interface IConsumer extends Document {
   name: string
   email: string
@@ -15,6 +28,8 @@ export interface IConsumer extends Document {
   isLoyaltyMember: boolean
   isCorporate: boolean
   corporateAccountId: Types.ObjectId | null
+  source: ConsumerSource
+  tags: string[]
   createdAt: Date
   updatedAt: Date
 }
@@ -34,6 +49,17 @@ const ConsumerSchema = new Schema<IConsumer>(
     isLoyaltyMember: { type: Boolean, default: false },
     isCorporate: { type: Boolean, default: false },
     corporateAccountId: { type: Schema.Types.ObjectId, default: null },
+    source: {
+      type: String,
+      required: true,
+      enum: ['checkout', 'qr_scan', 'admin', 'manual_import', 'explore',
+        'promotion', 'hidden_reward', 'corporate_session', 'pos_manual',
+        'backfill', 'unknown'],
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 )
@@ -49,6 +75,9 @@ ConsumerSchema.index(
 ConsumerSchema.index({ tenantIds: 1 })
 ConsumerSchema.index({ lastOrderAt: -1 })
 ConsumerSchema.index({ totalSpent: -1 })
+ConsumerSchema.index({ tenantIds: 1, source: 1 })
+ConsumerSchema.index({ tenantIds: 1, tags: 1 })
+ConsumerSchema.index({ tenantIds: 1, updatedAt: 1 })
 
 const Consumer =
   mongoose.models.Consumer ||

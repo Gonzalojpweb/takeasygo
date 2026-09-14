@@ -110,6 +110,7 @@ export async function POST() {
         phone: g.phone ? encrypt(g.phone) : '',
         phoneHash: g.phoneHash,
         isCorporate: g.isCorporate,
+        source: 'backfill',
       }
       if (g.emailHash) setFields.emailHash = g.emailHash
       if (g.corporateAccountId) setFields.corporateAccountId = g.corporateAccountId
