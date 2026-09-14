@@ -325,6 +325,7 @@ export function customersRouter(): Router {
         lastOrderAt: null,
         isLoyaltyMember: false,
         isCorporate: false,
+        source: 'pos_manual',
       })
 
       return res.status(201).json({

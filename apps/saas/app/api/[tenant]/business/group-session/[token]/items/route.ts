@@ -248,6 +248,7 @@ export async function POST(
         createdAt: order.createdAt,
         isCorporate: true,
         corporateAccountId: order.corporateAccountId,
+        source: 'corporate_session',
       })
     } catch (e) {
       console.error('[group-session] consumer upsert error for employee:', e)

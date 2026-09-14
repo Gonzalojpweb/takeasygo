@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import type { ConsumerSource } from './Consumer'
 
 export type LoyaltyMemberStatus = 'active' | 'inactive' | 'blocked'
 export type LoyaltyMemberSource = 'checkout' | 'qr_scan' | 'admin' | 'manual_import' | 'explore' | 'promotion' | 'hidden_reward'
@@ -271,6 +272,7 @@ LoyaltyMemberSchema.post('save', async function () {
       phone: this.phone,
       phoneHash: this.phoneHash,
       tenantId: this.tenantId,
+      source: this.source as ConsumerSource,
     })
   } catch (e) {
     console.error('[consumer] LoyaltyMember sync error:', e)

@@ -1498,6 +1498,7 @@ export async function POST(
           createdAt: order.createdAt,
           isCorporate: isBusinessOrder && !!body.corporateAccountId,
           corporateAccountId: body.corporateAccountId ?? null,
+          source: 'checkout',
         })
       } catch (e) {
         console.error('[consumer] upsert error:', e)

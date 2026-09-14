@@ -125,6 +125,7 @@ export async function GET(
           totalSpent: g.totalSpent,
           firstOrderAt: g.firstOrderAt,
           lastOrderAt: g.lastOrderAt,
+          source: 'backfill',
         }
         if (g.phoneHash) setFields.phoneHash = g.phoneHash
         if (g.emailHash) setFields.emailHash = g.emailHash
