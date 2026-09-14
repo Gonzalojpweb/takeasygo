@@ -9,11 +9,12 @@ const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
 ]
 
-function getOAuth2Client() {
+function getOAuth2Client(redirectUri?: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/crm/google-contacts/callback`
+    redirectUri || `${baseUrl}/api/crm/google-contacts/callback`
   )
 }
 
@@ -233,6 +234,13 @@ export type { GoogleContactInput } from './google-contacts-helpers'
 
 // ── Superadmin (User) token management ──────────────────────────────────────
 
+const SUPERADMIN_REDIRECT_PATH = '/api/superadmin/google-contacts/callback'
+
+function getSuperadminOAuth2Client() {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return getOAuth2Client(`${baseUrl}${SUPERADMIN_REDIRECT_PATH}`)
+}
+
 export async function saveUserTokens(
   userId: string,
   tokens: {
@@ -273,7 +281,7 @@ export async function getAuthenticatedClientForUser(userId: string) {
   if (!user?.googleContacts?.isConnected) return null
   if (!user.googleContacts.refreshToken) return null
 
-  const oauth2 = getOAuth2Client()
+  const oauth2 = getSuperadminOAuth2Client()
 
   let accessToken: string
   try {
@@ -309,7 +317,7 @@ export async function getAuthenticatedClientForUser(userId: string) {
 }
 
 export function buildAuthUrlForUser(userId: string): string {
-  const oauth2 = getOAuth2Client()
+  const oauth2 = getSuperadminOAuth2Client()
   return oauth2.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
