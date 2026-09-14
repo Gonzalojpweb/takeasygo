@@ -1,5 +1,10 @@
 {
   "installCommand": "cd ../.. && pnpm install",
+  "functions": {
+    "api/cron/google-contacts-sync/route.ts": {
+      "maxDuration": 300
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/activate-scheduled-orders",
@@ -36,6 +41,10 @@
     {
       "path": "/api/cron/weekly-commission-notify",
       "schedule": "0 8 * * 2"
+    },
+    {
+      "path": "/api/cron/google-contacts-sync",
+      "schedule": "0 */6 * * *"
     }
   ]
 }
