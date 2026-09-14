@@ -17,6 +17,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${baseUrl}/superadmin?googleContacts=error&reason=missing_params`)
   }
 
+  // Reject superadmin states — those go to /api/superadmin/google-contacts/callback
+  if (state.startsWith('user:')) {
+    return NextResponse.redirect(`${baseUrl}/superadmin?googleContacts=error&reason=invalid_state`)
+  }
+
   try {
     const tenant = await Tenant.findById(state).lean()
     if (!tenant) {
