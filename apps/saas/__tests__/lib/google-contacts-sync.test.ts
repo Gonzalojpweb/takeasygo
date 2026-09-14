@@ -9,7 +9,7 @@ import {
 // TODO: fix vitest timeout — these pure-function tests hang when run in isolation.
 // The helpers file has zero external dependencies (no googleapis, no mongoose).
 // Likely cause: vitest setup or Windows path resolution issue with @/ alias.
-describe.skip('google-contacts-sync helpers (skipped — vitest timeout)', () => {
+describe('google-contacts-sync helpers', () => {
   describe('normalizePhoneForDedup', () => {
     it('strips spaces, dashes, parens, dots', () => {
       expect(normalizePhoneForDedup('+54 11 5555-1234')).toBe('+541155551234')
