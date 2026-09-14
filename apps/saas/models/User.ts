@@ -24,6 +24,14 @@ export interface IUser extends Document {
   resetTokenExpiry: Date | null
   emailVerified: Date | null
   lastLoginAt: Date | null
+  googleContacts: {
+    accessToken: string | null
+    refreshToken: string | null
+    expiresAt: Date | null
+    authorizedAt: Date | null
+    connectedEmail: string | null
+    isConnected: boolean
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -116,6 +124,14 @@ const UserSchema = new Schema<IUser>(
     lastLoginAt: {
       type: Date,
       default: null,
+    },
+    googleContacts: {
+      accessToken:  { type: String, default: null },
+      refreshToken: { type: String, default: null },
+      expiresAt:    { type: Date, default: null },
+      authorizedAt: { type: Date, default: null },
+      connectedEmail: { type: String, default: null },
+      isConnected:  { type: Boolean, default: false },
     },
   },
   {
