@@ -30,6 +30,7 @@ import {
   Smartphone,
   DollarSign,
   Link2,
+  Contact,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -119,6 +120,7 @@ export default function SuperAdminSidebar() {
         { href: '/superadmin/auditoria', label: 'Auditoría', icon: Shield },
         { href: '/superadmin/feedback', label: 'Feedback UX', icon: MessageSquare },
         { href: '/superadmin/comisiones', label: 'Comisiones', icon: DollarSign },
+        { href: '/superadmin/google-contacts', label: 'Google Contacts', icon: Contact },
       ],
     },
     {
