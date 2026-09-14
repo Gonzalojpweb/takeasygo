@@ -161,6 +161,18 @@ export interface ITenant extends Document {
     /** Per-tenant commission override (null = use global platformFeePercent) */
     commissionPercent?: number | null
   }
+  // ── Google Contacts Sync ───────────────────────────────────────────────
+  googleContacts: {
+    accessToken: string | null     // OAuth access_token (encrypted AES-256-GCM)
+    refreshToken: string | null    // OAuth refresh_token (encrypted)
+    expiresAt: Date | null         // When the access token expires
+    authorizedAt: Date | null      // When the tenant authorized
+    connectedEmail: string | null  // Email of the connected Google account
+    isConnected: boolean
+    lastSyncAt: Date | null        // Last successful sync timestamp
+    lastSyncCursor: string | null  // Cursor for incremental sync (lastSyncId)
+    lastDisconnectedAt: Date | null // When the sync was disconnected
+  }
   // ── Integración Kripton ─────────────────────────────────────────────────
   kripton: {
     apiKey: string | null          // Token de API (cifrado AES-256-GCM)
@@ -509,6 +521,18 @@ const TenantSchema = new Schema<ITenant>(
       isConnected:  { type: Boolean, default: false },
       /** Per-tenant commission override (null = usar global platformFeePercent) */
       commissionPercent: { type: Number, default: null, min: 0, max: 100 },
+    },
+    // ── Google Contacts Sync ───────────────────────────────────────────────
+    googleContacts: {
+      accessToken:          { type: String, default: null },
+      refreshToken:         { type: String, default: null },
+      expiresAt:            { type: Date, default: null },
+      authorizedAt:         { type: Date, default: null },
+      connectedEmail:       { type: String, default: null },
+      isConnected:          { type: Boolean, default: false },
+      lastSyncAt:           { type: Date, default: null },
+      lastSyncCursor:       { type: String, default: null },
+      lastDisconnectedAt:   { type: Date, default: null },
     },
     // ── Integración Kripton ─────────────────────────────────────────────────
     kripton: {
