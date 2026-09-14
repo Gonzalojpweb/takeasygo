@@ -176,30 +176,25 @@ export async function searchContacts(
   const people = google.people({ version: 'v1', auth })
   const results: Array<{ resourceName: string; name?: string; email?: string; phone?: string }> = []
 
-  let pageToken: string | undefined
-  do {
-    const res = await withRetry(
-      () => people.people.connections.list({
-        resourceName: 'people/me',
-        pageSize: 100,
-        pageToken,
-        query,
-        personFields: 'names,emailAddresses,phoneNumbers',
-      }),
-      { label: 'searchContacts' }
-    )
+  const res = await withRetry(
+    () => people.people.searchContacts({
+      query,
+      readMask: 'names,emailAddresses,phoneNumbers',
+      pageSize: 100,
+    }),
+    { label: 'searchContacts' }
+  )
 
-    for (const person of res.data.connections || []) {
-      results.push({
-        resourceName: person.resourceName || '',
-        name: person.names?.[0]?.displayName,
-        email: person.emailAddresses?.[0]?.value,
-        phone: person.phoneNumbers?.[0]?.value,
-      })
-    }
-
-    pageToken = res.data.nextPageToken || undefined
-  } while (pageToken)
+  for (const person of res.data.results || []) {
+    const contact = person.person
+    if (!contact) continue
+    results.push({
+      resourceName: contact.resourceName || '',
+      name: contact.names?.[0]?.displayName,
+      email: contact.emailAddresses?.[0]?.value,
+      phone: contact.phoneNumbers?.[0]?.value,
+    })
+  }
 
   return results
 }
