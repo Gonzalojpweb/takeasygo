@@ -6,9 +6,6 @@ import {
   transformConsumerToGoogle,
 } from '@/lib/google-contacts-helpers'
 
-// TODO: fix vitest timeout — these pure-function tests hang when run in isolation.
-// The helpers file has zero external dependencies (no googleapis, no mongoose).
-// Likely cause: vitest setup or Windows path resolution issue with @/ alias.
 describe('google-contacts-sync helpers', () => {
   describe('normalizePhoneForDedup', () => {
     it('strips spaces, dashes, parens, dots', () => {
