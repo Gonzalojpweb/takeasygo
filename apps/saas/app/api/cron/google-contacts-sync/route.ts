@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import Consumer from '@/models/Consumer'
+import PlatformConfig from '@/models/PlatformConfig'
 import { safeDecrypt } from '@/lib/crypto'
 import {
   getAuthenticatedClientForUser,
@@ -53,10 +54,14 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
+    // Read persisted user cursor from PlatformConfig
+    const platformConfig = await PlatformConfig.findById('platform')
+      .select('gcSyncCursor')
+      .lean() as any
+    const lastUserCursorId: string | null = platformConfig?.gcSyncCursor?.lastUserId ?? null
+
     // User cursor: fetch users with _id > lastUserCursorId from previous run
-    // First run: lastUserCursorId is null → starts from beginning
-    // Subsequent runs: picks up remaining users
-    const lastUserCursorId = request.nextUrl.searchParams.get('userId')
+    // First run or after full cycle: lastUserCursorId is null → starts from beginning
     const userFilter: Record<string, any> = {
       'googleContacts.isConnected': true,
       'googleContacts.refreshToken': { $ne: null },
@@ -321,6 +326,19 @@ export async function GET(request: NextRequest) {
     // Determine if there are more users to process
     const hasMoreUsers = connectedUsers.length >= MAX_USERS_PER_RUN
     const lastUserId = connectedUsers[connectedUsers.length - 1]?._id?.toString()
+
+    // Persist cursor to PlatformConfig for next run
+    // If hasMore: save lastUserId so next run picks up from there
+    // If !hasMore: clear cursor (full cycle complete, next run starts from beginning)
+    await PlatformConfig.updateOne(
+      { _id: 'platform' },
+      {
+        $set: {
+          'gcSyncCursor.lastUserId': hasMoreUsers ? lastUserId : null,
+          'gcSyncCursor.lastRunAt': new Date(),
+        },
+      }
+    )
 
     return NextResponse.json({
       success: true,

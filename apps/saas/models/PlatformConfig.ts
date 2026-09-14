@@ -40,6 +40,11 @@ export interface IPlatformConfig {
   }
   /** Maintenance mode — when true, POST /orders returns 503 */
   maintenanceMode: boolean
+  /** Google Contacts sync cron cursor (persisted between runs) */
+  gcSyncCursor: {
+    lastUserId: string | null
+    lastRunAt: Date | null
+  }
   updatedAt: Date
 }
 
@@ -82,6 +87,10 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
       globalSosLimit: { type: Number, default: 250, min: 0 },
     },
     maintenanceMode: { type: Boolean, default: false },
+    gcSyncCursor: {
+      lastUserId: { type: String, default: null },
+      lastRunAt:  { type: Date, default: null },
+    },
   },
   { timestamps: true }
 )
