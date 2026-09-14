@@ -178,13 +178,16 @@ export async function searchContacts(
 
   let pageToken: string | undefined
   do {
-    const res = await people.people.connections.list({
-      resourceName: 'people/me',
-      pageSize: 100,
-      pageToken,
-      query,
-      personFields: 'names,emailAddresses,phoneNumbers',
-    })
+    const res = await withRetry(
+      () => people.people.connections.list({
+        resourceName: 'people/me',
+        pageSize: 100,
+        pageToken,
+        query,
+        personFields: 'names,emailAddresses,phoneNumbers',
+      }),
+      { label: 'searchContacts' }
+    )
 
     for (const person of res.data.connections || []) {
       results.push({
