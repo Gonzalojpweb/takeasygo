@@ -6,10 +6,11 @@
  *
  * Features:
  * - Incremental sync via lastSyncCursor (run-start timestamp, per tenant)
- * - Cursor saved per-batch (partial progress preserved on timeout)
+ * - Intra-tenant cursor: saved after each 500-consumer batch (no progress loss)
+ * - User cursor: _id-based fan-out (remaining users picked up next run)
  * - Rate limit: 1s delay between users, 500ms between tenants
  * - 429 + 403 rateLimitExceeded retry with exponential backoff
- * - 10k cap per tenant, cursor saved for resume
+ * - 10k cap per tenant
  * - MAX_USERS cap to avoid Vercel timeout
  *
  * URL: /api/cron/google-contacts-sync
@@ -37,6 +38,7 @@ const PAGE_SIZE = 500
 const MAX_USERS_PER_RUN = 50
 const DELAY_BETWEEN_USERS_MS = 1_000
 const DELAY_BETWEEN_TENANTS_MS = 500
+const DELAY_BETWEEN_BATCHES_MS = 200
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
@@ -51,21 +53,31 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    const connectedUsers = await User.find({
+    // User cursor: fetch users with _id > lastUserCursorId from previous run
+    // First run: lastUserCursorId is null → starts from beginning
+    // Subsequent runs: picks up remaining users
+    const lastUserCursorId = request.nextUrl.searchParams.get('userId')
+    const userFilter: Record<string, any> = {
       'googleContacts.isConnected': true,
       'googleContacts.refreshToken': { $ne: null },
       role: 'superadmin',
       isActive: true,
-    })
+    }
+    if (lastUserCursorId) {
+      userFilter._id = { $gt: lastUserCursorId }
+    }
+
+    const connectedUsers = await User.find(userFilter)
       .select('_id name email googleContacts assignedTenants')
+      .sort({ _id: 1 })
+      .limit(MAX_USERS_PER_RUN)
       .lean()
-      .then((users) => users.slice(0, MAX_USERS_PER_RUN))
 
     if (connectedUsers.length === 0) {
       return NextResponse.json({
         success: true,
         timestamp: new Date().toISOString(),
-        summary: { usersProcessed: 0, tenantsSynced: 0, capped: false },
+        summary: { usersProcessed: 0, tenantsSynced: 0, hasMore: false },
         details: [],
       })
     }
@@ -144,21 +156,24 @@ export async function GET(request: NextRequest) {
           }
 
           try {
-            // Incremental sync: consumers with updatedAt > lastSyncCursor
-            // First run: cursor is null → full scan
-            // Subsequent runs: only new/updated consumers since last sync
             const cursor = (tenant as any).googleContacts?.lastSyncCursor
-            const consumerFilter: Record<string, any> = { tenantIds: tenant._id }
-            if (cursor) {
-              consumerFilter.updatedAt = { $gt: new Date(cursor) }
-            }
+            let consumersProcessed = 0
+            let totalCreated = 0
+            let totalSkipped = 0
+            let totalErrors = 0
+            let tenantHasData = false
 
-            let consumers: any[] = []
+            // Stream consumers in pages of 500, saving cursor after each batch
             let skip = 0
             let hasMore = true
-            let totalInTenant = 0
+            let batchesProcessed = 0
 
-            while (hasMore && consumers.length < MAX_CONTACTS_PER_TENANT) {
+            while (hasMore && consumersProcessed < MAX_CONTACTS_PER_TENANT) {
+              const consumerFilter: Record<string, any> = { tenantIds: tenant._id }
+              if (cursor) {
+                consumerFilter.updatedAt = { $gt: new Date(cursor) }
+              }
+
               const batch = await Consumer.find(consumerFilter)
                 .sort({ updatedAt: -1 })
                 .skip(skip)
@@ -166,14 +181,57 @@ export async function GET(request: NextRequest) {
                 .lean()
 
               if (batch.length === 0) { hasMore = false; break }
-              consumers.push(...batch)
-              totalInTenant += batch.length
+              tenantHasData = true
+
+              const candidates = batch.map((c) => {
+                const name = safeDecrypt(c.name) || ''
+                const phone = safeDecrypt(c.phone) || ''
+                const email = safeDecrypt(c.email) || ''
+                return transformConsumerToGoogle({ name, phone, email })
+              })
+
+              const { toCreate, skipped } = dedupContacts(candidates, dedupMap)
+              let created = 0
+              let errors = 0
+
+              if (toCreate.length > 0) {
+                const result = await batchCreateContacts(auth, toCreate)
+                created = result.created
+                errors = result.errors
+
+                for (const c of toCreate) {
+                  if (c.phone) dedupMap.phones.add(c.phone)
+                  if (c.email) dedupMap.emails.add(c.email.toLowerCase().trim())
+                }
+              }
+
+              consumersProcessed += batch.length
+              totalCreated += created
+              totalSkipped += skipped
+              totalErrors += errors
               skip += PAGE_SIZE
-              if (batch.length < PAGE_SIZE) hasMore = false
+              batchesProcessed++
+
+              if (batch.length < PAGE_SIZE) { hasMore = false; break }
+
+              // Save intra-tenant cursor after each batch
+              // Uses batch[0].updatedAt (most recent in this page, sorted desc)
+              await Tenant.updateOne(
+                { _id: tenant._id },
+                {
+                  $set: {
+                    'googleContacts.lastSyncAt': new Date(),
+                    'googleContacts.lastSyncCursor': new Date(batch[0].updatedAt),
+                  },
+                }
+              )
+
+              // Small delay between batches to avoid hammering the DB
+              await sleep(DELAY_BETWEEN_BATCHES_MS)
             }
 
-            // If no consumers found and no cursor, this tenant has no data
-            if (consumers.length === 0 && !cursor) {
+            // No data for this tenant (and no cursor to resume from)
+            if (!tenantHasData && !cursor) {
               tenantResults.push({
                 tenantId: tenant._id.toString(),
                 tenantName: tenant.name,
@@ -186,9 +244,8 @@ export async function GET(request: NextRequest) {
               continue
             }
 
-            // If no consumers found with existing cursor, tenant is up-to-date
-            if (consumers.length === 0 && cursor) {
-              // Update lastSyncAt but keep cursor unchanged
+            // Up-to-date (cursor exists but no new consumers)
+            if (consumersProcessed === 0 && cursor) {
               await Tenant.updateOne(
                 { _id: tenant._id },
                 { $set: { 'googleContacts.lastSyncAt': new Date() } }
@@ -205,48 +262,28 @@ export async function GET(request: NextRequest) {
               continue
             }
 
-            const candidates = consumers.map((c) => {
-              const name = safeDecrypt(c.name) || ''
-              const phone = safeDecrypt(c.phone) || ''
-              const email = safeDecrypt(c.email) || ''
-              return transformConsumerToGoogle({ name, phone, email })
-            })
-
-            const { toCreate, skipped } = dedupContacts(candidates, dedupMap)
-
-            let created = 0
-            let errors = 0
-
-            if (toCreate.length > 0) {
-              const result = await batchCreateContacts(auth, toCreate)
-              created = result.created
-              errors = result.errors
-
-              for (const c of toCreate) {
-                if (c.phone) dedupMap.phones.add(c.phone)
-                if (c.email) dedupMap.emails.add(c.email.toLowerCase().trim())
-              }
+            // Final cursor save (if we exited the loop without hitting the per-batch save)
+            if (batchesProcessed > 0) {
+              // Already saved per-batch, but do a final save with runStart
+              // to catch consumers updated DURING this run
+              await Tenant.updateOne(
+                { _id: tenant._id },
+                {
+                  $set: {
+                    'googleContacts.lastSyncAt': new Date(),
+                    'googleContacts.lastSyncCursor': runStart,
+                  },
+                }
+              )
             }
-
-            // Save cursor: use runStart so consumers updated DURING this run
-            // are guaranteed to be picked up in the NEXT run (no gap, no skip)
-            await Tenant.updateOne(
-              { _id: tenant._id },
-              {
-                $set: {
-                  'googleContacts.lastSyncAt': new Date(),
-                  'googleContacts.lastSyncCursor': runStart,
-                },
-              }
-            )
 
             tenantResults.push({
               tenantId: tenant._id.toString(),
               tenantName: tenant.name,
-              created,
-              skipped,
-              total: consumers.length,
-              errors,
+              created: totalCreated,
+              skipped: totalSkipped,
+              total: consumersProcessed,
+              errors: totalErrors,
               error: null,
             })
             totalTenantsSynced++
@@ -281,13 +318,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Determine if there are more users to process
+    const hasMoreUsers = connectedUsers.length >= MAX_USERS_PER_RUN
+    const lastUserId = connectedUsers[connectedUsers.length - 1]?._id?.toString()
+
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
       summary: {
         usersProcessed: connectedUsers.length,
         tenantsSynced: totalTenantsSynced,
-        capped: connectedUsers.length >= MAX_USERS_PER_RUN,
+        hasMore: hasMoreUsers,
+        nextUserId: hasMoreUsers ? lastUserId : null,
       },
       details: allResults,
     })
