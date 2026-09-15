@@ -68,8 +68,8 @@ export function buildAuthUrl(tenantId: string): string {
   })
 }
 
-export async function exchangeCodeForTokens(code: string) {
-  const oauth2 = getOAuth2Client()
+export async function exchangeCodeForTokens(code: string, redirectUri?: string) {
+  const oauth2 = getOAuth2Client(redirectUri)
   const { tokens } = await oauth2.getToken(code)
   return tokens
 }

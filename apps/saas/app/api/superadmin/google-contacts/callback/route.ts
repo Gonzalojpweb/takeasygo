@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const tokens = await exchangeCodeForTokens(code)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const tokens = await exchangeCodeForTokens(code, `${baseUrl}/api/superadmin/google-contacts/callback`)
 
     const connectedEmail = tokens.access_token
       ? await getConnectedEmail(tokens.access_token)
