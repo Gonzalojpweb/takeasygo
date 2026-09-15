@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${baseUrl}/superadmin?googleContacts=error&reason=tenant_not_found`)
     }
 
-    const tokens = await exchangeCodeForTokens(code)
+    const tokens = await exchangeCodeForTokens(code, `${baseUrl}/api/crm/google-contacts/callback`)
 
     const connectedEmail = tokens.access_token
       ? await getConnectedEmail(tokens.access_token)
