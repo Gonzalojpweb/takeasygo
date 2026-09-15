@@ -39,6 +39,37 @@ export default function LandingPage() {
         <CTASection />
       </main>
 
+      {/* Data Transparency — Google OAuth verification requirement */}
+      <section className="bg-zinc-50 border-t border-zinc-100 px-5 md:px-10 py-16 md:py-20">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
+          <h2 className="text-2xl md:text-3xl font-black text-zinc-900 uppercase tracking-tight">
+            ¿Qué es TakeasyGO?
+          </h2>
+          <p className="text-zinc-600 leading-relaxed max-w-2xl mx-auto">
+            TakeasyGO es la plataforma todo-en-uno para restaurantes: gestioná pedidos, delivery, takeaway, menú digital, club de miembros y CRM de clientes desde un solo lugar.
+          </p>
+
+          <div className="pt-6 border-t border-zinc-200">
+            <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-widest mb-4">
+              Transparencia sobre datos
+            </h3>
+            <p className="text-zinc-500 leading-relaxed max-w-2xl mx-auto text-sm">
+              TakeasyGO accede a tus contactos de Google únicamente para sincronizarlos con el CRM de tu restaurante, de modo que puedas gestionarlos y comunicarte con tus clientes.
+              No compartimos tus contactos con terceros.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-6 pt-4">
+            <Link href="/privacidad" className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-orange-500 transition-colors">
+              Política de Privacidad
+            </Link>
+            <Link href="/terminos" className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-orange-500 transition-colors">
+              Términos de Servicio
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Footer Minimalista */}
       <footer className="bg-white border-t border-zinc-100 px-5 md:px-10 py-14 md:py-24">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12">
@@ -103,6 +134,10 @@ export default function LandingPage() {
               <Link href="/privacidad" className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 transition-colors text-[10px] font-bold tracking-[0.1em] uppercase">
                 <ShieldCheck className="w-3 h-3" />
                 Políticas de Privacidad
+              </Link>
+              <Link href="/terminos" className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 transition-colors text-[10px] font-bold tracking-[0.1em] uppercase">
+                <ShieldCheck className="w-3 h-3" />
+                Términos de Servicio
               </Link>
             </div>
 
