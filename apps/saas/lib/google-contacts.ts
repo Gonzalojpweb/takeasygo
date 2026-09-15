@@ -190,9 +190,9 @@ export async function searchContacts(
     if (!contact) continue
     results.push({
       resourceName: contact.resourceName || '',
-      name: contact.names?.[0]?.displayName,
-      email: contact.emailAddresses?.[0]?.value,
-      phone: contact.phoneNumbers?.[0]?.value,
+      name: contact.names?.[0]?.displayName ?? undefined,
+      email: contact.emailAddresses?.[0]?.value ?? undefined,
+      phone: contact.phoneNumbers?.[0]?.value ?? undefined,
     })
   }
 
@@ -220,9 +220,9 @@ export async function listAllConnections(
     for (const person of res.data.connections || []) {
       results.push({
         resourceName: person.resourceName || '',
-        name: person.names?.[0]?.displayName,
-        email: person.emailAddresses?.[0]?.value,
-        phone: person.phoneNumbers?.[0]?.value,
+        name: person.names?.[0]?.displayName ?? undefined,
+        email: person.emailAddresses?.[0]?.value ?? undefined,
+        phone: person.phoneNumbers?.[0]?.value ?? undefined,
       })
     }
 
@@ -247,14 +247,12 @@ export async function batchCreateContacts(
     const batch = contacts.slice(i, i + BATCH_SIZE)
 
     const requests = batch.map((c) => ({
-      createContact: {
-        contactPreserveOrder: true,
-        addresses: [],
-        emailAddresses: c.email ? [{ value: c.email }] : [],
-        names: [{ givenName: c.name }],
-        phoneNumbers: c.phone ? [{ value: c.phone, type: 'mobile' }] : [],
-      },
-    }))
+      contactPreserveOrder: true,
+      addresses: [],
+      emailAddresses: c.email ? [{ value: c.email }] : [],
+      names: [{ givenName: c.name }],
+      phoneNumbers: c.phone ? [{ value: c.phone, type: 'mobile' }] : [],
+    })) as any[]
 
     try {
       await withRetry(
