@@ -44,6 +44,22 @@ export const terminos: LegalSection[] = [
     title: '5. Modificaciones',
     body: 'Nos reservamos el derecho de modificar estos términos en cualquier momento. Las modificaciones entrarán en vigor inmediatamente después de su publicación.',
   },
+  {
+    title: '6. Uso de la Plataforma',
+    body: 'TakeasyGO es una plataforma SaaS (Software como Servicio) destinada a la gestión de restaurantes. El usuario se compromete a utilizar la plataforma de acuerdo con su propósito diseñado y a no realizar actividades que puedan dañar, sobrecargar o comprometer el funcionamiento del servicio.',
+  },
+  {
+    title: '7. Datos y Contenido del Usuario',
+    body: 'El usuario es responsable de la información que carga en la plataforma, incluyendo menús, precios, datos de clientes y cualquier otro contenido. TakeasyGO no se hace responsable por la exactitud, legalidad o vigencia de la información proporcionada por el usuario. El usuario conserva la titularidad de sus datos y puede solicitar su eliminación en cualquier momento.',
+  },
+  {
+    title: '8. Limitación de Responsabilidad',
+    body: 'TakeasyGO actúa como intermediario tecnológico entre restaurantes y consumidores. No somos parte en la relación comercial entre el restaurante y el cliente final. No garantizamos la disponibilidad ininterrumpida del servicio y no seremos responsables por pérdidas indirectas, daños incidentales o consecuentes que pudieran surgir del uso de la plataforma.',
+  },
+  {
+    title: '9. Privacidad y Protección de Datos',
+    body: 'El tratamiento de datos personales se rige por nuestra Política de Privacidad, accessible en takeasygo.com/privacidad. Al utilizar la plataforma, el usuario acepta las prácticas de privacidad allí descritas.',
+  },
 ]
 
 export const privacidad: LegalSection[] = [

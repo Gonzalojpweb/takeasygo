@@ -68,6 +68,18 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
+            <h2 className="text-xl font-bold mb-4 text-zinc-900 uppercase">Servicios de Terceros — Google People API</h2>
+            <p>TakeasyGO utiliza la Google People API para ofrecer la funcionalidad de sincronización de contactos con Google Contacts. Esta funcionalidad es opcional y requiere el consentimiento explícito del usuario.</p>
+            <ul className="list-disc pl-6 mt-4 space-y-2">
+              <li><strong>Datos accedidos:</strong> Nombre, dirección de correo electrónico y número de teléfono de los contactos del usuario en Google Contacts.</li>
+              <li><strong>Finalidad:</strong> Sincronizar los contactos del usuario con el CRM (gestor de relaciones con clientes) del restaurante, para facilitar la gestión y comunicación con los clientes.</li>
+              <li><strong>Almacenamiento:</strong> Los contactos sincronizados se almacenan en los servidores de TakeasyGO. No se almacenan datos de Google más allá de lo necesario para la funcionalidad solicitada.</li>
+              <li><strong>Compartición:</strong> Los contactos sincronizados no se comparten con terceros. Solo son accesibles por el restaurante al que pertenece el usuario.</li>
+              <li><strong>Revocación del acceso:</strong> El usuario puede revocar el acceso de TakeasyGO a sus contactos de Google en cualquier momento desde su <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:text-orange-700">Cuenta de Google &gt; Seguridad &gt; Apps de terceros</a>.</li>
+            </ul>
+          </section>
+
+          <section>
             <h2 className="text-xl font-bold mb-4 text-zinc-900 uppercase">Derechos del Titular de los Datos</h2>
             <p>De acuerdo con la Ley 25.326, usted tiene derecho a:</p>
             <ul className="list-disc pl-6 mt-4 space-y-2">
@@ -113,10 +125,13 @@ export default function PrivacyPolicyPage() {
             </ul>
           </section>
 
-          <p className="pt-8 text-sm text-zinc-500">Última actualización: Marzo 2026</p>
+          <p className="pt-8 text-sm text-zinc-500">Última actualización: Septiembre 2026</p>
         </div>
         
-        <div className="mt-16 text-center">
+        <div className="mt-16 flex flex-col items-center gap-4">
+          <a href="/terminos" className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-orange-500 transition-colors">
+            Ver Términos de Servicio
+          </a>
           <a href="/" className="inline-block px-6 py-3 bg-zinc-900 text-white font-bold uppercase tracking-widest text-xs hover:bg-orange-500 transition-colors">
             Volver al inicio
           </a>

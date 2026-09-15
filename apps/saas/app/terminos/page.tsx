@@ -1,4 +1,5 @@
 import { terminos } from '@/lib/legal-content'
+import Link from 'next/link'
 
 export default function TermsPage() {
   return (
@@ -15,7 +16,10 @@ export default function TermsPage() {
           ))}
         </div>
 
-        <div className="mt-16 text-center">
+        <div className="mt-16 flex flex-col items-center gap-4">
+          <Link href="/privacidad" className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-orange-500 transition-colors">
+            Ver Política de Privacidad
+          </Link>
           <a href="/" className="inline-block px-6 py-3 bg-zinc-900 text-white font-bold uppercase tracking-widest text-xs hover:bg-orange-500 transition-colors">
             Volver al inicio
           </a>
