@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
+import User from '@/models/User'
 import Consumer from '@/models/Consumer'
 import CustomerProfile from '@/models/CustomerProfile'
 import { safeDecrypt } from '@/lib/crypto'
@@ -29,12 +30,18 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
 
-    const user = await import('@/lib/apiAuth').then(m => m.getSessionUser(request))
-    if (!user?.id) {
+    const sessionUser = await import('@/lib/apiAuth').then(m => m.getSessionUser(request))
+    if (!sessionUser?.id) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const auth = await getAuthenticatedClientForUser(user.id)
+    // Fetch full user from DB — assignedTenants is not in JWT
+    const user = await User.findById(sessionUser.id).lean()
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const auth = await getAuthenticatedClientForUser(user._id.toString())
     if (!auth) {
       return NextResponse.json({ error: 'Conectá tu Google account primero.' }, { status: 400 })
     }
