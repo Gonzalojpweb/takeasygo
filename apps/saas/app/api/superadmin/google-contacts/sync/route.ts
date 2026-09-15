@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const { tenantIds, source, tags, isLoyaltyMember, segment, dryRun } = body as {
+    let { tenantIds, source, tags, isLoyaltyMember, segment, dryRun } = body as {
       tenantIds?: string[]
       source?: string
       tags?: string[]
@@ -49,8 +49,20 @@ export async function POST(request: NextRequest) {
       dryRun?: boolean
     }
 
-    if (!tenantIds || !Array.isArray(tenantIds) || tenantIds.length === 0) {
-      return NextResponse.json({ error: 'tenantIds requerido (array)' }, { status: 400 })
+    if (tenantIds && Array.isArray(tenantIds) && tenantIds.length > 0) {
+      // Use explicitly provided tenant IDs
+    } else {
+      // Resolve all assigned tenants for this superadmin
+      const assignedTenants = await Tenant.find({
+        _id: { $in: user.assignedTenants || [] },
+      })
+        .select({ _id: 1 })
+        .lean()
+      tenantIds = assignedTenants.map((t) => t._id.toString())
+    }
+
+    if (!tenantIds || tenantIds.length === 0) {
+      return NextResponse.json({ error: 'No hay tenants asignados para sincronizar' }, { status: 400 })
     }
 
     // ── 1. Fetch existing Google contacts for dedup (once, shared across tenants)
