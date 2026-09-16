@@ -54,6 +54,18 @@ export interface ILocation extends Document {
     ranges: Array<{ fromKm: number; toKm: number; /** Precio del rango de delivery en centavos. @storedAs cents */ price: number }>
     maxRangeKm: number
   }
+  rapiboyConfig?: {
+    enabled: boolean
+    /** Token de API de Rapiboy, cifrado con AES-256-GCM. @storedAs encrypted */
+    apiToken: string
+    environment: 'production' | 'uat'
+    /** Porcentaje de margen que TakeasyGO cobra sobre la diferencia entre el costo real de Rapiboy y lo que se le cobra al cliente. Dinámico, sin mínimo ni máximo en código. @storedAs percent */
+    margen: number
+    /** Código fijo de TakeasyGO en la plataforma de Rapiboy */
+    codigoPlataforma: string
+    /** Secret para validar webhooks de Rapiboy, cifrado con AES-256-GCM. @storedAs encrypted */
+    webhookSecret: string
+  }
   reservationConfig: {
     enabled: boolean
     /** Pago mínimo para reservar en centavos. @storedAs cents */
@@ -296,6 +308,17 @@ settings: {
         maxRangeKm: { type: Number, default: 0 },
       },
       default: { enabled: false, ranges: [], maxRangeKm: 0 },
+    },
+    rapiboyConfig: {
+      type: {
+        enabled:          { type: Boolean, default: false },
+        apiToken:         { type: String, default: '' },
+        environment:      { type: String, enum: ['production', 'uat'], default: 'uat' },
+        margen:           { type: Number, default: 0 },
+        codigoPlataforma: { type: String, default: '' },
+        webhookSecret:    { type: String, default: '' },
+      },
+      default: { enabled: false, apiToken: '', environment: 'uat', margen: 0, codigoPlataforma: '', webhookSecret: '' },
     },
   },
   {

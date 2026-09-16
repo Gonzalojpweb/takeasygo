@@ -13,6 +13,8 @@ import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
 import { addPointsFromOrder } from '@/lib/loyalty'
+import { cotizarEnvio, isRapiboyEnabled } from '@/lib/delivery/cotizar'
+import { crearViajeOnDemand, RapiboyError } from '@/lib/rapiboy/client'
 import { notifySyncLayerStatus } from '@/lib/sync-layer'
 import { generateRatingToken } from '@/lib/rating-token'
 import { captureOrderStatusChanged } from '@/lib/events'
@@ -107,20 +109,109 @@ export async function PATCH(
     order.status = status
 
     if (status === 'ready' && order.orderMode === 'delivery') {
-      // Generar customer code para delivery confirmation
-      const customerCode = String(Math.floor(100000 + Math.random() * 900000))
-      order.deliveryConfirmation = {
-        customerCode: {
-          code: customerCode,
-          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2h validez
-        },
-        deliveryPersonId: null,
-        deliveryPersonName: null,
-        status: 'pending',
-        arrivalLat: null,
-        arrivalLng: null,
-        arrivalAt: null,
-        completedAt: null,
+      // Verificar si Rapiboy está habilitado para esta sede
+      const location = await Location.findById(order.locationId)
+        .select('deliveryConfig rapiboyConfig geo address')
+        .lean()
+
+      const rapiboyEnabled = isRapiboyEnabled(location?.rapiboyConfig)
+
+      if (rapiboyEnabled && location?.rapiboyConfig && order.deliveryAddress?.coordinates) {
+        // ── Rapiboy: cotizar + crear viaje ──
+        try {
+          const origen = {
+            lat: location.geo?.coordinates?.[1] ?? 0,
+            lng: location.geo?.coordinates?.[0] ?? 0,
+            address: location.address || '',
+          }
+          const destino = {
+            lat: order.deliveryAddress.coordinates.lat,
+            lng: order.deliveryAddress.coordinates.lng,
+            address: `${order.deliveryAddress.street} ${order.deliveryAddress.number}, ${order.deliveryAddress.city}`,
+          }
+
+          // Cotizar envío (decide entre franja fija y Rapiboy)
+          const cotizacion = await cotizarEnvio({
+            origen,
+            destino,
+            distanciaKm: order.deliveryDistance || 0,
+            deliveryConfig: location.deliveryConfig as any,
+            rapiboyConfig: {
+              ...location.rapiboyConfig,
+              apiToken: location.rapiboyConfig.apiToken || '',
+              codigoPlataforma: location.rapiboyConfig.codigoPlataforma || '',
+            },
+          })
+
+          // Si el provider es Rapiboy, crear el viaje
+          if (cotizacion.provider === 'rapiboy') {
+            const viaje = await crearViajeOnDemand({
+              orderNumber: String(order.orderNumber || orderId),
+              origen,
+              destino,
+              customerName: order.customer?.name || 'Cliente',
+              customerPhone: order.customer?.phone || '',
+              observaciones: order.notes || '',
+              tiempoCocina: 0, // MVP: pedido ya listo
+            }, {
+              apiToken: location.rapiboyConfig.apiToken || '',
+              environment: location.rapiboyConfig.environment as 'production' | 'uat',
+              codigoPlataforma: location.rapiboyConfig.codigoPlataforma || '',
+            })
+
+            // Guardar info de Rapiboy en el pedido
+            order.deliveryProvider = {
+              type: 'rapiboy',
+              rapiboy: {
+                tripId: viaje.tripId,
+                trackingId: viaje.trackingId,
+                trackingUrl: viaje.trackingUrl,
+                quotedCost: cotizacion.costoRealRapiboy,
+                chargedToCustomer: cotizacion.costoAlCliente,
+                margin: cotizacion.margen,
+                environment: location.rapiboyConfig.environment as 'production' | 'uat',
+              },
+            }
+
+            // Si fue fallback, usar franja fija como respaldo
+            if (cotizacion.fallback) {
+              console.warn(`[status] Rapiboy fallback for order ${orderId}, using own fleet`)
+              order.deliveryProvider.type = 'own'
+            }
+
+            console.log(`[status] Rapiboy trip created for order ${orderId}: ${viaje.tripId}`)
+          } else {
+            // Franja fija (distancia dentro de maxRangeKm)
+            order.deliveryProvider = { type: 'own' }
+          }
+        } catch (rapiboyErr: any) {
+          console.error(`[status] Rapiboy error for order ${orderId}:`, rapiboyErr)
+          // Fallback: usar franja fija si está dentro del rango
+          if (rapiboyErr instanceof RapiboyError || rapiboyErr?.message?.includes('timeout')) {
+            order.deliveryProvider = { type: 'own' }
+          } else {
+            // Otro error: no fallar el endpoint, pero logear
+            order.deliveryProvider = { type: 'own' }
+          }
+        }
+
+        // NO enviar push a repartidores propios si se usó Rapiboy
+      } else {
+        // ── Flujo actual: franja fija + push a repartidores ──
+        const customerCode = String(Math.floor(100000 + Math.random() * 900000))
+        order.deliveryConfirmation = {
+          customerCode: {
+            code: customerCode,
+            expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2h validez
+          },
+          deliveryPersonId: null,
+          deliveryPersonName: null,
+          status: 'pending',
+          arrivalLat: null,
+          arrivalLng: null,
+          arrivalAt: null,
+          completedAt: null,
+        }
       }
     }
 
