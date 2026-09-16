@@ -5,8 +5,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { CuisineSelector } from '@/components/ui/cuisine-selector'
-import { MapPin, Plus, ChevronUp, Pencil, Trash2, X, Check, Upload, Globe, Pause, Play } from 'lucide-react'
+import { MapPin, Plus, ChevronUp, Pencil, Trash2, X, Check, Upload, Globe, Pause, Play, Truck } from 'lucide-react'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
+import RapiboyConfigSection from '@/components/superadmin/RapiboyConfigSection'
 
 type OrderMode = 'takeaway' | 'dine-in'
 
@@ -24,6 +25,14 @@ interface LocationItem {
   networkVisible: boolean
   cuisineTypes: string[]
   status: 'active' | 'paused'
+  rapiboyConfig?: {
+    enabled: boolean
+    apiToken: string
+    environment: 'production' | 'uat'
+    margen: number
+    codigoPlataforma: string
+    webhookSecret: string
+  }
 }
 
 interface Props {
@@ -54,6 +63,7 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [expandedRapiboyId, setExpandedRapiboyId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<{
     name: string
     address: string
@@ -271,219 +281,239 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
       ) : (
         <div className="space-y-2">
           {locations.map(loc => (
-            <Card key={loc._id} className="bg-zinc-800 border-zinc-700">
-              <CardContent className="py-3 px-4">
-                {editingId === loc._id ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-zinc-500 text-xs block mb-1">Nombre</label>
-                        <input
-                          value={editForm.name}
-                          onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
-                          className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-zinc-500 text-xs block mb-1">Teléfono</label>
-                        <input
-                          value={editForm.phone}
-                          onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
-                          className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-zinc-500 text-xs block mb-1">Dirección</label>
-                      <input
-                        value={editForm.address}
-                        onChange={e => setEditForm(p => ({ ...p, address: e.target.value }))}
-                        className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400"
-                      />
-                    </div>
-
-                    {/* ── Coordenadas GPS ──────────────────────────────────── */}
-                    <div>
-                      <label className="text-zinc-500 text-xs block mb-1">
-                        Coordenadas GPS{' '}
-                        <span className="text-zinc-600">(necesarias para aparecer en el mapa)</span>
-                      </label>
+            <div key={loc._id}>
+              <Card className="bg-zinc-800 border-zinc-700">
+                <CardContent className="py-3 px-4">
+                  {editingId === loc._id ? (
+                    <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          step="any"
-                          value={editForm.lat}
-                          onChange={e => setEditForm(p => ({ ...p, lat: e.target.value }))}
-                          placeholder="Latitud  ej: -34.603"
-                          className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 font-mono"
-                        />
-                        <input
-                          type="number"
-                          step="any"
-                          value={editForm.lng}
-                          onChange={e => setEditForm(p => ({ ...p, lng: e.target.value }))}
-                          placeholder="Longitud  ej: -58.381"
-                          className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 font-mono"
-                        />
+                        <div>
+                          <label className="text-zinc-500 text-xs block mb-1">Nombre</label>
+                          <input
+                            value={editForm.name}
+                            onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
+                            className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-zinc-500 text-xs block mb-1">Teléfono</label>
+                          <input
+                            value={editForm.phone}
+                            onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
+                            className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400"
+                          />
+                        </div>
                       </div>
-                      <p className="text-zinc-600 text-xs mt-1">
-                        Podés obtenerlas desde Google Maps → clic derecho sobre el local → copiar coordenadas
-                      </p>
-                    </div>
-
-                    {/* ── Red TakeasyGO ────────────────────────────────────── */}
-                    <div className="flex items-center justify-between rounded-lg bg-zinc-700/50 border border-zinc-600 px-3 py-2">
                       <div>
-                        <p className="text-white text-xs font-medium flex items-center gap-1.5">
-                          <Globe size={12} className="text-emerald-400" />
-                          Visible en Red TakeasyGO
-                        </p>
-                        <p className="text-zinc-500 text-xs mt-0.5">
-                          {editForm.lat && editForm.lng
-                            ? 'Activar para que aparezca en el mapa público'
-                            : 'Requiere coordenadas GPS primero'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={!editForm.lat || !editForm.lng}
-                        onClick={() => setEditForm(p => ({ ...p, networkVisible: !p.networkVisible }))}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
-                          editForm.networkVisible && editForm.lat && editForm.lng
-                            ? 'bg-emerald-500'
-                            : 'bg-zinc-600'
-                        } disabled:opacity-40`}>
-                        <span
-                          className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
-                            editForm.networkVisible && editForm.lat && editForm.lng ? 'left-5' : 'left-0.5'
-                          }`}
+                        <label className="text-zinc-500 text-xs block mb-1">Dirección</label>
+                        <input
+                          value={editForm.address}
+                          onChange={e => setEditForm(p => ({ ...p, address: e.target.value }))}
+                          className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400"
                         />
-                      </button>
-                    </div>
+                      </div>
 
-                    {/* ── Tipos de cocina ──────────────────────────────────── */}
-                    <div>
-                      <label className="text-zinc-500 text-xs block mb-1">Tipos de cocina</label>
-                      <CuisineSelector current={editForm.cuisineTypes} onChange={v => setEditForm(p => ({ ...p, cuisineTypes: v }))} />
-                    </div>
+                      {/* ── Coordenadas GPS ──────────────────────────────────── */}
+                      <div>
+                        <label className="text-zinc-500 text-xs block mb-1">
+                          Coordenadas GPS{' '}
+                          <span className="text-zinc-600">(necesarias para aparecer en el mapa)</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="number"
+                            step="any"
+                            value={editForm.lat}
+                            onChange={e => setEditForm(p => ({ ...p, lat: e.target.value }))}
+                            placeholder="Latitud  ej: -34.603"
+                            className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 font-mono"
+                          />
+                          <input
+                            type="number"
+                            step="any"
+                            value={editForm.lng}
+                            onChange={e => setEditForm(p => ({ ...p, lng: e.target.value }))}
+                            placeholder="Longitud  ej: -58.381"
+                            className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-400 font-mono"
+                          />
+                        </div>
+                        <p className="text-zinc-600 text-xs mt-1">
+                          Podés obtenerlas desde Google Maps → clic derecho sobre el local → copiar coordenadas
+                        </p>
+                      </div>
 
-                    <div>
-                      <label className="text-zinc-500 text-xs block mb-1">Modalidades</label>
+                      {/* ── Red TakeasyGO ────────────────────────────────────── */}
+                      <div className="flex items-center justify-between rounded-lg bg-zinc-700/50 border border-zinc-600 px-3 py-2">
+                        <div>
+                          <p className="text-white text-xs font-medium flex items-center gap-1.5">
+                            <Globe size={12} className="text-emerald-400" />
+                            Visible en Red TakeasyGO
+                          </p>
+                          <p className="text-zinc-500 text-xs mt-0.5">
+                            {editForm.lat && editForm.lng
+                              ? 'Activar para que aparezca en el mapa público'
+                              : 'Requiere coordenadas GPS primero'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!editForm.lat || !editForm.lng}
+                          onClick={() => setEditForm(p => ({ ...p, networkVisible: !p.networkVisible }))}
+                          className={`relative w-10 h-5 rounded-full transition-colors ${
+                            editForm.networkVisible && editForm.lat && editForm.lng
+                              ? 'bg-emerald-500'
+                              : 'bg-zinc-600'
+                          } disabled:opacity-40`}>
+                          <span
+                            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                              editForm.networkVisible && editForm.lat && editForm.lng ? 'left-5' : 'left-0.5'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* ── Tipos de cocina ──────────────────────────────────── */}
+                      <div>
+                        <label className="text-zinc-500 text-xs block mb-1">Tipos de cocina</label>
+                        <CuisineSelector current={editForm.cuisineTypes} onChange={v => setEditForm(p => ({ ...p, cuisineTypes: v }))} />
+                      </div>
+
+                      <div>
+                        <label className="text-zinc-500 text-xs block mb-1">Modalidades</label>
+                        <div className="flex gap-2">
+                          {(['takeaway', 'dine-in'] as OrderMode[]).map(mode => {
+                            const active = editForm.orderModes.includes(mode)
+                            return (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() =>
+                                  toggleMode(mode, editForm.orderModes, v =>
+                                    setEditForm(p => ({ ...p, orderModes: v }))
+                                  )
+                                }
+                                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border transition-colors ${
+                                  active
+                                    ? 'bg-white text-zinc-900 border-white'
+                                    : 'bg-zinc-700 text-zinc-400 border-zinc-600 hover:text-white'
+                                }`}>
+                                {MODE_LABELS[mode]}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
                       <div className="flex gap-2">
-                        {(['takeaway', 'dine-in'] as OrderMode[]).map(mode => {
-                          const active = editForm.orderModes.includes(mode)
-                          return (
-                            <button
-                              key={mode}
-                              type="button"
-                              onClick={() =>
-                                toggleMode(mode, editForm.orderModes, v =>
-                                  setEditForm(p => ({ ...p, orderModes: v }))
-                                )
-                              }
-                              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border transition-colors ${
-                                active
-                                  ? 'bg-white text-zinc-900 border-white'
-                                  : 'bg-zinc-700 text-zinc-400 border-zinc-600 hover:text-white'
-                              }`}>
-                              {MODE_LABELS[mode]}
-                            </button>
-                          )
-                        })}
+                        <Button
+                          size="sm"
+                          disabled={editLoading}
+                          onClick={() => handleSaveEdit(loc._id)}
+                          className="flex-1 h-8">
+                          <Check size={13} className="mr-1" />
+                          {editLoading ? 'Guardando...' : 'Guardar'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditingId(null)}
+                          className="h-8 text-zinc-400">
+                          <X size={13} />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        disabled={editLoading}
-                        onClick={() => handleSaveEdit(loc._id)}
-                        className="flex-1 h-8">
-                        <Check size={13} className="mr-1" />
-                        {editLoading ? 'Guardando...' : 'Guardar'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setEditingId(null)}
-                        className="h-8 text-zinc-400">
-                        <X size={13} />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-white text-sm font-medium">{loc.name}</p>
-                      <p className="text-zinc-500 text-xs">{loc.address}</p>
-                      <p className="text-zinc-600 text-xs font-mono">{loc.slug}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {loc.orderModes.map(m => (
-                          <span key={m} className="text-xs px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">
-                            {MODE_LABELS[m]}
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white text-sm font-medium">{loc.name}</p>
+                        <p className="text-zinc-500 text-xs">{loc.address}</p>
+                        <p className="text-zinc-600 text-xs font-mono">{loc.slug}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {loc.orderModes.map(m => (
+                            <span key={m} className="text-xs px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">
+                              {MODE_LABELS[m]}
+                            </span>
+                          ))}
+                          {loc.cuisineTypes.map(c => (
+                            <span key={c} className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 capitalize">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {loc.status === 'paused' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                            Pausada
                           </span>
-                        ))}
-                        {loc.cuisineTypes.map(c => (
-                          <span key={c} className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 capitalize">
-                            {c}
+                        )}
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full border ${
+                            loc.hasMenu
+                              ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                              : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                          }`}>
+                          {loc.hasMenu ? 'Con menú' : 'Sin menú'}
+                        </span>
+                        {loc.networkVisible ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 flex items-center gap-1">
+                            <Globe size={9} />
+                            En Red
                           </span>
-                        ))}
+                        ) : loc.lat != null ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/20">
+                            📍 GPS
+                          </span>
+                        ) : null}
+                        <button
+                          title="Importar menú JSON"
+                          onClick={() => setImportingLocation(loc)}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
+                          <Upload size={13} />
+                        </button>
+                        <button
+                          title={loc.status === 'paused' ? 'Reanudar sede' : 'Pausar sede'}
+                          onClick={() => handlePauseResume(loc)}
+                          className={`p-1.5 rounded-lg text-zinc-500 transition-colors ${
+                            loc.status === 'paused'
+                              ? 'hover:text-green-400 hover:bg-green-500/10'
+                              : 'hover:text-yellow-400 hover:bg-yellow-500/10'
+                          }`}>
+                          {loc.status === 'paused' ? <Play size={13} /> : <Pause size={13} />}
+                        </button>
+                        <button
+                          onClick={() => startEdit(loc)}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors">
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(loc._id, loc.name)}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                        <button
+                          title="Configurar Rapiboy"
+                          onClick={() => setExpandedRapiboyId(expandedRapiboyId === loc._id ? null : loc._id)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            loc.rapiboyConfig?.enabled
+                              ? 'text-emerald-400 hover:bg-emerald-500/10'
+                              : 'text-zinc-500 hover:text-white hover:bg-zinc-700'
+                          }`}>
+                          <Truck size={13} />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {loc.status === 'paused' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                          Pausada
-                        </span>
-                      )}
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full border ${
-                          loc.hasMenu
-                            ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                            : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                        }`}>
-                        {loc.hasMenu ? 'Con menú' : 'Sin menú'}
-                      </span>
-                      {loc.networkVisible ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 flex items-center gap-1">
-                          <Globe size={9} />
-                          En Red
-                        </span>
-                      ) : loc.lat != null ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/20">
-                          📍 GPS
-                        </span>
-                      ) : null}
-                      <button
-                        title="Importar menú JSON"
-                        onClick={() => setImportingLocation(loc)}
-                        className="p-1.5 rounded-lg text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
-                        <Upload size={13} />
-                      </button>
-                      <button
-                        title={loc.status === 'paused' ? 'Reanudar sede' : 'Pausar sede'}
-                        onClick={() => handlePauseResume(loc)}
-                        className={`p-1.5 rounded-lg text-zinc-500 transition-colors ${
-                          loc.status === 'paused'
-                            ? 'hover:text-green-400 hover:bg-green-500/10'
-                            : 'hover:text-yellow-400 hover:bg-yellow-500/10'
-                        }`}>
-                        {loc.status === 'paused' ? <Play size={13} /> : <Pause size={13} />}
-                      </button>
-                      <button
-                        onClick={() => startEdit(loc)}
-                        className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors">
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(loc._id, loc.name)}
-                        className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+              {expandedRapiboyId === loc._id && (
+                <RapiboyConfigSection
+                  tenantSlug={tenantSlug}
+                  locationId={loc._id}
+                  initialConfig={loc.rapiboyConfig ?? { enabled: false, apiToken: '', environment: 'uat', margen: 0, codigoPlataforma: '', webhookSecret: '' }}
+                  onSave={() => window.location.reload()}
+                />
+              )}
+            </div>
           ))}
         </div>
       )}

@@ -76,13 +76,23 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
 
     const checkScroll = () => {
       setShowLeftScroll(tabsList.scrollLeft > 0)
-      setShowRightScroll(tabsList.scrollLeft < tabsList.scrollWidth - tabsList.clientWidth)
+      setShowRightScroll(tabsList.scrollLeft < tabsList.scrollWidth - tabsList.clientWidth - 1)
     }
 
     tabsList.addEventListener('scroll', checkScroll)
+    // Also check on mount and after layout settles (fonts, icons)
     checkScroll()
+    const timer = setTimeout(checkScroll, 300)
 
-    return () => tabsList.removeEventListener('scroll', checkScroll)
+    // Also recheck on resize (responsive tab visibility changes)
+    const resizeObserver = new ResizeObserver(checkScroll)
+    resizeObserver.observe(tabsList)
+
+    return () => {
+      tabsList.removeEventListener('scroll', checkScroll)
+      clearTimeout(timer)
+      resizeObserver.disconnect()
+    }
   }, [])
 
   const scrollTabs = (direction: 'left' | 'right') => {
@@ -646,20 +656,22 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
       <Tabs defaultValue="branding" className="w-full" onValueChange={setActiveTab}>
         <div className="relative mb-2">
           {showLeftScroll && (
-            <button
-              onClick={() => scrollTabs('left')}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white border border-border/60 rounded-full shadow-lg flex items-center justify-center hover:bg-muted transition-colors"
-              aria-label="Scroll izquierda"
-            >
-              <ChevronLeft size={16} className="text-foreground" />
-            </button>
+            <>
+              <div className="absolute left-0 top-0 bottom-2 w-10 bg-gradient-to-r from-background to-transparent z-[5] pointer-events-none rounded-l-xl" />
+              <button
+                onClick={() => scrollTabs('left')}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white border border-border/60 rounded-full shadow-lg flex items-center justify-center hover:bg-muted transition-colors"
+                aria-label="Scroll izquierda"
+              >
+                <ChevronLeft size={16} className="text-foreground" />
+              </button>
+            </>
           )}
           <div 
             ref={tabsListRef}
-            className="flex overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-border/40 scrollbar-track-transparent"
-            style={{ scrollbarWidth: 'auto' }}
+            className="flex overflow-x-auto gap-2 pb-2 settings-tabs-scroll"
           >
-            <TabsList className="bg-muted/50 border border-border/40 p-1.5 rounded-2xl h-auto gap-1">
+            <TabsList className="bg-muted/50 border border-border/40 p-1.5 rounded-2xl h-auto gap-1 flex-nowrap">
               <TabTrigger value="branding" icon={<Palette size={16} />} label="Identidad" />
               <TabTrigger value="profile" icon={<User size={16} />} label="Perfil" />
               <TabTrigger value="locations" icon={<MapPin size={16} />} label="Sedes" />
@@ -683,13 +695,16 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             </TabsList>
           </div>
           {showRightScroll && (
-            <button
-              onClick={() => scrollTabs('right')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white border border-border/60 rounded-full shadow-lg flex items-center justify-center hover:bg-muted transition-colors"
-              aria-label="Scroll derecha"
-            >
-              <ChevronRight size={16} className="text-foreground" />
-            </button>
+            <>
+              <div className="absolute right-0 top-0 bottom-2 w-10 bg-gradient-to-l from-background to-transparent z-[5] pointer-events-none rounded-r-xl" />
+              <button
+                onClick={() => scrollTabs('right')}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white border border-border/60 rounded-full shadow-lg flex items-center justify-center hover:bg-muted transition-colors"
+                aria-label="Scroll derecha"
+              >
+                <ChevronRight size={16} className="text-foreground" />
+              </button>
+            </>
           )}
         </div>
 
