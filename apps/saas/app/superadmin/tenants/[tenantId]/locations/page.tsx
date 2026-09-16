@@ -36,6 +36,14 @@ export default async function TenantLocationsPage({ params }: Props) {
       cuisineTypes: string[]
       settings: { orderModes: ('takeaway' | 'dine-in')[] }
       status?: 'active' | 'paused'
+      rapiboyConfig?: {
+        enabled: boolean
+        apiToken: string
+        environment: 'production' | 'uat'
+        margen: number
+        codigoPlataforma: string
+        webhookSecret: string
+      }
     }>
   >()
 
@@ -56,6 +64,7 @@ export default async function TenantLocationsPage({ params }: Props) {
     networkVisible: loc.networkVisible ?? false,
     cuisineTypes: loc.cuisineTypes ?? [],
     status: (loc as any).status ?? 'active',
+    rapiboyConfig: loc.rapiboyConfig ?? { enabled: false, apiToken: '', environment: 'uat' as const, margen: 0, codigoPlataforma: '', webhookSecret: '' },
   }))
 
   return (

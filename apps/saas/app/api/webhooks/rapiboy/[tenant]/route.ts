@@ -56,22 +56,32 @@ export async function POST(
       return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
     }
 
-    // Find the location that has this webhookSecret
-    const location = await Location.findOne({
+    // Find the location matching this CodigoPlataforma
+    let location = await Location.findOne({
       tenantId: tenant._id,
-      'rapiboyConfig.webhookSecret': { $exists: true, $ne: '' },
+      'rapiboyConfig.codigoPlataforma': String(CodigoPlataforma),
     }).lean() as any
 
+    // Fallback: if no match by codigoPlataforma, find any location with a webhookSecret
     if (!location?.rapiboyConfig?.webhookSecret) {
-      console.warn('[rapiboy-webhook] No webhookSecret configured for tenant')
+      location = await Location.findOne({
+        tenantId: tenant._id,
+        'rapiboyConfig.webhookSecret': { $exists: true, $ne: '' },
+      }).lean() as any
+    }
+
+    if (!location?.rapiboyConfig?.webhookSecret) {
+      console.warn(`[rapiboy-webhook] No webhookSecret configured for tenant ${tenantSlug} (CodigoPlataforma=${CodigoPlataforma})`)
       return NextResponse.json({ error: 'Webhook not configured' }, { status: 404 })
     }
 
     const expectedSecret = decrypt(location.rapiboyConfig.webhookSecret)
     if (!crypto.timingSafeEqual(Buffer.from(rapiboySecret), Buffer.from(expectedSecret))) {
-      console.warn('[rapiboy-webhook] Invalid signature')
+      console.warn(`[rapiboy-webhook] Invalid signature for location ${location.name} (${location._id})`)
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
+
+    console.log(`[rapiboy-webhook] Validated secret for location ${location.name} (${location._id}), CodigoPlataforma=${CodigoPlataforma}`)
 
     // ── 4. Validate estado ──
     if (!isRapiboyStatusValid(Estado)) {

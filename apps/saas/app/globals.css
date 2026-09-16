@@ -642,6 +642,33 @@ html.lenis body {
   background-color: hsl(var(--muted-foreground) / 0.4);
 }
 
+/* Settings tabs: scrollbar visible on hover (desktop) */
+.settings-tabs-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s;
+}
+.settings-tabs-scroll:hover {
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+.settings-tabs-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.settings-tabs-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.settings-tabs-scroll::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+.settings-tabs-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
+}
+.settings-tabs-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+}
+
 /* Mobile touch momentum for horizontal scrollers */
 @media (max-width: 767px) {
   .overflow-x-auto {
