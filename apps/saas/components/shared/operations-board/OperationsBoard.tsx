@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import BoardColumn from './BoardColumn'
@@ -9,6 +9,7 @@ import { useBoardAutoRefresh } from './useBoardAutoRefresh'
 import { useBoardNewItemDetector } from './useBoardNewItemDetector'
 import { useWorkspaceZoom } from './useWorkspaceZoom'
 import { toast } from 'sonner'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { BoardItem, OperationsBoardProps } from './types'
 
 export default function OperationsBoard<T extends BoardItem>({
@@ -35,6 +36,54 @@ export default function OperationsBoard<T extends BoardItem>({
   const [internalActiveLocation, setInternalActiveLocation] = useState('all')
   const [selectedItem, setSelectedItem] = useState<T | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
+
+  // ── Horizontal scroll management ────────────────────────────────────────
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  // Translate vertical wheel to horizontal scroll on the board
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return
+      if (e.shiftKey) return
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault()
+        el.scrollLeft += e.deltaY
+      }
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  // Track scroll position to show/hide arrows
+  const updateScrollArrows = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 4)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    updateScrollArrows()
+    el.addEventListener('scroll', updateScrollArrows, { passive: true })
+    window.addEventListener('resize', updateScrollArrows)
+    return () => {
+      el.removeEventListener('scroll', updateScrollArrows)
+      window.removeEventListener('resize', updateScrollArrows)
+    }
+  }, [updateScrollArrows, items])
+
+  function scrollBoard(dir: 'left' | 'right') {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const step = el.clientWidth * 0.6
+    el.scrollBy({ left: dir === 'left' ? -step : step, behavior: 'smooth' })
+  }
 
   // Use controlled location if provided, otherwise use internal state
   const activeLocation = controlledActiveLocation ?? internalActiveLocation
@@ -163,9 +212,38 @@ export default function OperationsBoard<T extends BoardItem>({
         />
 
         {/* Board columns — zoom affects column sizing only */}
-        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-3 md:p-4">
+        <div className="flex-1 min-h-0 p-3 md:p-4 relative group/scroll">
+          {/* Left fade + arrow */}
+          {canScrollLeft && (
+            <>
+              <div className="absolute left-0 top-0 bottom-0 w-10 z-20 pointer-events-none bg-gradient-to-r from-background to-transparent" />
+              <button
+                onClick={() => scrollBoard('left')}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-7 h-7 rounded-full bg-background/90 border border-border shadow-md flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-accent"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            </>
+          )}
+
+          {/* Right fade + arrow */}
+          {canScrollRight && (
+            <>
+              <div className="absolute right-0 top-0 bottom-0 w-10 z-20 pointer-events-none bg-gradient-to-l from-background to-transparent" />
+              <button
+                onClick={() => scrollBoard('right')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-7 h-7 rounded-full bg-background/90 border border-border shadow-md flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-accent"
+                aria-label="Scroll right"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </>
+          )}
+
           <div
-            className="flex gap-3 h-full md:gap-4"
+            ref={scrollContainerRef}
+            className="flex gap-3 h-full md:gap-4 overflow-x-auto overflow-y-hidden scrollbar-none"
             style={{ zoom: mounted ? zoom : 1 }}
           >
             {columns.map(col => (
