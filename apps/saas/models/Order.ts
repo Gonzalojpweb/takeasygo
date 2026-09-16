@@ -257,6 +257,22 @@ export interface IOrder extends Document {
     /** Precio del rango de delivery en centavos. @storedAs cents */
     price: number
   }
+  deliveryProvider?: {
+    type: 'own' | 'rapiboy'
+    rapiboy?: {
+      tripId: string
+      trackingId: string
+      trackingUrl: string
+      driverName?: string
+      /** Costo real de Rapiboy en centavos. @storedAs cents */
+      quotedCost: number
+      /** Lo que se le cobró al cliente en centavos. @storedAs cents */
+      chargedToCustomer: number
+      /** Margen aplicado en centavos. @storedAs cents */
+      margin: number
+      environment: 'production' | 'uat'
+    }
+  }
   createdAt: Date
   updatedAt: Date
   deletedAt?: Date | null
@@ -662,6 +678,28 @@ const OrderSchema = new Schema(
         price:  { type: Number, required: true },
       },
       default: null,
+    },
+    deliveryProvider: {
+      type: {
+        type: { type: String, enum: ['own', 'rapiboy'], default: 'own' },
+        rapiboy: {
+          type: {
+            tripId:            { type: String, default: '' },
+            trackingId:        { type: String, default: '' },
+            trackingUrl:       { type: String, default: '' },
+            driverName:        { type: String, default: '' },
+            /** @storedAs cents */
+            quotedCost:        { type: Number, default: 0 },
+            /** @storedAs cents */
+            chargedToCustomer: { type: Number, default: 0 },
+            /** @storedAs cents */
+            margin:            { type: Number, default: 0 },
+            environment:       { type: String, enum: ['production', 'uat'], default: 'uat' },
+          },
+          default: null,
+        },
+      },
+      default: { type: 'own' },
     },
     deletedAt: { type: Date, default: null, index: true },
   },

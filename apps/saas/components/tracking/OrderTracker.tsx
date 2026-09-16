@@ -208,6 +208,8 @@ export default function OrderTracker({
   const [deliveryCode, setDeliveryCode] = useState<string | null>(null)
   const [deliveryPersonName, setDeliveryPersonName] = useState<string | null>(null)
   const [deliveryConfStatus, setDeliveryConfStatus] = useState<string | null>(null)
+  const [deliveryProviderType, setDeliveryProviderType] = useState<'own' | 'rapiboy' | null>(null)
+  const [deliveryProviderTrackingUrl, setDeliveryProviderTrackingUrl] = useState<string | null>(null)
   // ── Transferencia (cache local que se actualiza vía polling) ──────
   const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod || 'mercadopago')
   const [baseTotal, setBaseTotal] = useState(initialBaseTotal || 0)
@@ -259,6 +261,8 @@ export default function OrderTracker({
       setDeliveryCode(data.deliveryConfirmation?.customerCode ?? null)
       setDeliveryPersonName(data.deliveryConfirmation?.deliveryPersonName ?? null)
       setDeliveryConfStatus(data.deliveryConfirmation?.status ?? null)
+      setDeliveryProviderType(data.deliveryProvider?.type ?? null)
+      setDeliveryProviderTrackingUrl(data.deliveryProvider?.rapiboy?.trackingUrl ?? null)
       if (data.payment) {
         setPaymentMethod(data.payment.method || 'mercadopago')
         setBaseTotal(data.payment.baseTotal || 0)
@@ -883,6 +887,17 @@ export default function OrderTracker({
             <p className="font-bold text-lg mb-1">Delivery en camino</p>
             {deliveryPersonName && (
               <p className="text-sm opacity-70">{deliveryPersonName} está yendo a tu domicilio</p>
+            )}
+            {deliveryProviderType === 'rapiboy' && deliveryProviderTrackingUrl && (
+              <a
+                href={deliveryProviderTrackingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-block text-sm font-semibold underline"
+                style={{ color: primaryColor }}
+              >
+                Seguí tu delivery en tiempo real →
+              </a>
             )}
             {deliveryCode && (
               <div className="mt-4">
