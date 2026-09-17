@@ -116,6 +116,15 @@ export async function PATCH(
 
       const rapiboyEnabled = isRapiboyEnabled(location?.rapiboyConfig)
 
+      console.log(`[status] Rapiboy check for order ${orderId}:`, {
+        rapiboyEnabled,
+        hasRapiboyConfig: !!location?.rapiboyConfig,
+        hasDeliveryAddress: !!order.deliveryAddress,
+        hasCoordinates: !!order.deliveryAddress?.coordinates,
+        coordinates: order.deliveryAddress?.coordinates,
+        locationGeo: location?.geo?.coordinates,
+      })
+
       if (rapiboyEnabled && location?.rapiboyConfig && order.deliveryAddress?.coordinates) {
         // ── Rapiboy: cotizar + crear viaje ──
         try {
