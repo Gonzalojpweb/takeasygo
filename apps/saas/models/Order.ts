@@ -389,6 +389,27 @@ const GroupPaymentSchema = new Schema<IGroupPayment>({
   paidAt: { type: Date, default: null },
 }, { _id: true, timestamps: { createdAt: true, updatedAt: false } })
 
+// Schema separado para deliveryProvider porque "type" es keyword reservado de Mongoose
+const DeliveryProviderSchema = new Schema({
+  type: { type: String, enum: ['own', 'rapiboy'], default: 'own' },
+  rapiboy: {
+    type: {
+      tripId:            { type: String, default: '' },
+      trackingId:        { type: String, default: '' },
+      trackingUrl:       { type: String, default: '' },
+      driverName:        { type: String, default: '' },
+      /** @storedAs cents */
+      quotedCost:        { type: Number, default: 0 },
+      /** @storedAs cents */
+      chargedToCustomer: { type: Number, default: 0 },
+      /** @storedAs cents */
+      margin:            { type: Number, default: 0 },
+      environment:       { type: String, enum: ['production', 'uat'], default: 'uat' },
+    },
+    default: null,
+  },
+}, { _id: false })
+
 const OrderSchema = new Schema(
   {
     tenantId: {
@@ -680,25 +701,7 @@ const OrderSchema = new Schema(
       default: null,
     },
     deliveryProvider: {
-      type: {
-        type: { type: String, enum: ['own', 'rapiboy'], default: 'own' },
-        rapiboy: {
-          type: {
-            tripId:            { type: String, default: '' },
-            trackingId:        { type: String, default: '' },
-            trackingUrl:       { type: String, default: '' },
-            driverName:        { type: String, default: '' },
-            /** @storedAs cents */
-            quotedCost:        { type: Number, default: 0 },
-            /** @storedAs cents */
-            chargedToCustomer: { type: Number, default: 0 },
-            /** @storedAs cents */
-            margin:            { type: Number, default: 0 },
-            environment:       { type: String, enum: ['production', 'uat'], default: 'uat' },
-          },
-          default: null,
-        },
-      },
+      type: DeliveryProviderSchema,
       default: null,
     },
     deletedAt: { type: Date, default: null, index: true },
