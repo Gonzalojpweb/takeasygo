@@ -1538,10 +1538,11 @@ export async function POST(
         },
         {
           name: tenant.name,
-          transfer: tenant.transfer ? {
-            alias: tenant.transfer.alias,
-            cbu: tenant.transfer.cbu,
-          } : undefined,
+          transfer: (() => {
+            const activeAccount = (tenant.transferAccounts || []).find((a: any) => a.isActive)
+            const t = activeAccount || tenant.transfer
+            return t ? { alias: t.alias, cbu: t.cbu } : undefined
+          })(),
         },
         trackingUrl
       )

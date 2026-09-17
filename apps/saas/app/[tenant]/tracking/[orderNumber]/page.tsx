@@ -155,11 +155,12 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           initialTransferConfirmed={order.payment?.transferConfirmed}
           initialCustomerName={safeDecrypt(order.customer?.name) || ''}
           initialWhatsAppPhone={tenant.notifications?.whatsappPhone ?? null}
-          initialTransferData={order.payment?.method === 'transfer' && tenant.transfer?.enabled ? {
-            alias: tenant.transfer.alias,
-            cbu: tenant.transfer.cbu,
-            cvu: tenant.transfer.cvu,
-          } : null}
+          initialTransferData={(() => {
+            if (order.payment?.method !== 'transfer' || !tenant.transfer?.enabled) return null
+            const activeAccount = (tenant.transferAccounts || []).find((a: any) => a.isActive)
+            const t = activeAccount || tenant.transfer
+            return t ? { alias: t.alias, cbu: t.cbu, cvu: t.cvu } : null
+          })()}
           initialReviewUrl={location?.googleBusiness?.reviewUrl ?? null}
           orderItems={order.items.map((item: any) => ({
             _id: item._id?.toString() ?? '',
