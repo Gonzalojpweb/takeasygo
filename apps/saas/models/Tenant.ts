@@ -161,6 +161,22 @@ export interface ITenant extends Document {
     /** Per-tenant commission override (null = use global platformFeePercent) */
     commissionPercent?: number | null
   }
+  /** Multi-account MercadoPago — one active at a time */
+  mpAccounts: {
+    _id?: Types.ObjectId
+    label: string
+    accessToken: string     // encrypted AES-256-GCM
+    publicKey: string       // encrypted
+    webhookSecret: string   // encrypted
+    isActive: boolean
+    // OAuth (per-account)
+    oauthAccessToken?: string | null
+    oauthRefreshToken?: string | null
+    oauthExpiresAt?: Date | null
+    oauthIsConnected?: boolean
+    oauthAuthorizedAt?: Date | null
+    createdAt: Date
+  }[]
   // ── Google Contacts Sync ───────────────────────────────────────────────
   googleContacts: {
     accessToken: string | null     // OAuth access_token (encrypted AES-256-GCM)
@@ -521,6 +537,23 @@ const TenantSchema = new Schema<ITenant>(
       isConnected:  { type: Boolean, default: false },
       /** Per-tenant commission override (null = usar global platformFeePercent) */
       commissionPercent: { type: Number, default: null, min: 0, max: 100 },
+    },
+    // ── Multi-account MercadoPago ──────────────────────────────────────────
+    mpAccounts: {
+      type: [{
+        label:             { type: String, required: true },
+        accessToken:       { type: String, required: true },
+        publicKey:         { type: String, required: true },
+        webhookSecret:     { type: String, required: true },
+        isActive:          { type: Boolean, default: false },
+        oauthAccessToken:  { type: String, default: null },
+        oauthRefreshToken: { type: String, default: null },
+        oauthExpiresAt:    { type: Date, default: null },
+        oauthIsConnected:  { type: Boolean, default: false },
+        oauthAuthorizedAt: { type: Date, default: null },
+        createdAt:         { type: Date, default: Date.now },
+      }],
+      default: [],
     },
     // ── Google Contacts Sync ───────────────────────────────────────────────
     googleContacts: {

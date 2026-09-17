@@ -29,9 +29,11 @@ export async function GET(request: NextRequest) {
 
     // Decode state to get tenantSlug
     let tenantSlug: string
+    let accountId: string | undefined
     try {
       const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf-8'))
       tenantSlug = decoded.tenantSlug
+      accountId = decoded.accountId
       if (!tenantSlug) throw new Error('Missing tenantSlug')
     } catch {
       return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/admin?mp_oauth=error`)
@@ -84,16 +86,42 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      await Tenant.findOneAndUpdate(
-        { slug: tenantSlug },
-        {
-          'mpOAuth.accessToken':  encrypt(access_token),
-          'mpOAuth.refreshToken': refresh_token ? encrypt(refresh_token) : null,
-          'mpOAuth.expiresAt':    expires_in ? new Date(Date.now() + expires_in * 1000) : null,
-          'mpOAuth.authorizedAt': new Date(),
-          'mpOAuth.isConnected':  true,
+      const tenant = await Tenant.findOne({ slug: tenantSlug })
+      if (!tenant) throw new Error('Tenant not found')
+
+      // If accountId provided and exists in mpAccounts, update that specific account
+      if (accountId && tenant.mpAccounts?.length) {
+        const account = tenant.mpAccounts.find((a: any) => a._id?.toString() === accountId)
+        if (account) {
+          account.oauthAccessToken = encrypt(access_token)
+          account.oauthRefreshToken = refresh_token ? encrypt(refresh_token) : null
+          account.oauthExpiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null
+          account.oauthIsConnected = true
+          account.oauthAuthorizedAt = new Date()
+          await tenant.save()
+          console.log(`[MP OAuth] Saved to mpAccounts[${accountId}]`)
+        } else {
+          console.warn(`[MP OAuth] accountId ${accountId} not found in mpAccounts, falling back to mpOAuth`)
+          await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in)
         }
-      )
+      } else if (!tenant.mpAccounts?.length) {
+        // No mpAccounts — legacy mode: save to mpOAuth
+        await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in)
+      } else {
+        // accountId not provided but mpAccounts exists — save to first active account
+        const activeAccount = tenant.mpAccounts.find((a: any) => a.isActive)
+        if (activeAccount) {
+          activeAccount.oauthAccessToken = encrypt(access_token)
+          activeAccount.oauthRefreshToken = refresh_token ? encrypt(refresh_token) : null
+          activeAccount.oauthExpiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null
+          activeAccount.oauthIsConnected = true
+          activeAccount.oauthAuthorizedAt = new Date()
+          await tenant.save()
+          console.log(`[MP OAuth] Saved to active mpAccounts[${activeAccount._id}]`)
+        } else {
+          await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in)
+        }
+      }
     } catch (dbErr) {
       console.error('[MP OAuth] DB save failed:', dbErr)
       return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=error`)
@@ -104,4 +132,23 @@ export async function GET(request: NextRequest) {
     console.error('[MP OAuth] unhandled error:', err)
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/admin?mp_oauth=error`)
   }
+}
+
+async function saveLegacyMpOAuth(
+  tenant: any,
+  accessToken: string,
+  refreshToken: string | undefined,
+  expiresIn: number
+) {
+  await Tenant.findOneAndUpdate(
+    { slug: tenant.slug },
+    {
+      'mpOAuth.accessToken': encrypt(accessToken),
+      'mpOAuth.refreshToken': refreshToken ? encrypt(refreshToken) : null,
+      'mpOAuth.expiresAt': expiresIn ? new Date(Date.now() + expiresIn * 1000) : null,
+      'mpOAuth.authorizedAt': new Date(),
+      'mpOAuth.isConnected': true,
+    }
+  )
+  console.log('[MP OAuth] Saved to legacy mpOAuth')
 }

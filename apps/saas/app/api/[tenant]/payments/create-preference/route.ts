@@ -9,6 +9,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { createPaymentPreferenceSchema } from '@/lib/schemas'
 import { calculateFinalTotal } from '@/lib/pricing'
 import { toPesos } from '@takeasygo/business'
+import { getActiveMpAccount, isOAuthValid } from '@/lib/mercadopago'
 
 export async function POST(
   request: NextRequest,
@@ -26,7 +27,8 @@ if (!success) {
     const tenant = await Tenant.findOne({ slug: tenantSlug })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    if (!tenant.mercadopago.isConfigured || !tenant.mercadopago.accessToken) {
+    const account = getActiveMpAccount(tenant)
+    if (!account) {
       return NextResponse.json({ error: 'MercadoPago no configurado' }, { status: 400 })
     }
 
@@ -42,23 +44,18 @@ if (!success) {
     // ── Get platform commission from PlatformConfig ────────────────────────────
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
 
-    // OAuth válido solo si: conectado, tiene token, y no expiró
-    // Si expiresAt es null (conexiones viejas) se trata como válido
-    const oauthValid = !!(tenant.mpOAuth?.isConnected && tenant.mpOAuth?.accessToken &&
-      (!tenant.mpOAuth?.expiresAt || new Date(tenant.mpOAuth.expiresAt) > new Date()))
+    const oauthValid = isOAuthValid(account)
 
     // Calcular marketplace_fee consistente con orders/route.ts
-    const platformFeePercent = (oauthValid && tenant.mpOAuth?.commissionPercent != null)
-      ? tenant.mpOAuth.commissionPercent
+    const platformFeePercent = (oauthValid && account.commissionPercent != null)
+      ? account.commissionPercent
       : (platformConfig?.platformFees?.takeasygoCommissionPercent ?? 1)
     const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', tenant, platformConfig || {}, platformFeePercent)
 
     // ── Usar token de OAuth si está vigente, sino el propio del tenant ────────
-    // Con OAuth: MP reconoce la transacción como marketplace y aplica split.
-    // Sin OAuth (o expirado): el pago completo va al restaurante.
     const rawToken = oauthValid
-      ? decrypt(tenant.mpOAuth.accessToken!)
-      : decrypt(tenant.mercadopago.accessToken!)
+      ? decrypt(account.oauthAccessToken!)
+      : decrypt(account.accessToken)
 
     const client = new MercadoPagoConfig({ accessToken: rawToken })
     const preference = new Preference(client)

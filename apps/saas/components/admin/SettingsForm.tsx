@@ -1844,6 +1844,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                   tenantSlug={tenantSlug}
                   isConfigured={tenant.mercadopago?.isConfigured}
                   mpOAuth={tenant.mpOAuth}
+                  mpAccounts={tenant.mpAccounts}
                 />
               </div>
             </TabsContent>

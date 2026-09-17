@@ -37,7 +37,9 @@ export async function GET(
   }
 
   // State includes tenant slug for verification in callback
-  const state = Buffer.from(JSON.stringify({ tenantSlug, ts: Date.now() })).toString('base64url')
+  // accountId is optional — if provided, OAuth will save tokens to that specific account
+  const urlAccountId = request.nextUrl.searchParams.get('accountId')
+  const state = Buffer.from(JSON.stringify({ tenantSlug, accountId: urlAccountId || undefined, ts: Date.now() })).toString('base64url')
 
   const authUrl = new URL('https://auth.mercadopago.com/authorization')
   authUrl.searchParams.set('client_id', MP_APP_ID)
