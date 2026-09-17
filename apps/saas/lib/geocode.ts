@@ -179,6 +179,7 @@ export async function calculateDeliveryCost(
   const deliveryConfig = location.deliveryConfig || { enabled: false, ranges: [], maxRangeKm: 0 }
   const ranges = deliveryConfig.ranges || []
   const maxRangeKm = deliveryConfig.maxRangeKm || 0
+  const rapiboyEnabled = location.rapiboyConfig?.enabled === true
 
   const matchedRange = ranges.find(
     (r: { fromKm: number; toKm: number; price: number }) =>
@@ -193,6 +194,18 @@ export async function calculateDeliveryCost(
   const range = matchedRange || firstRange
 
   if (!range) {
+    // Si Rapiboy está habilitado, permitir delivery fuera de rango (Rapiboy lo maneja)
+    if (rapiboyEnabled) {
+      return {
+        withinRange: true,
+        distance,
+        cost: 0,
+        range: null,
+        maxRangeKm,
+        coordinates,
+      }
+    }
+
     return {
       withinRange: false,
       distance,
