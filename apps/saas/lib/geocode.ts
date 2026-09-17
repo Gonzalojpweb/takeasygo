@@ -195,12 +195,14 @@ export async function calculateDeliveryCost(
 
   if (!range) {
     // Si Rapiboy está habilitado, permitir delivery fuera de rango (Rapiboy lo maneja)
+    // Usar el último rango como estimación del costo de envío
     if (rapiboyEnabled) {
+      const lastRange = ranges.length > 0 ? ranges[ranges.length - 1] : null
       return {
         withinRange: true,
         distance,
-        cost: 0,
-        range: null,
+        cost: lastRange?.price ?? 0,
+        range: lastRange ?? null,
         maxRangeKm,
         coordinates,
       }
