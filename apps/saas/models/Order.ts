@@ -699,7 +699,7 @@ const OrderSchema = new Schema(
           default: null,
         },
       },
-      default: { type: 'own' },
+      default: null,
     },
     deletedAt: { type: Date, default: null, index: true },
   },
