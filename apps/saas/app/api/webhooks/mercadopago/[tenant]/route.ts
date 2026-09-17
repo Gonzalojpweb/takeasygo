@@ -17,6 +17,7 @@ import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 import { sendAdminPushNotification } from '@/lib/push'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
+import { getActiveMpAccount } from '@/lib/mercadopago'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -73,7 +74,9 @@ export async function POST(
     }
 
     const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
-    if (!tenant?.mercadopago?.accessToken) {
+
+    const account = getActiveMpAccount(tenant)
+    if (!account) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
@@ -91,11 +94,11 @@ export async function POST(
       }
     }
 
-    if (!tenant.mercadopago.webhookSecret) {
+    if (!account.webhookSecret) {
       return NextResponse.json({ error: 'Webhook no configurado' }, { status: 401 })
     }
 
-    const webhookSecret = decrypt(tenant.mercadopago.webhookSecret)
+    const webhookSecret = decrypt(account.webhookSecret)
     const signatureHeader = request.headers.get('x-signature')
     const requestId = request.headers.get('x-request-id')
     const mpPaymentId = String(body.data?.id)
@@ -118,7 +121,7 @@ export async function POST(
     }
 
     // 3. Obtener data de Mercado Pago antes de entrar en transacción (evita bloqueos largos)
-    const accessToken = decrypt(tenant.mercadopago.accessToken)
+    const accessToken = decrypt(account.accessToken)
     const client = new MercadoPagoConfig({ accessToken })
     const paymentClient = new Payment(client)
     const paymentData = await paymentClient.get({ id: mpPaymentId })

@@ -7,6 +7,7 @@ import { resolveCashConfig } from '@/lib/cash'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { NextRequest, NextResponse } from 'next/server'
+import { getActiveMpAccount } from '@/lib/mercadopago'
 
 export async function GET(
   _request: NextRequest,
@@ -23,7 +24,7 @@ export async function GET(
 
     const [tenant, platformConfig] = await Promise.all([
       Tenant.findOne({ slug: tenantSlug })
-        .select('transfer paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth plan features cash')
+        .select('transfer paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth mpAccounts plan features cash')
         .lean() as any,
       PlatformConfig.findById('platform').select('platformFees kripton').lean() as any,
     ])
@@ -47,7 +48,7 @@ export async function GET(
     const platformKriptonEnabled = platformConfig?.kripton?.enabled ?? false
     const kriptonEnabled = platformKriptonEnabled && !!tenant.kripton?.isConfigured
     const transferEnabled = !!tenant.transfer?.enabled && !!tenant.transfer?.alias
-    const mpEnabled = !!tenant.mercadopago?.isConfigured
+    const mpEnabled = !!getActiveMpAccount(tenant)
     const cashEnabled = canAccess(tenant.plan as Plan, 'cashPayment')
       && !!tenant.features?.cashPaymentEnabledBySuperadmin
       && cashConfig.enabled

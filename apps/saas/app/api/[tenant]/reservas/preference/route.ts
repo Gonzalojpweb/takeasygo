@@ -6,6 +6,7 @@ import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { toPesos } from '@takeasygo/business'
+import { getActiveMpAccount } from '@/lib/mercadopago'
 
 export async function POST(
   request: NextRequest,
@@ -25,7 +26,8 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    if (!tenant.mercadopago?.isConfigured || !tenant.mercadopago?.accessToken) {
+    const account = getActiveMpAccount(tenant)
+    if (!account) {
       return NextResponse.json({ error: 'MercadoPago no configurado' }, { status: 400 })
     }
 
@@ -43,7 +45,7 @@ export async function POST(
       return NextResponse.json({ free: true, reservationNumber: reservation.reservationNumber })
     }
 
-    const accessToken = decrypt(tenant.mercadopago.accessToken)
+    const accessToken = decrypt(account.accessToken)
     const client = new MercadoPagoConfig({ accessToken })
     const preference = new Preference(client)
 

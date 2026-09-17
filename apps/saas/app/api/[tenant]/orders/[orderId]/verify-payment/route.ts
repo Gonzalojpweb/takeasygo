@@ -5,6 +5,7 @@ import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
+import { getActiveMpAccount } from '@/lib/mercadopago'
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +16,8 @@ export async function GET(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug })
-    if (!tenant?.mercadopago?.accessToken) {
+    const account = getActiveMpAccount(tenant)
+    if (!account) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
@@ -35,7 +37,7 @@ export async function GET(
     }
 
     // Consultar el status del pago a Mercado Pago
-    const accessToken = decrypt(tenant.mercadopago.accessToken)
+    const accessToken = decrypt(account.accessToken)
     const client = new MercadoPagoConfig({ accessToken })
     const paymentClient = new Payment(client)
     const paymentData = await paymentClient.get({ id: order.payment.mercadopagoId })

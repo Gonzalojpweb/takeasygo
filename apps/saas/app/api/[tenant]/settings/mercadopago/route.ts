@@ -26,6 +26,17 @@ if (authError) return authError
         : null,
       hasAccessToken: !!tenant.mercadopago.accessToken,
       hasWebhookSecret: !!tenant.mercadopago.webhookSecret,
+      mpAccounts: (tenant.mpAccounts || []).map((acc: any) => ({
+        _id: acc._id?.toString(),
+        label: acc.label,
+        isActive: acc.isActive,
+        hasAccessToken: !!acc.accessToken,
+        hasPublicKey: !!acc.publicKey,
+        hasWebhookSecret: !!acc.webhookSecret,
+        oauthIsConnected: !!acc.oauthIsConnected,
+        oauthAuthorizedAt: acc.oauthAuthorizedAt,
+        createdAt: acc.createdAt,
+      })),
     })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

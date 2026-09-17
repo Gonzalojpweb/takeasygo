@@ -3,12 +3,25 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, AlertCircle, ExternalLink, ShieldCheck, Key, Lock, Loader2 } from 'lucide-react'
+import { CheckCircle2, AlertCircle, ExternalLink, ShieldCheck, Key, Lock, Loader2, Plus, Trash2, Radio } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 import MpOAuthConnectButton from './MpOAuthConnectButton'
+
+interface MpAccount {
+  _id: string
+  label: string
+  isActive: boolean
+  hasAccessToken: boolean
+  hasPublicKey: boolean
+  hasWebhookSecret: boolean
+  oauthIsConnected: boolean
+  oauthAuthorizedAt?: string | null
+  createdAt: string
+}
 
 interface Props {
   tenantSlug: string
@@ -17,29 +30,113 @@ interface Props {
     isConnected: boolean
     authorizedAt?: string | null
   }
+  mpAccounts?: MpAccount[]
 }
 
-export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth }: Props) {
+export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth, mpAccounts = [] }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ accessToken: '', publicKey: '', webhookSecret: '' })
-  const [editing, setEditing] = useState(!isConfigured)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null)
 
-  async function handleSave(e: React.FormEvent) {
+  // ── Add new account ──
+  const [newLabel, setNewLabel] = useState('')
+  const [newForm, setNewForm] = useState({ accessToken: '', publicKey: '', webhookSecret: '' })
+
+  // ── Edit existing account ──
+  const [editLabel, setEditLabel] = useState('')
+  const [editForm, setEditForm] = useState({ accessToken: '', publicKey: '', webhookSecret: '' })
+
+  async function handleAddAccount(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await fetch(`/api/${tenantSlug}/settings/mercadopago`, {
+      const res = await fetch(`/api/${tenantSlug}/settings/mercadopago/accounts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          label: newLabel,
+          accessToken: newForm.accessToken,
+          publicKey: newForm.publicKey,
+          webhookSecret: newForm.webhookSecret,
+          isActive: mpAccounts.length === 0, // first account is auto-active
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error)
+      }
+      toast.success('Cuenta creada correctamente')
+      setShowAddForm(false)
+      setNewLabel('')
+      setNewForm({ accessToken: '', publicKey: '', webhookSecret: '' })
+      router.refresh()
+    } catch (err: any) {
+      toast.error(err.message || 'Error al crear cuenta')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleActivate(accountId: string) {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/settings/mercadopago/accounts`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
       })
       if (!res.ok) throw new Error()
-      toast.success('Credenciales guardadas correctamente')
-      setEditing(false)
+      toast.success('Cuenta activada')
       router.refresh()
     } catch {
-      toast.error('Error al guardar credenciales')
+      toast.error('Error al activar cuenta')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDelete(accountId: string) {
+    if (!confirm('¿Eliminar esta cuenta?')) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/settings/mercadopago/accounts/${accountId}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error)
+      }
+      toast.success('Cuenta eliminada')
+      router.refresh()
+    } catch (err: any) {
+      toast.error(err.message || 'Error al eliminar cuenta')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleEditAccount(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingAccountId) return
+    setLoading(true)
+    try {
+      const body: any = { label: editLabel }
+      if (editForm.accessToken) body.accessToken = editForm.accessToken
+      if (editForm.publicKey) body.publicKey = editForm.publicKey
+      if (editForm.webhookSecret) body.webhookSecret = editForm.webhookSecret
+
+      const res = await fetch(`/api/${tenantSlug}/settings/mercadopago/accounts/${editingAccountId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Cuenta actualizada')
+      setEditingAccountId(null)
+      router.refresh()
+    } catch {
+      toast.error('Error al actualizar cuenta')
     } finally {
       setLoading(false)
     }
@@ -65,162 +162,204 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth 
             variant="outline"
             className={cn(
               "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border-2",
-              isConfigured
+              isConfigured || mpAccounts.length > 0
                 ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                 : "bg-amber-500/10 text-amber-500 border-amber-500/20"
             )}
           >
-            {isConfigured ? 'Conectado' : 'Pendiente'}
+            {isConfigured || mpAccounts.length > 0 ? 'Conectado' : 'Pendiente'}
           </Badge>
         </div>
       </CardHeader>
 
       <CardContent className="p-8 space-y-8">
-        {/* ── OAuth Split Payments ── */}
-        <MpOAuthConnectButton
-          tenantSlug={tenantSlug}
-          isConnected={mpOAuth?.isConnected ?? false}
-          authorizedAt={mpOAuth?.authorizedAt}
-        />
-
-        {/* ── API Credentials ── */}
-        {isConfigured && !editing ? (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4 p-6 rounded-3xl bg-emerald-500/5 border-2 border-emerald-500/10">
-              <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shrink-0">
-                <CheckCircle2 size={20} />
-              </div>
-              <div className="flex-1">
-                <p className="text-emerald-700 font-bold text-sm">Tu cuenta está vinculada</p>
-                <p className="text-emerald-600/70 text-xs font-medium">Los pagos se procesarán automáticamente a tu cuenta de Mercado Pago.</p>
-              </div>
-            </div>
-
-            <div className="flex justify-start">
-              <Button
-                variant="outline"
-                className="border-2 border-border/80 rounded-xl font-bold text-xs px-6 py-5 hover:bg-muted transition-all"
-                onClick={() => setEditing(true)}
-              >
-                Actualizar credenciales de API
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSave} className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="p-6 rounded-3xl bg-amber-500/5 border-2 border-amber-500/10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                <AlertCircle size={80} />
-              </div>
-              <div className="flex gap-4">
-                <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-                <div className="space-y-2">
-                  <p className="text-amber-700 font-bold text-sm">Información de seguridad importante</p>
-                  <p className="text-amber-600/80 text-xs font-medium leading-relaxed max-w-xl">
-                    Para habilitar los cobros online, necesitás tus credenciales de producción.
-                    Podés obtenerlas de forma gratuita y segura en
-                    <a href="https://www.mercadopago.com.ar/developers/panel/app"
-                      target="_blank"
-                      className="text-amber-600 font-bold underline underline-offset-4 ml-1 inline-flex items-center gap-1 group">
-                      Tu Panel de Mercado Pago Developers
-                      <ExternalLink size={10} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                    </a>
+        {/* ── Accounts List ── */}
+        {mpAccounts.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Cuentas configuradas</p>
+            {mpAccounts.map(acc => (
+              <div key={acc._id} className={cn(
+                "flex items-center gap-3 p-4 rounded-2xl border-2 transition-all",
+                acc.isActive
+                  ? "bg-emerald-500/5 border-emerald-500/20"
+                  : "bg-muted/20 border-border/60"
+              )}>
+                <button
+                  onClick={() => !acc.isActive && handleActivate(acc._id)}
+                  disabled={loading || acc.isActive}
+                  className="shrink-0"
+                >
+                  <Radio
+                    size={18}
+                    className={cn(
+                      acc.isActive ? "text-emerald-500 fill-emerald-500" : "text-muted-foreground/40",
+                      !acc.isActive && "hover:text-primary cursor-pointer"
+                    )}
+                  />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className={cn("text-sm font-bold truncate", acc.isActive ? "text-emerald-700" : "text-foreground")}>
+                    {acc.label}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/60">
+                    {acc.oauthIsConnected ? 'OAuth conectado' : 'Solo credenciales API'}
+                    {acc.isActive && ' · Activa'}
                   </p>
                 </div>
+                <button
+                  onClick={() => {
+                    setEditingAccountId(acc._id)
+                    setEditLabel(acc.label)
+                    setEditForm({ accessToken: '', publicKey: '', webhookSecret: '' })
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-muted"
+                >
+                  Editar
+                </button>
+                {!acc.isActive && (
+                  <button
+                    onClick={() => handleDelete(acc._id)}
+                    disabled={loading}
+                    className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
-            </div>
+            ))}
+          </div>
+        )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className={labelCls}>
-                  <div className="flex items-center gap-2">
-                    <Lock size={10} /> Access Token
-                  </div>
-                </label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors">
-                    <Key size={16} />
-                  </div>
-                  <input
-                    required
-                    type="password"
-                    value={form.accessToken}
-                    onChange={e => setForm(p => ({ ...p, accessToken: e.target.value }))}
-                    placeholder="APP_USR-782..."
-                    className={cn(inputCls, "pl-11")}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className={labelCls}>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 size={10} /> Public Key
-                  </div>
-                </label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors">
-                    <Key size={16} />
-                  </div>
-                  <input
-                    required
-                    value={form.publicKey}
-                    onChange={e => setForm(p => ({ ...p, publicKey: e.target.value }))}
-                    placeholder="APP_USR-291..."
-                    className={cn(inputCls, "pl-11")}
-                  />
-                </div>
-              </div>
-            </div>
-
+        {/* ── Add Account Button / Form ── */}
+        {!showAddForm ? (
+          <Button
+            variant="outline"
+            className="w-full border-2 border-dashed border-border/80 rounded-2xl h-14 text-muted-foreground hover:text-foreground hover:border-primary/40"
+            onClick={() => setShowAddForm(true)}
+          >
+            <Plus size={16} className="mr-2" />
+            Agregar nueva cuenta
+          </Button>
+        ) : (
+          <form onSubmit={handleAddAccount} className="space-y-4 p-6 rounded-3xl bg-muted/10 border-2 border-border/60">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Nueva cuenta</p>
             <div className="space-y-2">
-              <label className={labelCls}>
-                <div className="flex items-center gap-2">
-                  <ShieldCheck size={10} /> Webhook Secret <span className="text-red-500 normal-case font-normal tracking-normal">(obligatorio)</span>
-                </div>
-              </label>
-              <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors">
-                  <Lock size={16} />
-                </div>
+              <label className={labelCls}>Nombre de la cuenta</label>
+              <input
+                required
+                value={newLabel}
+                onChange={e => setNewLabel(e.target.value)}
+                placeholder="Ej: Cuenta Principal, Cuenta Delivery"
+                className={inputCls}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className={labelCls}><Key size={10} className="inline mr-1" /> Access Token</label>
                 <input
                   required
                   type="password"
-                  value={form.webhookSecret}
-                  onChange={e => setForm(p => ({ ...p, webhookSecret: e.target.value }))}
-                  placeholder="Clave secreta de tu webhook en MP"
-                  className={cn(inputCls, "pl-11")}
+                  value={newForm.accessToken}
+                  onChange={e => setNewForm(p => ({ ...p, accessToken: e.target.value }))}
+                  placeholder="APP_USR-782..."
+                  className={inputCls}
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
-                Activa la verificación de firma HMAC en cada notificación de pago. Obtenelo en Panel MP → Tu app → Webhooks.
-              </p>
+              <div className="space-y-2">
+                <label className={labelCls}><CheckCircle2 size={10} className="inline mr-1" /> Public Key</label>
+                <input
+                  required
+                  value={newForm.publicKey}
+                  onChange={e => setNewForm(p => ({ ...p, publicKey: e.target.value }))}
+                  placeholder="APP_USR-291..."
+                  className={inputCls}
+                />
+              </div>
             </div>
-
-            <div className="flex items-center gap-3 pt-6 border-t border-border/40">
-              <Button
-                type="submit"
-                disabled={loading}
-                className="bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest px-10 h-14 rounded-2xl shadow-xl shadow-primary/20 flex-1 sm:flex-none active:scale-95 disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Guardar Credenciales'}
+            <div className="space-y-2">
+              <label className={labelCls}><ShieldCheck size={10} className="inline mr-1" /> Webhook Secret</label>
+              <input
+                required
+                type="password"
+                value={newForm.webhookSecret}
+                onChange={e => setNewForm(p => ({ ...p, webhookSecret: e.target.value }))}
+                placeholder="Clave secreta de tu webhook en MP"
+                className={inputCls}
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button type="submit" disabled={loading} className="bg-primary text-white rounded-xl px-8">
+                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Crear cuenta'}
               </Button>
-              {isConfigured && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-muted-foreground font-bold px-8 h-14 rounded-2xl"
-                  onClick={() => setEditing(false)}
-                >
-                  Cancelar
-                </Button>
-              )}
+              <Button type="button" variant="ghost" onClick={() => setShowAddForm(false)} className="rounded-xl">
+                Cancelar
+              </Button>
             </div>
           </form>
         )}
+
+        {/* ── Edit Account Form ── */}
+        {editingAccountId && (
+          <form onSubmit={handleEditAccount} className="space-y-4 p-6 rounded-3xl bg-primary/5 border-2 border-primary/20">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary/60">Editar cuenta</p>
+            <div className="space-y-2">
+              <label className={labelCls}>Nombre</label>
+              <input
+                required
+                value={editLabel}
+                onChange={e => setEditLabel(e.target.value)}
+                className={inputCls}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className={labelCls}><Key size={10} className="inline mr-1" /> Access Token <span className="text-muted-foreground/40 normal-case tracking-normal">(dejar vacío para no cambiar)</span></label>
+              <input
+                type="password"
+                value={editForm.accessToken}
+                onChange={e => setEditForm(p => ({ ...p, accessToken: e.target.value }))}
+                placeholder="Dejar vacío si no querés cambiar"
+                className={inputCls}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className={labelCls}><CheckCircle2 size={10} className="inline mr-1" /> Public Key</label>
+              <input
+                value={editForm.publicKey}
+                onChange={e => setEditForm(p => ({ ...p, publicKey: e.target.value }))}
+                placeholder="Dejar vacío si no querés cambiar"
+                className={inputCls}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className={labelCls}><ShieldCheck size={10} className="inline mr-1" /> Webhook Secret</label>
+              <input
+                type="password"
+                value={editForm.webhookSecret}
+                onChange={e => setEditForm(p => ({ ...p, webhookSecret: e.target.value }))}
+                placeholder="Dejar vacío si no querés cambiar"
+                className={inputCls}
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button type="submit" disabled={loading} className="bg-primary text-white rounded-xl px-8">
+                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Guardar cambios'}
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setEditingAccountId(null)} className="rounded-xl">
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* ── OAuth Split Payments ── */}
+        <div className="border-t border-border/40 pt-8">
+          <MpOAuthConnectButton
+            tenantSlug={tenantSlug}
+            isConnected={mpOAuth?.isConnected ?? false}
+            authorizedAt={mpOAuth?.authorizedAt}
+          />
+        </div>
       </CardContent>
     </Card>
   )
 }
-
-import { Badge } from '@/components/ui/badge'
