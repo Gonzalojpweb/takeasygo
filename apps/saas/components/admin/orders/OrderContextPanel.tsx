@@ -6,7 +6,7 @@ import {
   Clock, MapPin, Phone, Mail, Printer, MessageCircle,
   CreditCard, Wallet, BadgePercent, Gift, Star, ChevronDown,
   Truck, UtensilsCrossed, Building2, ShoppingBag, History, FileText,
-  Navigation2,
+  Navigation2, User,
 } from 'lucide-react'
 import OrderStatusButton from '../OrderStatusButton'
 import { cn } from '@/lib/utils'
@@ -29,6 +29,7 @@ interface OrderItem {
   deliveryCost?: number
   deliveryDistance?: number
   deliveryConfirmation?: { status?: string; deliveryPersonName?: string; customerCode?: { code?: string | null } | string | null }
+  deliveryProvider?: { type?: string; rapiboy?: { tripId?: string; trackingId?: string; trackingUrl?: string; driverName?: string } | null }
   items?: any[]
   notes?: string
   statusTimestamps?: Record<string, string>
@@ -474,6 +475,47 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
             {item.deliveryConfirmation?.customerCode && typeof item.deliveryConfirmation.customerCode === 'object' && (item.deliveryConfirmation.customerCode as any).code && (
               <div className="text-[11px] text-muted-foreground/70 pl-5">
                 Código de entrega: <strong className="font-mono">{(item.deliveryConfirmation.customerCode as any).code}</strong>
+              </div>
+            )}
+          </div>
+        </Section>
+      )}
+
+      {/* ── Rapiboy Tracking ──────────────────────────────── */}
+      {item.orderMode === 'delivery' && item.deliveryProvider?.type === 'rapiboy' && (
+        <Section title="Rapiboy Tracking">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs">
+              <Truck size={12} className="text-emerald-500" />
+              <span className="font-medium">Trip ID:</span>
+              <span className="font-mono text-muted-foreground flex-1 truncate">
+                {item.deliveryProvider.rapiboy?.tripId || '—'}
+              </span>
+            </div>
+            {item.deliveryProvider.rapiboy?.driverName && (
+              <div className="flex items-center gap-2 text-xs">
+                <User size={12} className="text-muted-foreground" />
+                <span className="font-medium">Chofer:</span>
+                <span className="font-medium">{item.deliveryProvider.rapiboy.driverName}</span>
+              </div>
+            )}
+            {item.deliveryProvider.rapiboy?.trackingUrl && (
+              <a
+                href={item.deliveryProvider.rapiboy.trackingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-xs text-emerald-600 hover:underline"
+              >
+                <Navigation2 size={12} />
+                Ver tracking en Rapiboy
+              </a>
+            )}
+            {item.deliveryProvider.rapiboy?.trackingId && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium">Tracking ID:</span>
+                <span className="font-mono truncate flex-1">
+                  {item.deliveryProvider.rapiboy.trackingId}
+                </span>
               </div>
             )}
           </div>
