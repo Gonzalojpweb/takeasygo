@@ -80,7 +80,7 @@ export async function POST(
     const hasMpConfigured = tenant.mercadopago?.isConfigured && tenant.mercadopago?.accessToken
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress trackingToken trackingTokenUsedAt hiddenRewardClaims')
+      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress deliveryProvider trackingToken trackingTokenUsedAt hiddenRewardClaims')
       .lean() as any
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -146,6 +146,15 @@ export async function POST(
           deliveryPersonName: order.deliveryConfirmation.deliveryPersonName ?? null,
           arrivalAt: order.deliveryConfirmation.arrivalAt ?? null,
           completedAt: order.deliveryConfirmation.completedAt ?? null,
+        } : null,
+        deliveryProvider: order.deliveryProvider ? {
+          type: order.deliveryProvider.type,
+          rapiboy: order.deliveryProvider.rapiboy ? {
+            tripId: order.deliveryProvider.rapiboy.tripId,
+            trackingId: order.deliveryProvider.rapiboy.trackingId,
+            trackingUrl: order.deliveryProvider.rapiboy.trackingUrl,
+            driverName: order.deliveryProvider.rapiboy.driverName,
+          } : null,
         } : null,
         payment: {
           method: order.payment.method,
@@ -231,6 +240,15 @@ export async function POST(
         deliveryPersonName: order.deliveryConfirmation.deliveryPersonName ?? null,
         arrivalAt: order.deliveryConfirmation.arrivalAt ?? null,
         completedAt: order.deliveryConfirmation.completedAt ?? null,
+      } : null,
+      deliveryProvider: order.deliveryProvider ? {
+        type: order.deliveryProvider.type,
+        rapiboy: order.deliveryProvider.rapiboy ? {
+          tripId: order.deliveryProvider.rapiboy.tripId,
+          trackingId: order.deliveryProvider.rapiboy.trackingId,
+          trackingUrl: order.deliveryProvider.rapiboy.trackingUrl,
+          driverName: order.deliveryProvider.rapiboy.driverName,
+        } : null,
       } : null,
       payment: {
         method: order.payment?.method ?? 'mercadopago',

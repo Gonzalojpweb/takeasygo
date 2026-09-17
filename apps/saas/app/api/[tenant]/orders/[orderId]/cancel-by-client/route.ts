@@ -87,6 +87,29 @@ export async function POST(
     await revertRewardRedemptions(order, tenant)
     await order.save()
 
+    // Cancelar viaje Rapiboy si existe
+    if (order.deliveryProvider?.type === 'rapiboy' && order.deliveryProvider.rapiboy?.tripId) {
+      try {
+        const { cancelarViaje } = await import('@/lib/rapiboy/client')
+        const Location = (await import('@/models/Location')).default
+        const rapiboyLoc = await Location.findById(order.locationId).select('rapiboyConfig').lean()
+        if (rapiboyLoc?.rapiboyConfig?.enabled) {
+          await cancelarViaje(
+            order.deliveryProvider.rapiboy.tripId,
+            2, // Motivo: Cancelado por cliente
+            {
+              apiToken: rapiboyLoc.rapiboyConfig.apiToken,
+              environment: rapiboyLoc.rapiboyConfig.environment as 'production' | 'uat',
+              codigoPlataforma: rapiboyLoc.rapiboyConfig.codigoPlataforma,
+            }
+          )
+          console.log(`[cancel-by-client] Rapiboy trip cancelled for order ${orderId}`)
+        }
+      } catch (err) {
+        console.error('[cancel-by-client] Error cancelling Rapiboy trip:', err)
+      }
+    }
+
     // Notificar al admin (SystemAnnouncement in-app)
     const orderNumber = order.orderNumber || orderId
     const customerName = order.customer?.name || 'Cliente'

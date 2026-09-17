@@ -14,7 +14,7 @@ import { logAudit } from '@/lib/audit'
 import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
 import { addPointsFromOrder } from '@/lib/loyalty'
 import { cotizarEnvio, isRapiboyEnabled } from '@/lib/delivery/cotizar'
-import { crearViajeOnDemand, RapiboyError } from '@/lib/rapiboy/client'
+import { crearViajeOnDemand, cancelarViaje, RapiboyError } from '@/lib/rapiboy/client'
 import { notifySyncLayerStatus } from '@/lib/sync-layer'
 import { generateRatingToken } from '@/lib/rating-token'
 import { captureOrderStatusChanged } from '@/lib/events'
@@ -183,21 +183,29 @@ export async function PATCH(
           } else {
             // Franja fija (distancia dentro de maxRangeKm)
             order.deliveryProvider = { type: 'own' }
+            const customerCode = String(Math.floor(100000 + Math.random() * 900000))
+            order.deliveryConfirmation = {
+              customerCode: { code: customerCode, expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000) },
+              deliveryPersonId: null, deliveryPersonName: null, status: 'pending',
+              arrivalLat: null, arrivalLng: null, arrivalAt: null, completedAt: null,
+            }
           }
         } catch (rapiboyErr: any) {
           console.error(`[status] Rapiboy error for order ${orderId}:`, rapiboyErr)
-          // Fallback: usar franja fija si está dentro del rango
-          if (rapiboyErr instanceof RapiboyError || rapiboyErr?.message?.includes('timeout')) {
-            order.deliveryProvider = { type: 'own' }
-          } else {
-            // Otro error: no fallar el endpoint, pero logear
-            order.deliveryProvider = { type: 'own' }
+          // Fallback: usar franja fija
+          order.deliveryProvider = { type: 'own' }
+          const customerCode = String(Math.floor(100000 + Math.random() * 900000))
+          order.deliveryConfirmation = {
+            customerCode: { code: customerCode, expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000) },
+            deliveryPersonId: null, deliveryPersonName: null, status: 'pending',
+            arrivalLat: null, arrivalLng: null, arrivalAt: null, completedAt: null,
           }
         }
 
         // NO enviar push a repartidores propios si se usó Rapiboy
       } else {
         // ── Flujo actual: franja fija + push a repartidores ──
+        order.deliveryProvider = { type: 'own' }
         const customerCode = String(Math.floor(100000 + Math.random() * 900000))
         order.deliveryConfirmation = {
           customerCode: {
@@ -273,6 +281,29 @@ export async function PATCH(
           requiresConsent: false,
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         })
+
+        // Cancelar viaje Rapiboy si existe
+        if (order.deliveryProvider?.type === 'rapiboy' && order.deliveryProvider.rapiboy?.tripId) {
+          try {
+            const rapiboyLoc = await Location.findById(order.locationId)
+              .select('rapiboyConfig')
+              .lean()
+            if (rapiboyLoc?.rapiboyConfig?.enabled) {
+              await cancelarViaje(
+                order.deliveryProvider.rapiboy.tripId,
+                1, // Motivo: Cancelado por restaurante
+                {
+                  apiToken: rapiboyLoc.rapiboyConfig.apiToken,
+                  environment: rapiboyLoc.rapiboyConfig.environment as 'production' | 'uat',
+                  codigoPlataforma: rapiboyLoc.rapiboyConfig.codigoPlataforma,
+                }
+              )
+              console.log(`[status] Rapiboy trip cancelled for order ${orderId}`)
+            }
+          } catch (err) {
+            console.error('[status] Error cancelling Rapiboy trip:', err)
+          }
+        }
       }
     }
 
