@@ -16,6 +16,9 @@ export async function GET(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug })
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    }
     const account = getActiveMpAccount(tenant)
     if (!account) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
