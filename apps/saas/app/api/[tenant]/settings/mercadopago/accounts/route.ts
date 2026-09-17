@@ -85,14 +85,18 @@ export async function POST(
     }
 
     if (shouldBeActive) {
-      // Atomic: deactivate ALL others + push new account + activate it
+      // Step 1: push new account
       await Tenant.updateOne(
         { _id: tenant._id },
-        {
-          $set: { 'mpAccounts.$[other].isActive': false },
-          $push: { mpAccounts: newAccount },
-        },
-        { arrayFilters: [{ 'other._id': { $exists: true } }] }
+        { $push: { mpAccounts: newAccount } }
+      )
+      // Step 2: deactivate all others (cannot combine $push + array filter $set on same array)
+      const freshTenant = await Tenant.findById(tenant._id).select('mpAccounts').lean() as any
+      const newId = freshTenant.mpAccounts[freshTenant.mpAccounts.length - 1]._id
+      await Tenant.updateOne(
+        { _id: tenant._id },
+        { $set: { 'mpAccounts.$[other].isActive': false } },
+        { arrayFilters: [{ 'other._id': { $ne: newId } }] }
       )
     } else {
       // Just push — don't touch active state
