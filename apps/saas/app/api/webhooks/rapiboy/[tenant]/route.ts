@@ -6,7 +6,7 @@ import Location from '@/models/Location'
 import PushSubscription from '@/models/PushSubscription'
 import { decrypt } from '@/lib/crypto'
 import { mapRapiboyStatus, isRapiboyStatusValid, isRapiboyTerminalStatus } from '@/lib/rapiboy/estados'
-import { webpush } from '@/lib/webpush'
+import { sendPushToSubscription } from '@/lib/push'
 import crypto from 'crypto'
 
 // ─── Rapiboy Webhook ────────────────────────────────────────────────────────
@@ -194,23 +194,15 @@ export async function POST(
 
           const msg = messages[takeasygoStatus]
           if (msg) {
-            await webpush.sendNotification(
-              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-              JSON.stringify({
-                ...msg,
-                icon: '/tgoicon-192.png',
-                badge: '/tgoicon-192.png',
-                url: '/app',
-                tag: `order-${order._id}`,
-                orderId: order._id.toString(),
-              }),
+            await sendPushToSubscription(
+              { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, clientToken: (order as any).clientToken },
+              msg.title,
+              msg.body,
+              '/app',
             )
           }
         }
       } catch (pushErr: any) {
-        if (pushErr?.statusCode === 410) {
-          await PushSubscription.deleteOne({ clientToken: (order as any).clientToken })
-        }
         console.warn('[rapiboy-webhook] Push notification error:', pushErr?.message)
       }
     }
