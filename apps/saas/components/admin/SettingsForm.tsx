@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import MercadoPagoSettings from './MercadoPagoSettings'
 import KriptonSettings from './KriptonSettings'
-import TransferSettings from './TransferSettings'
+import TransferAccountsSettings from './TransferAccountsSettings'
 import CashSettings from '@/components/admin/CashSettings'
 import PaymentSurchargeSettings from './PaymentSurchargeSettings'
 import GalleryManager from './GalleryManager'
@@ -1945,9 +1945,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             {canAccess(plan as Plan, 'transferPayment') && (
               <TabsContent value="transferencia" className="m-0 mt-2">
                 <div className="max-w-3xl">
-                  <TransferSettings
+                  <TransferAccountsSettings
                     tenantSlug={tenantSlug}
-                    initialConfig={tenant.transfer}
+                    transferEnabled={tenant.transfer?.enabled ?? false}
+                    transferAccounts={tenant.transferAccounts || []}
                   />
                 </div>
               </TabsContent>

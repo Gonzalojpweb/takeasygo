@@ -24,7 +24,7 @@ export async function GET(
 
     const [tenant, platformConfig] = await Promise.all([
       Tenant.findOne({ slug: tenantSlug })
-        .select('transfer paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth mpAccounts plan features cash')
+        .select('transfer transferAccounts paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth mpAccounts plan features cash')
         .lean() as any,
       PlatformConfig.findById('platform').select('platformFees kripton').lean() as any,
     ])
@@ -47,7 +47,14 @@ export async function GET(
 
     const platformKriptonEnabled = platformConfig?.kripton?.enabled ?? false
     const kriptonEnabled = platformKriptonEnabled && !!tenant.kripton?.isConfigured
-    const transferEnabled = !!tenant.transfer?.enabled && !!tenant.transfer?.alias
+
+    // Transfer: prefer transferAccounts (multi-account), fallback to legacy transfer
+    const activeTransferAccount = (tenant.transferAccounts || []).find((a: any) => a.isActive)
+    const hasTransferAccount = !!activeTransferAccount
+    const transferEnabled = hasTransferAccount
+      ? !!tenant.transfer?.enabled && !!activeTransferAccount.alias
+      : !!tenant.transfer?.enabled && !!tenant.transfer?.alias
+
     const mpEnabled = !!getActiveMpAccount(tenant)
     const cashEnabled = canAccess(tenant.plan as Plan, 'cashPayment')
       && !!tenant.features?.cashPaymentEnabledBySuperadmin
@@ -118,9 +125,11 @@ export async function GET(
     return NextResponse.json({
       methods,
       transfer: transferEnabled ? {
-        alias: tenant.transfer.alias,
-        cbu: tenant.transfer.cbu,
-        cvu: tenant.transfer.cvu,
+        alias: activeTransferAccount?.alias || tenant.transfer?.alias,
+        cbu: activeTransferAccount?.cbu || tenant.transfer?.cbu,
+        cvu: activeTransferAccount?.cvu || tenant.transfer?.cvu,
+        bankName: activeTransferAccount?.bankName || tenant.transfer?.bankName,
+        holderName: activeTransferAccount?.holderName || tenant.transfer?.holderName,
       } : null,
     })
   } catch (error) {

@@ -17,6 +17,19 @@ export interface ITransferConfig {
   commissionPercent?: number | null
 }
 
+/** Cuenta bancaria para transferencias — una activa a la vez (tipo radio) */
+export interface ITransferAccount {
+  _id?: Types.ObjectId
+  label: string
+  alias: string
+  cbu: string | null
+  cvu: string | null
+  bankName: string | null
+  holderName: string | null
+  isActive: boolean
+  createdAt: Date
+}
+
 export interface IPaymentSurcharge {
   /** Porcentaje de recargo (ej: 10 = 10%). Not a cents value. */
   feePercent: number
@@ -48,6 +61,8 @@ export interface ITenant extends Document {
   }
   // ── Transferencia bancaria ──────────────────────────────────────
   transfer: ITransferConfig
+  /** Multi-account transfer — one active at a time */
+  transferAccounts: ITransferAccount[]
   // ── Recargos por método de pago ────────────────────────────────
   paymentSurcharges: {
     mercadopago: IPaymentSurcharge
@@ -665,6 +680,20 @@ const TenantSchema = new Schema<ITenant>(
       bankName:        { type: String, default: null },
       holderName:      { type: String, default: null },
       commissionPercent: { type: Number, default: null, min: 0, max: 100 },
+    },
+    // ── Multi-account transfer ────────────────────────────────────────────
+    transferAccounts: {
+      type: [{
+        label:      { type: String, required: true },
+        alias:      { type: String, required: true },
+        cbu:        { type: String, default: null },
+        cvu:        { type: String, default: null },
+        bankName:   { type: String, default: null },
+        holderName: { type: String, default: null },
+        isActive:   { type: Boolean, default: false },
+        createdAt:  { type: Date, default: Date.now },
+      }],
+      default: [],
     },
     // ── Recargos por método de pago ──────────────────────────────────────
     paymentSurcharges: {
