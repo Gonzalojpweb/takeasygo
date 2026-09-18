@@ -7,7 +7,7 @@ import { resolveCashConfig } from '@/lib/cash'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { NextRequest, NextResponse } from 'next/server'
-import { getMpAccountForLocation, getActiveMpAccount } from '@/lib/mercadopago'
+import { getMpAccountForLocation } from '@/lib/mercadopago'
 
 // ⚠️ CACHE WARNING: If you add caching here, the cache key MUST include locationId.
 // Payment methods vary per-sede (MP account, cash config). A global cache would
