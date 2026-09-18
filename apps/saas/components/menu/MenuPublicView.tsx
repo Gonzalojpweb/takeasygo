@@ -279,15 +279,16 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     })
 
   const featuredItems = categories.flatMap((cat: any) => {
+    const catGroups = cat.customizationGroups ?? []
     const direct = cat.items.filter((i: any) => {
       if (mode === 'business') return i.isFeatured && i.isBusinessAvailable
       return i.isFeatured
-    })
+    }).map((i: any) => ({ ...i, _catGroups: catGroups }))
     const sub = (cat.subcategories ?? []).flatMap((sub: any) =>
       sub.items.filter((i: any) => {
         if (mode === 'business') return i.isFeatured && i.isBusinessAvailable
         return i.isFeatured
-      })
+      }).map((i: any) => ({ ...i, _catGroups: catGroups }))
     )
     return [...direct, ...sub]
   })
@@ -411,7 +412,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   function addPlainToCart(item: any, triggerUpsell = true, addedFrom: CartItem['addedFrom'] = 'menu') {
     const hasVariants = (item.variants ?? []).length > 0
-    if (hasVariants) {
+    const hasCustomizationGroups = (item.customizationGroups ?? []).length > 0
+    if (hasVariants || hasCustomizationGroups) {
       openCustomizationModal(item)
       return
     }
@@ -1048,10 +1050,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             <div>
               {featuredItems.map((item: any) => {
                 const veg = isVegetarian(item.tags || [])
+                const catGroups = item._catGroups ?? []
                 return (
                   <div key={item._id} className="flex items-center gap-3 px-4 py-3 border-b last:border-0 cursor-pointer active:scale-[0.99] transition-transform"
                     style={{ borderColor: primary + '12' }}
-                    onClick={() => openCustomizationModal(item)}>
+                    onClick={() => openCustomizationModal(item, catGroups)}>
                     {item.imageUrl
                       ? <Image src={cloudinaryUrl(item.imageUrl, { w: 200 })} alt={tn(item, 'name', locale)} width={56} height={56} className="w-14 h-14 object-cover rounded-xl flex-shrink-0 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
                       : <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
@@ -1083,7 +1086,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                     {likesOrderId ? (
                       <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
                     ) : isOperational ? (
-                      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={openCustomizationModal} onRemove={removeFromCart} totalQty={itemTotalQty(item._id)} primary={primary} bg={bg} onFlyToCart={handleFlyToCart} />
+                      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={itemTotalQty(item._id)} primary={primary} bg={bg} categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
                     ) : (
                       <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
                         CATÁLOGO
