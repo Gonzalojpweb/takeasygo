@@ -1786,6 +1786,16 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                             initialCash={loc.settings?.cash ?? null}
                           />
                         )}
+
+                        {/* ── Cuenta MP por sede ── */}
+                        {tenant.mpAccounts && tenant.mpAccounts.length > 0 && (
+                          <LocationMpAccountSettings
+                            locationId={loc._id}
+                            tenantSlug={tenantSlug}
+                            initialMpAccountId={loc.settings?.mpAccountId ?? null}
+                            mpAccounts={tenant.mpAccounts}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   ))
@@ -2607,6 +2617,104 @@ function LocationCashSettings({ locationId, tenantSlug, initialCash }: {
         aria-busy={saving}
       >
         {saving ? 'Guardando...' : 'Guardar configuración de efectivo'}
+      </Button>
+    </div>
+  )
+}
+
+function LocationMpAccountSettings({ locationId, tenantSlug, initialMpAccountId, mpAccounts }: {
+  locationId: string
+  tenantSlug: string
+  initialMpAccountId: string | null | undefined
+  mpAccounts: Array<{ _id: string; label: string; isActive: boolean }> | undefined
+}) {
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(initialMpAccountId || '')
+  const [saving, setSaving] = useState(false)
+
+  const accounts = mpAccounts || []
+  const hasOverride = !!initialMpAccountId
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const payload = selectedAccountId || null
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { mpAccountId: payload } }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Error')
+      }
+      toast.success(
+        selectedAccountId
+          ? 'Cuenta MP de la sede guardada'
+          : 'La sede vuelve a usar la cuenta MP activa del comercio'
+      )
+    } catch (e: any) {
+      toast.error(e?.message || 'Error al guardar cuenta MP de la sede')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CreditCard size={12} className="text-primary" />
+          <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+            💳 Cuenta MP de la sede
+          </span>
+        </div>
+        {hasOverride && (
+          <button
+            type="button"
+            onClick={() => setSelectedAccountId('')}
+            className="text-[9px] text-primary font-bold uppercase tracking-wider hover:underline"
+          >
+            Resetear a default
+          </button>
+        )}
+      </div>
+
+      <p className="text-[10px] text-muted-foreground/70">
+        Seleccioná qué cuenta de Mercado Pago se usa para los pagos de esta sede.
+        Si no seleccionás ninguna, se usa la cuenta activa general del comercio.
+      </p>
+
+      {accounts.length > 0 ? (
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 block">
+            Cuenta activa para esta sede
+          </label>
+          <select
+            value={selectedAccountId}
+            onChange={e => setSelectedAccountId(e.target.value)}
+            className="w-full bg-white border border-border/60 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">Usar cuenta activa del comercio</option>
+            {accounts.map(acc => (
+              <option key={acc._id} value={acc._id}>
+                {acc.label} {acc.isActive ? '(activa)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <p className="text-[10px] text-muted-foreground/50 italic">
+          No hay cuentas MP configuradas. Configuralas en la pestaña MercadoPago.
+        </p>
+      )}
+
+      <Button
+        className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
+        onClick={handleSave}
+        disabled={saving || accounts.length === 0}
+        aria-busy={saving}
+      >
+        {saving ? 'Guardando...' : 'Guardar cuenta MP de la sede'}
       </Button>
     </div>
   )

@@ -5,7 +5,7 @@ import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
-import { getActiveMpAccount } from '@/lib/mercadopago'
+import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 
 export async function GET(
   request: NextRequest,
@@ -17,10 +17,6 @@ export async function GET(
 
     const tenant = await Tenant.findOne({ slug: tenantSlug })
     if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
-    const account = getActiveMpAccount(tenant)
-    if (!account) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
@@ -37,6 +33,18 @@ export async function GET(
     // Si no tiene mercadopagoId, no podemos verificar
     if (!order.payment.mercadopagoId) {
       return NextResponse.json({ status: order.status, paymentStatus: order.payment.status })
+    }
+
+    // ── Resolver cuenta MP desde Order (fuente de verdad) ───────────────────
+    let account = order.payment.mpAccountId
+      ? findMpAccountById(tenant, order.payment.mpAccountId)
+      : null
+    // Fallback solo si Order no tiene mpAccountId (legacy)
+    if (!account) {
+      account = getActiveMpAccount(tenant)
+    }
+    if (!account) {
+      return NextResponse.json({ error: 'Cuenta MP no configurada' }, { status: 404 })
     }
 
     // Consultar el status del pago a Mercado Pago

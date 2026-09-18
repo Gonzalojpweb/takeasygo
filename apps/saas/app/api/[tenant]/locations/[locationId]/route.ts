@@ -46,6 +46,22 @@ export async function PUT(
 
     const body = await request.json()
 
+    // ── Validate mpAccountId if provided ─────────────────────────────────────
+    if (body?.settings?.mpAccountId) {
+      const mpAccountId = body.settings.mpAccountId
+      // Reload tenant to get mpAccounts (not in select above)
+      const fullTenant = await Tenant.findById(tenant._id).select('mpAccounts').lean() as any
+      const validAccount = fullTenant?.mpAccounts?.some(
+        (a: any) => a._id?.toString() === mpAccountId
+      )
+      if (!validAccount) {
+        return NextResponse.json(
+          { error: 'mpAccountId no pertenece a ninguna cuenta MP de este tenant' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Merge profundo: preservar subdocumentos existentes (deliveryConfig, settings, serviceHours)
     // cuando el body solo trae parciales
     const existing = await Location.findOne({ _id: locationId, tenantId: tenant._id }).lean() as Record<string, any> | null
