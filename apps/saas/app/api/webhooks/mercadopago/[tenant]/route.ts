@@ -103,7 +103,7 @@ export async function POST(
 
     // Resolve account from ?account= query param (hint) or fallback to active
     const urlAccount = request.nextUrl.searchParams.get('account')
-    let hintAccount = null
+    let hintAccount: import('@/lib/mercadopago').ResolvedMpAccount | null = null
     if (urlAccount) {
       hintAccount = findMpAccountById(tenant, urlAccount)
       if (!hintAccount) {

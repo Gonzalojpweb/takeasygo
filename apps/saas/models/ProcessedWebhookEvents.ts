@@ -10,13 +10,16 @@ const ProcessedWebhookEventsSchema = new Schema<IProcessedWebhookEvent>(
     requestId: {
       type: String,
       required: true,
-      index: true,
       unique: true,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+      expires: 86400, // 24h TTL auto-cleanup
     },
   },
   {
     timestamps: false,
-    expireAfterSeconds: 86400, // TTL 24h — auto-cleanup
   }
 )
 

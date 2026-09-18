@@ -7,6 +7,7 @@ const bigShoulders = Big_Shoulders({
   weight: ['600', '700', '800', '900'],
   variable: '--font-big-shoulders',
   display: 'swap',
+  adjustFontFallback: false,
 })
 
 const ibmPlexSans = IBM_Plex_Sans({
