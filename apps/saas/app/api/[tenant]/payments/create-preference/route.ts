@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import PlatformConfig from '@/models/PlatformConfig'
 import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
@@ -9,7 +10,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { createPaymentPreferenceSchema } from '@/lib/schemas'
 import { calculateFinalTotal } from '@/lib/pricing'
 import { toPesos } from '@takeasygo/business'
-import { getActiveMpAccount, isOAuthValid } from '@/lib/mercadopago'
+import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
 
 export async function POST(
   request: NextRequest,
@@ -27,11 +28,6 @@ if (!success) {
     const tenant = await Tenant.findOne({ slug: tenantSlug })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const account = getActiveMpAccount(tenant)
-    if (!account) {
-      return NextResponse.json({ error: 'MercadoPago no configurado' }, { status: 400 })
-    }
-
     const parsed = createPaymentPreferenceSchema.safeParse(await request.json())
     if (!parsed.success) {
       return NextResponse.json({ error: 'orderId inválido' }, { status: 400 })
@@ -40,6 +36,17 @@ if (!success) {
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+
+    // ── Resolve MP account for this order's location ───────────────────────────
+    let locationMpAccountId: string | null = null
+    if (order.locationId) {
+      const location = await Location.findById(order.locationId).lean()
+      locationMpAccountId = (location as any)?.settings?.mpAccountId ?? null
+    }
+    const account = getMpAccountForLocation(tenant, locationMpAccountId)
+    if (!account) {
+      return NextResponse.json({ error: 'Cuenta MP no configurada para esta sede' }, { status: 400 })
+    }
 
     // ── Get platform commission from PlatformConfig ────────────────────────────
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
@@ -61,6 +68,9 @@ if (!success) {
     const preference = new Preference(client)
 
     const baseUrl = request.nextUrl.origin
+
+    // ── Sanitize external_reference (defensive, MP SDK expects safe strings) ──
+    const safeRef = order.orderNumber.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)
 
     // ── Marketplace fee (platform commission) ─────────────────────────────────
     // Solo se envía cuando OAuth está conectado y vigente
@@ -184,8 +194,8 @@ if (!success) {
           pending: `${baseUrl}/${tenantSlug}/order-pending/${order.orderNumber}`,
         },
         ...(baseUrl.startsWith('https://') ? { auto_return: 'approved' as const } : {}),
-        external_reference: order.orderNumber,
-        notification_url: `${baseUrl}/api/webhooks/mercadopago/${tenantSlug}`,
+        external_reference: safeRef,
+        notification_url: `${baseUrl}/api/webhooks/mercadopago/${tenantSlug}?account=${account.accountId}`,
         // Marketplace split — only when OAuth authorized
         ...(marketplaceFee !== undefined ? {
           marketplace: 'takeasygo',
@@ -194,8 +204,9 @@ if (!success) {
       }
     })
 
-    // Guardar el preference ID en la orden
+    // Guardar el preference ID y la cuenta MP en la orden
     order.payment.mercadopagoId = result.id || null
+    order.payment.mpAccountId = account.accountId || null
     await order.save()
 
     return NextResponse.json({

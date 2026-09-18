@@ -6,6 +6,7 @@ import Reservation from '@/models/Reservation'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import PaymentNotification from '@/models/PaymentNotification'
+import ProcessedWebhookEvents from '@/models/ProcessedWebhookEvents'
 import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
@@ -17,7 +18,7 @@ import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 import { sendAdminPushNotification } from '@/lib/push'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
-import { getActiveMpAccount } from '@/lib/mercadopago'
+import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -25,6 +26,7 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!
 )
 
+const WEBHOOK_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000 // ±5 minutes
 
 /**
  * Verifica la firma HMAC-SHA256 que MercadoPago envía en el header x-signature.
@@ -34,8 +36,8 @@ function verifyMercadoPagoSignature(
   requestId: string | null,
   dataId: string | number | null | undefined,
   secret: string
-): boolean {
-  if (!signatureHeader || !requestId || dataId == null) return false
+): { valid: boolean; ts?: string } {
+  if (!signatureHeader || !requestId || dataId == null) return { valid: false }
 
   const parts: Record<string, string> = {}
   for (const part of signatureHeader.split(',')) {
@@ -44,15 +46,28 @@ function verifyMercadoPagoSignature(
   }
 
   const { ts, v1 } = parts
-  if (!ts || !v1) return false
+  if (!ts || !v1) return { valid: false }
 
   const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`
   const expected = crypto.createHmac('sha256', secret).update(manifest).digest('hex')
 
   try {
-    return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(v1, 'hex'))
+    const valid = crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(v1, 'hex'))
+    return { valid, ts }
   } catch {
-    return false
+    return { valid: false }
+  }
+}
+
+/**
+ * Envía alerta when security events occur. Fire-and-forget.
+ */
+async function sendSecurityAlert(tenantSlug: string, message: string, details: Record<string, any>) {
+  try {
+    // TODO: wire to Slack/email webhook in production
+    console.warn(`[SECURITY ALERT][${tenantSlug}] ${message}`, details)
+  } catch {
+    // never throw
   }
 }
 
@@ -62,10 +77,12 @@ export async function POST(
 ) {
   const { tenant: tenantSlug } = await params
   const traceId = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  
-  // 1. Conexión y chequeo de firma (esto es fuera de la transacción para ser rápidos)
+  const clientIp = request.headers.get('x-forwarded-for') || 'unknown'
+
   try {
     await connectDB()
+
+    // ── 0. Parse body first (needed for type check) ─────────────────────────
     const body = await request.json()
 
     // Solo nos interesan pagos por ahora
@@ -73,12 +90,143 @@ export async function POST(
       return NextResponse.json({ received: true })
     }
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
+    const mpPaymentId = String(body.data?.id)
 
-    const account = getActiveMpAccount(tenant)
-    if (!account) {
+    // ── 1. Firma HMAC — primero, antes de tocar DB ─────────────────────────
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
+    if (!tenant) {
+      console.warn(`[Webhook MP][${traceId}] Tenant not found: ${tenantSlug}`)
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
+
+    const signatureHeader = request.headers.get('x-signature')
+    const requestId = request.headers.get('x-request-id')
+
+    // Resolve account from ?account= query param (hint) or fallback to active
+    const urlAccount = request.nextUrl.searchParams.get('account')
+    let hintAccount = null
+    if (urlAccount) {
+      hintAccount = findMpAccountById(tenant, urlAccount)
+      if (!hintAccount) {
+        console.warn(`[Webhook MP][${traceId}] ?account=${urlAccount} not found in tenant.mpAccounts`)
+      }
+    }
+    const activeAccount = getActiveMpAccount(tenant)
+    const accountForSecret = hintAccount || activeAccount
+
+    if (!accountForSecret?.webhookSecret) {
+      return NextResponse.json({ error: 'Webhook no configurado' }, { status: 401 })
+    }
+
+    const webhookSecret = decrypt(accountForSecret.webhookSecret)
+    const { valid: sigValid, ts: sigTs } = verifyMercadoPagoSignature(
+      signatureHeader, requestId, mpPaymentId, webhookSecret
+    )
+
+    if (!sigValid) {
+      console.warn(`[Webhook MP][${traceId}] Firma inválida | tenant=${tenantSlug} | mpId=${mpPaymentId} | ip=${clientIp} | accountId=${accountForSecret.accountId}`)
+      sendSecurityAlert(tenantSlug, 'Firma webhook inválida', {
+        mpPaymentId, ip: clientIp, accountId: accountForSecret.accountId, traceId,
+      })
+      return NextResponse.json({ error: 'Firma invalida' }, { status: 401 })
+    }
+
+    // ── 2. Timestamp replay — ±5 min, antes de tocar DB ────────────────────
+    if (sigTs) {
+      const tsAge = Date.now() - Number(sigTs) * 1000
+      if (Math.abs(tsAge) > WEBHOOK_TIMESTAMP_TOLERANCE_MS) {
+        console.warn(`[Webhook MP][${traceId}] Timestamp fuera de ventana | tenant=${tenantSlug} | ts=${sigTs} | age=${tsAge}ms | ip=${clientIp}`)
+        sendSecurityAlert(tenantSlug, 'Timestamp webhook fuera de ventana', {
+          mpPaymentId, ts: sigTs, ageMs: tsAge, ip: clientIp, traceId,
+        })
+        return NextResponse.json({ error: 'Timestamp fuera de ventana' }, { status: 401 })
+      }
+    }
+
+    // ── 3. Dedup por request-id — antes de DB de negocio ────────────────────
+    if (requestId) {
+      const alreadyProcessed = await ProcessedWebhookEvents.findOne({ requestId })
+      if (alreadyProcessed) {
+        console.info(`[Webhook MP][${traceId}] Duplicate request-id, skip | tenant=${tenantSlug} | requestId=${requestId}`)
+        return NextResponse.json({ received: true, note: 'Duplicate' })
+      }
+    }
+
+    // ── 4. Idempotencia por mpPaymentId (ya existente) ──────────────────────
+    const existingNotification = await PaymentNotification.findOne({
+      mpId: mpPaymentId,
+      tenantId: tenant._id,
+      processed: true
+    })
+    if (existingNotification) {
+      return NextResponse.json({ received: true, note: 'Duplicate' })
+    }
+
+    // ── 5. Sanitizar mpPaymentId antes de SDK ───────────────────────────────
+    if (!/^\d+$/.test(mpPaymentId)) {
+      console.warn(`[Webhook MP][${traceId}] mpPaymentId inválido (no numérico) | tenant=${tenantSlug} | mpId=${mpPaymentId}`)
+      return NextResponse.json({ error: 'ID de pago inválido' }, { status: 400 })
+    }
+
+    // ── 6. Obtener data de Mercado Pago ─────────────────────────────────────
+    const accessToken = decrypt(accountForSecret.accessToken)
+    const client = new MercadoPagoConfig({ accessToken })
+    const paymentClient = new Payment(client)
+    const paymentData = await paymentClient.get({ id: mpPaymentId })
+    const externalRef = paymentData.external_reference || ''
+
+    // ── 7. Registrar request-id para dedup futura ───────────────────────────
+    if (requestId) {
+      await ProcessedWebhookEvents.create({ requestId, createdAt: new Date() })
+        .catch(err => console.warn(`[Webhook MP][${traceId}] Failed to save dedup record:`, err.message))
+    }
+
+    // ── 8. Resolver cuenta desde Order (fuente de verdad) ───────────────────
+    let resolvedAccountId: string | null = null
+    let orderIdForLog: string | null = null
+    if (!externalRef.startsWith('reserva_')) {
+      const order = await Order.findOne({ orderNumber: externalRef, tenantId: tenant._id })
+        .select('payment.mpAccountId orderNumber')
+        .lean()
+      if (order) {
+        resolvedAccountId = (order as any).payment?.mpAccountId ?? null
+        orderIdForLog = order.orderNumber
+      }
+    }
+
+    // ── 9. Cruzar ?account= con Order (hint vs reality) ─────────────────────
+    if (resolvedAccountId && urlAccount && urlAccount !== resolvedAccountId) {
+      console.warn(`[Webhook MP][${traceId}] ?account=${urlAccount} DIFIERE de Order.mpAccountId=${resolvedAccountId} | tenant=${tenantSlug} | order=${orderIdForLog}`)
+      sendSecurityAlert(tenantSlug, '?account= difiere de Order.mpAccountId', {
+        urlAccount, resolvedAccountId, orderId: orderIdForLog, mpPaymentId, ip: clientIp, traceId,
+      })
+    } else if (urlAccount && urlAccount === resolvedAccountId) {
+      console.info(`[Webhook MP][${traceId}] ?account= coincide con Order | tenant=${tenantSlug} | order=${orderIdForLog}`)
+    } else if (!urlAccount) {
+      console.info(`[Webhook MP][${traceId}] Sin ?account= (legacy) | tenant=${tenantSlug} | order=${orderIdForLog}`)
+    }
+
+    // ── 10. Resolver cuenta final para procesar ─────────────────────────────
+    let processAccount = accountForSecret
+    if (resolvedAccountId) {
+      const orderAccount = findMpAccountById(tenant, resolvedAccountId)
+      if (orderAccount) {
+        processAccount = orderAccount
+      } else {
+        // Fail closed: Order apunta a cuenta que ya no existe
+        console.warn(`[Webhook MP][${traceId}] Order.mpAccountId=${resolvedAccountId} NO existe en tenant.mpAccounts | tenant=${tenantSlug} | order=${orderIdForLog}`)
+        sendSecurityAlert(tenantSlug, 'Order.mpAccountId huérfano', {
+          resolvedAccountId, orderId: orderIdForLog, mpPaymentId, tenantSlug, traceId,
+        })
+        // Return 200 to avoid MP infinite retry, but don't process
+        return NextResponse.json({ received: true, note: 'Account not found' })
+      }
+    } else if (!processAccount) {
+      console.warn(`[Webhook MP][${traceId}] No se pudo resolver cuenta MP | tenant=${tenantSlug} | order=${orderIdForLog}`)
+      return NextResponse.json({ received: true, note: 'No account resolved' })
+    }
+
+    console.info(`[Webhook MP][${traceId}] Processing | tenant=${tenantSlug} | mpId=${mpPaymentId} | order=${orderIdForLog} | accountId=${processAccount.accountId}`)
 
     // Aplicar defaults para tenants creados antes de pointsConfig
     if (!tenant.pointsConfig) {
@@ -94,52 +242,18 @@ export async function POST(
       }
     }
 
-    if (!account.webhookSecret) {
-      return NextResponse.json({ error: 'Webhook no configurado' }, { status: 401 })
-    }
-
-    const webhookSecret = decrypt(account.webhookSecret)
-    const signatureHeader = request.headers.get('x-signature')
-    const requestId = request.headers.get('x-request-id')
-    const mpPaymentId = String(body.data?.id)
-
-    const isValid = verifyMercadoPagoSignature(signatureHeader, requestId, mpPaymentId, webhookSecret)
-    if (!isValid) {
-      console.warn(`[Webhook MP][${traceId}] Firma inválida para tenant ${tenantSlug}, mpId: ${mpPaymentId}`)
-      return NextResponse.json({ error: 'Firma invalida' }, { status: 401 })
-    }
-
-    // 2. Chequeo de idempotencia (¿Ya procesamos este mpPaymentId?)
-    const existingNotification = await PaymentNotification.findOne({ 
-      mpId: mpPaymentId, 
-      tenantId: tenant._id,
-      processed: true 
-    })
-
-    if (existingNotification) {
-      return NextResponse.json({ received: true, note: 'Duplicate' })
-    }
-
-    // 3. Obtener data de Mercado Pago antes de entrar en transacción (evita bloqueos largos)
-    const accessToken = decrypt(account.accessToken)
-    const client = new MercadoPagoConfig({ accessToken })
-    const paymentClient = new Payment(client)
-    const paymentData = await paymentClient.get({ id: mpPaymentId })
-    const externalRef = paymentData.external_reference || ''
-
-    // 4. Iniciar Transacción ACID
+    // ── 11. Transacción ACID ────────────────────────────────────────────────
     const session = await mongoose.startSession()
-    
+
     try {
       await session.withTransaction(async () => {
-        // A. Registrar la notificación (aunque aún no esté procesada del todo)
-        // Usamos upsert por si acaso llega otra igual en el mismo milisegundo
+        // A. Registrar la notificación
         const notification = await PaymentNotification.findOneAndUpdate(
           { mpId: mpPaymentId, tenantId: tenant._id },
-          { 
+          {
             topic: body.type,
             payload: paymentData,
-            processed: false 
+            processed: false
           },
           { upsert: true, new: true, session }
         )
@@ -148,52 +262,43 @@ export async function POST(
         if (externalRef.startsWith('reserva_')) {
           const reservaId = externalRef.replace('reserva_', '')
           const reservation = await Reservation.findOne({ _id: reservaId, tenantId: tenant._id }).session(session)
-          
+
           if (reservation) {
             reservation.payment.mercadopagoId = mpPaymentId
             reservation.payment.status = paymentData.status as any
-            
+
             if (paymentData.status === 'approved') {
               reservation.status = 'confirmed'
               reservation.payment.status = 'approved'
             } else if (['rejected', 'cancelled'].includes(paymentData.status!)) {
               reservation.payment.status = 'rejected'
             }
-            
+
             await reservation.save({ session })
             notification.reservationId = reservation._id as any
           }
         } else {
           // Asumimos que es una Orden (external_reference = orderNumber)
           const order = await Order.findOne({ orderNumber: externalRef, tenantId: tenant._id }).session(session)
-          
+
           if (order) {
             order.payment.status = paymentData.status as any
             order.payment.mercadopagoData = paymentData as any
             order.payment.mercadopagoId = mpPaymentId
 
             if (paymentData.status === 'approved') {
-              // Solo cambiar a confirmed si estaba en awaiting_payment
               if (order.status === 'awaiting_payment') {
                 order.status = 'confirmed'
               }
 
               if (order.customer?.phoneHash) {
-                // Procesar deducción de puntos por ítems de premio (canje con puntos)
-                // Si aplica SOS, el saldo quedará en negativo y se marca hasPendingSos
                 if (order.rewardItems && order.rewardItems.length > 0) {
                   await processRewardDeduction(order, tenant, session)
                 }
-
-                // Usar el helper centralizado para sumar puntos y sincronizar wallet
-                // Si el miembro tiene deuda SOS, se descuenta antes de acreditar
                 await addPointsFromOrder(order, tenant, session)
               }
 
               // ── Inyección POS (fire-and-forget) ──────────────────────────
-              // Se llama fuera de la transacción MongoDB para no bloquearla.
-              // Si falla, el pedido igual existe en TakeasyGO y aparece como
-              // posSync.status = 'failed' en el panel del restaurante.
               if (tenant.posIntegration?.enabled) {
                 setImmediate(() => {
                   injectOrderToPOS(order._id.toString(), tenant).catch(err =>
@@ -223,8 +328,8 @@ export async function POST(
             // ── Push notification al consumidor (fire-and-forget) ──────────
             if (paymentData.status === 'approved' && 'clientToken' in order && order.clientToken) {
               const clientToken = order.clientToken
-              const orderNumber = order.orderNumber
-              const tenantSlug = tenant.slug
+              const orderNum = order.orderNumber
+              const tSlug = tenant.slug
               setImmediate(async () => {
                 try {
                   const sub = await PushSubscription.findOne({ clientToken }).lean() as any
@@ -232,11 +337,11 @@ export async function POST(
                     await webpush.sendNotification(
                       { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
                       JSON.stringify({
-                        title: `✅ Pedido confirmado #${orderNumber}`,
+                        title: `✅ Pedido confirmado #${orderNum}`,
                         body: 'Tocá para ver el seguimiento de tu pedido',
                         icon: '/tgoicon-192.png',
                         badge: '/tgoicon-192.png',
-                        url: `/${tenantSlug}/tracking/${orderNumber}`,
+                        url: `/${tSlug}/tracking/${orderNum}`,
                       })
                     )
                   }
@@ -250,7 +355,6 @@ export async function POST(
           }
 
           // ── Push notification a admins (fire-and-forget) ──────────
-          // Solo cuando el pago online se confirma: el pedido aparece en el workspace
           if (paymentData.status === 'approved') {
             setImmediate(async () => {
               try {
@@ -311,8 +415,7 @@ export async function POST(
       return NextResponse.json({ received: true })
     } catch (txError: any) {
       console.error(`[Webhook MP][${traceId}] Error en transacción tenant ${tenantSlug}, mpId ${mpPaymentId}:`, txError.message || txError)
-      
-      // Intentar loguear el error en la notificación (fuera de la tx fallida)
+
       await PaymentNotification.updateOne(
         { mpId: mpPaymentId, tenantId: tenant._id },
         { error: txError.message || String(txError) }

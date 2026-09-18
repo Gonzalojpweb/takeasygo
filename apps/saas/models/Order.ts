@@ -173,6 +173,8 @@ export interface IOrder extends Document {
     status: PaymentStatus
     method: string
     mercadopagoId: string | null
+    /** ID de la cuenta MP (mpAccounts[n]._id) que creó la preferencia. Fuente de verdad para el webhook. */
+    mpAccountId: string | null
     mercadopagoData: Record<string, any> | null
     // ── Kripton ─────────────────────────────────────────────────────────
     kriptonExternalCode: string | null
@@ -533,6 +535,8 @@ const OrderSchema = new Schema(
       },
       method: { type: String, default: 'mercadopago' },
       mercadopagoId: { type: String, default: null },
+      /** ID de la cuenta MP que creó la preferencia — fuente de verdad para el webhook */
+      mpAccountId: { type: String, default: null },
       mercadopagoData: { type: Schema.Types.Mixed, default: null },
       // ── Kripton ─────────────────────────────────────────────────────
       kriptonExternalCode: { type: String, default: null },

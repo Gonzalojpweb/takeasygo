@@ -48,6 +48,8 @@ export interface ILocation extends Document {
       /** Descuento por pago en efectivo en %. Si falta, hereda el del tenant. @storedAs percent */
       discountPercent?: number
     } | null
+    /** Override de cuenta MP por sede (opcional). ObjectId de mpAccounts[], null = usa tenant default */
+    mpAccountId?: string | null
   }
   deliveryConfig?: {
     enabled: boolean
@@ -251,7 +253,9 @@ settings: {
             discountPercent: { type: Number, min: 0, max: 100, default: undefined },
           },
           default: null,
-        }
+        },
+        /** Override de cuenta MP por sede. ObjectId de mpAccounts[], null = usa tenant default */
+        mpAccountId: { type: String, default: null },
     },
     reservationConfig: {
       enabled: { type: Boolean, default: false },

@@ -8,6 +8,7 @@ import Tenant from '@/models/Tenant'
  * legacy mercadopago/mpOAuth fields (fallback for unmigrated tenants).
  */
 export interface ResolvedMpAccount {
+  accountId: string           // _id of the mpAccounts entry (for saving to Order)
   accessToken: string       // encrypted — caller must decrypt()
   publicKey: string         // encrypted
   webhookSecret: string     // encrypted
@@ -35,6 +36,7 @@ export function getActiveMpAccount(tenant: any): ResolvedMpAccount | null {
     const active = tenant.mpAccounts.find((a: any) => a.isActive)
     if (active) {
       return {
+        accountId: active._id?.toString() ?? '',
         accessToken: active.accessToken,
         publicKey: active.publicKey,
         webhookSecret: active.webhookSecret,
@@ -52,6 +54,7 @@ export function getActiveMpAccount(tenant: any): ResolvedMpAccount | null {
   // ── 2. Legacy fallback (unmigrated tenants) ──
   if (tenant.mercadopago?.isConfigured && tenant.mercadopago?.accessToken) {
     return {
+      accountId: 'legacy',
       accessToken: tenant.mercadopago.accessToken,
       publicKey: tenant.mercadopago.publicKey,
       webhookSecret: tenant.mercadopago.webhookSecret,
@@ -73,6 +76,70 @@ export function isOAuthValid(account: ResolvedMpAccount): boolean {
   if (!account.oauthIsConnected || !account.oauthAccessToken) return false
   if (!account.oauthExpiresAt) return true // legacy: null = treat as valid
   return new Date(account.oauthExpiresAt) > new Date()
+}
+
+/**
+ * Resolves the MP account for a specific location.
+ *
+ * Priority:
+ *  1. locationMpAccountId → look up that exact account in tenant.mpAccounts[]
+ *  2. null/undefined → fallback to getActiveMpAccount(tenant)
+ *  3. Account not found → null (fail closed, caller must handle)
+ */
+export function getMpAccountForLocation(
+  tenant: any,
+  locationMpAccountId?: string | null
+): ResolvedMpAccount | null {
+  // Explicit account override on the location
+  if (locationMpAccountId) {
+    const match = tenant.mpAccounts?.find(
+      (a: any) => a._id?.toString() === locationMpAccountId
+    )
+    if (!match) {
+      // Fail closed: location points to non-existent account
+      return null
+    }
+    return {
+      accountId: match._id?.toString() ?? '',
+      accessToken: match.accessToken,
+      publicKey: match.publicKey,
+      webhookSecret: match.webhookSecret,
+      oauthAccessToken: match.oauthAccessToken ?? null,
+      oauthIsConnected: !!match.oauthIsConnected,
+      oauthExpiresAt: match.oauthExpiresAt ?? null,
+      commissionPercent: null,
+      label: match.label,
+    }
+  }
+
+  // No override: use tenant-level active account
+  return getActiveMpAccount(tenant)
+}
+
+/**
+ * Finds a specific MP account by its _id within a tenant.
+ * Used by webhook handler to resolve account from Order.payment.mpAccountId.
+ * Returns null if not found (fail closed).
+ */
+export function findMpAccountById(
+  tenant: any,
+  accountId: string
+): ResolvedMpAccount | null {
+  const match = tenant.mpAccounts?.find(
+    (a: any) => a._id?.toString() === accountId
+  )
+  if (!match) return null
+  return {
+    accountId: match._id?.toString() ?? '',
+    accessToken: match.accessToken,
+    publicKey: match.publicKey,
+    webhookSecret: match.webhookSecret,
+    oauthAccessToken: match.oauthAccessToken ?? null,
+    oauthIsConnected: !!match.oauthIsConnected,
+    oauthExpiresAt: match.oauthExpiresAt ?? null,
+    commissionPercent: null,
+    label: match.label,
+  }
 }
 
 /**

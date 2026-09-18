@@ -7,7 +7,11 @@ import { resolveCashConfig } from '@/lib/cash'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { NextRequest, NextResponse } from 'next/server'
-import { getActiveMpAccount } from '@/lib/mercadopago'
+import { getMpAccountForLocation, getActiveMpAccount } from '@/lib/mercadopago'
+
+// ⚠️ CACHE WARNING: If you add caching here, the cache key MUST include locationId.
+// Payment methods vary per-sede (MP account, cash config). A global cache would
+// return wrong methods for the wrong location.
 
 export async function GET(
   _request: NextRequest,
@@ -36,17 +40,27 @@ export async function GET(
     // Override de efectivo por sede: si el locationId no existe o no es de este
     // tenant, se usa el fallback a Tenant.cash (comportamiento legacy).
     let locationCash: any = null
+    let locationMpAccountId: string | null = null
+    let locationDoc: any = null
     if (locationId) {
-      const locationDoc = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
-        .select('settings.cash')
+      locationDoc = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
+        .select('settings.cash settings.mpAccountId')
         .lean() as any
-      if (locationDoc) locationCash = locationDoc.settings?.cash ?? null
+      if (!locationDoc) {
+        return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
+      }
+      locationCash = locationDoc.settings?.cash ?? null
+      locationMpAccountId = locationDoc.settings?.mpAccountId ?? null
     }
 
     const cashConfig = resolveCashConfig(tenant.cash, locationCash)
 
     const platformKriptonEnabled = platformConfig?.kripton?.enabled ?? false
     const kriptonEnabled = platformKriptonEnabled && !!tenant.kripton?.isConfigured
+
+    // MP: resolver por sede si locationId, sino tenant default
+    const mpAccount = getMpAccountForLocation(tenant, locationMpAccountId)
+    const mpEnabled = !!mpAccount
 
     // Transfer: prefer transferAccounts (multi-account), fallback to legacy transfer
     const activeTransferAccount = (tenant.transferAccounts || []).find((a: any) => a.isActive)
@@ -55,7 +69,6 @@ export async function GET(
       ? !!tenant.transfer?.enabled && !!activeTransferAccount.alias
       : !!tenant.transfer?.enabled && !!tenant.transfer?.alias
 
-    const mpEnabled = !!getActiveMpAccount(tenant)
     const cashEnabled = canAccess(tenant.plan as Plan, 'cashPayment')
       && !!tenant.features?.cashPaymentEnabledBySuperadmin
       && cashConfig.enabled
