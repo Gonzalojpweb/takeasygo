@@ -68,7 +68,7 @@ export async function GET(
     await order.save()
 
     if (order.status === 'confirmed') {
-      finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
+      finalizeHiddenRewardClaims(order._id, order.customer?.phoneHash).catch(() => {})
     }
 
     return NextResponse.json({ 

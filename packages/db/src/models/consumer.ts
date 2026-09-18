@@ -22,6 +22,7 @@ export interface ConsumerDocument extends Document {
   isLoyaltyMember: boolean
   isCorporate: boolean
   corporateAccountId: mongoose.Types.ObjectId | null
+  source?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -43,6 +44,7 @@ export const ConsumerSchema = new Schema<ConsumerDocument>(
     isLoyaltyMember: { type: Boolean, default: false },
     isCorporate: { type: Boolean, default: false },
     corporateAccountId: { type: Schema.Types.ObjectId, default: null },
+    source: { type: String, default: null },
   },
   { timestamps: true, strict: false }
 )
