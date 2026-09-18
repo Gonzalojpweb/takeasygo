@@ -65,7 +65,8 @@ type CustomizationOptionForm = {
 }
 type CustomizationGroupForm = {
   name: string
-  type: 'single' | 'multiple'
+  type: 'single' | 'multiple' | 'fixed'
+  fixedCount?: string
   required: boolean
   options: CustomizationOptionForm[]
   priceRule?: 'sum' | 'max' | 'average'
@@ -81,7 +82,7 @@ type VariantForm = {
 }
 
 const EMPTY_CUSTOMIZATION_GROUP: CustomizationGroupForm = {
-  name: '', type: 'single', required: false, options: [], priceRule: 'sum',
+  name: '', type: 'single', fixedCount: '2', required: false, options: [], priceRule: 'sum',
 }
 
 const EMPTY_VARIANT: VariantForm = {
@@ -94,6 +95,9 @@ const EMPTY_ITEM = {
   suggestWith: [] as string[],
   customizationGroups: [] as CustomizationGroupForm[],
   variants: [] as VariantForm[],
+  disabledVariantNames: [] as string[],
+  disabledGroupIds: [] as string[],
+  disabledOptionIds: [] as string[],
   availabilityMode: 'always' as 'always' | 'scheduled',
   availabilitySchedule: [] as ScheduleSlot[],
   hiddenReward: {
@@ -112,6 +116,7 @@ function serializeGroups(groups: CustomizationGroupForm[]): any[] {
   return groups.map((g: CustomizationGroupForm) => ({
     name: g.name,
     type: g.type,
+    ...(g.type === 'fixed' ? { fixedCount: Math.max(1, parseInt(g.fixedCount || '2', 10) || 2) } : {}),
     required: g.required,
     ...(g.priceRule && g.priceRule !== 'sum' ? { priceRule: g.priceRule } : {}),
     options: g.options.map((o: CustomizationOptionForm) => ({
@@ -149,6 +154,7 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
   return (groups || []).map((g: any) => ({
     name: g.name,
     type: g.type ?? 'single',
+    fixedCount: g.fixedCount != null ? g.fixedCount.toString() : '2',
     required: g.required ?? false,
     priceRule: g.priceRule ?? 'sum',
     options: (g.options || []).map((o: any) => ({
@@ -534,6 +540,9 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           suggestWith: newItem.suggestWith,
           customizationGroups: serializeGroups(newItem.customizationGroups),
           variants: serializeVariants(newItem.variants),
+          disabledVariantNames: newItem.disabledVariantNames,
+          disabledGroupIds: newItem.disabledGroupIds,
+          disabledOptionIds: newItem.disabledOptionIds,
           hiddenReward: newItem.hiddenReward.enabled ? {
             enabled: true,
             title: newItem.hiddenReward.title,
@@ -579,6 +588,9 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           suggestWith: editingItemData.suggestWith,
           customizationGroups: serializeGroups(editingItemData.customizationGroups),
           variants: serializeVariants(editingItemData.variants),
+          disabledVariantNames: editingItemData.disabledVariantNames,
+          disabledGroupIds: editingItemData.disabledGroupIds,
+          disabledOptionIds: editingItemData.disabledOptionIds,
           availabilityMode: editingItemData.availabilityMode,
           availabilitySchedule: editingItemData.availabilityMode === 'scheduled' ? editingItemData.availabilitySchedule : [],
           hiddenReward: editingItemData.hiddenReward.enabled ? {
@@ -1527,13 +1539,27 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                           value={cg.type}
                                           onChange={e => {
                                             const updated = [...editingCategoryGroups]
-                                            updated[cgi] = { ...updated[cgi], type: e.target.value as 'single' | 'multiple' }
+                                            updated[cgi] = { ...updated[cgi], type: e.target.value as 'single' | 'multiple' | 'fixed' }
                                             setEditingCategoryGroups(updated)
                                           }}
                                         >
                                           <option value="single">Selección única</option>
                                           <option value="multiple">Selección libre</option>
+                                          <option value="fixed">Selección fija</option>
                                         </select>
+                                        {cg.type === 'fixed' && (
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            className="bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-2 outline-none w-20 text-center"
+                                            value={cg.fixedCount ?? '2'}
+                                            onChange={e => {
+                                              const updated = [...editingCategoryGroups]
+                                              updated[cgi] = { ...updated[cgi], fixedCount: e.target.value }
+                                              setEditingCategoryGroups(updated)
+                                            }}
+                                          />
+                                        )}
                                         <button
                                           type="button"
                                           className={cn(
@@ -1816,6 +1842,9 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                                       suggestWith: item.suggestWith ?? [],
                                                                       customizationGroups: deserializeGroups(item.customizationGroups || []),
                                                                       variants: deserializeVariants(item.variants || []),
+                                                                      disabledVariantNames: item.disabledVariantNames ?? [],
+                                                                      disabledGroupIds: item.disabledGroupIds ?? [],
+                                                                      disabledOptionIds: item.disabledOptionIds ?? [],
                                                                       availabilityMode: item.availabilityMode ?? 'always',
                                                                       availabilitySchedule: item.availabilitySchedule ?? [],
                                                                       hiddenReward: {
@@ -2077,6 +2106,9 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                   suggestWith: item.suggestWith ?? [],
                                                   customizationGroups: deserializeGroups(item.customizationGroups || []),
                                                   variants: deserializeVariants(item.variants || []),
+                                                  disabledVariantNames: item.disabledVariantNames ?? [],
+                                                  disabledGroupIds: item.disabledGroupIds ?? [],
+                                                  disabledOptionIds: item.disabledOptionIds ?? [],
                                                   availabilityMode: item.availabilityMode ?? 'always',
                                                   availabilitySchedule: item.availabilitySchedule ?? [],
                                                   hiddenReward: {
@@ -2401,6 +2433,10 @@ function RecursiveGroupEditor({
   optFileRefs: React.MutableRefObject<Record<string, HTMLInputElement | null>>
   uploadingOptKey: string | null
   onImageUpload: (e: React.ChangeEvent<HTMLInputElement>, path: number[]) => void
+  disabledGroupIds?: string[]
+  disabledOptionIds?: string[]
+  onToggleGroupDisabled?: (groupId: string) => void
+  onToggleOptionDisabled?: (optionId: string) => void
 }) {
   function updateGroup(idx: number, patch: Partial<CustomizationGroupForm>) {
     const next = [...groups]
@@ -2433,16 +2469,39 @@ function RecursiveGroupEditor({
           }
         >
           {/* Delete group */}
-          <button
-            type="button"
-            className={depth === 0
-              ? 'absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-border text-muted-foreground hover:text-white hover:bg-destructive hover:border-destructive shadow-sm opacity-0 group-hover/card:opacity-100 transition-all flex items-center justify-center'
-              : 'absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-white border border-border text-muted-foreground hover:text-destructive hover:border-destructive shadow-sm opacity-0 group-hover/sg:opacity-100 transition-all flex items-center justify-center z-10'
-            }
-            onClick={() => onUpdate(groups.filter((_, i) => i !== gi))}
-          >
-            <X size={depth === 0 ? 14 : 11} strokeWidth={3} />
-          </button>
+          <div className={cn(
+            "absolute flex gap-1 opacity-0 transition-all z-10",
+            depth === 0 ? "-top-3 -right-3 group-hover/card:opacity-100" : "-top-2.5 -right-2.5 group-hover/sg:opacity-100"
+          )}>
+            {onToggleGroupDisabled && (
+              <button
+                type="button"
+                className={cn(
+                  depth === 0
+                    ? "w-8 h-8 rounded-full bg-white border border-border shadow-sm flex items-center justify-center transition-all"
+                    : "w-6 h-6 rounded-full bg-white border border-border shadow-sm flex items-center justify-center transition-all",
+                  (disabledGroupIds ?? []).includes(group.name)
+                    ? "text-amber-500 hover:text-amber-600"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title={(disabledGroupIds ?? []).includes(group.name) ? 'Mostrar grupo' : 'Ocultar grupo'}
+                onClick={() => onToggleGroupDisabled(group.name)}
+              >
+                {(disabledGroupIds ?? []).includes(group.name) ? <EyeOff size={depth === 0 ? 14 : 11} /> : <Eye size={depth === 0 ? 14 : 11} />}
+              </button>
+            )}
+            <button
+              type="button"
+              className={cn(
+                depth === 0
+                  ? 'w-8 h-8 rounded-full bg-white border border-border text-muted-foreground hover:text-white hover:bg-destructive hover:border-destructive shadow-sm flex items-center justify-center transition-all'
+                  : 'w-6 h-6 rounded-full bg-white border border-border text-muted-foreground hover:text-destructive hover:border-destructive shadow-sm flex items-center justify-center transition-all'
+              )}
+              onClick={() => onUpdate(groups.filter((_, i) => i !== gi))}
+            >
+              <X size={depth === 0 ? 14 : 11} strokeWidth={3} />
+            </button>
+          </div>
 
           {/* Group header */}
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -2460,12 +2519,25 @@ function RecursiveGroupEditor({
               <select
                 className={cn(inputCls, depth === 0 ? 'bg-white h-11 border-border/100 shadow-sm appearance-none cursor-pointer' : 'bg-muted/30 h-9 text-sm appearance-none cursor-pointer')}
                 value={group.type}
-                onChange={e => updateGroup(gi, { type: e.target.value as 'single' | 'multiple' })}
+                onChange={e => updateGroup(gi, { type: e.target.value as 'single' | 'multiple' | 'fixed' })}
               >
                 <option value="single">Selección única</option>
                 <option value="multiple">Selección libre</option>
+                <option value="fixed">Selección fija</option>
               </select>
             </div>
+            {group.type === 'fixed' && (
+              <div className={depth === 0 ? 'w-full sm:w-24' : 'w-20'}>
+                <label className={labelCls}>Cantidad</label>
+                <input
+                  type="number"
+                  min="1"
+                  className={cn(inputCls, depth === 0 ? 'bg-white h-11 border-border/100 shadow-sm text-center' : 'bg-muted/30 h-9 text-sm text-center')}
+                  value={group.fixedCount ?? '2'}
+                  onChange={e => updateGroup(gi, { fixedCount: e.target.value })}
+                />
+              </div>
+            )}
             <div className={depth === 0 ? 'w-full sm:w-32' : 'w-28'}>
               <label className={labelCls}>Req.</label>
               <button
@@ -2573,6 +2645,23 @@ function RecursiveGroupEditor({
                       <Layers size={14} />
                     </button>
 
+                    {onToggleOptionDisabled && (
+                      <button
+                        type="button"
+                        title={(disabledOptionIds ?? []).includes(opt.name) ? 'Mostrar opción' : 'Ocultar opción'}
+                        className={cn(
+                          depth === 0 ? 'h-10 w-10 rounded-xl' : 'h-9 w-9 rounded-lg',
+                          'flex items-center justify-center flex-shrink-0 border-2 transition-all',
+                          (disabledOptionIds ?? []).includes(opt.name)
+                            ? 'bg-amber-50 border-amber-300 text-amber-500'
+                            : 'bg-transparent border-border/60 text-muted-foreground hover:border-primary/30 hover:text-primary'
+                        )}
+                        onClick={() => onToggleOptionDisabled(opt.name)}
+                      >
+                        {(disabledOptionIds ?? []).includes(opt.name) ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    )}
+
                     <Button
                       size="icon"
                       variant="ghost"
@@ -2597,6 +2686,10 @@ function RecursiveGroupEditor({
                         optFileRefs={optFileRefs}
                         uploadingOptKey={uploadingOptKey}
                         onImageUpload={(e, path) => onImageUpload(e, [gi, oi, ...path])}
+                        disabledGroupIds={disabledGroupIds}
+                        disabledOptionIds={disabledOptionIds}
+                        onToggleGroupDisabled={onToggleGroupDisabled}
+                        onToggleOptionDisabled={onToggleOptionDisabled}
                       />
                     </div>
                   )}
@@ -2891,6 +2984,18 @@ function ItemForm({
           optFileRefs={optFileRefs}
           uploadingOptKey={uploadingOptKey}
           onImageUpload={(e, path) => handleOptionImageUpload(e, path[0], path[1])}
+          disabledGroupIds={data.disabledGroupIds}
+          disabledOptionIds={data.disabledOptionIds}
+          onToggleGroupDisabled={gid => {
+            const current = data.disabledGroupIds ?? []
+            const next = current.includes(gid) ? current.filter(id => id !== gid) : [...current, gid]
+            onChange({ ...data, disabledGroupIds: next })
+          }}
+          onToggleOptionDisabled={oid => {
+            const current = data.disabledOptionIds ?? []
+            const next = current.includes(oid) ? current.filter(id => id !== oid) : [...current, oid]
+            onChange({ ...data, disabledOptionIds: next })
+          }}
         />
       </div>
 
@@ -2929,18 +3034,39 @@ function ItemForm({
         )}
 
         <div className="grid grid-cols-1 gap-3">
-          {data.variants.map((variant, vi) => (
-            <div key={vi} className="p-4 bg-muted/20 rounded-3xl border border-border/60 relative group/card">
-              <button
-                type="button"
-                onClick={() => {
-                  const updated = data.variants.filter((_, i) => i !== vi)
-                  onChange({ ...data, variants: updated })
-                }}
-                className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-border text-muted-foreground hover:text-white hover:bg-destructive hover:border-destructive shadow-sm opacity-0 group-hover/card:opacity-100 transition-all flex items-center justify-center"
-              >
-                <X size={14} strokeWidth={3} />
-              </button>
+          {data.variants.map((variant, vi) => {
+            const isVariantDisabled = (data.disabledVariantNames ?? []).includes(variant.name)
+            return (
+            <div key={vi} className={cn("p-4 bg-muted/20 rounded-3xl border border-border/60 relative group/card", isVariantDisabled && "opacity-50")}>
+              <div className="absolute -top-3 -right-3 flex gap-1.5 opacity-0 group-hover/card:opacity-100 transition-all">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = data.disabledVariantNames ?? []
+                    const next = isVariantDisabled
+                      ? current.filter(n => n !== variant.name)
+                      : [...current, variant.name]
+                    onChange({ ...data, disabledVariantNames: next })
+                  }}
+                  className={cn(
+                    "w-8 h-8 rounded-full bg-white border border-border shadow-sm flex items-center justify-center transition-all",
+                    isVariantDisabled ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title={isVariantDisabled ? 'Mostrar variante' : 'Ocultar variante'}
+                >
+                  {isVariantDisabled ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = data.variants.filter((_, i) => i !== vi)
+                    onChange({ ...data, variants: updated })
+                  }}
+                  className="w-8 h-8 rounded-full bg-white border border-border text-muted-foreground hover:text-white hover:bg-destructive hover:border-destructive shadow-sm flex items-center justify-center transition-all"
+                >
+                  <X size={14} strokeWidth={3} />
+                </button>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
                 <div className="sm:col-span-2">
@@ -3057,10 +3183,23 @@ function ItemForm({
                   optFileRefs={optFileRefs}
                   uploadingOptKey={uploadingOptKey}
                   onImageUpload={(e, path) => handleOptionImageUpload(e, path[0], path[1])}
+                  disabledGroupIds={data.disabledGroupIds}
+                  disabledOptionIds={data.disabledOptionIds}
+                  onToggleGroupDisabled={gid => {
+                    const current = data.disabledGroupIds ?? []
+                    const next = current.includes(gid) ? current.filter(id => id !== gid) : [...current, gid]
+                    onChange({ ...data, disabledGroupIds: next })
+                  }}
+                  onToggleOptionDisabled={oid => {
+                    const current = data.disabledOptionIds ?? []
+                    const next = current.includes(oid) ? current.filter(id => id !== oid) : [...current, oid]
+                    onChange({ ...data, disabledOptionIds: next })
+                  }}
                 />
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
