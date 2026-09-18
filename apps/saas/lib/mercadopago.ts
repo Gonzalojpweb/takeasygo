@@ -1,4 +1,4 @@
-import { MercadoPagoConfig, Preference } from 'mercadopago'
+import { MercadoPagoConfig } from 'mercadopago'
 import { decrypt } from '@/lib/crypto'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
