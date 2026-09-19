@@ -5,6 +5,7 @@ import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
+import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 
 export async function GET(
   request: NextRequest,
@@ -46,7 +47,14 @@ export async function GET(
       })
     }
 
-    if (!order.payment.mercadopagoId || !tenant.mercadopago?.accessToken) {
+    // ── Resolve MP account from Order (source of truth), fallback to active ──
+    let mpAccount = order.payment.mpAccountId
+      ? findMpAccountById(tenant, order.payment.mpAccountId)
+      : null
+    if (!mpAccount) {
+      mpAccount = getActiveMpAccount(tenant)
+    }
+    if (!order.payment.mercadopagoId || !mpAccount) {
       return NextResponse.json({
         status: order.status,
         paymentStatus: order.payment.status,
@@ -55,7 +63,7 @@ export async function GET(
       })
     }
 
-    const accessToken = decrypt(tenant.mercadopago.accessToken)
+    const accessToken = decrypt(mpAccount.accessToken)
     const client = new MercadoPagoConfig({ accessToken })
     const paymentClient = new Payment(client)
 

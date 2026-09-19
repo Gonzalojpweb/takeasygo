@@ -181,6 +181,14 @@ if (!success) {
       mpItem.unit_price = toPesos(mpItem.unit_price)
     }
 
+    // ── Save mpAccountId BEFORE creating preference (prevent race condition) ──
+    //    If we save after, the webhook can arrive before the Order has mpAccountId,
+    //    and try-all-secrets won't know which account to persist.
+    if (!order.payment.mpAccountId) {
+      order.payment.mpAccountId = account.accountId || null
+      await order.save()
+    }
+
     const result = await preference.create({
       body: {
         items: mpItems,
@@ -204,9 +212,8 @@ if (!success) {
       }
     })
 
-    // Guardar el preference ID y la cuenta MP en la orden
+    // Guardar el preference ID (mpAccountId ya se guardó antes de preference.create)
     order.payment.mercadopagoId = result.id || null
-    order.payment.mpAccountId = account.accountId || null
     await order.save()
 
     return NextResponse.json({
