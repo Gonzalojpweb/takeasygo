@@ -1,5 +1,4 @@
 import { decrypt } from '@/lib/crypto'
-import https from 'node:https'
 
 // ─── Rapiboy API Client ─────────────────────────────────────────────────────
 //
@@ -53,7 +52,7 @@ function getConfig(rapiboyConfig: RapiboyConfig): { baseUrl: string; headers: Re
   return {
     baseUrl,
     headers: {
-      'Authorization': `Bearer ${token}`,
+      'Token': token,
       'Content-Type': 'application/json',
     },
   }
@@ -99,80 +98,27 @@ export class RapiboyError extends Error {
   }
 }
 
-/**
- * GET con body — Rapiboy lo requiere para /v1/OnDemandSmart/Cotizar.
- * fetch nativo lo rechaza, así que usamos node:https directamente.
- */
-async function rapiboyGetWithBody<T>(
-  config: RapiboyConfig,
-  path: string,
-  body: Record<string, unknown>,
-  timeoutMs = 5000,
-): Promise<T> {
-  const { baseUrl, headers } = getConfig(config)
-  const url = new URL(`${baseUrl}${path}`)
-  const bodyStr = JSON.stringify(body)
-
-  return new Promise<T>((resolve, reject) => {
-    const req = https.request(
-      {
-        hostname: url.hostname,
-        port: url.port || 443,
-        path: url.pathname,
-        method: 'GET',
-        headers: {
-          ...headers,
-          'Content-Length': Buffer.byteLength(bodyStr),
-        },
-      },
-      (res) => {
-        let data = ''
-        res.on('data', (chunk) => (data += chunk))
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(JSON.parse(data) as T)
-          } else {
-            reject(new RapiboyError(
-              `RapiBoy API error ${res.statusCode}: ${data}`,
-              res.statusCode ?? 500,
-              data,
-            ))
-          }
-        })
-      },
-    )
-    req.on('error', reject)
-    req.setTimeout(timeoutMs, () => {
-      req.destroy()
-      reject(new Error('Rapiboy request timeout'))
-    })
-    req.write(bodyStr)
-    req.end()
-  })
-}
-
 // ─── Public Functions ───────────────────────────────────────────────────────
 
 /**
  * Cotizar envío OnDemandSmart.
  * La cotización vence a los 3 minutos — si expira, hay que re-cotizar.
- * Endpoint: GET /v1/OnDemandSmart/Cotizar con body JSON (requiere node:https).
+ * Endpoint: POST /v1/OnDemandSmart/Cotizar
  */
 export async function cotizarOnDemand(
   origen: RapiboyCoord,
   destino: RapiboyCoord,
   config: RapiboyConfig,
 ): Promise<CotizacionResult> {
-  const result = await rapiboyGetWithBody<any>(
-    config,
-    '/v1/OnDemandSmart/Cotizar',
-    {
+  const result = await rapiboyFetch<any>(config, '/v1/OnDemandSmart/Cotizar', {
+    method: 'POST',
+    body: JSON.stringify({
       LatitudOrigen: origen.lat,
       LongitudOrigen: origen.lng,
       LatitudDestino: destino.lat,
       LongitudDestino: destino.lng,
-    },
-  )
+    }),
+  })
 
   return {
     precio: result.Precio ?? 0,
