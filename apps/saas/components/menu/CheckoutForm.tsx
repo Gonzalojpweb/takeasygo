@@ -243,7 +243,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
         setDeliveryQuote(p => ({ ...p, loading: false, error: null }))
         toast.custom(() => (
           <NoDriversToast onRetry={() => { toast.dismiss(); doQuote() }} />
-        ), { duration: Infinity })
+        ), { duration: Infinity, className: 'dark:bg-zinc-900 dark:text-white bg-white text-zinc-900 border border-zinc-200 dark:border-zinc-700' })
         return
       }
       setDeliveryQuote({ loading: false, cost: data.cost, distance: data.distance, withinRange: true, error: null })
