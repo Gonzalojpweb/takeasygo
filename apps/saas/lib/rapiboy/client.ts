@@ -6,7 +6,7 @@ import { decrypt } from '@/lib/crypto'
 // Todas las funciones usan fetch con timeout de 3 segundos.
 // El apiToken se descifra antes de cada request.
 
-const RAPIBOY_BASE_URL = process.env.RAPIBOY_API_URL || 'https://api.rapiboy.com'
+const RAPIBOY_BASE_URL = process.env.RAPIBOY_API_URL || 'https://rapiboy.com'
 
 export interface RapiboyConfig {
   apiToken: string          // Cifrado con AES-256-GCM
@@ -46,15 +46,14 @@ export interface RapiboyMotivoCancelacion {
 function getConfig(rapiboyConfig: RapiboyConfig): { baseUrl: string; headers: Record<string, string> } {
   const token = decrypt(rapiboyConfig.apiToken)
   const baseUrl = rapiboyConfig.environment === 'production'
-    ? 'https://api.rapiboy.com'
-    : 'https://api.uat.rapiboy.com'
+    ? 'https://rapiboy.com'
+    : 'https://uat.rapiboy.com'
 
   return {
     baseUrl,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'X-Codigo-Plataforma': rapiboyConfig.codigoPlataforma,
     },
   }
 }
@@ -102,28 +101,22 @@ export class RapiboyError extends Error {
 // ─── Public Functions ───────────────────────────────────────────────────────
 
 /**
- * Cotizar envío OnDemand.
+ * Cotizar envío OnDemandSmart.
  * La cotización vence a los 3 minutos — si expira, hay que re-cotizar.
+ * Endpoint: GET /v1/OnDemandSmart/Cotizar (con body JSON)
  */
 export async function cotizarOnDemand(
   origen: RapiboyCoord,
   destino: RapiboyCoord,
   config: RapiboyConfig,
 ): Promise<CotizacionResult> {
-  const result = await rapiboyFetch<any>(config, '/api/v1/ondemand/cotizar', {
-    method: 'POST',
+  const result = await rapiboyFetch<any>(config, '/v1/OnDemandSmart/Cotizar', {
+    method: 'GET',
     body: JSON.stringify({
-      Origen: {
-        Direccion: origen.address || '',
-        Latitud: origen.lat,
-        Longitud: origen.lng,
-      },
-      Destino: {
-        Direccion: destino.address || '',
-        Latitud: destino.lat,
-        Longitud: destino.lng,
-      },
-      CodigoPlataforma: config.codigoPlataforma,
+      LatitudOrigen: origen.lat,
+      LongitudOrigen: origen.lng,
+      LatitudDestino: destino.lat,
+      LongitudDestino: destino.lng,
     }),
   })
 
