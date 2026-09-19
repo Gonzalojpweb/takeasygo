@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
+import { encrypt } from '@/lib/crypto'
 
 async function resolveTenant(tenantSlug: string) {
   await connectDB()
@@ -45,6 +46,14 @@ export async function PUT(
     if (authError) return authError
 
     const body = await request.json()
+
+    // ── Encriptar apiToken de Rapiboy si se está guardando en texto plano ──
+    if (body?.rapiboyConfig?.apiToken && !body.rapiboyConfig.apiToken.includes(':')) {
+      body.rapiboyConfig.apiToken = encrypt(body.rapiboyConfig.apiToken)
+    }
+    if (body?.rapiboyConfig?.webhookSecret && !body.rapiboyConfig.webhookSecret.includes(':')) {
+      body.rapiboyConfig.webhookSecret = encrypt(body.rapiboyConfig.webhookSecret)
+    }
 
     // ── Validate mpAccountId if provided ─────────────────────────────────────
     if (body?.settings?.mpAccountId) {
