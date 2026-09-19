@@ -73,11 +73,14 @@ export function ProductConfigurationPanel({
       return !!(selections['__half_first'] && selections['__half_second'])
     }
     return (product.modifiers ?? []).filter(g => !g.name.startsWith('__half_')).every((group) => {
-      if (!group.required) return true
       const sel = selections[group.name]
-      if (!sel) return false
-      if (Array.isArray(sel)) return sel.length > 0
-      return sel !== ""
+      const count = Array.isArray(sel) ? sel.length : sel ? 1 : 0
+      if (group.type === 'fixed') {
+        const target = group.fixedCount ?? group.maxSelections ?? 1
+        return count === target
+      }
+      if (!group.required) return true
+      return count > 0
     })
   }, [selections, product.modifiers])
 
@@ -89,13 +92,20 @@ export function ProductConfigurationPanel({
   )
 
   const handleMultiToggle = useCallback(
-    (groupName: string, optionName: string) => {
+    (groupName: string, optionName: string, maxLimit?: number) => {
       setSelections((prev) => {
         const current = (prev[groupName] as string[]) ?? []
-        const next = current.includes(optionName)
-          ? current.filter((n) => n !== optionName)
-          : [...current, optionName]
-        return { ...prev, [groupName]: next }
+        const isSelected = current.includes(optionName)
+        if (isSelected) {
+          return { ...prev, [groupName]: current.filter((n) => n !== optionName) }
+        }
+        if (maxLimit && current.length >= maxLimit) {
+          if (maxLimit === 1) {
+            return { ...prev, [groupName]: [optionName] }
+          }
+          return prev
+        }
+        return { ...prev, [groupName]: [...current, optionName] }
       })
     },
     []
@@ -343,9 +353,11 @@ function ModifierGroup({
   group: ProductModifier
   selection: string | string[] | undefined
   onSelect: (name: string) => void
-  onToggle: (name: string) => void
+  onToggle: (name: string, maxLimit?: number) => void
 }) {
   const isSingle = group.type === "single" || (!group.type && (group.required || (group.maxSelections ?? 0) <= 1))
+  const isFixed = group.type === "fixed"
+  const fixedTarget = group.fixedCount ?? group.maxSelections ?? 1
 
   return (
     <div>
@@ -361,6 +373,11 @@ function ModifierGroup({
         {group.required && (
           <span className="pcp-required-badge">Obligatorio</span>
         )}
+        {isFixed && (
+          <span className="pcp-required-badge" style={{ backgroundColor: "var(--brand-orange-light, #fff7ed)", color: "var(--brand-orange, #ea580c)" }}>
+            Elegí {fixedTarget}
+          </span>
+        )}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-1)" }}>
@@ -374,7 +391,7 @@ function ModifierGroup({
               key={option.name}
               className={`pcp-option ${isSelected ? "selected" : ""}`}
               onClick={() =>
-                isSingle ? onSelect(option.name) : onToggle(option.name)
+                isSingle ? onSelect(option.name) : onToggle(option.name, isFixed ? fixedTarget : undefined)
               }
             >
               <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)" }}>

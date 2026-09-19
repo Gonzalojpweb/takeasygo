@@ -19,13 +19,15 @@ interface FlatProduct {
   isAvailable: boolean
   modifiers?: Array<{
     name: string
-    type?: "single" | "multiple"
+    type?: "single" | "multiple" | "fixed"
+    fixedCount?: number
     options: Array<{
       name: string
       price: number
       subGroups?: Array<{
         name: string
-        type?: "single" | "multiple"
+        type?: "single" | "multiple" | "fixed"
+        fixedCount?: number
         required?: boolean
         options: Array<{ name: string; price: number }>
       }>
@@ -45,16 +47,18 @@ interface FlatCategory {
   isVisible: boolean
 }
 
-function flattenSubGroups(groups: Array<{ name: string; type?: string; required?: boolean; priceRule?: string; options: Array<{ name: string; extraPrice?: number; subGroups?: any[] }> }>): Array<{
+function flattenSubGroups(groups: Array<{ name: string; type?: string; fixedCount?: number; required?: boolean; priceRule?: string; options: Array<{ name: string; extraPrice?: number; subGroups?: any[] }> }>): Array<{
   name: string
-  type?: "single" | "multiple"
+  type?: "single" | "multiple" | "fixed"
+  fixedCount?: number
   required?: boolean
   priceRule?: 'sum' | 'max' | 'average'
   options: Array<{ name: string; price: number }>
 }> {
   return groups.map((g) => ({
     name: g.name,
-    type: g.type as "single" | "multiple" | undefined,
+    type: g.type as "single" | "multiple" | "fixed" | undefined,
+    fixedCount: g.fixedCount,
     required: g.required,
     priceRule: (g.priceRule as 'sum' | 'max' | 'average') ?? 'sum',
     options: g.options.map((o) => ({
@@ -86,16 +90,19 @@ function flattenMenu(doc: IMenuDocument): {
 
     for (const item of cat.items) {
       const itemId = item._id?.toString() ?? ""
+      const disabledGroups = item.disabledGroupIds ?? []
+      const disabledOptions = item.disabledOptionIds ?? []
 
-      // Merge item-level + inherited customization groups
+      // Merge item-level + inherited customization groups (filtered)
       const allGroups = [...inheritedGroups, ...(item.customizationGroups ?? [])]
+        .filter((g: any) => !disabledGroups.includes(g._id?.toString()) && !disabledGroups.includes(g.name))
 
       // Merge variant-specific customization groups from ALL variants, dedup by name
-      const variants = (item as any).variants ?? []
+      const variants = ((item as any).variants ?? []).filter((v: any) => !(item.disabledVariantNames ?? []).includes(v.name))
       const seenGroupNames = new Set(allGroups.map((g: any) => g.name))
       for (const variant of variants) {
         for (const vg of variant.customizationGroups ?? []) {
-          if (!seenGroupNames.has(vg.name)) {
+          if (!seenGroupNames.has(vg.name) && !disabledGroups.includes(vg._id?.toString()) && !disabledGroups.includes(vg.name)) {
             allGroups.push(vg)
             seenGroupNames.add(vg.name)
           }
@@ -106,18 +113,21 @@ function flattenMenu(doc: IMenuDocument): {
         allGroups.length > 0
           ? allGroups.map((g: any) => ({
               name: g.name,
-              type: g.type as "single" | "multiple" | undefined,
+              type: g.type as "single" | "multiple" | "fixed" | undefined,
+              fixedCount: g.fixedCount,
               required: g.required ?? false,
-              maxSelections: g.type === "single" ? 1 : undefined,
+              maxSelections: g.type === "fixed" ? (g.fixedCount ?? 1) : (g.type === "single" ? 1 : undefined),
               priceRule: g.priceRule ?? 'sum',
-              options: g.options.map((o: { name: string; extraPrice?: number; subGroups?: Array<{ name: string; type?: string; required?: boolean; options: Array<{ name: string; extraPrice?: number; subGroups?: any[] }> }> }) => ({
-                name: o.name,
-                price: o.extraPrice ?? 0,
-                subGroups:
-                  o.subGroups && o.subGroups.length > 0
-                    ? flattenSubGroups(o.subGroups)
-                    : undefined,
-              })),
+              options: g.options
+                .filter((o: any) => !disabledOptions.includes(o._id?.toString()) && !disabledOptions.includes(o.name))
+                .map((o: { name: string; extraPrice?: number; subGroups?: Array<{ name: string; type?: string; fixedCount?: number; required?: boolean; options: Array<{ name: string; extraPrice?: number; subGroups?: any[] }> }> }) => ({
+                  name: o.name,
+                  price: o.extraPrice ?? 0,
+                  subGroups:
+                    o.subGroups && o.subGroups.length > 0
+                      ? flattenSubGroups(o.subGroups)
+                      : undefined,
+                })),
             }))
           : undefined
 

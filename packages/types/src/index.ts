@@ -154,11 +154,14 @@ export interface Product {
   category: string
   isAvailable: boolean
   modifiers?: ProductModifier[]
+  disabledVariantNames?: string[]
+  disabledGroupIds?: string[]
+  disabledOptionIds?: string[]
   imageUrl?: string
   sortOrder?: number
 }
 
-export type ModifierGroupType = "single" | "multiple"
+export type ModifierGroupType = "single" | "multiple" | "fixed"
 
 export interface ProductModifier {
   name: string
@@ -166,6 +169,7 @@ export interface ProductModifier {
   options: ModifierOption[]
   required?: boolean
   maxSelections?: number
+  fixedCount?: number
   priceRule?: 'sum' | 'max' | 'average'
 }
 

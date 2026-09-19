@@ -15,7 +15,8 @@ interface CustomizationOption {
 interface CustomizationGroup {
   _id: string
   name: string
-  type: 'single' | 'multiple'
+  type: 'single' | 'multiple' | 'fixed'
+  fixedCount?: number
   required: boolean
   options: CustomizationOption[]
   priceRule?: 'sum' | 'max' | 'average'
@@ -62,6 +63,11 @@ export default function CustomizationGroupSection({
         </span>
         {group.type === 'multiple' && (
           <span className="text-[10px] text-zinc-400">(podés elegir varias)</span>
+        )}
+        {group.type === 'fixed' && (
+          <span className="text-[10px] font-bold text-amber-600">
+            (elegí {group.fixedCount ?? 1} {group.fixedCount === 1 ? 'opción' : 'opciones'})
+          </span>
         )}
         {useHorizontalScroll && (
           <span className="text-[10px] text-zinc-400 ml-auto">{group.options.length} opciones →</span>
