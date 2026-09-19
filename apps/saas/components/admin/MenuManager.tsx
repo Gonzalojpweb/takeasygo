@@ -605,12 +605,16 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           } : { enabled: false },
         }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}))
+        console.error('[handleEditItem]', res.status, errBody)
+        throw new Error(errBody.error || `HTTP ${res.status}`)
+      }
       toast.success('Item actualizado')
       setEditingItem(null)
       router.refresh()
-    } catch {
-      toast.error('Error al actualizar item')
+    } catch (e: any) {
+      toast.error(e?.message || 'Error al actualizar item')
     } finally {
       setLoading(false)
     }
@@ -3600,6 +3604,7 @@ function QuickSubstituteModal({
     const newGroup: CustomizationGroupForm = {
       name,
       type: 'single',
+      required: false,
       options: [],
     }
     const updated = [...groups, newGroup]
