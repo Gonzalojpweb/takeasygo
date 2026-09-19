@@ -385,9 +385,9 @@ export async function POST(
 
               if (order.customer?.phoneHash) {
                 if (order.rewardItems && order.rewardItems.length > 0) {
-                  await processRewardDeduction(order, tenant, session)
+                  await processRewardDeduction(order, tenant, session ?? undefined)
                 }
-                await addPointsFromOrder(order, tenant, session)
+                await addPointsFromOrder(order, tenant, session ?? undefined)
               }
 
               // ── Inyección POS (fire-and-forget) ──────────────────────────
@@ -407,7 +407,7 @@ export async function POST(
               })
             } else if (['rejected', 'cancelled'].includes(paymentData.status!)) {
               order.status = 'cancelled'
-              await revertRewardRedemptions(order, tenant, session)
+              await revertRewardRedemptions(order, tenant, session ?? undefined)
             }
 
             await order.save({ session })

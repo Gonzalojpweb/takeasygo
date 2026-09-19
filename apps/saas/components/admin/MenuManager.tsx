@@ -16,7 +16,7 @@ import {
   ChevronDown, Plus, Pencil, Trash2, Check, X,
   Star, Upload, Camera, Settings2, Image as ImageIcon,
   MoreVertical, Layers, LayoutGrid, List, Eye, EyeOff, Clock, Sparkles, Building2,
-  Search, Calendar
+  Search, Calendar, ArrowLeftRight
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -188,6 +188,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [loading, setLoading] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState<string | null>(null)
+  const [showSubstituteModal, setShowSubstituteModal] = useState<{ item: any; categoryId: string } | null>(null)
   const [bulkPercentage, setBulkPercentage] = useState('')
   const [bulkTarget, setBulkTarget] = useState<'dine-in' | 'takeaway' | 'both'>('takeaway')
   const router = useRouter()
@@ -2124,7 +2125,17 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                             >
                                               <Pencil size={18} />
                                             </Button>
-      
+
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              title="Reemplazar ingrediente"
+                                              className="h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl"
+                                              onClick={() => setShowSubstituteModal({ item, categoryId: category._id })}
+                                            >
+                                              <ArrowLeftRight size={18} />
+                                            </Button>
+
                                             <Button
                                               size="icon"
                                               variant="ghost"
@@ -2399,6 +2410,17 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Quick Substitute Modal ── */}
+      {showSubstituteModal && (
+        <QuickSubstituteModal
+          item={showSubstituteModal.item}
+          categoryId={showSubstituteModal.categoryId}
+          tenantSlug={tenantSlug}
+          onClose={() => setShowSubstituteModal(null)}
+          onSaved={() => { setShowSubstituteModal(null); router.refresh() }}
+        />
+      )}
 
       {showImport && currentLocation && (
         <ImportMenuModal
@@ -3504,6 +3526,261 @@ function SortableItemWrapper({ id, children, isEditing }: { id: string, children
       <div className="flex-1 min-w-0">
         {children}
       </div>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   QuickSubstituteModal — reemplazo rápido de ingredientes en combos
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function QuickSubstituteModal({
+  item,
+  categoryId,
+  tenantSlug,
+  onClose,
+  onSaved,
+}: {
+  item: any
+  categoryId: string
+  tenantSlug: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [groups, setGroups] = useState<CustomizationGroupForm[]>(() =>
+    deserializeGroups(item.customizationGroups ?? [])
+  )
+  const [disabledOptionIds, setDisabledOptionIds] = useState<string[]>(() =>
+    item.disabledOptionIds ?? []
+  )
+  const [disabledVariantNames, setDisabledVariantNames] = useState<string[]>(() =>
+    item.disabledVariantNames ?? []
+  )
+  const [expandedGroup, setExpandedGroup] = useState<number | null>(0)
+  const [saving, setSaving] = useState(false)
+  const [newOptionName, setNewOptionName] = useState<Record<number, string>>({})
+
+  const originalGroups = deserializeGroups(item.customizationGroups ?? [])
+  const originalDisabled = item.disabledOptionIds ?? []
+  const hasChanges =
+    JSON.stringify(groups) !== JSON.stringify(originalGroups) ||
+    JSON.stringify(disabledOptionIds) !== JSON.stringify(originalDisabled)
+
+  function toggleOptionDisabled(optionName: string) {
+    setDisabledOptionIds(prev =>
+      prev.includes(optionName) ? prev.filter(n => n !== optionName) : [...prev, optionName]
+    )
+  }
+
+  function toggleVariantDisabled(variantName: string) {
+    setDisabledVariantNames(prev =>
+      prev.includes(variantName) ? prev.filter(n => n !== variantName) : [...prev, variantName]
+    )
+  }
+
+  function addOptionToGroup(groupIdx: number) {
+    const name = (newOptionName[groupIdx] ?? '').trim()
+    if (!name) return
+    const updated = [...groups]
+    updated[groupIdx] = {
+      ...updated[groupIdx],
+      options: [...updated[groupIdx].options, { name, extraPrice: '0', imageUrl: '', subGroups: [] }],
+    }
+    setGroups(updated)
+    setNewOptionName(prev => ({ ...prev, [groupIdx]: '' }))
+  }
+
+  function restoreOriginal() {
+    setGroups(originalGroups)
+    setDisabledOptionIds(originalDisabled)
+    setDisabledVariantNames(item.disabledVariantNames ?? [])
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items/${item._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customizationGroups: serializeGroups(groups),
+          disabledOptionIds,
+          disabledVariantNames,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Ingrediente reemplazado')
+      onSaved()
+    } catch {
+      toast.error('Error al guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const labelCls = 'text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-1.5 block'
+  const inputCls = 'w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-2 outline-none transition-all'
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative bg-white rounded-[2.5rem] shadow-2xl border border-border/60 w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col"
+      >
+        {/* Header */}
+        <div className="p-6 pb-4 border-b border-border/40">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <ArrowLeftRight size={18} className="text-primary" />
+              Reemplazar ingrediente
+            </h3>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">{item.name}</p>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Variants (if any) */}
+          {item.variants?.length > 0 && (
+            <div>
+              <p className={labelCls}>Variantes</p>
+              <div className="flex flex-wrap gap-2">
+                {item.variants.map((v: any) => {
+                  const isDisabled = disabledVariantNames.includes(v.name)
+                  return (
+                    <button
+                      key={v.name}
+                      onClick={() => toggleVariantDisabled(v.name)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-xl text-xs font-medium border-2 transition-all',
+                        isDisabled
+                          ? 'bg-red-50 border-red-200 text-red-500 line-through'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      )}
+                    >
+                      {isDisabled ? <EyeOff size={12} className="inline mr-1" /> : <Eye size={12} className="inline mr-1" />}
+                      {v.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Customization groups */}
+          {groups.map((group, gi) => {
+            const isExpanded = expandedGroup === gi
+            const disabledCount = group.options.filter(o => disabledOptionIds.includes(o.name)).length
+            return (
+              <div key={gi} className="border border-border/60 rounded-2xl overflow-hidden">
+                <button
+                  onClick={() => setExpandedGroup(isExpanded ? null : gi)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{group.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {group.options.length} opciones
+                    </span>
+                    {disabledCount > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">
+                        {disabledCount} ocultas
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown size={16} className={cn('transition-transform', isExpanded && 'rotate-180')} />
+                </button>
+
+                {isExpanded && (
+                  <div className="px-3 pb-3 space-y-1.5 border-t border-border/40">
+                    {group.options.map((opt, oi) => {
+                      const isDisabled = disabledOptionIds.includes(opt.name)
+                      return (
+                        <div key={oi} className={cn(
+                          'flex items-center gap-2 p-2 rounded-xl transition-all',
+                          isDisabled ? 'bg-red-50/50 opacity-60' : 'bg-muted/20'
+                        )}>
+                          <button
+                            onClick={() => toggleOptionDisabled(opt.name)}
+                            className={cn(
+                              'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all',
+                              isDisabled
+                                ? 'bg-amber-100 text-amber-600'
+                                : 'bg-emerald-100 text-emerald-600'
+                            )}
+                            title={isDisabled ? 'Mostrar opción' : 'Ocultar opción'}
+                          >
+                            {isDisabled ? <EyeOff size={13} /> : <Eye size={13} />}
+                          </button>
+                          <span className={cn(
+                            'text-xs font-medium flex-1',
+                            isDisabled && 'line-through text-muted-foreground'
+                          )}>
+                            {opt.name}
+                          </span>
+                          {parseFloat(opt.extraPrice) > 0 && (
+                            <span className="text-[10px] text-muted-foreground">+${toPesos(parseFloat(opt.extraPrice))}</span>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {/* Add new option inline */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        className={cn(inputCls, 'flex-1')}
+                        placeholder="Nueva opción..."
+                        value={newOptionName[gi] ?? ''}
+                        onChange={e => setNewOptionName(prev => ({ ...prev, [gi]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') addOptionToGroup(gi) }}
+                      />
+                      <button
+                        onClick={() => addOptionToGroup(gi)}
+                        disabled={!(newOptionName[gi] ?? '').trim()}
+                        className="h-8 px-3 rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 pt-4 border-t border-border/40 flex items-center justify-between">
+          <button
+            onClick={restoreOriginal}
+            disabled={!hasChanges}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+          >
+            Restaurar original
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !hasChanges}
+              className="px-6 py-2 rounded-xl text-xs font-bold bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-40"
+            >
+              {saving ? 'Guardando...' : 'Aplicar'}
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   )
 }
