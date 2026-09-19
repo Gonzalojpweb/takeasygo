@@ -71,7 +71,7 @@ export async function POST(
         },
         ...(baseUrl.startsWith('https://') ? { auto_return: 'approved' as const } : {}),
         external_reference: `reserva_${reservation._id}`,
-        notification_url: `${baseUrl}/api/webhooks/mercadopago/${tenantSlug}`,
+        notification_url: `${baseUrl}/api/webhooks/mercadopago/${tenantSlug}?account=${account.accountId}`,
       }
     })
 

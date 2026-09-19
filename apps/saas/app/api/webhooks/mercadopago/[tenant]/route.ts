@@ -18,6 +18,7 @@ import webpush from 'web-push'
 import { sendAdminPushNotification } from '@/lib/push'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
+import type { ResolvedMpAccount } from '@/lib/mercadopago'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -70,6 +71,56 @@ async function sendSecurityAlert(tenantSlug: string, message: string, details: R
   }
 }
 
+/**
+ * Builds a deduplicated list of candidate accounts to try for signature verification.
+ * Order: hintAccount first, then active, then remaining accounts from mpAccounts[].
+ */
+function buildCandidateAccounts(
+  tenant: any,
+  hintAccount: ResolvedMpAccount | null,
+  activeAccount: ResolvedMpAccount | null
+): ResolvedMpAccount[] {
+  const candidates: ResolvedMpAccount[] = []
+  const seenIds = new Set<string>()
+
+  if (hintAccount) {
+    candidates.push(hintAccount)
+    seenIds.add(hintAccount.accountId)
+  }
+
+  if (activeAccount && !seenIds.has(activeAccount.accountId)) {
+    candidates.push(activeAccount)
+    seenIds.add(activeAccount.accountId)
+  }
+
+  for (const acc of tenant.mpAccounts ?? []) {
+    const accId = acc._id?.toString() ?? ''
+    if (!seenIds.has(accId)) {
+      candidates.push({
+        accountId: accId,
+        accessToken: acc.accessToken,
+        publicKey: acc.publicKey,
+        webhookSecret: acc.webhookSecret,
+        oauthAccessToken: acc.oauthAccessToken ?? null,
+        oauthIsConnected: !!acc.oauthIsConnected,
+        oauthExpiresAt: acc.oauthExpiresAt ?? null,
+        commissionPercent: null,
+        label: acc.label,
+      })
+      seenIds.add(accId)
+    }
+  }
+
+  if (!seenIds.has('legacy')) {
+    const legacy = getActiveMpAccount(tenant)
+    if (legacy && legacy.accountId === 'legacy') {
+      candidates.push(legacy)
+    }
+  }
+
+  return candidates
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -101,9 +152,18 @@ export async function POST(
     const signatureHeader = request.headers.get('x-signature')
     const requestId = request.headers.get('x-request-id')
 
-    // Resolve account from ?account= query param (hint) or fallback to active
+    // ── 1. Dedup por request-id — ANTES de HMAC (evita DoS) ─────────────────
+    if (requestId) {
+      const alreadyProcessed = await ProcessedWebhookEvents.findOne({ requestId })
+      if (alreadyProcessed) {
+        console.info(`[Webhook MP][${traceId}] Duplicate request-id, skip | tenant=${tenantSlug} | requestId=${requestId}`)
+        return NextResponse.json({ received: true, note: 'Duplicate' })
+      }
+    }
+
+    // ── 2. Resolve hint account from ?account= (may be absent — MP strips it) ─
     const urlAccount = request.nextUrl.searchParams.get('account')
-    let hintAccount: import('@/lib/mercadopago').ResolvedMpAccount | null = null
+    let hintAccount: ResolvedMpAccount | null = null
     if (urlAccount) {
       hintAccount = findMpAccountById(tenant, urlAccount)
       if (!hintAccount) {
@@ -111,24 +171,43 @@ export async function POST(
       }
     }
     const activeAccount = getActiveMpAccount(tenant)
-    const accountForSecret = hintAccount || activeAccount
 
-    if (!accountForSecret?.webhookSecret) {
+    // ── 3. Try-all-secrets: iterate every account's webhookSecret ─────────────
+    //    Constant-time: try ALL candidates, don't early-return on first match.
+    //    This eliminates dependency on ?account= being preserved by MP.
+    const candidates = buildCandidateAccounts(tenant, hintAccount, activeAccount)
+    if (candidates.length === 0) {
       return NextResponse.json({ error: 'Webhook no configurado' }, { status: 401 })
     }
 
-    const webhookSecret = decrypt(accountForSecret.webhookSecret)
-    const { valid: sigValid, ts: sigTs } = verifyMercadoPagoSignature(
-      signatureHeader, requestId, mpPaymentId, webhookSecret
-    )
+    let sigValid = false
+    let sigTs: string | undefined
+    let accountForSecret: ResolvedMpAccount | null = null
 
-    if (!sigValid) {
-      console.warn(`[Webhook MP][${traceId}] Firma inválida | tenant=${tenantSlug} | mpId=${mpPaymentId} | ip=${clientIp} | accountId=${accountForSecret.accountId}`)
-      sendSecurityAlert(tenantSlug, 'Firma webhook inválida', {
-        mpPaymentId, ip: clientIp, accountId: accountForSecret.accountId, traceId,
+    for (const candidate of candidates) {
+      try {
+        const secret = decrypt(candidate.webhookSecret)
+        const result = verifyMercadoPagoSignature(signatureHeader, requestId, mpPaymentId, secret)
+        // Always check — accumulate matches (constant-time: don't break on first)
+        if (result.valid) {
+          sigValid = true
+          sigTs = result.ts
+          accountForSecret = candidate
+        }
+      } catch {
+        // Decryption failed for this candidate, try next
+      }
+    }
+
+    if (!sigValid || !accountForSecret) {
+      console.warn(`[Webhook MP][${traceId}] Firma inválida en todas las cuentas | tenant=${tenantSlug} | mpId=${mpPaymentId} | ip=${clientIp} | candidates=${candidates.map(c => c.accountId).join(',')}`)
+      sendSecurityAlert(tenantSlug, 'Firma webhook inválida (todas las cuentas)', {
+        mpPaymentId, ip: clientIp, candidateIds: candidates.map(c => c.accountId), traceId,
       })
       return NextResponse.json({ error: 'Firma invalida' }, { status: 401 })
     }
+
+    console.info(`[Webhook MP][${traceId}] Signature verified | tenant=${tenantSlug} | mpId=${mpPaymentId} | matchedAccount=${accountForSecret.accountId}`)
 
     // ── 2. Timestamp replay — ±5 min, antes de tocar DB ────────────────────
     if (sigTs) {
@@ -142,16 +221,7 @@ export async function POST(
       }
     }
 
-    // ── 3. Dedup por request-id — antes de DB de negocio ────────────────────
-    if (requestId) {
-      const alreadyProcessed = await ProcessedWebhookEvents.findOne({ requestId })
-      if (alreadyProcessed) {
-        console.info(`[Webhook MP][${traceId}] Duplicate request-id, skip | tenant=${tenantSlug} | requestId=${requestId}`)
-        return NextResponse.json({ received: true, note: 'Duplicate' })
-      }
-    }
-
-    // ── 4. Idempotencia por mpPaymentId (ya existente) ──────────────────────
+    // ── 3. Idempotencia por mpPaymentId (ya existente) ──────────────────────
     const existingNotification = await PaymentNotification.findOne({
       mpId: mpPaymentId,
       tenantId: tenant._id,
@@ -206,24 +276,31 @@ export async function POST(
     }
 
     // ── 10. Resolver cuenta final para procesar ─────────────────────────────
+    //    accountForSecret = the account whose signature matched (from try-all-secrets)
+    //    processAccount = the account to use for SDK calls (prefer Order's mpAccountId)
+    //
+    //    Cases:
+    //    - Tenant has zero accounts → caught earlier (401 at candidates.length === 0)
+    //    - Signature matches → accountForSecret is set
+    //    - Order has mpAccountId pointing to existing account → use that
+    //    - Order has mpAccountId pointing to DELETED account → 200 + alert (permanent, retry won't fix)
+    //    - Order has no mpAccountId → use accountForSecret (try-all-secrets resolved it)
     let processAccount = accountForSecret
     if (resolvedAccountId) {
       const orderAccount = findMpAccountById(tenant, resolvedAccountId)
       if (orderAccount) {
         processAccount = orderAccount
       } else {
-        // Fail closed: Order apunta a cuenta que ya no existe
+        // Order.mpAccountId references deleted account — permanent config error
+        // 200 + alert: retrying won't fix a deleted account
         console.warn(`[Webhook MP][${traceId}] Order.mpAccountId=${resolvedAccountId} NO existe en tenant.mpAccounts | tenant=${tenantSlug} | order=${orderIdForLog}`)
-        sendSecurityAlert(tenantSlug, 'Order.mpAccountId huérfano', {
+        sendSecurityAlert(tenantSlug, 'Order.mpAccountId huérfano — revisión manual requerida', {
           resolvedAccountId, orderId: orderIdForLog, mpPaymentId, tenantSlug, traceId,
         })
-        // Return 200 to avoid MP infinite retry, but don't process
-        return NextResponse.json({ received: true, note: 'Account not found' })
+        return NextResponse.json({ received: true, note: 'Account not found — manual review needed' })
       }
-    } else if (!processAccount) {
-      console.warn(`[Webhook MP][${traceId}] No se pudo resolver cuenta MP | tenant=${tenantSlug} | order=${orderIdForLog}`)
-      return NextResponse.json({ received: true, note: 'No account resolved' })
     }
+    // processAccount is guaranteed non-null here: try-all-secrets already matched a signature
 
     console.info(`[Webhook MP][${traceId}] Processing | tenant=${tenantSlug} | mpId=${mpPaymentId} | order=${orderIdForLog} | accountId=${processAccount.accountId}`)
 
@@ -241,11 +318,18 @@ export async function POST(
       }
     }
 
-    // ── 11. Transacción ACID ────────────────────────────────────────────────
-    const session = await mongoose.startSession()
+    // ── 11. Transacción ACID (fallback a writes individuales si standalone) ──
+    let session: mongoose.ClientSession | null = null
+    let useTransaction = true
+    try {
+      session = await mongoose.startSession()
+    } catch {
+      console.warn(`[Webhook MP][${traceId}] startSession() failed — standalone mode, no transactions | tenant=${tenantSlug}`)
+      useTransaction = false
+    }
 
     try {
-      await session.withTransaction(async () => {
+      const txBody = async () => {
         // A. Registrar la notificación
         const notification = await PaymentNotification.findOneAndUpdate(
           { mpId: mpPaymentId, tenantId: tenant._id },
@@ -284,6 +368,15 @@ export async function POST(
             order.payment.status = paymentData.status as any
             order.payment.mercadopagoData = paymentData as any
             order.payment.mercadopagoId = mpPaymentId
+
+            // ── Persist mpAccountId if Order doesn't have it yet (race condition fix) ──
+            //    When create-preference saves mpAccountId AFTER preference.create(),
+            //    the webhook can arrive before the save. Try-all-secrets already identified
+            //    the correct account from the signature — persist it now.
+            if (!order.payment.mpAccountId && processAccount.accountId && processAccount.accountId !== 'legacy') {
+              order.payment.mpAccountId = processAccount.accountId
+              console.info(`[Webhook MP][${traceId}] Persisted mpAccountId=${processAccount.accountId} to order ${order.orderNumber} (was null)`)
+            }
 
             if (paymentData.status === 'approved') {
               if (order.status === 'awaiting_payment') {
@@ -379,8 +472,15 @@ export async function POST(
         // C. Marcar notificación como exitosa
         notification.processed = true
         notification.processedAt = new Date()
-        await notification.save({ session })
-      })
+        await notification.save(useTransaction && session ? { session } : {})
+      }
+
+      if (useTransaction && session) {
+        await session.withTransaction(txBody)
+      } else {
+        // Standalone mode: execute without transaction (best-effort)
+        await txBody()
+      }
 
       if (externalRef.startsWith('reserva_') && paymentData.status === 'approved') {
         const reservaId = externalRef.replace('reserva_', '')
@@ -425,7 +525,7 @@ export async function POST(
         { status: 500, headers: { 'Retry-After': '10' } }
       )
     } finally {
-      await session.endSession()
+      if (session) await session.endSession()
     }
 
   } catch (error: any) {
