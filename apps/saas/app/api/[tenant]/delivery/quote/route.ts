@@ -74,15 +74,15 @@ export async function POST(
     }
 
     // Rapiboy sin repartidores — devolver errorCode para UI amigable
-    if ((result as any).errorCode) {
+    if (result.errorCode) {
       return NextResponse.json({
         withinRange: true,
         distance: result.distance,
         cost: 0,
         maxRangeKm: result.maxRangeKm,
         provider: result.provider,
-        errorCode: (result as any).errorCode,
-        error: (result as any).error,
+        errorCode: result.errorCode,
+        error: result.error,
       })
     }
 
