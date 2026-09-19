@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
+import { cotizarOnDemand, type RapiboyConfig, type RapiboyCoord } from '@/lib/rapiboy/client'
 
 // ── In-memory cache for geocoding results ─────────────────────────────────
 const geocodeCache = new Map<string, { lat: number; lng: number; expiresAt: number }>()
@@ -123,6 +124,9 @@ export async function calculateDeliveryCost(
   maxRangeKm: number
   coordinates: { lat: number; lng: number } | null
   error?: string
+  provider?: 'own' | 'rapiboy'
+  rapiboyCost?: number
+  rapiboyVigencia?: number
 }> {
   await connectDB()
 
@@ -194,17 +198,40 @@ export async function calculateDeliveryCost(
   const range = matchedRange || firstRange
 
   if (!range) {
-    // Si Rapiboy está habilitado, permitir delivery fuera de rango (Rapiboy lo maneja)
-    // Usar el último rango como estimación del costo de envío
-    if (rapiboyEnabled) {
-      const lastRange = ranges.length > 0 ? ranges[ranges.length - 1] : null
-      return {
-        withinRange: true,
-        distance,
-        cost: lastRange?.price ?? 0,
-        range: lastRange ?? null,
-        maxRangeKm,
-        coordinates,
+    // Si Rapiboy está habilitado, cotizar con Rapiboy en tiempo real
+    if (rapiboyEnabled && location.rapiboyConfig?.apiToken) {
+      try {
+        const rapiboyConfig: RapiboyConfig = {
+          apiToken: location.rapiboyConfig.apiToken,
+          environment: location.rapiboyConfig.environment as 'production' | 'uat',
+          codigoPlataforma: location.rapiboyConfig.codigoPlataforma,
+        }
+        const origen: RapiboyCoord = { lat: locationCoords.lat, lng: locationCoords.lng }
+        const destino: RapiboyCoord = { lat: coordinates.lat, lng: coordinates.lng, address: `${address.street} ${address.number}, ${address.city}` }
+        const cotizacion = await cotizarOnDemand(origen, destino, rapiboyConfig)
+
+        return {
+          withinRange: true,
+          distance,
+          cost: cotizacion.precio,
+          range: null,
+          maxRangeKm,
+          coordinates,
+          provider: 'rapiboy',
+          rapiboyCost: cotizacion.precio,
+          rapiboyVigencia: cotizacion.vigencia,
+        }
+      } catch (err) {
+        console.error('[geocode] Rapiboy cotización falló, rechazando dirección fuera de rango:', err)
+        return {
+          withinRange: false,
+          distance,
+          cost: 0,
+          range: null,
+          maxRangeKm,
+          coordinates,
+          error: `Tu dirección está a ${Math.round(distance)} km, fuera de nuestra zona de cobertura (máx. ${maxRangeKm} km). El servicio de envío alternativo no está disponible en este momento.`,
+        }
       }
     }
 

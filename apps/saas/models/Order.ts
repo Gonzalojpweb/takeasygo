@@ -197,6 +197,9 @@ export interface IOrder extends Document {
     cashAdjustmentApplied: boolean
     cashAdjustmentAppliedAt: Date | null
     cashAdjustmentAppliedBy: string | null
+    // ── Rapiboy surplus ────────────────────────────────────────────────
+    /** Diferencia positiva de Rapiboy (centavos). Para auditoría. @storedAs cents */
+    rapiboySurplus: number
   }
   notes: string
   /** Token bearer del endpoint de tracking. Se envía por header x-tracking-token, nunca por query string. */
@@ -266,13 +269,25 @@ export interface IOrder extends Document {
       trackingId: string
       trackingUrl: string
       driverName?: string
-      /** Costo real de Rapiboy en centavos. @storedAs cents */
+      /** Costo real de Rapiboy en centavos al crear viaje. @storedAs cents */
       quotedCost: number
       /** Lo que se le cobró al cliente en centavos. @storedAs cents */
       chargedToCustomer: number
       /** Margen aplicado en centavos. @storedAs cents */
       margin: number
       environment: 'production' | 'uat'
+      /** Precio real de Rapiboy en el checkout (centavos). @storedAs cents */
+      checkoutCost: number
+      /** Fecha/hora de la cotización en checkout */
+      checkoutQuoteTimestamp: Date | null
+      /** Colchón para transferencia (centavos). Solo aplica si payment.method === 'transfer'. @storedAs cents */
+      transferBuffer: number
+      /** Estado de la cotización pendiente de aceptación del cliente */
+      quoteStatus: 'none' | 'pending_customer_accept' | 'accepted' | 'rejected' | 'expired'
+      /** Nuevo precio de Rapiboy en re-cotización (centavos). @storedAs cents */
+      pendingQuoteCost: number
+      /** Fecha/hora de la re-cotización */
+      pendingQuoteTimestamp: Date | null
     }
   }
   createdAt: Date
@@ -407,6 +422,15 @@ const DeliveryProviderSchema = new Schema({
       /** @storedAs cents */
       margin:            { type: Number, default: 0 },
       environment:       { type: String, enum: ['production', 'uat'], default: 'uat' },
+      /** @storedAs cents */
+      checkoutCost:      { type: Number, default: 0 },
+      checkoutQuoteTimestamp: { type: Date, default: null },
+      /** @storedAs cents */
+      transferBuffer:    { type: Number, default: 0 },
+      quoteStatus:       { type: String, enum: ['none', 'pending_customer_accept', 'accepted', 'rejected', 'expired'], default: 'none' },
+      /** @storedAs cents */
+      pendingQuoteCost:  { type: Number, default: 0 },
+      pendingQuoteTimestamp: { type: Date, default: null },
     },
     default: null,
   },
@@ -558,6 +582,9 @@ const OrderSchema = new Schema(
       cashAdjustmentApplied: { type: Boolean, default: false },
       cashAdjustmentAppliedAt: { type: Date, default: null },
       cashAdjustmentAppliedBy: { type: String, default: null },
+      // ── Rapiboy surplus ──────────────────────────────────────────
+      /** Diferencia positiva de Rapiboy (centavos). Para auditoría. @storedAs cents */
+      rapiboySurplus: { type: Number, default: 0, min: 0 },
     },
     notes: { type: String, default: '', trim: true },
     trackingToken: { type: String, default: null, index: true },

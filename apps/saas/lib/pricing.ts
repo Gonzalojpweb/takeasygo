@@ -143,3 +143,13 @@ export function calculateFinalTotal(
     platformFeeAmount,
   }
 }
+
+/**
+ * Agrega el surplus de Rapiboy (diferencia positiva) al platformFeeAmount.
+ * Cuando Rapiboy cobra MENOS de lo que el cliente pagó, la diferencia es para TakeasyGO.
+ * Se suma al platformFeeAmount para que el restaurante pague la comisión total.
+ */
+export function addRapiboySurplus(platformFeeAmount: number, rapiboySurplus: number): number {
+  if (rapiboySurplus <= 0) return platformFeeAmount
+  return platformFeeAmount + rapiboySurplus
+}

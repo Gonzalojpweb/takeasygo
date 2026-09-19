@@ -1277,6 +1277,11 @@ export async function POST(
     let deliveryAddressData = null as {
       street: string; number: string; apt?: string; city: string; coordinates: { lat: number; lng: number }
     } | null
+    let rapiboyCheckoutData = null as {
+      checkoutCost: number
+      checkoutQuoteTimestamp: Date
+      transferBuffer: number
+    } | null
 
     if (isDeliveryOrder && body.deliveryAddress) {
       const deliveryResult = await calculateDeliveryCost(
@@ -1298,6 +1303,23 @@ export async function POST(
         apt: body.deliveryAddress.apt,
         city: body.deliveryAddress.city,
         coordinates: deliveryResult.coordinates,
+      }
+
+      // ── Rapiboy: aplicar colchón de transferencia si corresponde ──
+      if (deliveryResult.provider === 'rapiboy' && deliveryResult.rapiboyCost) {
+        const loc = await Location.findById(body.locationId).select('rapiboyConfig').lean() as any
+        const bufferPct = loc?.rapiboyConfig?.transferBufferPercentage ?? 1.5
+        const transferBuffer = paymentMethod === 'transfer'
+          ? Math.round(deliveryResult.rapiboyCost * (bufferPct / 100))
+          : 0
+        deliveryCostCalc = deliveryResult.rapiboyCost + transferBuffer
+
+        // Guardar datos de checkout para la re-cotización en "ready"
+        rapiboyCheckoutData = {
+          checkoutCost: deliveryResult.rapiboyCost,
+          checkoutQuoteTimestamp: new Date(),
+          transferBuffer,
+        }
       }
     }
 
@@ -1443,6 +1465,27 @@ export async function POST(
         deliveryCost: deliveryCostCalc,
         deliveryDistance,
         deliveryRangeApplied,
+        ...(rapiboyCheckoutData ? {
+          deliveryProvider: {
+            type: 'rapiboy' as const,
+            rapiboy: {
+              tripId: '',
+              trackingId: '',
+              trackingUrl: '',
+              driverName: '',
+              quotedCost: rapiboyCheckoutData.checkoutCost,
+              chargedToCustomer: deliveryCostCalc,
+              margin: deliveryCostCalc - rapiboyCheckoutData.checkoutCost,
+              environment: 'uat' as const,
+              checkoutCost: rapiboyCheckoutData.checkoutCost,
+              checkoutQuoteTimestamp: rapiboyCheckoutData.checkoutQuoteTimestamp,
+              transferBuffer: rapiboyCheckoutData.transferBuffer,
+              quoteStatus: 'none' as const,
+              pendingQuoteCost: 0,
+              pendingQuoteTimestamp: null,
+            },
+          },
+        } : {}),
       } : {}),
     })
 

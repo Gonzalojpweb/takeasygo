@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
 import DeliveryCodeDisplay from './DeliveryCodeDisplay'
 import LiveTrackingBadge from './LiveTrackingBadge'
-import { Calendar, Lock, Copy, Check, Banknote, Loader2 } from 'lucide-react'
+import { Calendar, Lock, Copy, Check, Banknote, Loader2, ArrowUpDown } from 'lucide-react'
 import { toPesos } from '@takeasygo/business/browser'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
@@ -210,6 +210,14 @@ export default function OrderTracker({
   const [deliveryConfStatus, setDeliveryConfStatus] = useState<string | null>(null)
   const [deliveryProviderType, setDeliveryProviderType] = useState<'own' | 'rapiboy' | null>(null)
   const [deliveryProviderTrackingUrl, setDeliveryProviderTrackingUrl] = useState<string | null>(null)
+  // ── Rapiboy price acceptance ──────────────────────────────────────
+  const [rapiboyQuoteStatus, setRapiboyQuoteStatus] = useState<string>('none')
+  const [rapiboyCheckoutCost, setRapiboyCheckoutCost] = useState(0)
+  const [rapiboyPendingQuoteCost, setRapiboyPendingQuoteCost] = useState(0)
+  const [rapiboyPendingQuoteTimestamp, setRapiboyPendingQuoteTimestamp] = useState<string | null>(null)
+  const [rapiboyChargedToCustomer, setRapiboyChargedToCustomer] = useState(0)
+  const [rapiboyAcceptLoading, setRapiboyAcceptLoading] = useState(false)
+  const [rapiboyRejectLoading, setRapiboyRejectLoading] = useState(false)
   // ── Transferencia (cache local que se actualiza vía polling) ──────
   const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod || 'mercadopago')
   const [baseTotal, setBaseTotal] = useState(initialBaseTotal || 0)
@@ -240,6 +248,80 @@ export default function OrderTracker({
 
   const [msgIndex, setMsgIndex] = useState(0)
 
+  // ── Rapiboy countdown ─────────────────────────────────────────────
+  const ACCEPT_WINDOW_MS = 15 * 60 * 1000
+  const [rapiboyCountdown, setRapiboyCountdown] = useState('')
+
+  useEffect(() => {
+    if (rapiboyQuoteStatus !== 'pending_customer_accept' || !rapiboyPendingQuoteTimestamp) {
+      setRapiboyCountdown('')
+      return
+    }
+    const updateCountdown = () => {
+      const elapsed = Date.now() - new Date(rapiboyPendingQuoteTimestamp).getTime()
+      const remaining = Math.max(0, ACCEPT_WINDOW_MS - elapsed)
+      if (remaining <= 0) {
+        setRapiboyCountdown('Expirado')
+        return
+      }
+      const mins = Math.floor(remaining / 60_000)
+      const secs = Math.floor((remaining % 60_000) / 1000)
+      setRapiboyCountdown(`${mins}:${secs.toString().padStart(2, '0')}`)
+    }
+    updateCountdown()
+    const interval = setInterval(updateCountdown, 1000)
+    return () => clearInterval(interval)
+  }, [rapiboyQuoteStatus, rapiboyPendingQuoteTimestamp])
+
+  const handleRapiboyAccept = useCallback(async () => {
+    setRapiboyAcceptLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/rapiboy-price-accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept' }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error')
+      }
+      const data = await res.json()
+      if (data.tripId) {
+        setDeliveryProviderTrackingUrl(data.trackingUrl)
+        setDeliveryProviderType('rapiboy')
+      }
+      setRapiboyQuoteStatus('accepted')
+      toast.success('¡Precio aceptado! El delivery está en camino.')
+      playNotification()
+    } catch (err: any) {
+      toast.error(err.message || 'Error al aceptar el precio')
+    } finally {
+      setRapiboyAcceptLoading(false)
+    }
+  }, [tenantSlug, orderId, playNotification])
+
+  const handleRapiboyReject = useCallback(async () => {
+    setRapiboyRejectLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/rapiboy-price-accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject' }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error')
+      }
+      setRapiboyQuoteStatus('rejected')
+      toast.info('Envío cancelado. El restaurante se contactará para coordinar la entrega.')
+      playNotification()
+    } catch (err: any) {
+      toast.error(err.message || 'Error al rechazar el precio')
+    } finally {
+      setRapiboyRejectLoading(false)
+    }
+  }, [tenantSlug, orderId, playNotification])
+
   const isScheduledPending = orderTiming === 'scheduled' && scheduledStatus === 'pending_schedule'
 
   const poll = useCallback(async () => {
@@ -263,6 +345,11 @@ export default function OrderTracker({
       setDeliveryConfStatus(data.deliveryConfirmation?.status ?? null)
       setDeliveryProviderType(data.deliveryProvider?.type ?? null)
       setDeliveryProviderTrackingUrl(data.deliveryProvider?.rapiboy?.trackingUrl ?? null)
+      setRapiboyQuoteStatus(data.deliveryProvider?.rapiboy?.quoteStatus ?? 'none')
+      setRapiboyCheckoutCost(data.deliveryProvider?.rapiboy?.checkoutCost ?? 0)
+      setRapiboyPendingQuoteCost(data.deliveryProvider?.rapiboy?.pendingQuoteCost ?? 0)
+      setRapiboyPendingQuoteTimestamp(data.deliveryProvider?.rapiboy?.pendingQuoteTimestamp ?? null)
+      setRapiboyChargedToCustomer(data.deliveryProvider?.rapiboy?.chargedToCustomer ?? 0)
       if (data.payment) {
         setPaymentMethod(data.payment.method || 'mercadopago')
         setBaseTotal(data.payment.baseTotal || 0)
@@ -702,6 +789,57 @@ export default function OrderTracker({
                 Si necesitás asistencia, contactá al restaurante directamente.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RAPIBOY: Costo de envío actualizado — aceptar/rechazar ── */}
+      {rapiboyQuoteStatus === 'pending_customer_accept' && rapiboyPendingQuoteCost > 0 && (
+        <div className="mb-8 rounded-2xl p-5 border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 shadow-sm">
+          <div className="text-center">
+            <div className="text-4xl mb-3 animate-pulse">🔄</div>
+            <h3 className="font-bold text-base text-amber-900 mb-2">Costo de envío actualizado</h3>
+            <p className="text-sm text-amber-800 mb-3">
+              Tu envío original era de <strong>${toPesos(rapiboyChargedToCustomer).toLocaleString('es-AR')}</strong>.
+              Due a tráfico, el costo real es <strong>${toPesos(rapiboyPendingQuoteCost).toLocaleString('es-AR')}</strong>.
+            </p>
+            {rapiboyCountdown && rapiboyCountdown !== 'Expirado' && (
+              <p className="text-xs text-amber-700 font-semibold mb-4">
+                ⏱ Aceptá el nuevo precio en los próximos {rapiboyCountdown}
+              </p>
+            )}
+            {rapiboyCountdown === 'Expirado' && (
+              <p className="text-xs text-red-600 font-semibold mb-4">
+                ⏱ La cotización expiró
+              </p>
+            )}
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={handleRapiboyAccept}
+                disabled={rapiboyAcceptLoading || rapiboyCountdown === 'Expirado'}
+                className="flex-1 max-w-[160px] py-3 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {rapiboyAcceptLoading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Check size={14} />
+                )}
+                Aceptar ${toPesos(rapiboyPendingQuoteCost).toLocaleString('es-AR')}
+              </button>
+              <button
+                onClick={handleRapiboyReject}
+                disabled={rapiboyRejectLoading || rapiboyCountdown === 'Expirado'}
+                className="flex-1 max-w-[120px] py-3 rounded-xl font-bold text-sm text-red-600 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-50 border border-red-200 flex items-center justify-center gap-2"
+              >
+                {rapiboyRejectLoading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : null}
+                Rechazar
+              </button>
+            </div>
+            <p className="text-[10px] text-amber-600 mt-3">
+              Si rechazás, el restaurante coordinará la entrega con flota propia.
+            </p>
           </div>
         </div>
       )}

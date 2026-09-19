@@ -509,7 +509,15 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                 <RapiboyConfigSection
                   tenantSlug={tenantSlug}
                   locationId={loc._id}
-                  initialConfig={loc.rapiboyConfig ?? { enabled: false, apiToken: '', environment: 'uat', margen: 0, codigoPlataforma: '', webhookSecret: '' }}
+                  initialConfig={{
+                    enabled: loc.rapiboyConfig?.enabled ?? false,
+                    apiToken: loc.rapiboyConfig?.apiToken ?? '',
+                    environment: loc.rapiboyConfig?.environment ?? 'uat',
+                    margen: loc.rapiboyConfig?.margen ?? 0,
+                    codigoPlataforma: loc.rapiboyConfig?.codigoPlataforma ?? '',
+                    webhookSecret: loc.rapiboyConfig?.webhookSecret ?? '',
+                    transferBufferPercentage: (loc.rapiboyConfig as any)?.transferBufferPercentage ?? 1.5,
+                  }}
                   onSave={() => window.location.reload()}
                 />
               )}
