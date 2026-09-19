@@ -124,6 +124,7 @@ export async function calculateDeliveryCost(
   maxRangeKm: number
   coordinates: { lat: number; lng: number } | null
   error?: string
+  errorCode?: string
   provider?: 'own' | 'rapiboy'
   rapiboyCost?: number
   rapiboyVigencia?: number
