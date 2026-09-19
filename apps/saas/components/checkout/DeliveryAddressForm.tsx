@@ -72,7 +72,7 @@ export default function DeliveryAddressForm() {
         dispatch({ type: 'SET_DELIVERY_QUOTE', quote: { loading: false, error: null } })
         toast.custom(() => (
           <NoDriversToast onRetry={() => { toast.dismiss(); doQuote() }} />
-        ), { duration: Infinity })
+        ), { duration: Infinity, className: 'dark:bg-zinc-900 dark:text-white bg-white text-zinc-900 border border-zinc-200 dark:border-zinc-700' })
         return
       }
       dispatch({
