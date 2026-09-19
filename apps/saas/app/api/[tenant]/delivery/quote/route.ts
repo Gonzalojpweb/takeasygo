@@ -78,6 +78,9 @@ export async function POST(
       distance: result.distance,
       cost: result.cost,
       maxRangeKm: result.maxRangeKm,
+      provider: result.provider ?? 'own',
+      rapiboyCost: result.rapiboyCost ?? 0,
+      rapiboyVigencia: result.rapiboyVigencia ?? 0,
     })
   } catch (error: any) {
     console.error('[delivery/quote] error:', error)

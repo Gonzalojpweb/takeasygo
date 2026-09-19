@@ -17,6 +17,7 @@ interface RapiboyConfig {
   margen: number
   codigoPlataforma: string
   webhookSecret: string
+  transferBufferPercentage: number
 }
 
 interface Props {
@@ -133,6 +134,25 @@ export default function RapiboyConfigSection({ tenantSlug, locationId, initialCo
             />
             <p className="text-[10px] text-zinc-600 mt-1">
               Sin mínimo ni máximo. Ajustable desde este panel.
+            </p>
+          </div>
+
+          {/* Transfer Buffer Percentage */}
+          <div>
+            <label className="block text-xs font-medium text-zinc-400 mb-1">
+              Colchón transferencia (% sobre costo Rapiboy)
+            </label>
+            <input
+              type="number"
+              value={config.transferBufferPercentage}
+              onChange={(e) => setConfig(p => ({ ...p, transferBufferPercentage: parseFloat(e.target.value) || 1.5 }))}
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white"
+              min={0}
+              max={10}
+              step={0.1}
+            />
+            <p className="text-[10px] text-zinc-600 mt-1">
+              Colchón preventivo para pagos por transferencia. Default: 1.5%. Absorbe variaciones de precio de Rapiboy.
             </p>
           </div>
 

@@ -13,7 +13,7 @@ import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
 import { addPointsFromOrder } from '@/lib/loyalty'
-import { cotizarEnvio, isRapiboyEnabled } from '@/lib/delivery/cotizar'
+import { cotizarEnvio, isRapiboyEnabled, recotizarParaReady } from '@/lib/delivery/cotizar'
 import { crearViajeOnDemand, cancelarViaje, RapiboyError } from '@/lib/rapiboy/client'
 import { notifySyncLayerStatus } from '@/lib/sync-layer'
 import { generateRatingToken } from '@/lib/rating-token'
@@ -116,17 +116,8 @@ export async function PATCH(
 
       const rapiboyEnabled = isRapiboyEnabled(location?.rapiboyConfig)
 
-      console.log(`[status] Rapiboy check for order ${orderId}:`, {
-        rapiboyEnabled,
-        hasRapiboyConfig: !!location?.rapiboyConfig,
-        hasDeliveryAddress: !!order.deliveryAddress,
-        hasCoordinates: !!order.deliveryAddress?.coordinates,
-        coordinates: order.deliveryAddress?.coordinates,
-        locationGeo: location?.geo?.coordinates,
-      })
-
       if (rapiboyEnabled && location?.rapiboyConfig && order.deliveryAddress?.coordinates) {
-        // ── Rapiboy: cotizar + crear viaje ──
+        // ── Rapiboy: re-cotizar + decidir acción ──
         try {
           const origen = {
             lat: location.geo?.coordinates?.[1] ?? 0,
@@ -139,64 +130,169 @@ export async function PATCH(
             address: `${order.deliveryAddress.street} ${order.deliveryAddress.number}, ${order.deliveryAddress.city}`,
           }
 
-          // Cotizar envío (decide entre franja fija y Rapiboy)
-          const cotizacion = await cotizarEnvio({
-            origen,
-            destino,
-            distanciaKm: order.deliveryDistance || 0,
-            deliveryConfig: location.deliveryConfig as any,
-            rapiboyConfig: {
-              ...location.rapiboyConfig,
-              apiToken: location.rapiboyConfig.apiToken || '',
-              codigoPlataforma: location.rapiboyConfig.codigoPlataforma || '',
-            },
-          })
+          const rapiboyCfg = {
+            apiToken: location.rapiboyConfig.apiToken || '',
+            environment: location.rapiboyConfig.environment as 'production' | 'uat',
+            codigoPlataforma: location.rapiboyConfig.codigoPlataforma || '',
+          }
 
-          // Si el provider es Rapiboy, crear el viaje
-          if (cotizacion.provider === 'rapiboy') {
-            const viaje = await crearViajeOnDemand({
-              orderNumber: String(order.orderNumber || orderId),
+          // ── CASO A: El pedido ya fue cotizado en checkout (tiene checkoutCost) ──
+          const hasCheckoutQuote = order.deliveryProvider?.rapiboy?.checkoutCost
+            && order.deliveryProvider.rapiboy.checkoutCost > 0
+            && order.deliveryProvider.type === 'rapiboy'
+
+          if (hasCheckoutQuote) {
+            // Re-cotizar y comparar con el precio del checkout
+            const recotizacion = await recotizarParaReady({
               origen,
               destino,
-              customerName: order.customer?.name || 'Cliente',
-              customerPhone: order.customer?.phone || '',
-              observaciones: order.notes || '',
-              tiempoCocina: 0, // MVP: pedido ya listo
-            }, {
-              apiToken: location.rapiboyConfig.apiToken || '',
-              environment: location.rapiboyConfig.environment as 'production' | 'uat',
-              codigoPlataforma: location.rapiboyConfig.codigoPlataforma || '',
+              rapiboyConfig: {
+                ...rapiboyCfg,
+                enabled: true,
+                margen: location.rapiboyConfig.margen ?? 0,
+              },
+              checkoutCost: order.deliveryProvider!.rapiboy!.checkoutCost,
+              transferBuffer: order.deliveryProvider!.rapiboy!.transferBuffer ?? 0,
+              paymentMethod: order.payment?.method ?? 'mercadopago',
             })
 
-            // Guardar info de Rapiboy en el pedido
-            order.deliveryProvider = {
-              type: 'rapiboy',
-              rapiboy: {
-                tripId: viaje.tripId,
-                trackingId: viaje.trackingId,
-                trackingUrl: viaje.trackingUrl,
-                quotedCost: cotizacion.costoRealRapiboy,
-                chargedToCustomer: cotizacion.costoAlCliente,
-                margin: cotizacion.margen,
-                environment: location.rapiboyConfig.environment as 'production' | 'uat',
-              },
-            }
+            if (recotizacion.action === 'create_trip') {
+              // Crear viaje con el nuevo precio
+              const viaje = await crearViajeOnDemand({
+                orderNumber: String(order.orderNumber || orderId),
+                origen,
+                destino,
+                customerName: order.customer?.name || 'Cliente',
+                customerPhone: order.customer?.phone || '',
+                observaciones: order.notes || '',
+                tiempoCocina: 0,
+              }, rapiboyCfg)
 
-            // Si fue fallback, usar franja fija como respaldo
-            if (cotizacion.fallback) {
-              console.warn(`[status] Rapiboy fallback for order ${orderId}, using own fleet`)
-              order.deliveryProvider.type = 'own'
-            }
+              // Calcular diferencia positiva (TakeasyGO se queda la ganancia)
+              const rapiboySurplus = recotizacion.chargedToCustomer - recotizacion.newCost
+              const finalSurplus = rapiboySurplus > 0 ? rapiboySurplus : 0
 
-            console.log(`[status] Rapiboy trip created for order ${orderId}: ${viaje.tripId}`)
+              order.deliveryProvider = {
+                type: 'rapiboy',
+                rapiboy: {
+                  tripId: viaje.tripId,
+                  trackingId: viaje.trackingId,
+                  trackingUrl: viaje.trackingUrl,
+                  quotedCost: recotizacion.newCost,
+                  chargedToCustomer: recotizacion.chargedToCustomer,
+                  margin: recotizacion.chargedToCustomer - recotizacion.newCost,
+                  environment: rapiboyCfg.environment,
+                  checkoutCost: order.deliveryProvider!.rapiboy!.checkoutCost,
+                  checkoutQuoteTimestamp: order.deliveryProvider!.rapiboy!.checkoutQuoteTimestamp,
+                  transferBuffer: order.deliveryProvider!.rapiboy!.transferBuffer,
+                  quoteStatus: 'none',
+                  pendingQuoteCost: 0,
+                  pendingQuoteTimestamp: null,
+                },
+              }
+
+              // Si hay diferencia positiva, sumar al platformFeeAmount
+              if (finalSurplus > 0) {
+                order.payment = order.payment || {} as any
+                order.payment.rapiboySurplus = finalSurplus
+                order.payment.platformFeeAmount = (order.payment.platformFeeAmount || 0) + finalSurplus
+              }
+
+              console.log(`[status] Rapiboy trip created for order ${orderId}: ${viaje.tripId} (surplus: ${finalSurplus})`)
+            } else {
+              // ── CASO B: Precio subió, notificar al cliente ──
+              order.deliveryProvider!.rapiboy!.quoteStatus = 'pending_customer_accept'
+              order.deliveryProvider!.rapiboy!.pendingQuoteCost = recotizacion.newCost
+              order.deliveryProvider!.rapiboy!.pendingQuoteTimestamp = new Date()
+
+              console.log(`[status] Rapiboy price increased for order ${orderId}: ${recotizacion.chargedToCustomer} → ${recotizacion.newCost}, notifying client`)
+
+              // Notificar al cliente via push
+              if ((order as any).clientToken) {
+                try {
+                  const sub = await PushSubscription.findOne({ clientToken: (order as any).clientToken })
+                  if (sub) {
+                    await webpush.sendNotification(
+                      { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+                      JSON.stringify({
+                        title: '🔄 Costo de envío actualizado',
+                        body: `Tu envío de $${(recotizacion.chargedToCustomer / 100).toFixed(0)} pasó a $${(recotizacion.newCost / 100).toFixed(0)}. Abrí el link para aceptar o rechazar.`,
+                        icon: '/tgoicon-192.png',
+                        badge: '/tgoicon-192.png',
+                        url: `/${tenantSlug}/tracking/${order.orderNumber}`,
+                        tag: `order-${orderId}`,
+                        orderId,
+                      })
+                    )
+                  }
+                } catch (pushErr: any) {
+                  if (pushErr?.statusCode === 410) {
+                    await PushSubscription.deleteOne({ clientToken: (order as any).clientToken })
+                  }
+                  console.warn('[push] Error notifying rapiboy price change:', pushErr?.message)
+                }
+              }
+            }
           } else {
-            // Franja fija (distancia dentro de maxRangeKm)
-            order.deliveryProvider = { type: 'own' }
-            const customerCode = String(Math.floor(100000 + Math.random() * 900000))
-            order.deliveryConfirmation = {
-              customerCode: { code: customerCode, expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000) },
-              deliveryPersonId: null, deliveryPersonName: null, status: 'pending',
-              arrivalLat: null, arrivalLng: null, arrivalAt: null, completedAt: null,
+            // ── CASO C: No tiene checkoutCost (pedido anterior al sistema de cotización) ──
+            // Usar flujo anterior: cotizar + crear viaje directamente
+            const cotizacion = await cotizarEnvio({
+              origen,
+              destino,
+              distanciaKm: order.deliveryDistance || 0,
+              deliveryConfig: location.deliveryConfig as any,
+              rapiboyConfig: {
+                ...location.rapiboyConfig,
+                apiToken: rapiboyCfg.apiToken,
+                codigoPlataforma: rapiboyCfg.codigoPlataforma,
+              },
+            })
+
+            if (cotizacion.provider === 'rapiboy') {
+              const viaje = await crearViajeOnDemand({
+                orderNumber: String(order.orderNumber || orderId),
+                origen,
+                destino,
+                customerName: order.customer?.name || 'Cliente',
+                customerPhone: order.customer?.phone || '',
+                observaciones: order.notes || '',
+                tiempoCocina: 0,
+              }, rapiboyCfg)
+
+              order.deliveryProvider = {
+                type: 'rapiboy',
+                rapiboy: {
+                  tripId: viaje.tripId,
+                  trackingId: viaje.trackingId,
+                  trackingUrl: viaje.trackingUrl,
+                  quotedCost: cotizacion.costoRealRapiboy,
+                  chargedToCustomer: cotizacion.costoAlCliente,
+                  margin: cotizacion.margen,
+                  environment: rapiboyCfg.environment,
+                  checkoutCost: 0,
+                  checkoutQuoteTimestamp: null,
+                  transferBuffer: 0,
+                  quoteStatus: 'none',
+                  pendingQuoteCost: 0,
+                  pendingQuoteTimestamp: null,
+                },
+              }
+
+              if (cotizacion.fallback) {
+                console.warn(`[status] Rapiboy fallback for order ${orderId}, using own fleet`)
+                order.deliveryProvider.type = 'own'
+              }
+
+              console.log(`[status] Rapiboy trip created for order ${orderId}: ${viaje.tripId}`)
+            } else {
+              // Franja fija (distancia dentro de maxRangeKm)
+              order.deliveryProvider = { type: 'own' }
+              const customerCode = String(Math.floor(100000 + Math.random() * 900000))
+              order.deliveryConfirmation = {
+                customerCode: { code: customerCode, expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000) },
+                deliveryPersonId: null, deliveryPersonName: null, status: 'pending',
+                arrivalLat: null, arrivalLng: null, arrivalAt: null, completedAt: null,
+              }
             }
           }
         } catch (rapiboyErr: any) {

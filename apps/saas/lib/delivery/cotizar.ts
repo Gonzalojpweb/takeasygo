@@ -1,4 +1,4 @@
-import { cotizarOnDemand, type RapiboyConfig, type RapiboyCoord, RapiboyError } from '@/lib/rapiboy/client'
+import { cotizarOnDemand, type RapiboyConfig, type RapiboyCoord } from '@/lib/rapiboy/client'
 
 // ─── Delivery Quotation Logic ────────────────────────────────────────────────
 //
@@ -134,4 +134,93 @@ export function isRapiboyEnabled(rapiboyConfig?: { enabled: boolean }): boolean 
  */
 export function calcularMargen(costoRealCentavos: number, porcentajeMargen: number): number {
   return Math.round(costoRealCentavos * (porcentajeMargen / 100))
+}
+
+// ─── Re-cotización para Ready ────────────────────────────────────────────────
+//
+// Cuando el admin cambia el estado a "ready", se re-cotiza con Rapiboy
+// y se compara con el precio que pagó el cliente en el checkout.
+
+export interface RecotizarReadyInput {
+  /** Coordenadas del restaurante (origen) */
+  origen: RapiboyCoord
+  /** Coordenadas del cliente (destino) */
+  destino: RapiboyCoord
+  /** Configuración de Rapiboy de la sede */
+  rapiboyConfig: RapiboyConfig & {
+    enabled: boolean
+    margen: number
+  }
+  /** Precio real de Rapiboy en el checkout (centavos) */
+  checkoutCost: number
+  /** Colchón de transferencia (centavos) */
+  transferBuffer: number
+  /** Método de pago del pedido */
+  paymentMethod: string
+}
+
+export interface RecotizarReadyResult {
+  /** Acción a tomar */
+  action: 'create_trip' | 'pending_accept'
+  /** Nuevo precio de Rapiboy (centavos) */
+  newCost: number
+  /** Diferencia entre nuevo precio y lo que pagó el cliente (centavos) */
+  costDifference: number
+  /** Si es transferencia */
+  isTransfer: boolean
+  /** Precio que pagó el cliente (centavos, incluye buffer si transfer) */
+  chargedToCustomer: number
+}
+
+/**
+ * Re-cotiza con Rapiboy cuando el pedido pasa a "ready".
+ * Decide si crear el viaje automáticamente o notificar al cliente.
+ */
+export async function recotizarParaReady(input: RecotizarReadyInput): Promise<RecotizarReadyResult> {
+  const { origen, destino, rapiboyConfig, checkoutCost, transferBuffer, paymentMethod } = input
+
+  const isTransfer = paymentMethod === 'transfer'
+  const chargedToCustomer = checkoutCost + transferBuffer
+
+  // Re-cotizar con Rapiboy
+  const cotizacion = await cotizarOnDemand(origen, destino, rapiboyConfig)
+  const newCost = cotizacion.precio
+
+  // Comparar contra lo que pagó el cliente (checkoutCost + buffer)
+  const costDifference = newCost - chargedToCustomer
+
+  if (costDifference <= 0) {
+    // El precio bajó o se mantuvo → crear viaje automáticamente
+    // TakeasyGO se queda la diferencia como margen
+    return {
+      action: 'create_trip',
+      newCost,
+      costDifference,
+      isTransfer,
+      chargedToCustomer,
+    }
+  }
+
+  // El precio subió
+  if (isTransfer) {
+    // Transfer: el colchón absorbe la mayoría de las variaciones
+    // Si el nuevo precio supera el colchón, es un caso extremo
+    // En ese caso, crear viaje igualmente (el colchón ya cubrió parte)
+    return {
+      action: 'create_trip',
+      newCost,
+      costDifference,
+      isTransfer,
+      chargedToCustomer,
+    }
+  }
+
+  // MP u otro método: notificar al cliente
+  return {
+    action: 'pending_accept',
+    newCost,
+    costDifference,
+    isTransfer,
+    chargedToCustomer,
+  }
 }

@@ -67,6 +67,8 @@ export interface ILocation extends Document {
     codigoPlataforma: string
     /** Secret para validar webhooks de Rapiboy, cifrado con AES-256-GCM. @storedAs encrypted */
     webhookSecret: string
+    /** Porcentaje de colchón para pagos por transferencia (ej: 1.5 = 1.5%). Default 1.5. @storedAs percent */
+    transferBufferPercentage: number
   }
   reservationConfig: {
     enabled: boolean
@@ -321,8 +323,9 @@ settings: {
         margen:           { type: Number, default: 0 },
         codigoPlataforma: { type: String, default: '' },
         webhookSecret:    { type: String, default: '' },
+        transferBufferPercentage: { type: Number, default: 1.5 },
       },
-      default: { enabled: false, apiToken: '', environment: 'uat', margen: 0, codigoPlataforma: '', webhookSecret: '' },
+      default: { enabled: false, apiToken: '', environment: 'uat', margen: 0, codigoPlataforma: '', webhookSecret: '', transferBufferPercentage: 1.5 },
     },
   },
   {
