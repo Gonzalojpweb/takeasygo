@@ -1,17 +1,49 @@
 'use client'
 
+import { useState, useEffect, useCallback } from 'react'
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { toast } from 'sonner'
 import { toPesos } from '@takeasygo/business/browser'
+
+const RETRY_SECONDS = 180
+
+function NoDriversToast({ onRetry }: { onRetry: () => void }) {
+  const [secondsLeft, setSecondsLeft] = useState(RETRY_SECONDS)
+
+  useEffect(() => {
+    if (secondsLeft <= 0) return
+    const timer = setInterval(() => {
+      setSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [secondsLeft])
+
+  const mins = Math.floor(secondsLeft / 60)
+  const secs = secondsLeft % 60
+  const ready = secondsLeft <= 0
+
+  return (
+    <div className="flex flex-col gap-2 min-w-[260px]">
+      <p className="font-semibold text-sm">No hay repartidores disponibles</p>
+      <p className="text-xs text-zinc-500">
+        En este momento no tenemos repartidores en tu zona. Esto puede pasar por alta demanda.
+      </p>
+      <button
+        onClick={onRetry}
+        disabled={!ready}
+        className="mt-1 w-full py-2 px-3 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-zinc-900 text-white hover:bg-zinc-800"
+      >
+        {ready ? 'Reintentar ahora' : `Reintentar en ${mins}:${String(secs).padStart(2, '0')}`}
+      </button>
+    </div>
+  )
+}
 
 export default function DeliveryAddressForm() {
   const { state, dispatch } = useCheckout()
   const { deliveryAddress, deliveryQuote, deliveryConfirmed, tenantSlug, locationId } = state
 
-  async function handleQuote() {
-    if (!deliveryAddress.street.trim() || !deliveryAddress.number.trim() || !deliveryAddress.city.trim()) {
-      return toast.error('Completá calle, número y barrio')
-    }
+  const doQuote = useCallback(async () => {
     dispatch({ type: 'SET_DELIVERY_QUOTE', quote: { loading: true, error: null } })
     try {
       const res = await fetch(`/api/${tenantSlug}/delivery/quote`, {
@@ -36,6 +68,13 @@ export default function DeliveryAddressForm() {
         dispatch({ type: 'SET_DELIVERY_QUOTE', quote: { loading: false, error: data.error || 'Tu dirección está fuera del área de cobertura.' } })
         return
       }
+      if (data.errorCode === 'RAPIBOY_NO_DRIVERS') {
+        dispatch({ type: 'SET_DELIVERY_QUOTE', quote: { loading: false, error: null } })
+        toast.custom(() => (
+          <NoDriversToast onRetry={() => { toast.dismiss(); doQuote() }} />
+        ), { duration: Infinity })
+        return
+      }
       dispatch({
         type: 'SET_DELIVERY_QUOTE',
         quote: { loading: false, cost: data.cost, distance: data.distance, withinRange: true, error: null },
@@ -45,6 +84,13 @@ export default function DeliveryAddressForm() {
     } catch {
       dispatch({ type: 'SET_DELIVERY_QUOTE', quote: { loading: false, error: 'Error de conexión. Intentá de nuevo.' } })
     }
+  }, [deliveryAddress, tenantSlug, locationId, dispatch])
+
+  async function handleQuote() {
+    if (!deliveryAddress.street.trim() || !deliveryAddress.number.trim() || !deliveryAddress.city.trim()) {
+      return toast.error('Completá calle, número y barrio')
+    }
+    doQuote()
   }
 
   return (

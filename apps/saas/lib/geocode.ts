@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
-import { cotizarOnDemand, type RapiboyConfig, type RapiboyCoord } from '@/lib/rapiboy/client'
+import { cotizarOnDemand, RapiboyError, type RapiboyConfig, type RapiboyCoord } from '@/lib/rapiboy/client'
 
 // ── In-memory cache for geocoding results ─────────────────────────────────
 const geocodeCache = new Map<string, { lat: number; lng: number; expiresAt: number }>()
@@ -222,6 +222,25 @@ export async function calculateDeliveryCost(
           rapiboyVigencia: cotizacion.vigencia,
         }
       } catch (err) {
+        // Rapiboy sin repartidores disponibles — devolver errorCode para UI amigable
+        if (err instanceof RapiboyError && err.status === 400) {
+          try {
+            const body = JSON.parse(err.body || '{}')
+            if (body.Message?.includes('repartidores disponibles')) {
+              return {
+                withinRange: true,
+                distance,
+                cost: 0,
+                range: null,
+                maxRangeKm,
+                coordinates,
+                provider: 'rapiboy',
+                errorCode: 'RAPIBOY_NO_DRIVERS',
+                error: 'No hay repartidores disponibles en este momento.',
+              }
+            }
+          } catch { /* ignore parse error */ }
+        }
         console.error('[geocode] Rapiboy cotización falló, rechazando dirección fuera de rango:', err)
         return {
           withinRange: false,

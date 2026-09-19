@@ -17,6 +17,35 @@ import FeedbackModal from '@/components/feedback/FeedbackModal'
 import { captureCheckoutStarted, captureRewardRedeemed, captureRewardAdvanceOffered, captureRewardAdvanceAccepted } from '@/lib/tia/events'
 import { captureCheckoutStarted as captureCheckoutStartedMongo } from '@/lib/events'
 
+const RETRY_SECONDS = 180
+
+function NoDriversToast({ onRetry }: { onRetry: () => void }) {
+  const [secondsLeft, setSecondsLeft] = useState(RETRY_SECONDS)
+  useEffect(() => {
+    if (secondsLeft <= 0) return
+    const timer = setInterval(() => {
+      setSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [secondsLeft])
+  const mins = Math.floor(secondsLeft / 60)
+  const secs = secondsLeft % 60
+  const ready = secondsLeft <= 0
+  return (
+    <div className="flex flex-col gap-2 min-w-[260px]">
+      <p className="font-semibold text-sm">No hay repartidores disponibles</p>
+      <p className="text-xs text-zinc-500">En este momento no tenemos repartidores en tu zona. Esto puede pasar por alta demanda.</p>
+      <button
+        onClick={onRetry}
+        disabled={!ready}
+        className="mt-1 w-full py-2 px-3 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-zinc-900 text-white hover:bg-zinc-800"
+      >
+        {ready ? 'Reintentar ahora' : `Reintentar en ${mins}:${String(secs).padStart(2, '0')}`}
+      </button>
+    </div>
+  )
+}
+
 interface Props {
   tenantSlug: string
   locationId: string
@@ -189,6 +218,41 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       setDeliveryConfirmed(false)
     }
   }, [deliveryAddress])
+
+  const doQuote = useCallback(async () => {
+    setDeliveryQuote(p => ({ ...p, loading: true, error: null }))
+    try {
+      const res = await fetch(`/api/${tenantSlug}/delivery/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId,
+          address: { street: deliveryAddress.street, number: deliveryAddress.number, apt: deliveryAddress.apt || '', city: deliveryAddress.city },
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setDeliveryQuote(p => ({ ...p, loading: false, error: data.error || 'Error al calcular' }))
+        return
+      }
+      if (!data.withinRange) {
+        setDeliveryQuote(p => ({ ...p, loading: false, error: data.error || 'Tu dirección está fuera del área de cobertura.' }))
+        return
+      }
+      if (data.errorCode === 'RAPIBOY_NO_DRIVERS') {
+        setDeliveryQuote(p => ({ ...p, loading: false, error: null }))
+        toast.custom(() => (
+          <NoDriversToast onRetry={() => { toast.dismiss(); doQuote() }} />
+        ), { duration: Infinity })
+        return
+      }
+      setDeliveryQuote({ loading: false, cost: data.cost, distance: data.distance, withinRange: true, error: null })
+      setDeliveryConfirmed(true)
+      toast.success('Costo de envío calculado')
+    } catch {
+      setDeliveryQuote(p => ({ ...p, loading: false, error: 'Error de conexión. Intentá de nuevo.' }))
+    }
+  }, [deliveryAddress, tenantSlug, locationId])
 
   useEffect(() => {
     const saved = sessionStorage.getItem(`cart_${tenantSlug}`)
@@ -977,46 +1041,11 @@ async function handleSubmit(e: React.FormEvent) {
             />
             <button
               type="button"
-              onClick={async () => {
+              onClick={() => {
                 if (!deliveryAddress.street.trim() || !deliveryAddress.number.trim() || !deliveryAddress.city.trim()) {
                   return toast.error('Completá calle, número y localidad')
                 }
-                setDeliveryQuote(p => ({ ...p, loading: true, error: null }))
-                try {
-                  const res = await fetch(`/api/${tenantSlug}/delivery/quote`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      locationId,
-                      address: {
-                        street: deliveryAddress.street,
-                        number: deliveryAddress.number,
-                        apt: deliveryAddress.apt || '',
-                        city: deliveryAddress.city,
-                      },
-                    }),
-                  })
-                  const data = await res.json()
-                  if (!res.ok) {
-                    setDeliveryQuote(p => ({ ...p, loading: false, error: data.error || 'Error al calcular' }))
-                    return
-                  }
-                  if (!data.withinRange) {
-                    setDeliveryQuote(p => ({ ...p, loading: false, error: data.error || 'Tu dirección está fuera del área de cobertura.' }))
-                    return
-                  }
-                  setDeliveryQuote({
-                    loading: false,
-                    cost: data.cost,
-                    distance: data.distance,
-                    withinRange: true,
-                    error: null,
-                  })
-                  setDeliveryConfirmed(true)
-                  toast.success('Costo de envío calculado')
-                } catch {
-                  setDeliveryQuote(p => ({ ...p, loading: false, error: 'Error de conexión. Intentá de nuevo.' }))
-                }
+                doQuote()
               }}
               disabled={deliveryQuote.loading}
               className="w-full py-3 px-4 rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition-colors disabled:opacity-50"
