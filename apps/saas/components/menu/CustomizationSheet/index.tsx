@@ -33,7 +33,8 @@ interface CustomizationOption {
 interface CustomizationGroup {
   _id: string
   name: string
-  type: 'single' | 'multiple'
+  type: 'single' | 'multiple' | 'fixed'
+  fixedCount?: number
   required: boolean
   options: CustomizationOption[]
   priceRule?: 'sum' | 'max' | 'average'
@@ -57,12 +58,30 @@ interface Props {
 function computeActiveGroups(
   rootGroups: CustomizationGroup[],
   selections: Record<string, string[]>,
-  variantGroups?: CustomizationGroup[]
+  variantGroups?: CustomizationGroup[],
+  disabledGroupIds: string[] = [],
+  disabledOptionIds: string[] = []
 ): CustomizationGroup[] {
   const result: CustomizationGroup[] = []
 
+  function filterGroupOptions(g: CustomizationGroup): CustomizationGroup {
+    if (!g.options) return g
+    const filteredOptions = g.options
+      .filter(opt => !disabledOptionIds.includes(opt._id?.toString() ?? '') && !disabledOptionIds.includes(opt.name))
+      .map(opt => {
+        if (!opt.subGroups?.length) return opt
+        const filteredSub = opt.subGroups
+          .filter(sg => !disabledGroupIds.includes(sg._id?.toString() ?? '') && !disabledGroupIds.includes(sg.name))
+          .map(sg => filterGroupOptions(sg))
+        return { ...opt, subGroups: filteredSub }
+      })
+    return { ...g, options: filteredOptions }
+  }
+
   function visit(groups: CustomizationGroup[]) {
-    for (const group of groups) {
+    for (const rawGroup of groups) {
+      if (disabledGroupIds.includes(rawGroup._id?.toString() ?? '') || disabledGroupIds.includes(rawGroup.name)) continue
+      const group = filterGroupOptions(rawGroup)
       result.push(group)
       const selectedNames = selections[group._id] ?? []
       for (const opt of group.options) {
@@ -94,8 +113,13 @@ export default function CustomizationSheet({
   isHalfAndHalf = false,
   halfPriceItems = [],
 }: Props) {
+  const disabledVariantNames: string[] = item.disabledVariantNames ?? []
+  const disabledGroupIds: string[] = item.disabledGroupIds ?? []
+  const disabledOptionIds: string[] = item.disabledOptionIds ?? []
+
   const rootGroups: CustomizationGroup[] = item.customizationGroups ?? []
-  const variants: VariantInfo[] = item.variants ?? []
+  const rawVariants: VariantInfo[] = item.variants ?? []
+  const variants: VariantInfo[] = rawVariants.filter(v => !disabledVariantNames.includes(v.name))
   const hasVariants = variants.length > 0
 
   const [selections, setSelections] = useState<Record<string, string[]>>({})
@@ -158,13 +182,13 @@ export default function CustomizationSheet({
   )
 
   const activeGroups = useMemo(() => {
-    const groups = computeActiveGroups(rootGroups, selections, variantGroups)
+    const groups = computeActiveGroups(rootGroups, selections, variantGroups, disabledGroupIds, disabledOptionIds)
     if (halfAvailable) {
       if (halfTypeSelection === 'Un sabor') return groups
       return [] // half UI is rendered by HalfAndHalfStep
     }
     return groups
-  }, [rootGroups, selections, variantGroups, halfAvailable, halfTypeSelection])
+  }, [rootGroups, selections, variantGroups, halfAvailable, halfTypeSelection, disabledGroupIds, disabledOptionIds])
 
   const isValid = useMemo(() => {
     if (halfAvailable) {
@@ -176,9 +200,16 @@ export default function CustomizationSheet({
     }
     return (
       (!hasVariants || selectedVariant != null) &&
-      activeGroups
-        .filter(g => g.required)
-        .every(g => (selections[g._id] ?? []).length > 0)
+      activeGroups.every(g => {
+        const count = (selections[g._id] ?? []).length
+        if (g.type === 'fixed') {
+          return count === (g.fixedCount ?? 1)
+        }
+        if (g.required) {
+          return count > 0
+        }
+        return true
+      })
     )
   }, [halfAvailable, halfTypeSelection, isHalfMode, firstHalfSelection, selections, hasVariants, selectedVariant, activeGroups])
 
@@ -285,6 +316,18 @@ export default function CustomizationSheet({
 
       if (group.type === 'single') {
         next = { ...prev, [group._id]: [optionName] }
+      } else if (group.type === 'fixed') {
+        const isAlreadySelected = current.includes(optionName)
+        const targetCount = group.fixedCount ?? 1
+        if (isAlreadySelected) {
+          next = { ...prev, [group._id]: current.filter(n => n !== optionName) }
+        } else if (current.length < targetCount) {
+          next = { ...prev, [group._id]: [...current, optionName] }
+        } else if (targetCount === 1) {
+          next = { ...prev, [group._id]: [optionName] }
+        } else {
+          next = prev
+        }
       } else {
         const isAlreadySelected = current.includes(optionName)
         next = {
@@ -295,7 +338,7 @@ export default function CustomizationSheet({
         }
       }
 
-      const newActiveGroups = computeActiveGroups(rootGroups, next, variantGroups)
+      const newActiveGroups = computeActiveGroups(rootGroups, next, variantGroups, disabledGroupIds, disabledOptionIds)
       const newActiveIds = new Set(newActiveGroups.map(g => g._id))
       for (const hg of halfSyntheticGroups) {
         newActiveIds.add(hg._id)

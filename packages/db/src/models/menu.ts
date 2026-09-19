@@ -35,7 +35,8 @@ export interface ICustomizationOption {
 export interface ICustomizationGroup {
   _id?: mongoose.Types.ObjectId
   name: string
-  type: "single" | "multiple"
+  type: "single" | "multiple" | "fixed"
+  fixedCount?: number
   required: boolean
   options: ICustomizationOption[]
   priceRule?: "sum" | "max" | "average"
@@ -66,6 +67,9 @@ export interface IMenuItem {
   suggestWith?: string[]
   variants?: IMenuItemVariant[]
   customizationGroups: ICustomizationGroup[]
+  disabledVariantNames?: string[]
+  disabledGroupIds?: string[]
+  disabledOptionIds?: string[]
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
   availabilityMode?: "always" | "scheduled"
@@ -136,7 +140,8 @@ CustomizationOptionSchema.add({
 
 CustomizationGroupSchema.add({
   name: { type: String, required: true },
-  type: { type: String, enum: ["single", "multiple"], default: "single" },
+  type: { type: String, enum: ["single", "multiple", "fixed"], default: "single" },
+  fixedCount: { type: Number, default: undefined },
   required: { type: Boolean, default: false },
   options: { type: [CustomizationOptionSchema], default: [] },
   priceRule: { type: String, enum: ["sum", "max", "average"], default: "sum" },
@@ -161,6 +166,9 @@ const MenuItemSchema = new Schema<IMenuItem>(
     suggestWith: { type: [String], default: [] },
     variants: { type: [MenuItemVariantSchema], default: [] },
     customizationGroups: { type: [CustomizationGroupSchema], default: [] },
+    disabledVariantNames: { type: [String], default: [] },
+    disabledGroupIds: { type: [String], default: [] },
+    disabledOptionIds: { type: [String], default: [] },
     nameTranslations: { en: { type: String } },
     descriptionTranslations: { en: { type: String } },
     availabilityMode: {

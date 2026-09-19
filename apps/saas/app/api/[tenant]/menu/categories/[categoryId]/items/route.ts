@@ -20,7 +20,7 @@ export async function POST(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const { locationId, name, description, price, takeawayPrice, businessPrice, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, subcategoryId, hiddenReward } = await request.json()
+    const { locationId, name, description, price, takeawayPrice, businessPrice, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, subcategoryId, hiddenReward, disabledVariantNames, disabledGroupIds, disabledOptionIds } = await request.json()
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -47,6 +47,9 @@ export async function POST(
       suggestWith: suggestWith || [],
       customizationGroups: customizationGroups || [],
       variants: variants || [],
+      disabledVariantNames: disabledVariantNames || [],
+      disabledGroupIds: disabledGroupIds || [],
+      disabledOptionIds: disabledOptionIds || [],
       nameTranslations: { en: nameEn },
       descriptionTranslations: { en: descEn },
       // Guardar precio original de lista al crear el item
@@ -87,7 +90,7 @@ export async function PUT(
     if (authError) return authError
 
     const body = await request.json()
-    const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice, hiddenReward } = body
+    const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice, hiddenReward, disabledVariantNames, disabledGroupIds, disabledOptionIds } = body
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) {
@@ -150,6 +153,9 @@ export async function PUT(
     if (suggestWith !== undefined) item.suggestWith = suggestWith
     if (customizationGroups !== undefined) item.customizationGroups = customizationGroups
     if (variants !== undefined) item.variants = variants
+    if (disabledVariantNames !== undefined) item.disabledVariantNames = disabledVariantNames
+    if (disabledGroupIds !== undefined) item.disabledGroupIds = disabledGroupIds
+    if (disabledOptionIds !== undefined) item.disabledOptionIds = disabledOptionIds
     if (availabilityMode !== undefined) item.availabilityMode = availabilityMode
     if (availabilitySchedule !== undefined) item.availabilitySchedule = availabilitySchedule
     // Permitir guardar explícitamente (para bulk update)
