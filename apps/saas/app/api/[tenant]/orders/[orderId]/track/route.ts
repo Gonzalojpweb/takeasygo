@@ -9,6 +9,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { NextRequest, NextResponse } from 'next/server'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
+import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
@@ -77,7 +78,7 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    const hasMpConfigured = tenant.mercadopago?.isConfigured && tenant.mercadopago?.accessToken
+    const hasMpConfigured = !!(tenant.mpAccounts?.length) || (tenant.mercadopago?.isConfigured && !!tenant.mercadopago?.accessToken)
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
       .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress deliveryProvider trackingToken trackingTokenUsedAt hiddenRewardClaims')
@@ -176,8 +177,14 @@ export async function POST(
     }
 
     // Si el pedido está esperando pago, verificamos el estado real en MercadoPago
-    if (order.status === 'awaiting_payment' && order.payment?.mercadopagoId && hasMpConfigured && tenant.mercadopago?.accessToken) {
-      const accessToken = decrypt(tenant.mercadopago.accessToken) as string
+    if (order.status === 'awaiting_payment' && order.payment?.mercadopagoId && hasMpConfigured) {
+      // Resolve MP account from Order (source of truth), fallback to active
+      const trackAccount = order.payment.mpAccountId
+        ? findMpAccountById(tenant, order.payment.mpAccountId)
+        : getActiveMpAccount(tenant)
+
+      if (trackAccount) {
+      const accessToken = decrypt(trackAccount.accessToken) as string
       const tenantId = (tenant as any)._id?.toString()
       const mpStatus = await verifyPaymentStatus(order, accessToken, tenantId)
 
@@ -202,8 +209,8 @@ export async function POST(
           dbOrder.status = 'cancelled'
           await dbOrder.save()
           currentStatus = 'cancelled'
-        }
       }
+      } // end if (trackAccount)
     }
 
     // Check if impact was registered for this order
