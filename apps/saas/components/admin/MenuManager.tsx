@@ -3559,26 +3559,30 @@ function QuickSubstituteModal({
   const [expandedGroup, setExpandedGroup] = useState<number | null>(0)
   const [saving, setSaving] = useState(false)
   const [newOptionName, setNewOptionName] = useState<Record<number, string>>({})
+  const [newGroupName, setNewGroupName] = useState('')
+  const [showAddGroup, setShowAddGroup] = useState(false)
 
   const originalGroups = deserializeGroups(item.customizationGroups ?? [])
-  const originalDisabled = item.disabledOptionIds ?? []
+  const originalDisabledOptionIds = item.disabledOptionIds ?? []
+  const originalDisabledVariantNames = item.disabledVariantNames ?? []
   const hasChanges =
     JSON.stringify(groups) !== JSON.stringify(originalGroups) ||
-    JSON.stringify(disabledOptionIds) !== JSON.stringify(originalDisabled)
+    JSON.stringify(disabledOptionIds) !== JSON.stringify(originalDisabledOptionIds) ||
+    JSON.stringify(disabledVariantNames) !== JSON.stringify(originalDisabledVariantNames)
 
-  function toggleOptionDisabled(optionName: string) {
+  const toggleOptionDisabled = (optionName: string) => {
     setDisabledOptionIds(prev =>
       prev.includes(optionName) ? prev.filter(n => n !== optionName) : [...prev, optionName]
     )
   }
 
-  function toggleVariantDisabled(variantName: string) {
+  const toggleVariantDisabled = (variantName: string) => {
     setDisabledVariantNames(prev =>
       prev.includes(variantName) ? prev.filter(n => n !== variantName) : [...prev, variantName]
     )
   }
 
-  function addOptionToGroup(groupIdx: number) {
+  const addOptionToGroup = (groupIdx: number) => {
     const name = (newOptionName[groupIdx] ?? '').trim()
     if (!name) return
     const updated = [...groups]
@@ -3590,13 +3594,39 @@ function QuickSubstituteModal({
     setNewOptionName(prev => ({ ...prev, [groupIdx]: '' }))
   }
 
-  function restoreOriginal() {
-    setGroups(originalGroups)
-    setDisabledOptionIds(originalDisabled)
-    setDisabledVariantNames(item.disabledVariantNames ?? [])
+  const addNewGroup = () => {
+    const name = newGroupName.trim()
+    if (!name) return
+    const newGroup: CustomizationGroupForm = {
+      name,
+      type: 'single',
+      options: [],
+    }
+    const updated = [...groups, newGroup]
+    setGroups(updated)
+    setExpandedGroup(updated.length - 1)
+    setNewGroupName('')
+    setShowAddGroup(false)
   }
 
-  async function handleSave() {
+  const removeOption = (groupIdx: number, optIdx: number) => {
+    const updated = [...groups]
+    const removedName = updated[groupIdx].options[optIdx].name
+    updated[groupIdx] = {
+      ...updated[groupIdx],
+      options: updated[groupIdx].options.filter((_, i) => i !== optIdx),
+    }
+    setGroups(updated)
+    setDisabledOptionIds(prev => prev.filter(n => n !== removedName))
+  }
+
+  const restoreOriginal = () => {
+    setGroups(originalGroups)
+    setDisabledOptionIds(originalDisabledOptionIds)
+    setDisabledVariantNames(originalDisabledVariantNames)
+  }
+
+  const handleSave = async () => {
     setSaving(true)
     try {
       const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items/${item._id}`, {
@@ -3629,6 +3659,7 @@ function QuickSubstituteModal({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         className="relative bg-white rounded-[2.5rem] shadow-2xl border border-border/60 w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-6 pb-4 border-b border-border/40">
@@ -3637,7 +3668,7 @@ function QuickSubstituteModal({
               <ArrowLeftRight size={18} className="text-primary" />
               Reemplazar ingrediente
             </h3>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted transition-colors">
+            <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-muted transition-colors">
               <X size={18} />
             </button>
           </div>
@@ -3656,9 +3687,10 @@ function QuickSubstituteModal({
                   return (
                     <button
                       key={v.name}
+                      type="button"
                       onClick={() => toggleVariantDisabled(v.name)}
                       className={cn(
-                        'px-3 py-1.5 rounded-xl text-xs font-medium border-2 transition-all',
+                        'px-3 py-1.5 rounded-xl text-xs font-medium border-2 transition-all cursor-pointer',
                         isDisabled
                           ? 'bg-red-50 border-red-200 text-red-500 line-through'
                           : 'bg-emerald-50 border-emerald-200 text-emerald-700'
@@ -3674,14 +3706,23 @@ function QuickSubstituteModal({
           )}
 
           {/* Customization groups */}
+          {groups.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Layers size={32} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm font-medium">Sin grupos de personalización</p>
+              <p className="text-xs mt-1">Agregá un grupo para poder reemplazar opciones</p>
+            </div>
+          )}
+
           {groups.map((group, gi) => {
             const isExpanded = expandedGroup === gi
             const disabledCount = group.options.filter(o => disabledOptionIds.includes(o.name)).length
             return (
               <div key={gi} className="border border-border/60 rounded-2xl overflow-hidden">
                 <button
+                  type="button"
                   onClick={() => setExpandedGroup(isExpanded ? null : gi)}
-                  className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
+                  className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold">{group.name}</span>
@@ -3707,9 +3748,10 @@ function QuickSubstituteModal({
                           isDisabled ? 'bg-red-50/50 opacity-60' : 'bg-muted/20'
                         )}>
                           <button
+                            type="button"
                             onClick={() => toggleOptionDisabled(opt.name)}
                             className={cn(
-                              'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all',
+                              'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all cursor-pointer',
                               isDisabled
                                 ? 'bg-amber-100 text-amber-600'
                                 : 'bg-emerald-100 text-emerald-600'
@@ -3727,6 +3769,14 @@ function QuickSubstituteModal({
                           {parseFloat(opt.extraPrice) > 0 && (
                             <span className="text-[10px] text-muted-foreground">+${toPesos(parseFloat(opt.extraPrice))}</span>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => removeOption(gi, oi)}
+                            className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer flex-shrink-0"
+                            title="Eliminar opción"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
                       )
                     })}
@@ -3734,16 +3784,25 @@ function QuickSubstituteModal({
                     {/* Add new option inline */}
                     <div className="flex items-center gap-2 pt-1">
                       <input
+                        type="text"
                         className={cn(inputCls, 'flex-1')}
-                        placeholder="Nueva opción..."
+                        placeholder="Nombre de la nueva opción..."
                         value={newOptionName[gi] ?? ''}
-                        onChange={e => setNewOptionName(prev => ({ ...prev, [gi]: e.target.value }))}
-                        onKeyDown={e => { if (e.key === 'Enter') addOptionToGroup(gi) }}
+                        onChange={e => {
+                          e.stopPropagation()
+                          setNewOptionName(prev => ({ ...prev, [gi]: e.target.value }))
+                        }}
+                        onKeyDown={e => {
+                          e.stopPropagation()
+                          if (e.key === 'Enter') addOptionToGroup(gi)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                       />
                       <button
+                        type="button"
                         onClick={() => addOptionToGroup(gi)}
                         disabled={!(newOptionName[gi] ?? '').trim()}
-                        className="h-8 px-3 rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors disabled:opacity-40"
+                        className="h-8 px-3 rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors disabled:opacity-40 cursor-pointer"
                       >
                         <Plus size={14} />
                       </button>
@@ -3753,28 +3812,81 @@ function QuickSubstituteModal({
               </div>
             )
           })}
+
+          {/* Add new group */}
+          {!showAddGroup ? (
+            <button
+              type="button"
+              onClick={() => setShowAddGroup(true)}
+              className="w-full py-3 border-2 border-dashed border-border/60 rounded-2xl text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors cursor-pointer"
+            >
+              <Plus size={14} className="inline mr-1" />
+              Agregar grupo de personalización
+            </button>
+          ) : (
+            <div className="border border-primary/30 rounded-2xl p-3 bg-primary/5">
+              <p className={labelCls}>Nuevo grupo</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  className={cn(inputCls, 'flex-1')}
+                  placeholder="Ej: Queso, Salsa, Bebida..."
+                  value={newGroupName}
+                  onChange={e => {
+                    e.stopPropagation()
+                    setNewGroupName(e.target.value)
+                  }}
+                  onKeyDown={e => {
+                    e.stopPropagation()
+                    if (e.key === 'Enter') addNewGroup()
+                    if (e.key === 'Escape') setShowAddGroup(false)
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={addNewGroup}
+                  disabled={!newGroupName.trim()}
+                  className="h-8 px-3 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-40 cursor-pointer"
+                >
+                  Agregar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddGroup(false)}
+                  className="h-8 px-2 rounded-xl text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="p-6 pt-4 border-t border-border/40 flex items-center justify-between">
           <button
+            type="button"
             onClick={restoreOriginal}
             disabled={!hasChanges}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 cursor-pointer"
           >
             Restaurar original
           </button>
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
+              type="button"
               onClick={handleSave}
               disabled={saving || !hasChanges}
-              className="px-6 py-2 rounded-xl text-xs font-bold bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-40"
+              className="px-6 py-2 rounded-xl text-xs font-bold bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-40 cursor-pointer"
             >
               {saving ? 'Guardando...' : 'Aplicar'}
             </button>
