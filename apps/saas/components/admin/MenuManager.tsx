@@ -2423,6 +2423,10 @@ function RecursiveGroupEditor({
   optFileRefs,
   uploadingOptKey,
   onImageUpload,
+  disabledGroupIds,
+  disabledOptionIds,
+  onToggleGroupDisabled,
+  onToggleOptionDisabled,
 }: {
   groups: CustomizationGroupForm[]
   onUpdate: (next: CustomizationGroupForm[]) => void
