@@ -747,6 +747,7 @@ OrderSchema.index({ tenantId: 1, locationId: 1, createdAt: -1 })
 OrderSchema.index({ tenantId: 1, 'customer.phoneHash': 1 })  // tasa de recompra
 OrderSchema.index({ tenantId: 1, scheduledPickupAt: 1, scheduledStatus: 1 })
 OrderSchema.index({ groupSessionToken: 1 }, { sparse: true })
+OrderSchema.index({ tenantId: 1, promoSlug: 1, 'customer.phoneHash': 1, createdAt: 1 }) // club audit
 
 const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema)
 export default Order
