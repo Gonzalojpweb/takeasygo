@@ -4,7 +4,7 @@ vi.hoisted(() => {
   process.env.MONGOMS_VERSION = '8.0.4'
   process.env.MONGOMS_DOWNLOAD_DIR = 'C:/Users/Gonzalo Palomo/.cache/mongodb-memory-server'
   process.env.MEMBER_TOKEN_SECRET = 'test-secret-for-integration'
-  process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef'
+  process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 })
 
 const { MongoMemoryServer } = await import('mongodb-memory-server')
