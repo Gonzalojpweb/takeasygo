@@ -196,6 +196,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
 ) {
+  let clubRedemptionIncremented = false
+  let activeQrPromo: any = null
   try {
     const { tenant: tenantSlug } = await params
     await connectDB()
@@ -223,7 +225,6 @@ export async function POST(
     }
 
     // Resolver la QrPromo activa para calcular el descuento correcto
-    let activeQrPromo: any = null
     const rawBody = await request.json()
     const parsed = createOrderSchema.safeParse(rawBody)
     if (!parsed.success) {
@@ -1114,6 +1115,7 @@ export async function POST(
         if (!updated) {
           return NextResponse.json({ error: 'Promo agotada' }, { status: 400 })
         }
+        clubRedemptionIncremented = true
       }
 
       // 6. Calcular descuento sobre subtotal elegible
@@ -1782,6 +1784,10 @@ export async function POST(
 
     return NextResponse.json({ order }, { status: 201 })
   } catch (error) {
+    // Rollback club redemption if usedCount was incremented but something failed after
+    if (clubRedemptionIncremented && activeQrPromo?._id) {
+      QrPromo.updateOne({ _id: activeQrPromo._id }, { $inc: { usedCount: -1 } }).catch(() => {})
+    }
     console.error('[orders] Error inesperado:', error instanceof Error ? { name: error.name, message: error.message, stack: error.stack?.split('\n').slice(0, 4).join('\n') } : error)
     return NextResponse.json({ error: 'Error al crear la orden' }, { status: 500 })
   }
