@@ -5,14 +5,17 @@ import { readFileSync } from 'fs'
 import crypto from 'crypto'
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const ENV_FILE = process.argv.includes('--production')
-  ? '../.env.production'
-  : '../.env.staging'
+const IS_PRODUCTION = process.argv.includes('--production')
+const DRY_RUN = process.argv.includes('--dry-run')
 
-config({ path: resolve(__dirname, ENV_FILE) })
+if (IS_PRODUCTION) {
+  // Production: load from sync .env.production (saas has no .env.production)
+  config({ path: resolve(__dirname, '../../sync/.env.production') })
+} else {
+  config({ path: resolve(__dirname, '../.env.staging') })
+}
 
 const MONGODB_URI = process.env.MONGODB_URI!
-const DRY_RUN = process.argv.includes('--dry-run')
 const TENANT_SLUG = 'que-cachapa'
 const CSV_PATH = resolve(__dirname, '../../../clientes_carga.csv')
 const BATCH_SIZE = 100
