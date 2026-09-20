@@ -63,6 +63,8 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
             checkoutDiscountLabel: data.promo.checkoutDiscountLabel || 'Descuento QR',
             promoSlug: slug || undefined,
             source: effectiveSource || undefined,
+            memberOnly: data.memberOnly ?? false,
+            cooldownHours: data.cooldownHours ?? 24,
           }))
         }
       }

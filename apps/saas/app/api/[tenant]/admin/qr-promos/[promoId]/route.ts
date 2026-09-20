@@ -53,6 +53,9 @@ export async function PUT(
       'badgeLabel', 'offLabel', 'takeawayWarningTitle', 'takeawayWarningText',
       'loadingText', 'checkoutDiscountLabel', 'sourceTriggers',
       'scheduledStart', 'scheduledEnd', 'locationId',
+      // Club Discount fields
+      'memberOnly', 'cooldownHours', 'clubScope',
+      'clubScopeCategoryIds', 'clubScopeItemIds', 'maxRedemptions',
     ]
 
     const updateData: Record<string, unknown> = {}

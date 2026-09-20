@@ -172,7 +172,12 @@ export default function CheckoutPaymentFooter() {
 
       const orderRes = await fetch(`/api/${tenantSlug}/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(localStorage.getItem(`club_token_${tenantSlug}`)
+            ? { 'x-member-token': localStorage.getItem(`club_token_${tenantSlug}`)! }
+            : {}),
+        },
         body: JSON.stringify(orderBody),
       })
 

@@ -132,6 +132,13 @@ export async function POST(
       loadingText: body.loadingText ?? 'Procesando...',
       checkoutDiscountLabel: body.checkoutDiscountLabel ?? 'Descuento QR',
       sourceTriggers: body.sourceTriggers ?? ['qr'],
+      // Club Discount fields
+      memberOnly: body.memberOnly ?? false,
+      cooldownHours: body.cooldownHours ?? 24,
+      clubScope: body.clubScope ?? 'all',
+      clubScopeCategoryIds: body.clubScopeCategoryIds ?? [],
+      clubScopeItemIds: body.clubScopeItemIds ?? [],
+      maxRedemptions: body.maxRedemptions ?? 0,
     })
 
     return NextResponse.json({ promo }, { status: 201 })

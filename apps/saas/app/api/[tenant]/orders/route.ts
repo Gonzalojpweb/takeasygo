@@ -41,6 +41,7 @@ import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
 import { pushOrderToSyncLayer, confirmOrderPaymentCore } from '@/lib/sync-layer'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
+import { verifyMemberToken } from '@/lib/memberToken'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -234,6 +235,38 @@ export async function POST(
     }
     const body = parsed.data
     const tenantId = tenant._id
+
+    // ── Member Token: validar token de miembro del club (header x-member-token) ──
+    let activeClubMember: any = null
+    const memberTokenHeader = request.headers.get('x-member-token')
+    if (memberTokenHeader) {
+      const tokenResult = await verifyMemberToken(memberTokenHeader)
+      if (tokenResult.valid) {
+        const p = tokenResult.payload
+        // Validar que el token pertenece a este tenant
+        if (p.tenantId === tenantId.toString()) {
+          const member = await LoyaltyMember.findOne({
+            _id: p.memberId,
+            tenantId: tenantId,
+            status: 'active',
+          }).lean()
+          if (member) {
+            // Validar que el phoneHash del token coincida con el phone del form
+            const formPhoneHash = body.customer.phone ? hashPhone(body.customer.phone) : null
+            if (formPhoneHash && formPhoneHash === p.phoneHash) {
+              // Validar tokenVersion (revocación)
+              if ((member as any).tokenVersion === p.version) {
+                activeClubMember = member
+              } else {
+                console.warn('[orders] Member token version mismatch:', { memberId: p.memberId, expected: (member as any).tokenVersion, got: p.version })
+              }
+            } else {
+              console.warn('[orders] Member token phoneHash mismatch:', { memberId: p.memberId })
+            }
+          }
+        }
+      }
+    }
 
     function addSchedulingFilter(query: any) {
       const now = new Date()
@@ -482,6 +515,7 @@ export async function POST(
           menuItemMap.set(item._id.toString(), { 
             ...item.toObject(), 
             categoryName: category.name,
+            categoryId: category._id,
             categoryCustomizationGroups: category.customizationGroups || [],
             printRole: category.printRole || 'kitchen',
           })
@@ -500,6 +534,7 @@ export async function POST(
             menuItemMap.set(item._id.toString(), {
               ...item.toObject(),
               categoryName: subcategory.name,
+              categoryId: category._id,
               categoryCustomizationGroups: [
                 ...(category.customizationGroups || []),
                 ...(subcategory.customizationGroups || []),
@@ -961,6 +996,7 @@ export async function POST(
           promotionId: null,
           itemType: 'menuItem',
           categoryName: menuItem.categoryName || '',
+          categoryId: menuItem.categoryId || null,
           name: menuItem.name,
           description: menuItem.description || '',
           basePrice,
@@ -1008,6 +1044,81 @@ export async function POST(
         }
         return NextResponse.json({ error: 'Ya usaste este código' }, { status: 400 })
       }
+    }
+
+    // ── CLUB DISCOUNT: validación completa para promos memberOnly ──────────
+    // Orden: token → member status → cooldown → maxUsesPerConsumer → scope → maxRedemptions (atómico)
+    if (activeQrPromo?.memberOnly && (activeQrPromo.discountPercentage || 0) > 0) {
+      // 1. Requerir miembro activo del club (token validado en Fase 1)
+      if (!activeClubMember) {
+        return NextResponse.json({ error: 'Se requiere ser miembro del club para usar esta promo' }, { status: 403 })
+      }
+
+      // 2. Validar cooldown: horas desde createdAt del miembro
+      const hoursSinceJoin = (Date.now() - new Date(activeClubMember.createdAt).getTime()) / (1000 * 60 * 60)
+      const cooldownHours = activeQrPromo.cooldownHours ?? 24
+      if (hoursSinceJoin < cooldownHours) {
+        const hoursRemaining = Math.ceil(cooldownHours - hoursSinceJoin)
+        return NextResponse.json({
+          error: `Descuento disponible en ${hoursRemaining} hora${hoursRemaining !== 1 ? 's' : ''}`,
+          code: 'COOLDOWN_ACTIVE',
+          hoursRemaining,
+        }, { status: 400 })
+      }
+
+      // 3. Validar maxUsesPerConsumer (forzado para promos club, sin importar si tiene code)
+      if (body.customer.phone) {
+        const memberUses = await Order.countDocuments({
+          promoSlug: activeQrPromo.slug,
+          'customer.phoneHash': hashPhone(body.customer.phone),
+          status: { $ne: 'cancelled' },
+          'payment.status': { $ne: 'cancelled' },
+        })
+        if (memberUses >= (activeQrPromo.maxUsesPerConsumer ?? 1)) {
+          return NextResponse.json({ error: 'Ya usaste esta promo de club' }, { status: 400 })
+        }
+      }
+
+      // 4. Validar scope: ¿hay items elegibles en el carrito?
+      let eligibleSubtotal = 0
+      if (activeQrPromo.clubScope === 'all') {
+        eligibleSubtotal = resolvedItems
+          .filter(item => item.itemType !== 'promotion')
+          .reduce((sum, item) => sum + item.subtotal, 0)
+      } else if (activeQrPromo.clubScope === 'category' && activeQrPromo.clubScopeCategoryIds?.length) {
+        const eligibleCategoryIds = new Set(activeQrPromo.clubScopeCategoryIds.map(id => id.toString()))
+        eligibleSubtotal = resolvedItems
+          .filter(item => item.itemType !== 'promotion' && item.categoryId && eligibleCategoryIds.has(item.categoryId.toString()))
+          .reduce((sum, item) => sum + item.subtotal, 0)
+      } else if (activeQrPromo.clubScope === 'item' && activeQrPromo.clubScopeItemIds?.length) {
+        const eligibleItemIds = new Set(activeQrPromo.clubScopeItemIds.map(id => id.toString()))
+        eligibleSubtotal = resolvedItems
+          .filter(item => item.itemType !== 'promotion' && item.menuItemId && eligibleItemIds.has(item.menuItemId.toString()))
+          .reduce((sum, item) => sum + item.subtotal, 0)
+      }
+
+      if (eligibleSubtotal <= 0) {
+        return NextResponse.json({
+          error: 'Tu carrito no tiene productos elegibles para esta promo',
+          code: 'NO_ELIGIBLE_ITEMS',
+        }, { status: 400 })
+      }
+
+      // 5. Validar maxRedemptions (atómico: findOneAndUpdate con $lt)
+      if ((activeQrPromo.maxRedemptions ?? 0) > 0) {
+        const updated = await QrPromo.findOneAndUpdate(
+          { _id: activeQrPromo._id, $expr: { $lt: ['$usedCount', '$maxRedemptions'] } },
+          { $inc: { usedCount: 1 } },
+          { new: true },
+        )
+        if (!updated) {
+          return NextResponse.json({ error: 'Promo agotada' }, { status: 400 })
+        }
+      }
+
+      // 6. Calcular descuento sobre subtotal elegible
+      discountAmount = Math.floor(eligibleSubtotal * (activeQrPromo.discountPercentage / 100))
+      qrPromoApplied = true
     }
 
     if (paymentMethod !== 'cash' && activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {

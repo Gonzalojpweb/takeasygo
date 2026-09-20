@@ -84,6 +84,7 @@ export const createOrderSchema = z.object({
   baseTotal: z.number().min(0).optional(),
   surchargePercent: z.number().min(0).optional().default(0),
   sessionId: z.string().optional(),
+  memberToken: z.string().optional(),
 })
 
 export const deliveryQuoteSchema = z.object({
