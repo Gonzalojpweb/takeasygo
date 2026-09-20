@@ -93,10 +93,45 @@ export async function POST(
     })
 
     if (existing) {
+      // Member existe: aggiornar deviceFingerprints con FIFO (máx 3)
+      const current = (existing as any).deviceFingerprints || []
+      if (!current.includes(deviceId)) {
+        const updated = [...current, deviceId].slice(-3) // FIFO: últimos 3
+        await LoyaltyMember.updateOne(
+          { _id: existing._id },
+          { $set: { deviceFingerprints: updated } },
+        )
+      }
+
+      // Re-emitir token para member existente
+      let memberToken: string | null = null
+      try {
+        memberToken = await signMemberToken(
+          existing._id.toString(),
+          tenant._id.toString(),
+          phone,
+          (existing as any).tokenVersion ?? 1,
+        )
+      } catch (e) {
+        console.error('[memberToken] Failed to re-sign token:', e)
+      }
+
       return NextResponse.json({
-        error: 'Este número ya está registrado en el club',
-        code: 'ALREADY_REGISTERED',
-      }, { status: 409 })
+        success: true,
+        member: {
+          _id: existing._id,
+          name: (existing as any).name,
+          publicId: (existing as any).wallet?.publicId,
+        },
+        user: {
+          _id: (existing as any).userId,
+          name: (existing as any).name,
+          email: (existing as any).email,
+        },
+        memberToken,
+        welcomePoints: 0,
+        reissued: true,
+      })
     }
 
     let welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0

@@ -203,6 +203,10 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
     deviceFingerprints: {
       type:    [String],
       default: [],
+      validate: {
+        validator: (v: string[]) => v.length <= 3,
+        message:   'Máximo 3 device fingerprints por miembro',
+      },
     },
 
     // Estadísticas de Store
