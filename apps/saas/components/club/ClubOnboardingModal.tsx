@@ -131,7 +131,7 @@ export default function ClubOnboardingModal({
         })
       }
 
-      // Save membership to localStorage for menu badge
+      // Save membership to localStorage for menu badge + member token for club promo
       try {
         localStorage.setItem(`club_${tenantSlug}`, JSON.stringify({
           name: formData.name,
@@ -139,6 +139,9 @@ export default function ClubOnboardingModal({
           points: wp,
           joinedAt: new Date().toISOString(),
         }))
+        if (data.memberToken) {
+          localStorage.setItem(`club_token_${tenantSlug}`, data.memberToken)
+        }
       } catch { /* localStorage not available */ }
 
       goNext() // Go to success step

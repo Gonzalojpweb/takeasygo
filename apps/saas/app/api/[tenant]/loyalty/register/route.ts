@@ -3,8 +3,20 @@ import Tenant from '@/models/Tenant'
 import User from '@/models/User'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { hashPhone } from '@/lib/crypto'
+import { signMemberToken } from '@/lib/memberToken'
+import { rateLimit } from '@/lib/rateLimit'
 import { requireLocationId } from '@/lib/loyalty-location'
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
+
+/** Generate best-effort device fingerprint from request headers */
+function generateDeviceId(request: NextRequest): string {
+  const ua = request.headers.get('user-agent') || ''
+  const ip = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() || 'unknown'
+  const ipPrefix = ip.split('.').slice(0, 3).join('.')
+  const lang = request.headers.get('accept-language') || ''
+  return crypto.createHash('sha256').update(`${ua}|${ipPrefix}|${lang}`).digest('hex').slice(0, 32)
+}
 
 export async function POST(
   request: NextRequest,
@@ -24,6 +36,21 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id pointsConfig.welcomePoints loyalty.perLocation')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    }
+
+    // ── Rate-limit: 1 afiliación por device en 24h, 3 por IP en 24h ──────
+    const deviceId = generateDeviceId(request)
+    const ip = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() || 'unknown'
+    const ipPrefix = ip.split('.').slice(0, 3).join('.')
+    const DAY_MS = 86_400_000
+
+    const { success: deviceOk } = await rateLimit(`club-register:${tenant._id}:${deviceId}`, 1, DAY_MS)
+    if (!deviceOk) {
+      return NextResponse.json({ error: 'Demasiadas afiliaciones desde este dispositivo. Intentá mañana.' }, { status: 429 })
+    }
+    const { success: ipOk } = await rateLimit(`club-register-ip:${tenant._id}:${ipPrefix}`, 3, DAY_MS)
+    if (!ipOk) {
+      return NextResponse.json({ error: 'Demasiadas afiliaciones desde esta red. Intentá más tarde.' }, { status: 429 })
     }
 
     let locationId: import('mongoose').Types.ObjectId | null = null
@@ -84,8 +111,22 @@ export async function POST(
       status: 'active',
       joinedAt: new Date(),
       'loyalty.points': welcomePoints,
+      deviceFingerprints: [deviceId],
       ...(locationId ? { locationId } : {})
     })
+
+    // Emitir token de miembro para promo club (JWT, exp 90 días)
+    let memberToken: string | null = null
+    try {
+      memberToken = await signMemberToken(
+        member._id.toString(),
+        tenant._id.toString(),
+        phone,
+        member.tokenVersion ?? 1,
+      )
+    } catch (e) {
+      console.error('[memberToken] Failed to sign token:', e)
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -94,6 +135,7 @@ export async function POST(
         name: member.name,
         publicId: member.wallet?.publicId
       },
+      memberToken,
       welcomePoints
     })
 

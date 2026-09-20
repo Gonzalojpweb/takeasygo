@@ -34,6 +34,13 @@ interface QrPromoItem {
   sourceTriggers: string[]
   /** Sede a la que está acotada la promo. null = todas las sedes (explícito) */
   locationId?: string | null
+  // Club Discount fields
+  memberOnly?: boolean
+  cooldownHours?: number
+  clubScope?: 'all' | 'category' | 'item'
+  clubScopeCategoryIds?: string[]
+  clubScopeItemIds?: string[]
+  maxRedemptions?: number
 }
 
 interface LocationOption {
@@ -710,6 +717,130 @@ function PromoEditor({ data, tenantSlug, onChange, onSave, saving }: PromoEditor
         <p className="text-xs text-gray-400 mt-1">
           Si no se configura fecha, la promo estará activa mientras esté habilitada.
         </p>
+      </div>
+
+      {/* ── Club Discount ───────────────────────────────────────────────── */}
+      <div className="border-t border-gray-100 pt-4">
+        <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+          <Star size={16} className="text-[#F74211]" />
+          Club — Descuento exclusivo para miembros
+        </label>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Solo miembros del club</p>
+              <p className="text-xs text-gray-400">Solo los miembros activos del club pueden usar esta promo</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange({ memberOnly: !data.memberOnly })}
+              className={cn(
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                data.memberOnly ? 'bg-[#F74211]' : 'bg-gray-200'
+              )}
+            >
+              <span className={cn(
+                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                data.memberOnly ? 'translate-x-6' : 'translate-x-1'
+              )} />
+            </button>
+          </div>
+
+          {data.memberOnly && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Cooldown (horas desde registro)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={data.cooldownHours ?? 24}
+                    onChange={(e) => onChange({ cooldownHours: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">El miembro debe esperar estas horas después de afiliarse</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Tope total de canjes</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={data.maxRedemptions ?? 0}
+                    onChange={(e) => onChange({ maxRedemptions: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#F74211]/30"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">0 = sin límite</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-2 block">Alcance del descuento</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'all' as const, label: 'Toda la carta' },
+                    { value: 'category' as const, label: 'Categoría' },
+                    { value: 'item' as const, label: 'Producto' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => onChange({ clubScope: opt.value })}
+                      className={cn(
+                        'p-2 rounded-lg border-2 text-xs font-medium text-left transition-all',
+                        data.clubScope === opt.value
+                          ? 'border-[#F74211] bg-[#F74211]/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {data.clubScope === 'category' && (
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Categorías elegibles (IDs separados por coma)</label>
+                  <input
+                    type="text"
+                    value={data.clubScopeCategoryIds?.join(', ') || ''}
+                    onChange={(e) => onChange({ clubScopeCategoryIds: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                    placeholder="id1, id2, id3"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#F74211]/30"
+                  />
+                </div>
+              )}
+
+              {data.clubScope === 'item' && (
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Productos elegibles (IDs separados por coma)</label>
+                  <input
+                    type="text"
+                    value={data.clubScopeItemIds?.join(', ') || ''}
+                    onChange={(e) => onChange({ clubScopeItemIds: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                    placeholder="id1, id2, id3"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#F74211]/30"
+                  />
+                </div>
+              )}
+
+              {/* Audit button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const slug = data.slug
+                    if (!slug) return
+                    window.open(`/api/${tenantSlug}/admin/club-audit?promoSlug=${slug}`, '_blank')
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                >
+                  📊 Ver auditoría de abuso (primeras 48h)
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Textos del Banner */}

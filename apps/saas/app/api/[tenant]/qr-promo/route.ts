@@ -27,6 +27,10 @@ interface PromoShape {
   checkoutDiscountLabel?: string
   sourceTriggers?: string[]
   locationId?: string | null
+  // Club Discount fields
+  memberOnly?: boolean
+  cooldownHours?: number
+  clubScope?: 'all' | 'category' | 'item'
 }
 
 function addSchedulingFilter(query: any) {
@@ -206,6 +210,8 @@ export async function GET(
         slug: resolvedSlug,
       },
       resolvedSlug,
+      memberOnly: qrPromoConfig.memberOnly ?? false,
+      cooldownHours: qrPromoConfig.cooldownHours ?? 24,
       loyaltyMessaging: tenant.loyaltyMessaging,
       tenantName: tenant.name,
     })

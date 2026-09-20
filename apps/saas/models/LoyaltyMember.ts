@@ -45,6 +45,11 @@ export interface ILoyaltyMember extends Document {
     sosUsed: number // Deuda acumulada actual (cuántos puntos debe en total)
   }
 
+  // Token de miembro para promo club (JWT)
+  tokenVersion: number
+  // Fingerprint de dispositivo para anti-abuso (máx 3, FIFO)
+  deviceFingerprints: string[]
+
   /** Última vez que se intentó contactar por WhatsApp Reward Advance */
   lastRewardAdvanceAttemptedAt?: Date | null
   /** Quién disparó el último intento (para atribución de ventas TGO APP) */
@@ -186,6 +191,18 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
       type:    String,
       enum:    ['admin', 'superadmin'],
       default: null,
+    },
+
+    // Token de miembro para promo club — se incrementa para invalidar tokens existentes
+    tokenVersion: {
+      type:    Number,
+      default: 1,
+    },
+
+    // Fingerprint de dispositivo — array de hashes, máximo 3 (rotación FIFO)
+    deviceFingerprints: {
+      type:    [String],
+      default: [],
     },
 
     // Estadísticas de Store

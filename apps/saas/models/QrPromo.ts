@@ -29,6 +29,20 @@ export interface IQrPromo extends Document {
   maxUses?: number
   usedCount: number
   maxUsesPerConsumer: number
+  // ── Club Discount fields ────────────────────────────────────────────────
+  /** Solo miembros del club pueden usar esta promo */
+  memberOnly: boolean
+  /** Horas mínimas desde el registro del miembro antes de poder usar la promo */
+  cooldownHours: number
+  /** Alcance del descuento: toda la carta, categoría específica, o producto específico */
+  clubScope: 'all' | 'category' | 'item'
+  /** IDs de categorías elegibles (cuando clubScope='category') */
+  clubScopeCategoryIds: mongoose.Types.ObjectId[]
+  /** IDs de productos elegibles (cuando clubScope='item') */
+  clubScopeItemIds: mongoose.Types.ObjectId[]
+  /** Tope total de canjes (0 = sin límite) */
+  maxRedemptions: number
+  // ── End Club Discount fields ────────────────────────────────────────────
   createdBy: 'superadmin' | 'admin'
   createdAt: Date
   updatedAt: Date
@@ -91,6 +105,14 @@ const QrPromoSchema = new Schema<IQrPromo>(
     maxUses: { type: Number },
     usedCount: { type: Number, default: 0, min: 0 },
     maxUsesPerConsumer: { type: Number, default: 1, min: 1 },
+    // ── Club Discount fields ────────────────────────────────────────────────
+    memberOnly: { type: Boolean, default: false },
+    cooldownHours: { type: Number, default: 24, min: 0 },
+    clubScope: { type: String, enum: ['all', 'category', 'item'], default: 'all' },
+    clubScopeCategoryIds: [{ type: Schema.Types.ObjectId, ref: 'Category' }],
+    clubScopeItemIds: [{ type: Schema.Types.ObjectId, ref: 'MenuItem' }],
+    maxRedemptions: { type: Number, default: 0, min: 0 },
+    // ── End Club Discount fields ────────────────────────────────────────────
     createdBy: { type: String, enum: ['superadmin', 'admin'], default: 'admin' },
   },
   {

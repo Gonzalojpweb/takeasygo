@@ -59,6 +59,8 @@ export interface ActiveQrPromo {
   checkoutDiscountLabel?: string
   promoSlug?: string
   source?: string
+  memberOnly?: boolean
+  cooldownHours?: number
 }
 
 export interface EstimatedTimeInfo {
@@ -431,6 +433,8 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
             checkoutDiscountLabel: parsed.checkoutDiscountLabel,
             promoSlug: parsed.promoSlug,
             source: parsed.source,
+            memberOnly: parsed.memberOnly ?? false,
+            cooldownHours: parsed.cooldownHours ?? 24,
           }})
         }
       } catch {}
