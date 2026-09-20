@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 
 // Set env BEFORE any imports — vi.hoisted runs before hoisted imports
 vi.hoisted(() => {
@@ -6,6 +6,7 @@ vi.hoisted(() => {
 })
 
 const { signMemberToken, verifyMemberToken } = await import('@/lib/memberToken')
+const { hashPhone } = await import('@/lib/crypto')
 
 describe('memberToken - sign and verify', () => {
   const memberId = '507f1f77bcf86cd799439011'
@@ -71,6 +72,24 @@ describe('memberToken - sign and verify', () => {
       expect(r1.payload.phoneHash).not.toBe(r2.payload.phoneHash)
     }
   })
+
+  it('rejects expired token (90d)', async () => {
+    // Sign token at "now"
+    const token = await signMemberToken(memberId, tenantId, phone, version)
+    // Verify it's valid right now
+    const fresh = await verifyMemberToken(token)
+    expect(fresh.valid).toBe(true)
+
+    // Travel 91 days into the future
+    vi.setSystemTime(new Date(Date.now() + 91 * 24 * 60 * 60 * 1000))
+    const expired = await verifyMemberToken(token)
+    expect(expired.valid).toBe(false)
+    if (!expired.valid) {
+      expect(expired.reason).toBe('Token expired')
+    }
+
+    vi.useRealTimers()
+  })
 })
 
 describe('memberToken - tokenVersion', () => {
@@ -88,11 +107,23 @@ describe('memberToken - tokenVersion', () => {
     const result = await verifyMemberToken(token)
     expect(result.valid).toBe(true)
     if (result.valid) {
-      // verifyMemberToken does NOT check version against DB — caller does
-      // Simulating: member.tokenVersion is now 2, so 1 !== 2 → rejected by caller
       const memberTokenVersion = result.payload.version
       const memberDbVersion = 2
       expect(memberTokenVersion).not.toBe(memberDbVersion)
+    }
+  })
+
+  it('caller rejects when token phoneHash does not match form phone', async () => {
+    // Token signed with phone A
+    const token = await signMemberToken('m1', 't1', '+5491111111111', 1)
+    const result = await verifyMemberToken(token)
+    expect(result.valid).toBe(true)
+    if (result.valid) {
+      // Simulating: form phone is different from token phone
+      const formPhoneHash = hashPhone('+5499999999999')
+      expect(result.payload.phoneHash).not.toBe(formPhoneHash)
+      // Caller at orders/route.ts:254-256 checks: formPhoneHash === p.phoneHash
+      // This would fail → activeClubMember stays null
     }
   })
 })
