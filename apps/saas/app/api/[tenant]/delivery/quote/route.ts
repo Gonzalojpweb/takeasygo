@@ -97,6 +97,9 @@ export async function POST(
     })
   } catch (error: any) {
     console.error('[delivery/quote] error:', error)
-    return NextResponse.json({ error: 'Error al calcular el costo de envío.' }, { status: 500 })
+    return NextResponse.json({
+      error: 'Error al calcular el costo de envío.',
+      details: error.message || String(error),
+    }, { status: 500 })
   }
 }
