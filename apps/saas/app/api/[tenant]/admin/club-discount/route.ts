@@ -76,7 +76,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { scope, categoryIds, subcategoryIds, itemIds, discountPercent, cooldownHours, maxRedemptions } = body
+    const { scope, categoryIds, subcategoryIds, itemIds, discountPercent, cooldownHours, maxRedemptions, maxUsesPerConsumer } = body
 
     // Validaciones
     if (!scope || !['all', 'category', 'subcategory', 'item'].includes(scope)) {
@@ -112,6 +112,7 @@ export async function POST(
       discountPercent,
       cooldownHours: cooldownHours ?? 24,
       maxRedemptions: maxRedemptions ?? 0,
+      maxUsesPerConsumer: maxUsesPerConsumer ?? 0,
       active: true,
       createdBy: adminId,
     })

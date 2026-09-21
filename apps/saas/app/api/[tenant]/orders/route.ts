@@ -1019,6 +1019,7 @@ export async function POST(
     const subtotal = resolvedItems.reduce((sum, item) => sum + item.subtotal, 0)
     const paymentMethod = body.paymentMethod || 'mercadopago'
     let discountAmount = 0
+    let clubDiscountApplied = false
     let qrPromoApplied = false
 
     // ── Descuento propio del restaurante para pago en efectivo ──────────
@@ -1132,47 +1133,64 @@ export async function POST(
         // 1. Cooldown: horas desde createdAt del miembro
         const hoursSinceJoin = (Date.now() - new Date(activeClubMember.createdAt).getTime()) / (1000 * 60 * 60)
         if (hoursSinceJoin < (clubDiscount.cooldownHours ?? 24)) {
-          // Cooldown activo — no aplica descuento, pero no es error (el miembro simplemente no lo ve)
+          // Cooldown activo — no aplica descuento
         } else {
-          // 2. Determinar items elegibles según scope
-          let eligibleSubtotal = 0
-          if (clubDiscount.scope === 'all') {
-            eligibleSubtotal = resolvedItems
-              .filter(item => item.itemType !== 'promotion')
-              .reduce((sum, item) => sum + item.subtotal, 0)
-          } else if (clubDiscount.scope === 'category' && clubDiscount.categoryIds?.length) {
-            const eligibleIds = new Set(clubDiscount.categoryIds.map(id => id.toString()))
-            eligibleSubtotal = resolvedItems
-              .filter(item => item.itemType !== 'promotion' && item.categoryId && eligibleIds.has(item.categoryId.toString()))
-              .reduce((sum, item) => sum + item.subtotal, 0)
-          } else if (clubDiscount.scope === 'subcategory' && clubDiscount.subcategoryIds?.length) {
-            const eligibleIds = new Set(clubDiscount.subcategoryIds.map(id => id.toString()))
-            eligibleSubtotal = resolvedItems
-              .filter(item => item.itemType !== 'promotion' && item.subcategoryId && eligibleIds.has(item.subcategoryId.toString()))
-              .reduce((sum, item) => sum + item.subtotal, 0)
-          } else if (clubDiscount.scope === 'item' && clubDiscount.itemIds?.length) {
-            const eligibleIds = new Set(clubDiscount.itemIds.map(id => id.toString()))
-            eligibleSubtotal = resolvedItems
-              .filter(item => item.itemType !== 'promotion' && item.menuItemId && eligibleIds.has(item.menuItemId.toString()))
-              .reduce((sum, item) => sum + item.subtotal, 0)
+          // 2. maxUsesPerConsumer: contar órdenes previas del miembro con club discount
+          let consumerUsedCount = 0
+          if ((clubDiscount.maxUsesPerConsumer ?? 0) > 0) {
+            const Order = (await import('@/models/Order')).default
+            consumerUsedCount = await Order.countDocuments({
+              tenantId,
+              'customerInfo.phoneHash': activeClubMember.phoneHash,
+              clubDiscountApplied: true,
+            })
           }
 
-          if (eligibleSubtotal > 0) {
-            // 3. Validar maxRedemptions (atómico)
-            if ((clubDiscount.maxRedemptions ?? 0) > 0) {
-              const updated = await ClubDiscount.findOneAndUpdate(
-                { _id: clubDiscount._id, $expr: { $lt: ['$usedCount', '$maxRedemptions'] } },
-                { $inc: { usedCount: 1 } },
-                { new: true },
-              )
-              if (!updated) {
-                // Promo agotada — no aplica descuento
+          if ((clubDiscount.maxUsesPerConsumer ?? 0) > 0 && consumerUsedCount >= clubDiscount.maxUsesPerConsumer) {
+            // Miembro ya agotó sus usos — no aplica descuento
+          } else {
+            // 3. Determinar items elegibles según scope
+            let eligibleSubtotal = 0
+            if (clubDiscount.scope === 'all') {
+              eligibleSubtotal = resolvedItems
+                .filter(item => item.itemType !== 'promotion')
+                .reduce((sum, item) => sum + item.subtotal, 0)
+            } else if (clubDiscount.scope === 'category' && clubDiscount.categoryIds?.length) {
+              const eligibleIds = new Set(clubDiscount.categoryIds.map(id => id.toString()))
+              eligibleSubtotal = resolvedItems
+                .filter(item => item.itemType !== 'promotion' && item.categoryId && eligibleIds.has(item.categoryId.toString()))
+                .reduce((sum, item) => sum + item.subtotal, 0)
+            } else if (clubDiscount.scope === 'subcategory' && clubDiscount.subcategoryIds?.length) {
+              const eligibleIds = new Set(clubDiscount.subcategoryIds.map(id => id.toString()))
+              eligibleSubtotal = resolvedItems
+                .filter(item => item.itemType !== 'promotion' && item.subcategoryId && eligibleIds.has(item.subcategoryId.toString()))
+                .reduce((sum, item) => sum + item.subtotal, 0)
+            } else if (clubDiscount.scope === 'item' && clubDiscount.itemIds?.length) {
+              const eligibleIds = new Set(clubDiscount.itemIds.map(id => id.toString()))
+              eligibleSubtotal = resolvedItems
+                .filter(item => item.itemType !== 'promotion' && item.menuItemId && eligibleIds.has(item.menuItemId.toString()))
+                .reduce((sum, item) => sum + item.subtotal, 0)
+            }
+
+            if (eligibleSubtotal > 0) {
+              // 4. Validar maxRedemptions (atómico)
+              if ((clubDiscount.maxRedemptions ?? 0) > 0) {
+                const updated = await ClubDiscount.findOneAndUpdate(
+                  { _id: clubDiscount._id, $expr: { $lt: ['$usedCount', '$maxRedemptions'] } },
+                  { $inc: { usedCount: 1 } },
+                  { new: true },
+                )
+                if (!updated) {
+                  // Promo agotada — no aplica descuento
+                } else {
+                  discountAmount = Math.floor(eligibleSubtotal * (clubDiscount.discountPercent / 100))
+                  clubDiscountApplied = true
+                }
               } else {
+                // Sin tope — aplicar directo
                 discountAmount = Math.floor(eligibleSubtotal * (clubDiscount.discountPercent / 100))
+                clubDiscountApplied = true
               }
-            } else {
-              // Sin tope — aplicar directo
-              discountAmount = Math.floor(eligibleSubtotal * (clubDiscount.discountPercent / 100))
             }
           }
         }
@@ -1602,6 +1620,7 @@ export async function POST(
       subtotal,
       discountAmount,
       qrPromoApplied,
+      clubDiscountApplied,
       total: pricing.finalTotal,
       customer: {
         ...encryptedCustomer,

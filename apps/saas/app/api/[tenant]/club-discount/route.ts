@@ -27,7 +27,7 @@ export async function GET(
       tenantId: tenant._id,
       active: true,
     })
-      .select('scope categoryIds subcategoryIds itemIds discountPercent cooldownHours')
+      .select('scope categoryIds subcategoryIds itemIds discountPercent cooldownHours maxUsesPerConsumer')
       .lean()
 
     if (!discount) {
@@ -42,6 +42,7 @@ export async function GET(
         itemIds: discount.itemIds,
         discountPercent: discount.discountPercent,
         cooldownHours: discount.cooldownHours,
+        maxUsesPerConsumer: discount.maxUsesPerConsumer ?? 0,
       },
     })
   } catch (error) {
