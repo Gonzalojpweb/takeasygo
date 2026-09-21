@@ -67,6 +67,12 @@ async function rapiboyFetch<T>(
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 3000)
 
+  // Log del payload completo antes de enviar
+  if (options.body) {
+    console.log(`[Rapiboy] ${options.method || 'GET'} ${baseUrl}${path}`)
+    console.log(`[Rapiboy Payload]`, options.body)
+  }
+
   try {
     const res = await fetch(`${baseUrl}${path}`, {
       ...options,
@@ -74,12 +80,13 @@ async function rapiboyFetch<T>(
       signal: controller.signal,
     })
 
+    const responseBody = await res.text()
+
     if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      throw new RapiboyError(`RapiBoy API error ${res.status}: ${body}`, res.status, body)
+      throw new RapiboyError(`RapiBoy API error ${res.status}: ${responseBody}`, res.status, responseBody)
     }
 
-    return res.json() as Promise<T>
+    return JSON.parse(responseBody) as Promise<T>
   } finally {
     clearTimeout(timeout)
   }
@@ -127,9 +134,10 @@ export async function cotizarOnDemand(
 }
 
 /**
- * Crear viaje OnDemand.
+ * Crear viaje OnDemandSmart.
  * El pedido ya está listo (TiempoDeCocina: 0).
  * Si la cotización expira, hay que re-cotizar y crear de nuevo.
+ * Endpoint: POST /v1/OnDemandSmart/crear
  */
 export async function crearViajeOnDemand(
   params: {
@@ -143,23 +151,17 @@ export async function crearViajeOnDemand(
   },
   config: RapiboyConfig,
 ): Promise<CrearViajeResult> {
-  const result = await rapiboyFetch<any>(config, '/api/v1/ondemand/crear', {
+  const result = await rapiboyFetch<any>(config, '/v1/OnDemandSmart/crear', {
     method: 'POST',
     body: JSON.stringify({
       CodigoPlataforma: config.codigoPlataforma,
       ReferenciaExterna: params.orderNumber,
-      Origen: {
-        Direccion: params.origen.address || '',
-        Latitud: params.origen.lat,
-        Longitud: params.origen.lng,
-      },
-      Destino: {
-        Direccion: params.destino.address || '',
-        Latitud: params.destino.lat,
-        Longitud: params.destino.lng,
-      },
-      NombreCliente: params.customerName,
-      TelefonoCliente: params.customerPhone,
+      LatitudOrigen: params.origen.lat,
+      LongitudOrigen: params.origen.lng,
+      LatitudDestino: params.destino.lat,
+      LongitudDestino: params.destino.lng,
+      Nombre: params.customerName,
+      Telefono: params.customerPhone,
       Observaciones: params.observaciones || '',
       TiempoDeCocina: params.tiempoCocina ?? 0,
     }),
@@ -174,13 +176,14 @@ export async function crearViajeOnDemand(
 
 /**
  * Cancelar viaje.
+ * Endpoint: POST /v1/OnDemandSmart/cancelar
  */
 export async function cancelarViaje(
   tripId: string,
   motivoId: number,
   config: RapiboyConfig,
 ): Promise<void> {
-  await rapiboyFetch<any>(config, '/api/v1/ondemand/cancelar', {
+  await rapiboyFetch<any>(config, '/v1/OnDemandSmart/cancelar', {
     method: 'POST',
     body: JSON.stringify({
       CodigoPlataforma: config.codigoPlataforma,
