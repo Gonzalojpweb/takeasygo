@@ -481,12 +481,13 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
   useEffect(() => {
     Promise.all([
       fetch(`/api/${tenantSlug}/club-discount`).then(r => (r.ok ? r.json() : { discount: null })).catch(() => ({ discount: null })),
-      fetch(`/api/${tenantSlug}/menu/public?locationId=${locationId}`).then(r => (r.ok ? r.json() : { categories: [] })).catch(() => ({ categories: [] })),
+      fetch(`/api/${tenantSlug}/menu?locationId=${locationId}`).then(r => (r.ok ? r.json() : { menu: null })).catch(() => ({ menu: null })),
     ]).then(([discountData, menuData]) => {
       dispatch({ type: 'SET_CLUB_DISCOUNT', discount: discountData.discount ?? null })
       // Build lookup map: menuItemId → { categoryId, subcategoryId }
       const map: Record<string, { categoryId?: string; subcategoryId?: string }> = {}
-      for (const cat of menuData.categories ?? []) {
+      const cats = menuData.menu?.categories ?? []
+      for (const cat of cats) {
         for (const item of cat.items ?? []) {
           map[item._id] = { categoryId: cat._id }
         }
