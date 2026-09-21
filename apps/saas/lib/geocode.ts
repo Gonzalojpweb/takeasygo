@@ -53,38 +53,60 @@ const CABA_NEIGHBORHOODS = new Set([
   'vitacura',
 ])
 
-function normalizeCityForGeocoding(address: DeliveryAddress): { street: string; city: string } {
-  const cityLower = address.city?.toLowerCase().trim() ?? ''
+// Patrones de complemento que Nominatim NO reconoce (pisos, deptos, unidades)
+// Se usa para filtrar el campo apt/complement antes de enviar a Nominatim
+const COMPLEMENT_PATTERNS = /^(pb|ph|°|[ps]?\d+[a-z]?|d[to]?[°]?\s*\d*|torre|block|casa\s+\d*|local|depto|depto\.?\s*\d*|piso\s+\d+|\d+[a-z]\s*\d*|[a-z]\d+|\d+[a-z])$/i
 
-  // Si city es un barrio conocido de CABA, armar la dirección con "barrio, Ciudad Autónoma de Buenos Aires, Argentina"
-  if (CABA_NEIGHBORHOODS.has(cityLower)) {
-    const street = address.apt
-      ? `${address.street} ${address.number}, ${address.apt}, ${address.city}, Ciudad Autónoma de Buenos Aires, Argentina`
-      : `${address.street} ${address.number}, ${address.city}, Ciudad Autónoma de Buenos Aires, Argentina`
-    return { street, city: 'Ciudad Autónoma de Buenos Aires' }
-  }
-
-  // Si city ya es CABA o similar, usar directamente
-  const fullAddress = address.apt
-    ? `${address.street} ${address.number}, ${address.apt}, ${address.city}, Argentina`
-    : `${address.street} ${address.number}, ${address.city}, Argentina`
-  return { street: fullAddress, city: address.city }
+function isPisoDepto(complement: string): boolean {
+  return COMPLEMENT_PATTERNS.test(complement.trim())
 }
 
 /**
- * Geocodifica una dirección usando Nominatim (OpenStreetMap).
- * Retorna { lat, lng } o null si no se pudo resolver.
+ * Decide si el apt/complement debe incluirse en el string de geocodificación.
+ * Se excluye si matchea patrones de piso/depto (ej: "Pb", "Dpto 3", "Torre B").
+ * Se conserva si es info útil (ej: "casa", "local", "frente al parque").
  */
-export async function geocodeAddress(address: DeliveryAddress): Promise<{ lat: number; lng: number } | null> {
-  const { street: fullAddress } = normalizeCityForGeocoding(address)
+function shouldIncludeComplement(apt?: string): boolean {
+  if (!apt || !apt.trim()) return false
+  return !isPisoDepto(apt)
+}
 
-  const cached = getCached(fullAddress)
-  if (cached) return cached
+function normalizeCityForGeocoding(address: DeliveryAddress): { geocodingAddress: string; cityNormalized: string } {
+  const cityLower = address.city?.toLowerCase().trim() ?? ''
 
-  console.log(`[geocode] Geocoding: "${fullAddress}"`)
+  // Detectar si city es un barrio de CABA
+  const isCabaNeighborhood = CABA_NEIGHBORHOODS.has(cityLower)
+  // Reconocer variaciones truncadas: "Ciudad A", "CABA", "capital federal", etc.
+  const isCabaCity = isCabaNeighborhood
+    || cityLower.includes('caba')
+    || cityLower.startsWith('ciudad a')  // "Ciudad A" = "Ciudad Autónoma..."
+    || cityLower.includes('ciudad autónoma')
+    || cityLower.includes('ciudad autonoma')
+    || cityLower.includes('capital federal')
 
-  const encoded = encodeURIComponent(fullAddress)
-  const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1&addressdetails=1`
+  const city = isCabaCity ? 'Ciudad Autónoma de Buenos Aires' : address.city
+
+  // Barrio: si city es un barrio, usarlo como neighborhood en el string
+  const neighborhood = isCabaNeighborhood ? address.city : ''
+
+  // Armar string para Nominatim: incluir apt SOLO si no es piso/depto
+  const parts = [address.street, address.number]
+  if (shouldIncludeComplement(address.apt)) parts.push(address.apt!)
+  if (neighborhood) parts.push(neighborhood)
+  parts.push(city, 'Argentina')
+
+  return { geocodingAddress: parts.join(', '), cityNormalized: city }
+}
+
+/**
+ * Consulta Nominatim con parámetros optimizados para CABA.
+ * countrycodes=ar fuerza resultados en Argentina.
+ * viewbox sesga hacia CABA pero bounded=0 permite resultados fuera del box.
+ */
+async function queryNominatim(query: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
+  const encoded = encodeURIComponent(query)
+  // viewbox: min_lon, min_lat, max_lon, max_lat (corregido)
+  const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1&addressdetails=1&countrycodes=ar&viewbox=-58.55,-34.68,-58.35,-34.52&bounded=0`
 
   const response = await fetch(url, {
     headers: {
@@ -100,22 +122,49 @@ export async function geocodeAddress(address: DeliveryAddress): Promise<{ lat: n
   }
 
   const data = await response.json()
-
   if (!Array.isArray(data) || data.length === 0) {
-    console.warn(`[geocode] No se encontró dirección: ${fullAddress}`)
+    console.log(`[geocode] Nominatim: 0 resultados para "${query}"`)
     return null
   }
 
   const lat = parseFloat(data[0].lat)
   const lng = parseFloat(data[0].lon)
+  if (isNaN(lat) || isNaN(lng)) return null
 
-  if (isNaN(lat) || isNaN(lng)) {
-    console.warn(`[geocode] Coordenadas inválidas para: ${fullAddress}`)
-    return null
+  console.log(`[geocode] Nominatim: 1 resultado → ${lat.toFixed(5)}, ${lng.toFixed(5)} (${data[0].display_name?.substring(0, 80)}...)`)
+  return { lat, lng, displayName: data[0].display_name || '' }
+}
+
+/**
+ * Geocodifica una dirección usando Nominatim (OpenStreetMap).
+ * Fallback en cascada: con barrio → sin barrio → solo calle+ciudad.
+ */
+export async function geocodeAddress(address: DeliveryAddress): Promise<{ lat: number; lng: number } | null> {
+  const { geocodingAddress, cityNormalized } = normalizeCityForGeocoding(address)
+
+  // Cache check
+  const cached = getCached(geocodingAddress)
+  if (cached) return cached
+
+  // Fallback en cascada
+  const cityLabel = cityNormalized || address.city
+  const attempts = [
+    geocodingAddress,                                                  // calle + altura + barrio + ciudad + Argentina
+    `${address.street} ${address.number}, ${cityLabel}, Argentina`,    // sin barrio
+    `${address.street}, ${cityLabel}, Argentina`,                       // sin altura
+  ]
+
+  for (const attempt of attempts) {
+    console.log(`[geocode] Intento: "${attempt}"`)
+    const result = await queryNominatim(attempt)
+    if (result) {
+      setCache(geocodingAddress, result.lat, result.lng)
+      return { lat: result.lat, lng: result.lng }
+    }
   }
 
-  setCache(fullAddress, lat, lng)
-  return { lat, lng }
+  console.warn(`[geocode] Todos los intentos fallaron para: ${geocodingAddress}`)
+  return null
 }
 
 /**
@@ -179,7 +228,7 @@ export async function calculateDeliveryCost(
       range: null,
       maxRangeKm: 0,
       coordinates: null,
-      error: 'No pudimos encontrar tu dirección. Verificá los datos e intentá de nuevo.',
+      error: 'No pudimos ubicar tu dirección. Verificá la calle, el número y el barrio e intentá de nuevo.',
     }
   }
 
@@ -218,9 +267,9 @@ export async function calculateDeliveryCost(
   // 3. Calcular distancia Haversine
   const distance = haversineDistance(coordinates, locationCoords)
 
-  // Sanity check: si la distancia es absurdamente grande, la dirección se geolocalizó mal
+  // Sanity check: warn si >30km (posible geolocalización dudosa), error si >100km (claramente mal)
   if (distance > 100) {
-    console.warn(`[geocode] Distancia absurda: ${distance.toFixed(2)}km — dirección geolocalizada incorrectamente`)
+    console.warn(`[geocode] Distancia absurda: ${distance.toFixed(2)}km — dirección geolocalizada incorrectamente. String enviado: "${address.street} ${address.number}, ${address.city}"`)
     return {
       withinRange: false,
       distance,
@@ -230,6 +279,9 @@ export async function calculateDeliveryCost(
       coordinates,
       error: 'No pudimos ubicar tu dirección. Verificá que los datos sean correctos e intentá de nuevo.',
     }
+  }
+  if (distance > 30) {
+    console.warn(`[geocode] Distancia sospechosa: ${distance.toFixed(2)}km — posible geolocalización dudosa. String enviado: "${address.street} ${address.number}, ${address.city}"`)
   }
 
   // 4. Buscar el rango correspondiente
