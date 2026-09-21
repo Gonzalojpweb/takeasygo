@@ -352,8 +352,10 @@ export async function calculateDeliveryCost(
               }
             }
           } catch { /* ignore parse error */ }
+          console.error(`[Rapiboy] API error 400: no se pudo cotizar —`, err.body)
+        } else {
+          console.error('[Rapiboy] Error desconocido:', err)
         }
-        console.error(`[Rapiboy] API error ${err.status}: no se pudo cotizar —`, err.body)
         return {
           withinRange: false,
           distance,
