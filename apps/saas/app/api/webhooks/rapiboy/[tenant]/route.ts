@@ -30,17 +30,21 @@ export async function POST(
     // ── 1. Parse body ──
     const body = await request.json()
 
-    const {
-      CodigoPlataforma,
-      IdPedido,           // tripId en Rapiboy
-      ReferenciaExterna,  // orderNumber en TakeasyGO
-      Estado,             // Código numérico de Rapiboy
-      TrackingId,
-      NombreChofer,
-    } = body
+    console.log('[rapiboy-webhook] Body recibido:', JSON.stringify(body, null, 2))
+    console.log('[rapiboy-webhook] Headers:', JSON.stringify(Object.fromEntries(request.headers.entries()), null, 2))
 
-    if (!CodigoPlataforma || !Estado) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    // ── Normalize field names (Rapiboy may send PascalCase or camelCase) ──
+    const CodigoPlataforma = body.CodigoPlataforma ?? body.codigoPlataforma ?? null
+    const IdPedido = body.IdPedido ?? body.idPedido ?? body.IdPedido ?? null
+    const ReferenciaExterna = body.ReferenciaExterna ?? body.referenciaExterna ?? null
+    const Estado = body.Estado ?? body.estado ?? null
+    const TrackingId = body.TrackingId ?? body.trackingId ?? null
+    const NombreChofer = body.NombreChofer ?? body.nombreChofer ?? body.Nombre ?? body.nombre ?? null
+
+    // Rapiboy only requires Estado (or a known order identifier)
+    if (Estado === null || Estado === undefined) {
+      console.warn('[rapiboy-webhook] Missing Estado field. Body:', JSON.stringify(body))
+      return NextResponse.json({ error: 'Missing required fields: Estado' }, { status: 400 })
     }
 
     // ── 2. Find tenant ──
@@ -56,13 +60,15 @@ export async function POST(
       return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
     }
 
-    // Find the location matching this CodigoPlataforma
-    let location = await Location.findOne({
-      tenantId: tenant._id,
-      'rapiboyConfig.codigoPlataforma': String(CodigoPlataforma),
-    }).lean() as any
+    // Find location: first by CodigoPlataforma, then fallback to any with webhookSecret
+    let location = null as any
+    if (CodigoPlataforma) {
+      location = await Location.findOne({
+        tenantId: tenant._id,
+        'rapiboyConfig.codigoPlataforma': String(CodigoPlataforma),
+      }).lean() as any
+    }
 
-    // Fallback: if no match by codigoPlataforma, find any location with a webhookSecret
     if (!location?.rapiboyConfig?.webhookSecret) {
       location = await Location.findOne({
         tenantId: tenant._id,
@@ -71,27 +77,32 @@ export async function POST(
     }
 
     if (!location?.rapiboyConfig?.webhookSecret) {
-      console.warn(`[rapiboy-webhook] No webhookSecret configured for tenant ${tenantSlug} (CodigoPlataforma=${CodigoPlataforma})`)
+      console.warn(`[rapiboy-webhook] No webhookSecret configured for tenant ${tenantSlug}`)
       return NextResponse.json({ error: 'Webhook not configured' }, { status: 404 })
     }
 
     const expectedSecret = decrypt(location.rapiboyConfig.webhookSecret)
-    if (!crypto.timingSafeEqual(Buffer.from(rapiboySecret), Buffer.from(expectedSecret))) {
+
+    // Safe comparison — handle different lengths without throwing
+    const secretMatch = rapiboySecret.length === expectedSecret.length &&
+      crypto.timingSafeEqual(Buffer.from(rapiboySecret), Buffer.from(expectedSecret))
+
+    if (!secretMatch) {
       console.warn(`[rapiboy-webhook] Invalid signature for location ${location.name} (${location._id})`)
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
-    console.log(`[rapiboy-webhook] Validated secret for location ${location.name} (${location._id}), CodigoPlataforma=${CodigoPlataforma}`)
+    console.log(`[rapiboy-webhook] ✓ Secret validated for location ${location.name} (${location._id}), CodigoPlataforma=${CodigoPlataforma}`)
 
     // ── 4. Validate estado ──
     if (!isRapiboyStatusValid(Estado)) {
-      console.warn(`[rapiboy-webhook] Unknown estado: ${Estado}`)
-      return NextResponse.json({ received: true }) // Acknowledge unknown states
+      console.warn(`[rapiboy-webhook] Unknown estado: ${Estado}. Acknowledging.`)
+      return NextResponse.json({ received: true })
     }
 
     const takeasygoStatus = mapRapiboyStatus(Estado)
     if (!takeasygoStatus) {
-      console.warn(`[rapiboy-webhook] No mapping for estado ${Estado}`)
+      console.warn(`[rapiboy-webhook] No mapping for estado ${Estado}. Acknowledging.`)
       return NextResponse.json({ received: true })
     }
 
@@ -103,7 +114,7 @@ export async function POST(
       order = await Order.findOne({
         tenantId: tenant._id,
         'deliveryProvider.type': 'rapiboy',
-        'deliveryProvider.rapiboy.tripId': IdPedido,
+        'deliveryProvider.rapiboy.tripId': String(IdPedido),
       })
     }
 
@@ -111,13 +122,13 @@ export async function POST(
     if (!order && ReferenciaExterna) {
       order = await Order.findOne({
         tenantId: tenant._id,
-        orderNumber: ReferenciaExterna,
+        orderNumber: String(ReferenciaExterna),
       })
     }
 
     if (!order) {
-      console.warn(`[rapiboy-webhook] Order not found: tripId=${IdPedido}, orderNumber=${ReferenciaExterna}`)
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+      console.warn(`[rapiboy-webhook] Order not found: tripId=${IdPedido}, orderNumber=${ReferenciaExterna}. Acknowledging.`)
+      return NextResponse.json({ received: true, note: 'Order not found but acknowledged' })
     }
 
     // ── 6. Update order status ──
@@ -166,7 +177,7 @@ export async function POST(
 
     await order.save()
 
-    console.log(`[rapiboy-webhook] Order ${order.orderNumber} updated: ${previousStatus} → ${takeasygoStatus}`)
+    console.log(`[rapiboy-webhook] ✓ Order ${order.orderNumber} updated: ${previousStatus} → ${takeasygoStatus}`)
 
     // ── 7. Notify customer (fire-and-forget) ──
     if (isRapiboyTerminalStatus(Estado) || takeasygoStatus === 'en_ruta' || takeasygoStatus === 'arrived') {
