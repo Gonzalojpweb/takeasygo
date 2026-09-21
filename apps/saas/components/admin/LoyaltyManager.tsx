@@ -47,6 +47,7 @@ import {
   QrCode,
   Star,
   Eye,
+  KeyRound,
   Edit,
   X,
   FileSpreadsheet,
@@ -776,6 +777,23 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                if (!confirm(`¿Re-emiter token para ${m.name}? El miembro debe validar su identidad por WhatsApp/teléfono ANTES de hacer click.`)) return
+                                try {
+                                  const res = await fetch(`/api/${tenantSlug}/admin/club-members/${m._id}/reissue-token`, { method: 'POST' })
+                                  const data = await res.json()
+                                  if (!res.ok) throw new Error(data.error)
+                                  toast.success(`Token re-emitido para ${m.name}. Compartí el token por WhatsApp.`)
+                                  // Show token in a prompt for admin to copy
+                                  prompt('Token re-emitido. Copialo y compartilo por WhatsApp:', data.token)
+                                } catch (err: any) {
+                                  toast.error(err.message)
+                                }
+                              }}
+                            >
+                              <KeyRound size={14} className="mr-2" /> Re-emitir token
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleDelete(m._id)}
                               className="text-destructive focus:text-destructive"
