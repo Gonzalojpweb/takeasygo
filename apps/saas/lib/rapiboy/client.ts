@@ -44,7 +44,12 @@ export interface RapiboyMotivoCancelacion {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getConfig(rapiboyConfig: RapiboyConfig): { baseUrl: string; headers: Record<string, string> } {
-  const token = decrypt(rapiboyConfig.apiToken)
+  let token: string
+  try {
+    token = decrypt(rapiboyConfig.apiToken)
+  } catch (e) {
+    throw new RapiboyError(`Token Rapiboy no válido o corrupto: ${(e as Error).message}`, 401, 'INVALID_TOKEN')
+  }
   const baseUrl = rapiboyConfig.environment === 'production'
     ? 'https://rapiboy.com'
     : 'https://uat.rapiboy.com'
@@ -63,17 +68,18 @@ async function rapiboyFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const { baseUrl, headers } = getConfig(config)
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 3000)
 
-  // Log del payload completo antes de enviar
-  if (options.body) {
-    console.log(`[Rapiboy] ${options.method || 'GET'} ${baseUrl}${path}`)
-    console.log(`[Rapiboy Payload]`, options.body)
-  }
-
   try {
+    const { baseUrl, headers } = getConfig(config)
+
+    // Log del payload completo antes de enviar
+    if (options.body) {
+      console.log(`[Rapiboy] ${options.method || 'GET'} ${baseUrl}${path}`)
+      console.log(`[Rapiboy Payload]`, options.body)
+    }
+
     const res = await fetch(`${baseUrl}${path}`, {
       ...options,
       headers: { ...headers, ...options.headers },
