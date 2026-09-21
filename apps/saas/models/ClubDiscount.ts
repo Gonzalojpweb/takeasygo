@@ -14,6 +14,8 @@ export interface IClubDiscount extends Document {
   cooldownHours: number
   /** Tope global de usos (0 = ilimitado) */
   maxRedemptions: number
+  /** Tope por miembro: cuántas veces CADA miembro puede usar el descuento (0 = ilimitado) */
+  maxUsesPerConsumer: number
   /** Usos acumulados (se incrementa atómicamente) */
   usedCount: number
   /** Habilitado/deshabilitado */
@@ -63,6 +65,11 @@ const ClubDiscountSchema = new Schema<IClubDiscount>(
       type: Number,
       default: 0,
       min: [0, 'El tope no puede ser negativo'],
+    },
+    maxUsesPerConsumer: {
+      type: Number,
+      default: 0,
+      min: [0, 'El tope por miembro no puede ser negativo'],
     },
     usedCount: {
       type: Number,

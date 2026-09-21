@@ -13,6 +13,7 @@ interface ClubDiscountData {
   discountPercent: number
   cooldownHours: number
   maxRedemptions: number
+  maxUsesPerConsumer: number
   usedCount: number
   active: boolean
 }
@@ -31,6 +32,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
   const [discountPercent, setDiscountPercent] = useState('')
   const [cooldownHours, setCooldownHours] = useState('24')
   const [maxRedemptions, setMaxRedemptions] = useState('0')
+  const [maxUsesPerConsumer, setMaxUsesPerConsumer] = useState('0')
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([])
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
@@ -46,6 +48,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
         setDiscountPercent(data.discount.discountPercent.toString())
         setCooldownHours(data.discount.cooldownHours.toString())
         setMaxRedemptions(data.discount.maxRedemptions.toString())
+        setMaxUsesPerConsumer((data.discount.maxUsesPerConsumer ?? 0).toString())
         setSelectedCategoryIds(data.discount.categoryIds ?? [])
         setSelectedSubcategoryIds(data.discount.subcategoryIds ?? [])
         setSelectedItemIds(data.discount.itemIds ?? [])
@@ -69,6 +72,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       discountPercent !== discount.discountPercent.toString() ||
       cooldownHours !== discount.cooldownHours.toString() ||
       maxRedemptions !== discount.maxRedemptions.toString() ||
+      maxUsesPerConsumer !== (discount.maxUsesPerConsumer ?? 0).toString() ||
       JSON.stringify(selectedCategoryIds) !== JSON.stringify(discount.categoryIds) ||
       JSON.stringify(selectedSubcategoryIds) !== JSON.stringify(discount.subcategoryIds) ||
       JSON.stringify(selectedItemIds) !== JSON.stringify(discount.itemIds)
@@ -104,6 +108,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
           discountPercent: pct,
           cooldownHours: Number(cooldownHours) || 24,
           maxRedemptions: Number(maxRedemptions) || 0,
+          maxUsesPerConsumer: Number(maxUsesPerConsumer) || 0,
           categoryIds: selectedCategoryIds,
           subcategoryIds: selectedSubcategoryIds,
           itemIds: selectedItemIds,
@@ -134,6 +139,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       setDiscountPercent('')
       setCooldownHours('24')
       setMaxRedemptions('0')
+      setMaxUsesPerConsumer('0')
       setSelectedCategoryIds([])
       setSelectedSubcategoryIds([])
       setSelectedItemIds([])
@@ -152,6 +158,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       setDiscountPercent(discount.discountPercent.toString())
       setCooldownHours(discount.cooldownHours.toString())
       setMaxRedemptions(discount.maxRedemptions.toString())
+      setMaxUsesPerConsumer((discount.maxUsesPerConsumer ?? 0).toString())
       setSelectedCategoryIds(discount.categoryIds)
       setSelectedSubcategoryIds(discount.subcategoryIds)
       setSelectedItemIds(discount.itemIds)
@@ -160,6 +167,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       setDiscountPercent('')
       setCooldownHours('24')
       setMaxRedemptions('0')
+      setMaxUsesPerConsumer('0')
       setSelectedCategoryIds([])
       setSelectedSubcategoryIds([])
       setSelectedItemIds([])
@@ -374,7 +382,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
 
       {/* Discount settings */}
       <div className={sectionCls}>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>
               <Percent size={12} className="inline mr-1" />
@@ -403,19 +411,50 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
               className={inputCls}
             />
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>
               <Hash size={12} className="inline mr-1" />
-              Tope global
+              Tope global (canjes totales)
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                type="number"
+                min={0}
+                value={maxRedemptions}
+                onChange={e => { setMaxRedemptions(e.target.value); setHasChanges(true) }}
+                placeholder="0 = ilimitado"
+                className={inputCls}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const totalMembers = discount?.usedCount ? Math.max(discount.usedCount * 10, 100) : 100
+                  setMaxRedemptions(totalMembers.toString())
+                  setHasChanges(true)
+                }}
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-[#f74211]/10 text-[#f74211] border border-[#f74211]/25 hover:bg-[#f74211]/20 transition-colors cursor-pointer flex-shrink-0"
+                title="Establecer al número total de miembros"
+              >
+                MAX
+              </button>
+            </div>
+            <p className="text-[10px] text-zinc-500 mt-1">0 = ilimitado. Botón MAX = todos los miembros</p>
+          </div>
+          <div>
+            <label className={labelCls}>
+              🔄 Usos por miembro
             </label>
             <input
               type="number"
               min={0}
-              value={maxRedemptions}
-              onChange={e => { setMaxRedemptions(e.target.value); setHasChanges(true) }}
+              value={maxUsesPerConsumer}
+              onChange={e => { setMaxUsesPerConsumer(e.target.value); setHasChanges(true) }}
               placeholder="0 = ilimitado"
               className={inputCls}
             />
+            <p className="text-[10px] text-zinc-500 mt-1">0 = sin límite. 1 = una vez por miembro</p>
           </div>
         </div>
       </div>
