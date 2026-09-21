@@ -126,7 +126,6 @@ export interface CheckoutState {
   deliveryConfig?: { enabled?: boolean }
   hiddenRewardClaims: Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }>
   clubDiscount: { scope: string; categoryIds: string[]; subcategoryIds: string[]; itemIds: string[]; discountPercent: number; cooldownHours: number } | null
-  clubDiscountAmount: number
 }
 
 type CheckoutAction =
@@ -204,6 +203,8 @@ interface CheckoutContextValue {
   hiddenRewardClaims: Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }>
   cashDiscount: number
   cashDiscountPercent: number
+  clubDiscount: { scope: string; categoryIds: string[]; subcategoryIds: string[]; itemIds: string[]; discountPercent: number; cooldownHours: number } | null
+  clubDiscountAmount: number
 }
 
 const CheckoutContext = createContext<CheckoutContextValue | null>(null)
