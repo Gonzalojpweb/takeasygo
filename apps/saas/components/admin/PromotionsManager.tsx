@@ -472,6 +472,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       scheduledEnd: '',
       activeTimeStart: '',
       activeTimeEnd: '',
+      activeDays: [0, 1, 2, 3, 4, 5, 6],
       maxRedemptions: '',
       locationId: selectedLocation,
       slots: [],
