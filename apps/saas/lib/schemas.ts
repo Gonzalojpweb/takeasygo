@@ -43,6 +43,8 @@ const deliveryAddressSchema = z.object({
   number: z.string().min(1).max(20).trim(),
   apt: z.string().max(20).trim().optional().default(''),
   city: z.string().min(1).max(100).trim(),
+  neighborhood: z.string().max(100).trim().optional().default(''),
+  complement: z.string().max(50).trim().optional().default(''),
 })
 
 export const createOrderSchema = z.object({

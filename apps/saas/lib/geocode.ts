@@ -33,6 +33,42 @@ export interface DeliveryAddress {
   number: string
   apt?: string
   city: string
+  neighborhood?: string
+  complement?: string
+}
+
+// ── Barrios conocidos de CABA ──────────────────────────────────────────────
+// Si el usuario pone un barrio en "city", lo detectamos y armamos la dirección correcta para Nominatim.
+const CABA_NEIGHBORHOODS = new Set([
+  'agronomía', 'almagro', 'balvanera', 'barracas', 'belgrano', 'boedo',
+  'caballito', 'capital federal', 'chacarita', 'coghlan', 'coleiales',
+  'constitución', 'flores', 'floresta', 'la boca', 'laPaternal', 'liniers',
+  'mataderos', 'monte castro', 'montserrat', 'nueva pompeya', 'núñez',
+  'palermo', 'parque avellaneda', 'parque chas', 'parque patricios',
+  'puerto madero', 'recoleta', 'saavedra', 'san cristóbal', 'san nicolás',
+  'san telmo', 'santos lugares', 'sarría', 'serrezuela', 'solano',
+  'versalles', 'villa crespo', 'villa del parque', 'villa devoto',
+  'villa general mitre', 'villa luro', 'villa mitre', 'villa orozco',
+  'villa riachuelo', 'villa santa rita', 'villa soldati', 'villa urquiza',
+  'vitacura',
+])
+
+function normalizeCityForGeocoding(address: DeliveryAddress): { street: string; city: string } {
+  const cityLower = address.city?.toLowerCase().trim() ?? ''
+
+  // Si city es un barrio conocido de CABA, armar la dirección con "barrio, Ciudad Autónoma de Buenos Aires, Argentina"
+  if (CABA_NEIGHBORHOODS.has(cityLower)) {
+    const street = address.apt
+      ? `${address.street} ${address.number}, ${address.apt}, ${address.city}, Ciudad Autónoma de Buenos Aires, Argentina`
+      : `${address.street} ${address.number}, ${address.city}, Ciudad Autónoma de Buenos Aires, Argentina`
+    return { street, city: 'Ciudad Autónoma de Buenos Aires' }
+  }
+
+  // Si city ya es CABA o similar, usar directamente
+  const fullAddress = address.apt
+    ? `${address.street} ${address.number}, ${address.apt}, ${address.city}, Argentina`
+    : `${address.street} ${address.number}, ${address.city}, Argentina`
+  return { street: fullAddress, city: address.city }
 }
 
 /**
@@ -40,10 +76,12 @@ export interface DeliveryAddress {
  * Retorna { lat, lng } o null si no se pudo resolver.
  */
 export async function geocodeAddress(address: DeliveryAddress): Promise<{ lat: number; lng: number } | null> {
-  const fullAddress = `${address.street} ${address.number}, ${address.city}, Argentina`
+  const { street: fullAddress } = normalizeCityForGeocoding(address)
 
   const cached = getCached(fullAddress)
   if (cached) return cached
+
+  console.log(`[geocode] Geocoding: "${fullAddress}"`)
 
   const encoded = encodeURIComponent(fullAddress)
   const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1&addressdetails=1`
@@ -179,6 +217,20 @@ export async function calculateDeliveryCost(
 
   // 3. Calcular distancia Haversine
   const distance = haversineDistance(coordinates, locationCoords)
+
+  // Sanity check: si la distancia es absurdamente grande, la dirección se geolocalizó mal
+  if (distance > 100) {
+    console.warn(`[geocode] Distancia absurda: ${distance.toFixed(2)}km — dirección geolocalizada incorrectamente`)
+    return {
+      withinRange: false,
+      distance,
+      cost: 0,
+      range: null,
+      maxRangeKm: 0,
+      coordinates,
+      error: 'No pudimos ubicar tu dirección. Verificá que los datos sean correctos e intentá de nuevo.',
+    }
+  }
 
   // 4. Buscar el rango correspondiente
   const deliveryConfig = location.deliveryConfig || { enabled: false, ranges: [], maxRangeKm: 0 }
