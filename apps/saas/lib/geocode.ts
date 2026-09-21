@@ -353,7 +353,7 @@ export async function calculateDeliveryCost(
             }
           } catch { /* ignore parse error */ }
         }
-        console.error('[geocode] Rapiboy cotización falló, rechazando dirección fuera de rango:', err)
+        console.error(`[Rapiboy] API error ${err.status}: no se pudo cotizar —`, err.body)
         return {
           withinRange: false,
           distance,
