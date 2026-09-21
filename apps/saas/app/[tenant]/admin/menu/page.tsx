@@ -6,6 +6,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import MenuManager from '@/components/admin/MenuManager'
+import ClubDiscountConfig from '@/components/admin/ClubDiscountConfig'
 import { ExternalLink, Calendar } from 'lucide-react'
 import type { Types } from 'mongoose'
 
@@ -23,6 +24,18 @@ export default async function MenuPage() {
 
   const locations = await Location.find({ tenantId, isActive: true }).lean<Array<{ _id: { toString(): string }; name: string }>>()
   const menus = await Menu.find({ tenantId, isActive: true }).lean()
+
+  // Extract categories from all menus (merged, deduplicated by _id)
+  const categoriesMap = new Map<string, any>()
+  for (const menu of menus) {
+    for (const cat of (menu as any).categories ?? []) {
+      const id = cat._id?.toString?.() ?? cat._id
+      if (id && !categoriesMap.has(id)) {
+        categoriesMap.set(id, JSON.parse(JSON.stringify(cat)))
+      }
+    }
+  }
+  const categories = Array.from(categoriesMap.values())
 
   return (
     <div>
@@ -61,11 +74,18 @@ export default async function MenuPage() {
           </CardContent>
         </Card>
       ) : (
-        <MenuManager
-          locations={JSON.parse(JSON.stringify(locations))}
-          menus={JSON.parse(JSON.stringify(menus))}
-          tenantSlug={tenantSlug || ''}
-        />
+        <>
+          <ClubDiscountConfig
+            tenantSlug={tenantSlug || ''}
+            categories={categories}
+          />
+          <div className="mt-6" />
+          <MenuManager
+            locations={JSON.parse(JSON.stringify(locations))}
+            menus={JSON.parse(JSON.stringify(menus))}
+            tenantSlug={tenantSlug || ''}
+          />
+        </>
       )}
     </div>
   )

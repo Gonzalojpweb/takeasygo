@@ -258,6 +258,68 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   const clubMembership = useClubMembership(tenant.slug, location._id)
 
+  // ── Club Discount: descuento en carta solo para miembros ───────────────────
+  const [clubDiscount, setClubDiscount] = useState<{
+    scope: string
+    categoryIds: string[]
+    subcategoryIds: string[]
+    itemIds: string[]
+    discountPercent: number
+    cooldownHours: number
+  } | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/${tenant.slug}/club-discount`)
+      .then(r => (r.ok ? r.json() : { discount: null }))
+      .then(data => setClubDiscount(data.discount ?? null))
+      .catch(() => {})
+  }, [tenant.slug])
+
+  // Check if member is eligible (cooldown passed)
+  const [clubEligible, setClubEligible] = useState(false)
+  useEffect(() => {
+    if (!clubMembership.isMember || !clubDiscount) {
+      setClubEligible(false)
+      return
+    }
+    // Read joinedAt from localStorage
+    try {
+      const storageKey = location._id ? `club_${tenant.slug}_${location._id}` : `club_${tenant.slug}`
+      const raw = localStorage.getItem(storageKey)
+      if (!raw) { setClubEligible(false); return }
+      const stored = JSON.parse(raw)
+      const joinedAt = new Date(stored.joinedAt).getTime()
+      const hoursSinceJoin = (Date.now() - joinedAt) / (1000 * 60 * 60)
+      setClubEligible(hoursSinceJoin >= (clubDiscount.cooldownHours ?? 24))
+    } catch {
+      setClubEligible(false)
+    }
+  }, [clubMembership.isMember, clubDiscount, tenant.slug, location._id])
+
+  // Helper: get discounted price for an item (returns null if no discount applies)
+  const getClubDiscountedPrice = useCallback((item: any, itemCategoryId?: string, itemSubcategoryId?: string): { original: number; discounted: number } | null => {
+    if (!clubDiscount || !clubEligible) return null
+    const price = mode === 'takeaway'
+      ? Number(item.takeawayPrice ?? item.price) || 0
+      : mode === 'business'
+        ? Number(item.businessPrice ?? item.price) || 0
+        : Number(item.price) || 0
+    if (price <= 0) return null
+    let eligible = false
+    if (clubDiscount.scope === 'all') {
+      eligible = true
+    } else if (clubDiscount.scope === 'category' && itemCategoryId) {
+      eligible = clubDiscount.categoryIds.includes(itemCategoryId)
+    } else if (clubDiscount.scope === 'subcategory' && itemSubcategoryId) {
+      eligible = clubDiscount.subcategoryIds.includes(itemSubcategoryId)
+    } else if (clubDiscount.scope === 'item') {
+      eligible = clubDiscount.itemIds.includes(item._id?.toString?.() ?? item._id)
+    }
+    if (!eligible) return null
+    const discounted = Math.floor(price * (1 - clubDiscount.discountPercent / 100))
+    return { original: price, discounted }
+  }, [clubDiscount, clubEligible, mode])
+
   // Sincronizar memberPoints desde el hook para StoreCarousel
   useEffect(() => {
     if (clubMembership.isMember) {
@@ -1245,9 +1307,26 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                     <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
                                   )}
                                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                    <span className="font-bold text-sm" style={{ color: primary }}>
-                                      ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                    </span>
+                                    {(() => {
+                                      const clubPrice = getClubDiscountedPrice(item, category._id)
+                                      if (clubPrice) {
+                                        return (
+                                          <>
+                                            <span className="text-xs line-through opacity-50 text-zinc-400">
+                                              ${toPesos(clubPrice.original).toLocaleString('es-AR')}
+                                            </span>
+                                            <span className="font-bold text-sm text-green-600">
+                                              ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
+                                            </span>
+                                          </>
+                                        )
+                                      }
+                                      return (
+                                        <span className="font-bold text-sm" style={{ color: primary }}>
+                                          ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
+                                        </span>
+                                      )
+                                    })()}
                                     {(item.tags || []).map((tag: string) => (
                                       <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
                                         style={{ backgroundColor: primary + '10', color: primary + 'cc' }}>
@@ -1320,9 +1399,26 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                         <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
                                       )}
                                       <div className="flex items-center justify-between">
-                                        <p className="font-bold text-sm" style={{ color: primary }}>
-                                          ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                        </p>
+                                        {(() => {
+                                          const clubPrice = getClubDiscountedPrice(item, category._id, subcategory._id)
+                                          if (clubPrice) {
+                                            return (
+                                              <div className="flex items-center gap-1.5">
+                                                <span className="text-xs line-through opacity-50 text-zinc-400">
+                                                  ${toPesos(clubPrice.original).toLocaleString('es-AR')}
+                                                </span>
+                                                <span className="font-bold text-sm text-green-600">
+                                                  ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
+                                                </span>
+                                              </div>
+                                            )
+                                          }
+                                          return (
+                                            <p className="font-bold text-sm" style={{ color: primary }}>
+                                              ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
+                                            </p>
+                                          )
+                                        })()}
                                         {likesOrderId ? (
                                           <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
                                         ) : isOperational ? (
@@ -1356,9 +1452,26 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                       <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
                                     )}
                                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                      <span className="font-bold text-sm" style={{ color: primary }}>
-                                        ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                      </span>
+                                      {(() => {
+                                        const clubPrice = getClubDiscountedPrice(item, category._id, subcategory._id)
+                                        if (clubPrice) {
+                                          return (
+                                            <>
+                                              <span className="text-xs line-through opacity-50 text-zinc-400">
+                                                ${toPesos(clubPrice.original).toLocaleString('es-AR')}
+                                              </span>
+                                              <span className="font-bold text-sm text-green-600">
+                                                ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
+                                              </span>
+                                            </>
+                                          )
+                                        }
+                                        return (
+                                          <span className="font-bold text-sm" style={{ color: primary }}>
+                                            ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
+                                          </span>
+                                        )
+                                      })()}
                                       {(item.tags || []).map((tag: string) => (
                                         <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
                                           style={{ backgroundColor: primary + '10', color: primary + 'cc' }}>
@@ -1420,9 +1533,26 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
                               )}
                               <div className="flex items-center justify-between">
-                                <p className="font-bold text-sm" style={{ color: primary }}>
-                                  ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                </p>
+                                {(() => {
+                                  const clubPrice = getClubDiscountedPrice(item, category._id)
+                                  if (clubPrice) {
+                                    return (
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-xs line-through opacity-50 text-zinc-400">
+                                          ${toPesos(clubPrice.original).toLocaleString('es-AR')}
+                                        </span>
+                                        <span className="font-bold text-sm text-green-600">
+                                          ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
+                                        </span>
+                                      </div>
+                                    )
+                                  }
+                                  return (
+                                    <p className="font-bold text-sm" style={{ color: primary }}>
+                                      ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
+                                    </p>
+                                  )
+                                })()}
                                 {likesOrderId ? (
                                   <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
                                 ) : isOperational ? (
@@ -1456,9 +1586,26 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                               <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
                             )}
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                              <span className="font-bold text-sm" style={{ color: primary }}>
-                                ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                              </span>
+                              {(() => {
+                                const clubPrice = getClubDiscountedPrice(item, category._id)
+                                if (clubPrice) {
+                                  return (
+                                    <>
+                                      <span className="text-xs line-through opacity-50 text-zinc-400">
+                                        ${toPesos(clubPrice.original).toLocaleString('es-AR')}
+                                      </span>
+                                      <span className="font-bold text-sm text-green-600">
+                                        ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
+                                      </span>
+                                    </>
+                                  )
+                                }
+                                return (
+                                  <span className="font-bold text-sm" style={{ color: primary }}>
+                                    ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
+                                  </span>
+                                )
+                              })()}
                               {(item.tags || []).map((tag: string) => (
                                 <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
                                   style={{ backgroundColor: primary + '10', color: primary + 'cc' }}>
