@@ -32,6 +32,7 @@ interface PromoShape {
   memberOnly?: boolean
   cooldownHours?: number
   clubScope?: 'all' | 'category' | 'item'
+  activeDays?: number[]
 }
 
 function addSchedulingFilter(query: any) {
