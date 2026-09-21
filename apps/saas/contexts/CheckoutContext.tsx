@@ -170,7 +170,7 @@ type CheckoutAction =
   | { type: 'SET_TENANT_NAME'; name: string }
   | { type: 'SET_SERVICE_HOURS'; serviceHours: CheckoutState['serviceHours']; timezone?: string; deliveryConfig?: { enabled?: boolean } }
   | { type: 'SET_HIDDEN_REWARD_CLAIMS'; claims: Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }> }
-  | { type: 'SET_CLUB_DISCOUNT'; discount: { scope: string; categoryIds: string[]; subcategoryIds: string[]; itemIds: string[]; discountPercent: number; cooldownHours: number } | null }
+  | { type: 'SET_CLUB_DISCOUNT'; discount: { scope: string; categoryIds: string[]; subcategoryIds: string[]; itemIds: string[]; discountPercent: number; cooldownHours: number; maxUsesPerConsumer: number } | null }
 
 interface CheckoutContextValue {
   state: CheckoutState
