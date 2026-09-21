@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import { Percent, Clock, Hash, Trash2, Save, RotateCcw, Tag, ShoppingBag } from 'lucide-react'
+import { Percent, Clock, Hash, Trash2, Save, RotateCcw, Tag, ShoppingBag, Star, Users } from 'lucide-react'
 
 interface ClubDiscountData {
   _id: string
@@ -206,18 +206,18 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 p-6">
+      <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/30 p-6">
         <div className="animate-pulse space-y-3">
-          <div className="h-5 bg-zinc-700 rounded w-1/3" />
-          <div className="h-4 bg-zinc-700 rounded w-1/2" />
+          <div className="h-5 bg-zinc-700/50 rounded w-1/3" />
+          <div className="h-4 bg-zinc-700/50 rounded w-1/2" />
         </div>
       </div>
     )
   }
 
-  const inputCls = 'w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-white text-sm focus:border-[#f74211] focus:ring-1 focus:ring-[#f74211] outline-none transition-colors'
-  const labelCls = 'text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5 block'
-  const sectionCls = 'rounded-2xl border border-zinc-700 bg-zinc-800/50 p-5 space-y-4'
+  const inputCls = 'w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-white text-sm focus:border-[#f74211] focus:ring-1 focus:ring-[#f74211] outline-none transition-colors placeholder:text-white/20'
+  const labelCls = 'text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5 block'
+  const sectionCls = 'rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-4'
 
   return (
     <div className="space-y-4">
@@ -225,20 +225,20 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-white text-lg font-bold flex items-center gap-2">
-            <Tag size={18} className="text-[#f74211]" />
+            <Star size={18} className="text-[#f74211]" />
             Descuento Club
           </h3>
-          <p className="text-zinc-500 text-xs mt-0.5">
+          <p className="text-white/40 text-xs mt-0.5">
             Descuento en la carta solo para miembros del club.
             {discount && discount.active && (
-              <span className="text-green-400 ml-1">Activo ({discount.discountPercent}% off)</span>
+              <span className="text-emerald-400 ml-1">Activo ({discount.discountPercent}% off)</span>
             )}
           </p>
         </div>
         {discount && discount.active && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-green-400 text-xs font-bold">ACTIVO</span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-emerald-400 text-xs font-bold">ACTIVO</span>
           </div>
         )}
       </div>
@@ -246,17 +246,17 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       {/* Active discount stats */}
       {discount && discount.active && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-zinc-900 border border-zinc-700 p-3 text-center">
-            <p className="text-2xl font-bold text-white">{discount.discountPercent}%</p>
-            <p className="text-[10px] text-zinc-500 uppercase">Descuento</p>
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-center">
+            <p className="text-2xl font-bold text-[#f74211]">{discount.discountPercent}%</p>
+            <p className="text-[10px] text-white/30 uppercase tracking-wider">Descuento</p>
           </div>
-          <div className="rounded-xl bg-zinc-900 border border-zinc-700 p-3 text-center">
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-center">
             <p className="text-2xl font-bold text-white">{discount.usedCount}</p>
-            <p className="text-[10px] text-zinc-500 uppercase">Usos</p>
+            <p className="text-[10px] text-white/30 uppercase tracking-wider">Usos</p>
           </div>
-          <div className="rounded-xl bg-zinc-900 border border-zinc-700 p-3 text-center">
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-center">
             <p className="text-2xl font-bold text-white">{discount.maxRedemptions || '∞'}</p>
-            <p className="text-[10px] text-zinc-500 uppercase">Tope</p>
+            <p className="text-[10px] text-white/30 uppercase tracking-wider">Tope</p>
           </div>
         </div>
       )}
@@ -277,7 +277,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
               className={`flex flex-col items-center gap-1 p-3 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
                 scope === opt.value
                   ? 'border-[#f74211] bg-[#f74211]/10 text-[#f74211]'
-                  : 'border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500'
+                  : 'border-white/[0.06] bg-white/[0.02] text-white/40 hover:border-white/10 hover:text-white/60'
               }`}
             >
               {opt.icon}
@@ -294,8 +294,8 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
                 key={cat._id}
                 className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
                   selectedCategoryIds.includes(cat._id)
-                    ? 'border-[#f74211] bg-[#f74211]/5'
-                    : 'border-zinc-700 hover:border-zinc-500'
+                    ? 'border-[#f74211]/50 bg-[#f74211]/5'
+                    : 'border-white/[0.06] hover:border-white/10'
                 }`}
               >
                 <input
@@ -305,7 +305,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
                   className="accent-[#f74211]"
                 />
                 <span className="text-white text-sm">{cat.name}</span>
-                <span className="text-zinc-500 text-xs ml-auto">{(cat.items ?? []).length} items</span>
+                <span className="text-white/30 text-xs ml-auto">{(cat.items ?? []).length} items</span>
               </label>
             ))}
           </div>
@@ -315,15 +315,15 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
         {scope === 'subcategory' && (
           <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto">
             {allSubcategories.length === 0 ? (
-              <p className="text-zinc-500 text-xs">No hay subcategorías definidas</p>
+              <p className="text-white/30 text-xs">No hay subcategorías definidas</p>
             ) : (
               allSubcategories.map((sub: any) => (
                 <label
                   key={sub._id}
                   className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
                     selectedSubcategoryIds.includes(sub._id)
-                      ? 'border-[#f74211] bg-[#f74211]/5'
-                      : 'border-zinc-700 hover:border-zinc-500'
+                      ? 'border-[#f74211]/50 bg-[#f74211]/5'
+                      : 'border-white/[0.06] hover:border-white/10'
                   }`}
                 >
                   <input
@@ -333,7 +333,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
                     className="accent-[#f74211]"
                   />
                   <span className="text-white text-sm">{sub.name}</span>
-                  <span className="text-zinc-500 text-xs ml-auto">{sub.categoryName}</span>
+                  <span className="text-white/30 text-xs ml-auto">{sub.categoryName}</span>
                 </label>
               ))
             )}
@@ -348,8 +348,8 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
                 key={item._id}
                 className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
                   selectedItemIds.includes(item._id)
-                    ? 'border-[#f74211] bg-[#f74211]/5'
-                    : 'border-zinc-700 hover:border-zinc-500'
+                    ? 'border-[#f74211]/50 bg-[#f74211]/5'
+                    : 'border-white/[0.06] hover:border-white/10'
                 }`}
               >
                 <input
@@ -359,7 +359,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
                   className="accent-[#f74211]"
                 />
                 <span className="text-white text-sm">{item.name}</span>
-                <span className="text-zinc-500 text-xs ml-auto">{item.categoryName}</span>
+                <span className="text-white/30 text-xs ml-auto">{item.categoryName}</span>
               </label>
             ))}
           </div>
@@ -432,7 +432,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
           {hasChanges && (
             <button
               onClick={resetForm}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-zinc-400 hover:bg-zinc-700 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white/40 hover:bg-white/5 transition-colors cursor-pointer"
             >
               <RotateCcw size={14} />
               Restaurar
