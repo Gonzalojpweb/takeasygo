@@ -200,6 +200,8 @@ export async function POST(
   let clubRedemptionIncremented = false
   let clubUsageIncremented = false
   let activeQrPromo: any = null
+  let activeClubMember: any = null
+  let tenantId: any = null
   try {
     const { tenant: tenantSlug } = await params
     await connectDB()
@@ -237,10 +239,9 @@ export async function POST(
       )
     }
     const body = parsed.data
-    const tenantId = tenant._id
+    tenantId = tenant._id
 
     // ── Member Token: validar token de miembro del club (header x-member-token) ──
-    let activeClubMember: any = null
     const memberTokenHeader = request.headers.get('x-member-token')
     if (memberTokenHeader) {
       const tokenResult = await verifyMemberToken(memberTokenHeader)
