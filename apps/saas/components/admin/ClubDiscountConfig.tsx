@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
-import { Percent, Clock, Hash, Trash2, Save, RotateCcw, Tag, ShoppingBag, Star } from 'lucide-react'
+import { Percent, Clock, Hash, Trash2, Save, RotateCcw, Tag, ShoppingBag, Search, X, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface ClubDiscountData {
   _id: string
@@ -37,6 +37,11 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
   const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([])
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [hasChanges, setHasChanges] = useState(false)
+
+  // Search state for each picker
+  const [catSearch, setCatSearch] = useState('')
+  const [subSearch, setSubSearch] = useState('')
+  const [itemSearch, setItemSearch] = useState('')
 
   const fetchDiscount = useCallback(async () => {
     try {
@@ -77,7 +82,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       JSON.stringify(selectedSubcategoryIds) !== JSON.stringify(discount.subcategoryIds) ||
       JSON.stringify(selectedItemIds) !== JSON.stringify(discount.itemIds)
     setHasChanges(changed)
-  }, [scope, discountPercent, cooldownHours, maxRedemptions, selectedCategoryIds, selectedSubcategoryIds, selectedItemIds, discount])
+  }, [scope, discountPercent, cooldownHours, maxRedemptions, maxUsesPerConsumer, selectedCategoryIds, selectedSubcategoryIds, selectedItemIds, discount])
 
   async function handleSave() {
     const pct = Number(discountPercent)
@@ -172,6 +177,9 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       setSelectedSubcategoryIds([])
       setSelectedItemIds([])
     }
+    setCatSearch('')
+    setSubSearch('')
+    setItemSearch('')
     setHasChanges(false)
   }
 
@@ -193,72 +201,79 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
     )
   }
 
-  const allSubcategories = categories.flatMap((cat: any) =>
+  function normalize(str: string) {
+    return str.toLowerCase().trim()
+  }
+
+  const allSubcategories = useMemo(() => categories.flatMap((cat: any) =>
     (cat.subcategories ?? []).map((sub: any) => ({
       ...sub,
       categoryName: cat.name,
       categoryId: cat._id,
     }))
-  )
+  ), [categories])
 
-  const allItems = categories.flatMap((cat: any) => [
+  const allItems = useMemo(() => categories.flatMap((cat: any) => [
     ...(cat.items ?? []).map((item: any) => ({ ...item, categoryName: cat.name, categoryId: cat._id })),
     ...(cat.subcategories ?? []).flatMap((sub: any) =>
       (sub.items ?? []).map((item: any) => ({ ...item, categoryName: cat.name, subcategoryName: sub.name, categoryId: cat._id, subcategoryId: sub._id }))
     ),
-  ])
+  ]), [categories])
+
+  // Filtered lists
+  const filteredCategories = useMemo(() => {
+    if (!catSearch.trim()) return categories
+    const q = normalize(catSearch)
+    return categories.filter((cat: any) => normalize(cat.name).includes(q))
+  }, [categories, catSearch])
+
+  const filteredSubcategories = useMemo(() => {
+    if (!subSearch.trim()) return allSubcategories
+    const q = normalize(subSearch)
+    return allSubcategories.filter((sub: any) =>
+      normalize(sub.name).includes(q) || normalize(sub.categoryName).includes(q)
+    )
+  }, [allSubcategories, subSearch])
+
+  const filteredItems = useMemo(() => {
+    if (!itemSearch.trim()) return allItems
+    const q = normalize(itemSearch)
+    return allItems.filter((item: any) =>
+      normalize(item.name).includes(q) ||
+      normalize(item.categoryName).includes(q) ||
+      (item.subcategoryName && normalize(item.subcategoryName).includes(q))
+    )
+  }, [allItems, itemSearch])
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 p-6">
-        <div className="animate-pulse space-y-3">
-          <div className="h-5 bg-zinc-700 rounded w-1/3" />
-          <div className="h-4 bg-zinc-700 rounded w-1/2" />
-        </div>
+      <div className="space-y-3 animate-pulse">
+        <div className="h-5 bg-zinc-700 rounded w-1/3" />
+        <div className="h-4 bg-zinc-700 rounded w-1/2" />
+        <div className="h-10 bg-zinc-700 rounded" />
       </div>
     )
   }
 
-  const inputCls = 'w-full px-3 py-2 rounded-xl bg-zinc-900/80 border border-zinc-600/50 text-white text-sm focus:border-[#f74211] focus:ring-1 focus:ring-[#f74211] outline-none transition-colors'
+  const inputCls = 'w-full px-3 py-2 rounded-lg bg-zinc-900/80 border border-zinc-600/50 text-white text-sm focus:border-[#f74211] focus:ring-1 focus:ring-[#f74211] outline-none transition-colors'
   const labelCls = 'text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5 block'
-  const sectionCls = 'rounded-2xl border border-zinc-700/60 bg-zinc-800/50 p-5 space-y-4'
+  const searchCls = 'w-full pl-8 pr-8 py-2 rounded-lg bg-zinc-900/80 border border-zinc-600/50 text-white text-sm focus:border-[#f74211] focus:ring-1 focus:ring-[#f74211] outline-none transition-colors placeholder:text-zinc-500'
+  const sectionCls = 'rounded-xl border border-zinc-700/60 bg-zinc-800/30 p-4 space-y-3'
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-white text-lg font-bold flex items-center gap-2">
-            <Star size={18} className="text-[#f74211]" />
-            Descuento Club
-          </h3>
-          <p className="text-zinc-400 text-xs mt-0.5">
-            Descuento en la carta solo para miembros del club.
-            {discount && discount.active && (
-              <span className="text-green-400 ml-1">Activo ({discount.discountPercent}% off)</span>
-            )}
-          </p>
-        </div>
-        {discount && discount.active && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/25">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-green-400 text-xs font-bold">ACTIVO</span>
-          </div>
-        )}
-      </div>
-
       {/* Stats */}
       {discount && discount.active && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-zinc-900/60 border border-zinc-700/50 p-3 text-center">
+          <div className="rounded-lg bg-[#f74211]/8 border border-[#f74211]/20 p-3 text-center">
             <p className="text-2xl font-bold text-[#f74211]">{discount.discountPercent}%</p>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Descuento</p>
           </div>
-          <div className="rounded-xl bg-zinc-900/60 border border-zinc-700/50 p-3 text-center">
+          <div className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 p-3 text-center">
             <p className="text-2xl font-bold text-white">{discount.usedCount}</p>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Usos</p>
           </div>
-          <div className="rounded-xl bg-zinc-900/60 border border-zinc-700/50 p-3 text-center">
+          <div className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 p-3 text-center">
             <p className="text-2xl font-bold text-white">{discount.maxRedemptions || '∞'}</p>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Tope</p>
           </div>
@@ -278,12 +293,11 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
             <button
               key={opt.value}
               onClick={() => { setScope(opt.value); setHasChanges(true) }}
-              className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-xs font-bold transition-all cursor-pointer ${
-                scope === opt.value
-                  ? 'border-current bg-current/10 text-white shadow-lg'
-                  : 'border-zinc-700/50 bg-zinc-800/30 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300'
-              }`}
-              style={scope === opt.value ? { color: opt.color, borderColor: opt.color, backgroundColor: `${opt.color}15` } : {}}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 text-xs font-bold transition-all cursor-pointer"
+              style={scope === opt.value
+                ? { color: opt.color, borderColor: opt.color, backgroundColor: `${opt.color}15` }
+                : { color: '#a1a1aa', borderColor: 'rgba(63,63,70,0.5)', backgroundColor: 'rgba(24,24,27,0.3)' }
+              }
             >
               {opt.icon}
               {opt.label}
@@ -291,91 +305,162 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
           ))}
         </div>
 
-        {/* Category picker */}
+        {/* Category picker with search */}
         {scope === 'category' && (
-          <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {categories.map((cat: any) => {
-              const selected = selectedCategoryIds.includes(cat._id)
-              return (
-                <label
-                  key={cat._id}
-                  className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
-                    selected
-                      ? 'border-[#34A853]/50 bg-[#34A853]/8'
-                      : 'border-zinc-700/40 hover:border-zinc-500 bg-zinc-800/20'
-                  }`}
+          <div className="mt-3 space-y-2">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Buscar categoría..."
+                value={catSearch}
+                onChange={e => setCatSearch(e.target.value)}
+                className={searchCls}
+              />
+              {catSearch && (
+                <button
+                  onClick={() => setCatSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white cursor-pointer"
                 >
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={() => toggleCategoryId(cat._id)}
-                    className="accent-[#34A853]"
-                  />
-                  <span className="text-white text-sm">{cat.name}</span>
-                  <span className="text-zinc-500 text-xs ml-auto">{(cat.items ?? []).length} items</span>
-                </label>
-              )
-            })}
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+              {filteredCategories.length === 0 ? (
+                <p className="text-zinc-500 text-xs text-center py-3">No se encontraron categorías</p>
+              ) : (
+                filteredCategories.map((cat: any) => {
+                  const selected = selectedCategoryIds.includes(cat._id)
+                  return (
+                    <label
+                      key={cat._id}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                        selected
+                          ? 'border-[#34A853]/50 bg-[#34A853]/10'
+                          : 'border-zinc-700/40 hover:border-zinc-500 bg-zinc-800/20'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleCategoryId(cat._id)}
+                        className="accent-[#34A853]"
+                      />
+                      <span className="text-white text-sm">{cat.name}</span>
+                      <span className="text-zinc-500 text-xs ml-auto">{(cat.items ?? []).length} items</span>
+                    </label>
+                  )
+                })
+              )}
+            </div>
           </div>
         )}
 
-        {/* Subcategory picker */}
+        {/* Subcategory picker with search */}
         {scope === 'subcategory' && (
-          <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {allSubcategories.length === 0 ? (
-              <p className="text-zinc-500 text-xs">No hay subcategorías definidas</p>
-            ) : (
-              allSubcategories.map((sub: any) => {
-                const selected = selectedSubcategoryIds.includes(sub._id)
-                return (
-                  <label
-                    key={sub._id}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
-                      selected
-                        ? 'border-[#FBBC04]/50 bg-[#FBBC04]/8'
-                        : 'border-zinc-700/40 hover:border-zinc-500 bg-zinc-800/20'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleSubcategoryId(sub._id)}
-                      className="accent-[#FBBC04]"
-                    />
-                    <span className="text-white text-sm">{sub.name}</span>
-                    <span className="text-zinc-500 text-xs ml-auto">{sub.categoryName}</span>
-                  </label>
-                )
-              })
-            )}
+          <div className="mt-3 space-y-2">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Buscar subcategoría..."
+                value={subSearch}
+                onChange={e => setSubSearch(e.target.value)}
+                className={searchCls}
+              />
+              {subSearch && (
+                <button
+                  onClick={() => setSubSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+              {filteredSubcategories.length === 0 ? (
+                <p className="text-zinc-500 text-xs text-center py-3">No se encontraron subcategorías</p>
+              ) : (
+                filteredSubcategories.map((sub: any) => {
+                  const selected = selectedSubcategoryIds.includes(sub._id)
+                  return (
+                    <label
+                      key={sub._id}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                        selected
+                          ? 'border-[#FBBC04]/50 bg-[#FBBC04]/10'
+                          : 'border-zinc-700/40 hover:border-zinc-500 bg-zinc-800/20'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleSubcategoryId(sub._id)}
+                        className="accent-[#FBBC04]"
+                      />
+                      <span className="text-white text-sm">{sub.name}</span>
+                      <span className="text-zinc-500 text-xs ml-auto">{sub.categoryName}</span>
+                    </label>
+                  )
+                })
+              )}
+            </div>
           </div>
         )}
 
-        {/* Item picker */}
+        {/* Item picker with search + grouped by category */}
         {scope === 'item' && (
-          <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {allItems.map((item: any) => {
-              const selected = selectedItemIds.includes(item._id)
-              return (
-                <label
-                  key={item._id}
-                  className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
-                    selected
-                      ? 'border-[#f74211]/50 bg-[#f74211]/8'
-                      : 'border-zinc-700/40 hover:border-zinc-500 bg-zinc-800/20'
-                  }`}
+          <div className="mt-3 space-y-2">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Buscar plato, categoría o subcategoría..."
+                value={itemSearch}
+                onChange={e => setItemSearch(e.target.value)}
+                className={searchCls}
+              />
+              {itemSearch && (
+                <button
+                  onClick={() => setItemSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white cursor-pointer"
                 >
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={() => toggleItemId(item._id)}
-                    className="accent-[#f74211]"
-                  />
-                  <span className="text-white text-sm">{item.name}</span>
-                  <span className="text-zinc-500 text-xs ml-auto">{item.categoryName}</span>
-                </label>
-              )
-            })}
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+              {filteredItems.length === 0 ? (
+                <p className="text-zinc-500 text-xs text-center py-3">No se encontraron ítems</p>
+              ) : (
+                filteredItems.map((item: any) => {
+                  const selected = selectedItemIds.includes(item._id)
+                  return (
+                    <label
+                      key={item._id}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                        selected
+                          ? 'border-[#f74211]/50 bg-[#f74211]/10'
+                          : 'border-zinc-700/40 hover:border-zinc-500 bg-zinc-800/20'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleItemId(item._id)}
+                        className="accent-[#f74211]"
+                      />
+                      <span className="text-white text-sm">{item.name}</span>
+                      <span className="text-zinc-500 text-xs ml-auto">
+                        {item.categoryName}
+                        {item.subcategoryName ? ` → ${item.subcategoryName}` : ''}
+                      </span>
+                    </label>
+                  )
+                })
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -434,7 +519,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
                   setMaxRedemptions(totalMembers.toString())
                   setHasChanges(true)
                 }}
-                className="px-3 py-2 rounded-xl text-xs font-bold bg-[#f74211]/10 text-[#f74211] border border-[#f74211]/25 hover:bg-[#f74211]/20 transition-colors cursor-pointer flex-shrink-0"
+                className="px-3 py-2 rounded-lg text-xs font-bold bg-[#f74211]/10 text-[#f74211] border border-[#f74211]/25 hover:bg-[#f74211]/20 transition-colors cursor-pointer flex-shrink-0"
                 title="Establecer al número total de miembros"
               >
                 MAX
@@ -460,13 +545,13 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pt-1">
         <div className="flex gap-2">
           {discount && discount.active && (
             <button
               onClick={handleDeactivate}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 transition-colors disabled:opacity-40 cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 transition-colors disabled:opacity-40 cursor-pointer"
             >
               <Trash2 size={14} />
               Desactivar
@@ -477,7 +562,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
           {hasChanges && (
             <button
               onClick={resetForm}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-zinc-400 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-zinc-400 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 transition-colors cursor-pointer"
             >
               <RotateCcw size={14} />
               Restaurar
@@ -486,7 +571,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
-            className="flex items-center gap-1.5 px-6 py-2 rounded-xl text-xs font-bold bg-[#f74211] text-white hover:bg-[#f74211]/90 transition-colors disabled:opacity-40 cursor-pointer shadow-lg shadow-[#f74211]/20"
+            className="flex items-center gap-1.5 px-6 py-2 rounded-lg text-xs font-bold bg-[#f74211] text-white hover:bg-[#f74211]/90 transition-colors disabled:opacity-40 cursor-pointer shadow-lg shadow-[#f74211]/20"
           >
             <Save size={14} />
             {saving ? 'Guardando...' : 'Guardar'}
