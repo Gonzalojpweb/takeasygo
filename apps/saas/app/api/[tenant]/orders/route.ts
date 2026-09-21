@@ -1222,6 +1222,7 @@ export async function POST(
           }
         }
       }
+    }
 
     if (paymentMethod !== 'cash' && activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
       const qrEligibleSubtotal = resolvedItems
