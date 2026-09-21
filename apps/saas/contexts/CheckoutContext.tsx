@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useCallback, useRef, useReducer, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useCallback, useRef, useReducer, useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import type { CartItem } from '@/types/cart'
@@ -125,6 +125,8 @@ export interface CheckoutState {
   timezone?: string
   deliveryConfig?: { enabled?: boolean }
   hiddenRewardClaims: Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }>
+  clubDiscount: { scope: string; categoryIds: string[]; subcategoryIds: string[]; itemIds: string[]; discountPercent: number; cooldownHours: number } | null
+  clubDiscountAmount: number
 }
 
 type CheckoutAction =
@@ -169,6 +171,7 @@ type CheckoutAction =
   | { type: 'SET_TENANT_NAME'; name: string }
   | { type: 'SET_SERVICE_HOURS'; serviceHours: CheckoutState['serviceHours']; timezone?: string; deliveryConfig?: { enabled?: boolean } }
   | { type: 'SET_HIDDEN_REWARD_CLAIMS'; claims: Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }> }
+  | { type: 'SET_CLUB_DISCOUNT'; discount: { scope: string; categoryIds: string[]; subcategoryIds: string[]; itemIds: string[]; discountPercent: number; cooldownHours: number } | null }
 
 interface CheckoutContextValue {
   state: CheckoutState
@@ -248,6 +251,7 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_TENANT_NAME': return { ...state, tenantName: action.name }
     case 'SET_SERVICE_HOURS': return { ...state, serviceHours: action.serviceHours, timezone: action.timezone ?? state.timezone, deliveryConfig: action.deliveryConfig ?? state.deliveryConfig }
     case 'SET_HIDDEN_REWARD_CLAIMS': return { ...state, hiddenRewardClaims: action.claims }
+    case 'SET_CLUB_DISCOUNT': return { ...state, clubDiscount: action.discount }
     default: return state
   }
 }
@@ -297,6 +301,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     timezone: undefined,
     deliveryConfig: undefined,
     hiddenRewardClaims: [],
+    clubDiscount: null,
   }
 }
 
@@ -469,6 +474,31 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     return () => clearTimeout(timer)
   }, [state.form.phone, state.form.countryCode, tenantSlug, state.cart]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Club Discount: fetch active discount + menu items for scope lookup
+  const [menuItemsMap, setMenuItemsMap] = useState<Record<string, { categoryId?: string; subcategoryId?: string }>>({})
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/${tenantSlug}/club-discount`).then(r => (r.ok ? r.json() : { discount: null })).catch(() => ({ discount: null })),
+      fetch(`/api/${tenantSlug}/menu/public?locationId=${locationId}`).then(r => (r.ok ? r.json() : { categories: [] })).catch(() => ({ categories: [] })),
+    ]).then(([discountData, menuData]) => {
+      dispatch({ type: 'SET_CLUB_DISCOUNT', discount: discountData.discount ?? null })
+      // Build lookup map: menuItemId → { categoryId, subcategoryId }
+      const map: Record<string, { categoryId?: string; subcategoryId?: string }> = {}
+      for (const cat of menuData.categories ?? []) {
+        for (const item of cat.items ?? []) {
+          map[item._id] = { categoryId: cat._id }
+        }
+        for (const sub of cat.subcategories ?? []) {
+          for (const item of sub.items ?? []) {
+            map[item._id] = { categoryId: cat._id, subcategoryId: sub._id }
+          }
+        }
+      }
+      setMenuItemsMap(map)
+    })
+  }, [tenantSlug, locationId])
+
   // Auto-fill from session
   useEffect(() => {
     const name = session?.user?.name
@@ -591,6 +621,37 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
 
   const discountAmount = qrDiscount + hiddenRewardDiscount
 
+  // Club Discount: compute client-side (same logic as server)
+  const clubDiscountAmount = (() => {
+    if (!state.clubDiscount || !state.loyaltyMember) return 0
+    // Check cooldown: member must have joined at least cooldownHours ago
+    const joinedAt = new Date(state.loyaltyMember.joinedAt).getTime()
+    const hoursSinceJoin = (Date.now() - joinedAt) / (1000 * 60 * 60)
+    if (hoursSinceJoin < (state.clubDiscount.cooldownHours ?? 24)) return 0
+    // QR promo takes priority — no club discount if QR promo is active
+    if (state.activeQrPromo) return 0
+    // Compute eligible subtotal based on scope
+    const cd = state.clubDiscount
+    let eligibleSubtotal = 0
+    for (const item of state.cart) {
+      if (item.type === 'promotion') continue
+      const lookup = menuItemsMap[item.menuItemId ?? '']
+      let eligible = false
+      if (cd.scope === 'all') {
+        eligible = true
+      } else if (cd.scope === 'category') {
+        eligible = cd.categoryIds.includes(lookup?.categoryId ?? '')
+      } else if (cd.scope === 'subcategory') {
+        eligible = cd.subcategoryIds.includes(lookup?.subcategoryId ?? '')
+      } else if (cd.scope === 'item') {
+        eligible = cd.itemIds.includes(item.menuItemId ?? '')
+      }
+      if (eligible) eligibleSubtotal += item.price * item.quantity
+    }
+    if (eligibleSubtotal <= 0) return 0
+    return Math.floor(eligibleSubtotal * (cd.discountPercent / 100))
+  })()
+
   // Cash discount: only applies when cash is selected, computed on subtotal (before delivery)
   // The actual application happens server-side — this is for display only
   const cashDiscount = state.selectedPaymentMethod === 'cash' && state.cashDiscountPercent > 0
@@ -620,7 +681,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     && !state.loyaltyMember?.hasAdvanceActive
 
   const deliveryCost = state.deliveryMode && state.deliveryQuote.withinRange ? state.deliveryQuote.cost : 0
-  const baseTotal = Math.max(0, subtotal - discountAmount) + deliveryCost
+  const baseTotal = Math.max(0, subtotal - discountAmount - clubDiscountAmount) + deliveryCost
   const activeTotalFees = state.selectedPaymentMethod
     ? (state.paymentTotalFees[state.selectedPaymentMethod] ?? 0)
     : 0
@@ -696,6 +757,8 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     hiddenRewardClaims: state.hiddenRewardClaims,
     cashDiscount,
     cashDiscountPercent: state.cashDiscountPercent,
+    clubDiscount: state.clubDiscount,
+    clubDiscountAmount,
   }
 
   return (

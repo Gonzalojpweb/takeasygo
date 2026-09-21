@@ -4,7 +4,7 @@ import { useCheckout } from '@/contexts/CheckoutContext'
 import { toPesos } from '@takeasygo/business/browser'
 
 export default function OrderSummaryWithUpsell() {
-  const { state, subtotal, baseTotal, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, selectedRewardItem, hiddenRewardClaims } = useCheckout()
+  const { state, subtotal, baseTotal, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, selectedRewardItem, hiddenRewardClaims, clubDiscount, clubDiscountAmount } = useCheckout()
   const { cart, upsellHints, activeQrPromo, deliveryMode, deliveryQuote } = state
 
   if (cart.length === 0) {
@@ -127,6 +127,14 @@ export default function OrderSummaryWithUpsell() {
             </div>
           ) : null
         })()}
+        {clubDiscount && clubDiscountAmount > 0 && (
+          <div className="flex justify-between text-sm text-[#f74211] font-semibold">
+            <span className="flex items-center gap-1">
+              ⭐ Descuento por ser miembro del club ({clubDiscount.discountPercent}%)
+            </span>
+            <span>-${toPesos(clubDiscountAmount).toLocaleString('es-AR')}</span>
+          </div>
+        )}
         {deliveryMode && deliveryQuote.withinRange && (
           <div className="flex justify-between text-sm text-zinc-500">
             <span className="flex items-center gap-1">🚚 Envío</span>

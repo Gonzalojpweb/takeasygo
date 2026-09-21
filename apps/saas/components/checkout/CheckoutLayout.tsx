@@ -491,7 +491,7 @@ function PaymentConfirmation(props: {
     onPaymentMethodChange,
   } = props
 
-  const { state, hiddenRewardClaims, cashDiscount, cashDiscountPercent } = useCheckout()
+  const { state, hiddenRewardClaims, cashDiscount, cashDiscountPercent, clubDiscount, clubDiscountAmount } = useCheckout()
 
   const isDelivery = mode === 'delivery' || deliveryMode
   const restoName = tenantName || 'tu restaurante favorito'
@@ -694,6 +694,14 @@ function PaymentConfirmation(props: {
             </div>
           ) : null
         })()}
+        {clubDiscount && clubDiscountAmount > 0 && (
+          <div className="flex justify-between text-sm text-[#f74211] font-semibold">
+            <span className="flex items-center gap-1">
+              ⭐ Descuento por ser miembro del club ({clubDiscount.discountPercent}%)
+            </span>
+            <span>-${toPesos(clubDiscountAmount).toLocaleString('es-AR')}</span>
+          </div>
+        )}
         {selectedRewardItem && (
           <div className="flex justify-between text-sm text-emerald-600 font-semibold">
             <span className="flex items-center gap-1">
