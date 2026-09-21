@@ -7,6 +7,16 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import LocationManager from '@/components/superadmin/LocationManager'
 import { Types } from 'mongoose'
+import { decrypt } from '@/lib/crypto'
+
+function safeDecrypt(value: string | undefined | null): string {
+  if (!value) return ''
+  try {
+    return value.includes(':') ? decrypt(value) : value
+  } catch {
+    return value
+  }
+}
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -64,7 +74,16 @@ export default async function TenantLocationsPage({ params }: Props) {
     networkVisible: loc.networkVisible ?? false,
     cuisineTypes: loc.cuisineTypes ?? [],
     status: (loc as any).status ?? 'active',
-    rapiboyConfig: loc.rapiboyConfig ?? { enabled: false, apiToken: '', environment: 'uat' as const, margen: 0, codigoPlataforma: '', webhookSecret: '' },
+    rapiboyConfig: {
+      ...loc.rapiboyConfig,
+      enabled: loc.rapiboyConfig?.enabled ?? false,
+      apiToken: safeDecrypt(loc.rapiboyConfig?.apiToken),
+      environment: loc.rapiboyConfig?.environment ?? 'uat',
+      margen: loc.rapiboyConfig?.margen ?? 0,
+      codigoPlataforma: loc.rapiboyConfig?.codigoPlataforma ?? '',
+      webhookSecret: safeDecrypt(loc.rapiboyConfig?.webhookSecret),
+      transferBufferPercentage: (loc.rapiboyConfig as any)?.transferBufferPercentage ?? 1.5,
+    },
   }))
 
   return (
