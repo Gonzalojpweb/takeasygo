@@ -198,6 +198,8 @@ export async function calculateDeliveryCost(
 
   const range = matchedRange || firstRange
 
+  console.log(`[geocode] distance=${distance.toFixed(2)}km, maxRangeKm=${maxRangeKm}, matchedRange=${!!matchedRange}, rapiboyEnabled=${rapiboyEnabled}, hasApiToken=${!!location.rapiboyConfig?.apiToken}`)
+
   if (!range) {
     // Si Rapiboy está habilitado, cotizar con Rapiboy en tiempo real
     if (rapiboyEnabled && location.rapiboyConfig?.apiToken) {
@@ -211,10 +213,15 @@ export async function calculateDeliveryCost(
         const destino: RapiboyCoord = { lat: coordinates.lat, lng: coordinates.lng, address: `${address.street} ${address.number}, ${address.city}` }
         const cotizacion = await cotizarOnDemand(origen, destino, rapiboyConfig)
 
+        const margen = location.rapiboyConfig.margen ?? 0
+        const costConMargen = Math.round(cotizacion.precio * (1 + margen / 100))
+
+        console.log(`[geocode] Rapiboy cotización OK: precio=${cotizacion.precio}, margen=${margen}%, costFinal=${costConMargen}`)
+
         return {
           withinRange: true,
           distance,
-          cost: cotizacion.precio,
+          cost: costConMargen,
           range: null,
           maxRangeKm,
           coordinates,
