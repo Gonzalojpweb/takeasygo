@@ -20,6 +20,12 @@ export interface IClubDiscount extends Document {
   usedCount: number
   /** Habilitado/deshabilitado */
   active: boolean
+  /** Días de la semana en que el descuento está activo (0=Dom, 1=Lun, ..., 6=Sáb). Vacío = todos. */
+  activeDays: number[]
+  scheduledStart?: Date | null
+  scheduledEnd?: Date | null
+  activeTimeStart?: string | null
+  activeTimeEnd?: string | null
   createdBy?: mongoose.Types.ObjectId
   createdAt: Date
   updatedAt: Date
@@ -80,6 +86,11 @@ const ClubDiscountSchema = new Schema<IClubDiscount>(
       type: Boolean,
       default: true,
     },
+    activeDays: { type: [Number], default: [0, 1, 2, 3, 4, 5, 6] },
+    scheduledStart: { type: Date, default: null },
+    scheduledEnd: { type: Date, default: null },
+    activeTimeStart: { type: String, default: null },
+    activeTimeEnd: { type: String, default: null },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',

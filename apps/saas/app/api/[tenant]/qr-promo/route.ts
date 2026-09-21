@@ -5,6 +5,7 @@ import Location from '@/models/Location'
 import QrPromo from '@/models/QrPromo'
 import QrPromoView from '@/models/QrPromoView'
 import { NextRequest, NextResponse } from 'next/server'
+import { isPromoActiveToday } from '@/lib/promo-schedule'
 
 interface PromoShape {
   _id: string
@@ -170,6 +171,11 @@ export async function GET(
       return NextResponse.json({ show: false, reason: 'not_enabled' })
     }
 
+    // ── Day-of-week check ──────────────────────────────────────────────
+    if (!isPromoActiveToday(qrPromoConfig.activeDays)) {
+      return NextResponse.json({ show: false, reason: 'not_active_today' })
+    }
+
     const forwarded = request.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown'
     const promoId = qrPromoConfig._id
@@ -287,6 +293,11 @@ export async function POST(
           $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
         })
       }
+    }
+
+    // ── Day-of-week check ──────────────────────────────────────────────
+    if (resolvedPromo && !isPromoActiveToday(resolvedPromo.activeDays)) {
+      resolvedPromo = null
     }
 
     await QrPromoView.create({

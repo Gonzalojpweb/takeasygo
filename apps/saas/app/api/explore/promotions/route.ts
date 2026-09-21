@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import Promotion from '@/models/Promotion'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
 import { NextRequest, NextResponse } from 'next/server'
+import { isPromoActiveToday } from '@/lib/promo-schedule'
 
 const SEARCH_RADIUS_M = 20000
 
@@ -124,8 +125,11 @@ export async function GET(request: NextRequest) {
       ],
     }).sort({ isFeatured: -1, sortOrder: 1 }).lean()
 
+    // ── Day-of-week filter ─────────────────────────────────────────────
+    const promotionsWithDayFilter = promotionsRaw.filter(p => isPromoActiveToday(p.activeDays))
+
     const seenGlobalIds = new Set<string>()
-    const promotions = promotionsRaw.flatMap(p => {
+    const promotions = promotionsWithDayFilter.flatMap(p => {
       if (p.scope === 'global') {
         if (seenGlobalIds.has(p._id.toString())) return []
         seenGlobalIds.add(p._id.toString())

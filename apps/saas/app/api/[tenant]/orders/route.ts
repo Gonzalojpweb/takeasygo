@@ -18,6 +18,7 @@ import crypto from 'crypto'
 import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { resolveHalfPriceCustomizations } from '@takeasygo/business'
+import { isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
 import { auth } from '@/lib/auth'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 import { isServiceOpen } from '@/lib/availability'
@@ -334,6 +335,11 @@ export async function POST(
       }
     }
 
+    // ── Day-of-week check for resolved QrPromo ─────────────────────────
+    if (activeQrPromo && !isPromoActiveToday((activeQrPromo as any).activeDays)) {
+      activeQrPromo = null
+    }
+
     // Resolver promoCode de superadmin (scope: 'global', lookup por code)
     // Se resuelve antes que qrPromoApplied para que el código tenga prioridad
     if (body.promoCode && !activeQrPromo) {
@@ -587,6 +593,14 @@ export async function POST(
         if (!promotion) {
           return NextResponse.json(
             { error: `Promoción no disponible o no existe: ${clientItem.promotionId}` },
+            { status: 400 }
+          )
+        }
+
+        // Day-of-week + schedule check
+        if (!isPromoScheduledNow(promotion as any)) {
+          return NextResponse.json(
+            { error: `La promoción "${promotion.title}" no está disponible hoy` },
             { status: 400 }
           )
         }
@@ -1132,80 +1146,82 @@ export async function POST(
     if (!qrPromoApplied && activeClubMember) {
       const clubDiscount = await ClubDiscount.findOne({ tenantId, active: true }).lean()
       if (clubDiscount) {
-        // 1. Cooldown: horas desde createdAt del miembro
-        const hoursSinceJoin = (Date.now() - new Date(activeClubMember.createdAt).getTime()) / (1000 * 60 * 60)
-        if (hoursSinceJoin < (clubDiscount.cooldownHours ?? 24)) {
-          // Cooldown activo — no aplica descuento
-        } else {
-          // 2. maxUsesPerConsumer: incremento atómico via ClubDiscountUsage
-          clubUsageIncremented = false
-          if ((clubDiscount.maxUsesPerConsumer ?? 0) > 0) {
-            const ClubDiscountUsage = (await import('@/models/ClubDiscountUsage')).default
-            const updated = await ClubDiscountUsage.findOneAndUpdate(
-              { tenantId, phoneHash: activeClubMember.phoneHash },
-              { $inc: { usedCount: 1 } },
-              { upsert: true, new: true },
-            )
-            clubUsageIncremented = true
-            if (updated.usedCount > clubDiscount.maxUsesPerConsumer) {
-              // Límite excedido — revertir incremento
-              await ClubDiscountUsage.updateOne(
+        // Day-of-week + schedule check
+        if (isPromoScheduledNow(clubDiscount as any)) {
+          // 1. Cooldown: horas desde createdAt del miembro
+          const hoursSinceJoin = (Date.now() - new Date(activeClubMember.createdAt).getTime()) / (1000 * 60 * 60)
+          if (hoursSinceJoin < (clubDiscount.cooldownHours ?? 24)) {
+            // Cooldown activo — no aplica descuento
+          } else {
+            // 2. maxUsesPerConsumer: incremento atómico via ClubDiscountUsage
+            clubUsageIncremented = false
+            if ((clubDiscount.maxUsesPerConsumer ?? 0) > 0) {
+              const ClubDiscountUsage = (await import('@/models/ClubDiscountUsage')).default
+              const updated = await ClubDiscountUsage.findOneAndUpdate(
                 { tenantId, phoneHash: activeClubMember.phoneHash },
-                { $inc: { usedCount: -1 } },
-              )
-              clubUsageIncremented = false
-              // No aplica descuento
-            } else {
-              // Dentro del límite — continuar con descuento
-            }
-          }
-
-          // 3. Determinar items elegibles según scope
-          let eligibleSubtotal = 0
-          if (clubDiscount.scope === 'all') {
-            eligibleSubtotal = resolvedItems
-              .filter(item => item.itemType !== 'promotion')
-              .reduce((sum, item) => sum + item.subtotal, 0)
-          } else if (clubDiscount.scope === 'category' && clubDiscount.categoryIds?.length) {
-            const eligibleIds = new Set(clubDiscount.categoryIds.map(id => id.toString()))
-            eligibleSubtotal = resolvedItems
-              .filter(item => item.itemType !== 'promotion' && item.categoryId && eligibleIds.has(item.categoryId.toString()))
-              .reduce((sum, item) => sum + item.subtotal, 0)
-          } else if (clubDiscount.scope === 'subcategory' && clubDiscount.subcategoryIds?.length) {
-            const eligibleIds = new Set(clubDiscount.subcategoryIds.map(id => id.toString()))
-            eligibleSubtotal = resolvedItems
-              .filter(item => item.itemType !== 'promotion' && item.subcategoryId && eligibleIds.has(item.subcategoryId.toString()))
-              .reduce((sum, item) => sum + item.subtotal, 0)
-          } else if (clubDiscount.scope === 'item' && clubDiscount.itemIds?.length) {
-            const eligibleIds = new Set(clubDiscount.itemIds.map(id => id.toString()))
-            eligibleSubtotal = resolvedItems
-              .filter(item => item.itemType !== 'promotion' && item.menuItemId && eligibleIds.has(item.menuItemId.toString()))
-              .reduce((sum, item) => sum + item.subtotal, 0)
-          }
-
-          if (eligibleSubtotal > 0) {
-            // 4. Validar maxRedemptions (atómico)
-            if ((clubDiscount.maxRedemptions ?? 0) > 0) {
-              const updated = await ClubDiscount.findOneAndUpdate(
-                { _id: clubDiscount._id, $expr: { $lt: ['$usedCount', '$maxRedemptions'] } },
                 { $inc: { usedCount: 1 } },
-                { new: true },
+                { upsert: true, new: true },
               )
-              if (!updated) {
-                // Promo agotada — no aplica descuento
+              clubUsageIncremented = true
+              if (updated.usedCount > clubDiscount.maxUsesPerConsumer) {
+                // Límite excedido — revertir incremento
+                await ClubDiscountUsage.updateOne(
+                  { tenantId, phoneHash: activeClubMember.phoneHash },
+                  { $inc: { usedCount: -1 } },
+                )
+                clubUsageIncremented = false
+                // No aplica descuento
               } else {
+                // Dentro del límite — continuar con descuento
+              }
+            }
+
+            // 3. Determinar items elegibles según scope
+            let eligibleSubtotal = 0
+            if (clubDiscount.scope === 'all') {
+              eligibleSubtotal = resolvedItems
+                .filter(item => item.itemType !== 'promotion')
+                .reduce((sum, item) => sum + item.subtotal, 0)
+            } else if (clubDiscount.scope === 'category' && clubDiscount.categoryIds?.length) {
+              const eligibleIds = new Set(clubDiscount.categoryIds.map(id => id.toString()))
+              eligibleSubtotal = resolvedItems
+                .filter(item => item.itemType !== 'promotion' && item.categoryId && eligibleIds.has(item.categoryId.toString()))
+                .reduce((sum, item) => sum + item.subtotal, 0)
+            } else if (clubDiscount.scope === 'subcategory' && clubDiscount.subcategoryIds?.length) {
+              const eligibleIds = new Set(clubDiscount.subcategoryIds.map(id => id.toString()))
+              eligibleSubtotal = resolvedItems
+                .filter(item => item.itemType !== 'promotion' && item.subcategoryId && eligibleIds.has(item.subcategoryId.toString()))
+                .reduce((sum, item) => sum + item.subtotal, 0)
+            } else if (clubDiscount.scope === 'item' && clubDiscount.itemIds?.length) {
+              const eligibleIds = new Set(clubDiscount.itemIds.map(id => id.toString()))
+              eligibleSubtotal = resolvedItems
+                .filter(item => item.itemType !== 'promotion' && item.menuItemId && eligibleIds.has(item.menuItemId.toString()))
+                .reduce((sum, item) => sum + item.subtotal, 0)
+            }
+
+            if (eligibleSubtotal > 0) {
+              // 4. Validar maxRedemptions (atómico)
+              if ((clubDiscount.maxRedemptions ?? 0) > 0) {
+                const updated = await ClubDiscount.findOneAndUpdate(
+                  { _id: clubDiscount._id, $expr: { $lt: ['$usedCount', '$maxRedemptions'] } },
+                  { $inc: { usedCount: 1 } },
+                  { new: true },
+                )
+                if (!updated) {
+                  // Promo agotada — no aplica descuento
+                } else {
+                  discountAmount = Math.floor(eligibleSubtotal * (clubDiscount.discountPercent / 100))
+                  clubDiscountApplied = true
+                }
+              } else {
+                // Sin tope — aplicar directo
                 discountAmount = Math.floor(eligibleSubtotal * (clubDiscount.discountPercent / 100))
                 clubDiscountApplied = true
               }
-            } else {
-              // Sin tope — aplicar directo
-              discountAmount = Math.floor(eligibleSubtotal * (clubDiscount.discountPercent / 100))
-              clubDiscountApplied = true
             }
           }
         }
       }
-    }
 
     if (paymentMethod !== 'cash' && activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
       const qrEligibleSubtotal = resolvedItems

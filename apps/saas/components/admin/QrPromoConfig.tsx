@@ -17,6 +17,7 @@ interface QrPromoItem {
   isEnabled: boolean
   scheduledStart?: string | null
   scheduledEnd?: string | null
+  activeDays?: number[]
   type: 'discount' | 'info' | 'loyalty'
   discountPercentage: number
   frequency: 'once' | 'every_visit' | 'daily'
@@ -67,6 +68,7 @@ const DEFAULT_PROMO: Omit<QrPromoItem, '_id'> = {
   loadingText: 'Procesando...',
   checkoutDiscountLabel: 'Descuento QR',
   sourceTriggers: ['qr'],
+  activeDays: [0, 1, 2, 3, 4, 5, 6],
 }
 
 function isPromoActive(promo: QrPromoItem): boolean {
@@ -716,6 +718,38 @@ function PromoEditor({ data, tenantSlug, onChange, onSave, saving }: PromoEditor
         </div>
         <p className="text-xs text-gray-400 mt-1">
           Si no se configura fecha, la promo estará activa mientras esté habilitada.
+        </p>
+      </div>
+
+      {/* ── Días de la semana ─────────────────────────────────────────────── */}
+      <div className="border-t border-gray-100 pt-4">
+        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
+          Días de la semana
+        </label>
+        <div className="flex gap-1">
+          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                const current = data.activeDays ?? [0, 1, 2, 3, 4, 5, 6]
+                const days = current.includes(i)
+                  ? current.filter(d => d !== i)
+                  : [...current, i]
+                onChange({ activeDays: days })
+              }}
+              className={`w-9 h-7 rounded text-xs font-medium transition-colors ${
+                (data.activeDays ?? [0, 1, 2, 3, 4, 5, 6]).includes(i)
+                  ? 'bg-[#F74211] text-white'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              {day}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 mt-1">
+          Si no seleccionás ningún día, la promo aplica todos los días.
         </p>
       </div>
 

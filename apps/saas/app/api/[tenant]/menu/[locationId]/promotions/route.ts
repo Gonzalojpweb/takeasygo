@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Promotion from '@/models/Promotion'
 import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
+import { isPromoActiveToday, isPromoInTimeWindow } from '@/lib/promo-schedule'
 
 export async function GET(
   request: NextRequest,
@@ -200,13 +201,9 @@ export async function GET(
       if (vis === mode) return true
       return false
     }).filter((p: any) => {
-      if (!p.activeTimeStart || !p.activeTimeEnd) return true
-      const currentMinutes = now.getHours() * 60 + now.getMinutes()
-      const [startH, startM] = p.activeTimeStart.split(':').map(Number)
-      const [endH, endM] = p.activeTimeEnd.split(':').map(Number)
-      const startMinutes = startH * 60 + startM
-      const endMinutes = endH * 60 + endM
-      return currentMinutes >= startMinutes && currentMinutes <= endMinutes
+      return isPromoActiveToday(p.activeDays)
+    }).filter((p: any) => {
+      return isPromoInTimeWindow(p.activeTimeStart, p.activeTimeEnd, now)
     })
 
     return NextResponse.json({ promotions: filteredPromotions })

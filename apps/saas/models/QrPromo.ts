@@ -10,6 +10,8 @@ export interface IQrPromo extends Document {
   isEnabled: boolean
   scheduledStart?: Date | null
   scheduledEnd?: Date | null
+  /** Días de la semana en que la promo está activa (0=Dom, 1=Lun, ..., 6=Sáb). Vacío = todos. */
+  activeDays: number[]
   type: 'discount' | 'info' | 'loyalty'
   discountPercentage: number
   frequency: 'once' | 'every_visit' | 'daily'
@@ -81,6 +83,7 @@ const QrPromoSchema = new Schema<IQrPromo>(
     isEnabled: { type: Boolean, default: false },
     scheduledStart: { type: Date, default: null },
     scheduledEnd: { type: Date, default: null },
+    activeDays: { type: [Number], default: [0, 1, 2, 3, 4, 5, 6] },
     type: { type: String, enum: ['discount', 'info', 'loyalty'], default: 'discount' },
     discountPercentage: { type: Number, default: 15, min: 0, max: 100 },
     frequency: { type: String, enum: ['once', 'every_visit', 'daily'], default: 'once' },

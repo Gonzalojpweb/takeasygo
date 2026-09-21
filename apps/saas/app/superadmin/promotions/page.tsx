@@ -71,6 +71,7 @@ export default function GlobalPromotionsPage() {
   const [isFeatured, setIsFeatured] = useState(false)
   const [scheduledStart, setScheduledStart] = useState('')
   const [scheduledEnd, setScheduledEnd] = useState('')
+  const [activeDays, setActiveDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6])
   const [maxRedemptions, setMaxRedemptions] = useState<number | null>(null)
   const [sortOrder, setSortOrder] = useState(0)
   const [targetTenants, setTargetTenants] = useState<string[]>([])
@@ -124,6 +125,7 @@ export default function GlobalPromotionsPage() {
       setIsFeatured(promo.isFeatured)
       setScheduledStart(promo.scheduledStart ? promo.scheduledStart.slice(0, 16) : '')
       setScheduledEnd(promo.scheduledEnd ? promo.scheduledEnd.slice(0, 16) : '')
+      setActiveDays(promo.activeDays || [0, 1, 2, 3, 4, 5, 6])
       setMaxRedemptions(promo.maxRedemptions ?? null)
       setSortOrder(promo.sortOrder)
       setTargetTenants(promo.targetTenants || [])
@@ -147,6 +149,7 @@ export default function GlobalPromotionsPage() {
       setIsFeatured(false)
       setScheduledStart('')
       setScheduledEnd('')
+      setActiveDays([0, 1, 2, 3, 4, 5, 6])
       setMaxRedemptions(null)
       setSortOrder(0)
       setTargetTenants([])
@@ -165,6 +168,7 @@ export default function GlobalPromotionsPage() {
       ctaText, ctaLink, visibility, isActive, isFeatured,
       scheduledStart: scheduledStart ? new Date(scheduledStart).toISOString() : null,
       scheduledEnd: scheduledEnd ? new Date(scheduledEnd).toISOString() : null,
+      activeDays,
       maxRedemptions, sortOrder,
       targetTenants: targetAll ? [] : targetTenants,
     }
@@ -418,6 +422,31 @@ export default function GlobalPromotionsPage() {
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Fin programado</label>
                   <input type="datetime-local" value={scheduledEnd} onChange={e => setScheduledEnd(e.target.value)}
                     className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">Días de la semana</label>
+                  <div className="flex gap-1">
+                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          setActiveDays(prev =>
+                            prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i]
+                          )
+                        }}
+                        className={`w-9 h-7 rounded text-xs font-medium transition-colors ${
+                          activeDays.includes(i)
+                            ? 'bg-zinc-900 text-white'
+                            : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-1">Si no seleccionás ningún día, la promo aplica todos los días.</p>
                 </div>
 
                 <div className="col-span-2">
