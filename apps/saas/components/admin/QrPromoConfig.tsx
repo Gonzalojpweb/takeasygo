@@ -748,6 +748,25 @@ function PromoEditor({ data, tenantSlug, onChange, onSave, saving }: PromoEditor
 
           {data.memberOnly && (
             <>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Porcentaje de descuento</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="5"
+                    max="50"
+                    step="5"
+                    value={data.discountPercentage || 20}
+                    onChange={(e) => onChange({ discountPercentage: parseInt(e.target.value) })}
+                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#F74211]"
+                  />
+                  <div className="w-16 h-10 flex items-center justify-center rounded-lg font-bold text-sm bg-[#F74211] text-white">
+                    {data.discountPercentage || 20}%
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">Descuento que aplicará a los miembros elegibles</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Cooldown (horas desde registro)</label>
