@@ -25,6 +25,7 @@ import { validateCheckoutRewards } from '@/lib/loyalty'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
 import QrPromo from '@/models/QrPromo'
+import ClubDiscount from '@/models/ClubDiscount'
 import { getDeviceIdIfExists } from '@/lib/hidden-rewards'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
@@ -1121,6 +1122,61 @@ export async function POST(
       // 6. Calcular descuento sobre subtotal elegible
       discountAmount = Math.floor(eligibleSubtotal * (activeQrPromo.discountPercentage / 100))
       qrPromoApplied = true
+    }
+
+    // ── CLUB DISCOUNT: descuento en carta para miembros ───────────────────────
+    // Se aplica SOLO si no hubo descuento QrPromo club. Validación: phone + token JWT.
+    if (!qrPromoApplied && activeClubMember) {
+      const clubDiscount = await ClubDiscount.findOne({ tenantId, active: true }).lean()
+      if (clubDiscount) {
+        // 1. Cooldown: horas desde createdAt del miembro
+        const hoursSinceJoin = (Date.now() - new Date(activeClubMember.createdAt).getTime()) / (1000 * 60 * 60)
+        if (hoursSinceJoin < (clubDiscount.cooldownHours ?? 24)) {
+          // Cooldown activo — no aplica descuento, pero no es error (el miembro simplemente no lo ve)
+        } else {
+          // 2. Determinar items elegibles según scope
+          let eligibleSubtotal = 0
+          if (clubDiscount.scope === 'all') {
+            eligibleSubtotal = resolvedItems
+              .filter(item => item.itemType !== 'promotion')
+              .reduce((sum, item) => sum + item.subtotal, 0)
+          } else if (clubDiscount.scope === 'category' && clubDiscount.categoryIds?.length) {
+            const eligibleIds = new Set(clubDiscount.categoryIds.map(id => id.toString()))
+            eligibleSubtotal = resolvedItems
+              .filter(item => item.itemType !== 'promotion' && item.categoryId && eligibleIds.has(item.categoryId.toString()))
+              .reduce((sum, item) => sum + item.subtotal, 0)
+          } else if (clubDiscount.scope === 'subcategory' && clubDiscount.subcategoryIds?.length) {
+            const eligibleIds = new Set(clubDiscount.subcategoryIds.map(id => id.toString()))
+            eligibleSubtotal = resolvedItems
+              .filter(item => item.itemType !== 'promotion' && item.subcategoryId && eligibleIds.has(item.subcategoryId.toString()))
+              .reduce((sum, item) => sum + item.subtotal, 0)
+          } else if (clubDiscount.scope === 'item' && clubDiscount.itemIds?.length) {
+            const eligibleIds = new Set(clubDiscount.itemIds.map(id => id.toString()))
+            eligibleSubtotal = resolvedItems
+              .filter(item => item.itemType !== 'promotion' && item.menuItemId && eligibleIds.has(item.menuItemId.toString()))
+              .reduce((sum, item) => sum + item.subtotal, 0)
+          }
+
+          if (eligibleSubtotal > 0) {
+            // 3. Validar maxRedemptions (atómico)
+            if ((clubDiscount.maxRedemptions ?? 0) > 0) {
+              const updated = await ClubDiscount.findOneAndUpdate(
+                { _id: clubDiscount._id, $expr: { $lt: ['$usedCount', '$maxRedemptions'] } },
+                { $inc: { usedCount: 1 } },
+                { new: true },
+              )
+              if (!updated) {
+                // Promo agotada — no aplica descuento
+              } else {
+                discountAmount = Math.floor(eligibleSubtotal * (clubDiscount.discountPercent / 100))
+              }
+            } else {
+              // Sin tope — aplicar directo
+              discountAmount = Math.floor(eligibleSubtotal * (clubDiscount.discountPercent / 100))
+            }
+          }
+        }
+      }
     }
 
     if (paymentMethod !== 'cash' && activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
