@@ -16,6 +16,11 @@ interface ClubDiscountData {
   maxUsesPerConsumer: number
   usedCount: number
   active: boolean
+  activeDays?: number[]
+  scheduledStart?: string | null
+  scheduledEnd?: string | null
+  activeTimeStart?: string | null
+  activeTimeEnd?: string | null
 }
 
 interface Props {

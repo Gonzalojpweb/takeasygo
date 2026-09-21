@@ -27,6 +27,9 @@ interface Promotion {
   isFeatured: boolean
   scheduledStart?: string
   scheduledEnd?: string
+  activeTimeStart?: string
+  activeTimeEnd?: string
+  activeDays?: number[]
   maxRedemptions?: number | null
   sortOrder: number
   targetTenants: string[]
