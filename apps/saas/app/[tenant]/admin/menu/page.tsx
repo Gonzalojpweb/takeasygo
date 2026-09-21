@@ -75,15 +75,15 @@ export default async function MenuPage() {
         </Card>
       ) : (
         <>
-          <ClubDiscountConfig
-            tenantSlug={tenantSlug || ''}
-            categories={categories}
-          />
-          <div className="mt-6" />
           <MenuManager
             locations={JSON.parse(JSON.stringify(locations))}
             menus={JSON.parse(JSON.stringify(menus))}
             tenantSlug={tenantSlug || ''}
+          />
+          <div className="mt-6" />
+          <ClubDiscountConfig
+            tenantSlug={tenantSlug || ''}
+            categories={categories}
           />
         </>
       )}
