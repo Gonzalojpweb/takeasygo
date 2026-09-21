@@ -9,6 +9,7 @@ import Menu from '@/models/Menu'
 import Location from '@/models/Location'
 import Order from '@/models/Order'
 import PlatformConfig from '@/models/PlatformConfig'
+import ClubDiscount from '@/models/ClubDiscount'
 import User from '@/models/User'
 import { signMemberToken } from '@/lib/memberToken'
 import { hashPhone } from '@/lib/crypto'
@@ -751,5 +752,123 @@ describe('B2 — Checkout: club discount validation', () => {
     const data = await res.json()
 
     expect(data.order).toBeTruthy()
+  })
+
+  it('ClubDiscount maxUsesPerConsumer: member with 1 prior club order → rejected', async () => {
+    const member = await LoyaltyMember.create({
+      tenantId: tenant._id,
+      name: 'User A',
+      phone: '+5491111111111',
+      phoneHash: hashPhone('+5491111111111'),
+      email: 'a@test.com',
+      source: 'promotion',
+      status: 'active',
+      joinedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+      deviceFingerprints: ['fp1'],
+      tokenVersion: 1,
+    })
+    await LoyaltyMember.collection.updateOne(
+      { _id: member._id },
+      { $set: { createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) } }
+    )
+
+    // Create ClubDiscount (not QrPromo) with maxUsesPerConsumer: 1
+    await ClubDiscount.create({
+      tenantId: tenant._id,
+      scope: 'all',
+      categoryIds: [],
+      subcategoryIds: [],
+      itemIds: [],
+      discountPercent: 20,
+      cooldownHours: 0,
+      maxRedemptions: 0,
+      maxUsesPerConsumer: 1,
+      active: true,
+    })
+
+    // Create a previous order with clubDiscountApplied: true
+    await Order.create({
+      tenantId: tenant._id,
+      locationId: location._id,
+      orderNumber: 'ORD-PREV-CLUB',
+      orderMode: 'takeaway',
+      customer: { phoneHash: hashPhone('+5491111111111'), name: 'Test' },
+      status: 'delivered',
+      payment: { status: 'approved', method: 'cash' },
+      items: [],
+      subtotal: 1000,
+      total: 1000,
+      clubDiscountApplied: true,
+    })
+
+    const token = await signMemberToken(
+      member._id.toString(),
+      tenant._id.toString(),
+      '+5491111111111',
+      1,
+    )
+
+    // No qrPromoApplied — triggers ClubDiscount path
+    const body = makeOrderBody({ qrPromoApplied: false })
+    const req = makeRequest(body, { 'x-member-token': token })
+    const res = await POST(req, makeParams())
+    const data = await res.json()
+
+    // Should succeed (order created) but WITHOUT club discount
+    expect(data.order).toBeTruthy()
+    // Verify clubDiscountApplied is NOT set on the new order
+    const newOrder = await Order.findOne({ orderNumber: data.order.orderNumber }).lean()
+    expect(newOrder?.clubDiscountApplied).toBeFalsy()
+  })
+
+  it('ClubDiscount maxUsesPerConsumer: member with 0 prior club orders → discount applied', async () => {
+    const member = await LoyaltyMember.create({
+      tenantId: tenant._id,
+      name: 'User B',
+      phone: '+5491111111112',
+      phoneHash: hashPhone('+5491111111112'),
+      email: 'b@test.com',
+      source: 'promotion',
+      status: 'active',
+      joinedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+      deviceFingerprints: ['fp2'],
+      tokenVersion: 1,
+    })
+    await LoyaltyMember.collection.updateOne(
+      { _id: member._id },
+      { $set: { createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) } }
+    )
+
+    await ClubDiscount.create({
+      tenantId: tenant._id,
+      scope: 'all',
+      categoryIds: [],
+      subcategoryIds: [],
+      itemIds: [],
+      discountPercent: 20,
+      cooldownHours: 0,
+      maxRedemptions: 0,
+      maxUsesPerConsumer: 1,
+      active: true,
+    })
+
+    const token = await signMemberToken(
+      member._id.toString(),
+      tenant._id.toString(),
+      '+5491111111112',
+      1,
+    )
+
+    const body = makeOrderBody({
+      qrPromoApplied: false,
+      customer: { name: 'User B', phone: '+5491111111112', email: 'b@test.com' },
+    })
+    const req = makeRequest(body, { 'x-member-token': token })
+    const res = await POST(req, makeParams())
+    const data = await res.json()
+
+    // Order should be created successfully (201) — no 400 error
+    expect(data.order).toBeTruthy()
+    expect(res.status).toBe(201)
   })
 })
