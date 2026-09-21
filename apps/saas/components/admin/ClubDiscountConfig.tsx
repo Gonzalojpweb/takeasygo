@@ -36,6 +36,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [selectedSubcategoryIds, setSelectedSubcategoryIds] = useState<string[]>([])
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
+  const [activeDays, setActiveDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6])
   const [hasChanges, setHasChanges] = useState(false)
 
   // Search state for each picker
@@ -57,6 +58,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
         setSelectedCategoryIds(data.discount.categoryIds ?? [])
         setSelectedSubcategoryIds(data.discount.subcategoryIds ?? [])
         setSelectedItemIds(data.discount.itemIds ?? [])
+        setActiveDays(data.discount.activeDays ?? [0, 1, 2, 3, 4, 5, 6])
       }
     } catch {
       toast.error('Error al cargar descuento')
@@ -80,9 +82,10 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
       maxUsesPerConsumer !== (discount.maxUsesPerConsumer ?? 0).toString() ||
       JSON.stringify(selectedCategoryIds) !== JSON.stringify(discount.categoryIds) ||
       JSON.stringify(selectedSubcategoryIds) !== JSON.stringify(discount.subcategoryIds) ||
-      JSON.stringify(selectedItemIds) !== JSON.stringify(discount.itemIds)
+      JSON.stringify(selectedItemIds) !== JSON.stringify(discount.itemIds) ||
+      JSON.stringify(activeDays) !== JSON.stringify(discount.activeDays ?? [0, 1, 2, 3, 4, 5, 6])
     setHasChanges(changed)
-  }, [scope, discountPercent, cooldownHours, maxRedemptions, maxUsesPerConsumer, selectedCategoryIds, selectedSubcategoryIds, selectedItemIds, discount])
+  }, [scope, discountPercent, cooldownHours, maxRedemptions, maxUsesPerConsumer, selectedCategoryIds, selectedSubcategoryIds, selectedItemIds, activeDays, discount])
 
   async function handleSave() {
     const pct = Number(discountPercent)
@@ -117,6 +120,7 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
           categoryIds: selectedCategoryIds,
           subcategoryIds: selectedSubcategoryIds,
           itemIds: selectedItemIds,
+          activeDays,
         }),
       })
       if (!res.ok) {
@@ -542,6 +546,36 @@ export default function ClubDiscountConfig({ tenantSlug, categories }: Props) {
             <p className="text-[10px] text-zinc-500 mt-1">0 = sin límite. 1 = una vez por miembro</p>
           </div>
         </div>
+      </div>
+
+      {/* ── Días de la semana ─────────────────────────────────────────────── */}
+      <div className="border-t border-zinc-800 pt-4">
+        <label className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-2 block">
+          Días de la semana
+        </label>
+        <div className="flex gap-1">
+          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                const days = activeDays.includes(i)
+                  ? activeDays.filter(d => d !== i)
+                  : [...activeDays, i]
+                setActiveDays(days)
+                setHasChanges(true)
+              }}
+              className={`w-9 h-7 rounded text-xs font-medium transition-colors ${
+                activeDays.includes(i)
+                  ? 'bg-[#f74211] text-white'
+                  : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'
+              }`}
+            >
+              {day}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-zinc-600 mt-1">Si no seleccionás ningún día, el descuento aplica todos los días.</p>
       </div>
 
       {/* Actions */}

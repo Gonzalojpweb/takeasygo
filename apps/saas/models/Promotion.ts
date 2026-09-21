@@ -58,6 +58,8 @@ export interface IPromotion {
   scheduledEnd?: Date
   activeTimeStart?: string
   activeTimeEnd?: string
+  /** Días de la semana en que la promo está activa (0=Dom, 1=Lun, ..., 6=Sáb). Vacío = todos. */
+  activeDays: number[]
   customStyles?: {
     backgroundColor?: string
     textColor?: string
@@ -205,6 +207,7 @@ const PromotionSchema = new Schema<IPromotion>(
       type: String,
       default: null,
     },
+    activeDays: { type: [Number], default: [0, 1, 2, 3, 4, 5, 6] },
     customStyles: {
       backgroundColor: { type: String, default: '' },
       textColor: { type: String, default: '' },

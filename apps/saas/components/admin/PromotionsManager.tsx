@@ -142,6 +142,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     scheduledEnd: string
     activeTimeStart: string
     activeTimeEnd: string
+    activeDays: number[]
     maxRedemptions: string
     locationId: string | null
     slots: Slot[]
@@ -175,6 +176,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     scheduledEnd: '',
     activeTimeStart: '',
     activeTimeEnd: '',
+    activeDays: [0, 1, 2, 3, 4, 5, 6],
     maxRedemptions: '',
     locationId: locations[0]?._id || '',
     slots: [] as Slot[],
@@ -510,6 +512,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       scheduledEnd: promotion.scheduledEnd ? promotion.scheduledEnd.split('T')[0] : '',
       activeTimeStart: promotion.activeTimeStart || '',
       activeTimeEnd: promotion.activeTimeEnd || '',
+      activeDays: (promotion as any).activeDays || [0, 1, 2, 3, 4, 5, 6],
       maxRedemptions: promotion.maxRedemptions?.toString() || '',
       locationId: promotion.locationId ?? locations[0]?._id ?? '',
       slots: (promotion as any).slots || [],
@@ -1587,6 +1590,34 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                   </div>
                   <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
                     Si ambos campos están vacíos, la promo está disponible todo el día.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Días de la semana</Label>
+                  <div className="flex gap-1">
+                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          const days = form.activeDays.includes(i)
+                            ? form.activeDays.filter(d => d !== i)
+                            : [...form.activeDays, i]
+                          setForm({ ...form, activeDays: days })
+                        }}
+                        className={`w-9 h-7 rounded text-xs font-medium transition-colors ${
+                          form.activeDays.includes(i)
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
+                    Si no seleccionás ningún día, la promo aplica todos los días.
                   </p>
                 </div>
 
