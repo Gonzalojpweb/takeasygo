@@ -17,13 +17,17 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     const { searchParams } = request.nextUrl
 
-    const page     = Math.max(1, parseInt(searchParams.get('page')  ?? '1',  10))
-    const limit    = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)))
-    const search   = searchParams.get('search')   ?? ''
-    const status   = searchParams.get('status')    ?? ''
-    const source   = searchParams.get('source')    ?? ''
-    const sortBy   = searchParams.get('sortBy')    ?? 'joinedAt'
-    const sortOrder = searchParams.get('sortOrder') ?? 'desc'
+    const page       = Math.max(1, parseInt(searchParams.get('page')  ?? '1',  10))
+    const limit      = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)))
+    const search     = searchParams.get('search')   ?? ''
+    const status     = searchParams.get('status')    ?? ''
+    const source     = searchParams.get('source')    ?? ''
+    const sortBy     = searchParams.get('sortBy')    ?? 'joinedAt'
+    const sortOrder  = searchParams.get('sortOrder') ?? 'desc'
+    const minOrders  = parseInt(searchParams.get('minOrders') ?? '', 10)
+    const maxOrders  = parseInt(searchParams.get('maxOrders') ?? '', 10)
+    const avgTicketMin = parseFloat(searchParams.get('avgTicketMin') ?? '')
+    const avgTicketMax = parseFloat(searchParams.get('avgTicketMax') ?? '')
 
     await connectDB()
 
@@ -71,15 +75,62 @@ export async function GET(
 
     const skip = (page - 1) * limit
 
-    const [members, total, totalActive] = await Promise.all([
-      LoyaltyMember.find(filter)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .lean<any[]>(),
-      LoyaltyMember.countDocuments(filter),
-      LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }),
-    ])
+    const hasAvgFilter = !isNaN(avgTicketMin) || !isNaN(avgTicketMax)
+    const hasOrderFilter = !isNaN(minOrders) || !isNaN(maxOrders)
+    const needsAggregation = hasAvgFilter || hasOrderFilter
+
+    let members: any[]
+    let total: number
+    const totalActive = await LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' })
+
+    if (needsAggregation) {
+      const pipeline: any[] = [{ $match: filter }]
+
+      if (hasAvgFilter) {
+        pipeline.push({
+          $addFields: {
+            avgTicket: {
+              $cond: [
+                { $gt: ['$cache.totalOrders', 0] },
+                { $divide: ['$cache.totalSpent', '$cache.totalOrders'] },
+                0,
+              ],
+            },
+          },
+        })
+
+        const avgMatch: Record<string, any> = {}
+        if (!isNaN(avgTicketMin)) avgMatch.avgTicket = { ...avgMatch.avgTicket, $gte: avgTicketMin }
+        if (!isNaN(avgTicketMax)) avgMatch.avgTicket = { ...avgMatch.avgTicket, $lte: avgTicketMax }
+        pipeline.push({ $match: avgMatch })
+      }
+
+      if (!isNaN(minOrders)) {
+        pipeline.push({ $match: { 'cache.totalOrders': { $gte: minOrders } } })
+      }
+      if (!isNaN(maxOrders)) {
+        pipeline.push({ $match: { 'cache.totalOrders': { $lte: maxOrders } } })
+      }
+
+      const countPipeline = [...pipeline, { $count: 'total' }]
+      const countResult = await LoyaltyMember.aggregate(countPipeline)
+      total = countResult[0]?.total ?? 0
+
+      pipeline.push({ $sort: sort })
+      pipeline.push({ $skip: skip })
+      pipeline.push({ $limit: limit })
+
+      members = await LoyaltyMember.aggregate(pipeline)
+    } else {
+      ;[members, total] = await Promise.all([
+        LoyaltyMember.find(filter)
+          .sort(sort)
+          .skip(skip)
+          .limit(limit)
+          .lean<any[]>(),
+        LoyaltyMember.countDocuments(filter),
+      ])
+    }
 
     const membersWithMaskedPhone = members.map(m => ({
       ...m,

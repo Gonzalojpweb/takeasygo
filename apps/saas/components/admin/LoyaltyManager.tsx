@@ -55,6 +55,7 @@ import {
   CameraOff,
   History,
   MessageCircle,
+  Filter,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -176,6 +177,13 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
   const [historyMember, setHistoryMember] = useState<{ memberId: string; memberName: string } | null>(null)
   const [sosDialog, setSosDialog] = useState(false)
 
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterMinOrders, setFilterMinOrders] = useState('')
+  const [filterMaxOrders, setFilterMaxOrders] = useState('')
+  const [filterAvgTicketMin, setFilterAvgTicketMin] = useState('')
+  const [filterAvgTicketMax, setFilterAvgTicketMax] = useState('')
+  const hasActiveFilters = filterMinOrders || filterMaxOrders || filterAvgTicketMin || filterAvgTicketMax
+
   const fetchMembers = useCallback(async () => {
     setLoading(true)
     try {
@@ -185,6 +193,10 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
         search,
       })
       if (locationId) params.set('locationId', locationId)
+      if (filterMinOrders) params.set('minOrders', filterMinOrders)
+      if (filterMaxOrders) params.set('maxOrders', filterMaxOrders)
+      if (filterAvgTicketMin) params.set('avgTicketMin', filterAvgTicketMin)
+      if (filterAvgTicketMax) params.set('avgTicketMax', filterAvgTicketMax)
       const res = await fetch(`/api/${tenantSlug}/loyalty/members?${params}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -195,7 +207,7 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [tenantSlug, page, search, locationId])
+  }, [tenantSlug, page, search, locationId, filterMinOrders, filterMaxOrders, filterAvgTicketMin, filterAvgTicketMax])
 
   const fetchStats = useCallback(async () => {
     setStatsLoading(true)
@@ -658,7 +670,81 @@ export default function LoyaltyManager({ tenantSlug, canExport }: Props) {
                 className="pl-10 bg-muted/40 border-2 border-border/60 focus:border-primary/40 h-10 rounded-xl text-sm font-medium"
               />
             </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${showFilters || hasActiveFilters ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/30'}`}
+            >
+              <Filter size={14} />
+              Filtros
+              {hasActiveFilters && (
+                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {[filterMinOrders, filterMaxOrders, filterAvgTicketMin, filterAvgTicketMax].filter(Boolean).length}
+                </span>
+              )}
+            </button>
           </div>
+
+          {showFilters && (
+            <div className="mt-4 rounded-2xl border border-border bg-background p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-foreground">Filtros de Club</h3>
+                {hasActiveFilters && (
+                  <button
+                    onClick={() => { setFilterMinOrders(''); setFilterMaxOrders(''); setFilterAvgTicketMin(''); setFilterAvgTicketMax(''); setPage(1) }}
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                  >
+                    <X size={12} /> Limpiar filtros
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground">Compras mínimas</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    value={filterMinOrders}
+                    onChange={e => { setFilterMinOrders(e.target.value); setPage(1) }}
+                    className="h-9 rounded-lg text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground">Compras máximas</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Sin límite"
+                    value={filterMaxOrders}
+                    onChange={e => { setFilterMaxOrders(e.target.value); setPage(1) }}
+                    className="h-9 rounded-lg text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground">Ticket promedio mín ($)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    value={filterAvgTicketMin}
+                    onChange={e => { setFilterAvgTicketMin(e.target.value); setPage(1) }}
+                    className="h-9 rounded-lg text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground">Ticket promedio máx ($)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Sin límite"
+                    value={filterAvgTicketMax}
+                    onChange={e => { setFilterAvgTicketMax(e.target.value); setPage(1) }}
+                    className="h-9 rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (

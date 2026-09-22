@@ -47,6 +47,12 @@ export async function GET(
     const lastOrderFrom = url.searchParams.get('lastOrderFrom')
     const lastOrderTo = url.searchParams.get('lastOrderTo')
 
+    // Filtros de comportamiento
+    const minOrders = url.searchParams.get('minOrders')
+    const maxOrders = url.searchParams.get('maxOrders')
+    const avgTicketMin = url.searchParams.get('avgTicketMin')
+    const avgTicketMax = url.searchParams.get('avgTicketMax')
+
     const hasCisFilters = segmentFilter || healthScoreMin || healthScoreMax || ltvMin || ltvMax || lastOrderFrom || lastOrderTo
 
     // Si hay filtros CIS, primero buscar los phoneHashes que cumplen
@@ -103,6 +109,25 @@ export async function GET(
         { email: { $regex: escapeRegex(search), $options: 'i' } },
         { phoneHash: { $regex: escapeRegex(search), $options: 'i' } },
       ]
+    }
+
+    // Filtros de comportamiento (compras y ticket promedio)
+    if (minOrders) consumerFilter.totalOrders = { ...consumerFilter.totalOrders, $gte: parseInt(minOrders) }
+    if (maxOrders) consumerFilter.totalOrders = { ...consumerFilter.totalOrders, $lte: parseInt(maxOrders) }
+
+    const hasAvgTicketFilter = avgTicketMin || avgTicketMax
+    if (hasAvgTicketFilter) {
+      const avgExpr: Record<string, any> = {
+        $cond: [
+          { $gt: ['$totalOrders', 0] },
+          { $divide: ['$totalSpent', '$totalOrders'] },
+          0,
+        ],
+      }
+      const avgMatch: Record<string, any> = {}
+      if (avgTicketMin) avgMatch.$expr = { ...((avgMatch.$expr as any) || {}), $gte: [avgExpr, parseFloat(avgTicketMin)] }
+      if (avgTicketMax) avgMatch.$expr = { ...((avgMatch.$expr as any) || {}), $lte: [avgExpr, parseFloat(avgTicketMax)] }
+      Object.assign(consumerFilter, avgMatch)
     }
 
     const sort: Record<string, 1 | -1> = {}
