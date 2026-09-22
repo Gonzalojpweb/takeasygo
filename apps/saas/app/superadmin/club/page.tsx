@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, Gift, Star, Store, ChevronRight, Search, Building2, Trophy, RefreshCw, Target } from 'lucide-react'
+import { Users, Gift, Star, Store, ChevronRight, Search, Building2, Trophy, RefreshCw, Target, Filter, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -30,6 +30,12 @@ export default function GlobalClubPage() {
   const [globalTotals, setGlobalTotals] = useState<GlobalTotals | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterPlan, setFilterPlan] = useState('')
+  const [filterClubEnabled, setFilterClubEnabled] = useState<'all' | 'enabled' | 'disabled'>('all')
+  const [filterMinMembers, setFilterMinMembers] = useState('')
+  const [filterMaxMembers, setFilterMaxMembers] = useState('')
+  const hasActiveFilters = filterPlan || filterClubEnabled !== 'all' || filterMinMembers || filterMaxMembers
 
   useEffect(() => {
     fetchClubStats()
@@ -52,10 +58,15 @@ export default function GlobalClubPage() {
     }
   }
 
-  const filtered = tenantStats.filter(t =>
-    t.tenantName.toLowerCase().includes(search.toLowerCase()) ||
-    t.tenantSlug.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = tenantStats.filter(t => {
+    if (search && !t.tenantName.toLowerCase().includes(search.toLowerCase()) && !t.tenantSlug.toLowerCase().includes(search.toLowerCase())) return false
+    if (filterPlan && t.plan !== filterPlan) return false
+    if (filterClubEnabled === 'enabled' && !t.clubEnabled) return false
+    if (filterClubEnabled === 'disabled' && t.clubEnabled) return false
+    if (filterMinMembers && t.totalMembers < parseInt(filterMinMembers)) return false
+    if (filterMaxMembers && t.totalMembers > parseInt(filterMaxMembers)) return false
+    return true
+  })
 
   if (loading) return <div className="p-8 text-center text-zinc-500">Cargando...</div>
 
@@ -116,17 +127,99 @@ export default function GlobalClubPage() {
       )}
 
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
-        <div className="p-4 border-b border-zinc-100">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar tenant..."
-              className="w-full pl-10 pr-4 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-zinc-400"
-            />
+        <div className="p-4 border-b border-zinc-100 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar tenant..."
+                className="w-full pl-10 pr-4 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:border-zinc-400"
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors',
+                showFilters || hasActiveFilters ? 'border-primary bg-primary/10 text-primary' : 'border-zinc-200 hover:bg-zinc-50'
+              )}
+            >
+              <Filter size={14} />
+              Filtros
+              {hasActiveFilters && (
+                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {[filterPlan, filterClubEnabled !== 'all' ? filterClubEnabled : '', filterMinMembers, filterMaxMembers].filter(Boolean).length}
+                </span>
+              )}
+            </button>
           </div>
+
+          {showFilters && (
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-zinc-700">Filtros de Club Global</h3>
+                {hasActiveFilters && (
+                  <button
+                    onClick={() => { setFilterPlan(''); setFilterClubEnabled('all'); setFilterMinMembers(''); setFilterMaxMembers('') }}
+                    className="text-xs text-zinc-500 hover:text-zinc-700 flex items-center gap-1"
+                  >
+                    <X size={12} /> Limpiar
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-zinc-500">Plan</label>
+                  <select
+                    value={filterPlan}
+                    onChange={e => setFilterPlan(e.target.value)}
+                    className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  >
+                    <option value="">Todos</option>
+                    <option value="trial">Trial</option>
+                    <option value="buy">Buy</option>
+                    <option value="full">Full</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-zinc-500">Club</label>
+                  <select
+                    value={filterClubEnabled}
+                    onChange={e => setFilterClubEnabled(e.target.value as any)}
+                    className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  >
+                    <option value="all">Todos</option>
+                    <option value="enabled">Activos</option>
+                    <option value="disabled">Inactivos</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-zinc-500">Miembros mín</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    value={filterMinMembers}
+                    onChange={e => setFilterMinMembers(e.target.value)}
+                    className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-zinc-500">Miembros máx</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="Sin límite"
+                    value={filterMaxMembers}
+                    onChange={e => setFilterMaxMembers(e.target.value)}
+                    className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {filtered.length === 0 ? (
