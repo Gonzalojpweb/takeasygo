@@ -1585,7 +1585,8 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                           </button>
 
                           {expandedSections[`${loc._id}-scheduled`] && (
-                              <div className="flex items-center justify-between pt-2">
+                              <div className="space-y-3 pt-2">
+                              <div className="flex items-center justify-between">
                                 <span className="text-[9px] text-muted-foreground/60">Habilitar pedidos programados</span>
                                 <button
                                   type="button"
@@ -1606,7 +1607,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               </div>
 
                               {scheduledOrdersMap[loc._id]?.enabled && (
-                            <div className="space-y-3 pt-2">
+                            <div className="space-y-3">
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
                                   <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
@@ -1678,6 +1679,8 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                               </div>
                             </div>
                           )}
+                          </div>
+                          )}
 
                           <Button
                             className="w-full bg-zinc-900 text-white font-bold h-9 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
@@ -1709,7 +1712,8 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                             </button>
 
                             {expandedSections[`${loc._id}-reservations`] && (
-                              <div className="flex items-center justify-between pt-2">
+                              <div className="space-y-3 pt-2">
+                              <div className="flex items-center justify-between">
                                 <span className="text-[9px] text-muted-foreground/60">Habilitar reservas</span>
                                 <button
                                   type="button"
@@ -1807,6 +1811,8 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                                 </div>
                               </div>
                             )}
+                          </div>
+                          )}
 
                             <Button
                               className="w-full bg-zinc-900 text-white font-bold h-9 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
