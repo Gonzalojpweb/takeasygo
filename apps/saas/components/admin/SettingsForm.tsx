@@ -28,7 +28,7 @@ import {
   Database,
   ImageIcon,
   Bell, PlusCircle, ShoppingBag, Coins, Banknote, Percent,
-  ChevronLeft, ChevronRight, Star,
+  ChevronLeft, ChevronRight, ChevronDown, Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
