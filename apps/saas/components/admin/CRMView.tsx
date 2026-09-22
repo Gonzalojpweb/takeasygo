@@ -92,10 +92,16 @@ export default function CRMView({ tenantSlug }: Props) {
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
 
+  // Filtros de comportamiento
+  const [filterMinOrders, setFilterMinOrders] = useState('')
+  const [filterMaxOrders, setFilterMaxOrders] = useState('')
+  const [filterAvgTicketMin, setFilterAvgTicketMin] = useState('')
+  const [filterAvgTicketMax, setFilterAvgTicketMax] = useState('')
+
   // Segment distribution for mini donut
   const [segmentData, setSegmentData] = useState<SegmentCount[]>([])
 
-  const hasActiveFilters = filterSegment || filterHealthMin || filterHealthMax || filterLtvMin || filterLtvMax || filterDateFrom || filterDateTo
+  const hasActiveFilters = filterSegment || filterHealthMin || filterHealthMax || filterLtvMin || filterLtvMax || filterDateFrom || filterDateTo || filterMinOrders || filterMaxOrders || filterAvgTicketMin || filterAvgTicketMax
 
   const load = useCallback(async (p: number, s: string, sb: SortField, so: SortOrder) => {
     setLoading(true)
@@ -114,6 +120,10 @@ export default function CRMView({ tenantSlug }: Props) {
       if (filterLtvMax) params.set('ltvMax', filterLtvMax)
       if (filterDateFrom) params.set('lastOrderFrom', filterDateFrom)
       if (filterDateTo) params.set('lastOrderTo', filterDateTo)
+      if (filterMinOrders) params.set('minOrders', filterMinOrders)
+      if (filterMaxOrders) params.set('maxOrders', filterMaxOrders)
+      if (filterAvgTicketMin) params.set('avgTicketMin', filterAvgTicketMin)
+      if (filterAvgTicketMax) params.set('avgTicketMax', filterAvgTicketMax)
 
       const res = await fetch(`/api/${tenantSlug}/crm/customers?${params}`)
       if (!res.ok) throw new Error('Error al cargar')
@@ -128,7 +138,7 @@ export default function CRMView({ tenantSlug }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [tenantSlug, filterSegment, filterHealthMin, filterHealthMax, filterLtvMin, filterLtvMax, filterDateFrom, filterDateTo])
+  }, [tenantSlug, filterSegment, filterHealthMin, filterHealthMax, filterLtvMin, filterLtvMax, filterDateFrom, filterDateTo, filterMinOrders, filterMaxOrders, filterAvgTicketMin, filterAvgTicketMax])
 
   // Load segment distribution
   const loadSegments = useCallback(async () => {
@@ -189,6 +199,10 @@ export default function CRMView({ tenantSlug }: Props) {
     setFilterLtvMax('')
     setFilterDateFrom('')
     setFilterDateTo('')
+    setFilterMinOrders('')
+    setFilterMaxOrders('')
+    setFilterAvgTicketMin('')
+    setFilterAvgTicketMax('')
   }
 
   const handleSegmentChartClick = (segment: string) => {
@@ -423,6 +437,54 @@ export default function CRMView({ tenantSlug }: Props) {
                   />
                 </div>
               </div>
+
+              {/* Compras */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Cantidad de Compras</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Mín"
+                    value={filterMinOrders}
+                    onChange={e => setFilterMinOrders(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                  />
+                  <span className="text-muted-foreground">—</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Máx"
+                    value={filterMaxOrders}
+                    onChange={e => setFilterMaxOrders(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Ticket Promedio */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Ticket Promedio ($)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Mín"
+                    value={filterAvgTicketMin}
+                    onChange={e => setFilterAvgTicketMin(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                  />
+                  <span className="text-muted-foreground">—</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Máx"
+                    value={filterAvgTicketMax}
+                    onChange={e => setFilterAvgTicketMax(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Active filters chips */}
@@ -456,6 +518,30 @@ export default function CRMView({ tenantSlug }: Props) {
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium">
                     Gasto ≤ {fmtCurrency(Number(filterLtvMax))}
                     <button onClick={() => setFilterLtvMax('')} className="ml-0.5 hover:text-primary/70"><X size={10} /></button>
+                  </span>
+                )}
+                {filterMinOrders && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium">
+                    Compras ≥ {filterMinOrders}
+                    <button onClick={() => setFilterMinOrders('')} className="ml-0.5 hover:text-primary/70"><X size={10} /></button>
+                  </span>
+                )}
+                {filterMaxOrders && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium">
+                    Compras ≤ {filterMaxOrders}
+                    <button onClick={() => setFilterMaxOrders('')} className="ml-0.5 hover:text-primary/70"><X size={10} /></button>
+                  </span>
+                )}
+                {filterAvgTicketMin && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium">
+                    Ticket ≥ {fmtCurrency(Number(filterAvgTicketMin))}
+                    <button onClick={() => setFilterAvgTicketMin('')} className="ml-0.5 hover:text-primary/70"><X size={10} /></button>
+                  </span>
+                )}
+                {filterAvgTicketMax && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium">
+                    Ticket ≤ {fmtCurrency(Number(filterAvgTicketMax))}
+                    <button onClick={() => setFilterAvgTicketMax('')} className="ml-0.5 hover:text-primary/70"><X size={10} /></button>
                   </span>
                 )}
               </div>

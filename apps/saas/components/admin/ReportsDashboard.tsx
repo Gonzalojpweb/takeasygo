@@ -68,6 +68,14 @@ interface Props {
         upsellTotalConversions: number
         upsellTotalRevenue: number
         upsellOverallConvRate: number
+        // Tendencia mensual
+        monthlyTrend: { year: number; month: number; revenue: number; orders: number; avgTicket: number }[]
+        // Upsell vs Menú Común
+        upsellUserPct: number
+        upsellOrderPct: number
+        avgTicketWithUpsell: number
+        avgTicketWithoutUpsell: number
+        totalCustomersInPeriod: number
     }
     topItems: any[]
     recentOrders: any[]
@@ -889,6 +897,115 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                         windowDays={90}
                         rows={stats.upsellRows}
                     />
+                </motion.div>
+            )}
+
+            {/* ── Upsell vs Menú Común ───────────────────────────────── */}
+            {plan === 'full' && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.48 }}>
+                    <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+                        <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                    <Zap size={24} strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold tracking-tight">Upsell vs Menú Común</CardTitle>
+                                    <p className="text-xs text-muted-foreground font-medium">¿Qué eligen tus clientes? · {stats.rangeLabel}</p>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-8">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="rounded-2xl border border-border p-4 bg-background">
+                                    <p className="text-[10px] text-muted-foreground font-medium uppercase">Usuarios con upsell</p>
+                                    <p className="text-2xl font-black text-blue-600">{stats.upsellUserPct}%</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">{stats.totalCustomersInPeriod} clientes en período</p>
+                                </div>
+                                <div className="rounded-2xl border border-border p-4 bg-background">
+                                    <p className="text-[10px] text-muted-foreground font-medium uppercase">Pedidos con upsell</p>
+                                    <p className="text-2xl font-black text-amber-600">{stats.upsellOrderPct}%</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">del total de pedidos</p>
+                                </div>
+                                <div className="rounded-2xl border border-border p-4 bg-background">
+                                    <p className="text-[10px] text-muted-foreground font-medium uppercase">Ticket c/ upsell</p>
+                                    <p className="text-2xl font-black text-emerald-600">${toPesos(stats.avgTicketWithUpsell).toLocaleString('es-AR')}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">promedio</p>
+                                </div>
+                                <div className="rounded-2xl border border-border p-4 bg-background">
+                                    <p className="text-[10px] text-muted-foreground font-medium uppercase">Ticket s/ upsell</p>
+                                    <p className="text-2xl font-black text-muted-foreground">${toPesos(stats.avgTicketWithoutUpsell).toLocaleString('es-AR')}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">promedio</p>
+                                </div>
+                            </div>
+                            {stats.avgTicketWithUpsell > 0 && stats.avgTicketWithoutUpsell > 0 && (
+                                <div className="mt-4 rounded-xl bg-primary/5 border border-primary/20 p-3 text-sm">
+                                    <span className="font-bold text-primary">+${toPesos(stats.avgTicketWithUpsell - stats.avgTicketWithoutUpsell).toLocaleString('es-AR')}</span>
+                                    <span className="text-muted-foreground"> de ticket promedio con upsell vs sin upsell</span>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
+
+            {/* ── Tendencia Mensual ────────────────────────────────────── */}
+            {plan === 'full' && stats.monthlyTrend.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+                    <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+                        <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-500">
+                                    <Calendar size={24} strokeWidth={2.5} />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl font-bold tracking-tight">Tendencia Mensual</CardTitle>
+                                    <p className="text-xs text-muted-foreground font-medium">Últimos 12 meses · ticket, pedidos e ingresos</p>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-border bg-muted/30">
+                                            <th className="text-left px-6 py-3 font-semibold text-muted-foreground">Mes</th>
+                                            <th className="text-right px-6 py-3 font-semibold text-muted-foreground">Pedidos</th>
+                                            <th className="text-right px-6 py-3 font-semibold text-muted-foreground">Ticket Prom.</th>
+                                            <th className="text-right px-6 py-3 font-semibold text-muted-foreground">Ingresos</th>
+                                            <th className="text-right px-6 py-3 font-semibold text-muted-foreground">Cambio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {stats.monthlyTrend.slice().reverse().map((m, i) => {
+                                            const prev = stats.monthlyTrend[stats.monthlyTrend.length - 1 - i - 1]
+                                            const change = prev && prev.revenue > 0
+                                                ? Math.round(((m.revenue - prev.revenue) / prev.revenue) * 100)
+                                                : null
+                                            const monthName = new Date(m.year, m.month - 1).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' })
+                                            return (
+                                                <tr key={`${m.year}-${m.month}`} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
+                                                    <td className="px-6 py-3 font-medium capitalize">{monthName}</td>
+                                                    <td className="text-right px-6 py-3">{m.orders.toLocaleString('es-AR')}</td>
+                                                    <td className="text-right px-6 py-3 font-medium">${toPesos(m.avgTicket).toLocaleString('es-AR')}</td>
+                                                    <td className="text-right px-6 py-3 font-bold">${toPesos(m.revenue).toLocaleString('es-AR')}</td>
+                                                    <td className="text-right px-6 py-3">
+                                                        {change !== null ? (
+                                                            <span className={cn('text-xs font-bold', change > 0 ? 'text-emerald-600' : change < 0 ? 'text-red-500' : 'text-muted-foreground')}>
+                                                                {change > 0 ? '+' : ''}{change}%
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">—</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </motion.div>
             )}
 

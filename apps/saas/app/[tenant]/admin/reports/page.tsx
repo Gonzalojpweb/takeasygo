@@ -112,6 +112,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     upsellConversionsData,
     paymentMethodData,
     transferCommissionData,
+    monthlyTrendData,
+    upsellUserCountData,
+    upsellOrderData,
+    upsellTicketData,
   ] = await Promise.all([
     // Revenue y count del mes actual (sin cancelados)
     Order.aggregate([
@@ -314,6 +318,48 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       }},
       { $sort: { _id: 1 } },
     ]),
+    // ── Tendencia mensual (últimos 12 meses) ──────────────────────────
+    (() => {
+      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0, 0)
+      return Order.aggregate([
+        { $match: { tenantId, createdAt: { $gte: twelveMonthsAgo }, status: { $ne: 'cancelled' } } },
+        { $group: {
+          _id: { year: { $year: { date: '$createdAt', timezone } }, month: { $month: { date: '$createdAt', timezone } } },
+          revenue: { $sum: '$total' },
+          orders: { $sum: 1 },
+          avgTicket: { $avg: '$total' },
+        }},
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ])
+    })(),
+    // ── Upsell vs Menú Común: usuarios con upsell ─────────────────────
+    Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $unwind: '$items' },
+      { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
+      { $group: { _id: '$customer.phoneHash' } },
+      { $count: 'total' },
+    ]),
+    // ── Upsell vs Menú Común: pedidos con upsell ──────────────────────
+    Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $addFields: {
+        hasUpsell: {
+          $gt: [{ $size: { $filter: { input: '$items', as: 'item', cond: { $in: ['$$item.addedFrom', UPSELL_SOURCES] } } } }, 0],
+        },
+      }},
+      { $group: { _id: null, total: { $sum: 1 }, withUpsell: { $sum: { $cond: ['$hasUpsell', 1, 0] } } } },
+    ]),
+    // ── Upsell vs Menú Común: ticket promedio con/sin upsell ──────────
+    Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $addFields: {
+        hasUpsell: {
+          $gt: [{ $size: { $filter: { input: '$items', as: 'item', cond: { $in: ['$$item.addedFrom', UPSELL_SOURCES] } } } }, 0],
+        },
+      }},
+      { $group: { _id: '$hasUpsell', avgTicket: { $avg: '$total' }, count: { $sum: 1 } } },
+    ]),
   ])
 
   const thisMonth = ordersThisMonth[0] || { total: 0, baseTotal: 0, surcharge: 0, platformFee: 0, count: 0 }
@@ -433,6 +479,27 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const upsellTotalRevenue = upsellRows.reduce((s, r) => s + r.revenue, 0)
   const upsellOverallConvRate = upsellTotalAdds > 0 ? Math.round((upsellTotalConversions / upsellTotalAdds) * 100) : 0
 
+  // ── Tendencia mensual (últimos 12 meses) ──────────────────────────
+  const monthlyTrend = (monthlyTrendData as any[]).map(m => ({
+    year: m._id.year as number,
+    month: m._id.month as number,
+    revenue: m.revenue as number,
+    orders: m.orders as number,
+    avgTicket: Math.round(m.avgTicket as number),
+  }))
+
+  // ── Upsell vs Menú Común ──────────────────────────────────────────
+  const totalCustomersInPeriod = await Order.distinct('customer.phoneHash', { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } }).then(arr => arr.length)
+  const upsellUsers = (upsellUserCountData as any[])[0]?.total ?? 0
+  const upsellUserPct = totalCustomersInPeriod > 0 ? Math.round((upsellUsers / totalCustomersInPeriod) * 100) : 0
+
+  const upsellOrderRaw = (upsellOrderData as any[])[0] || { total: 0, withUpsell: 0 }
+  const upsellOrderPct = upsellOrderRaw.total > 0 ? Math.round((upsellOrderRaw.withUpsell / upsellOrderRaw.total) * 100) : 0
+
+  const upsellTicketMap = Object.fromEntries((upsellTicketData as any[]).map(d => [String(d._id), Math.round(d.avgTicket)]))
+  const avgTicketWithUpsell = upsellTicketMap['true'] ?? 0
+  const avgTicketWithoutUpsell = upsellTicketMap['false'] ?? 0
+
   const stats = {
     revenue: thisMonth.total,
     netRevenue: thisMonth.baseTotal,
@@ -490,6 +557,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     upsellTotalConversions,
     upsellTotalRevenue,
     upsellOverallConvRate,
+    // Tendencia mensual
+    monthlyTrend,
+    // Upsell vs Menú Común
+    upsellUserPct,
+    upsellOrderPct,
+    avgTicketWithUpsell,
+    avgTicketWithoutUpsell,
+    totalCustomersInPeriod,
   }
 
   return (
