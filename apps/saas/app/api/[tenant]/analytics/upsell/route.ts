@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
+import { UPSELL_SOURCES } from '@/lib/constants/upsell'
 
 const WINDOW_DAYS = 90
 
@@ -30,8 +31,6 @@ export async function GET(
 
     const tenantId = tenant._id
     const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000)
-
-    const UPSELL_SOURCES = ['upsell_sheet', 'checkout_banner']
 
     // Agrupación 1: cuántas veces cada ítem fue agregado via upsell (en cualquier orden)
     // Agrupación 2: cuántas veces cada ítem upsell terminó en una orden pagada (approved)
