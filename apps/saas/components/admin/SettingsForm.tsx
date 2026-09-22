@@ -1236,7 +1236,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                   <span>incluye 1 sede. Actualizá a <strong>Crecimiento</strong> para agregar múltiples ubicaciones.</span>
                 </div>
               )}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 [&>*:only-child]:col-span-full">
                 {locations.length === 0 ? (
                   <Card className="border-2 border-dashed border-border/60 bg-muted/10 rounded-[2.5rem] col-span-2">
                     <CardContent className="py-24 text-center">
