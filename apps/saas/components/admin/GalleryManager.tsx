@@ -69,7 +69,7 @@ export default function GalleryManager({
         </span>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-6 gap-1.5">
         {gallery.map((url, idx) => (
           <div
             key={`${locationId}-${idx}`}
