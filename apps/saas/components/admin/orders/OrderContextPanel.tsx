@@ -228,7 +228,7 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
               Llamar
             </a>
           )}
-          {['confirmed', 'preparing'].includes(item.status) && (
+          {['awaiting_confirmation', 'confirmed', 'preparing'].includes(item.status) && (
             <button
               type="button"
               onClick={async () => {
