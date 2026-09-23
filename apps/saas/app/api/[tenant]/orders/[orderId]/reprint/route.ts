@@ -23,9 +23,9 @@ export async function POST(
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
 
-    if (!['confirmed', 'preparing'].includes(order.status)) {
+    if (!['awaiting_confirmation', 'confirmed', 'preparing'].includes(order.status)) {
       return NextResponse.json(
-        { error: 'Solo se puede reimprimir pedidos en estado Confirmado o Preparando' },
+        { error: 'Solo se puede reimprimir pedidos en estado Esperando Confirmación, Confirmado o Preparando' },
         { status: 400 }
       )
     }

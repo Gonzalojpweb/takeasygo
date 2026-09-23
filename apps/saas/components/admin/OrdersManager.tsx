@@ -941,7 +941,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                       ID: {order._id.toString().slice(-6)}
                     </span>
                     <div className="flex items-center gap-2">
-                      {['confirmed', 'preparing'].includes(order.status) && (
+                      {['awaiting_confirmation', 'confirmed', 'preparing'].includes(order.status) && (
                         <button
                           type="button"
                           onClick={async () => {
