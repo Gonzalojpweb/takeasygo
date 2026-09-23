@@ -5,6 +5,7 @@ import type { Server as SocketServer } from "socket.io"
 import { QUEUE_ORDER_CREATED } from "../queues/order-queue"
 import { CashSaleEventModel } from "@takeasygo/db"
 import { config } from "../config"
+import { registerComplianceWorker } from "./compliance-worker"
 
 async function getSaaSslug(tenantId: string): Promise<string | null> {
   try {
@@ -175,8 +176,12 @@ export function registerWorkers(redisUrl: string, io: SocketServer): WorkerSet {
     )
   })
 
+  // ── Compliance worker — SLA monitoring ─────────────────────────────
+  const { worker: complianceWorker, redisConnection: complianceRedisConn } =
+    registerComplianceWorker(redisUrl, io)
+
   return {
-    workers: [orderWorker, cashSaleWorker, confirmForwardWorker],
-    redisConnections: [connection, cashSaleConnection, confirmForwardConnection],
+    workers: [orderWorker, cashSaleWorker, confirmForwardWorker, complianceWorker],
+    redisConnections: [connection, cashSaleConnection, confirmForwardConnection, complianceRedisConn],
   }
 }

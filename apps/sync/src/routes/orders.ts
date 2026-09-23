@@ -10,14 +10,88 @@ import { SyncOrderModel } from "@takeasygo/db"
 import { enqueueOrderCreated, removePendingOrder } from "../queues/order-queue"
 import { enqueueConfirmForward } from "../queues/order-confirm-forward-queue"
 import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queue"
+import { enqueueComplianceChecks, cancelComplianceJobs } from "../queues/compliance-queue"
+import type { ComplianceJobData } from "../queues/compliance-queue"
 import { validate, orderCreateSchema } from "../middleware/validation"
+import { ComplianceConfigModel, DEFAULT_SLA_RULES } from "@takeasygo/db"
+
+/** Mapa de status → siguiente status esperado (para dispatch de compliance) */
+const NEXT_STATUS: Record<string, string> = {
+  pending: "confirmed",
+  confirmed: "preparing",
+  preparing: "ready",
+  ready: "en_ruta",
+  en_ruta: "arrived",
+  arrived: "delivered",
+}
 
 export function ordersRouter(
   io: SocketServer,
   orderQueue: BullQueue,
-  confirmForwardQueue: BullQueue<ConfirmForwardJobData>
+  confirmForwardQueue: BullQueue<ConfirmForwardJobData>,
+  complianceQueue: BullQueue<ComplianceJobData>
 ): Router {
   const router = Router()
+
+  /** Helper: obtener reglas SLA para una sede (config o defaults) */
+  async function getSlaRules(tenantId: string, locationId?: string) {
+    try {
+      const config = await ComplianceConfigModel.findOne({
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        $or: [
+          ...(locationId ? [{ locationId: new mongoose.Types.ObjectId(locationId) }] : []),
+          { locationId: null },
+        ],
+      }).sort({ locationId: -1 }).lean()
+
+      if (!config || !config.enabled) return null
+      return config.slaRules.length > 0 ? config.slaRules : DEFAULT_SLA_RULES
+    } catch {
+      return DEFAULT_SLA_RULES
+    }
+  }
+
+  /** Helper: despachar jobs de compliance para una transición */
+  async function dispatchCompliance(
+    tenantId: string,
+    locationId: string | undefined,
+    orderId: string,
+    orderNumber: string,
+    fromStatus: string,
+    toStatus: string,
+    orderMode: string
+  ) {
+    if (!locationId) return
+    const rules = await getSlaRules(tenantId, locationId)
+    if (!rules) return
+
+    const rule = rules.find(
+      (r: any) =>
+        r.fromStatus === fromStatus &&
+        r.toStatus === toStatus &&
+        (r.orderMode === orderMode || r.orderMode === "all")
+    ) ?? rules.find(
+      (r: any) =>
+        r.fromStatus === fromStatus &&
+        r.toStatus === toStatus &&
+        r.orderMode === "all"
+    )
+
+    if (!rule) return
+
+    await enqueueComplianceChecks(complianceQueue, {
+      tenantId,
+      locationId,
+      orderId,
+      orderNumber,
+      fromStatus,
+      toStatus,
+      orderMode,
+      level1Minutes: rule.level1Minutes,
+      level2Minutes: rule.level2Minutes,
+      level3Minutes: rule.level3Minutes,
+    })
+  }
 
   // GET /orders — list orders with optional filters (status, orderMode)
   router.get("/", async (req, res) => {
@@ -145,6 +219,17 @@ export function ordersRouter(
         offlineTimeoutMs: timeoutMs,
       })
 
+      // Schedule compliance checks for pending → confirmed
+      dispatchCompliance(
+        auth.tenantId,
+        auth.locationId,
+        orderId,
+        data.orderNumber ?? orderId.slice(-6),
+        "pending",
+        "confirmed",
+        data.orderMode ?? "takeaway"
+      ).catch((err) => console.error("[orders] compliance dispatch error (non-blocking):", err))
+
       res.status(201).json({ orderId })
     } catch (err) {
       console.error("[orders] create error:", err)
@@ -165,6 +250,18 @@ export function ordersRouter(
       }
 
       console.log(`[orders/status] orderId=${orderId}, isObjectId=${mongoose.Types.ObjectId.isValid(orderId)}, tenantId=${auth.tenantId}, status=${status}`)
+
+      // Read current status before update (for compliance job cancellation)
+      const isObjectIdCheck = mongoose.Types.ObjectId.isValid(orderId)
+      const currentOrder = await SyncOrderModel.findOne({
+        tenantId: auth.tenantId,
+        $or: [
+          ...(isObjectIdCheck ? [{ _id: orderId }] : []),
+          { externalOrderId: orderId },
+        ],
+      }).lean<{ status: string; locationId?: string; orderMode?: string; orderNumber?: string }>()
+
+      const previousStatus = currentOrder?.status
 
       const updated = await updateOrderStatus(orderId, auth.tenantId, status)
       if (!updated) {
@@ -192,6 +289,23 @@ export function ordersRouter(
       io.to(`tenant:${auth.tenantId}`).emit("order:status_updated", statusEvent)
       if (syncOrder?.locationId) {
         io.to(`tenant:${auth.tenantId}:location:${syncOrder.locationId}`).emit("order:status_updated", statusEvent)
+      }
+
+      // ── Compliance: cancel old jobs, schedule new ones ────────────────
+      if (previousStatus && previousStatus !== status) {
+        cancelComplianceJobs(complianceQueue, orderId, previousStatus).catch(
+          (err) => console.error("[orders] compliance cancel error (non-blocking):", err)
+        )
+        const syncAny = syncOrder as any
+        dispatchCompliance(
+          auth.tenantId,
+          syncOrder?.locationId,
+          orderId,
+          syncAny?.orderNumber ?? orderId.slice(-6),
+          status,
+          NEXT_STATUS[status] ?? status,
+          syncAny?.orderMode ?? "takeaway"
+        ).catch((err) => console.error("[orders] compliance dispatch error (non-blocking):", err))
       }
 
       // Forward to SaaS via outbox
@@ -269,6 +383,21 @@ export function ordersRouter(
           externalOrderId: syncOrder.externalOrderId,
         })
       }
+
+      // ── Compliance: cancel pending→confirmed jobs, schedule confirmed→preparing
+      cancelComplianceJobs(complianceQueue, orderId, "pending").catch(
+        (err) => console.error("[orders/confirm] compliance cancel error (non-blocking):", err)
+      )
+      const confirmSyncAny = syncOrder as any
+      dispatchCompliance(
+        auth.tenantId,
+        syncOrder?.locationId,
+        orderId,
+        confirmSyncAny?.orderNumber ?? orderId.slice(-6),
+        "confirmed",
+        "preparing",
+        confirmSyncAny?.orderMode ?? "takeaway"
+      ).catch((err) => console.error("[orders/confirm] compliance dispatch error (non-blocking):", err))
 
       res.json({ status: "confirmed" })
     } catch (err) {

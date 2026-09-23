@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import TiaDashboard from '@/components/admin/tia/TiaDashboard'
+import ContextualLesson from '@/components/admin/education/ContextualLesson'
 
 export default async function TiaPage() {
   const headersList = await headers()
@@ -17,6 +18,11 @@ export default async function TiaPage() {
 
   return (
     <div className="space-y-6">
+      <ContextualLesson
+        featureId="tia"
+        title="Entendé tus métricas"
+        description="TIA analiza tu operación y te sugiere acciones concretas todos los días: embudo de conversión, top productos y benchmarking contra locales similares."
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Inteligencia TIA</h1>
