@@ -36,6 +36,10 @@ export async function PATCH(
     order.status = 'awaiting_confirmation'
     await order.save()
 
+    // ── Imprimir comanda al confirmar transferencia ──────────────────
+    const { onOrderConfirmed } = await import('@/lib/printing')
+    onOrderConfirmed(order).catch(() => {})
+
     // ── Notificar al restaurante via WhatsApp ───────────────────────
     if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
       const baseUrl = process.env.NEXT_PUBLIC_URL || request.nextUrl.origin
