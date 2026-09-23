@@ -1884,6 +1884,12 @@ export async function POST(
       })
     }
 
+    // ── Generar print jobs si la orden se creó directamente como confirmed ──
+    if (order.status === 'confirmed') {
+      const { onOrderConfirmed } = await import('@/lib/printing')
+      onOrderConfirmed(order).catch(() => {})
+    }
+
     return NextResponse.json({ order }, { status: 201 })
   } catch (error) {
     // Rollback club redemption if usedCount was incremented but something failed after

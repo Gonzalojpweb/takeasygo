@@ -96,6 +96,8 @@ export async function GET(
       await order.save()
 
       finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
+      const { onOrderConfirmed } = await import('@/lib/printing')
+      onOrderConfirmed(order).catch(() => {})
 
       return NextResponse.json({
         status: 'confirmed',

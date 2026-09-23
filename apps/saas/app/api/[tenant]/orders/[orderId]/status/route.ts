@@ -438,6 +438,8 @@ export async function PATCH(
     // ── Hidden Rewards: consumir claims al confirmar la orden (idempotente) ──
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       await finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
+      const { onOrderConfirmed } = await import('@/lib/printing')
+      onOrderConfirmed(order).catch(() => {})
     }
 
     // ── Notify SyncLayer of status change (so POS receives order:status_updated)

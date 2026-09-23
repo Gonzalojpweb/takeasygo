@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import Printer from '@/models/Printer'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { buildPrintPayload } from '@/lib/printing'
 
 export async function POST(
   request: NextRequest,
@@ -14,17 +15,13 @@ export async function POST(
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
+    if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-    if (!order) {
-      return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
-    }
+    if (!order) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
 
     if (!['confirmed', 'preparing'].includes(order.status)) {
       return NextResponse.json(
@@ -33,7 +30,24 @@ export async function POST(
       )
     }
 
-    order.printed = false
+    // Buscar impresoras activas para regenerar printJobs con config actual
+    const activePrinters = await Printer.find({
+      tenantId: tenant._id,
+      locationId: order.locationId,
+      isActive: true,
+    }).lean()
+
+    if (activePrinters.length > 0) {
+      // Regenerar printJobs con la config actual de impresoras
+      const printJobs = await buildPrintPayload(order as any, activePrinters as any)
+      order.printJobs = printJobs as any
+      order.printed = false // Hay jobs pendientes
+    } else {
+      // Sin impresoras: fallback al método viejo
+      order.printed = false
+      order.printJobs = []
+    }
+
     await order.save()
 
     return NextResponse.json({ ok: true })
