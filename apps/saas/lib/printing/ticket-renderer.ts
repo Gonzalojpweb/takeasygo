@@ -1,4 +1,5 @@
-import iconv from 'iconv-lite'
+import { TicketBuilder } from './escpos-builder'
+import type { CodepageName } from './encoding'
 
 // ============================================================================
 // Server-side ESC/POS Ticket Renderer
@@ -6,41 +7,14 @@ import iconv from 'iconv-lite'
 // Genera un buffer ESC/POS binario listo para enviar a impresora térmica.
 // Corre UNA vez al confirmar la orden (no en cada poll).
 //
-// Encoding: CP437 (IBM PC US — soporta caracteres españoles básicos: ñ, á, é, etc.)
-// NOTA: CP858 causaba caracteres raros. CP437 es el codepage estándar para
-// impresoras térmicas Epson-compatible.
-// Soporta: 58mm (32 cols) y 80mm (48 cols).
+// Encoding: CP437 via encoding.ts (NFD accent stripping, punctuation
+// replacement). Soporta: 58mm (32 cols) y 80mm (48 cols).
+//
+// fontSize mapping (ancho fijo 2x para los tres, solo escala alto):
+//   normal → 1×1 (0x00)   large → 2×2 (0x11)
+//   double → 2×3 (0x12)   triple → 2×4 (0x13)
+// Header siempre 'triple', total siempre 'double', cuerpo hereda config.
 // ============================================================================
-
-// ── ESC/POS Commands ────────────────────────────────────────────────────
-const ESC = {
-  INIT:           Buffer.from([0x1b, 0x40]),
-  CUT:            Buffer.from([0x1d, 0x56, 0x01]),
-  BOLD_ON:        Buffer.from([0x1b, 0x45, 0x01]),
-  BOLD_OFF:       Buffer.from([0x1b, 0x45, 0x00]),
-  ALIGN_LEFT:     Buffer.from([0x1b, 0x61, 0x00]),
-  ALIGN_CENTER:   Buffer.from([0x1b, 0x61, 0x01]),
-  ALIGN_RIGHT:    Buffer.from([0x1b, 0x61, 0x02]),
-  SIZE_NORMAL:    Buffer.from([0x1d, 0x21, 0x00]),
-  SIZE_LARGE:     Buffer.from([0x1d, 0x21, 0x11]),
-  SIZE_DBL_HEIGHT: Buffer.from([0x1d, 0x21, 0x01]),
-  SIZE_DBL_BOTH:  Buffer.from([0x1d, 0x21, 0x11]),
-  CODE_PAGE_CP437: Buffer.from([0x1b, 0x74, 0]),
-}
-
-const NON_LATIN1_RE = /[^\u0000-\u00FF\u20AC]/g
-
-function buf(text: string): Buffer {
-  return iconv.encode(text.replace(NON_LATIN1_RE, ''), 'cp437')
-}
-
-function fontSizeCommand(size?: string): Buffer {
-  switch (size) {
-    case 'large':  return ESC.SIZE_LARGE
-    case 'double': return ESC.SIZE_DBL_BOTH
-    default:       return ESC.SIZE_NORMAL
-  }
-}
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -63,6 +37,7 @@ interface PrinterDoc {
   name: string
   paperWidth?: number
   roles?: string[]
+  codepage?: CodepageName
   printSettings?: Record<string, PrintSettings>
 }
 
@@ -104,12 +79,12 @@ interface OrderDoc {
   total: number
   notes?: string
   createdAt: Date | string
-  promoCode?: string
-  promoCreatedBy?: string
-  promoSlug?: string
+  promoCode?: string | null
+  promoCreatedBy?: string | null
+  promoSlug?: string | null
   discountAmount?: number
   orderTiming?: string
-  scheduledPickupAt?: Date | string
+  scheduledPickupAt?: Date | string | null
   customer?: { name: string; phone?: string; email?: string }
   deliveryAddress?: {
     street: string
@@ -121,11 +96,17 @@ interface OrderDoc {
   payment?: { method?: string }
 }
 
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+function money(v: number): string {
+  return '$' + Number(v || 0).toLocaleString('es-AR')
+}
+
 // ── Customizations Renderer ─────────────────────────────────────────────
 
 function renderCustomizations(
+  t: TicketBuilder,
   customizations: CustomizationGroup[] | undefined,
-  chunks: Buffer[],
   indent: string
 ): void {
   if (!customizations?.length) return
@@ -138,13 +119,13 @@ function renderCustomizations(
 
     if (sels.length > 0) {
       const prefix = group ? `${group.toUpperCase()}: ` : ''
-      chunks.push(buf(`${indent}> ${prefix}${sels.join(', ')}\n`))
+      t.text(`${indent}> ${prefix}${sels.join(', ')}`)
     }
 
     // Sub-grupos anidados
     for (const opt of c.selectedOptions || []) {
       if (opt.subGroups?.length) {
-        renderCustomizations(opt.subGroups, chunks, indent + '    ')
+        renderCustomizations(t, opt.subGroups, indent + '    ')
       }
     }
   }
@@ -157,7 +138,6 @@ export function renderOrderTicket(
   printer: PrinterDoc,
   role: string
 ): Buffer | null {
-  const columns = printer.paperWidth === 80 ? 48 : 32
   const allItems = order.items || []
 
   // Settings por rol
@@ -189,41 +169,36 @@ export function renderOrderTicket(
 
   if (itemsToPrint.length === 0) return null
 
-  const chunks: Buffer[] = []
-  const hr = '-'.repeat(columns)
-  const money = (v: number) => Number(v || 0).toLocaleString('es-AR')
-
-  // ── Init ────────────────────────────────────────────────────────────
-  chunks.push(ESC.INIT, ESC.CODE_PAGE_CP437, ESC.ALIGN_CENTER)
-  if (settings.lineSpacing) {
-    chunks.push(Buffer.from([0x1b, 0x33, settings.lineSpacing]))
-  }
+  // Builder con fontSize del body, lineSpacing, codepage
+  const t = new TicketBuilder({
+    paperWidth: printer.paperWidth === 58 ? 384 : 576,
+    fontSize: settings.fontSize || 'normal',
+    codepage: printer.codepage,
+    lineSpacingDots: settings.lineSpacing,
+  })
 
   // ── Header template ─────────────────────────────────────────────────
   if (settings.headerTemplate) {
-    chunks.push(buf(`${settings.headerTemplate}\n`))
-    chunks.push(buf(`${hr}\n`))
+    t.text(settings.headerTemplate, { align: 'center' })
+    t.rule()
   }
 
-  // ── Header por rol ──────────────────────────────────────────────────
+  // ── Header por rol — siempre 'triple' sin importar config ───────────
   if (role === 'cashier') {
-    chunks.push(fontSizeCommand(settings.fontSize), ESC.BOLD_ON)
-    chunks.push(buf(`${(order.location?.locationName?.toUpperCase()) || 'MI NEGOCIO'}\n`))
-    chunks.push(ESC.SIZE_NORMAL, ESC.BOLD_OFF)
-    chunks.push(buf('TICKET DE PAGO\n'))
+    t.text(
+      (order.location?.locationName?.toUpperCase()) || 'MI NEGOCIO',
+      { bold: true, size: 'triple', align: 'center' }
+    )
+    t.text('TICKET DE PAGO', { align: 'center' })
   } else {
-    chunks.push(fontSizeCommand(settings.fontSize), ESC.BOLD_ON)
-    chunks.push(buf(`ORDEN: ${order.orderNumber}\n`))
-    chunks.push(ESC.SIZE_NORMAL, ESC.BOLD_OFF)
-
+    t.text(`ORDEN: ${order.orderNumber}`, { bold: true, size: 'triple', align: 'center' })
     const sectorName = role === 'bar' ? 'BARRA / BEBIDAS' : 'COCINA'
-    chunks.push(buf(`*** ${sectorName} ***\n`))
+    t.text(`*** ${sectorName} ***`, { align: 'center' })
   }
 
   // ── Separator + date ────────────────────────────────────────────────
-  chunks.push(buf(`${hr}\n`))
-  chunks.push(ESC.ALIGN_LEFT)
-  chunks.push(buf(`Fecha: ${new Date(order.createdAt).toLocaleString('es-AR')}\n`))
+  t.ruleDouble()
+  t.text(`Fecha: ${new Date(order.createdAt).toLocaleString('es-AR')}`)
 
   // ── Order mode ──────────────────────────────────────────────────────
   if (order.orderMode) {
@@ -231,25 +206,21 @@ export function renderOrderTicket(
       : order.orderMode === 'dine-in' ? 'PARA COMER ACÁ'
       : order.orderMode === 'delivery' ? 'DELIVERY'
       : order.orderMode.toUpperCase()
-    chunks.push(buf(`Tipo: ${label}\n`))
+    t.text(`Tipo: ${label}`)
   }
 
   // ── Cash payment indicator ──────────────────────────────────────────
   if (order.payment?.method === 'cash') {
-    chunks.push(ESC.ALIGN_CENTER, ESC.BOLD_ON)
-    chunks.push(buf('=== PAGO EFECTIVO ===\n'))
-    chunks.push(ESC.BOLD_OFF, ESC.ALIGN_LEFT)
+    t.text('=== PAGO EFECTIVO ===', { bold: true, align: 'center' })
   }
 
   // ── Delivery address ────────────────────────────────────────────────
   if (order.orderMode === 'delivery' && order.deliveryAddress) {
     const addr = order.deliveryAddress
-    chunks.push(ESC.BOLD_ON)
     let addrLine = `Dir: ${addr.street} ${addr.number}`
     if (addr.apt) addrLine += ` (${addr.apt})`
-    chunks.push(buf(`${addrLine}\n`))
-    chunks.push(buf(`${addr.city}\n`))
-    chunks.push(ESC.BOLD_OFF)
+    t.text(addrLine, { bold: true })
+    t.text(addr.city, { bold: true })
   }
 
   // ── Scheduled pickup ────────────────────────────────────────────────
@@ -257,30 +228,24 @@ export function renderOrderTicket(
     const d = new Date(order.scheduledPickupAt)
     const time = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
     const date = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
-    chunks.push(ESC.BOLD_ON)
-    chunks.push(buf(`PROGRAMADO: ${date} ${time} hs\n`))
-    chunks.push(ESC.BOLD_OFF)
+    t.text(`PROGRAMADO: ${date} ${time} hs`, { bold: true })
   }
 
   // ── Customer info ───────────────────────────────────────────────────
   if (settings.showCustomerInfo && order.customer) {
-    chunks.push(ESC.BOLD_ON)
-    chunks.push(buf(`Cliente: ${(order.customer.name || '').toUpperCase()}\n`))
+    t.text(`Cliente: ${(order.customer.name || '').toUpperCase()}`, { bold: true })
     if (order.customer.phone) {
-      chunks.push(buf(`Tel: ${order.customer.phone}\n`))
+      t.text(`Tel: ${order.customer.phone}`)
     }
-    chunks.push(ESC.BOLD_OFF)
   }
 
   // ── Order notes ─────────────────────────────────────────────────────
   if (settings.showOrderNotes && order.notes) {
-    chunks.push(buf(`${hr}\n`))
-    chunks.push(ESC.BOLD_ON)
-    chunks.push(buf(`OBS: ${order.notes}\n`))
-    chunks.push(ESC.BOLD_OFF)
+    t.rule()
+    t.text(`OBS: ${order.notes}`, { bold: true })
   }
 
-  chunks.push(buf(`${hr}\n`))
+  t.rule()
 
   // ── Items ───────────────────────────────────────────────────────────
   let lastCategory: string | null = null
@@ -315,7 +280,7 @@ export function renderOrderTicket(
       const item = group.single
 
       if (item.itemType === 'reward') {
-        chunks.push(buf('[RECOMPENSA]\n'))
+        t.text('[RECOMPENSA]')
       }
 
       const displayName = item.name.toUpperCase()
@@ -325,33 +290,26 @@ export function renderOrderTicket(
       if (settings.showCategory) {
         const cat = (item.categoryName && item.itemType !== 'reward') ? item.categoryName : null
         if (cat && cat !== lastCategory) {
-          chunks.push(buf(`[${cat.toUpperCase()}]\n`))
+          t.text(`[${cat.toUpperCase()}]`, { bold: true })
         }
         lastCategory = cat
       }
 
-      // Item line
+      // Item line — price a la derecha si showPrices, si no solo nombre
       if (settings.showPrices && role === 'cashier') {
-        const price = `$${money(item.price * item.quantity)}`
-        const dots = '.'.repeat(Math.max(2, columns - line.length - price.length))
-        chunks.push(buf(`${line}${dots}${price}\n`))
+        t.row(line, money(item.price * item.quantity), { bold: true })
       } else {
-        chunks.push(ESC.SIZE_DBL_HEIGHT, ESC.BOLD_ON)
-        chunks.push(buf(`${line}\n`))
-        chunks.push(ESC.BOLD_OFF, fontSizeCommand(settings.fontSize))
+        t.text(line, { bold: true })
       }
 
       // Description
       if (settings.showDescriptions && item.description) {
-        const desc = item.description.length > columns
-          ? item.description.substring(0, columns - 3) + '...'
-          : item.description
-        chunks.push(buf(`  ${desc.toUpperCase()}\n`))
+        t.text(`  ${item.description.toUpperCase()}`)
       }
 
       // Variant
       if (item.selectedVariant) {
-        chunks.push(buf(`  > Variante: ${item.selectedVariant.name.toUpperCase()}\n`))
+        t.text(`  > Variante: ${item.selectedVariant.name.toUpperCase()}`)
       }
 
       // Customizations (mitad y mitad o normales)
@@ -359,24 +317,25 @@ export function renderOrderTicket(
       const halfSecond = item.customizations?.find(c => /segunda mitad/i.test(c.groupName))
 
       if (halfFirst || halfSecond) {
-        chunks.push(buf('  === MITAD Y MITAD ===\n'))
+        t.text('  === MITAD Y MITAD ===')
         if (halfFirst) {
           const opt = halfFirst.selectedOptions?.[0]?.name || ''
-          chunks.push(buf(`    1ra mitad: ${opt.toUpperCase()}\n`))
+          t.text(`    1ra mitad: ${opt.toUpperCase()}`)
         }
         if (halfSecond) {
           const opt = halfSecond.selectedOptions?.[0]?.name || ''
-          chunks.push(buf(`    2da mitad: ${opt.toUpperCase()}\n`))
+          t.text(`    2da mitad: ${opt.toUpperCase()}`)
         }
         const others = item.customizations?.filter(c =>
           !/primera mitad/i.test(c.groupName) && !/segunda mitad/i.test(c.groupName)
         )
-        if (others?.length) renderCustomizations(others, chunks, '  ')
+        if (others?.length) renderCustomizations(t, others, '  ')
       } else {
-        renderCustomizations(item.customizations, chunks, '  ')
+        renderCustomizations(t, item.customizations, '  ')
       }
 
-      chunks.push(buf('\n\n'))
+      t.blank()
+      t.blank()
     } else {
       // ── Grupo de promo ──
       const promoGroup = group as { promotionTitle?: string; totalQuantity: number; items: OrderItem[] }
@@ -385,23 +344,17 @@ export function renderOrderTicket(
 
       if (settings.showCategory) lastCategory = null
 
+      const promoHeader = `${totalQty}x ${promoTitle}`
       if (settings.showPrices && role === 'cashier') {
-        const headerLine = `${totalQty}x ${promoTitle}`
-        const headerPrice = `$${money(promoGroup.items.reduce((s, i) => s + i.price * i.quantity, 0))}`
-        const dots = '.'.repeat(Math.max(2, columns - headerLine.length - headerPrice.length))
-        chunks.push(buf(`${headerLine}${dots}${headerPrice}\n`))
+        const promoPrice = money(promoGroup.items.reduce((s, i) => s + i.price * i.quantity, 0))
+        t.row(promoHeader, promoPrice, { bold: true })
       } else {
-        chunks.push(ESC.SIZE_DBL_HEIGHT, ESC.BOLD_ON)
-        chunks.push(buf(`${totalQty}x ${promoTitle}\n`))
-        chunks.push(ESC.BOLD_OFF, fontSizeCommand(settings.fontSize))
+        t.text(promoHeader, { bold: true })
       }
 
       // Short description
       if (settings.showDescriptions && promoGroup.items[0].shortDescription) {
-        const short = promoGroup.items[0].shortDescription.length > columns
-          ? promoGroup.items[0].shortDescription.substring(0, columns - 3) + '...'
-          : promoGroup.items[0].shortDescription
-        chunks.push(buf(`  ${short.toUpperCase()}\n`))
+        t.text(`  ${promoGroup.items[0].shortDescription.toUpperCase()}`)
       }
 
       // Items del combo
@@ -409,64 +362,58 @@ export function renderOrderTicket(
         const rawName = item.name.includes(' - ')
           ? item.name.substring(item.name.indexOf(' - ') + 3)
           : item.name
-        chunks.push(buf(`  - ${item.quantity}x ${rawName.toUpperCase()}\n`))
+        t.text(`  - ${item.quantity}x ${rawName.toUpperCase()}`)
 
         if (item.selectedVariant) {
-          chunks.push(buf(`    > Variante: ${item.selectedVariant.name.toUpperCase()}\n`))
+          t.text(`    > Variante: ${item.selectedVariant.name.toUpperCase()}`)
         }
 
         const halfFirst = item.customizations?.find(c => /primera mitad/i.test(c.groupName))
         const halfSecond = item.customizations?.find(c => /segunda mitad/i.test(c.groupName))
 
         if (halfFirst || halfSecond) {
-          chunks.push(buf('    === MITAD Y MITAD ===\n'))
+          t.text('    === MITAD Y MITAD ===')
           if (halfFirst) {
             const opt = halfFirst.selectedOptions?.[0]?.name || ''
-            chunks.push(buf(`      1ra mitad: ${opt.toUpperCase()}\n`))
+            t.text(`      1ra mitad: ${opt.toUpperCase()}`)
           }
           if (halfSecond) {
             const opt = halfSecond.selectedOptions?.[0]?.name || ''
-            chunks.push(buf(`      2da mitad: ${opt.toUpperCase()}\n`))
+            t.text(`      2da mitad: ${opt.toUpperCase()}`)
           }
           const others = item.customizations?.filter(c =>
             !/primera mitad/i.test(c.groupName) && !/segunda mitad/i.test(c.groupName)
           )
-          if (others?.length) renderCustomizations(others, chunks, '    ')
+          if (others?.length) renderCustomizations(t, others, '    ')
         } else {
-          renderCustomizations(item.customizations, chunks, '    ')
+          renderCustomizations(t, item.customizations, '    ')
         }
       }
 
-      chunks.push(buf('\n'))
+      t.blank()
     }
   }
 
   // ── Promo discount info ─────────────────────────────────────────────
   if (order.promoCode && order.promoCreatedBy === 'superadmin') {
-    chunks.push(ESC.ALIGN_CENTER, ESC.BOLD_ON)
-    chunks.push(buf(`[PROMO SUPERADMIN: ${order.promoCode.toUpperCase()}]\n`))
-    chunks.push(ESC.BOLD_OFF, ESC.ALIGN_LEFT)
+    t.text(`[PROMO SUPERADMIN: ${order.promoCode.toUpperCase()}]`, { align: 'center', bold: true })
   } else if ((order.discountAmount ?? 0) > 0 && order.promoSlug) {
-    chunks.push(ESC.ALIGN_CENTER)
-    chunks.push(buf(`[DESCUENTO PROMO: ${order.promoSlug.toUpperCase()}]\n`))
-    chunks.push(ESC.ALIGN_LEFT)
+    t.text(`[DESCUENTO PROMO: ${order.promoSlug.toUpperCase()}]`, { align: 'center' })
   }
 
-  // ── Total ───────────────────────────────────────────────────────────
-  chunks.push(buf(`${hr}\n`))
+  // ── Total — siempre 'double' sin importar config ────────────────────
+  t.ruleDouble()
   if (settings.showTotal && role === 'cashier') {
-    chunks.push(ESC.ALIGN_RIGHT, ESC.BOLD_ON)
-    chunks.push(buf(`TOTAL: $${money(order.total)}\n`))
+    t.row('TOTAL', money(order.total), { bold: true, size: 'double', align: 'right' })
   }
 
   // ── Footer template ─────────────────────────────────────────────────
   if (settings.footerTemplate) {
-    chunks.push(ESC.ALIGN_CENTER)
-    chunks.push(buf(`${settings.footerTemplate}\n`))
+    t.text(settings.footerTemplate, { align: 'center' })
   }
 
-  // ── End ─────────────────────────────────────────────────────────────
-  chunks.push(buf('\n\n\n\n'), ESC.CUT)
+  // ── Cut ─────────────────────────────────────────────────────────────
+  t.cut()
 
-  return Buffer.concat(chunks)
+  return t.toBuffer()
 }
