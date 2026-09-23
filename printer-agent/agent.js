@@ -4,8 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFile, spawn } = require('child_process');
-const { renderTicketToCanvas } = require('./ticket-renderer');
-const { canvasToEscPos } = require('./raster-encoder');
 const iconv = require('iconv-lite');
 
 // --- LEER VERSIÓN LOCAL ---
@@ -736,7 +734,18 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
 
 // --- PROCESA UN TRABAJO DE PRE-CIERRE (CIERRE DE TURNO) ---
 function processPreCloseJob(preCloseJob, printers) {
-    const printer = printers.find(p => p.name === preCloseJob.printerName);
+    // Buscar impresora por nombre, o crear config mínima desde el job
+    let printer = printers ? printers.find(p => p.name === preCloseJob.printerName) : null;
+    if (!printer && preCloseJob.printerName) {
+        printer = {
+            uid: preCloseJob.printerName,
+            name: preCloseJob.printerName,
+            connectionType: preCloseJob.connectionType || 'tcp',
+            ip: preCloseJob.ip || '',
+            port: preCloseJob.port || 9100,
+            paperWidth: preCloseJob.paperWidth || 80,
+        };
+    }
     if (!printer) {
         console.error(`[PRECLOSE] Impresora "${preCloseJob.printerName}" no encontrada para job ${preCloseJob._id}`);
         return;
@@ -760,101 +769,146 @@ function processPreCloseJob(preCloseJob, printers) {
     });
 }
 
-// --- POLLING PRINCIPAL ---
+// --- POLLING ADAPTATIVO ---
+const MIN_INTERVAL = 3000;
+const MAX_INTERVAL = 45000;
+const BACKOFF_FACTOR = 1.6;
+let currentInterval = MIN_INTERVAL;
+
 async function poll() {
+    let hadWork = false;
+    let pollInterval = currentInterval;
+
     try {
         const url = `${config.apiUrl}/api/${config.tenantSlug}/print-jobs?locationId=${config.locationId}`;
-        const response = await axios.get(url);
-        const { orders, printers, preCloseJobs, pollInterval: serverPollInterval } = response.data;
+        const response = await axios.get(url, {
+            headers: { 'X-Agent-Version': LOCAL_VERSION }
+        });
+        const data = response.data;
 
-        if (serverPollInterval && serverPollInterval !== config.pollInterval) {
-            config.pollInterval = serverPollInterval;
-            fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-            clearInterval(pollTimer);
-            pollTimer = setInterval(poll, config.pollInterval);
-            console.log(`[CONFIG] pollInterval actualizado a ${config.pollInterval}ms`);
-        }
+        // ── Formato NUEVO: jobs pre-renderizados ───────────────────────
+        if (data.jobs !== undefined) {
+            const jobs = data.jobs || [];
+            const preCloseJobs = data.preCloseJobs || [];
+            pollInterval = data.pollInterval || currentInterval;
 
-        // --- DIAGNÓSTICO: SIEMPRE mostrar qué devuelve el servidor ---
-        const orderCount = (orders || []).length;
-        const printerCount = (printers || []).length;
-        const preCloseCount = (preCloseJobs || []).length;
-        console.log(`[POLL] órdenes=${orderCount} impresoras=${printerCount} preClose=${preCloseCount}`);
+            hadWork = jobs.length > 0 || preCloseJobs.length > 0;
 
-        if (printerCount === 0) {
-            console.warn('[WARN] No hay impresoras configuradas para esta sede. El agente no puede imprimir nada.');
-            console.warn('[WARN] Verificar en el panel de TakeasyGO: Configuración > Impresoras > Agregar impresora.');
-        }
+            console.log(`[POLL] jobs=${jobs.length} preClose=${preCloseJobs.length}`);
 
-        // Procesar trabajos de pre-cierre primero
-        if (preCloseJobs && preCloseJobs.length > 0) {
-            console.log(`[POLL] ${preCloseJobs.length} trabajo(s) de cierre de turno detectado(s).`);
-            for (const job of preCloseJobs) {
-                processPreCloseJob(job, printers);
-            }
-        }
+            // Procesar jobs pre-renderizados
+            for (const job of jobs) {
+                const printer = findPrinterByName(job.printerName);
+                if (!printer) {
+                    console.warn(`[WARN] Impresora "${job.printerName}" no encontrada, skip job`);
+                    continue;
+                }
 
-        if (!orders || orders.length === 0) return;
+                console.log(`[QUEUE] Job ${job.printJobId} → ${job.printerName} (${job.role})`);
 
-        console.log(`[POLL] ${orders.length} pedidos nuevos detectados.`);
-
-        for (const order of orders) {
-            for (const printer of printers) {
-                for (const role of printer.roles) {
-                    console.log(`[QUEUE] Orden ${order.orderNumber} → ${printer.name} (${role})`);
-
-                    let ticketBuffer;
+                jobManager.enqueue(printer.uid, printer, Buffer.from(job.payload, 'base64'), async (success, errorMsg) => {
                     try {
-                        const settings = printer.printSettings?.[role] || null;
-                        const paperWidthDots = printer.paperWidth === 80 ? 576 : 384;
+                        await axios.post(`${config.apiUrl}/api/${config.tenantSlug}/print-jobs`, {
+                            orderId: job.orderId,
+                            printJobId: job.printJobId,
+                            success,
+                            errorMsg
+                        });
+                        console.log(`[CLOUD] Job ${job.printJobId} sincronizado`);
+                    } catch (e) {
+                        console.error(`[CLOUD ERROR] No se pudo sincronizar job: ${e.message}`);
+                    }
+                });
+            }
 
-                        if (settings?.mode === 'image') {
-                            const canvas = renderTicketToCanvas(order, role, paperWidthDots, settings, {
-                                restaurantName: order.location?.locationName || '',
-                            });
-                            if (!canvas) {
-                                console.log(`[SKIP] Orden ${order.orderNumber} no tiene items para ${printer.name} (${role})`);
+            // Procesar trabajos de pre-cierre
+            for (const job of preCloseJobs) {
+                processPreCloseJob(job);
+            }
+        } else {
+            // ── Formato VIEJO: orders + printers (fallback) ─────────────
+            const { orders, printers, preCloseJobs, pollInterval: serverPollInterval } = data;
+            pollInterval = serverPollInterval || currentInterval;
+            lastKnownPrinters = printers || [];
+
+            const orderCount = (orders || []).length;
+            const printerCount = (printers || []).length;
+            const preCloseCount = (preCloseJobs || []).length;
+            console.log(`[POLL] (legacy) órdenes=${orderCount} impresoras=${printerCount} preClose=${preCloseCount}`);
+
+            hadWork = orderCount > 0 || preCloseCount > 0;
+
+            if (printerCount === 0) {
+                console.warn('[WARN] No hay impresoras configuradas para esta sede.');
+            }
+
+            // Pre-close jobs
+            if (preCloseJobs && preCloseJobs.length > 0) {
+                for (const job of preCloseJobs) {
+                    processPreCloseJob(job, printers);
+                }
+            }
+
+            // Orders (renderizado local como fallback)
+            if (orders && orders.length > 0) {
+                for (const order of orders) {
+                    for (const printer of printers) {
+                        for (const role of printer.roles) {
+                            console.log(`[QUEUE] Orden ${order.orderNumber} → ${printer.name} (${role})`);
+
+                            let ticketBuffer;
+                            try {
+                                const settings = printer.printSettings?.[role] || null;
+                                ticketBuffer = generateTicket(order, role, printer.paperWidth === 80 ? 48 : 32, settings);
+                            } catch (err) {
+                                console.error(`[ERROR] generateTicket falló: ${err.message}`);
                                 continue;
                             }
-                            ticketBuffer = canvasToEscPos(canvas, paperWidthDots);
-                        } else {
-                            ticketBuffer = generateTicket(order, role, printer.paperWidth === 80 ? 48 : 32, settings);
-                        }
-                    } catch (err) {
-                        console.error(`[ERROR] generateTicket falló: ${err.message}`);
-                        continue;
-                    }
 
-                    if (!ticketBuffer) {
-                        console.log(`[SKIP] Orden ${order.orderNumber} no tiene items para ${printer.name} (${role})`);
-                        continue;
-                    }
+                            if (!ticketBuffer) continue;
 
-                    jobManager.enqueue(printer.uid, printer, ticketBuffer, async (success, errorMsg) => {
-                        try {
-                            await axios.post(`${config.apiUrl}/api/${config.tenantSlug}/print-jobs`, {
-                                orderId: order._id,
-                                printerName: printer.name,
-                                role: role,
-                                success,
-                                errorMsg
+                            jobManager.enqueue(printer.uid, printer, ticketBuffer, async (success, errorMsg) => {
+                                try {
+                                    await axios.post(`${config.apiUrl}/api/${config.tenantSlug}/print-jobs`, {
+                                        orderId: order._id,
+                                        printerName: printer.name,
+                                        role: role,
+                                        success,
+                                        errorMsg
+                                    });
+                                } catch (e) {
+                                    console.error(`[CLOUD ERROR] ${e.message}`);
+                                }
                             });
-                            console.log(`[CLOUD] Estado sincronizado para Orden ${order.orderNumber}`);
-                        } catch (e) {
-                            console.error(`[CLOUD ERROR] No se pudo confirmar impresión: ${e.message}`);
                         }
-                    });
+                    }
                 }
             }
         }
+
+        // ── Adaptive interval ──────────────────────────────────────────
+        currentInterval = hadWork
+            ? Math.max(MIN_INTERVAL, pollInterval)
+            : Math.min(MAX_INTERVAL, Math.max(currentInterval * BACKOFF_FACTOR, pollInterval));
+
     } catch (error) {
         if (error.code === 'ECONNREFUSED') {
             console.error(`[CONEXIÓN] Error: No puedo alcanzar el servidor en ${config.apiUrl}`);
         } else {
             console.error(`[ERROR] ${error.message}`);
         }
+        currentInterval = Math.min(MAX_INTERVAL, currentInterval * BACKOFF_FACTOR);
     }
+
+    pollTimer = setTimeout(poll, currentInterval);
 }
+
+function findPrinterByName(name) {
+    // Buscar impresora por nombre en la config (se actualiza en cada poll del formato viejo)
+    return lastKnownPrinters.find(p => p.name === name) || null;
+}
+
+let lastKnownPrinters = [];
 
 // Inicio
 console.log(`
@@ -865,8 +919,9 @@ Estado:   Iniciado y Escuchando
 Tenant:   ${config.tenantSlug}
 Sede:     ${config.locationId}
 API:      ${config.apiUrl}
-Intervalo: ${config.pollInterval}ms
+Intervalo: ${config.pollInterval}ms (adaptativo: ${MIN_INTERVAL}ms - ${MAX_INTERVAL}ms)
 AutoUpdate: ${config.autoUpdate ? 'HABILITADO' : 'DESHABILITADO'}
+Version:  ${LOCAL_VERSION}
 ------------------------------------------
 `);
 
@@ -878,5 +933,5 @@ checkForUpdate();
 // Verificar actualizaciones cada hora
 setInterval(checkForUpdate, 60 * 60 * 1000);
 
-let pollTimer = setInterval(poll, config.pollInterval);
-poll();
+// Polling adaptativo (setTimeout en vez de setInterval)
+let pollTimer = setTimeout(poll, currentInterval);

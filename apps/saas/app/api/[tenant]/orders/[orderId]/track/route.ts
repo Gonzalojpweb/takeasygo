@@ -196,6 +196,8 @@ export async function POST(
             dbOrder.status = 'confirmed'
             await dbOrder.save()
             finalizeHiddenRewardClaims(dbOrder._id, dbOrder.customerPhoneHash).catch(() => {})
+            const { onOrderConfirmed } = await import('@/lib/printing')
+            onOrderConfirmed(dbOrder).catch(() => {})
             currentStatus = 'confirmed'
           } else {
             // El pedido ya fue actualizado por el webhook

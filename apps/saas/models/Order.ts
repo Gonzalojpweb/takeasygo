@@ -67,6 +67,20 @@ export interface IPrintLogEntry {
   printedAt: Date
 }
 
+export type PrintJobStatus = 'pending' | 'success' | 'error' | 'failed'
+
+export interface IPrintJob {
+  printerId: mongoose.Types.ObjectId
+  printerName: string
+  role: string
+  /** Payload ESC/POS pre-renderizado en base64 */
+  payload: string
+  status: PrintJobStatus
+  attempts: number
+  lastError: string | null
+  printedAt: Date | null
+}
+
 export interface IStatusTimestamps {
   confirmedAt:      Date | null
   preparingAt:      Date | null
@@ -209,6 +223,7 @@ export interface IOrder extends Document {
   clientToken: string | null
   printed: boolean
   printLog: IPrintLogEntry[]
+  printJobs: IPrintJob[]
   statusTimestamps: IStatusTimestamps
   // ── Sincronización con POS (FUDO / BISTROSOFT) ─────────────────────────────
   posSync: {
@@ -611,6 +626,20 @@ const OrderSchema = new Schema(
         success: { type: Boolean, required: true },
         error: { type: String, default: '' },
         printedAt: { type: Date, default: Date.now },
+      }],
+      default: [],
+    },
+    // ── Print jobs pre-renderizados (server-side) ────────────────────────────
+    printJobs: {
+      type: [{
+        printerId: { type: Schema.Types.ObjectId, required: true },
+        printerName: { type: String, required: true },
+        role: { type: String, required: true },
+        payload: { type: String, required: true }, // base64 ESC/POS
+        status: { type: String, enum: ['pending', 'success', 'error', 'failed'], default: 'pending' },
+        attempts: { type: Number, default: 0 },
+        lastError: { type: String, default: null },
+        printedAt: { type: Date, default: null },
       }],
       default: [],
     },
