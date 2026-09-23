@@ -38,12 +38,12 @@ interface OrderForPrint {
   total: number
   notes?: string
   createdAt: Date | string
-  promoCode?: string
-  promoCreatedBy?: string
-  promoSlug?: string
+  promoCode?: string | null
+  promoCreatedBy?: 'superadmin' | 'admin' | null
+  promoSlug?: string | null
   discountAmount?: number
   orderTiming?: string
-  scheduledPickupAt?: Date | string
+  scheduledPickupAt?: Date | string | null
   customer?: {
     name: string
     phone: string
