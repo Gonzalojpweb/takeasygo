@@ -75,6 +75,9 @@ export async function PUT(
     if (features?.tgoGrowthPushEnabled !== undefined) {
       updateSet['features.tgoGrowthPushEnabled'] = !!features.tgoGrowthPushEnabled
     }
+    if (features?.posEnabled !== undefined) {
+      updateSet['features.posEnabled'] = !!features.posEnabled
+    }
 
     const tenant = await Tenant.findByIdAndUpdate(
       tenantId,
