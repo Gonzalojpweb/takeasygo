@@ -669,8 +669,8 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
 
       {/* Print Settings Modal — portal to body to escape workspace z-20 stacking context */}
       {showPrintSettings && editingPrintSettings && createPortal(
-        <Card className="border-2 border-primary/20 rounded-[2rem] shadow-xl bg-card animate-in fade-in slide-in-from-top-2 duration-300 fixed inset-4 z-[60] overflow-auto">
-          <CardHeader className="p-6 border-b border-border/40 sticky top-0 bg-card z-10">
+        <Card className="border-2 border-primary/20 rounded-[2rem] shadow-xl bg-card animate-in fade-in slide-in-from-top-2 duration-300 fixed inset-4 z-[60] flex flex-col max-h-[calc(100vh-2rem)]">
+          <CardHeader className="p-6 border-b border-border/40 shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold">
                 Configuración de Estilos de Impresión - {editingPrintSettings.name}
@@ -680,7 +680,7 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
               </button>
             </div>
           </CardHeader>
-          <CardContent className="p-6 space-y-8">
+          <CardContent className="p-6 space-y-8 overflow-y-auto flex-1 min-h-0">
             {(['kitchen', 'bar', 'cashier'] as PrinterRole[]).map(role => (
               <div key={role} className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-border/40">
@@ -819,24 +819,23 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
                 </div>
               </div>
             ))}
-
-            <div className="flex gap-3 pt-4 border-t border-border/40">
-              <Button
-                onClick={savePrintSettings}
-                disabled={loading}
-                className="bg-primary text-white font-black uppercase tracking-widest px-8 h-11 rounded-xl shadow-lg shadow-primary/20 flex-1 sm:flex-none"
-              >
-                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Guardar cambios'}
-              </Button>
-              <Button
-                variant="ghost"
-                className="h-11 rounded-xl"
-                onClick={() => setShowPrintSettings(false)}
-              >
-                Cancelar
-              </Button>
-            </div>
           </CardContent>
+          <div className="shrink-0 p-6 border-t border-border/40 flex gap-3">
+            <Button
+              onClick={savePrintSettings}
+              disabled={loading}
+              className="bg-primary text-white font-black uppercase tracking-widest px-8 h-11 rounded-xl shadow-lg shadow-primary/20 flex-1 sm:flex-none"
+            >
+              {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Guardar cambios'}
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-11 rounded-xl"
+              onClick={() => setShowPrintSettings(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
         </Card>,
         document.body
       )}
