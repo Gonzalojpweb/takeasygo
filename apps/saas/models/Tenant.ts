@@ -125,6 +125,8 @@ export interface ITenant extends Document {
      * en los últimos 120s. Off/undefined = comportamiento actual (sin gate).
      */
     posLocationGate: boolean
+    /** POS bundle activo: cuando es true, los pedidos se envían al Sync Layer para el POS */
+    posEnabled: boolean
   }
   business: {
     enabled: boolean
@@ -509,6 +511,7 @@ const TenantSchema = new Schema<ITenant>(
       tgoGrowthPushEnabled: { type: Boolean, default: false },
       cashPaymentEnabledBySuperadmin: { type: Boolean, default: false },
       posLocationGate: { type: Boolean, default: false },
+      posEnabled: { type: Boolean, default: false },
     },
     business: {
       enabled: { type: Boolean, default: false },

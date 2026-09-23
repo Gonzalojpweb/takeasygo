@@ -1863,8 +1863,8 @@ export async function POST(
       })
     }
 
-    // ── Bridge al Sync Layer (no blocking, logs y sigue) ──────────────
-    if (order.status === 'confirmed' || order.status === 'awaiting_payment') {
+    // ── Bridge al Sync Layer (solo si POS habilitado) ──────────────
+    if (tenant.features?.posEnabled && (order.status === 'confirmed' || order.status === 'awaiting_payment')) {
       pushOrderToSyncLayer({
         tenantId: tenant._id.toString(),
         externalOrderId: order._id.toString(),
