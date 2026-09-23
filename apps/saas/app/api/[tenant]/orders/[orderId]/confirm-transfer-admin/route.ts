@@ -73,8 +73,12 @@ export async function PATCH(
     await order.save()
 
     finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
-    const { onOrderConfirmed } = await import('@/lib/printing')
-    onOrderConfirmed(order).catch(() => {})
+    // Solo generar printJobs si no se generaron ya al confirmar el cliente
+    const hasPendingPrintJobs = order.printJobs?.some(j => j.status === 'pending')
+    if (!hasPendingPrintJobs) {
+      const { onOrderConfirmed } = await import('@/lib/printing')
+      onOrderConfirmed(order).catch(() => {})
+    }
 
     // ── Acumular comisión en balance del tenant ────────────────────────
     // Nota: platformFeeAmount es 0 para órdenes takeaway (solo delivery genera comisión).
