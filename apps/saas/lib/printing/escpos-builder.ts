@@ -34,23 +34,20 @@ const CMD = {
 } as const
 
 // GS ! n : bits 0-3 = magnificación de alto - 1, bits 4-7 = magnificación
-// de ancho - 1 (1x a 8x cada uno). Reemplaza la lista fija anterior
-// (normal/tall/double) por magnificación arbitraria, así "triple" u otro
-// valor que agreguen a futuro no necesita que yo hardcodee un nuevo caso.
-// Los presets de abajo son solo azúcar sintáctico para los usos más
-// comunes -- el mapeo real de printSettings.fontSize a magnificación
-// (qué significa 'large' vs 'double' vs 'triple' en su modelo) se decide
-// en ticket-renderer.ts, no acá.
+// de ancho - 1 (1x a 8x cada uno). Los tres tamaños "grandes" comparten
+// ancho 2x -- así ninguno empeora el wrap de texto respecto al otro, y
+// solo el alto va escalando. Bytes quedan consecutivos (0x11/0x12/0x13)
+// a propósito, para que sea fácil verificar a simple vista que están bien.
 export interface SizePreset {
   width: number
   height: number
 }
 
 export const SIZE_PRESETS: Record<string, SizePreset> = {
-  normal: { width: 1, height: 1 },
-  tall: { width: 1, height: 2 },
-  double: { width: 2, height: 2 },
-  triple: { width: 3, height: 3 },
+  normal: { width: 1, height: 1 }, // 0x00
+  large: { width: 2, height: 2 },  // 0x11 — sin cambios, ya funcionaba
+  double: { width: 2, height: 3 }, // 0x12
+  triple: { width: 2, height: 4 }, // 0x13 — el más grande de los tres
 }
 
 export function sizeCommand(width = 1, height = 1): Buffer {
@@ -66,18 +63,18 @@ function resolveSize(size: string | SizePreset | undefined): SizePreset | null {
   return null
 }
 
-// Caracteres por línea según ancho de papel (dots) y tamaño de fuente.
-// Son valores típicos de Font A en térmicas de 58mm/80mm — si un modelo
-// puntual imprime distinto, ajustar acá (usar test-ticket.js para medir).
-// triple: magnificación 3x reduce los caracteres por línea a ~1/3.
-const CHARS_PER_LINE: Record<number, Record<string, number>> = {
-  384: { normal: 32, large: 24, triple: 10 }, // 58mm
-  576: { normal: 48, large: 32, triple: 16 }, // 80mm
+// Caracteres por línea según ancho de papel (dots) y multiplicador de
+// ANCHO real (no el nombre del tamaño) — large/double/triple comparten
+// ancho 2x, así que comparten el mismo cálculo de wrap automáticamente,
+// sin necesidad de una entrada por nombre.
+const CHARS_PER_LINE: Record<number, Record<number, number>> = {
+  384: { 1: 32, 2: 16 }, // 58mm
+  576: { 1: 48, 2: 24 }, // 80mm
 }
 
-export function lineWidth(paperWidth: number, fontSize: string): number {
+export function lineWidth(paperWidth: number, widthMultiplier: number): number {
   const table = CHARS_PER_LINE[paperWidth] || CHARS_PER_LINE[576]
-  return table[fontSize] || table.normal
+  return table[widthMultiplier] || table[1]
 }
 
 export interface TicketBuilderOptions {
@@ -91,6 +88,7 @@ export class TicketBuilder {
   paperWidth: number
   width: number
   codepage: CodepageName | undefined
+  bodySize: string
   private chunks: Buffer[]
 
   constructor({
@@ -100,10 +98,16 @@ export class TicketBuilder {
     lineSpacingDots,
   }: TicketBuilderOptions = {}) {
     this.paperWidth = paperWidth
-    this.width = lineWidth(paperWidth, fontSize)
+    const bodyMag = resolveSize(fontSize) || SIZE_PRESETS.normal
+    this.width = lineWidth(paperWidth, bodyMag.width)
+    // fontSize pasa a ser el tamaño POR DEFECTO de cada text()/row() del
+    // cuerpo del ticket — antes solo se usaba para calcular el ancho de
+    // wrap y nunca se mandaba el comando de magnificación real, así que
+    // un printer configurado en 'large' imprimía en tamaño normal.
+    this.bodySize = fontSize
     this.codepage = codepage
     this.chunks = [CMD.INIT, codepageCommand(codepage)]
-    // Solo se manda ESC 3 n si se pasa explícitamente -- no inventamos un
+    // Solo se manda ESC 3 n si se pasa explícitamente — no inventamos un
     // valor default; sin esto, el ticket usa el espaciado de fábrica de
     // la impresora, que es un default seguro mientras no tengamos el
     // valor real que usa el sistema actual.
@@ -117,15 +121,20 @@ export class TicketBuilder {
     return this
   }
 
+  // `size` sin especificar hereda el tamaño de cuerpo configurado para
+  // esta impresora/rol (this.bodySize); pasar `size` explícito (por
+  // ejemplo el encabezado, que siempre va en 'triple' sin importar la
+  // config) lo overridea puntualmente para esa línea.
   text(
     str: string,
     {
       bold = false,
-      size = 'normal',
+      size,
       align = 'left',
     }: { bold?: boolean; size?: string | SizePreset; align?: 'left' | 'center' | 'right' } = {}
   ): this {
-    const mag = resolveSize(size as string | undefined)
+    const resolved = size !== undefined ? (size as string) : this.bodySize
+    const mag = resolveSize(resolved)
 
     if (align === 'center') this._raw(CMD.ALIGN_CENTER)
     else if (align === 'right') this._raw(CMD.ALIGN_RIGHT)
