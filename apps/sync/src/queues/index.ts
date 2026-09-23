@@ -2,11 +2,13 @@ import { Queue as BullQueue } from "bullmq"
 import Redis from "ioredis"
 import type { CashSaleJobData } from "./cash-sale-queue"
 import type { ConfirmForwardJobData } from "./order-confirm-forward-queue"
+import type { ComplianceJobData } from "./compliance-queue"
 
 export interface QueueServer {
   orderQueue: BullQueue
   cashSaleQueue: BullQueue<CashSaleJobData>
   confirmForwardQueue: BullQueue<ConfirmForwardJobData>
+  complianceQueue: BullQueue<ComplianceJobData>
   redisConnections: InstanceType<typeof Redis>[]
 }
 
@@ -59,5 +61,27 @@ export function createQueueServer(redisUrl: string): QueueServer {
     },
   })
 
-  return { orderQueue, cashSaleQueue, confirmForwardQueue, redisConnections: [connection, cashSaleConnection, confirmForwardConnection] }
+  const complianceConnection = new Redis(redisUrl, { maxRetriesPerRequest: null })
+  complianceConnection.on("error", (err) => console.error("[queue/compliance/redis] error:", err.message))
+
+  const complianceQueue = new BullQueue<ComplianceJobData>("compliance", {
+    connection: complianceConnection as any,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 3000,
+      },
+      removeOnComplete: 50,
+      removeOnFail: 20,
+    },
+  })
+
+  return {
+    orderQueue,
+    cashSaleQueue,
+    confirmForwardQueue,
+    complianceQueue,
+    redisConnections: [connection, cashSaleConnection, confirmForwardConnection, complianceConnection],
+  }
 }

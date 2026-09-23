@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
+import ClientConfirmButton from './ClientConfirmButton'
 import DeliveryCodeDisplay from './DeliveryCodeDisplay'
 import LiveTrackingBadge from './LiveTrackingBadge'
 import { Calendar, Lock, Copy, Check, Banknote, Loader2, ArrowUpDown } from 'lucide-react'
@@ -751,6 +752,21 @@ export default function OrderTracker({
               }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Client confirm button — report stuck orders */}
+      {trackingToken && !['delivered', 'cancelled'].includes(status) && (
+        <div className="mb-6 text-center">
+          <ClientConfirmButton
+            tenantSlug={tenantSlug}
+            orderId={orderId}
+            trackingToken={trackingToken}
+            orderStatus={status}
+            statusTimestamp={confirmedAt}
+            primaryColor={primaryColor}
+            backgroundColor={backgroundColor}
+          />
         </div>
       )}
 

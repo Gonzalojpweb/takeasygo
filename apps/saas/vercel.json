@@ -40,6 +40,18 @@
     {
       "path": "/api/cron/google-contacts-sync",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/compliance-sweep",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/nudge-evaluate",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/nudge-time-sensitive",
+      "schedule": "0 7-9 * * 5"
     }
   ]
 }

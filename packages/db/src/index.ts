@@ -17,3 +17,10 @@ export { InventoryLedgerModel, type IInventoryEventDocument } from "./models/inv
 export { InventoryStateModel, type IInventoryStateDocument } from "./models/inventory-state"
 export { InventoryStateSnapshotModel, type IInventoryStateSnapshotDocument } from "./models/inventory-state-snapshot"
 export { InventorySkuMenuLinkModel, type IInventorySkuMenuLinkDocument } from "./models/inventory-sku-menu-link"
+
+// ── Compliance Engine ────────────────────────────────────────────────────────
+export { ComplianceConfigModel, DEFAULT_SLA_RULES, type IComplianceConfigDocument, type ISlaRule } from "./models/compliance-config"
+export { ComplianceAlertModel, type IComplianceAlertDocument } from "./models/compliance-alert"
+
+// ── Nudges Engine ───────────────────────────────────────────────────────────
+export { NudgeRuleModel, DEFAULT_NUDGE_RULES, type INudgeRuleDocument, type INudgeCondition, type INudgeContent, type NudgeChannel, type NudgeFrequency } from "./models/nudge-rule"

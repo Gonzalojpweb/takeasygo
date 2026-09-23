@@ -6,6 +6,7 @@ import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import PromotionsManager from '@/components/admin/PromotionsManager'
+import ContextualLesson from '@/components/admin/education/ContextualLesson'
 
 export default async function PromotionsPage() {
   const session = await auth()
@@ -45,6 +46,11 @@ export default async function PromotionsPage() {
 
   return (
     <div>
+      <ContextualLesson
+        featureId="promotions"
+        title="Creá tu primera promoción"
+        description="Descuentos, anuncios y promos de club con programación por fecha y horario. Las promos con imagen tienen mucho más engagement."
+      />
       <h1 className="text-white text-2xl font-bold mb-6">Promociones</h1>
       <PromotionsManager
         tenantSlug={tenantSlug || ''}

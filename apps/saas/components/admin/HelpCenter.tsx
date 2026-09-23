@@ -815,6 +815,64 @@ const SECTIONS: Section[] = [
       'El campo "Precio original" es solo para mostrar el descuento visualmente. El precio que cobrás es el que configurás en el Slot o en el menú.',
     ],
   },
+  {
+    id: 'compliance',
+    icon: ShieldCheck,
+    label: 'Compliance — Tiempos de entrega',
+    color: 'text-red-600',
+    bgColor: 'bg-red-500/10',
+    plan: 'todos',
+    roles: ['admin'],
+    objective: 'Recibir alertas cuando un pedido está tardando demasiado en cada estado y bloquear la operación si se acumulan problemas.',
+    description: 'El sistema de Compliance monitorea automáticamente cuánto tarda cada pedido en cada estado (pendiente → confirmado → preparando → listo). Si se excede el tiempo configurado, se crean alertas con niveles progresivos: L1 (solo aviso), L2 (notificación al admin), L3 (bloqueo de la operación).',
+    features: [
+      { title: 'SLA por sede', desc: 'Configurá tiempos máximos por estado para cada local. El sistema usa los valores por defecto si no configurás.' },
+      { title: 'Alertas progresivas (L1→L2→L3)', desc: 'Nivel 1: aviso silencioso. Nivel 2: notificación visible en el admin. Nivel 3: bloqueo que impide nuevos pedidos.' },
+      { title: 'Detección automática', desc: 'Cada cambio de estado reevalúa el SLA. Si el pedido vuelve a demorar, la alerta escala automáticamente.' },
+      { title: 'Safety net (cron)', desc: 'Un cron cada 5 minutos revisa pedidos como respaldo por si el evento en tiempo real falla.' },
+      { title: 'Modo piloto', desc: 'Activá solo L1+L2 sin bloqueo L3 para probar con un par de locales antes de activar el bloqueo completo.' },
+      { title: 'Confirmación del cliente', desc: 'El cliente puede reportar un pedido demorado desde el tracking, lo que escala la alerta a L2 inmediatamente.' },
+    ],
+    steps: [
+      { action: 'Revisá los tiempos por defecto', detail: 'En Configuración → Compliance, ves los SLA default: 3 min pendiente, 3 min confirmado, 15 min preparando, 10 min en ruta.' },
+      { action: 'Activá el modo piloto', detail: 'Recomendado: activá solo L1+L2 primero. Así ves las alertas sin bloquear la operación.' },
+      { action: 'Revisá las alertas en el Dashboard', detail: 'Las alertas L2 aparecen como banner en la parte superior del admin.' },
+      { action: 'Activá L3 cuando estés listo', detail: 'El bloqueo L3 impide nuevos pedidos. Activalo solo cuando confíes en los tiempos configurados.' },
+    ],
+    tips: [
+      'Los tiempos por defecto están calibrados para restaurantes promedio. Ajustalos según tu operación real.',
+      'El modo piloto es ideal para las primeras 2 semanas: ves las alertas sin impactar la operación.',
+      'Las alertas se crean una vez por nivel (dedup). No vas a recibir notificaciones repetidas por el mismo problema.',
+    ],
+  },
+  {
+    id: 'nudges',
+    icon: Target,
+    label: 'Nudges — Sugerencias inteligentes',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-500/10',
+    plan: 'todos',
+    roles: ['admin'],
+    objective: 'Recibir sugerencias automáticas para mejorar la configuración de tu restaurante basadas en datos reales.',
+    description: 'El motor de Nudges analiza periódicamente la configuración y actividad de tu restaurante y te sugiere acciones concretas. Por ejemplo: si no cargaste horarios de atención, te avisa. Si tu club está inactivo, te recuerda. Si es viernes por la mañana, te envía un briefing del fin de semana.',
+    features: [
+      { title: 'Feed de sugerencias', desc: 'Cards clickeables en el admin que muestran acciones pendientes con un clic para resolverlas.' },
+      { title: 'Evaluación automática', desc: 'El sistema revisa tu configuración cada 6 horas y dispara sugerencias cuando detecta algo pendiente.' },
+      { title: 'Briefing del fin de semana', desc: 'Cada viernes por la mañana, un banner te recuerda revisar horarios, platos destacados y stock.' },
+      { title: 'Descartar sugerencias', desc: 'Podés descartar cada sugerencia individualmente. No vuelven a aparecer.' },
+      { title: 'Frequency cooldown', desc: 'Las sugerencias respetan frecuencias configuradas: una vez, diario, semanal o con cooldown de días.' },
+    ],
+    steps: [
+      { action: 'Revisá el feed de sugerencias', detail: 'Aparece automáticamente en el admin cuando hay sugerencias pendientes.' },
+      { action: 'Hacé clic en una sugerencia', detail: 'Te lleva directamente a la sección que necesitás configurar.' },
+      { action: 'Descartá las que no apliquen', detail: 'Si una sugerencia no es relevante para tu negocio, descartala y no vuelva a aparecer.' },
+    ],
+    tips: [
+      'Las sugerencias se basan en datos reales: si el sistema te dice que algo falta, es porque realmente no está configurado.',
+      'El briefing del fin de semana es una buena rutina: revisá el admin los viernes antes de abrir.',
+      'No todas las sugerencias aplican a todos los negocios. Descartá las que no necesités sin guilt.',
+    ],
+  },
 ]
 
 // ── Visibility per plan ────────────────────────────────────────────────────────
@@ -850,6 +908,8 @@ const VISIBILITY: Record<string, Record<Plan, SectionVisibility>> = {
   delivery: { anfitrion: 'hidden', trial: 'full',   try: 'hook',  buy: 'hook', full: 'full' },
   demora:   { anfitrion: 'hidden', trial: 'full',   try: 'full', buy: 'full', full: 'full' },
   tia:      { anfitrion: 'hidden', trial: 'hidden', try: 'hook', buy: 'full', full: 'full' },
+  compliance: { anfitrion: 'hidden', trial: 'full', try: 'full', buy: 'full', full: 'full' },
+  nudges:     { anfitrion: 'hidden', trial: 'full', try: 'full', buy: 'full', full: 'full' },
 }
 
 function getVisibility(plan: Plan, sectionId: string): SectionVisibility {

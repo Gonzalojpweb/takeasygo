@@ -21,12 +21,14 @@ import { zReportViewRouter } from "./z-report-view"
 import { zReportUploadRouter } from "./z-report-upload"
 import type { CashSaleJobData } from "../queues/cash-sale-queue"
 import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queue"
+import type { ComplianceJobData } from "../queues/compliance-queue"
 
 export function createRouter(
   io: SocketServer,
   orderQueue: BullQueue,
   cashSaleQueue: BullQueue<CashSaleJobData>,
-  confirmForwardQueue: BullQueue<ConfirmForwardJobData>
+  confirmForwardQueue: BullQueue<ConfirmForwardJobData>,
+  complianceQueue: BullQueue<ComplianceJobData>
 ): Router {
   const router = Router()
 
@@ -45,7 +47,7 @@ export function createRouter(
   router.use(authMiddleware)
   router.use(tenantMiddleware)
 
-  router.use("/orders", ordersRouter(io, orderQueue, confirmForwardQueue))
+  router.use("/orders", ordersRouter(io, orderQueue, confirmForwardQueue, complianceQueue))
   router.use("/menu", menuRouter())
   router.use("/locations", locationsRouter())
   router.use("/sync", syncRouter(io, confirmForwardQueue))

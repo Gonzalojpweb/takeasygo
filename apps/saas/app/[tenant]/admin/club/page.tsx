@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { canAccess } from '@/lib/plans'
 import ClubInfoSettings from '@/components/admin/ClubInfoSettings'
 import LoyaltyManager from '@/components/admin/LoyaltyManager'
+import ContextualLesson from '@/components/admin/education/ContextualLesson'
 import type { Plan } from '@/lib/plans'
 import type { Types } from 'mongoose'
 
@@ -46,6 +47,11 @@ export default async function ClubPage({ params }: PageProps) {
 
   return (
     <div className="space-y-8">
+      <ContextualLesson
+        featureId="club"
+        title="Cómo funciona el Club TakeasyGO"
+        description="Tus clientes acumulan puntos con cada compra y vuelven a canjearlos. Activá el club, cargá tu base de miembros y empezá a fidelizar."
+      />
       <div>
         <h1 className="text-3xl font-black tracking-tight">Club de Fidelización</h1>
         <p className="text-muted-foreground mt-1">Información del club y gestión de miembros</p>

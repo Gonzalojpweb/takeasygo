@@ -8,6 +8,9 @@ import AdminTopBar from '@/components/admin/AdminTopBar'
 import AdminPWAProvider from '@/components/admin/AdminPWAProvider'
 import AdminPushBanner from '@/components/admin/AdminPushBanner'
 import { SystemAnnouncementBanner } from '@/components/admin/SystemAnnouncementBanner'
+import { ComplianceAlertBanner } from '@/components/admin/compliance/ComplianceAlertBanner'
+import { ComplianceBlockModal } from '@/components/admin/compliance/ComplianceBlockModal'
+import NudgeFeed from '@/components/admin/nudges/NudgeFeed'
 import MobileNav from '@/components/MobileNav'
 import PosReturnBarWrapper from '@/components/PosReturnBarWrapper'
 import AdminLocationProviderWrapper from './AdminLocationProviderWrapper'
@@ -161,6 +164,8 @@ export default async function AdminLayout({
             {tenantId && canAccess(plan, 'adminPushNotifications') && <AdminPushBanner tenantId={tenantId} />}
             <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 lg:p-10 flex flex-col">
               <div className="w-full flex-1 min-h-0 flex flex-col">
+                <ComplianceAlertBanner tenantSlug={tenant} />
+                <NudgeFeed tenantSlug={tenant} />
                 {children}
               </div>
             </div>
@@ -180,6 +185,7 @@ export default async function AdminLayout({
         )}
         <Toaster />
         <SystemAnnouncementBanner tenantSlug={tenant} />
+        <ComplianceBlockModal tenantSlug={tenant} />
       </div>
     </AdminLocationProviderWrapper>
   )

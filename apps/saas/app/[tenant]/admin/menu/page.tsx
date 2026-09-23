@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import MenuManager from '@/components/admin/MenuManager'
 import ClubDiscountModal from '@/components/admin/ClubDiscountModal'
+import ContextualLesson from '@/components/admin/education/ContextualLesson'
 import { ExternalLink, Calendar, Star } from 'lucide-react'
 import type { Types } from 'mongoose'
 
@@ -39,6 +40,11 @@ export default async function MenuPage() {
 
   return (
     <div>
+      <ContextualLesson
+        featureId="recommended_dishes"
+        title="¿Qué son los platos recomendados?"
+        description="Marcá tus mejores ítems como destacados para que aparezcan primero en el menú y alimenten el sistema de upselling automático."
+      />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-white text-2xl font-bold">Menú</h1>
         <div className="flex items-center gap-2">

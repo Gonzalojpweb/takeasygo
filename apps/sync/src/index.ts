@@ -30,11 +30,11 @@ async function main(): Promise<void> {
 
   const io = createSocketServer(httpServer, redisUrl)
 
-  const { orderQueue, cashSaleQueue, confirmForwardQueue, redisConnections: queueRedisConnections } = createQueueServer(redisUrl)
+  const { orderQueue, cashSaleQueue, confirmForwardQueue, complianceQueue, redisConnections: queueRedisConnections } = createQueueServer(redisUrl)
 
   const { workers, redisConnections: workerRedisConnections } = registerWorkers(redisUrl, io)
 
-  app.use("/api/v1", createRouter(io, orderQueue, cashSaleQueue, confirmForwardQueue))
+  app.use("/api/v1", createRouter(io, orderQueue, cashSaleQueue, confirmForwardQueue, complianceQueue))
 
   httpServer.listen(config.port, () => {
     console.log(`[sync] Server running on port ${config.port}`)
@@ -62,6 +62,7 @@ async function main(): Promise<void> {
       orderQueue.close(),
       cashSaleQueue.close(),
       confirmForwardQueue.close(),
+      complianceQueue.close(),
     ])
     console.log("[sync] BullMQ queues closed")
 
