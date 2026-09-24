@@ -33,7 +33,7 @@ export default async function SettingsPage() {
   const tenantId = tenant._id
 
   const locations = await Location.find({ tenantId })
-    .lean<{ _id: Types.ObjectId; name?: string }>()
+    .lean<Array<{ _id: Types.ObjectId; name?: string }>>()
 
   const plan = tenant.plan ?? 'try'
 

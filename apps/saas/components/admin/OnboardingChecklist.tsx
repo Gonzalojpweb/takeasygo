@@ -44,7 +44,7 @@ export default async function OnboardingChecklist({ tenantId, tenantSlug, logoUr
   const hasMenuItems    = !!(menu?.categories?.some((c) => {
     if (c.items.length > 0) return true
     const withSub = c as { subcategories?: { items?: unknown[] }[] }
-    return withSub.subcategories?.some((s) => s.items?.length > 0)
+    return withSub.subcategories?.some((s) => (s.items?.length ?? 0) > 0)
   }))
   const hasOrder        = usage.orders?.used ?? false
   const hasLogo         = !!logoUrl

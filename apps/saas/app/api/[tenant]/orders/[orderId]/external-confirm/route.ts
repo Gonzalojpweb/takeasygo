@@ -18,6 +18,7 @@ import Tenant from '@/models/Tenant'
 import { ComplianceAlertModel } from '@takeasygo/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
+import type { Types } from 'mongoose'
 
 const TRACKING_HEADER = 'x-tracking-token'
 const MINUTES_STUCK_THRESHOLD = 10
@@ -68,12 +69,12 @@ export async function POST(
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
       .select('status statusTimestamps orderNumber orderMode locationId trackingToken customer createdAt')
       .lean<{
-        _id: unknown
+        _id: Types.ObjectId
         status: string
         statusTimestamps?: Record<string, Date | string | undefined>
         orderNumber: string
         orderMode?: string
-        locationId?: unknown
+        locationId?: Types.ObjectId
         trackingToken?: string
         createdAt: Date
       }>()
