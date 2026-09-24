@@ -43,15 +43,15 @@
     },
     {
       "path": "/api/cron/compliance-sweep",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/cron/nudge-evaluate",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 10 * * *"
     },
     {
       "path": "/api/cron/nudge-time-sensitive",
-      "schedule": "0 7-9 * * 5"
+      "schedule": "0 9 * * 5"
     }
   ]
 }
