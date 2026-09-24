@@ -723,7 +723,7 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
             }
 
             if (item.selectedVariant) {
-                chunks.push(buf(`  > Variante: ${item.selectedVariant.name.toUpperCase()}\n`));
+                chunks.push(buf(`  > ${item.selectedVariant.name.toUpperCase()}\n`));
             }
 
             const halfFirst = (item.customizations || []).find(c => /primera mitad/i.test(c.groupName));
@@ -784,7 +784,7 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                 chunks.push(buf(`${subLine}\n`));
 
                 if (item.selectedVariant) {
-                    chunks.push(buf(`    > Variante: ${item.selectedVariant.name.toUpperCase()}\n`));
+                    chunks.push(buf(`    > ${item.selectedVariant.name.toUpperCase()}\n`));
                 }
 
                 const promoHalfFirst = (item.customizations || []).find(c => /primera mitad/i.test(c.groupName));
