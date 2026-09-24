@@ -45,7 +45,7 @@ export default function NudgeFeed({ tenantSlug, max = 3, className }: Props) {
 
   const fetchNudges = useCallback(async () => {
     try {
-      const res = await fetch(`/${tenantSlug}/nudges/active`)
+      const res = await fetch(`/api/${tenantSlug}/nudges/active`)
       if (res.ok) {
         const data = await res.json()
         setNudges(data.nudges || [])
@@ -64,7 +64,7 @@ export default function NudgeFeed({ tenantSlug, max = 3, className }: Props) {
   const handleDismiss = async (nudgeId: string) => {
     setDismissed((prev) => new Set([...prev, nudgeId]))
     try {
-      await fetch(`/${tenantSlug}/nudges/active`, {
+      await fetch(`/api/${tenantSlug}/nudges/active`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nudgeId }),
