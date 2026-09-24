@@ -182,13 +182,10 @@ export default function CustomizationSheet({
   )
 
   const activeGroups = useMemo(() => {
-    const groups = computeActiveGroups(rootGroups, selections, variantGroups, disabledGroupIds, disabledOptionIds)
-    if (halfAvailable) {
-      if (halfTypeSelection === 'Un sabor') return groups
-      return [] // half UI is rendered by HalfAndHalfStep
-    }
-    return groups
-  }, [rootGroups, selections, variantGroups, halfAvailable, halfTypeSelection, disabledGroupIds, disabledOptionIds])
+    // Always compute and show groups (including category-level like media masa/piedra).
+    // The half-and-half UI (HalfAndHalfStep) renders separately above them.
+    return computeActiveGroups(rootGroups, selections, variantGroups, disabledGroupIds, disabledOptionIds)
+  }, [rootGroups, selections, variantGroups, disabledGroupIds, disabledOptionIds])
 
   const isValid = useMemo(() => {
     if (halfAvailable) {

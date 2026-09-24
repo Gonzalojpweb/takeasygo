@@ -669,7 +669,7 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
 
       {/* Print Settings Modal — portal to body to escape workspace z-20 stacking context */}
       {showPrintSettings && editingPrintSettings && createPortal(
-        <Card className="border-2 border-primary/20 rounded-[2rem] shadow-xl bg-card animate-in fade-in slide-in-from-top-2 duration-300 fixed inset-4 z-[60] flex flex-col max-h-[calc(100vh-2rem)]">
+        <Card data-lenis-prevent className="border-2 border-primary/20 rounded-[2rem] shadow-xl bg-card animate-in fade-in slide-in-from-top-2 duration-300 fixed inset-4 z-[60] flex flex-col max-h-[calc(100vh-2rem)] py-0 gap-0 overflow-hidden">
           <CardHeader className="p-6 border-b border-border/40 shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold">

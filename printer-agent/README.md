@@ -46,9 +46,10 @@ Si necesitas editar `config.json` directamente:
 
 ## Desinstalar servicio
 ```cmd
-sc stop TakeasyGoPrinter
-sc delete TakeasyGoPrinter
+net stop "Takeasygo Printer Agent"
+sc delete "Takeasygo Printer Agent"
 ```
+O ejecutar `node uninstall_service.js`
 
 ## Troubleshooting
 
