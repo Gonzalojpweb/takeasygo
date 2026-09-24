@@ -32,7 +32,7 @@ export async function GET(
     const url = new URL(request.url)
     const locationId = url.searchParams.get('locationId')
 
-    const filter: Record<string, any> = { tenantId: tenant._id }
+    const filter: Record<string, unknown> = { tenantId: tenant._id }
     if (locationId) {
       filter.$or = [
         { locationId },

@@ -34,7 +34,7 @@ export async function GET(
     const locationId = url.searchParams.get('locationId')
 
     // Build filter: alerts for this tenant, optionally filtered by location
-    const filter: Record<string, any> = {
+    const filter: Record<string, unknown> = {
       tenantId: tenant._id,
       resolvedAt: null,
     }

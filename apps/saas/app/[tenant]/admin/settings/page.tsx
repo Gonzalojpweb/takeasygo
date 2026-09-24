@@ -6,6 +6,13 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import SettingsForm from '@/components/admin/SettingsForm'
 import ComplianceSettingsPanel from '@/components/admin/compliance/ComplianceSettingsPanel'
+import type { Types } from 'mongoose'
+
+interface LeanTenant {
+  _id: Types.ObjectId
+  plan?: string
+  branding?: Record<string, unknown>
+}
 
 export default async function SettingsPage() {
   const session = await auth()
@@ -19,12 +26,14 @@ export default async function SettingsPage() {
 
   await connectDB()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+    .lean<LeanTenant>()
   if (!tenant) notFound()
 
   const tenantId = tenant._id
 
-  const locations = await Location.find({ tenantId }).lean()
+  const locations = await Location.find({ tenantId })
+    .lean<{ _id: Types.ObjectId; name?: string }>()
 
   const plan = tenant.plan ?? 'try'
 
@@ -48,7 +57,7 @@ export default async function SettingsPage() {
           <p className="text-muted-foreground text-sm">Creá una sede para configurar compliance.</p>
         ) : (
           <div className="space-y-6">
-            {locations.map((loc: any) => (
+            {locations.map((loc) => (
               <ComplianceSettingsPanel
                 key={String(loc._id)}
                 tenantSlug={tenantSlug || ''}

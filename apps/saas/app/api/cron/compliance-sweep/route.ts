@@ -13,7 +13,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
-import Location from '@/models/Location'
 import { ComplianceConfigModel, ComplianceAlertModel, DEFAULT_SLA_RULES } from '@takeasygo/db'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -55,7 +54,7 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const tenantSlug = url.searchParams.get('tenant')
 
-    const tenantFilter: Record<string, any> = { isActive: true }
+    const tenantFilter: Record<string, unknown> = { isActive: true }
     if (tenantSlug) {
       tenantFilter.slug = tenantSlug
     }
@@ -121,12 +120,12 @@ export async function GET(request: NextRequest) {
 
         // Find matching SLA rule
         const rule = rules.find(
-          (r: any) =>
+          (r) =>
             r.fromStatus === order.status &&
             r.toStatus === nextStatus &&
             (r.orderMode === order.orderMode || r.orderMode === 'all')
         ) ?? rules.find(
-          (r: any) =>
+          (r) =>
             r.fromStatus === order.status &&
             r.toStatus === nextStatus &&
             r.orderMode === 'all'

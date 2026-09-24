@@ -59,6 +59,8 @@ export default function ContextualLesson({
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
+    // localStorage is client-only; defer to effect to avoid hydration mismatch
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisible(!hasSeen(key))
   }, [key])
 
