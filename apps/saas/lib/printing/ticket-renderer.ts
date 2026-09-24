@@ -1,5 +1,6 @@
 import { TicketBuilder } from './escpos-builder'
 import type { CodepageName } from './encoding'
+import { toPesos } from '@takeasygo/business'
 
 // ============================================================================
 // Server-side ESC/POS Ticket Renderer
@@ -99,7 +100,7 @@ interface OrderDoc {
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 function money(v: number): string {
-  return '$' + Number(v || 0).toLocaleString('es-AR')
+  return '$' + toPesos(v).toLocaleString('es-AR')
 }
 
 // ── Customizations Renderer ─────────────────────────────────────────────

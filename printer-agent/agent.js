@@ -584,7 +584,7 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     if (itemsToPrint.length === 0) return null;
 
     const lineStr = '-'.repeat(columns);
-    const money = (v) => Number(v || 0).toLocaleString('es-AR');
+    const money = (v) => (Number(v || 0) / 100).toLocaleString('es-AR');
 
     chunks.push(ESC_POS.INIT, ESC_POS.CODE_PAGE, ESC_POS.ALIGN_CENTER);
     chunks.push(ESC_POS.LINE_SPACING(settings.lineSpacing));
