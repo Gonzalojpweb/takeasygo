@@ -42,8 +42,6 @@ CashSaleEventSchema.index({ orderId: 1, tenantId: 1 }, { unique: true })
 CashSaleEventSchema.index({ status: 1, tenantId: 1 })
 CashSaleEventSchema.index({ tenantId: 1, createdAt: -1 })
 
-export const CashSaleEventModel = mongoose.model<CashSaleEventDocument>(
-  "CashSaleEvent",
-  CashSaleEventSchema,
-  "cash_sale_events"
-)
+export const CashSaleEventModel =
+  (mongoose.models.CashSaleEvent as mongoose.Model<CashSaleEventDocument>) ||
+  mongoose.model<CashSaleEventDocument>("CashSaleEvent", CashSaleEventSchema, "cash_sale_events")

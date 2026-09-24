@@ -74,8 +74,10 @@ ComplianceAlertSchema.index(
   { expireAfterSeconds: 30 * 24 * 60 * 60, partialFilterExpression: { resolvedAt: { $ne: null } } }
 )
 
-export const ComplianceAlertModel = mongoose.model<IComplianceAlertDocument>(
-  "ComplianceAlert",
-  ComplianceAlertSchema,
-  "compliance_alerts"
-)
+export const ComplianceAlertModel =
+  (mongoose.models.ComplianceAlert as mongoose.Model<IComplianceAlertDocument>) ||
+  mongoose.model<IComplianceAlertDocument>(
+    "ComplianceAlert",
+    ComplianceAlertSchema,
+    "compliance_alerts"
+  )

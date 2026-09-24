@@ -43,6 +43,7 @@ const InventoryStorageLocationSchema =
 InventoryStorageLocationSchema.index({ tenantId: 1, isActive: 1 })
 
 export const InventoryStorageLocationModel =
+  (mongoose.models.InventoryStorageLocation as mongoose.Model<IInventoryStorageLocationDocument>) ||
   mongoose.model<IInventoryStorageLocationDocument>(
     "InventoryStorageLocation",
     InventoryStorageLocationSchema,

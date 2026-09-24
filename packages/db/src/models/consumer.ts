@@ -56,8 +56,6 @@ ConsumerSchema.index({ tenantIds: 1 })
 ConsumerSchema.index({ lastOrderAt: -1 })
 ConsumerSchema.index({ totalSpent: -1 })
 
-export const ConsumerModel = mongoose.model<ConsumerDocument>(
-  "Consumer",
-  ConsumerSchema,
-  "consumers"
-)
+export const ConsumerModel =
+  (mongoose.models.Consumer as mongoose.Model<ConsumerDocument>) ||
+  mongoose.model<ConsumerDocument>("Consumer", ConsumerSchema, "consumers")

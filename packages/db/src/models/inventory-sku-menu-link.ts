@@ -62,6 +62,7 @@ InventorySkuMenuLinkSchema.index(
 )
 
 export const InventorySkuMenuLinkModel =
+  (mongoose.models.InventorySkuMenuLink as mongoose.Model<IInventorySkuMenuLinkDocument>) ||
   mongoose.model<IInventorySkuMenuLinkDocument>(
     "InventorySkuMenuLink",
     InventorySkuMenuLinkSchema,

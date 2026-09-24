@@ -65,8 +65,6 @@ UserSchema.methods.comparePin = async function (
   return bcrypt.compare(candidate, this.pin)
 }
 
-export const UserModel = mongoose.model<UserDocument>(
-  "User",
-  UserSchema,
-  "users"
-)
+export const UserModel =
+  (mongoose.models.User as mongoose.Model<UserDocument>) ||
+  mongoose.model<UserDocument>("User", UserSchema, "users")

@@ -85,8 +85,6 @@ SyncOrderSchema.index({ tenantId: 1, status: 1 })
 SyncOrderSchema.index({ tenantId: 1, locationId: 1, createdAt: -1 })
 SyncOrderSchema.index({ tenantId: 1, externalOrderId: 1 }, { unique: true, sparse: true })
 
-export const SyncOrderModel = mongoose.model<SyncOrderDocument>(
-  "SyncOrder",
-  SyncOrderSchema,
-  "sync_orders"
-)
+export const SyncOrderModel =
+  (mongoose.models.SyncOrder as mongoose.Model<SyncOrderDocument>) ||
+  mongoose.model<SyncOrderDocument>("SyncOrder", SyncOrderSchema, "sync_orders")

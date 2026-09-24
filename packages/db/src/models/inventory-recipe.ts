@@ -100,8 +100,6 @@ const InventoryRecipeSchema = new Schema<IInventoryRecipeDocument>(
 
 InventoryRecipeSchema.index({ tenantId: 1, isActive: 1 })
 
-export const InventoryRecipeModel = mongoose.model<IInventoryRecipeDocument>(
-  "InventoryRecipe",
-  InventoryRecipeSchema,
-  "inventory_recipes"
-)
+export const InventoryRecipeModel =
+  (mongoose.models.InventoryRecipe as mongoose.Model<IInventoryRecipeDocument>) ||
+  mongoose.model<IInventoryRecipeDocument>("InventoryRecipe", InventoryRecipeSchema, "inventory_recipes")

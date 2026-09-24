@@ -120,8 +120,6 @@ InventoryEventSchema.index(
   { name: "ledger_offline_sync" }
 )
 
-export const InventoryLedgerModel = mongoose.model<IInventoryEventDocument>(
-  "InventoryLedger",
-  InventoryEventSchema,
-  "inventory_ledger"
-)
+export const InventoryLedgerModel =
+  (mongoose.models.InventoryLedger as mongoose.Model<IInventoryEventDocument>) ||
+  mongoose.model<IInventoryEventDocument>("InventoryLedger", InventoryEventSchema, "inventory_ledger")

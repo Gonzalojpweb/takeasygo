@@ -55,6 +55,7 @@ InventoryUnitEquivalenceSchema.index(
 )
 
 export const InventoryUnitEquivalenceModel =
+  (mongoose.models.InventoryUnitEquivalence as mongoose.Model<IInventoryUnitEquivalenceDocument>) ||
   mongoose.model<IInventoryUnitEquivalenceDocument>(
     "InventoryUnitEquivalence",
     InventoryUnitEquivalenceSchema,

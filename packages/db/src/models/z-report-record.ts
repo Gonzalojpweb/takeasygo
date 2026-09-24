@@ -26,8 +26,6 @@ ZReportRecordSchema.index({ shareToken: 1 }, { unique: true })
 ZReportRecordSchema.index({ tenantId: 1, closedAt: -1 })
 ZReportRecordSchema.index({ registerId: 1 }, { unique: true })
 
-export const ZReportRecordModel = mongoose.model<ZReportRecordDocument>(
-  "ZReportRecord",
-  ZReportRecordSchema,
-  "z_report_records"
-)
+export const ZReportRecordModel =
+  (mongoose.models.ZReportRecord as mongoose.Model<ZReportRecordDocument>) ||
+  mongoose.model<ZReportRecordDocument>("ZReportRecord", ZReportRecordSchema, "z_report_records")

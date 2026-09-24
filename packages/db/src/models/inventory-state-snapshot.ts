@@ -81,6 +81,7 @@ InventoryStateSnapshotSchema.index(
 )
 
 export const InventoryStateSnapshotModel =
+  (mongoose.models.InventoryStateSnapshot as mongoose.Model<IInventoryStateSnapshotDocument>) ||
   mongoose.model<IInventoryStateSnapshotDocument>(
     "InventoryStateSnapshot",
     InventoryStateSnapshotSchema,

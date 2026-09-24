@@ -91,8 +91,6 @@ const InventorySKUSchema = new Schema<IInventorySKUDocument>(
 InventorySKUSchema.index({ tenantId: 1, isActive: 1 })
 InventorySKUSchema.index({ tenantId: 1, skuCode: 1 }, { unique: true, sparse: true })
 
-export const InventorySKUModel = mongoose.model<IInventorySKUDocument>(
-  "InventorySKU",
-  InventorySKUSchema,
-  "inventory_skus"
-)
+export const InventorySKUModel =
+  (mongoose.models.InventorySKU as mongoose.Model<IInventorySKUDocument>) ||
+  mongoose.model<IInventorySKUDocument>("InventorySKU", InventorySKUSchema, "inventory_skus")
