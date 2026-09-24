@@ -310,7 +310,7 @@ export function renderOrderTicket(
 
       // Variant
       if (item.selectedVariant) {
-        t.text(`  > Variante: ${item.selectedVariant.name.toUpperCase()}`)
+        t.text(`  > ${item.selectedVariant.name.toUpperCase()}`)
       }
 
       // Customizations (mitad y mitad o normales)
@@ -366,7 +366,7 @@ export function renderOrderTicket(
         t.text(`  - ${item.quantity}x ${rawName.toUpperCase()}`)
 
         if (item.selectedVariant) {
-          t.text(`    > Variante: ${item.selectedVariant.name.toUpperCase()}`)
+          t.text(`    > ${item.selectedVariant.name.toUpperCase()}`)
         }
 
         const halfFirst = item.customizations?.find(c => /primera mitad/i.test(c.groupName))
