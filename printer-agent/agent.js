@@ -3,10 +3,12 @@ const net = require('node:net');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execFile, spawn } = require('child_process');
+const { execFile, execSync, spawn } = require('child_process');
 const iconv = require('iconv-lite');
 
-// --- LEER VERSIÓN LOCAL ---
+// ============================================================================
+// VERSIÓN LOCAL
+// ============================================================================
 let LOCAL_VERSION = '0.0.0';
 try {
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
@@ -15,22 +17,54 @@ try {
     console.error('[UPDATE] No se pudo leer package.json, usando versión 0.0.0');
 }
 
-// --- AUTO-UPDATE ---
-const SERVICE_NAME = 'Takeasygo Printer Agent';
-const AGENT_DIR = __dirname;
-const AGENT_EXE = process.argv[0]; // node.exe or printer-agent.exe
-
-function isPkg() {
-    return typeof process.pkg !== 'undefined';
-}
-
 function isWindows() {
     return process.platform === 'win32';
 }
 
+// ============================================================================
+// CONFIGURACIÓN
+// ============================================================================
+const CONFIG_PATH = path.join(__dirname, 'config.json');
+const SERVICE_NAME = 'Takeasygo Printer Agent';
+
+let config = {
+    apiUrl: null,
+    tenantSlug: null,
+    locationId: null,
+    pollInterval: 15000,
+    autoUpdate: false
+};
+
+if (fs.existsSync(CONFIG_PATH)) {
+    try {
+        const savedConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+        config = { ...config, ...savedConfig };
+    } catch (e) {
+        console.error('Error leyendo config.json, usando valores por defecto');
+    }
+} else {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+    console.log('Creado config.json por defecto.');
+}
+
+if (!config.apiUrl || !config.tenantSlug || !config.locationId ||
+    config.tenantSlug.startsWith('TU-') || config.locationId.startsWith('TU-')) {
+    console.log('');
+    console.log('Configuracion no completada.');
+    console.log('    Ejecuta SETUP.bat para configurar el agente.');
+    console.log('');
+    process.exit(1);
+}
+
+// ============================================================================
+// AUTO-UPDATE
+// ============================================================================
+function isPkg() {
+    return typeof process.pkg !== 'undefined';
+}
+
 async function checkForUpdate() {
     if (!config.autoUpdate) {
-        console.log('[UPDATE] Auto-update deshabilitado. Para habilitar, agregar "autoUpdate": true en config.json');
         return;
     }
     try {
@@ -38,18 +72,16 @@ async function checkForUpdate() {
         const response = await axios.get(url, { timeout: 5000 });
         const { version: remoteVersion, downloadUrl } = response.data;
 
-        console.log(`[UPDATE] Versión local: ${LOCAL_VERSION} | Versión remota: ${remoteVersion}`);
+        console.log(`[UPDATE] Local: ${LOCAL_VERSION} | Remota: ${remoteVersion}`);
 
         if (!remoteVersion || remoteVersion === LOCAL_VERSION) {
-            console.log('[UPDATE] El agente está actualizado.');
             return;
         }
 
-        console.log(`[UPDATE] Nueva versión disponible: ${remoteVersion}. Descargando...`);
+        console.log(`[UPDATE] Nueva versión ${remoteVersion}. Descargando...`);
         await performUpdate(downloadUrl);
     } catch (error) {
         console.error(`[UPDATE] No se pudo verificar versión: ${error.message}`);
-        console.log('[UPDATE] Continuando con la versión actual...');
     }
 }
 
@@ -76,21 +108,20 @@ async function performUpdate(downloadUrl) {
 
         const stats = fs.statSync(tempFile);
         if (stats.size < 10000) {
-            console.error('[UPDATE] Archivo descargado demasiado pequeño, abortando.');
+            console.error('[UPDATE] Archivo demasiado pequeño, abortando.');
             fs.unlinkSync(tempFile);
             return;
         }
 
         console.log(`[UPDATE] Descargado: ${tempFile} (${(stats.size / 1024 / 1024).toFixed(1)} MB)`);
-        console.log('[UPDATE] Creando script de actualización...');
 
         if (isWindows()) {
-            await applyUpdateWindows(tempFile);
+            applyUpdateWindows(tempFile);
         } else {
-            await applyUpdateLinux(tempFile);
+            applyUpdateLinux(tempFile);
         }
     } catch (error) {
-        console.error(`[UPDATE] Error descargando actualización: ${error.message}`);
+        console.error(`[UPDATE] Error descargando: ${error.message}`);
         if (fs.existsSync(tempFile)) {
             try { fs.unlinkSync(tempFile); } catch (e) { /* ignore */ }
         }
@@ -100,7 +131,6 @@ async function performUpdate(downloadUrl) {
 function applyUpdateWindows(tempFile) {
     const script = path.join(os.tmpdir(), 'takeasygo-update.bat');
     const currentExe = isPkg() ? process.execPath : process.argv[1];
-    const agentDir = path.dirname(currentExe);
 
     const content = `@echo off
 echo ===================================================
@@ -127,8 +157,7 @@ del "%~f0"
 `;
 
     fs.writeFileSync(script, content, 'utf8');
-    console.log(`[UPDATE] Script creado: ${script}`);
-    console.log('[UPDATE] Lanzando script de actualización y reiniciando...');
+    console.log('[UPDATE] Lanzando script de actualización...');
 
     spawn('cmd.exe', ['/c', script], {
         detached: true,
@@ -142,54 +171,37 @@ del "%~f0"
 function applyUpdateLinux(tempFile) {
     const script = path.join(os.tmpdir(), 'takeasygo-update.sh');
     const currentExe = process.execPath;
-    const agentDir = path.dirname(currentExe);
 
     const content = `#!/bin/bash
 echo "=================================================="
 echo "   ACTUALIZANDO AGENTE DE IMPRESION - TAKEASYGO"
 echo "=================================================="
-echo ""
-echo "Esperando a que el agente se detenga..."
 sleep 3
 
-# Detectar pm2 o systemctl
 if command -v pm2 &> /dev/null; then
-    echo "Deteniendo servicio con pm2..."
     pm2 stop printer-agent 2>/dev/null || true
     sleep 2
-    echo "Reemplazando archivos..."
     cp -f "${tempFile}" "${currentExe}"
     chmod +x "${currentExe}"
-    echo "Iniciando servicio..."
     pm2 start printer-agent || pm2 resurrect
 elif systemctl is-active --quiet printer-agent 2>/dev/null; then
-    echo "Deteniendo servicio con systemctl..."
     sudo systemctl stop printer-agent
     sleep 2
-    echo "Reemplazando archivos..."
     cp -f "${tempFile}" "${currentExe}"
     chmod +x "${currentExe}"
-    echo "Iniciando servicio..."
     sudo systemctl start printer-agent
 else
-    echo "No se detectó pm2 ni systemd. Reemplazando archivos..."
     cp -f "${tempFile}" "${currentExe}"
     chmod +x "${currentExe}"
-    echo "Reiniciando con nohup..."
     nohup "${currentExe}" > /dev/null 2>&1 &
 fi
 
-echo ""
-echo "=================================================="
-echo "   ACTUALIZACION COMPLETADA"
-echo "=================================================="
+echo "ACTUALIZACION COMPLETADA"
 rm -f "${script}"
 `;
 
     fs.writeFileSync(script, content, 'utf8');
     fs.chmodSync(script, '755');
-    console.log(`[UPDATE] Script creado: ${script}`);
-    console.log('[UPDATE] Lanzando script de actualización y reiniciando...');
 
     spawn('bash', [script], {
         detached: true,
@@ -198,39 +210,10 @@ rm -f "${script}"
 
     process.exit(0);
 }
-const CONFIG_PATH = path.join(__dirname, 'config.json');
 
-let config = {
-    apiUrl: null,
-    tenantSlug: null,
-    locationId: null,
-    pollInterval: 15000,
-    autoUpdate: false
-};
-
-// Carga o creación de configuración inicial
-if (fs.existsSync(CONFIG_PATH)) {
-    try {
-        const savedConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-        config = { ...config, ...savedConfig };
-    } catch (e) {
-        console.error('Error leyendo config.json, usando valores por defecto');
-    }
-} else {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-    console.log('✅ Creado config.json por defecto.');
-}
-
-if (!config.apiUrl || !config.tenantSlug || !config.locationId ||
-    config.tenantSlug.startsWith('TU-') || config.locationId.startsWith('TU-')) {
-    console.log('');
-    console.log('⚠️  Configuracion no completada.');
-    console.log('    Ejecuta SETUP.bat para configurar el agente.');
-    console.log('');
-    process.exit(1);
-}
-
-// --- COMANDOS ESC/POS ---
+// ============================================================================
+// COMANDOS ESC/POS — CP437 (página 0, default de la mayoría de impresoras)
+// ============================================================================
 const ESC_POS = {
     INIT: Buffer.from([0x1b, 0x40]),
     CUT: Buffer.from([0x1d, 0x56, 0x01]),
@@ -246,62 +229,167 @@ const ESC_POS = {
     TEXT_SIZE_DOUBLE_BOTH: Buffer.from([0x1d, 0x21, 0x11]),
     TEXT_SIZE_TRIPLE_HEIGHT: Buffer.from([0x1d, 0x21, 0x02]),
     TEXT_SIZE_TRIPLE_WIDTH: Buffer.from([0x1d, 0x21, 0x20]),
-    TEXT_SIZE_TRIPLE_BOTH: Buffer.from([0x1d, 0x21, 0x22]),
+    TEXT_SIZE_TRIPLE_BOTH: Buffer.from([0x1d, 0x21, 0x12]),
     LINE_SPACING: (n) => Buffer.from([0x1b, 0x33, n]),
-    CODE_PAGE: Buffer.from([0x1b, 0x74, 43]), // CP858 (Latin-1 + Euro)
+    CODE_PAGE: Buffer.from([0x1b, 0x74, 0x00]), // CP437 = página 0
 };
 
-// --- MAPEO DE TAMAÑOS DE FUENTE ---
 function getFontSizeCommand(size) {
     switch (size) {
-        case 'normal':
-            return ESC_POS.TEXT_SIZE_NORMAL;
-        case 'large':
-            return ESC_POS.TEXT_SIZE_LARGE;
-        case 'double':
-            return ESC_POS.TEXT_SIZE_DOUBLE_BOTH;
-        case 'triple':
-            return ESC_POS.TEXT_SIZE_TRIPLE_BOTH;
-        default:
-            return ESC_POS.TEXT_SIZE_NORMAL;
+        case 'normal':  return ESC_POS.TEXT_SIZE_NORMAL;
+        case 'large':   return ESC_POS.TEXT_SIZE_LARGE;
+        case 'double':  return ESC_POS.TEXT_SIZE_DOUBLE_BOTH;
+        case 'triple':  return ESC_POS.TEXT_SIZE_TRIPLE_BOTH;
+        default:        return ESC_POS.TEXT_SIZE_NORMAL;
     }
 }
 
-// Guard: quita caracteres que CP858 no puede representar (rango Latin-1 + €).
-const NON_LATIN1_RE = /[^\u0000-\u00FF\u20AC]/g;
-
-function sanitizeText(str) {
-    if (typeof str !== 'string') return '';
-    return str.replace(NON_LATIN1_RE, '');
-}
-
+// CP437: tiene á é í ó ú ü ñ É Ñ pero NO Á Í Ó Ú — esos se normalizan a base
 function buf(input) {
     if (Buffer.isBuffer(input)) return input;
     const str = typeof input === 'string' ? input : String(input);
-    return iconv.encode(sanitizeText(str), 'cp858');
+    // Normalizar: NFD separa acentos, quitamos combining marks que CP437 no tiene,
+    // pero preservamos los precomposed que sí existen (á é í ó ú ü ñ)
+    const cleaned = str
+        .replace(/Á/g, 'A').replace(/Í/g, 'I')
+        .replace(/Ó/g, 'O').replace(/Ú/g, 'U')
+        .replace(/[^\u0000-\u00FF\u0100-\u017F\u20AC\u2018\u2019\u201C\u201D\u2013\u2014\u2026]/g, '');
+    return iconv.encode(cleaned, 'cp437');
 }
 
-// --- LOGICA DE TRASMISIÓN (TCP RAW) ---
+// ============================================================================
+// REGISTRO UNIFICADO DE IMPRESORAS
+// ============================================================================
+// Dos fuentes:
+//   1. serverPrinters — configuración desde la API (ambos formatos)
+//   2. windowsPrinters — detección local vía Get-Printer
+//
+// findPrinterByName resuelve contra ambas, con normalización de nombre.
+let serverPrinters = [];
+let windowsPrinters = [];
+
+function isWindowsOS() {
+    return process.platform === 'win32';
+}
+
+function inferConnectionType(portName) {
+    const port = (portName || '').toUpperCase();
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(port) || port.startsWith('IP_')) return 'tcp';
+    if (port.includes('USB')) return 'usb';
+    if (port.startsWith('LPT') || port.startsWith('COM')) return 'usb';
+    return 'usb';
+}
+
+function refreshWindowsPrinters() {
+    if (!isWindowsOS()) return;
+    try {
+        const output = execSync(
+            'powershell -NoProfile -Command "Get-Printer | Select-Object Name, PortName, DriverName | ConvertTo-Json -Compress"',
+            { encoding: 'utf8', timeout: 8000, windowsHide: true }
+        );
+        if (!output || !output.trim()) {
+            windowsPrinters = [];
+            return;
+        }
+        let parsed = JSON.parse(output);
+        if (!Array.isArray(parsed)) parsed = [parsed];
+
+        windowsPrinters = parsed
+            .filter(p => p && p.Name)
+            .map(p => ({
+                name: String(p.Name).trim(),
+                portName: String(p.PortName || '').trim(),
+                driverName: String(p.DriverName || '').trim(),
+                connectionType: inferConnectionType(p.PortName),
+            }));
+
+        const names = windowsPrinters.map(p => p.name);
+        console.log(`[PRINTER] Windows: ${names.length} impresoras — ${names.join(', ')}`);
+    } catch (e) {
+        console.error(`[PRINTER] Error detectando impresoras Windows: ${e.message}`);
+        // No limpiar windowsPrinters en error — conservar la última detección buena
+    }
+}
+
+function findPrinterByName(name) {
+    if (!name) return null;
+    const target = String(name).trim().toLowerCase();
+
+    // 1. Configuración del servidor (autoritativa: tiene connectionType, ip, port, paperWidth)
+    let found = serverPrinters.find(p => p.name && String(p.name).trim().toLowerCase() === target);
+    if (found) {
+        return {
+            uid: found.uid || found._id || found.name,
+            name: found.name,
+            connectionType: found.connectionType || 'tcp',
+            ip: found.ip || '',
+            port: found.port || 9100,
+            paperWidth: found.paperWidth || 80,
+            roles: found.roles || [],
+            printSettings: found.printSettings || null,
+            source: 'server',
+        };
+    }
+
+    // 2. Impresora local de Windows (no virtual) → asumir USB
+    const winPrinter = windowsPrinters.find(p => p.name.toLowerCase() === target);
+    if (winPrinter && winPrinter.connectionType !== 'virtual') {
+        return {
+            uid: winPrinter.name,
+            name: winPrinter.name,
+            connectionType: winPrinter.connectionType,
+            ip: '',
+            port: 0,
+            paperWidth: 80,
+            roles: [],
+            printSettings: null,
+            source: 'windows',
+        };
+    }
+
+    return null;
+}
+
+// ============================================================================
+// ENVÍO TCP (RAW por socket)
+// ============================================================================
+function classifyTcpError(err) {
+    const code = err.code || '';
+    if (code === 'ECONNREFUSED') return 'Impresora offline: conexión rechazada (¿apagada o puerto incorrecto?)';
+    if (code === 'EHOSTUNREACH') return 'Error de red: host inaccesible';
+    if (code === 'ENETUNREACH') return 'Error de red: red inaccesible';
+    if (code === 'ENOTFOUND') return 'Error de red: IP no encontrada';
+    if (code === 'ETIMEDOUT' || err.message.includes('TIMEOUT')) return 'Timeout: la impresora no respondió';
+    if (code === 'EPIPE' || code === 'ECONNRESET') return 'Conexión interrumpida por la impresora';
+    return `Error TCP: ${err.message}`;
+}
+
 async function sendToPrinter(ip, port, dataBuffer) {
     return new Promise((resolve, reject) => {
+        if (!ip) {
+            return reject(new Error('Error de configuración: impresora TCP sin IP'));
+        }
+        if (!port || port === 0) {
+            return reject(new Error('Error de configuración: impresora TCP sin puerto'));
+        }
+
         const client = new net.Socket();
         client.setTimeout(8000);
 
         client.on('error', (err) => {
             client.destroy();
-            reject(err);
+            reject(new Error(classifyTcpError(err)));
         });
 
         client.on('timeout', () => {
             client.destroy();
-            reject(new Error('TIMEOUT: La impresora no respondió'));
+            reject(new Error('Timeout: la impresora no respondió'));
         });
 
         client.connect(port, ip, () => {
             console.log(`[TCP] Conectado a ${ip}:${port}, enviando ${dataBuffer.length} bytes...`);
             client.write(dataBuffer, (err) => {
-                if (err) return reject(err);
-                console.log(`[TCP] Datos escritos, finalizando...`);
+                if (err) return reject(new Error(classifyTcpError(err)));
                 client.end(() => {
                     client.destroy();
                     resolve();
@@ -311,33 +399,61 @@ async function sendToPrinter(ip, port, dataBuffer) {
     });
 }
 
-// --- SOPORTE USB (vía Win32 Spooler con PowerShell) ---
-function listUSBPrinters() {
-    const { execSync } = require('child_process');
-    try {
-        const output = execSync(
-            'powershell -NoProfile -Command "Get-Printer | Select-Object -ExpandProperty Name"',
-            { encoding: 'utf8', timeout: 5000 }
-        );
-        const printers = output.trim().split(/\r?\n/).filter(Boolean);
-        if (printers.length > 0) {
-            console.log(`[USB] Impresoras detectadas en Windows: ${printers.join(', ')}`);
-        } else {
-            console.log('[USB] No se encontraron impresoras instaladas');
-        }
-    } catch (e) {
-        console.log('[USB] No se pudo listar impresoras');
+// ============================================================================
+// ENVÍO USB/LOCAL (Win32 Spooler vía PowerShell)
+// ============================================================================
+function classifySpoolerError(stderr, err) {
+    const msg = (stderr || err.message || '').trim();
+
+    if (msg.includes('No se puede enlazar') && msg.includes('PrinterName')) {
+        return 'Error de configuración: nombre de impresora vacío';
     }
+    if (msg.includes('ERROR_SPOOLER')) {
+        const codeMatch = msg.match(/codigo=(-?\d+)/);
+        const win32Match = msg.match(/win32=(\d+)/);
+        const code = codeMatch ? codeMatch[1] : '?';
+        const win32 = win32Match ? win32Match[1] : '?';
+
+        const codeDescriptions = {
+            '-1': 'Impresora no encontrada o acceso denegado (OpenPrinter falló)',
+            '-2': 'Error al iniciar documento (StartDocPrinter falló)',
+            '-3': 'Error al iniciar página (StartPagePrinter falló)',
+            '-4': 'Error al enviar datos (WritePrinter falló)',
+            '-5': 'Error al finalizar página (EndPagePrinter falló)',
+            '-6': 'Error al finalizar documento (EndDocPrinter falló)',
+        };
+        const desc = codeDescriptions[code] || 'Error desconocido del spooler';
+        return `${desc} [spooler=${code} win32=${win32}]`;
+    }
+    if (msg.includes('ARCHIVO_NO_ENCONTRADO')) {
+        return 'Error interno: archivo temporal no encontrado';
+    }
+    if (msg.includes('ERROR_LECTURA')) {
+        return 'Error interno: no se pudo leer el archivo temporal';
+    }
+    if (msg.includes('not recognized') || msg.includes('no se reconoce')) {
+        return 'Error de PowerShell: no se pudo ejecutar send-raw.ps1';
+    }
+
+    return msg || err.message || 'Error desconocido al imprimir';
 }
 
 async function sendToPrinterUSB(printerName, dataBuffer) {
-    const os = require('os');
-    const tmpFile = path.join(os.tmpdir(), `ticket-${Date.now()}.bin`);
+    if (!printerName || !printerName.trim()) {
+        throw new Error('Error de configuración: nombre de impresora USB vacío');
+    }
+
+    const tmpFile = path.join(os.tmpdir(), `ticket-${Date.now()}-${process.pid}.bin`);
     fs.writeFileSync(tmpFile, dataBuffer);
 
     return new Promise((resolve, reject) => {
         const psScript = path.join(__dirname, 'send-raw.ps1');
-        const child = execFile(
+        if (!fs.existsSync(psScript)) {
+            try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
+            return reject(new Error(`send-raw.ps1 no encontrado en ${psScript}`));
+        }
+
+        execFile(
             'powershell',
             [
                 '-NoProfile',
@@ -346,11 +462,13 @@ async function sendToPrinterUSB(printerName, dataBuffer) {
                 '-PrinterName', printerName,
                 '-FilePath', tmpFile
             ],
-            { timeout: 15000 },
+            { timeout: 15000, windowsHide: true },
             (err, stdout, stderr) => {
+                // Siempre limpiar archivo temporal
                 try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
+
                 if (err) {
-                    reject(new Error(stderr.trim() || err.message));
+                    reject(new Error(classifySpoolerError(stderr, err)));
                 } else {
                     resolve(stdout.trim());
                 }
@@ -359,8 +477,10 @@ async function sendToPrinterUSB(printerName, dataBuffer) {
     });
 }
 
-// --- GESTOR DE COLAS SECUENCIAL ---
-// Asegura que si hay 10 tickets, se impriman en orden y no al mismo tiempo
+// ============================================================================
+// GESTOR DE COLAS SECUENCIAL
+// ============================================================================
+// Un queue por impresora. Los jobs se procesan en orden FIFO.
 class JobManager {
     constructor() {
         this.queues = new Map();
@@ -385,12 +505,18 @@ class JobManager {
             const job = queue.shift();
             try {
                 console.log(`[JOB] Imprimiendo en ${job.printerConfig.name}...`);
+
                 const isUSB = job.printerConfig.connectionType === 'usb';
+
                 if (isUSB) {
-                    await sendToPrinterUSB(job.printerConfig.ip, job.buffer);
+                    console.log(`[USB] Enviando RAW a ${job.printerConfig.name}`);
+                    // USB/local: enviar SIEMPRE el nombre de Windows, NUNCA la IP
+                    await sendToPrinterUSB(job.printerConfig.name, job.buffer);
                 } else {
+                    console.log(`[TCP] Enviando a ${job.printerConfig.ip}:${job.printerConfig.port}`);
                     await sendToPrinter(job.printerConfig.ip, job.printerConfig.port, job.buffer);
                 }
+
                 console.log(`[OK] Impreso correctamente en ${job.printerConfig.name}`);
                 await job.onComplete(true);
             } catch (err) {
@@ -404,7 +530,9 @@ class JobManager {
 
 const jobManager = new JobManager();
 
-// --- IMPRIME CUSTOMIZACIONES (incluso subGroups anidados) ---
+// ============================================================================
+// GENERACIÓN DE TICKETS (solo formato legacy — el nuevo viene pre-renderizado)
+// ============================================================================
 function printCustomizations(customizations, chunks, indent) {
     if (!customizations || customizations.length === 0) return;
     customizations.forEach(c => {
@@ -426,13 +554,11 @@ function printCustomizations(customizations, chunks, indent) {
     });
 }
 
-// --- GENERADOR DE TICKETS (Lógica compartida) ---
 function generateTicket(order, role, columns = 32, printSettings = null) {
     let chunks = [];
     const customer = order.customer || {};
     const allItems = order.items || [];
 
-    // CONFIGURACIÓN POR DEFECTO SI NO SE PROPORCIONA
     const settings = printSettings || {
         fontSize: role === 'cashier' ? 'normal' : 'large',
         lineSpacing: role === 'cashier' ? 36 : 48,
@@ -446,7 +572,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
         footerTemplate: '',
     };
 
-    // FILTRADO DE ITEMS SEGÚN ROL
     let itemsToPrint = [];
     if (role === 'cashier') {
         itemsToPrint = allItems;
@@ -456,7 +581,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
         itemsToPrint = allItems.filter(i => i.printRole === 'bar' || i.printRole === 'both');
     }
 
-    // Si no hay items para este rol, no generamos ticket
     if (itemsToPrint.length === 0) return null;
 
     const lineStr = '-'.repeat(columns);
@@ -465,7 +589,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     chunks.push(ESC_POS.INIT, ESC_POS.CODE_PAGE, ESC_POS.ALIGN_CENTER);
     chunks.push(ESC_POS.LINE_SPACING(settings.lineSpacing));
 
-    // Encabezado personalizado (si está configurado)
     if (settings.headerTemplate) {
         chunks.push(buf(`${settings.headerTemplate}\n`));
         chunks.push(buf(`${lineStr}\n`));
@@ -491,20 +614,17 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     chunks.push(ESC_POS.ALIGN_LEFT);
     chunks.push(buf(`Fecha: ${new Date(order.createdAt).toLocaleString('es-AR')}\n`));
 
-    // Tipo de entrega
     if (order.orderMode) {
         const modeLabel = order.orderMode === 'takeaway' ? 'PARA LLEVAR' : 'DELIVERY';
         chunks.push(buf(`Tipo: ${modeLabel}\n`));
     }
 
-    // Pago en efectivo
     if (order.payment?.method === 'cash') {
         chunks.push(ESC_POS.ALIGN_CENTER, ESC_POS.BOLD_ON);
         chunks.push(buf(`=== PAGO EFECTIVO ===\n`));
         chunks.push(ESC_POS.BOLD_OFF, ESC_POS.ALIGN_LEFT);
     }
 
-    // Dirección de delivery
     if (order.orderMode === 'delivery' && order.deliveryAddress) {
         const addr = order.deliveryAddress;
         chunks.push(ESC_POS.BOLD_ON);
@@ -515,7 +635,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
         chunks.push(ESC_POS.BOLD_OFF);
     }
 
-    // Hora programada (destacado en negrita)
     if (order.orderTiming === 'scheduled' && order.scheduledPickupAt) {
         const schedDate = new Date(order.scheduledPickupAt);
         const schedTime = schedDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
@@ -525,7 +644,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
         chunks.push(ESC_POS.BOLD_OFF);
     }
 
-    // Info del cliente (según configuración)
     if (settings.showCustomerInfo) {
         chunks.push(ESC_POS.BOLD_ON);
         chunks.push(buf(`Cliente: ${(customer.name || '').toUpperCase()}\n`));
@@ -535,7 +653,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
         chunks.push(ESC_POS.BOLD_OFF);
     }
 
-    // Observaciones del cliente (según configuración)
     if (settings.showOrderNotes && order.notes) {
         chunks.push(buf(`${lineStr}\n`));
         chunks.push(ESC_POS.BOLD_ON);
@@ -546,8 +663,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     chunks.push(buf(`${lineStr}\n`));
 
     let lastCategory = null;
-
-    // ── Agrupar items de promo consecutivos con el mismo promotionTitle ──
     const promoGroups = [];
     let currentGroup = null;
 
@@ -572,7 +687,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
 
     promoGroups.forEach(group => {
         if (group.single) {
-            // ── Item normal o reward ──
             const item = group.single;
 
             if (item.itemType === 'reward') {
@@ -580,7 +694,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
             }
 
             let displayName = item.name.toUpperCase();
-
             const line = `${item.quantity}x ${displayName}`;
 
             if (settings.showCategory) {
@@ -592,7 +705,7 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                 lastCategory = currentCategory;
             }
 
-            if (settings.showPrices && role === 'cashier') {
+            if (settings.showPrices) {
                 const price = `$${money(item.price * item.quantity)}`;
                 const dots = '.'.repeat(Math.max(2, columns - line.length - price.length));
                 chunks.push(buf(`${line}${dots}${price}\n`));
@@ -637,7 +750,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
             }
             chunks.push(buf('\n\n'));
         } else {
-            // ── Grupo de promo: header + items listados ──
             const promoTitle = group.promotionTitle.toUpperCase();
             const totalQty = group.totalQuantity;
 
@@ -645,7 +757,7 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                 lastCategory = null;
             }
 
-            if (settings.showPrices && role === 'cashier') {
+            if (settings.showPrices) {
                 const headerLine = `${totalQty}x ${promoTitle}`;
                 const headerPrice = `$${money(group.items.reduce((s, i) => s + i.price * i.quantity, 0))}`;
                 const dots = '.'.repeat(Math.max(2, columns - headerLine.length - headerPrice.length));
@@ -656,7 +768,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                 chunks.push(ESC_POS.BOLD_OFF, getFontSizeCommand(settings.fontSize));
             }
 
-            // Descripción corta de la promo
             if (settings.showDescriptions && group.items[0].shortDescription) {
                 const short = group.items[0].shortDescription.length > columns
                     ? group.items[0].shortDescription.substring(0, columns - 3) + '...'
@@ -664,7 +775,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
                 chunks.push(buf(`  ${short.toUpperCase()}\n`));
             }
 
-            // Listar items del combo
             group.items.forEach(item => {
                 const rawName = item.name.includes(' - ')
                     ? item.name.substring(item.name.indexOf(' - ') + 3)
@@ -705,7 +815,6 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
         }
     });
 
-    // Promo de superadmin
     if (order.promoCode && order.promoCreatedBy === 'superadmin') {
         chunks.push(ESC_POS.ALIGN_CENTER, ESC_POS.BOLD_ON);
         chunks.push(buf(`[PROMO SUPERADMIN: ${order.promoCode.toUpperCase()}]\n`));
@@ -717,12 +826,11 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     }
 
     chunks.push(buf(`${lineStr}\n`));
-    if (settings.showTotal && role === 'cashier') {
+    if (settings.showTotal) {
         chunks.push(ESC_POS.ALIGN_RIGHT, ESC_POS.BOLD_ON);
         chunks.push(buf(`TOTAL: $${money(order.total)}\n`));
     }
 
-    // Pie de página personalizado (si está configurado)
     if (settings.footerTemplate) {
         chunks.push(ESC_POS.ALIGN_CENTER);
         chunks.push(buf(`${settings.footerTemplate}\n`));
@@ -732,26 +840,24 @@ function generateTicket(order, role, columns = 32, printSettings = null) {
     return Buffer.concat(chunks);
 }
 
-// --- PROCESA UN TRABAJO DE PRE-CIERRE (CIERRE DE TURNO) ---
-function processPreCloseJob(preCloseJob, printers) {
-    // Buscar impresora por nombre, o crear config mínima desde el job
-    let printer = printers ? printers.find(p => p.name === preCloseJob.printerName) : null;
-    if (!printer && preCloseJob.printerName) {
-        printer = {
-            uid: preCloseJob.printerName,
-            name: preCloseJob.printerName,
-            connectionType: preCloseJob.connectionType || 'tcp',
-            ip: preCloseJob.ip || '',
-            port: preCloseJob.port || 9100,
-            paperWidth: preCloseJob.paperWidth || 80,
-        };
-    }
+// ============================================================================
+// PRE-CLOSE JOBS (cierre de turno)
+// ============================================================================
+function processPreCloseJob(preCloseJob) {
+    const printer = findPrinterByName(preCloseJob.printerName);
     if (!printer) {
-        console.error(`[PRECLOSE] Impresora "${preCloseJob.printerName}" no encontrada para job ${preCloseJob._id}`);
+        console.error(`[ERROR] Impresora "${preCloseJob.printerName}" no encontrada para pre-close ${preCloseJob._id}`);
+        // Reportar fallo al servidor
+        axios.post(`${config.apiUrl}/api/${config.tenantSlug}/print-jobs`, {
+            preCloseJobId: preCloseJob._id,
+            printerName: preCloseJob.printerName,
+            success: false,
+            errorMsg: `Impresora "${preCloseJob.printerName}" no encontrada`
+        }).catch(() => {});
         return;
     }
 
-    console.log(`[PRECLOSE] Encolando cierre de turno → ${printer.name}`);
+    console.log(`[QUEUE] PreClose ${preCloseJob._id} → ${printer.name}`);
     const buffer = Buffer.from(preCloseJob.data, 'base64');
 
     jobManager.enqueue(printer.uid, printer, buffer, async (success, errorMsg) => {
@@ -762,18 +868,38 @@ function processPreCloseJob(preCloseJob, printers) {
                 success,
                 errorMsg
             });
-            console.log(`[CLOUD] Estado sincronizado para PreClose ${preCloseJob._id}`);
+            console.log(`[CLOUD] PreClose ${preCloseJob._id} sincronizado`);
         } catch (e) {
             console.error(`[CLOUD ERROR] No se pudo confirmar pre-close: ${e.message}`);
         }
     });
 }
 
-// --- POLLING ADAPTATIVO ---
+// ============================================================================
+// REPORTAR FALLO DE JOB AL SERVIDOR
+// ============================================================================
+async function reportJobFailure(job, errorMsg) {
+    try {
+        await axios.post(`${config.apiUrl}/api/${config.tenantSlug}/print-jobs`, {
+            orderId: job.orderId,
+            printJobId: job.printJobId,
+            success: false,
+            errorMsg,
+        });
+        console.log(`[CLOUD] Job ${job.printJobId} marcado como fallido`);
+    } catch (e) {
+        console.error(`[CLOUD ERROR] No se pudo reportar fallo: ${e.message}`);
+    }
+}
+
+// ============================================================================
+// POLLING ADAPTATIVO
+// ============================================================================
 const MIN_INTERVAL = 3000;
 const MAX_INTERVAL = 45000;
 const BACKOFF_FACTOR = 1.6;
 let currentInterval = MIN_INTERVAL;
+let pollTimer = null;
 
 async function poll() {
     let hadWork = false;
@@ -790,21 +916,26 @@ async function poll() {
         if (data.jobs !== undefined) {
             const jobs = data.jobs || [];
             const preCloseJobs = data.preCloseJobs || [];
-            pollInterval = data.pollInterval || currentInterval;
 
+            // Actualizar registry de impresoras del servidor (ambos formatos lo envían)
+            if (Array.isArray(data.printers)) {
+                serverPrinters = data.printers;
+            }
+
+            pollInterval = data.pollInterval || currentInterval;
             hadWork = jobs.length > 0 || preCloseJobs.length > 0;
 
-            console.log(`[POLL] jobs=${jobs.length} preClose=${preCloseJobs.length}`);
+            console.log(`[POLL] jobs=${jobs.length} preClose=${preCloseJobs.length} printers=${serverPrinters.length}`);
 
-            // Procesar jobs pre-renderizados
             for (const job of jobs) {
                 const printer = findPrinterByName(job.printerName);
                 if (!printer) {
-                    console.warn(`[WARN] Impresora "${job.printerName}" no encontrada, skip job`);
+                    console.error(`[ERROR] Impresora "${job.printerName}" no encontrada (ni servidor ni Windows). Job ${job.printJobId} → reportando fallo.`);
+                    await reportJobFailure(job, `Impresora "${job.printerName}" no encontrada en este equipo`);
                     continue;
                 }
 
-                console.log(`[QUEUE] Job ${job.printJobId} → ${job.printerName} (${job.role})`);
+                console.log(`[QUEUE] Job ${job.printJobId} → ${job.printerName} (${job.role}) [${printer.connectionType}]`);
 
                 jobManager.enqueue(printer.uid, printer, Buffer.from(job.payload, 'base64'), async (success, errorMsg) => {
                     try {
@@ -821,20 +952,23 @@ async function poll() {
                 });
             }
 
-            // Procesar trabajos de pre-cierre
             for (const job of preCloseJobs) {
                 processPreCloseJob(job);
             }
+
+        // ── Formato VIEJO: orders + printers (fallback) ─────────────────
         } else {
-            // ── Formato VIEJO: orders + printers (fallback) ─────────────
             const { orders, printers, preCloseJobs, pollInterval: serverPollInterval } = data;
             pollInterval = serverPollInterval || currentInterval;
-            lastKnownPrinters = printers || [];
+
+            if (Array.isArray(printers)) {
+                serverPrinters = printers;
+            }
 
             const orderCount = (orders || []).length;
-            const printerCount = (printers || []).length;
+            const printerCount = serverPrinters.length;
             const preCloseCount = (preCloseJobs || []).length;
-            console.log(`[POLL] (legacy) órdenes=${orderCount} impresoras=${printerCount} preClose=${preCloseCount}`);
+            console.log(`[POLL] (legacy) orders=${orderCount} printers=${printerCount} preClose=${preCloseCount}`);
 
             hadWork = orderCount > 0 || preCloseCount > 0;
 
@@ -842,18 +976,16 @@ async function poll() {
                 console.warn('[WARN] No hay impresoras configuradas para esta sede.');
             }
 
-            // Pre-close jobs
             if (preCloseJobs && preCloseJobs.length > 0) {
                 for (const job of preCloseJobs) {
-                    processPreCloseJob(job, printers);
+                    processPreCloseJob(job);
                 }
             }
 
-            // Orders (renderizado local como fallback)
             if (orders && orders.length > 0) {
                 for (const order of orders) {
-                    for (const printer of printers) {
-                        for (const role of printer.roles) {
+                    for (const printer of serverPrinters) {
+                        for (const role of (printer.roles || [])) {
                             console.log(`[QUEUE] Orden ${order.orderNumber} → ${printer.name} (${role})`);
 
                             let ticketBuffer;
@@ -886,14 +1018,14 @@ async function poll() {
             }
         }
 
-        // ── Adaptive interval ──────────────────────────────────────────
+        // Adaptive interval
         currentInterval = hadWork
             ? Math.max(MIN_INTERVAL, pollInterval)
             : Math.min(MAX_INTERVAL, Math.max(currentInterval * BACKOFF_FACTOR, pollInterval));
 
     } catch (error) {
         if (error.code === 'ECONNREFUSED') {
-            console.error(`[CONEXIÓN] Error: No puedo alcanzar el servidor en ${config.apiUrl}`);
+            console.error(`[CONEXIÓN] No puedo alcanzar el servidor en ${config.apiUrl}`);
         } else {
             console.error(`[ERROR] ${error.message}`);
         }
@@ -903,35 +1035,32 @@ async function poll() {
     pollTimer = setTimeout(poll, currentInterval);
 }
 
-function findPrinterByName(name) {
-    // Buscar impresora por nombre en la config (se actualiza en cada poll del formato viejo)
-    return lastKnownPrinters.find(p => p.name === name) || null;
-}
-
-let lastKnownPrinters = [];
-
-// Inicio
+// ============================================================================
+// INICIO
+// ============================================================================
 console.log(`
 ##########################################
-#   AGENTE DE IMPRESIÓN - TAKEASYGO      #
+#   AGENTE DE IMPRESION - TAKEASYGO      #
 ##########################################
-Estado:   Iniciado y Escuchando
-Tenant:   ${config.tenantSlug}
-Sede:     ${config.locationId}
-API:      ${config.apiUrl}
+Estado:    Iniciado y Escuchando
+Tenant:    ${config.tenantSlug}
+Sede:      ${config.locationId}
+API:       ${config.apiUrl}
 Intervalo: ${config.pollInterval}ms (adaptativo: ${MIN_INTERVAL}ms - ${MAX_INTERVAL}ms)
 AutoUpdate: ${config.autoUpdate ? 'HABILITADO' : 'DESHABILITADO'}
-Version:  ${LOCAL_VERSION}
+Version:   ${LOCAL_VERSION}
 ------------------------------------------
 `);
 
-listUSBPrinters();
+// Detectar impresoras Windows al arrancar
+refreshWindowsPrinters();
 
-// Verificar actualizaciones al arrancar (en background, no bloquea el arranque)
+// Refrescar cada 5 minutos (para detectar impresoras agregadas/quitadas)
+setInterval(refreshWindowsPrinters, 5 * 60 * 1000);
+
+// Verificar actualizaciones al arrancar
 checkForUpdate();
-
-// Verificar actualizaciones cada hora
 setInterval(checkForUpdate, 60 * 60 * 1000);
 
-// Polling adaptativo (setTimeout en vez de setInterval)
-let pollTimer = setTimeout(poll, currentInterval);
+// Iniciar polling
+pollTimer = setTimeout(poll, currentInterval);
