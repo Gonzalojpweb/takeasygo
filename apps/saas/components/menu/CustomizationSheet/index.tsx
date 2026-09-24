@@ -182,12 +182,10 @@ export default function CustomizationSheet({
   )
 
   const activeGroups = useMemo(() => {
-    const groups = computeActiveGroups(rootGroups, selections, variantGroups, disabledGroupIds, disabledOptionIds)
-    // Only hide groups when user explicitly chose "Mitad y mitad" (half UI replaces them).
-    // When halfTypeSelection is null (not chosen yet) or "Un sabor", show normal groups.
-    if (halfAvailable && isHalfMode) return []
-    return groups
-  }, [rootGroups, selections, variantGroups, halfAvailable, isHalfMode, disabledGroupIds, disabledOptionIds])
+    // Always compute and show groups (including category-level like media masa/piedra).
+    // The half-and-half UI (HalfAndHalfStep) renders separately above them.
+    return computeActiveGroups(rootGroups, selections, variantGroups, disabledGroupIds, disabledOptionIds)
+  }, [rootGroups, selections, variantGroups, disabledGroupIds, disabledOptionIds])
 
   const isValid = useMemo(() => {
     if (halfAvailable) {
