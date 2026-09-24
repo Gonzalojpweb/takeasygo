@@ -2,7 +2,6 @@ import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { getFeatureUsageStats } from '@/lib/feature-usage'
-import { ComplianceConfigModel } from '@takeasygo/db/models/compliance-config'
 import { NudgeRuleModel } from '@takeasygo/db/models/nudge-rule'
 import type { Types } from 'mongoose'
 import { CheckCircle2, Circle, ChevronRight, Rocket } from 'lucide-react'
@@ -29,11 +28,10 @@ export default async function OnboardingChecklist({ tenantId, tenantSlug, logoUr
 
   const base = `/${tenantSlug}/admin`
 
-  const [location, menu, usage, complianceConfig, nudgeRules] = await Promise.all([
+  const [location, menu, usage, nudgeRules] = await Promise.all([
     Location.findOne({ tenantId }).lean<{ networkVisible: boolean; serviceHours: Record<string, unknown[]> }>(),
     Menu.findOne({ tenantId }).lean<{ categories: { items: unknown[] }[] }>(),
     getFeatureUsageStats(tenantId),
-    ComplianceConfigModel.findOne({ tenantId }).lean().exec(),
     NudgeRuleModel.countDocuments({
       $or: [{ tenantId, active: true }, { tenantId: null, active: true }],
     }).exec(),
@@ -48,7 +46,6 @@ export default async function OnboardingChecklist({ tenantId, tenantSlug, logoUr
   }))
   const hasOrder        = usage.orders?.used ?? false
   const hasLogo         = !!logoUrl
-  const hasCompliance   = !!complianceConfig
   const hasNudges       = nudgeRules > 0
 
   const steps: Step[] = [
@@ -91,14 +88,6 @@ export default async function OnboardingChecklist({ tenantId, tenantSlug, logoUr
       done: hasOrder,
       href: `/${tenantSlug}/menu`,
       cta: 'Ver mi menú',
-    },
-    {
-      id: 'compliance',
-      label: 'Configurá los tiempos de entrega',
-      description: 'Definí cuánto puede tardar cada estado del pedido antes de recibir alertas',
-      done: hasCompliance,
-      href: `${base}/settings`,
-      cta: 'Configurar SLA',
     },
     {
       id: 'nudges',

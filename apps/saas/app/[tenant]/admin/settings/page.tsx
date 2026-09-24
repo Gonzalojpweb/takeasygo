@@ -5,7 +5,6 @@ import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import SettingsForm from '@/components/admin/SettingsForm'
-import ComplianceSettingsPanel from '@/components/admin/compliance/ComplianceSettingsPanel'
 import type { Types } from 'mongoose'
 
 interface LeanTenant {
@@ -46,28 +45,6 @@ export default async function SettingsPage() {
         tenantSlug={tenantSlug || ''}
         plan={plan}
       />
-
-      <div className="mt-10">
-        <h2 className="text-white text-xl font-bold mb-4">Compliance de pedidos</h2>
-        <p className="text-muted-foreground text-sm mb-4">
-          Configurá los tiempos límite (SLA) por sede. Si un pedido se pasa del umbral, se genera una alerta
-          progresiva (L1 → L2 → L3). En modo piloto solo se alerta, no se bloquea.
-        </p>
-        {locations.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Creá una sede para configurar compliance.</p>
-        ) : (
-          <div className="space-y-6">
-            {locations.map((loc) => (
-              <ComplianceSettingsPanel
-                key={String(loc._id)}
-                tenantSlug={tenantSlug || ''}
-                locationId={String(loc._id)}
-                locationName={loc.name || 'Sede'}
-              />
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   )
 }

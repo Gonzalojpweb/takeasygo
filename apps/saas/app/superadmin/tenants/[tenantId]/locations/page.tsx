@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import LocationManager from '@/components/superadmin/LocationManager'
+import ComplianceSettingsPanel from '@/components/superadmin/ComplianceSettingsPanel'
 import { Types } from 'mongoose'
 import { decrypt } from '@/lib/crypto'
 
@@ -106,6 +107,27 @@ export default async function TenantLocationsPage({ params }: Props) {
         tenantSlug={tenant.slug}
         initialLocations={locationsWithMenuInfo}
       />
+
+      <div className="mt-10 space-y-4">
+        <h2 className="text-white text-xl font-bold">Compliance de pedidos</h2>
+        <p className="text-zinc-500 text-sm">
+          SLA y niveles (L1 → L2 → L3) por sede. Los tenant admins solo ven las alertas y el bloqueo.
+        </p>
+        {locationsWithMenuInfo.length === 0 ? (
+          <p className="text-zinc-500 text-sm">Creá una sede para configurar compliance.</p>
+        ) : (
+          <div className="space-y-6">
+            {locationsWithMenuInfo.map((loc) => (
+              <ComplianceSettingsPanel
+                key={loc._id}
+                tenantSlug={tenant.slug}
+                locationId={loc._id}
+                locationName={loc.name}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
