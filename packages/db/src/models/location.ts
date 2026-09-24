@@ -47,8 +47,6 @@ const LocationSchema = new Schema<ILocationDocument>(
   { timestamps: true }
 )
 
-export const LocationModel = mongoose.model<ILocationDocument>(
-  "Location",
-  LocationSchema,
-  "locations"
-)
+export const LocationModel =
+  (mongoose.models.Location as mongoose.Model<ILocationDocument>) ||
+  mongoose.model<ILocationDocument>("Location", LocationSchema, "locations")

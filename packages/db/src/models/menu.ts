@@ -231,8 +231,6 @@ const MenuSchema = new Schema<IMenuDocument>(
 
 MenuSchema.index({ tenantId: 1, locationId: 1 }, { unique: true })
 
-export const MenuModel = mongoose.model<IMenuDocument>(
-  "Menu",
-  MenuSchema,
-  "menus"
-)
+export const MenuModel =
+  (mongoose.models.Menu as mongoose.Model<IMenuDocument>) ||
+  mongoose.model<IMenuDocument>("Menu", MenuSchema, "menus")

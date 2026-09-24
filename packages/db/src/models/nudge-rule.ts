@@ -114,11 +114,9 @@ NudgeRuleSchema.index({ tenantId: 1, active: 1 })
 NudgeRuleSchema.index({ tenantId: 1, slug: 1 }, { unique: true, sparse: true })
 NudgeRuleSchema.index({ active: 1, timeSensitive: 1 })
 
-export const NudgeRuleModel = mongoose.model<INudgeRuleDocument>(
-  "NudgeRule",
-  NudgeRuleSchema,
-  "nudge_rules"
-)
+export const NudgeRuleModel =
+  (mongoose.models.NudgeRule as mongoose.Model<INudgeRuleDocument>) ||
+  mongoose.model<INudgeRuleDocument>("NudgeRule", NudgeRuleSchema, "nudge_rules")
 
 /** Nudges globales de plataforma (tenantId = null) */
 export const DEFAULT_NUDGE_RULES: Array<{

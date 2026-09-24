@@ -47,8 +47,6 @@ export const TenantSchema = new Schema<TenantDocument>(
   { timestamps: true }
 )
 
-export const TenantModel = mongoose.model<TenantDocument>(
-  "Tenant",
-  TenantSchema,
-  "sync_tenants"
-)
+export const TenantModel =
+  (mongoose.models.Tenant as mongoose.Model<TenantDocument>) ||
+  mongoose.model<TenantDocument>("Tenant", TenantSchema, "sync_tenants")

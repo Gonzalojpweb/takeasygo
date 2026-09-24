@@ -115,8 +115,6 @@ InventoryStateSchema.index(
   { name: "state_open_requests" }
 )
 
-export const InventoryStateModel = mongoose.model<IInventoryStateDocument>(
-  "InventoryState",
-  InventoryStateSchema,
-  "inventory_state"
-)
+export const InventoryStateModel =
+  (mongoose.models.InventoryState as mongoose.Model<IInventoryStateDocument>) ||
+  mongoose.model<IInventoryStateDocument>("InventoryState", InventoryStateSchema, "inventory_state")

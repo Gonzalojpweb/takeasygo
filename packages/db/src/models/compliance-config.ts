@@ -61,11 +61,13 @@ export const ComplianceConfigSchema = new Schema<IComplianceConfigDocument>(
 
 ComplianceConfigSchema.index({ tenantId: 1, locationId: 1 }, { unique: true })
 
-export const ComplianceConfigModel = mongoose.model<IComplianceConfigDocument>(
-  "ComplianceConfig",
-  ComplianceConfigSchema,
-  "compliance_configs"
-)
+export const ComplianceConfigModel =
+  (mongoose.models.ComplianceConfig as mongoose.Model<IComplianceConfigDocument>) ||
+  mongoose.model<IComplianceConfigDocument>(
+    "ComplianceConfig",
+    ComplianceConfigSchema,
+    "compliance_configs"
+  )
 
 /** SLA defaults para cuando no hay configuración explícita */
 export const DEFAULT_SLA_RULES: ISlaRule[] = [

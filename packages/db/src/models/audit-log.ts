@@ -36,8 +36,6 @@ export const AuditLogSchema = new Schema<AuditLogDocument>({
 AuditLogSchema.index({ tenantId: 1, category: 1, timestamp: -1 })
 AuditLogSchema.index({ tenantId: 1, timestamp: -1 })
 
-export const AuditLogModel = mongoose.model<AuditLogDocument>(
-  "AuditLog",
-  AuditLogSchema,
-  "sync_audit_logs"
-)
+export const AuditLogModel =
+  (mongoose.models.AuditLog as mongoose.Model<AuditLogDocument>) ||
+  mongoose.model<AuditLogDocument>("AuditLog", AuditLogSchema, "sync_audit_logs")
