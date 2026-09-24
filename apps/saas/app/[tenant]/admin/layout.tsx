@@ -104,7 +104,7 @@ export default async function AdminLayout({
       Location.exists({ tenantId: tenantDoc._id, isActive: true, 'settings.orderModes': 'takeaway' }),
       Location.find({ tenantId: tenantDoc._id, isActive: true })
         .select('name colorIndex')
-        .lean<{ _id: mongoose.Types.ObjectId; name: string; colorIndex?: number }>(),
+        .lean<Array<{ _id: mongoose.Types.ObjectId; name: string; colorIndex?: number }>>(),
     ])
     dineInOnly = !!hasAny && !hasTakeaway
     sidebarLocations = locs.map((l, idx) => ({
