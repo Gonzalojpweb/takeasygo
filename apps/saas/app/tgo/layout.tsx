@@ -4,15 +4,14 @@ import './globals-tgo.css'
 
 const bigShoulders = Big_Shoulders({
   subsets: ['latin'],
-  weight: ['600', '700', '800', '900'],
+  weight: 'variable',
   variable: '--font-big-shoulders',
   display: 'swap',
-  adjustFontFallback: false,
 })
 
 const ibmPlexSans = IBM_Plex_Sans({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: 'variable',
   variable: '--font-ibm-plex-sans',
   display: 'swap',
 })
