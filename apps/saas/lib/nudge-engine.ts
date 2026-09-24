@@ -11,6 +11,7 @@ import Tenant from "@/models/Tenant"
 import Location from "@/models/Location"
 import { getFeatureUsageStats } from "@/lib/feature-usage"
 import { NudgeRuleModel, DEFAULT_NUDGE_RULES, type INudgeRuleDocument, type INudgeCondition } from "@takeasygo/db"
+import type { Types } from "mongoose"
 
 export interface TriggeredNudge {
   _id: string
@@ -25,6 +26,25 @@ export interface TriggeredNudge {
   triggeredAt: Date
 }
 
+interface LeanTenant {
+  _id: Types.ObjectId
+  plan?: string
+  features?: Record<string, { enabled?: boolean } | undefined> & {
+    reservations?: boolean
+    hiddenRewards?: { enabled?: boolean }
+  }
+  loyalty?: { enabled?: boolean }
+  transferAccounts?: Array<{ updatedAt?: Date | string }>
+  recommendedDishes?: unknown[]
+}
+
+interface LeanLocation {
+  timezone?: string
+  serviceHours?: Record<string, unknown[]>
+  settings?: Record<string, unknown>
+  [field: string]: unknown
+}
+
 /**
  * Evaluate all active nudge rules for a tenant and return triggered nudges.
  * @param tenantId - The tenant to evaluate for
@@ -36,13 +56,13 @@ export async function evaluateNudges(
 ): Promise<TriggeredNudge[]> {
   await connectDB()
 
-  const tenant = await Tenant.findById(tenantId).lean() as any
+  const tenant = await Tenant.findById(tenantId).lean<LeanTenant>()
   if (!tenant) return []
 
   // Get location for the tenant (first active location)
   const location = await Location.findOne({ tenantId: tenant._id, isActive: true })
-    .select("settings serviceHours")
-    .lean() as any
+    .select("settings serviceHours timezone")
+    .lean<LeanLocation>()
 
   // Lazily seed global default rules if none exist yet (DEFAULT_NUDGE_RULES is code-only)
   const globalCount = await NudgeRuleModel.countDocuments({ tenantId: null })
@@ -66,7 +86,7 @@ export async function evaluateNudges(
   for (const rule of rules) {
     if (rule.planRequired && tenant.plan !== rule.planRequired) continue
 
-    const shouldTrigger = await evaluateCondition(rule.condition, tenant, location, rule)
+    const shouldTrigger = await evaluateCondition(rule.condition, tenant, location)
     if (!shouldTrigger) continue
 
     // Check frequency
@@ -123,7 +143,7 @@ export async function getActiveNudges(tenantId: string): Promise<TriggeredNudge[
     .find({ tenantId })
     .toArray()
 
-  const dismissedIds = new Set(dismissals.map((d: any) => d.nudgeId.toString()))
+  const dismissedIds = new Set(dismissals.map((d) => d.nudgeId.toString()))
   return allNudges.filter((n) => !dismissedIds.has(n._id))
 }
 
@@ -131,9 +151,8 @@ export async function getActiveNudges(tenantId: string): Promise<TriggeredNudge[
 
 async function evaluateCondition(
   condition: INudgeCondition,
-  tenant: any,
-  location: any,
-  rule: INudgeRuleDocument
+  tenant: LeanTenant,
+  location: LeanLocation | null
 ): Promise<boolean> {
   switch (condition.checkType) {
     case "field_missing":
@@ -141,11 +160,11 @@ async function evaluateCondition(
     case "field_empty":
       return evaluateFieldEmpty(condition, location)
     case "no_activity_days":
-      return evaluateNoActivity(condition, tenant, rule)
+      return evaluateNoActivity(condition, tenant)
     case "day_of_week_hour":
       return evaluateDayOfWeekHour(condition, location)
     case "feature_unused":
-      return evaluateFeatureUnused(condition, tenant, rule)
+      return evaluateFeatureUnused(condition, tenant)
     case "feature_not_configured":
       return evaluateFeatureNotConfigured(condition, tenant, location)
     default:
@@ -153,14 +172,14 @@ async function evaluateCondition(
   }
 }
 
-function evaluateFieldMissing(condition: INudgeCondition, location: any): boolean {
+function evaluateFieldMissing(condition: INudgeCondition, location: LeanLocation | null): boolean {
   if (!condition.targetField) return false
   // Check at location level first, then tenant level
   const value = location?.[condition.targetField] ?? location?.settings?.[condition.targetField]
   return value === undefined || value === null
 }
 
-function evaluateFieldEmpty(condition: INudgeCondition, location: any): boolean {
+function evaluateFieldEmpty(condition: INudgeCondition, location: LeanLocation | null): boolean {
   if (!condition.targetField) return false
   const value = location?.[condition.targetField] ?? location?.settings?.[condition.targetField]
   if (value === undefined || value === null) return true
@@ -171,8 +190,7 @@ function evaluateFieldEmpty(condition: INudgeCondition, location: any): boolean 
 
 async function evaluateNoActivity(
   condition: INudgeCondition,
-  tenant: any,
-  rule: INudgeRuleDocument
+  tenant: LeanTenant
 ): Promise<boolean> {
   const thresholdDays = condition.thresholdDays ?? 30
   const cutoff = new Date(Date.now() - thresholdDays * 24 * 60 * 60 * 1000)
@@ -181,7 +199,7 @@ async function evaluateNoActivity(
     // Check if any transfer account was recently updated
     const accounts = tenant.transferAccounts || []
     if (accounts.length === 0) return true
-    const lastUpdate = accounts.reduce((latest: Date, a: any) => {
+    const lastUpdate = accounts.reduce((latest, a) => {
       const updated = a.updatedAt ? new Date(a.updatedAt) : new Date(0)
       return updated > latest ? updated : latest
     }, new Date(0))
@@ -191,7 +209,7 @@ async function evaluateNoActivity(
   return false
 }
 
-function evaluateDayOfWeekHour(condition: INudgeCondition, location: any): boolean {
+function evaluateDayOfWeekHour(condition: INudgeCondition, location: LeanLocation | null): boolean {
   if (condition.dayOfWeek === undefined || condition.hourOfDay === undefined) return false
 
   const timezone = location?.timezone || "America/Argentina/Buenos_Aires"
@@ -216,8 +234,7 @@ function evaluateDayOfWeekHour(condition: INudgeCondition, location: any): boole
 
 async function evaluateFeatureUnused(
   condition: INudgeCondition,
-  tenant: any,
-  rule: INudgeRuleDocument
+  tenant: LeanTenant
 ): Promise<boolean> {
   if (!condition.featureKey) return false
   const thresholdDays = condition.thresholdDays ?? 14
@@ -239,8 +256,8 @@ async function evaluateFeatureUnused(
 
 function evaluateFeatureNotConfigured(
   condition: INudgeCondition,
-  tenant: any,
-  location: any
+  tenant: LeanTenant,
+  location: LeanLocation | null
 ): boolean {
   if (!condition.featureKey) return false
 
@@ -248,7 +265,7 @@ function evaluateFeatureNotConfigured(
     case "serviceHours":
       return !location?.serviceHours ||
         Object.values(location.serviceHours).every(
-          (arr: any) => !arr || arr.length === 0
+          (arr) => !arr || (Array.isArray(arr) && arr.length === 0)
         )
     case "recommendedDishes":
       return !tenant.recommendedDishes || tenant.recommendedDishes.length === 0

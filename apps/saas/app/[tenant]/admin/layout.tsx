@@ -31,7 +31,8 @@ export async function generateMetadata({ params }: AdminLayoutProps): Promise<Me
   const { tenant: tenantSlug } = await params
   await connectDB()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
+    .lean<{ name?: string; branding?: { primaryColor?: string } }>()
   if (!tenant) return {}
 
   const name: string = tenant.name || 'Admin'
@@ -75,7 +76,15 @@ export default async function AdminLayout({
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
     .select('plan business.enabled features.crm.enabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold')
-    .lean() as any
+    .lean<{
+      _id: mongoose.Types.ObjectId
+      plan?: Plan
+      business?: { enabled?: boolean }
+      features?: { crm?: { enabled?: boolean } }
+      branding?: { primaryColor?: string; backgroundColor?: string; textColor?: string; logoUrl?: string }
+      commissionBalance?: { transfer?: number }
+      commissionThreshold?: number | null
+    }>()
   const plan: Plan = tenantDoc?.plan ?? 'try'
   const businessEnabled = tenantDoc?.business?.enabled ?? false
   const crmEnabled = tenantDoc?.features?.crm?.enabled ?? false
@@ -93,10 +102,12 @@ export default async function AdminLayout({
     const [hasAny, hasTakeaway, locs] = await Promise.all([
       Location.exists({ tenantId: tenantDoc._id, isActive: true }),
       Location.exists({ tenantId: tenantDoc._id, isActive: true, 'settings.orderModes': 'takeaway' }),
-      Location.find({ tenantId: tenantDoc._id, isActive: true }).select('name colorIndex').lean(),
+      Location.find({ tenantId: tenantDoc._id, isActive: true })
+        .select('name colorIndex')
+        .lean<{ _id: mongoose.Types.ObjectId; name: string; colorIndex?: number }>(),
     ])
     dineInOnly = !!hasAny && !hasTakeaway
-    sidebarLocations = (locs as any[]).map((l, idx) => ({
+    sidebarLocations = locs.map((l, idx) => ({
       _id: l._id.toString(),
       name: l.name,
       colorIndex: l.colorIndex ?? idx % 8,

@@ -66,8 +66,17 @@ export async function POST(
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-      .select('status statusTimestamps orderNumber orderMode locationId trackingToken customer')
-      .lean() as any
+      .select('status statusTimestamps orderNumber orderMode locationId trackingToken customer createdAt')
+      .lean<{
+        _id: unknown
+        status: string
+        statusTimestamps?: Record<string, Date | string | undefined>
+        orderNumber: string
+        orderMode?: string
+        locationId?: unknown
+        trackingToken?: string
+        createdAt: Date
+      }>()
 
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

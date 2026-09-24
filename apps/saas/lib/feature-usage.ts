@@ -10,6 +10,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Order from '@/models/Order'
+import mongoose from 'mongoose'
 import type { Types } from 'mongoose'
 
 export interface FeatureUsageStat {
@@ -102,8 +103,6 @@ export async function getFeatureUsageStats(
 }
 
 function toOid(tid: string): Types.ObjectId {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const mongoose = require('mongoose')
   return new mongoose.Types.ObjectId(tid)
 }
 

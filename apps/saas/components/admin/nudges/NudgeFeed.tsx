@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { usePathname } from "next/navigation"
 import Link from "next/link"
 import {
   Clock, Building2, UtensilsCrossed, ClipboardCheck, Users, Gift, X, ChevronRight,
@@ -38,7 +37,6 @@ interface Props {
  * and allows dismissing each one. Shown in the admin layout.
  */
 export default function NudgeFeed({ tenantSlug, max = 3, className }: Props) {
-  const pathname = usePathname()
   const [nudges, setNudges] = useState<Nudge[]>([])
   const [loading, setLoading] = useState(true)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
