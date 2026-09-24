@@ -16,15 +16,12 @@ New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 # Archivos a copiar
 $files = @(
     'agent.js',
-    'ticket-renderer.js',
-    'raster-encoder.js',
     'setup.js',
     'config.json',
     'package.json',
     'pnpm-lock.yaml',
     '.npmrc',
     'send-raw.ps1',
-    'test-ticket.js',
     'SETUP.bat',
     'start.bat',
     'UPDATE.bat',

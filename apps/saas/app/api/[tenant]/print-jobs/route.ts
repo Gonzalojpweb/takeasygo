@@ -126,7 +126,8 @@ export async function GET(
         }
       }
 
-      return NextResponse.json({ jobs, preCloseJobs, pollInterval })
+      // Enviar también printers para que el agente resuelva printerName → config
+      return NextResponse.json({ jobs, printers, preCloseJobs, pollInterval })
     } else {
       // ── Formato VIEJO: orders + printers (decrypt en cada poll) ─────
       const orders = await Order.find({
