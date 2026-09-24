@@ -295,8 +295,8 @@ export function renderOrderTicket(
         lastCategory = cat
       }
 
-      // Item line — price a la derecha si showPrices, si no solo nombre
-      if (settings.showPrices && role === 'cashier') {
+      // Item line — price a la derecha si showPrices
+      if (settings.showPrices) {
         t.row(line, money(item.price * item.quantity), { bold: true })
       } else {
         t.text(line, { bold: true })
@@ -345,7 +345,7 @@ export function renderOrderTicket(
       if (settings.showCategory) lastCategory = null
 
       const promoHeader = `${totalQty}x ${promoTitle}`
-      if (settings.showPrices && role === 'cashier') {
+      if (settings.showPrices) {
         const promoPrice = money(promoGroup.items.reduce((s, i) => s + i.price * i.quantity, 0))
         t.row(promoHeader, promoPrice, { bold: true })
       } else {
@@ -403,7 +403,7 @@ export function renderOrderTicket(
 
   // ── Total — siempre 'double' sin importar config ────────────────────
   t.ruleDouble()
-  if (settings.showTotal && role === 'cashier') {
+  if (settings.showTotal) {
     t.row('TOTAL', money(order.total), { bold: true, size: 'double', align: 'right' })
   }
 
