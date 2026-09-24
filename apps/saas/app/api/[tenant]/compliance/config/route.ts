@@ -1,8 +1,8 @@
 /**
  * API: Compliance Config
  *
- * GET: Retorna la configuración de compliance para una sede
- * PUT: Actualiza la configuración de compliance para una sede
+ * GET: Retorna la configuración de compliance (lectura, diagnóstico)
+ * PUT: Actualiza la configuración — solo superadmin
  *
  * /api/[tenant]/compliance/config?locationId=xxx
  */
@@ -11,7 +11,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { ComplianceConfigModel } from '@takeasygo/db/models/compliance-config'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function GET(
   request: NextRequest,
@@ -67,7 +67,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireSuperAdmin()
     if (authError) return authError
 
     const body = await request.json()
