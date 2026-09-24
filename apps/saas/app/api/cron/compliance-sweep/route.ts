@@ -13,7 +13,8 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
-import { ComplianceConfigModel, ComplianceAlertModel, DEFAULT_SLA_RULES } from '@takeasygo/db'
+import { ComplianceConfigModel, DEFAULT_SLA_RULES } from '@takeasygo/db/models/compliance-config'
+import { ComplianceAlertModel } from '@takeasygo/db/models/compliance-alert'
 import { NextRequest, NextResponse } from 'next/server'
 
 const CRON_SECRET = process.env.CRON_SECRET

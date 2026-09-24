@@ -10,7 +10,7 @@
 
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { ComplianceAlertModel } from '@takeasygo/db'
+import { ComplianceAlertModel } from '@takeasygo/db/models/compliance-alert'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 
