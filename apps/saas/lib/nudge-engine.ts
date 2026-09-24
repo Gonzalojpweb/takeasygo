@@ -10,7 +10,7 @@ import { connectDB } from "@/lib/mongoose"
 import Tenant from "@/models/Tenant"
 import Location from "@/models/Location"
 import { getFeatureUsageStats } from "@/lib/feature-usage"
-import { NudgeRuleModel, DEFAULT_NUDGE_RULES, type INudgeRuleDocument, type INudgeCondition } from "@takeasygo/db"
+import { NudgeRuleModel, DEFAULT_NUDGE_RULES, type INudgeRuleDocument, type INudgeCondition } from "@takeasygo/db/models/nudge-rule"
 import type { Types } from "mongoose"
 
 export interface TriggeredNudge {
