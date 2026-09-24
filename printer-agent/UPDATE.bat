@@ -8,8 +8,7 @@ echo ===================================================
 echo    ACTUALIZADOR AUTOMATICO - TAKEASYGO
 echo ===================================================
 echo.
-echo Este script actualiza el agente de impresion a la
-echo ultima version con soporte de modo imagen.
+echo Este script actualiza el agente de impresion.
 echo.
 
 echo ===================================================
@@ -18,16 +17,6 @@ echo ===================================================
 echo.
 
 set "MISSING=0"
-
-if not exist "ticket-renderer.js" (
-    echo [FALTA] ticket-renderer.js
-    set "MISSING=1"
-)
-
-if not exist "raster-encoder.js" (
-    echo [FALTA] raster-encoder.js
-    set "MISSING=1"
-)
 
 if not exist "agent.js.new" (
     echo [FALTA] agent.js.new
@@ -40,6 +29,10 @@ if not exist "package.json.new" (
 )
 
 if "!MISSING!"=="1" (
+    echo.
+    echo Para preparar la actualizacion, copia los archivos nuevos:
+    echo   agent.js      -^> agent.js.new
+    echo   package.json  -^> package.json.new
     echo.
     echo ERROR: Faltan archivos para la actualizacion.
     pause
@@ -127,15 +120,15 @@ if exist "package.json.new" del /q "package.json.new"
 
 echo.
 echo ===================================================
-echo    PASO 6: Verificando modulos
+echo    PASO 6: Verificando agente
 echo ===================================================
 echo.
 
-node -e "require('./ticket-renderer');require('./raster-encoder');console.log('OK');"
+node -e "const v=require('./package.json').version;console.log('Version:',v);"
 
 if errorlevel 1 (
     echo.
-    echo ERROR cargando modulos.
+    echo ERROR verificando agente.
     pause
     exit /b 1
 )
