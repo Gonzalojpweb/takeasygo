@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import ShareEvent from '@/models/ShareEvent'
 import { verifyRatingToken } from '@/lib/rating-token'
 import { safeDecrypt } from '@/lib/crypto'
+import { uploadBuffer, folderRoot } from '@/lib/cloudinary'
 import { NextRequest, NextResponse } from 'next/server'
 import { ImageResponse } from 'next/og'
 import { toPesos } from '@takeasygo/business'
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
             <span>${toPesos(total).toLocaleString('es-AR')}</span>
           </div>
 
-          <div style={{ marginTop: 32, textAlign: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', marginTop: 32, textAlign: 'center' }}>
             <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
               Pedido vía TakeasyGO · {tenantName}
             </p>
@@ -130,27 +131,12 @@ export async function GET(request: NextRequest) {
 
     const pngBuffer = Buffer.from(await imgRes.arrayBuffer())
 
-    // Upload to Cloudinary
-    const { v2: cloudinary } = await import('cloudinary')
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-    })
-
-    const uploadResult = await new Promise<any>((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: `takeasygo/shares/${tenantSlug}`,
-          public_id: `pedido-${order.orderNumber}`,
-          format: 'png',
-          transformation: [{ quality: 'auto', fetch_format: 'auto' }],
-        },
-        (error, result) => {
-          if (error) reject(error)
-          else resolve(result)
-        }
-      ).end(pngBuffer)
+    // Upload to Cloudinary (cuenta tenant)
+    const uploadResult = await uploadBuffer('tenant', pngBuffer, {
+      folder: `${folderRoot()}/shares/${tenantSlug}`,
+      public_id: `pedido-${order.orderNumber}`,
+      format: 'png',
+      transformation: [{ quality: 'auto', fetch_format: 'auto' }],
     })
 
     return NextResponse.json({

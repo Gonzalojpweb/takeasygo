@@ -1,14 +1,8 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
-import { v2 as cloudinary } from 'cloudinary'
+import { uploadBuffer, folderRoot } from '@/lib/cloudinary'
 import { NextRequest, NextResponse } from 'next/server'
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-})
 
 export async function POST(
   request: NextRequest,
@@ -36,20 +30,12 @@ export async function POST(
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const result = await new Promise<any>((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'raw',
-          folder: `takeasygo/${tenantSlug}/fonts`,
-          public_id: file.name.replace(/\.[^.]+$/, ''),
-          use_filename: true,
-          unique_filename: false,
-        },
-        (error, result) => {
-          if (error) reject(error)
-          else resolve(result)
-        }
-      ).end(buffer)
+    const result = await uploadBuffer('tenant', buffer, {
+      resource_type: 'raw',
+      folder: `${folderRoot()}/${tenantSlug}/fonts`,
+      public_id: file.name.replace(/\.[^.]+$/, ''),
+      use_filename: true,
+      unique_filename: false,
     })
 
     return NextResponse.json({

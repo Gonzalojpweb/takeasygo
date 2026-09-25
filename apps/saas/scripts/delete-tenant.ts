@@ -10,10 +10,12 @@
  *   --yes            Salta la confirmación
  *
  * Requiere: MONGODB_URI en env o .env.local
+ *          CLOUDINARY_* (cuenta original) y CLOUDINARY_TENANT_* (cuenta nueva) en .env.local
  */
 import mongoose from 'mongoose'
 import * as fs from 'fs'
 import * as path from 'path'
+import { accountCreds, folderRoot, type CloudinaryAccount, type CloudinaryCredentials } from '../lib/cloudinary'
 
 // ── Load .env.local ──
 const envPath = path.resolve(__dirname, '../.env.local')
@@ -35,21 +37,35 @@ if (!MONGODB_URI) {
   process.exit(1)
 }
 
-// ── Cloudinary config ──
-let cloudinary: any = null
-async function loadCloudinary() {
-  if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
-    const mod = await import('cloudinary')
-    cloudinary = mod.v2
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-    })
-    return true
+// ── Cloudinary: los assets de un tenant viven en DOS cuentas ──
+// internal → cuenta original (assets subidos antes del split)
+// tenant   → cuenta nueva (assets subidos después del split)
+interface CloudAccount {
+  account: CloudinaryAccount
+  cloudinary: any
+  creds: CloudinaryCredentials
+  count: number
+}
+
+async function loadCloudinaryAccounts(): Promise<CloudAccount[]> {
+  const accounts: CloudAccount[] = []
+  const mod = await import('cloudinary')
+
+  for (const account of ['internal', 'tenant'] as const) {
+    try {
+      const creds = accountCreds(account)
+      accounts.push({ account, cloudinary: mod.v2, creds, count: 0 })
+    } catch (e) {
+      if (account === 'tenant') {
+        console.error(`❌ ${(e as Error).message}`)
+        console.error('   Abortado: sin credenciales de la cuenta tenant no se puede garantizar el borrado de todos los assets.')
+        process.exit(1)
+      }
+      console.warn(`⚠️  ${(e as Error).message} — skip borrado de imágenes de la cuenta ${account}`)
+    }
   }
-  console.warn('⚠️  CLOUDINARY_* vars no configuradas — skip borrado de imágenes')
-  return false
+
+  return accounts
 }
 
 // ── Collections to clean ──
@@ -137,6 +153,11 @@ async function main() {
   console.log(`\n${'='.repeat(60)}`)
   console.log(`  DELETE TENANT — ${DRY_RUN ? '🔍 DRY RUN' : '🔥 REAL DELETE'}`)
   console.log(`${'='.repeat(60)}\n`)
+
+  const cloudAccounts = await loadCloudinaryAccounts()
+  if (cloudAccounts.length > 0) {
+    console.log(`☁️  Cloudinary: ${cloudAccounts.map((a) => a.account).join(' + ')} — folder root: "${folderRoot()}"\n`)
+  }
 
   await mongoose.connect(MONGODB_URI!)
   console.log('✅ Conectado a MongoDB\n')
@@ -251,18 +272,18 @@ async function main() {
     counts.push({ label: col.label, count, alert: alertMsg })
   }
 
-  // ── Cloudinary assets ──
+  // ── Cloudinary assets (ambas cuentas) ──
   let cloudinaryFiles = 0
-  const hasCloudinary = await loadCloudinary()
-  if (hasCloudinary && cloudinary) {
-    try {
-      const result = await cloudinary.search.expression(`folder:takeasygo/${tenantSlug}`).execute()
-      cloudinaryFiles = result.total_count || 0
-    } catch { /* folder might not exist */ }
-    try {
-      const result2 = await cloudinary.search.expression(`folder:takeasygo/shares/${tenantSlug}`).execute()
-      cloudinaryFiles += result2.total_count || 0
-    } catch { /* folder might not exist */ }
+  const root = folderRoot()
+  for (const acc of cloudAccounts) {
+    const folderBases = [`${root}/${tenantSlug}`, `${root}/shares/${tenantSlug}`]
+  for (const expr of folderBases.map((b) => `folder:${b} OR folder:${b}/*`)) {
+      try {
+        const result = await acc.cloudinary.search.expression(expr).execute(acc.creds)
+        acc.count += result.total_count || 0
+      } catch { /* folder might not exist */ }
+    }
+    cloudinaryFiles += acc.count
   }
 
   // ── Print report ──
@@ -279,7 +300,10 @@ async function main() {
 
   console.log('─'.repeat(60))
   console.log(`  TOTAL documentos: ${totalDocs}`)
-  if (cloudinaryFiles > 0) console.log(`  Cloudinary files: ${cloudinaryFiles}`)
+  if (cloudinaryFiles > 0) {
+    const perAccount = cloudAccounts.map((a) => `${a.account}: ${a.count}`).join(' · ')
+    console.log(`  Cloudinary files: ${cloudinaryFiles} (${perAccount})`)
+  }
   if (alertDocs > 0) {
     console.log(`\n  🚨 ALERTAS: ${alertDocs} documentos con actividad real detectada`)
     console.log('  → Revisá estos antes de borrar')
@@ -317,13 +341,22 @@ async function main() {
   // ── DELETE ──
   console.log('\n🔥 Iniciando borrado...\n')
 
-  // 1. Cloudinary
-  if (hasCloudinary && cloudinary && cloudinaryFiles > 0) {
+  // 1. Cloudinary (ambas cuentas)
+  if (cloudinaryFiles > 0) {
     console.log('  → Borrando Cloudinary assets...')
-    try { await cloudinary.api.delete_resources_by_prefix(`takeasygo/${tenantSlug}/`) } catch {}
-    try { await cloudinary.api.delete_resources_by_prefix(`takeasygo/shares/${tenantSlug}/`) } catch {}
-    try { await cloudinary.api.delete_folder(`takeasygo/${tenantSlug}`) } catch {}
-    try { await cloudinary.api.delete_folder(`takeasygo/shares/${tenantSlug}`) } catch {}
+    for (const acc of cloudAccounts) {
+      for (const prefix of [`${root}/${tenantSlug}/`, `${root}/shares/${tenantSlug}/`]) {
+        for (const resource_type of ['image', 'raw', 'video']) {
+          try {
+            await acc.cloudinary.api.delete_resources_by_prefix(prefix, { ...acc.creds, resource_type })
+          } catch {}
+        }
+      }
+      try { await acc.cloudinary.api.delete_folder(`${root}/${tenantSlug}/fonts`, acc.creds) } catch {}
+      try { await acc.cloudinary.api.delete_folder(`${root}/${tenantSlug}`, acc.creds) } catch {}
+      try { await acc.cloudinary.api.delete_folder(`${root}/shares/${tenantSlug}`, acc.creds) } catch {}
+      console.log(`    ✅ cuenta ${acc.account}`)
+    }
     console.log('  ✅ Cloudinary assets borrados')
   }
 

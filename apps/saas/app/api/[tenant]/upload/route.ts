@@ -1,14 +1,8 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
-import { v2 as cloudinary } from 'cloudinary'
+import { uploadBuffer, folderRoot } from '@/lib/cloudinary'
 import { NextRequest, NextResponse } from 'next/server'
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-})
 
 export async function POST(
   request: NextRequest,
@@ -33,32 +27,16 @@ export async function POST(
 
     const isVideo = file.type.startsWith('video/')
 
-    const result = await new Promise<any>((resolve, reject) => {
-      if (isVideo) {
-        cloudinary.uploader.upload_stream(
-          {
-            resource_type: 'video',
-            folder: `takeasygo/${tenantSlug}/hero`,
-            quality: 'auto',
-          },
-          (error, result) => {
-            if (error) reject(error)
-            else resolve(result)
-          }
-        ).end(buffer)
-      } else {
-        cloudinary.uploader.upload_stream(
-          {
-            folder: `takeasygo/${tenantSlug}`,
-            transformation: [{ width: 800, height: 600, crop: 'fill', quality: 'auto' }],
-          },
-          (error, result) => {
-            if (error) reject(error)
-            else resolve(result)
-          }
-        ).end(buffer)
-      }
-    })
+    const result = isVideo
+      ? await uploadBuffer('tenant', buffer, {
+          resource_type: 'video',
+          folder: `${folderRoot()}/${tenantSlug}/hero`,
+          quality: 'auto',
+        })
+      : await uploadBuffer('tenant', buffer, {
+          folder: `${folderRoot()}/${tenantSlug}`,
+          transformation: [{ width: 800, height: 600, crop: 'fill', quality: 'auto' }],
+        })
 
     // Normalize video URLs to .mp4 for cross-browser compatibility
     const url = isVideo
