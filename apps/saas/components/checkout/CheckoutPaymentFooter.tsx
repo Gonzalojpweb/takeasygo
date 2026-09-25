@@ -306,7 +306,9 @@ export default function CheckoutPaymentFooter() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-zinc-100 px-4 py-3 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-zinc-100 px-4 py-3 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
+        style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="max-w-md mx-auto">
           {!isLastStep && (
             <div className="flex justify-between items-center mb-2 px-1">

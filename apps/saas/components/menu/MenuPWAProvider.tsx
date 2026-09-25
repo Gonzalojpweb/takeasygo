@@ -75,7 +75,9 @@ export default function MenuPWAProvider({ primaryColor, bgColor, textColor, mani
   if (!show) return null
 
   return (
-    <div className="fixed bottom-4 left-3 right-3 z-[60] max-w-sm mx-auto">
+    <div
+      className="fixed bottom-4 left-3 right-3 z-[60] max-w-sm mx-auto"
+      style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
       <div
         className="rounded-2xl p-4 shadow-2xl"
         style={{

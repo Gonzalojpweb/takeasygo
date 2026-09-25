@@ -97,6 +97,9 @@ const UI = {
     followTW: 'Seguinos en Twitter',
     rights: 'Todos los derechos reservados.',
     translating: 'Traduciendo...',
+    product: 'producto',
+    products: 'productos',
+    save: 'Ahorrás',
   },
   en: {
     featured: '⭐ Featured',
@@ -116,6 +119,9 @@ const UI = {
     followTW: 'Follow us on Twitter',
     rights: 'All rights reserved.',
     translating: 'Translating...',
+    product: 'product',
+    products: 'products',
+    save: 'You save',
   },
 }
 
@@ -910,6 +916,15 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   const totalItems = cart.reduce((sum, i) => sum + i.quantity, 0)
   const totalPrice = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  // Total at list price (pre-discount). Equal to totalPrice when no cart item has a
+  // higher list price (originalPrice) — struck-through price is then hidden.
+  const originalTotal = cart.reduce((sum, i) => {
+    const list = (mode === 'takeaway'
+      ? (i.takeawayOriginalPrice ?? i.originalPrice)
+      : i.originalPrice) ?? i.price
+    return sum + (list > i.price ? list : i.price) * i.quantity
+  }, 0)
+  const savings = Math.max(0, originalTotal - totalPrice)
 
   function itemTotalQty(menuItemId: string) {
     return cart.filter(i => i.menuItemId === menuItemId).reduce((s, i) => s + i.quantity, 0)
@@ -933,7 +948,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       <Confetti ref={confettiRef} className="fixed top-0 left-0 z-50 pointer-events-none size-full" />
       {!isOperational && (
         <div className="sticky top-0 z-[100] w-full px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg animate-in slide-in-from-top duration-500"
-          style={{ backgroundColor: '#f59e0b', color: '#fff' }}>
+          style={{ backgroundColor: '#f59e0b', color: '#fff', paddingTop: 'max(8px, env(safe-area-inset-top, 0px))' }}>
           ✨ Modo Catálogo · Próximamente Takeaway en TakeasyGO
         </div>
       )}
@@ -954,7 +969,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
       {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-40 backdrop-blur-md border-b"
-        style={{ backgroundColor: bg + 'ee', borderColor: primary + '20' }}>
+        style={{ backgroundColor: bg + 'ee', borderColor: primary + '20', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 
         {/* Top bar: logo + language toggle + cart button */}
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -1091,7 +1106,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       )}
 
       {/* ── Main menu content ── */}
-      <main className="max-w-2xl mx-auto px-4 pt-6 pb-28">
+      <main className="max-w-2xl mx-auto px-4 pt-6"
+        style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))' }}>
 
         {likesOrderId && (
           <div className="mb-6 p-4 rounded-2xl text-center" style={{ backgroundColor: primary + '12' }}>
@@ -1805,29 +1821,62 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         </div>
       </footer>
 
-      {/* ── Bottom cart bar (anchored, not floating) ── */}
+      {/* ── Floating cart card ── */}
       {totalItems > 0 && !showCart && !likesOrderId && !customizingItem && upsellSuggestions.length === 0 && !promoSlotSelection && !translating && (
-        <div className="fixed bottom-0 left-0 right-0 z-[60]">
-          <button
-            onClick={goToCheckout}
-            className="w-full max-w-2xl mx-auto flex items-center justify-between px-5 py-4 font-bold text-base"
+        <div className="fixed bottom-0 left-0 right-0 z-[70] pointer-events-none">
+          <div
+            className="max-w-2xl mx-auto pointer-events-auto"
             style={{
-              backgroundColor: primary,
-              color: bg,
-              borderRadius: '16px 16px 0 0',
-              boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '24px 24px 0 0',
+              boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
+              padding: '16px 16px',
+              paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
               touchAction: 'manipulation',
               WebkitTapHighlightColor: 'transparent',
             }}>
-            <div className="flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-black"
-                style={{ backgroundColor: bg + '30' }}>
-                {totalItems}
-              </span>
-              <span>{t.viewOrder}</span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                {savings > 0 && (
+                  <div
+                    className="inline-block text-[11px] font-black px-2 py-0.5 rounded-full mb-1"
+                    style={{ backgroundColor: '#dcfce7', color: '#15803d' }}>
+                    🎉 {t.save} ${toPesos(savings).toLocaleString('es-AR')}
+                  </div>
+                )}
+                {savings > 0 && (
+                  <div className="text-[11px] leading-none text-neutral-400 line-through">
+                    ${toPesos(originalTotal).toLocaleString('es-AR')}
+                  </div>
+                )}
+                <div className="text-xl font-black leading-tight text-neutral-900">
+                  ${toPesos(totalPrice).toLocaleString('es-AR')}
+                </div>
+                <div className="text-[11px] leading-tight text-neutral-500">
+                  {totalItems} {totalItems === 1 ? t.product : t.products}
+                </div>
+              </div>
+              <button
+                onClick={goToCheckout}
+                className="relative shrink-0 flex items-center justify-center font-bold text-sm"
+                style={{
+                  backgroundColor: primary,
+                  color: '#FFFFFF',
+                  minHeight: 44,
+                  padding: '0 22px',
+                  borderRadius: '999px',
+                  touchAction: 'manipulation',
+                  WebkitTapHighlightColor: 'transparent',
+                }}>
+                {t.viewOrder}
+                <span
+                  className="absolute -top-2.5 -right-1.5 flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-black"
+                  style={{ backgroundColor: '#FFFFFF', color: primary, boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }}>
+                  {totalItems}
+                </span>
+              </button>
             </div>
-            <span>${toPesos(totalPrice).toLocaleString('es-AR')}</span>
-          </button>
+          </div>
         </div>
       )}
 
@@ -1872,7 +1921,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       {showCart && !likesOrderId && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowCart(false)} />
-          <div className="relative rounded-t-3xl p-6 max-h-[85dvh] overflow-y-auto" style={{ backgroundColor: bg }}>
+          <div className="relative rounded-t-3xl p-6 max-h-[85dvh] overflow-y-auto"
+            style={{ backgroundColor: bg, paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-lg">{t.yourOrder}</h3>
               <button onClick={() => setShowCart(false)} className="opacity-40 hover:opacity-70">

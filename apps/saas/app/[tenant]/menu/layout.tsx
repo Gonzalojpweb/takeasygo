@@ -1,7 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { notFound } from 'next/navigation'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Suspense } from 'react'
 import TenantFontLoader from '@/components/TenantFontLoader'
 import { QrPromoBanner } from '@/components/promo'
@@ -44,6 +44,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       'theme-color': primaryColor,
     },
   }
+}
+
+// viewport-fit=cover enables env(safe-area-inset-*) on iOS (home indicator / notch).
+// Without it every safe-area expression in the menu evaluates to 0px.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 export default async function MenuLayout({ children, params }: Props) {

@@ -167,7 +167,9 @@ export default function UpsellSheet({
         </div>
 
         {/* Skip Button */}
-        <div className="px-6 py-5 border-t" style={{ borderColor: text + '15' }}>
+        <div
+          className="px-6 py-5 border-t"
+          style={{ borderColor: text + '15', paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))' }}>
           <button
             onClick={onClose}
             className="w-full py-4 text-base font-semibold transition-opacity hover:opacity-70 underline-offset-4 hover:underline"
