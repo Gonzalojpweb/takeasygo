@@ -118,10 +118,14 @@ export default async function AdminLayout({
   let unreadAnnouncements = 0
   if (session.user.id) {
     const userId = new mongoose.Types.ObjectId(session.user.id)
+    const planFilter = { $or: [{ targetPlans: { $size: 0 } }, { targetPlans: plan }] }
+    const tenantFilter = tenantDoc?._id
+      ? { $or: [{ targetTenantIds: { $size: 0 } }, { targetTenantIds: tenantDoc._id }] }
+      : null
     unreadAnnouncements = await SystemAnnouncement.countDocuments({
       status: 'published',
-      $or: [{ targetPlans: { $size: 0 } }, { targetPlans: plan }],
-      readBy: { $ne: userId }
+      $and: tenantFilter ? [planFilter, tenantFilter] : [planFilter],
+      readBy: { $ne: userId },
     })
   }
 
