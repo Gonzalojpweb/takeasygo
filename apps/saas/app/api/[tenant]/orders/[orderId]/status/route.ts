@@ -370,12 +370,13 @@ export async function PATCH(
           order.payment.status = 'cancelled'
         }
 
-        // Notificar al cliente (SystemAnnouncement para el tenant)
+        // SystemAnnouncement in-app: aviso para admins del tenant (el cliente
+        // ve el cambio de estado en su tracking, este anuncio no tiene UI cliente)
         const orderNumber = order.orderNumber || orderId
         const customerName = order.customer?.name || 'Cliente'
         await SystemAnnouncement.create({
           title: `Pedido #${orderNumber} cancelado por el restaurante`,
-          content: `${customerName}, tu pedido #${orderNumber} fue cancelado por el restaurante. Si tenés preguntas, contactalos directamente.`,
+          content: `Se canceló el pedido #${orderNumber} de ${customerName} desde el panel. Verificá el detalle en el panel de pedidos.`,
           type: 'alert',
           status: 'published',
           publishedAt: new Date(),

@@ -37,7 +37,7 @@ export async function GET(
     // Unread = not in readBy AND not in acceptances for this user
     if (scope !== 'all' && userId) {
       baseFilter.$and.push({
-        $or: [
+        $and: [
           { readBy: { $ne: userId } },
           { 'acceptances.userId': { $ne: userId } },
         ],
