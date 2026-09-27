@@ -52,9 +52,13 @@ export interface ITenant extends Document {
   alwaysVisible: boolean
   pausedAt?: Date | null
   pausedReason?: string
+  cuisineTypes: string[]
   /** Estado del alta auto-gestionada. 'none' = tenant precargo (no pasa por onboarding). */
   onboarding: {
     status: 'none' | 'draft' | 'pending_review' | 'approved' | 'rejected'
+    step: number
+    ticketHash: string | null
+    ticketExpiry: Date | null
     submittedAt: Date | null
     reviewedAt: Date | null
     reviewedBy: string | null
@@ -390,12 +394,19 @@ const TenantSchema = new Schema<ITenant>(
       type: String,
       default: '',
     },
+    cuisineTypes: {
+      type: [String],
+      default: [],
+    },
     onboarding: {
       status: {
         type: String,
         enum: ['none', 'draft', 'pending_review', 'approved', 'rejected'],
         default: 'none',
       },
+      step: { type: Number, default: 1 },
+      ticketHash: { type: String, default: null },
+      ticketExpiry: { type: Date, default: null },
       submittedAt: { type: Date, default: null },
       reviewedAt: { type: Date, default: null },
       reviewedBy: { type: String, default: null },

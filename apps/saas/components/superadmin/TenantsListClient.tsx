@@ -22,6 +22,7 @@ type Tenant = {
   pausedAt?: string | null
   pausedReason?: string
   createdAt: string
+  onboardingStatus?: string
 }
 
 type SortKey = 'az' | 'za' | 'newest' | 'oldest'
@@ -47,6 +48,39 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
   const [plan, setPlan]       = useState('all')
   const [status, setStatus]   = useState('all') // 'all' | 'active' | 'paused' | 'deleted'
   const [operational, setOperational] = useState('all') // 'all' | 'true' | 'false'
+
+  const handleReview = async (tenantId: string, tenantName: string) => {
+    const isApprove = window.confirm(`¿Aprobar el onboarding de ${tenantName}?\n\nOK = Aprobar\nCancel = Rechazar/Cancelar acción`)
+    
+    let action = ''
+    let reason = ''
+    if (isApprove) {
+      action = 'approve'
+    } else {
+      const rejectReason = window.prompt(`Rechazar onboarding de ${tenantName}.\n\nIngresá el motivo del rechazo (dejar vacío para cancelar):`)
+      if (!rejectReason?.trim()) return // canceled
+      action = 'reject'
+      reason = rejectReason.trim()
+    }
+
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenantId}/onboarding/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, reason })
+      })
+
+      if (res.ok) {
+        toast.success(`Onboarding ${action === 'approve' ? 'aprobado' : 'rechazado'} exitosamente`)
+        window.location.reload()
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Error al procesar revisión')
+      }
+    } catch {
+      toast.error('Error de conexión')
+    }
+  }
 
   const handlePause = async (tenantId: string) => {
     const reason = prompt('Razón para pausar el tenant:')
@@ -289,6 +323,22 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
                      Desde: {new Date(tenant.createdAt).toLocaleDateString('es-AR')}
                    </p>
                  </div>
+
+                 {tenant.onboardingStatus === 'pending_review' && (
+                   <div className="flex flex-col gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200">
+                     <div className="flex items-center gap-2">
+                       <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                       <span className="text-xs font-bold text-blue-800">Pendiente de revisión</span>
+                     </div>
+                     <Button 
+                       size="sm" 
+                       onClick={() => handleReview(tenant._id, tenant.name)} 
+                       className="w-full h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold"
+                     >
+                       Revisar onboarding
+                     </Button>
+                   </div>
+                 )}
 
                  <div className="flex flex-wrap items-center gap-2">
                     <Link href={`/${tenant.slug}/admin`} target="_blank" className="flex-1 min-w-[80px]">

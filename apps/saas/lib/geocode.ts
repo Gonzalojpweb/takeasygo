@@ -103,7 +103,7 @@ function normalizeCityForGeocoding(address: DeliveryAddress): { geocodingAddress
  * countrycodes=ar fuerza resultados en Argentina.
  * viewbox sesga hacia CABA pero bounded=0 permite resultados fuera del box.
  */
-async function queryNominatim(query: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
+export async function queryNominatim(query: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
   const encoded = encodeURIComponent(query)
   // viewbox: min_lon, min_lat, max_lon, max_lat (corregido)
   const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=1&addressdetails=1&countrycodes=ar&viewbox=-58.55,-34.68,-58.35,-34.52&bounded=0`
@@ -164,6 +164,17 @@ export async function geocodeAddress(address: DeliveryAddress): Promise<{ lat: n
   }
 
   console.warn(`[geocode] Todos los intentos fallaron para: ${geocodingAddress}`)
+  return null
+}
+
+/**
+ * Wrapper simple para geocodificar texto libre con un solo intento pero 
+ * agregando 'Argentina' si no está presente.
+ */
+export async function geocodeText(address: string): Promise<{ lat: number; lng: number } | null> {
+  const attempt = address.toLowerCase().includes('argentina') ? address : `${address}, Argentina`
+  const result = await queryNominatim(attempt)
+  if (result) return { lat: result.lat, lng: result.lng }
   return null
 }
 

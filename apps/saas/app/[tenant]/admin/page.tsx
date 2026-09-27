@@ -89,9 +89,19 @@ export default async function AdminDashboard() {
   // Minimal query: only plan, logo, and userName needed for layout
   await connectDB()
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .select('plan branding.logoUrl')
-    .lean<{ _id: Types.ObjectId; plan: Plan; branding: { logoUrl: string } }>()
+    .select('plan branding.logoUrl onboarding')
+    .lean<{
+      _id: Types.ObjectId
+      plan: Plan
+      branding: { logoUrl: string }
+      onboarding?: { status?: 'none' | 'draft' | 'pending_review' | 'approved' | 'rejected' } | null
+    }>()
   if (!tenant) notFound()
+
+  if (tenant.onboarding && tenant.onboarding.status !== 'none' && tenant.onboarding.status !== 'approved') {
+    const { redirect } = await import('next/navigation')
+    redirect(`/${tenantSlug}/admin/onboarding/estado`)
+  }
 
   const plan: Plan = tenant.plan ?? 'try'
 

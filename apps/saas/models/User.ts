@@ -22,6 +22,8 @@ export interface IUser extends Document {
   }[]
   resetToken: string | null
   resetTokenExpiry: Date | null
+  verifyToken: string | null
+  verifyTokenExpiry: Date | null
   emailVerified: Date | null
   lastLoginAt: Date | null
   googleContacts: {
@@ -113,6 +115,16 @@ const UserSchema = new Schema<IUser>(
       select: false, // nunca se incluye en queries normales
     },
     resetTokenExpiry: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    verifyToken: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    verifyTokenExpiry: {
       type: Date,
       default: null,
       select: false,

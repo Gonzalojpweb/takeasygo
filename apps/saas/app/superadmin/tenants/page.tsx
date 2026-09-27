@@ -20,6 +20,7 @@ export default async function TenantsPage() {
     pausedAt:     t.pausedAt?.toISOString() || null,
     pausedReason: t.pausedReason || '',
     createdAt:    t.createdAt.toISOString(),
+    onboardingStatus: t.onboarding?.status || 'none',
   }))
 
   return (
