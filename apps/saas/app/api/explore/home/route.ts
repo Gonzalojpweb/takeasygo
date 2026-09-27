@@ -8,6 +8,7 @@ import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 import { checkIsOpenNow } from '@/lib/service-hours'
 import { getNowInTimezone } from '@/lib/restaurant-time'
 import { rateLimit } from '@/lib/rateLimit'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 
 const SEARCH_RADIUS_M = 20000 // 20 km
@@ -70,8 +71,10 @@ export async function GET(request: NextRequest) {
     // 1b. AlwaysVisible tenants — their locations regardless of distance
     const alwaysVisibleTenants = await Tenant.find(
       { alwaysVisible: true, status: 'active' }
-    ).select('_id').lean()
-    const alwaysVisibleTenantIds = alwaysVisibleTenants.map(t => t._id)
+    ).select('_id isActive status onboarding').lean()
+    const alwaysVisibleTenantIds = alwaysVisibleTenants
+      .filter(isTenantPubliclyOperational)
+      .map(t => t._id)
 
     const nearbyLocationIds = new Set(nearbyLocations.map(l => l._id.toString()))
     const alwaysVisibleLocations = alwaysVisibleTenantIds.length > 0
@@ -87,12 +90,18 @@ export async function GET(request: NextRequest) {
     const tenantIds = [...new Set(allLocations.map(loc => loc.tenantId?.toString()))].filter(Boolean)
 
     // 2. Obtener info de los Tenants y sus Marketing QRs
+    //    (status:'active' queda como pre-filtro; el gate centralizado decide)
     const tenants = await Tenant.find({
       _id: { $in: tenantIds },
       status: 'active'
-    }).select('name slug branding qrPromo loyalty pointsConfig cachedScores isOperational createdAt').lean()
+    }).select('name slug branding qrPromo loyalty pointsConfig cachedScores isOperational createdAt isActive status onboarding').lean()
+      .then(docs => docs.filter(isTenantPubliclyOperational))
 
     const activeTenantIds = tenants.map(t => t._id)
+
+    // Sedes cuyo tenant no pasó el gate: quedan fuera de categorías/timezones/listado
+    const gatedTenantIdSet = new Set(activeTenantIds.map(id => id.toString()))
+    const publicLocations = allLocations.filter(l => gatedTenantIdSet.has(l.tenantId?.toString()))
 
     // Construir mapas para enriquecer datos
     const tenantSlugMap = new Map(tenants.map(t => [t._id.toString(), t.slug]))
@@ -177,7 +186,7 @@ export async function GET(request: NextRequest) {
 
     // 5. Extraer Categorías Únicas de los Tenants cercanos
     const categoriesSet = new Set<string>()
-    allLocations.forEach(loc => {
+    publicLocations.forEach(loc => {
       if (loc.cuisineTypes) {
         loc.cuisineTypes.forEach((c: string) => categoriesSet.add(c))
       }
@@ -189,7 +198,7 @@ export async function GET(request: NextRequest) {
 
     // 6a. Mapa de tenantId → timezone (desde allLocations)
     const tenantTimezoneMap = new Map<string, string>()
-    allLocations.forEach(loc => {
+    publicLocations.forEach(loc => {
       if (loc.tenantId && loc.timezone) {
         tenantTimezoneMap.set(loc.tenantId.toString(), loc.timezone)
       }
@@ -247,7 +256,7 @@ export async function GET(request: NextRequest) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
     const featuredTenants = tenants.map(t => {
-      const loc = allLocations.find(l => l.tenantId.toString() === t._id.toString())
+      const loc = publicLocations.find(l => l.tenantId.toString() === t._id.toString())
       if (!loc) return null
 
       // isOpenNow: calcular desde serviceHours

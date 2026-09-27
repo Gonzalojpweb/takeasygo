@@ -5,6 +5,7 @@ import Menu from '@/models/Menu'
 import { notFound } from 'next/navigation'
 import BusinessMenuClient from '@/components/menu/BusinessMenuClient'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { Types } from 'mongoose'
 
 export const revalidate = 300
@@ -41,8 +42,8 @@ export default async function BusinessMenuPage({ params }: Props) {
 
   await connectDB()
 
-  const tenantDoc = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean<ITenant & { _id: Types.ObjectId }>()
-  if (!tenantDoc) notFound()
+  const tenantDoc = await Tenant.findOne({ slug: tenantSlug }).lean<ITenant & { _id: Types.ObjectId }>()
+  if (!tenantDoc || !isTenantPubliclyOperational(tenantDoc)) notFound()
 
   if (!tenantDoc.business?.enabled) notFound()
 

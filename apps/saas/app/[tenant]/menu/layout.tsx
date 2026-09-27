@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import { notFound } from 'next/navigation'
 import type { Metadata, Viewport } from 'next'
 import { Suspense } from 'react'
@@ -21,8 +22,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { tenant: tenantSlug } = await params
   await connectDB()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
-  if (!tenant) return {}
+  const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
+  // Gate centralizado: sin tenant públicamente operativo no hay metadata que
+  // mostrar — el layout de abajo se encarga del notFound().
+  if (!tenant || !isTenantPubliclyOperational(tenant)) return {}
 
   const name: string = tenant.name || 'Menu'
   const branding = tenant.branding || {}
@@ -58,8 +61,8 @@ export default async function MenuLayout({ children, params }: Props) {
   const { tenant: tenantSlug } = await params
   await connectDB()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
-  if (!tenant) notFound()
+  const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
+  if (!tenant || !isTenantPubliclyOperational(tenant)) notFound()
 
   const branding = tenant.branding || {}
 
