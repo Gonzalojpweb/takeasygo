@@ -349,7 +349,7 @@ export async function generateAppleWalletPass(
         ]
       },
       // Web Service para actualizaciones push
-      webServiceURL: `${process.env.NEXT_PUBLIC_APP_URL}/api/wallet/apple`,
+      webServiceURL: `${process.env.APP_URL}/api/wallet/apple`,
       authenticationToken: generateAuthToken(member._id.toString()),
       // Geofencing
       locations: appleLocations.length > 0 ? appleLocations : undefined

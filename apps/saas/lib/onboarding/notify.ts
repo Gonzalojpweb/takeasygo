@@ -25,7 +25,7 @@ export async function notifyReviewSubmission(tenant: NotifyTenant) {
       <p style="font-size:14px;color:#6b6460;line-height:1.6;margin:0 0 20px;">
         <strong>${tenant.name}</strong> (slug: <code>${tenant.slug}</code>) envió su menú para revisión y aprobación.
       </p>
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/superadmin/tenants"
+      <a href="${process.env.APP_URL || 'http://localhost:3000'}/superadmin/tenants"
          style="display:inline-block;background:#0d0b0a;color:#ffffff;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;padding:14px 28px;border-radius:100px;">
         Ver en superadmin
       </a>
