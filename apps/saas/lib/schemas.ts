@@ -172,3 +172,21 @@ export const superadminCreateTenantSchema = z.object({
   ownerName:  z.string().max(100).trim().optional(),
   ownerEmail: z.string().email().max(200).trim().optional().or(z.literal('')),
 })
+
+// ── Onboarding ──────────────────────────────────────────────────────────────
+
+export const onboardingRegisterSchema = z.object({
+  name: z.string().min(2, 'Ingresá el nombre de tu negocio').max(100).trim(),
+  slug: z.string().regex(/^[a-z0-9-]{2,50}$/, 'El enlace solo puede contener minúsculas, números y guiones').trim(),
+  email: z.string().email('Email inválido').max(200).trim(),
+})
+
+export const onboardingVerifySchema = z.object({
+  token: z.string().min(10),
+})
+
+export const onboardingPasswordSchema = z.object({
+  ticket: z.string().min(10),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(128),
+})
+

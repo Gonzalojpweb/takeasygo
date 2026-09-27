@@ -62,7 +62,7 @@ export default async function OnboardingChecklist({ tenantId, tenantSlug, logoUr
       label: 'Creá tu primera sede',
       description: 'Configurá la dirección y horarios de atención',
       done: hasLocation,
-      href: `${base}/settings`,
+      href: `${base}/onboarding`,
       cta: 'Agregar sede',
     },
     {

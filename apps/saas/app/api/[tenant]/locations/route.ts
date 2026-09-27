@@ -42,6 +42,23 @@ export async function POST(
     if (authError) return authError
 
     const body = await request.json()
+
+    if (request.headers.get('x-onboarding') === '1') {
+      delete body.geo
+      if (body.address) {
+        const { geocodeText } = await import('@/lib/geocode')
+        const result = await geocodeText(body.address)
+        if (result) {
+          body.geo = { type: 'Point', coordinates: [result.lng, result.lat] }
+        } else {
+          return NextResponse.json({ error: 'No se pudo geocodificar la dirección' }, { status: 422 })
+        }
+      }
+      if (body.name && !body.slug) {
+        body.slug = body.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      }
+    }
+
     const location = await Location.create({ ...body, tenantId: tenant._id })
 
     logAudit({ tenantId: tenant._id.toString(), action: 'settings.location.created', entity: 'location', entityId: location._id.toString(), details: { name: body.name }, request })
