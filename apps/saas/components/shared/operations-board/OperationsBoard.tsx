@@ -268,7 +268,7 @@ export default function OperationsBoard<T extends BoardItem>({
       {/* Context Panel — Always visible on desktop, dynamic width */}
       <div className={cn(
         'hidden lg:flex lg:flex-col shrink-0 min-h-0 border-l border-border/50 transition-all duration-200 overflow-hidden',
-        selectedItem ? 'w-[340px]' : 'w-[280px]'
+        selectedItem ? 'w-[360px] xl:w-[380px]' : 'w-[280px]'
       )}>
         {selectedItem ? (
           renderContextPanel({

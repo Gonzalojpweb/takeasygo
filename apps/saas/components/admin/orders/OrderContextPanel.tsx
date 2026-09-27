@@ -98,6 +98,15 @@ const TIMELINE_STEPS = [
   { key: 'cancelledAt', label: 'Cancelado', dot: 'bg-red-400' },
 ]
 
+function fmtMoney(amount: number | undefined | null): string {
+  if (amount == null) return '0'
+  const pesos = toPesos(amount)
+  return pesos.toLocaleString('es-AR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })
+}
+
 function fmtTime(ts: string | undefined): string {
   if (!ts) return ''
   return new Date(ts).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
@@ -153,20 +162,20 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
         </button>
       </div>
 
-      {/* Mode + Status badges — centered */}
-      <div className="flex items-center justify-center gap-2 px-4 pb-3">
+      {/* Mode + Status badges — centered & responsive wrap */}
+      <div className="flex flex-wrap items-center justify-center gap-1.5 px-4 pb-3">
         {mode && (
-          <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border', mode.color)}>
+          <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border shrink-0', mode.color)}>
             <ModeIcon size={10} />
             {mode.label}
           </span>
         )}
         {item.source?.startsWith('tgo-') && (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border bg-[#f74211]/10 text-[#f74211] border-[#f74211]/30">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border bg-[#f74211]/10 text-[#f74211] border-[#f74211]/30 shrink-0">
             {SOURCE_LABELS[item.source] || 'TGO'}
           </span>
         )}
-        <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border',
+        <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border shrink-0',
           item.status === 'preparing' ? 'bg-orange-100 text-orange-700 border-orange-200' :
           item.status === 'ready' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
           item.status === 'confirmed' ? 'bg-blue-100 text-blue-700 border-blue-200' :
@@ -180,7 +189,7 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border/50">
+      <div className="flex border-b border-border/50 shrink-0">
         {tabs.map(tab => (
           <button
             key={tab.key}
@@ -188,8 +197,8 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold transition-all border-b-2',
               activeTab === tab.key
-                ? 'text-orange-600 border-orange-500'
-                : 'text-muted-foreground/50 border-transparent hover:text-foreground hover:bg-muted/50'
+                ? 'text-orange-600 border-orange-500 bg-orange-50/20'
+                : 'text-muted-foreground/60 border-transparent hover:text-foreground hover:bg-muted/40'
             )}
           >
             {tab.label}
@@ -562,8 +571,8 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
                       </div>
                     )}
                   </div>
-                  <span className="text-xs font-bold text-foreground tabular-nums shrink-0">
-                    ${toPesos(orderItem.subtotal).toLocaleString('es-AR')}
+                  <span className="text-xs font-bold text-foreground tabular-nums shrink-0 text-right">
+                    ${fmtMoney(orderItem.subtotal)}
                   </span>
                 </div>
                 {i < (item.items?.length ?? 0) - 1 && <div className="h-px bg-border/30 mt-3" />}
@@ -584,44 +593,44 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
 
       {/* ── Pago ────────────────────────────────────────── */}
       <Section title="Pago">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {item.payment?.method === 'cash' ? <Wallet size={14} className="text-muted-foreground" /> : <CreditCard size={14} className="text-muted-foreground" />}
-            <span className="text-xs font-semibold text-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+            {item.payment?.method === 'cash' ? <Wallet size={14} className="text-muted-foreground shrink-0" /> : <CreditCard size={14} className="text-muted-foreground shrink-0" />}
+            <span className="text-xs font-semibold text-foreground truncate">
               {PAYMENT_LABELS[item.payment?.method || ''] || item.payment?.method || '—'}
             </span>
             {item.payment?.status && (
               <span className={cn(
-                'text-[9px] font-bold uppercase px-2 py-0.5 rounded-full',
+                'text-[9px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0',
                 PAYMENT_STATUS_COLORS[item.payment.status] || 'bg-zinc-100 text-zinc-600'
               )}>
                 {item.payment.status === 'approved' ? 'Pagado' : item.payment.status === 'pending' ? 'Pendiente' : item.payment.status}
               </span>
             )}
           </div>
-          <span className="text-sm font-black text-foreground tabular-nums">
-            ${toPesos(item.total).toLocaleString('es-AR')}
+          <span className="text-sm font-black text-foreground tabular-nums shrink-0">
+            ${fmtMoney(item.total)}
           </span>
         </div>
 
         {/* Pricing breakdown — only if surcharge exists */}
         {item.payment?.baseTotal != null && item.payment.baseTotal > 0 && item.payment.surchargeAmount ? (
-          <div className="mt-2 space-y-1 pl-6">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground/60">Precio de carta</span>
-              <span className="text-[10px] text-muted-foreground/70 tabular-nums">${toPesos(item.payment.baseTotal).toLocaleString('es-AR')}</span>
+          <div className="mt-2 space-y-1 pl-5 text-[10px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground/70 truncate">Precio de carta</span>
+              <span className="text-muted-foreground/80 tabular-nums shrink-0">${fmtMoney(item.payment.baseTotal)}</span>
             </div>
             {item.orderMode === 'delivery' && (item.deliveryCost ?? 0) > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground/60">🚚 Envío</span>
-                <span className="text-[10px] text-muted-foreground/70 tabular-nums">${toPesos(item.deliveryCost!).toLocaleString('es-AR')}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground/70 truncate">🚚 Envío</span>
+                <span className="text-muted-foreground/80 tabular-nums shrink-0">${fmtMoney(item.deliveryCost!)}</span>
               </div>
             )}
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground/60">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground/70 truncate">
                 Costos operativos y/o comerciales{item.payment.surchargePercent ? ` (${item.payment.surchargePercent.toFixed(1)}%)` : ''}
               </span>
-              <span className="text-[10px] text-amber-600 tabular-nums">+${toPesos(item.payment.surchargeAmount).toLocaleString('es-AR')}</span>
+              <span className="text-amber-600 font-semibold tabular-nums shrink-0">+${fmtMoney(item.payment.surchargeAmount)}</span>
             </div>
           </div>
         ) : null}
@@ -633,22 +642,22 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
           <div className="space-y-1.5">
             {hasDiscount && (
               <div className="flex items-center gap-2 text-xs text-emerald-700">
-                <BadgePercent size={12} />
-                <span>Descuento: -${toPesos(item.discountAmount ?? 0).toLocaleString('es-AR')}</span>
+                <BadgePercent size={12} className="shrink-0" />
+                <span>Descuento: -${fmtMoney(item.discountAmount ?? 0)}</span>
                 {item.promoCode && <span className="text-[10px] text-muted-foreground">({item.promoCode})</span>}
               </div>
             )}
             {hasLoyalty && (
               <div className="flex items-center gap-2 text-xs text-amber-700">
-                <Star size={12} />
-                <span>{item.loyaltyPointsUsed} puntos usados{item.loyaltyDiscountAmount ? ` (-${toPesos(item.loyaltyDiscountAmount).toLocaleString('es-AR')})` : ''}</span>
+                <Star size={12} className="shrink-0" />
+                <span>{item.loyaltyPointsUsed} puntos usados{item.loyaltyDiscountAmount ? ` (-$${fmtMoney(item.loyaltyDiscountAmount)})` : ''}</span>
               </div>
             )}
             {item.rewardItems && item.rewardItems.length > 0 && (
               <div className="space-y-1">
                 {item.rewardItems.map((r: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-xs text-purple-700">
-                    <Gift size={12} />
+                    <Gift size={12} className="shrink-0" />
                     <span>{r.storeItemName} ({r.pointsCost} pts)</span>
                   </div>
                 ))}
@@ -687,16 +696,20 @@ function TimelineTab({ timestamps }: { timestamps: Record<string, string> }) {
   }
 
   return (
-    <div className="space-y-0">
+    <div className="relative pl-1 py-1">
       {active.map((step, i) => (
-        <div key={step.key} className="flex items-center gap-2.5 py-2">
-          <div className="relative flex flex-col items-center">
-            <span className={cn('w-3 h-3 rounded-full', step.dot)} />
-            {i < active.length - 1 && <div className="w-px h-5 bg-border/60 mt-0.5" />}
+        <div key={step.key} className="flex items-start gap-3 relative pb-4 last:pb-0">
+          {i < active.length - 1 && (
+            <div className="absolute left-[5px] top-3.5 bottom-0 w-0.5 bg-border/60" />
+          )}
+          <div className="relative z-10 pt-1">
+            <span className={cn('block w-3 h-3 rounded-full ring-2 ring-background', step.dot)} />
           </div>
-          <div className="flex-1 flex items-center justify-between">
-            <span className="text-xs font-semibold text-foreground">{step.label}</span>
-            <span className="text-[10px] text-muted-foreground tabular-nums">{fmtTime(timestamps[step.key])}</span>
+          <div className="flex-1 min-w-0 flex items-center justify-between gap-2 pt-0.5">
+            <span className="text-xs font-semibold text-foreground truncate">{step.label}</span>
+            <span className="text-[11px] font-medium text-muted-foreground/80 tabular-nums shrink-0">
+              {fmtTime(timestamps[step.key])}
+            </span>
           </div>
         </div>
       ))}
@@ -812,18 +825,24 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
   return (
     <>
       {/* Customer Stats */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="text-center p-2.5 rounded-xl bg-primary/5 border border-primary/10">
-          <p className="font-black text-lg text-primary tabular-nums">{history.totalOrders}</p>
-          <p className="text-[9px] font-bold text-muted-foreground uppercase">Pedidos</p>
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+        <div className="text-center p-2 rounded-xl bg-primary/5 border border-primary/10 min-w-0 overflow-hidden">
+          <p className="font-black text-sm sm:text-base text-primary tabular-nums tracking-tight truncate" title={String(history.totalOrders)}>
+            {history.totalOrders}
+          </p>
+          <p className="text-[9px] font-bold text-muted-foreground uppercase truncate">Pedidos</p>
         </div>
-        <div className="text-center p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
-          <p className="font-black text-lg text-emerald-700 tabular-nums">${toPesos(history.totalSpent).toLocaleString('es-AR')}</p>
-          <p className="text-[9px] font-bold text-muted-foreground uppercase">Total</p>
+        <div className="text-center p-2 rounded-xl bg-emerald-50 border border-emerald-200 min-w-0 overflow-hidden">
+          <p className="font-black text-xs sm:text-sm text-emerald-700 tabular-nums tracking-tight truncate" title={`$${fmtMoney(history.totalSpent)}`}>
+            ${fmtMoney(history.totalSpent)}
+          </p>
+          <p className="text-[9px] font-bold text-muted-foreground uppercase truncate">Total</p>
         </div>
-        <div className="text-center p-2.5 rounded-xl bg-amber-50 border border-amber-200">
-          <p className="font-black text-lg text-amber-700 tabular-nums">${toPesos(history.avgTicket).toLocaleString('es-AR')}</p>
-          <p className="text-[9px] font-bold text-muted-foreground uppercase">Ticket avg</p>
+        <div className="text-center p-2 rounded-xl bg-amber-50 border border-amber-200 min-w-0 overflow-hidden">
+          <p className="font-black text-xs sm:text-sm text-amber-700 tabular-nums tracking-tight truncate" title={`$${fmtMoney(history.avgTicket)}`}>
+            ${fmtMoney(history.avgTicket)}
+          </p>
+          <p className="text-[9px] font-bold text-muted-foreground uppercase truncate">Ticket avg</p>
         </div>
       </div>
 
@@ -834,22 +853,24 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
           const itemsPreview = order.items.slice(0, 2).map(i => `${i.quantity}x ${i.name}`).join(', ')
           const hasMore = order.items.length > 2
           return (
-            <div key={order._id} className="rounded-xl border border-border/50 overflow-hidden">
+            <div key={order._id} className="rounded-xl border border-border/50 overflow-hidden bg-card transition-colors">
               <button
                 onClick={() => setExpandedOrder(isExpanded ? null : order._id)}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left"
+                className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-foreground">#{order.orderNumber}</span>
+                <div className="flex-1 min-w-0 pr-1">
+                  <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-black text-foreground truncate max-w-[120px]" title={`#${order.orderNumber}`}>
+                      #{order.orderNumber}
+                    </span>
                     <span className={cn(
-                      'text-[8px] font-black uppercase px-1.5 py-0.5 rounded',
+                      'text-[8px] font-black uppercase px-1.5 py-0.5 rounded shrink-0',
                       ORDER_MODE_BADGE[order.orderMode || 'takeaway'] || 'bg-zinc-100 text-zinc-600'
                     )}>
                       {order.orderMode === 'dine-in' ? 'LOCAL' : order.orderMode === 'delivery' ? 'DEL' : order.orderMode === 'business' ? 'CORP' : 'TA'}
                     </span>
                     <span className={cn(
-                      'text-[8px] font-bold uppercase px-1.5 py-0.5 rounded',
+                      'text-[8px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0',
                       order.status === 'delivered' ? 'bg-zinc-100 text-zinc-600' :
                       order.status === 'cancelled' ? 'bg-red-100 text-red-600' :
                       'bg-emerald-100 text-emerald-700'
@@ -857,25 +878,27 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
                       {STATUS_LABELS[order.status] || order.status}
                     </span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                  <p className="text-[10px] text-muted-foreground truncate mt-1">
                     {itemsPreview}{hasMore ? ` +${order.items.length - 2} más` : ''}
                   </p>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-black text-foreground tabular-nums">${toPesos(order.total).toLocaleString('es-AR')}</p>
-                  <p className="text-[9px] text-muted-foreground">{fmtDate(order.createdAt)}</p>
+                <div className="text-right shrink-0 flex items-center gap-1.5">
+                  <div>
+                    <p className="text-xs font-black text-foreground tabular-nums">${fmtMoney(order.total)}</p>
+                    <p className="text-[9px] text-muted-foreground/80">{fmtDate(order.createdAt)}</p>
+                  </div>
+                  <ChevronDown size={12} className={cn(
+                    'text-muted-foreground/60 shrink-0 transition-transform ml-0.5',
+                    isExpanded && 'rotate-180'
+                  )} />
                 </div>
-                <ChevronDown size={12} className={cn(
-                  'text-muted-foreground shrink-0 transition-transform',
-                  isExpanded && 'rotate-180'
-                )} />
               </button>
               {isExpanded && (
-                <div className="px-3 pb-2.5 pt-0.5 border-t border-border/30 space-y-1">
+                <div className="px-3 pb-2.5 pt-1 border-t border-border/30 space-y-1 bg-muted/20">
                   {order.items.map((oi, i) => (
                     <div key={i} className="flex items-center justify-between text-[10px]">
-                      <span className="text-muted-foreground">{oi.quantity}x {oi.name}</span>
-                      <span className="font-bold text-foreground/70 tabular-nums">${toPesos(oi.subtotal).toLocaleString('es-AR')}</span>
+                      <span className="text-muted-foreground truncate pr-2">{oi.quantity}x {oi.name}</span>
+                      <span className="font-bold text-foreground/70 tabular-nums shrink-0">${fmtMoney(oi.subtotal)}</span>
                     </div>
                   ))}
                 </div>
@@ -888,26 +911,26 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
       {/* WhatsApp Promo */}
       <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
         <div className="flex items-center gap-2">
-          <MessageCircle size={12} className="text-emerald-600" />
-          <span className="text-[10px] font-black uppercase text-emerald-700">Enviar promoción por WhatsApp</span>
+          <MessageCircle size={12} className="text-emerald-600 shrink-0" />
+          <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wide">Enviar promoción por WhatsApp</span>
         </div>
         <div className="text-[10px] text-emerald-800 bg-white rounded-lg p-2.5 border border-emerald-200 leading-relaxed">
-          Hola <strong>{customerName}</strong>, gracias por tus <strong>{history.totalOrders} pedidos</strong> en <strong>{history.tenantName}</strong>. Te ofrecemos{' '}
+          <span>Hola <strong>{customerName}</strong>, gracias por tus <strong>{history.totalOrders} pedidos</strong> en <strong>{history.tenantName}</strong>. Te ofrecemos </span>
           <input
             type="text"
             value={promoText}
             onChange={e => setPromoText(e.target.value)}
-            className="inline-block w-auto min-w-[120px] max-w-[200px] px-1.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-800 text-[10px] font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="inline-flex my-0.5 px-2 py-0.5 rounded border border-emerald-300 bg-emerald-50/80 text-emerald-900 text-[10px] font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 max-w-full"
             placeholder="una promoción"
           />
-          . ¡Te esperamos!
+          <span>. ¡Te esperamos!</span>
         </div>
         {promoLink ? (
           <a
             href={promoLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+            className="w-full h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
           >
             <MessageCircle size={12} />
             Abrir WhatsApp
