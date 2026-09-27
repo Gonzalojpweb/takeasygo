@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const state = req.nextUrl.searchParams.get('state') // "user:{userId}"
   const error = req.nextUrl.searchParams.get('error')
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const baseUrl = process.env.APP_URL || 'http://localhost:3000'
 
   if (error) {
     return NextResponse.redirect(`${baseUrl}/superadmin?googleContacts=error&reason=${error}`)
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.APP_URL || 'http://localhost:3000'
     const tokens = await exchangeCodeForTokens(code, `${baseUrl}/api/superadmin/google-contacts/callback`)
 
     const connectedEmail = tokens.access_token

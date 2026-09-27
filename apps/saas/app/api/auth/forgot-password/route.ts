@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     user.resetTokenExpiry = new Date(Date.now() + TOKEN_EXPIRY_MS)
     await user.save()
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    const baseUrl = process.env.APP_URL ?? 'http://localhost:3000'
     const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`
 
     await sendPasswordResetEmail(user.email, resetUrl)
