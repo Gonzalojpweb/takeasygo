@@ -63,6 +63,8 @@ export interface ITenant extends Document {
     reviewedAt: Date | null
     reviewedBy: string | null
     rejectionReason: string | null
+    /** Fotos del menú que subió el prospecto. Internas: viajan con la solicitud a revisión. */
+    menuPhotos: string[]
   }
   subscription: {
     preapprovalId: string | null
@@ -411,6 +413,14 @@ const TenantSchema = new Schema<ITenant>(
       reviewedAt: { type: Date, default: null },
       reviewedBy: { type: String, default: null },
       rejectionReason: { type: String, default: null },
+      menuPhotos: {
+        type: [String],
+        default: [],
+        validate: {
+          validator: (v: string[]) => v.length <= 6,
+          message: 'Menu photos max 6 images',
+        },
+      },
     },
     subscription: {
       preapprovalId: { type: String, default: null },

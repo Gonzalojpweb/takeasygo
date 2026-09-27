@@ -23,6 +23,7 @@ type Tenant = {
   pausedReason?: string
   createdAt: string
   onboardingStatus?: string
+  menuPhotos?: string[]
 }
 
 type SortKey = 'az' | 'za' | 'newest' | 'oldest'
@@ -328,9 +329,23 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
                    <div className="flex flex-col gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200">
                      <div className="flex items-center gap-2">
                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                       <span className="text-xs font-bold text-blue-800">Pendiente de revisión</span>
-                     </div>
-                     <Button 
+                        <span className="text-xs font-bold text-blue-800">Pendiente de revisión</span>
+                      </div>
+                      {tenant.menuPhotos && tenant.menuPhotos.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5" title="Fotos del menú enviadas">
+                          {tenant.menuPhotos.map((url) => (
+                            <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={url}
+                                alt="Foto del menú"
+                                className="w-11 h-11 object-cover rounded-md border border-blue-200"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      <Button 
                        size="sm" 
                        onClick={() => handleReview(tenant._id, tenant.name)} 
                        className="w-full h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold"
