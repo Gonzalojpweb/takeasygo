@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -17,8 +18,8 @@ export async function GET(
   const { tenant: tenantSlug } = await params
   await connectDB()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
-  if (!tenant) return new NextResponse(null, { status: 404 })
+  const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
+  if (!tenant || !isTenantPubliclyOperational(tenant)) return new NextResponse(null, { status: 404 })
 
   // Fetch first active location to build a valid start_url
   const firstLocation = await Location.findOne({ tenantId: tenant._id, isActive: true })

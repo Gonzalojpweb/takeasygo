@@ -22,6 +22,7 @@ import { isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
 import { auth } from '@/lib/auth'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 import { isServiceOpen } from '@/lib/availability'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import { validateCheckoutRewards } from '@/lib/loyalty'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
@@ -207,17 +208,23 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
+    // Gate centralizado — única fuente de verdad de "¿este tenant puede operar
+    // públicamente?". Va antes del maintenanceMode para que un tenant no aprobado
+    // jamás reciba una respuesta distinta de 404.
+    const tenant = await Tenant.findOne({ slug: tenantSlug })
+    if (!tenant || !isTenantPubliclyOperational(tenant)) {
+      return NextResponse.json(
+        { error: 'Tenant no encontrado', code: 'TENANT_NOT_OPERATIONAL' },
+        { status: 404 }
+      )
+    }
+
     const platformCfg = await PlatformConfig.findById('platform').lean() as any
     if (platformCfg?.maintenanceMode) {
       return NextResponse.json(
         { error: 'Sistema en mantenimiento. Intentá nuevamente en unos minutos.', code: 'MAINTENANCE' },
         { status: 503 }
       )
-    }
-
-    const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'

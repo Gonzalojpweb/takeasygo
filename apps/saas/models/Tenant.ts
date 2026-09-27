@@ -52,6 +52,14 @@ export interface ITenant extends Document {
   alwaysVisible: boolean
   pausedAt?: Date | null
   pausedReason?: string
+  /** Estado del alta auto-gestionada. 'none' = tenant precargo (no pasa por onboarding). */
+  onboarding: {
+    status: 'none' | 'draft' | 'pending_review' | 'approved' | 'rejected'
+    submittedAt: Date | null
+    reviewedAt: Date | null
+    reviewedBy: string | null
+    rejectionReason: string | null
+  }
   subscription: {
     preapprovalId: string | null
     status: 'authorized' | 'pending' | 'cancelled' | 'paused' | null
@@ -381,6 +389,17 @@ const TenantSchema = new Schema<ITenant>(
     pausedReason: {
       type: String,
       default: '',
+    },
+    onboarding: {
+      status: {
+        type: String,
+        enum: ['none', 'draft', 'pending_review', 'approved', 'rejected'],
+        default: 'none',
+      },
+      submittedAt: { type: Date, default: null },
+      reviewedAt: { type: Date, default: null },
+      reviewedBy: { type: String, default: null },
+      rejectionReason: { type: String, default: null },
     },
     subscription: {
       preapprovalId: { type: String, default: null },

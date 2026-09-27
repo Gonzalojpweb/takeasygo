@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import DineInMenuView from '@/components/menu/DineInMenuView'
 import { getBestSellers } from '@/lib/tia/bestSellers'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { Types } from 'mongoose'
 
 export const revalidate = 300
@@ -42,8 +43,8 @@ export default async function DineInMenuPage({ params }: Props) {
 
   await connectDB()
 
-  const tenantDoc = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean<ITenant & { _id: Types.ObjectId }>()
-  if (!tenantDoc) notFound()
+  const tenantDoc = await Tenant.findOne({ slug: tenantSlug }).lean<ITenant & { _id: Types.ObjectId }>()
+  if (!tenantDoc || !isTenantPubliclyOperational(tenantDoc)) notFound()
 
   const locationDoc = await Location.findOne({ _id: locationId, tenantId: tenantDoc._id, isActive: true }).lean()
   if (!locationDoc) notFound()

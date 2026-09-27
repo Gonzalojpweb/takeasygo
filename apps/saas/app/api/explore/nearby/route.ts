@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkIsOpenNow } from '@/lib/service-hours'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 import { rateLimit } from '@/lib/rateLimit'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 
 const DEFAULT_RADIUS_M = 20000 // 20 km
@@ -220,6 +221,9 @@ export async function GET(request: NextRequest) {
             'tenant.cachedScores.icoScore': 1,
             'tenant.cachedScores.capacityScore': 1,
             'tenant.isOperational': 1,
+            'tenant.isActive': 1,
+            'tenant.status': 1,
+            'tenant.onboarding.status': 1,
             'tenant.createdAt': 1,
           },
         },
@@ -229,10 +233,14 @@ export async function GET(request: NextRequest) {
     }
 
     // ── AlwaysVisible tenants — their locations regardless of distance ──────
+    // `status: 'active'` se mantiene como pre-filtro (Explore nunca mostró
+    // tenants pausados); la decisión de visibilidad la da el gate centralizado.
     const alwaysVisibleTenantDocs = await Tenant.find(
       { alwaysVisible: true, status: 'active' }
-    ).select('_id').lean()
-    const alwaysVisibleTenantIds = alwaysVisibleTenantDocs.map(t => t._id)
+    ).select('_id isActive status onboarding').lean()
+    const alwaysVisibleTenantIds = alwaysVisibleTenantDocs
+      .filter(isTenantPubliclyOperational)
+      .map(t => t._id)
 
     const nearbyLocationIdSet = new Set(networkRaw.map((l: any) => l._id?.toString()))
     let alwaysVisibleRaw: any[] = []
@@ -282,6 +290,9 @@ export async function GET(request: NextRequest) {
               'tenant.cachedScores.icoScore': 1,
               'tenant.cachedScores.capacityScore': 1,
               'tenant.isOperational': 1,
+              'tenant.isActive': 1,
+              'tenant.status': 1,
+              'tenant.onboarding.status': 1,
               'tenant.createdAt': 1,
             },
           },
@@ -291,8 +302,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Merge and deduplicate
+    // Merge and deduplicate — gate centralizado: única decisión de visibilidad
     const mergedNetworkRaw = [...networkRaw, ...alwaysVisibleRaw]
+      .filter(loc => isTenantPubliclyOperational(loc.tenant))
 
     // ── Ratings: aggregate average per tenant ────────────────────────────────
     const tenantIdsForRatings = mergedNetworkRaw.map((loc: any) => loc.tenant?._id).filter(Boolean)

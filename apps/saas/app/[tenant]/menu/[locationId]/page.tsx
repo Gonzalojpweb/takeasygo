@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
@@ -43,8 +44,8 @@ export default async function MenuSelectorPage({ params }: Props) {
 
   await connectDB()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
-  if (!tenant) notFound()
+  const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
+  if (!tenant || !isTenantPubliclyOperational(tenant)) notFound()
 
   const locationDoc = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true }).lean() as any
   if (!locationDoc) notFound()

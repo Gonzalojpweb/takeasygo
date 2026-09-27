@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
-import Tenant from '@/models/Tenant'
+import Tenant, { type ITenant } from '@/models/Tenant'
 import Location from '@/models/Location'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { MapPin, ShoppingBag, Truck, Utensils, Briefcase } from 'lucide-react'
@@ -25,8 +26,9 @@ export default async function TenantPage() {
 
   await connectDB()
 
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean<{ _id: import('mongoose').Types.ObjectId; name?: string }>()
-  if (!tenant) notFound()
+  const tenant = await Tenant.findOne({ slug: tenantSlug })
+    .lean<ITenant & { _id: import('mongoose').Types.ObjectId; name?: string }>()
+  if (!tenant || !isTenantPubliclyOperational(tenant)) notFound()
 
   // Si solo tiene una sede, redirigir directo al selector de menú
   const locations = await Location.find({ tenantId: tenant._id, isActive: true })

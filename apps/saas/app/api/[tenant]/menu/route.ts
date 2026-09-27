@@ -5,6 +5,7 @@ import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
+import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 
 export async function GET(
   request: NextRequest,
@@ -20,8 +21,8 @@ export async function GET(
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    if (!tenant) {
+    const tenant = await Tenant.findOne({ slug: tenantSlug })
+    if (!tenant || !isTenantPubliclyOperational(tenant)) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
