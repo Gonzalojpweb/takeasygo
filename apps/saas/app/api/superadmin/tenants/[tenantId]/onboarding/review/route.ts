@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import User from '@/models/User'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { auth } from '@/lib/auth'
+import { notifyOnboardingDecision } from '@/lib/onboarding/notify'
 
 export async function POST(
   request: NextRequest,
@@ -38,6 +40,24 @@ export async function POST(
     }
 
     await tenant.save()
+
+    // Aviso al prospecto del resultado. Nunca rompe la revisión si falla el SMTP.
+    try {
+      const owner = await User.findOne({ tenantId: tenant._id }).select('email')
+      if (owner?.email) {
+        await notifyOnboardingDecision(
+          tenant,
+          owner.email,
+          action === 'approve' ? 'approved' : 'rejected',
+          reason
+        )
+      } else {
+        console.warn('[onboarding-review] sin email del dueño del tenant, no se avisa:', tenant.slug)
+      }
+    } catch (notifyError) {
+      console.error('Error notifying onboarding decision:', notifyError)
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error reviewing onboarding:', error)

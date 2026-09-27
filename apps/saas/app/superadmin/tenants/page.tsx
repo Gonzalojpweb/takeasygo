@@ -21,6 +21,7 @@ export default async function TenantsPage() {
     pausedReason: t.pausedReason || '',
     createdAt:    t.createdAt.toISOString(),
     onboardingStatus: t.onboarding?.status || 'none',
+    menuPhotos: t.onboarding?.menuPhotos || [],
   }))
 
   return (

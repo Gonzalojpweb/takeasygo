@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import MenuPreview from './MenuPreview'
+import MenuPhotosUploader from './MenuPhotosUploader'
 
 export default function OnboardingInternalPage() {
   const router = useRouter()
@@ -161,6 +162,8 @@ export default function OnboardingInternalPage() {
             {/* Componente seguro de preview */}
             <MenuPreview cuisine={cuisine} primaryColor={primaryColor} />
           </div>
+
+          <MenuPhotosUploader tenant={tenant} />
 
           <div className="flex justify-end space-x-4">
             <button onClick={() => setStep(4)} className="px-4 py-2 border rounded-md">Atrás</button>
