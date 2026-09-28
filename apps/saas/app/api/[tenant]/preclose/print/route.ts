@@ -5,6 +5,7 @@ import Printer from '@/models/Printer'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import { aggregateOrdersForRange, buildPreCloseBuffer } from '@/lib/preclose-report'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdminRole } from '@/lib/apiAuth'
 
 /**
  * POST /api/[tenant]/preclose/print
@@ -22,9 +23,15 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
+    const authError = await requireAdminRole(request, tenant._id.toString())
+    if (authError) return authError
+
     const { from, to, printerName } = await request.json()
 
-    if (!from || !to || !printerName) {
+    if (
+      typeof from !== 'string' || typeof to !== 'string' || typeof printerName !== 'string' ||
+      printerName.length === 0 || printerName.length > 100
+    ) {
       return NextResponse.json({ error: 'from, to y printerName son obligatorios' }, { status: 400 })
     }
 
@@ -93,7 +100,7 @@ export async function POST(
         topItemsCount: data.topItems.length,
       },
     })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Error al generar cierre de turno' }, { status: 500 })
   }
 }

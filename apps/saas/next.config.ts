@@ -3,6 +3,13 @@ import type { NextConfig } from 'next'
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST === '/ingest' ? 'https://us.i.posthog.com' : (process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com')
 const POSTHOG_HOSTNAME = new URL(POSTHOG_HOST).hostname
 
+// ── POS Online (V1) ──────────────────────────────────────────────────────────
+// CORS explícito para /api/:tenant/pos/*. JAMÁS '*' porque todas las llamadas
+// llevan `Authorization: Bearer <RS256>`; un '*' reflejaría cualquier origen
+// y permitiría que un sitio ajeno consuma la API con tokens robados.
+// En producción definir POS_CORS_ORIGIN (p.ej. https://pos.takeasygo.com).
+const POS_CORS_ORIGIN = process.env.POS_CORS_ORIGIN ?? 'http://localhost:5173'
+
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -113,6 +120,26 @@ const nextConfig: NextConfig = {
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      // ── POS Online: superficie nueva, protegida desde la línea 1 ───────────
+      // Origen explícito (ver POS_CORS_ORIGIN arriba). El POS manda
+      // Authorization + Content-Type + X-Location-Id, así que TODA llamada
+      // cruza origen dispara preflight: sin este bloque no hay forma de que
+      // funcione. Next responde el OPTIONS automáticamente (expone `Allow` con
+      // los métodos definidos) y estos headers se aplican también ahí.
+      {
+        source: '/api/:tenant/pos/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: POS_CORS_ORIGIN },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,OPTIONS' },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization, Idempotency-Key, X-Location-Id',
+          },
+          // El preflight se cachea: el POS revalida el menú cada 5-10 s.
+          { key: 'Access-Control-Max-Age', value: '600' },
+          { key: 'Vary', value: 'Origin' },
         ],
       },
       // Webhook POS: FUDO/BISTROSOFT necesitan poder hacer POST desde sus servidores
