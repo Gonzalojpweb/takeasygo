@@ -6,19 +6,57 @@ import type {
   PaymentMethod,
 } from "@takeasygo/types"
 import { db } from "../db/dexie"
-import { enqueue } from "./event-queue"
-import { generateZReport } from "./z-report"
+import { posApi } from "./pos-api"
+import { runMutation, syncRegisters } from "./polling"
+import {
+  rehydrateMovement,
+  rehydrateRegister,
+} from "./pos-wire"
+
+// ============================================================================
+// Server-first (V1 POS Online) — caja
+// ============================================================================
+// Apertura, cierre, movimientos y asignación de pendientes van contra
+// /api/[tenant]/pos/cash/registers*. El server es la única fuente de verdad:
+//   §1    el arqueo (cashExpectedDelta) se aplica con `$inc` en Mongo y se
+//         RECALCULA desde los movimientos reales al cerrar.
+//   §2.1  (registerId, relatedOrderId, type) es índice único: el reintento
+//         devuelve el existente, jamás duplica.
+//   §2    una caja abierta por sede (índice parcial único + 409 legible).
+//   §3    el ZReport y el shareToken los genera el server al cerrar.
+// Dexie se escribe recién con la respuesta, y con las fechas rehidratadas
+// (D10). El outbox ya no participa: el hecho quedó persistido en el server.
+// `runMutation` marca cada ciclo para que el polling (M6) no escriba por
+// encima con una respuesta anterior.
+// ============================================================================
+
+type WireResponse = { serverTime?: string }
+
+async function postRegister(
+  tenantId: string,
+  path: string,
+  body: Record<string, unknown>
+): Promise<WireResponse & { register: CashRegister }> {
+  return posApi(tenantId, path, { method: "POST", body })
+}
+
+// ============================================================================
+// Mutaciones
+// ============================================================================
 
 /**
  * Abre una nueva caja.
  *
- * @param tenantId - ID del tenant
- * @param initialAmount - Monto inicial en efectivo
+ * @param initialAmount - Monto inicial en efectivo (centavos enteros)
  * @param openedBy - Nombre/ID de quien abre la caja
  * @param defaultForChannel - Canal default para routing multi-caja (null = acepta todos)
  *
  * Decisión: Consenso v1 §2.3 — defaultForChannel controla a qué canal
  * se asignan los pedidos de TakeasyGO cuando hay múltiples cajas abiertas.
+ *
+ * La regla "una caja abierta por sede" la decide el server (409); no se
+ * consulta Dexie antes porque puede estar desactualizada respecto de otra
+ * terminal.
  */
 export async function openRegister(
   tenantId: string,
@@ -26,52 +64,32 @@ export async function openRegister(
   openedBy: string,
   defaultForChannel: CashChannel | null = null
 ): Promise<CashRegister> {
-  const existing = await db.cashRegister
-    .where("tenantId")
-    .equals(tenantId)
-    .and((r) => r.status === "open")
-    .first()
+  return runMutation(async () => {
+    const { register } = await postRegister(
+      tenantId,
+      "/cash/registers",
+      {
+        id: crypto.randomUUID(),
+        initialAmount,
+        openedBy,
+        defaultForChannel,
+      }
+    )
 
-  if (existing) {
-    throw new Error("[cash] Ya hay una caja abierta")
-  }
-
-  const register: CashRegister = {
-    id: crypto.randomUUID(),
-    tenantId,
-    openedBy,
-    openedAt: new Date(),
-    initialAmount,
-    expectedAmount: initialAmount,
-    difference: 0,
-    movements: [],
-    status: "open",
-    defaultForChannel,
-  }
-
-  await db.cashRegister.add(register)
-
-  await enqueue(tenantId, "cash_register.opened", {
-    registerId: register.id,
-    initialAmount,
-    openedBy,
-    defaultForChannel,
-    timestamp: register.openedAt.toISOString(),
+    const rehydrated = rehydrateRegister(register)
+    await db.cashRegister.put(rehydrated)
+    return rehydrated
   })
-
-  return register
 }
 
 /**
  * Cierra la caja y genera el ZReport inmutable.
  *
- * Decisión: Consenso v1 §3 — El ZReport se genera UNA VEZ al cerrar y
- * se persiste en CashRegister.zReport. Nunca se recalcula después.
+ * Decisión: Consenso v1 §3 — El ZReport se genera UNA VEZ al cerrar y se
+ * persiste en CashRegister.zReport. Nunca se recalcula después.
  *
- * @param tenantId - ID del tenant
- * @param registerId - ID de la caja a cerrar
- * @param finalAmount - Conteo físico de efectivo
- * @param closedBy - Nombre/ID de quien cierra la caja
+ * El server recalcula el arqueo esperado desde los movimientos reales,
+ * genera el Z y el shareToken, y responde con la caja ya cerrada.
  */
 export async function closeRegister(
   tenantId: string,
@@ -79,73 +97,27 @@ export async function closeRegister(
   finalAmount: number,
   closedBy: string
 ): Promise<CashRegister> {
-  const register = await db.cashRegister.get(registerId)
-  if (!register) throw new Error("[cash] Caja no encontrada")
-  if (register.tenantId !== tenantId) throw new Error("[cash] Tenant mismatch")
-  if (register.status !== "open") throw new Error("[cash] La caja ya está cerrada")
+  return runMutation(async () => {
+    const { register } = await postRegister(
+      tenantId,
+      `/cash/registers/${encodeURIComponent(registerId)}/close`,
+      { finalAmount, closedBy }
+    )
 
-  const expectedAmount = register.expectedAmount ?? register.initialAmount
-  const difference = finalAmount - expectedAmount
-
-  const updated: CashRegister = {
-    ...register,
-    closedBy,
-    closedAt: new Date(),
-    finalAmount,
-    expectedAmount,
-    difference,
-    status: "closed",
-  }
-
-  // ── Generar ZReport inmutable (Consenso §3) ──────────────────────
-  const zReport = generateZReport({
-    register: updated,
-    movements: updated.movements,
-    closedBy,
+    const rehydrated = rehydrateRegister(register)
+    await db.cashRegister.put(rehydrated)
+    return rehydrated
   })
-
-  // ── Share token para vista web compartible (Consenso §4) ───────────
-  const shareToken = crypto.randomUUID()
-
-  const closedRegister: CashRegister = {
-    ...updated,
-    zReport,
-    shareToken,
-  }
-
-  await db.cashRegister.put(closedRegister)
-
-  await enqueue(tenantId, "cash_register.closed", {
-    registerId: register.id,
-    finalAmount,
-    expectedAmount,
-    difference,
-    closedBy,
-    shareToken,
-    zReport,
-    timestamp: closedRegister.closedAt!.toISOString(),
-  })
-
-  return closedRegister
 }
 
 /**
  * Registra un movimiento en la caja.
  *
- * @param tenantId - ID del tenant
- * @param registerId - ID de la caja abierta
- * @param type - Tipo de movimiento (income, expense, withdrawal, deposit, sale, refund)
- * @param amount - Monto (siempre positivo)
- * @param reason - Descripción del movimiento
- * @param userId - ID del usuario que registra
- * @param channel - Canal de la venta (counter | takeasygo)
- * @param paymentMethod - Método de pago utilizado
- * @param relatedOrderId - ID de la orden relacionada (para idempotencia)
+ * @param amount - Monto en centavos, siempre positivo
+ * @param relatedOrderId - ID de la orden relacionada (idempotencia §2.1)
  *
- * Idempotencia (Consenso §2.1): si relatedOrderId + type ya existe en la caja,
- * retorna el movimiento existente sin duplicar.
- *
- * Regla de negocio (Consenso §1): expectedAmount suma SOLO efectivo.
+ * El server valida monto/enum, aplica el delta de arqueo solo para efectivo
+ * (§1) y devuelve el movimiento + la caja refrescada.
  */
 export async function addMovement(
   tenantId: string,
@@ -158,70 +130,39 @@ export async function addMovement(
   paymentMethod: PaymentMethod,
   relatedOrderId?: string
 ): Promise<{ movement: CashMovement; register: CashRegister }> {
+  // Validación de argumentos puros (no depende de estado): evita un round trip
+  // cuando el caller se equivoca de frente. El server repite la misma regla.
   if (amount <= 0) throw new Error("[cash] El monto debe ser positivo")
 
-  const register = await db.cashRegister.get(registerId)
-  if (!register) throw new Error("[cash] Caja no encontrada")
-  if (register.tenantId !== tenantId) throw new Error("[cash] Tenant mismatch")
-  if (register.status !== "open") throw new Error("[cash] La caja está cerrada")
+  return runMutation(async () => {
+    const { movement, register } = await posApi<{
+      movement: CashMovement
+      register: CashRegister
+    }>(tenantId, `/cash/registers/${encodeURIComponent(registerId)}/movements`, {
+      method: "POST",
+      body: {
+        id: crypto.randomUUID(),
+        type,
+        amount,
+        reason,
+        channel,
+        paymentMethod,
+        userId,
+        ...(relatedOrderId ? { relatedOrderId } : {}),
+      },
+    })
 
-  // ── Idempotencia (Consenso §2.1) ─────────────────────────────────
-  // Si ya existe un movimiento con el mismo relatedOrderId + tipo,
-  // retornar el existente sin duplicar.
-  if (relatedOrderId) {
-    const existing = register.movements.find(
-      (m) => m.relatedOrderId === relatedOrderId && m.type === type
-    )
-    if (existing) {
-      return { movement: existing, register }
-    }
-  }
+    const rehydrated = rehydrateRegister(register)
+    await db.cashRegister.put(rehydrated)
 
-  const movement: CashMovement = {
-    id: crypto.randomUUID(),
-    type,
-    amount,
-    reason,
-    userId,
-    timestamp: new Date(),
-    relatedOrderId,
-    channel,
-    paymentMethod,
-  }
-
-  // ── Cálculo de expectedAmount ─────────────────────────────────────
-  // Regla de negocio (Consenso §1): SOLO el efectivo afecta el arqueo.
-  // Si el restaurante cobra un TakeasyGO delivery en efectivo contra entrega,
-  // ese efectivo SÍ suma al arqueo. Si pagan con MP o POSNET, no suma.
-  const isCash = paymentMethod === "cash"
-  const isPositive =
-    type === "income" || type === "deposit" || type === "sale"
-  const adjustedAmount = isCash ? (isPositive ? amount : -amount) : 0
-
-  const updated: CashRegister = {
-    ...register,
-    movements: [...register.movements, movement],
-    expectedAmount:
-      (register.expectedAmount ?? register.initialAmount) + adjustedAmount,
-  }
-
-  await db.cashRegister.put(updated)
-
-  await enqueue(tenantId, "cash_register.movement", {
-    registerId: register.id,
-    movementId: movement.id,
-    type,
-    amount,
-    reason,
-    userId,
-    channel,
-    paymentMethod,
-    relatedOrderId,
-    timestamp: movement.timestamp.toISOString(),
+    return { movement: rehydrateMovement(movement), register: rehydrated }
   })
-
-  return { movement, register: updated }
 }
+
+// ============================================================================
+// Lecturas — siguen locales: Dexie es el read model y `services/polling.ts`
+// lo refresca contra GET /pos/cash/registers sin borrar nada.
+// ============================================================================
 
 export async function getActiveRegister(tenantId: string): Promise<CashRegister | undefined> {
   return db.cashRegister
@@ -269,83 +210,73 @@ export async function getRegisterForChannel(
  * Decisión: Consenso v1 §2.2 — Tabla pendingMovements.
  *
  * Se llama al abrir una caja, o manualmente por el manager.
- * Los movimientos se asignan si la caja target coincide con su canal.
+ * Cada pendiente se sube como movimiento normal: si el server ya lo tiene
+ * (mismo relatedOrderId + type) lo devuelve sin duplicar y igualmente lo
+ * descartamos de la cola. Si el server rechaza, el pendiente queda en la
+ * cola para el próximo intento.
  */
 export async function assignPendingMovements(
   tenantId: string,
   registerId: string
 ): Promise<{ assigned: number; register: CashRegister }> {
-  const register = await db.cashRegister.get(registerId)
-  if (!register) throw new Error("[cash] Caja no encontrada")
-  if (register.tenantId !== tenantId) throw new Error("[cash] Tenant mismatch")
-  if (register.status !== "open") throw new Error("[cash] La caja está cerrada")
+  // Reentrante: adentro llama `addMovement`, que también se marca.
+  return runMutation(async () => {
+    const pending = await db.pendingMovements
+      .where("tenantId")
+      .equals(tenantId)
+      .toArray()
 
-  const pending = await db.pendingMovements
-    .where("tenantId")
-    .equals(tenantId)
-    .toArray()
-
-  let assigned = 0
-  const updatedMovements = [...register.movements]
-  let updatedExpectedAmount = register.expectedAmount ?? register.initialAmount
-
-  for (const p of pending) {
-    // Asignar si:
-    // - La caja es default para el canal del movimiento, O
-    // - La caja es default para todos (null), O
-    // - No hay otra caja que sea default para ese canal
-    const shouldAssign =
-      register.defaultForChannel === null ||
-      register.defaultForChannel === p.channel
-
-    if (!shouldAssign) continue
-
-    // Idempotencia: no duplicar si ya existe
-    const exists = updatedMovements.some(
-      (m) => m.relatedOrderId === p.relatedOrderId && m.type === p.type
+    // La caja que decide el routing sale del server: Dexie puede no tenerla
+    // todavía (se abrió en otra terminal) y además así queda refrescada.
+    const { register } = await posApi<{ register: CashRegister }>(
+      tenantId,
+      `/cash/registers/${encodeURIComponent(registerId)}`
     )
-    if (exists) {
+
+    let assigned = 0
+    let current = rehydrateRegister(register)
+    await db.cashRegister.put(current)
+
+    for (const p of pending) {
+      // Solo la caja default para el canal (o la que acepta todos) se queda el
+      // movimiento; si no, esperamos a que se abra esa otra caja.
+      const shouldAssign =
+        current.defaultForChannel === null ||
+        current.defaultForChannel === p.channel
+
+      if (!shouldAssign) continue
+
+      // Ya está en esta caja según Dexie (dato confirmado por el server):
+      // no reenviamos, solo descartamos de la cola.
+      const exists = current.movements.some(
+        (m) => m.relatedOrderId === p.relatedOrderId && m.type === p.type
+      )
+      if (exists) {
+        await db.pendingMovements.delete(p.id)
+        assigned++
+        continue
+      }
+
+      // Propaga el error del server: la cola queda intacta para reintentar.
+      const result = await addMovement(
+        tenantId,
+        registerId,
+        p.type,
+        p.amount,
+        p.reason,
+        p.userId,
+        p.channel,
+        p.paymentMethod,
+        p.relatedOrderId
+      )
+
       await db.pendingMovements.delete(p.id)
+      current = result.register
       assigned++
-      continue
     }
 
-    const movement: CashMovement = {
-      id: crypto.randomUUID(),
-      type: p.type,
-      amount: p.amount,
-      reason: p.reason,
-      userId: p.userId,
-      timestamp: p.timestamp,
-      relatedOrderId: p.relatedOrderId,
-      channel: p.channel,
-      paymentMethod: p.paymentMethod,
-    }
-
-    updatedMovements.push(movement)
-
-    // Solo efectivo afecta expectedAmount
-    const isCash = p.paymentMethod === "cash"
-    const isPositive = p.type === "income" || p.type === "deposit" || p.type === "sale"
-    if (isCash) {
-      updatedExpectedAmount += isPositive ? p.amount : -p.amount
-    }
-
-    await db.pendingMovements.delete(p.id)
-    assigned++
-  }
-
-  if (assigned > 0) {
-    const updated: CashRegister = {
-      ...register,
-      movements: updatedMovements,
-      expectedAmount: updatedExpectedAmount,
-    }
-    await db.cashRegister.put(updated)
-    return { assigned, register: updated }
-  }
-
-  return { assigned: 0, register }
+    return { assigned, register: current }
+  })
 }
 
 export async function getRegisterHistory(
@@ -394,6 +325,19 @@ export async function getPendingMovements(
     .where("tenantId")
     .equals(tenantId)
     .toArray()
+}
+
+/**
+ * Descarga las cajas de la sede desde el server y las deja en Dexie.
+ *
+ * Delega en el mismo diff-then-put que usa el polling (M6): solo escribe lo
+ * que cambió, así que un refresco manual tampoco re-renderiza la pantalla
+ * entera. El polling ya lo hace solo cada 7 s; esto queda para cuando el
+ * caller quiera una actualización puntual inmediata.
+ */
+export async function refreshRegisters(tenantId: string): Promise<CashRegister[]> {
+  await syncRegisters(tenantId)
+  return db.cashRegister.where("tenantId").equals(tenantId).toArray()
 }
 
 /**

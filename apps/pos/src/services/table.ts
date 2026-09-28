@@ -1,30 +1,72 @@
 import type { Table, TableStatus } from "@takeasygo/types"
 import { db } from "../db/dexie"
-import { enqueue } from "./event-queue"
+import { posApi } from "./pos-api"
+import { runMutation } from "./polling"
 
 // ============================================================================
-// Transitions permitidas — selladas por Gemini
+// Server-first (V1 POS Online)
+// ============================================================================
+// Toda mutación va contra /api/[tenant]/pos/tables y recién con la respuesta
+// del server se escribe Dexie. El server es la única fuente de verdad para:
+//   - transición de estado (@takeasygo/business, misma regla que acá)
+//   - liberar una mesa con la orden todavía activa
+//   - pertenencia a la sede del token
+// Si no hay red la acción falla visible y NO se toca Dexie. El outbox
+// (event-queue) ya no se usa para estas escrituras: el hecho quedó
+// persistido en el server, reencolarlo duplicaría la aplicación por un
+// camino sin guard de idempotencia por posId.
+//
+// `runMutation` marca el ciclo servidor+Dexie para que el polling (M6) no
+// escriba por encima con una respuesta traída antes de esta confirmación.
 // ============================================================================
 
-const VALID_TRANSITIONS: Record<TableStatus, TableStatus[]> = {
-  free: ["occupied", "reserved"],
-  occupied: ["free", "closed", "reserved", "needs_attention"],
-  reserved: ["free", "occupied"],
-  needs_attention: ["occupied", "free", "reserved", "closed"],
-  closed: [],
+/** Contrato de /pos/tables: la mesa tal como la devolvió el server. */
+type WireTable = Table
+
+function applyServerTable(table: WireTable): Promise<string> {
+  return db.diningTable.put(table)
 }
 
-function validateTransition(from: TableStatus, to: TableStatus): void {
-  const allowed = VALID_TRANSITIONS[from]
-  if (!allowed.includes(to)) {
-    throw new Error(
-      `[table] Invalid transition: ${from} → ${to}. Allowed: [${allowed.join(", ")}]`
-    )
+async function createTable(
+  tenantId: string,
+  draft: {
+    id: string
+    number: number
+    capacity: number
+    section?: string
   }
+): Promise<void> {
+  return runMutation(async () => {
+    const { table } = await posApi<{ table: WireTable }>(tenantId, "/tables", {
+      method: "POST",
+      body: {
+        id: draft.id,
+        number: draft.number,
+        capacity: draft.capacity,
+        ...(draft.section ? { section: draft.section } : {}),
+      },
+    })
+    await applyServerTable(table)
+  })
+}
+
+async function patchTable(
+  tenantId: string,
+  tableId: string,
+  body: Record<string, unknown>
+): Promise<void> {
+  return runMutation(async () => {
+    const { table } = await posApi<{ table: WireTable }>(
+      tenantId,
+      `/tables/${encodeURIComponent(tableId)}`,
+      { method: "PATCH", body }
+    )
+    await applyServerTable(table)
+  })
 }
 
 // ============================================================================
-// Mutaciones
+// Mutaciones — firmas estables: las consumen useTables y WaiterDashboard
 // ============================================================================
 
 export async function openTable(
@@ -33,23 +75,11 @@ export async function openTable(
   capacity: number,
   section?: string
 ): Promise<void> {
-  const table: Table = {
+  await createTable(tenantId, {
     id: crypto.randomUUID(),
-    tenantId,
     number,
     capacity,
-    status: "free",
     section,
-  }
-
-  await db.diningTable.add(table)
-
-  await enqueue(tenantId, "table.status_changed", {
-    tableId: table.id,
-    previousStatus: null,
-    newStatus: table.status,
-    number: table.number,
-    section: table.section,
   })
 }
 
@@ -59,27 +89,10 @@ export async function occupyTable(
   serverId: string,
   orderId: string
 ): Promise<void> {
-  const table = await db.diningTable.get(tableId)
-  if (!table) throw new Error(`[table] Table ${tableId} not found`)
-  if (table.tenantId !== tenantId) throw new Error("[table] Tenant mismatch")
-
-  validateTransition(table.status, "occupied")
-
-  const previousStatus = table.status
-
-  await db.diningTable.update(tableId, {
+  await patchTable(tenantId, tableId, {
     status: "occupied",
     serverId,
     currentOrderId: orderId,
-  })
-
-  await enqueue(tenantId, "table.status_changed", {
-    tableId,
-    previousStatus,
-    newStatus: "occupied",
-    serverId,
-    orderId,
-    number: table.number,
   })
 }
 
@@ -87,120 +100,28 @@ export async function freeTable(
   tenantId: string,
   tableId: string
 ): Promise<void> {
-  const table = await db.diningTable.get(tableId)
-  if (!table) throw new Error(`[table] Table ${tableId} not found`)
-  if (table.tenantId !== tenantId) throw new Error("[table] Tenant mismatch")
-
-  if (table.status !== "occupied" && table.status !== "reserved") {
-    throw new Error(
-      `[table] Cannot free table ${tableId} in status ${table.status}`
-    )
-  }
-
-  // occupied → free: solo si no hay orden activa
-  if (table.status === "occupied" && table.currentOrderId) {
-    const order = await db.orders.get(table.currentOrderId)
-    if (order && !["delivered", "cancelled"].includes(order.status)) {
-      throw new Error(
-        `[table] Cannot free table ${tableId}: order ${order.id} is ${order.status}`
-      )
-    }
-  }
-
-  const previousStatus = table.status
-
-  await db.diningTable.update(tableId, {
-    status: "free",
-    serverId: undefined,
-    currentOrderId: undefined,
-  })
-
-  await enqueue(tenantId, "table.status_changed", {
-    tableId,
-    previousStatus,
-    newStatus: "free",
-    number: table.number,
-  })
+  await patchTable(tenantId, tableId, { status: "free" })
 }
 
 export async function reserveTable(
   tenantId: string,
   tableId: string
 ): Promise<void> {
-  const table = await db.diningTable.get(tableId)
-  if (!table) throw new Error(`[table] Table ${tableId} not found`)
-  if (table.tenantId !== tenantId) throw new Error("[table] Tenant mismatch")
-
-  validateTransition(table.status, "reserved")
-
-  const previousStatus = table.status
-
-  await db.diningTable.update(tableId, { status: "reserved" })
-
-  await enqueue(tenantId, "table.status_changed", {
-    tableId,
-    previousStatus,
-    newStatus: "reserved",
-    number: table.number,
-  })
+  await patchTable(tenantId, tableId, { status: "reserved" })
 }
 
 export async function closeTable(
   tenantId: string,
   tableId: string
 ): Promise<void> {
-  const table = await db.diningTable.get(tableId)
-  if (!table) throw new Error(`[table] Table ${tableId} not found`)
-  if (table.tenantId !== tenantId) throw new Error("[table] Tenant mismatch")
-
-  // occupied → closed: solo si orden está delivered o cancelled
-  if (table.status === "occupied" && table.currentOrderId) {
-    const order = await db.orders.get(table.currentOrderId)
-    if (order && !["delivered", "cancelled"].includes(order.status)) {
-      throw new Error(
-        `[table] Cannot close table ${tableId}: order ${order.id} is ${order.status}`
-      )
-    }
-  }
-
-  validateTransition(table.status, "closed")
-
-  const previousStatus = table.status
-
-  await db.diningTable.update(tableId, {
-    status: "closed",
-    serverId: undefined,
-    currentOrderId: undefined,
-  })
-
-  await enqueue(tenantId, "table.status_changed", {
-    tableId,
-    previousStatus,
-    newStatus: "closed",
-    number: table.number,
-  })
+  await patchTable(tenantId, tableId, { status: "closed" })
 }
 
 export async function markNeedsAttention(
   tenantId: string,
   tableId: string
 ): Promise<void> {
-  const table = await db.diningTable.get(tableId)
-  if (!table) throw new Error(`[table] Table ${tableId} not found`)
-  if (table.tenantId !== tenantId) throw new Error("[table] Tenant mismatch")
-
-  validateTransition(table.status, "needs_attention")
-
-  const previousStatus = table.status
-
-  await db.diningTable.update(tableId, { status: "needs_attention" })
-
-  await enqueue(tenantId, "table.status_changed", {
-    tableId,
-    previousStatus,
-    newStatus: "needs_attention",
-    number: table.number,
-  })
+  await patchTable(tenantId, tableId, { status: "needs_attention" })
 }
 
 export async function markNeedsBill(
@@ -208,23 +129,12 @@ export async function markNeedsBill(
   tableId: string,
   needsBill: boolean
 ): Promise<void> {
-  const table = await db.diningTable.get(tableId)
-  if (!table) throw new Error(`[table] Table ${tableId} not found`)
-  if (table.tenantId !== tenantId) throw new Error("[table] Tenant mismatch")
-
-  await db.diningTable.update(tableId, { needsBill })
-
-  await enqueue(tenantId, "table.status_changed", {
-    tableId,
-    previousStatus: table.status,
-    newStatus: table.status,
-    needsBill,
-    number: table.number,
-  })
+  await patchTable(tenantId, tableId, { needsBill })
 }
 
 // ============================================================================
-// Lecturas
+// Lecturas — siguen locales: Dexie es el read model y `services/polling.ts`
+// lo refresca contra GET /pos/tables sin borrar nada.
 // ============================================================================
 
 export async function getTable(
