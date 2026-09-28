@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
-import { verifyJwt } from '@takeasygo/business/jwt'
+import { verifyPosToken } from '@/lib/posJwt'
 import { Redis } from '@upstash/redis'
 import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
@@ -42,13 +42,7 @@ export async function GET(req: NextRequest) {
     return redirectToLogin(req, 'sso_invalid_params')
   }
 
-  const publicKey = process.env.SSO_JWT_PUBLIC_KEY
-  if (!publicKey) {
-    console.error('[sso] SSO_JWT_PUBLIC_KEY not configured')
-    return redirectToLogin(req, 'sso_config_error')
-  }
-
-  const payload = verifyJwt(token, publicKey)
+  const payload = verifyPosToken(token)
   if (!payload) {
     return redirectToLogin(req, 'sso_invalid_token')
   }
