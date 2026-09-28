@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
-export type OrderStatus = 'open' | 'awaiting_payment' | 'awaiting_confirmation' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'en_ruta' | 'arrived' | 'delivered' | 'cancelled'
+export type OrderStatus = 'open' | 'awaiting_payment' | 'awaiting_confirmation' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'en_ruta' | 'arrived' | 'delivered' | 'cancelled' | 'requires_manual_attention'
 export type OrderMode = 'takeaway' | 'dine-in' | 'business' | 'delivery'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 export type PaymentModeSnapshot = 'cash_mp' | 'deferred' | 'mixed'
@@ -57,6 +57,12 @@ export interface IOrderItem {
   slotName?: string            // Nombre del slot para ticket cocina
   /** Si true, el item tenía descuento de categoría (originalPrice definido en el menú). El QR no aplicó sobre él. */
   hasCategoryDiscount?: boolean
+  /**
+   * Nota de cocina por item ("sin cebolla", "bien hecho").
+   * El POS la emite en cada OrderItem; sin este campo se perdería al
+   * sincronizar y la comanda de cocina saldría incompleta.
+   */
+  notes?: string | null
 }
 
 export interface IPrintLogEntry {
@@ -246,6 +252,27 @@ export interface IOrder extends Document {
   loyaltyPointsCredited: boolean
   rewardDeductionProcessed?: boolean
   source?: string
+  // ── POS Online (V1) ───────────────────────────────────────────────────────
+  /**
+   * id generado por el POS con crypto.randomUUID(). Es el `id` que expone el
+   * contrato /api/[tenant/*]/pos/* y actúa como Idempotency-Key: un reintento
+   * del POS con el mismo posId NO debe crear otra orden.
+   *
+   * Solo existe en órdenes con source === 'pos' (el campo se OMITE en el resto,
+   * por eso el índice es partialFilterExpression y no sparse).
+   */
+  posId?: string
+  /**
+   * posId de la mesa (no _id): las mesas del POS tienen su propio UUID y el
+   * contrato POS expone `tableId` como ese UUID. Sin esto el POS no puede
+   * rehidratar Dexie y el UI mostraría "Mesa -".
+   */
+  posTableId?: string | null
+  /**
+   * Versión del menú con la que se armó la orden. El POS la guarda en cada
+   * orden (hoy siempre 1); se persiste para que el round-trip no la pierda.
+   */
+  menuVersion?: number
   // ── Delivery Confirmation (atestación mutua) ───────────────────────────────
   deliveryConfirmation?: {
     customerCode: {
@@ -384,8 +411,9 @@ const OrderItemSchema = new Schema<IOrderItem>({
   addedByEmail: { type: String, default: null },
   promotionTitle: { type: String, default: null },
   slotName: { type: String, default: null },
-  hasCategoryDiscount: { type: Boolean, default: false },
-})
+    hasCategoryDiscount: { type: Boolean, default: false },
+    notes: { type: String, default: null },
+  })
 
 const GroupPaymentSchema = new Schema<IGroupPayment>({
   memberConsumerId: { type: Schema.Types.ObjectId, ref: 'Consumer', required: true },
@@ -472,7 +500,7 @@ const OrderSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['open', 'awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered', 'cancelled'] as const,
+      enum: ['open', 'awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered', 'cancelled', 'requires_manual_attention'] as const,
       default: 'awaiting_payment',
     },
     orderMode: {
@@ -698,6 +726,12 @@ const OrderSchema = new Schema(
       default: null,
       index: true,
     },
+    // ── POS Online (V1) ─────────────────────────────────────────────────────
+    // Sin `default`: en las órdenes no-POS el campo NO debe existir en el
+    // documento, o el índice unique de abajo colisionaría entre nulls.
+    posId: { type: String },
+    posTableId: { type: String, default: null },
+    menuVersion: { type: Number, default: 1, min: 1 },
     // ── Delivery Confirmation (atestación mutua) ──────────────────────────────
     deliveryConfirmation: {
       type: {
@@ -777,6 +811,13 @@ OrderSchema.index({ tenantId: 1, 'customer.phoneHash': 1 })  // tasa de recompra
 OrderSchema.index({ tenantId: 1, scheduledPickupAt: 1, scheduledStatus: 1 })
 OrderSchema.index({ groupSessionToken: 1 }, { sparse: true })
 OrderSchema.index({ tenantId: 1, promoSlug: 1, 'customer.phoneHash': 1, createdAt: 1 }) // club audit
+// Idempotencia POS Online: el posId del POS es la Idempotency-Key.
+// partialFilterExpression (no sparse) para que solo las órdenes con posId
+// entren en el índice — un sparse compuesto no garantiza eso.
+OrderSchema.index(
+  { tenantId: 1, posId: 1 },
+  { unique: true, partialFilterExpression: { posId: { $type: 'string' } } }
+)
 
 const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema)
 export default Order

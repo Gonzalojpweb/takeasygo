@@ -60,6 +60,10 @@ export interface IMenuItem {
   takeawayPrice?: number
   /** Precio business del ítem en centavos. @storedAs cents */
   businessPrice?: number | null
+  /** Precio "por unidad" para mitad y mitad, en centavos. @storedAs cents
+   *  Presente en @takeasygo/db (que declara "matches apps/saas/models/Menu.ts");
+   *  acá faltaba y strict mode lo descartaba al escribir. */
+  halfPrice?: number
   /** Precio original de lista (antes de descuentos de categoría) en centavos. @storedAs cents */
   originalPrice?: number
   /** Precio takeaway original de lista (antes de descuentos de categoría) en centavos. @storedAs cents */
@@ -212,6 +216,11 @@ const MenuItemSchema = new Schema<IMenuItem>({
     type: Number,
     min: [0, 'El precio business no puede ser negativo'],
     default: null,
+  },
+  /** @storedAs cents — mitad y mitad (ver IMenuItem.halfPrice) */
+  halfPrice: {
+    type: Number,
+    min: [0, 'El precio de mitad no puede ser negativo'],
   },
   /** @storedAs cents */
   originalPrice: {
@@ -429,7 +438,7 @@ MenuSchema.index({ tenantId: 1, locationId: 1 }, { unique: true })
 
 // In development, always recreate to pick up schema changes across hot-reloads
 if (process.env.NODE_ENV !== 'production') {
-  delete (mongoose.models as any).Menu
+  delete (mongoose.models as Record<string, unknown>).Menu
 }
 
 const Menu = mongoose.models.Menu || mongoose.model<IMenu>('Menu', MenuSchema)
