@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongoose"
 import Tenant from "@/models/Tenant"
 import { capturePhysicalCount, getSKUsForVerification } from "@/lib/inventory"
+import { requireAuth, getSessionUser } from "@/lib/apiAuth"
 
 // ============================================================================
 // POST /api/[tenant]/inventory/physical-count — Registrar conteo físico
@@ -26,7 +27,22 @@ export async function POST(
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
 
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
+
+    // El actor se deriva SIEMPRE del token: nunca del body del request.
+    const sessionUser = await getSessionUser(request)
+    const actorId: string | undefined = sessionUser?.id ?? undefined
+
     const body = await request.json()
+
+    // Validación (ObjectId estricto: evita CastError de Mongoose → 500)
+    if (
+      (typeof body.skuId !== "string" || !/^[a-fA-F0-9]{24}$/.test(body.skuId)) ||
+      (typeof body.storageLocationId !== "string" || !/^[a-fA-F0-9]{24}$/.test(body.storageLocationId))
+    ) {
+      return NextResponse.json({ error: "skuId y storageLocationId deben ser ObjectIds válidos" }, { status: 400 })
+    }
 
     // Validación
     const required = ["skuId", "storageLocationId", "observedQuantity", "unit", "observationMethod"]
@@ -61,7 +77,7 @@ export async function POST(
       observedQuantity: body.observedQuantity,
       unit: body.unit,
       observationMethod: body.observationMethod,
-      actorId: body.actorId,
+      actorId,
       notes: body.notes,
     })
 
@@ -107,6 +123,9 @@ export async function GET(
     if (!tenant) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
+
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
 
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get("limit") || "8", 10), 20)

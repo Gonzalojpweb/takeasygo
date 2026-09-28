@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongoose"
 import Tenant from "@/models/Tenant"
 import { captureGoodsReceived } from "@/lib/inventory"
+import { requireAuth, getSessionUser } from "@/lib/apiAuth"
 
 // ============================================================================
 // POST /api/[tenant]/inventory/goods-received — Recepción de mercadería
@@ -24,7 +25,22 @@ export async function POST(
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
 
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
+
+    // El actor se deriva SIEMPRE del token: nunca del body del request.
+    const sessionUser = await getSessionUser(request)
+    const actorId: string | undefined = sessionUser?.id ?? undefined
+
     const body = await request.json()
+
+    // ObjectId estricto: evita CastError de Mongoose → 500
+    if (
+      (typeof body.skuId !== "string" || !/^[a-fA-F0-9]{24}$/.test(body.skuId)) ||
+      (typeof body.storageLocationId !== "string" || !/^[a-fA-F0-9]{24}$/.test(body.storageLocationId))
+    ) {
+      return NextResponse.json({ error: "skuId y storageLocationId deben ser ObjectIds válidos" }, { status: 400 })
+    }
 
     // Validación de campos requeridos
     const required = ["skuId", "storageLocationId", "quantity", "unit", "unitCostCents"]
@@ -76,7 +92,7 @@ export async function POST(
       supplierId: body.supplierId,
       invoiceRef: body.invoiceRef,
       notes: body.notes,
-      actorId: body.actorId,
+      actorId,
       confidence: body.confidence,
       observationMethod: body.observationMethod,
     })

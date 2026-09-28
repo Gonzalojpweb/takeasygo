@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import { requireAdminRole } from '@/lib/apiAuth'
 
 export async function DELETE(
   request: NextRequest,
@@ -16,8 +17,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    const specialDates = (tenant as any).specialDates || []
-    const filteredDates = specialDates.filter((rule: any) => rule.id !== id)
+    const authError = await requireAdminRole(request, tenant._id.toString())
+    if (authError) return authError
+
+    const specialDates = tenant.specialDates || []
+    const filteredDates = specialDates.filter((rule) => rule.id !== id)
 
     await Tenant.updateOne(
       { _id: tenant._id },

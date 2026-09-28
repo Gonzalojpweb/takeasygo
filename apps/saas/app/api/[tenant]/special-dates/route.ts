@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import { requireAdminRole } from '@/lib/apiAuth'
 
 interface SpecialDateRule {
   id: string
@@ -21,7 +22,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    const rules = (tenant as any).specialDates || []
+    const authError = await requireAdminRole(request, tenant._id.toString())
+    if (authError) return authError
+
+    const rules = tenant.specialDates || []
     return NextResponse.json({ rules })
   } catch (error) {
     console.error('Error fetching special dates:', error)
@@ -33,18 +37,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const { tenant: tenantSlug } = await params
 
-    const body = await request.json()
-    const { name, date, triggerItems, suggestedItems } = body
-
-    if (!name || !date || !triggerItems?.length || !suggestedItems?.length) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
+    // Orden de seguridad: resolver tenant y autenticar ANTES de tocar el body.
+    // Nunca devolver errores de validación a un caller no autenticado.
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    }
+
+    const authError = await requireAdminRole(request, tenant._id.toString())
+    if (authError) return authError
+
+    const body = await request.json()
+    const { name, date, triggerItems, suggestedItems } = body
+
+    if (
+      typeof name !== 'string' || name.trim().length === 0 || name.length > 100 ||
+      !date || !Number.isInteger(date.month) || !Number.isInteger(date.day) ||
+      date.month < 1 || date.month > 12 || date.day < 1 || date.day > 31 ||
+      !Array.isArray(triggerItems) || triggerItems.length === 0 ||
+      !Array.isArray(suggestedItems) || suggestedItems.length === 0 ||
+      triggerItems.length > 50 || suggestedItems.length > 50 ||
+      [...triggerItems, ...suggestedItems].some((i: unknown) => typeof i !== 'string' || i.length > 100)
+    ) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     const newRule: SpecialDateRule = {
@@ -55,7 +72,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       suggestedItems,
     }
 
-    const specialDates = (tenant as any).specialDates || []
+    const specialDates = tenant.specialDates || []
     specialDates.push(newRule)
 
     await Tenant.updateOne(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongoose"
 import Tenant from "@/models/Tenant"
 import { captureSaleConsumed } from "@/lib/inventory"
+import { requireAuth, getSessionUser } from "@/lib/apiAuth"
 
 // ============================================================================
 // POST /api/[tenant]/inventory/pos-sale — Capturar venta POS → SaleConsumed
@@ -24,18 +25,32 @@ export async function POST(
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
 
+    const authError = await requireAuth(request, tenant._id.toString())
+    if (authError) return authError
+
+    // El actor se deriva SIEMPRE del token: nunca del body del request.
+    const sessionUser = await getSessionUser(request)
+    const actorId: string | undefined = sessionUser?.id ?? undefined
+
     const body = await request.json()
 
-    // Validación
-    if (!body.orderId || !Array.isArray(body.items) || !body.storageLocationId) {
+    // Validación (ObjectId estricto: evita CastError de Mongoose → 500)
+    const isObjectId = (v: unknown): v is string =>
+      typeof v === "string" && /^[a-fA-F0-9]{24}$/.test(v)
+
+    if (!isObjectId(body.orderId) || !Array.isArray(body.items) || !isObjectId(body.storageLocationId)) {
       return NextResponse.json(
         { error: "Se requiere: orderId, items[], storageLocationId" },
         { status: 400 }
       )
     }
 
+    if (body.items.length > 200) {
+      return NextResponse.json({ error: "Máximo 200 items por venta" }, { status: 400 })
+    }
+
     for (const item of body.items) {
-      if (!item.productId || !item.quantity || item.quantity <= 0) {
+      if (!isObjectId(item.productId) || typeof item.quantity !== "number" || item.quantity <= 0) {
         return NextResponse.json(
           { error: "Cada item debe tener productId y quantity > 0" },
           { status: 400 }
@@ -48,7 +63,7 @@ export async function POST(
       body.orderId,
       body.items,
       body.storageLocationId,
-      body.actorId
+      actorId
     )
 
     return NextResponse.json({
