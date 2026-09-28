@@ -5,7 +5,10 @@ import { requireAuth } from '@/lib/apiAuth'
 import { uploadBuffer, folderRoot } from '@/lib/cloudinary'
 import { rateLimit } from '@/lib/rateLimit'
 
-export const MAX_MENU_PHOTOS = 6
+// Sin `export`: Next genera `.next/types/.../route.ts` que exige que el módulo
+// solo exporte métodos HTTP y claves de configuración (OmitWithTag → nunca).
+// Un `export const` extra rompe el type check del build con TS2344.
+const MAX_MENU_PHOTOS = 6
 const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif']
 
