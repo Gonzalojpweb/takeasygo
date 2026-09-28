@@ -8,6 +8,9 @@ import {
 import { db } from "../db/dexie"
 import { setEncryptionKey } from "./useEncryptionKey"
 import * as authApi from "../services/auth-api"
+// Misma constante que usa el cliente /pos/* para leer la sesión: si cada uno
+// tuviera la suya, un rename rompería la autenticación en silencio.
+import { SESSION_CACHE_KEY } from "../services/pos-api"
 
 // ============================================================================
 // Token lifecycle constants
@@ -58,8 +61,6 @@ export interface AuthContextValue {
   login: (mode: "pin" | "email", credentials: Record<string, string>) => Promise<void>
   logout: () => Promise<void>
 }
-
-const SESSION_CACHE_KEY = "takeasygo_session"
 
 function cacheSession(data: authApi.LoginResponse, tenantId: string) {
   try {

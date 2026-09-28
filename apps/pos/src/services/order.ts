@@ -1,32 +1,115 @@
 import type { Order, OrderItem, OrderStatus } from "@takeasygo/types"
-import { calculateOrderTotal, calculateItemTotal, validateOrderItems } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
-import { enqueue } from "./event-queue"
+import { posApi } from "./pos-api"
+import { runMutation } from "./polling"
+import { rehydrateOrder } from "./pos-wire"
 import { notifyStatusToSyncLayer } from "./sync-api"
 
 // ============================================================================
-// Transitions permitidas — selladas por Gemini
+// Server-first (V1 POS Online) — órdenes
+// ============================================================================
+// Todo va contra /api/[tenant]/pos/orders*. El server es la única fuente de
+// verdad para:
+//   · totales (recalculados desde los items; un total descuadre → 400)
+//   · editar items en estado que no lo permite (409)
+//   · grafo de transiciones (@takeasygo/business — mismo módulo que acá)
+//   · liberar la mesa al cancelar/entregar
+//   · idempotencia por posId (= Idempotency-Key)
+// Dexie se escribe recién con la respuesta, con las fechas rehidratadas (D10).
+// El outbox ya no participa para estas escrituras.
+//
+// Regla de validación: las reglas de dominio (items, totales, grafo de
+// transiciones, ciclo de vida) SOLO las decide el server. Del lado cliente
+// quedan únicamente guardas triviales de argumentos (`quantity < 0`) que no
+// pueden divergir.
+//
+// `notifyStatusToSyncLayer` se MANTIENE como estaba: sigue empujando el cambio
+// de estado a Sync Layer para que emita por socket a cocina/otras terminales.
+// M6 no lo retiró — el polling cubre la concurrencia entre terminales del POS,
+// no el empuje de estado a Sync Layer. Retirarlo es D16 (decisión aparte).
+//
+// `runMutation` marca cada ciclo servidor+Dexie para que el polling no
+// escriba por encima con una respuesta anterior.
 // ============================================================================
 
-const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending: ["confirmed", "preparing", "cancelled", "delivered"],
-  confirmed: ["preparing", "cancelled"],
-  preparing: ["ready", "cancelled"],
-  ready: ["en_ruta", "delivered", "cancelled"],
-  en_ruta: ["arrived", "cancelled"],
-  arrived: ["delivered", "cancelled"],
-  delivered: [],
-  cancelled: [],
-  requires_manual_attention: ["confirmed", "preparing", "ready", "en_ruta", "arrived", "delivered", "cancelled"],
+type WireOrder = Order
+
+async function postOrder(
+  tenantId: string,
+  path: string,
+  body: Record<string, unknown>,
+  idempotencyKey?: string
+): Promise<WireOrder> {
+  const { order } = await posApi<{ order: WireOrder }>(tenantId, path, {
+    method: "POST",
+    body,
+    idempotencyKey,
+  })
+  return order
 }
 
-function validateOrderTransition(from: OrderStatus, to: OrderStatus): void {
-  const allowed = VALID_ORDER_TRANSITIONS[from]
-  if (!allowed.includes(to)) {
-    throw new Error(
-      `[order] Invalid transition: ${from} → ${to}. Allowed: [${allowed.join(", ")}]`
+async function patchOrder(
+  tenantId: string,
+  path: string,
+  body: Record<string, unknown>
+): Promise<WireOrder> {
+  const { order } = await posApi<{ order: WireOrder }>(tenantId, path, {
+    method: "PATCH",
+    body,
+  })
+  return order
+}
+
+async function saveOrder(order: WireOrder): Promise<WireOrder> {
+  const rehydrated = rehydrateOrder(order)
+  await db.orders.put(rehydrated)
+  return rehydrated
+}
+
+/**
+ * Espejo local de lo que el server ya hizo al cancelar/entregar: la mesa
+ * quedó libre en Mongo, así que el read model de esta terminal también.
+ * No es una escritura nueva — es el reflejo de la confirmación del server.
+ */
+async function releaseLocalTable(
+  tableId: string | undefined,
+  orderId: string
+): Promise<void> {
+  if (!tableId) return
+
+  const table = await db.diningTable.get(tableId)
+  if (!table || table.currentOrderId !== orderId) return
+
+  await db.diningTable.update(tableId, {
+    status: "free",
+    currentOrderId: undefined,
+    serverId: undefined,
+    needsBill: false,
+  })
+}
+
+/** Transición de estado + refresco local + notify fire-and-forget a sync. */
+async function transition(
+  tenantId: string,
+  orderId: string,
+  status: OrderStatus,
+  jwt?: string
+): Promise<void> {
+  return runMutation(async () => {
+    const order = await saveOrder(
+      await patchOrder(tenantId, `/orders/${encodeURIComponent(orderId)}`, {
+        status,
+      })
     )
-  }
+
+    if (status === "cancelled" || status === "delivered") {
+      await releaseLocalTable(order.tableId, orderId)
+    }
+
+    if (jwt) {
+      notifyStatusToSyncLayer(orderId, status, jwt).catch(() => {})
+    }
+  })
 }
 
 // ============================================================================
@@ -38,44 +121,35 @@ export async function createOrder(
   tableId: string,
   items: OrderItem[],
   notes?: string,
-  serverId?: string,
-  customerId?: string
+  /**
+   * Firma estable: lo sigue pasando useOrders. No tiene equivalente en el
+   * contrato /pos/orders — la mesa se ocupa aparte con occupyTable().
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _serverId?: string
 ): Promise<Order> {
-  const validation = validateOrderItems(items)
-  if (!validation.valid) {
-    throw new Error(`[order] Invalid items: ${validation.errors.join("; ")}`)
-  }
+  return runMutation(async () => {
+    const id = crypto.randomUUID()
 
-  const total = calculateOrderTotal(items)
+    // `mostrador-<ts>` es un marcador local del Counter, no una mesa: si no
+    // existe en el registro de mesas no viaja y el server la trata como
+    // takeaway. Con mesa real siempre está en Dexie (es lo que eligió la UI).
+    const isRealTable = Boolean(tableId) && Boolean(await db.diningTable.get(tableId))
 
-  const order: Order = {
-    id: crypto.randomUUID(),
-    tenantId,
-    source: "pos",
-    status: "pending",
-    tableId,
-    customerId,
-    items,
-    total,
-    menuVersion: 1,
-    notes,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
+    const order = await postOrder(
+      tenantId,
+      "/orders",
+      {
+        id,
+        items,
+        ...(isRealTable ? { tableId } : {}),
+        ...(notes ? { notes } : {}),
+      },
+      id
+    )
 
-  await db.orders.add(order)
-
-  await enqueue(tenantId, "order.created", {
-    orderId: order.id,
-    tableId,
-    customerId,
-    items,
-    total,
-    notes,
-    serverId,
+    return saveOrder(order)
   })
-
-  return order
 }
 
 export async function addItem(
@@ -83,30 +157,22 @@ export async function addItem(
   orderId: string,
   item: OrderItem
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
-
-  if (!["pending", "confirmed"].includes(order.status)) {
-    throw new Error(
-      `[order] Cannot add item to order ${orderId} in status ${order.status}`
+  return runMutation(async () => {
+    const order = await postOrder(
+      tenantId,
+      `/orders/${encodeURIComponent(orderId)}/items`,
+      {
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.total,
+        ...(item.modifiers ? { modifiers: item.modifiers } : {}),
+        ...(item.notes ? { notes: item.notes } : {}),
+      }
     )
-  }
 
-  const newItems = [...order.items, item]
-  const total = calculateOrderTotal(newItems)
-
-  await db.orders.update(orderId, {
-    items: newItems,
-    total,
-    updatedAt: new Date(),
-  })
-
-  await enqueue(tenantId, "order.updated", {
-    orderId,
-    action: "item_added",
-    item,
-    total,
+    await saveOrder(order)
   })
 }
 
@@ -115,34 +181,14 @@ export async function removeItem(
   orderId: string,
   productId: string
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
+  return runMutation(async () => {
+    const order = await posApi<{ order: WireOrder }>(
+      tenantId,
+      `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(productId)}`,
+      { method: "DELETE" }
+    ).then((r) => r.order)
 
-  if (!["pending", "confirmed"].includes(order.status)) {
-    throw new Error(
-      `[order] Cannot remove item from order ${orderId} in status ${order.status}`
-    )
-  }
-
-  const newItems = order.items.filter((i) => i.productId !== productId)
-  if (newItems.length === order.items.length) {
-    throw new Error(`[order] Product ${productId} not found in order ${orderId}`)
-  }
-
-  const total = calculateOrderTotal(newItems)
-
-  await db.orders.update(orderId, {
-    items: newItems,
-    total,
-    updatedAt: new Date(),
-  })
-
-  await enqueue(tenantId, "order.updated", {
-    orderId,
-    action: "item_removed",
-    productId,
-    total,
+    await saveOrder(order)
   })
 }
 
@@ -152,43 +198,18 @@ export async function updateItemQuantity(
   productId: string,
   quantity: number
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
-
-  if (!["pending", "confirmed"].includes(order.status)) {
-    throw new Error(
-      `[order] Cannot modify items in order ${orderId} in status ${order.status}`
-    )
-  }
-
   if (quantity < 0) {
     throw new Error(`[order] Quantity cannot be negative`)
   }
 
-  let newItems: OrderItem[]
-  if (quantity === 0) {
-    newItems = order.items.filter((i) => i.productId !== productId)
-  } else {
-    newItems = order.items.map((i) =>
-      i.productId === productId ? { ...i, quantity, total: calculateItemTotal({ ...i, quantity }) } : i
+  return runMutation(async () => {
+    const order = await patchOrder(
+      tenantId,
+      `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(productId)}`,
+      { quantity }
     )
-  }
 
-  const total = calculateOrderTotal(newItems)
-
-  await db.orders.update(orderId, {
-    items: newItems,
-    total,
-    updatedAt: new Date(),
-  })
-
-  await enqueue(tenantId, "order.updated", {
-    orderId,
-    action: "quantity_updated",
-    productId,
-    quantity,
-    total,
+    await saveOrder(order)
   })
 }
 
@@ -197,27 +218,7 @@ export async function confirmOrder(
   orderId: string,
   jwt?: string
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
-
-  validateOrderTransition(order.status, "confirmed")
-
-  await db.orders.update(orderId, {
-    status: "confirmed",
-    updatedAt: new Date(),
-  })
-
-  await enqueue(tenantId, "order.confirmed", {
-    orderId,
-    tableId: order.tableId,
-    items: order.items,
-    total: order.total,
-  })
-
-  if (jwt) {
-    notifyStatusToSyncLayer(orderId, "confirmed", jwt).catch(() => {})
-  }
+  await transition(tenantId, orderId, "confirmed", jwt)
 }
 
 export async function prepareOrder(
@@ -225,26 +226,7 @@ export async function prepareOrder(
   orderId: string,
   jwt?: string
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
-
-  validateOrderTransition(order.status, "preparing")
-
-  await db.orders.update(orderId, {
-    status: "preparing",
-    updatedAt: new Date(),
-  })
-
-  await enqueue(tenantId, "order.preparing", {
-    orderId,
-    tableId: order.tableId,
-    source: order.source,
-  })
-
-  if (jwt) {
-    notifyStatusToSyncLayer(orderId, "preparing", jwt).catch(() => {})
-  }
+  await transition(tenantId, orderId, "preparing", jwt)
 }
 
 export async function markReady(
@@ -252,26 +234,7 @@ export async function markReady(
   orderId: string,
   jwt?: string
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
-
-  validateOrderTransition(order.status, "ready")
-
-  await db.orders.update(orderId, {
-    status: "ready",
-    updatedAt: new Date(),
-  })
-
-  await enqueue(tenantId, "order.ready", {
-    orderId,
-    tableId: order.tableId,
-    source: order.source,
-  })
-
-  if (jwt) {
-    notifyStatusToSyncLayer(orderId, "ready", jwt).catch(() => {})
-  }
+  await transition(tenantId, orderId, "ready", jwt)
 }
 
 export async function cancelOrder(
@@ -279,38 +242,7 @@ export async function cancelOrder(
   orderId: string,
   jwt?: string
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
-
-  validateOrderTransition(order.status, "cancelled")
-
-  await db.orders.update(orderId, {
-    status: "cancelled",
-    updatedAt: new Date(),
-  })
-
-  // Liberar mesa si estaba vinculada
-  if (order.tableId) {
-    const table = await db.diningTable.get(order.tableId)
-    if (table && table.currentOrderId === orderId) {
-      await db.diningTable.update(order.tableId, {
-        status: "free",
-        currentOrderId: undefined,
-        serverId: undefined,
-      })
-    }
-  }
-
-  await enqueue(tenantId, "order.cancelled", {
-    orderId,
-    tableId: order.tableId,
-    previousStatus: order.status,
-  })
-
-  if (jwt) {
-    notifyStatusToSyncLayer(orderId, "cancelled", jwt).catch(() => {})
-  }
+  await transition(tenantId, orderId, "cancelled", jwt)
 }
 
 export async function deliverOrder(
@@ -318,38 +250,7 @@ export async function deliverOrder(
   orderId: string,
   jwt?: string
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
-
-  validateOrderTransition(order.status, "delivered")
-
-  await db.orders.update(orderId, {
-    status: "delivered",
-    updatedAt: new Date(),
-  })
-
-  // Liberar mesa si estaba vinculada
-  if (order.tableId) {
-    const table = await db.diningTable.get(order.tableId)
-    if (table && table.currentOrderId === orderId) {
-      await db.diningTable.update(order.tableId, {
-        status: "free",
-        currentOrderId: undefined,
-        serverId: undefined,
-      })
-    }
-  }
-
-  await enqueue(tenantId, "order.delivered", {
-    orderId,
-    tableId: order.tableId,
-    total: order.total,
-  })
-
-  if (jwt) {
-    notifyStatusToSyncLayer(orderId, "delivered", jwt).catch(() => {})
-  }
+  await transition(tenantId, orderId, "delivered", jwt)
 }
 
 export async function setEnRuta(
@@ -357,26 +258,7 @@ export async function setEnRuta(
   orderId: string,
   jwt?: string
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
-
-  validateOrderTransition(order.status, "en_ruta")
-
-  await db.orders.update(orderId, {
-    status: "en_ruta",
-    updatedAt: new Date(),
-  })
-
-  await enqueue(tenantId, "order.en_ruta", {
-    orderId,
-    tableId: order.tableId,
-    source: order.source,
-  })
-
-  if (jwt) {
-    notifyStatusToSyncLayer(orderId, "en_ruta", jwt).catch(() => {})
-  }
+  await transition(tenantId, orderId, "en_ruta", jwt)
 }
 
 export async function setArrived(
@@ -384,30 +266,12 @@ export async function setArrived(
   orderId: string,
   jwt?: string
 ): Promise<void> {
-  const order = await db.orders.get(orderId)
-  if (!order) throw new Error(`[order] Order ${orderId} not found`)
-  if (order.tenantId !== tenantId) throw new Error("[order] Tenant mismatch")
-
-  validateOrderTransition(order.status, "arrived")
-
-  await db.orders.update(orderId, {
-    status: "arrived",
-    updatedAt: new Date(),
-  })
-
-  await enqueue(tenantId, "order.arrived", {
-    orderId,
-    tableId: order.tableId,
-    source: order.source,
-  })
-
-  if (jwt) {
-    notifyStatusToSyncLayer(orderId, "arrived", jwt).catch(() => {})
-  }
+  await transition(tenantId, orderId, "arrived", jwt)
 }
 
 // ============================================================================
-// Lecturas
+// Lecturas — siguen locales: Dexie es el read model y `services/polling.ts`
+// lo refresca contra GET /pos/orders sin borrar nada.
 // ============================================================================
 
 export async function getOrder(
