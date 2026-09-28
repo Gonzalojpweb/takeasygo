@@ -22,6 +22,7 @@ import {
   onReconnect,
 } from "./services/connectivity"
 import { flush } from "./services/event-queue"
+import { startPosPolling, stopPosPolling } from "./services/polling"
 import { connectSocket, disconnectSocket, onSocketEvent } from "./services/socket-client"
 import { handleTakeasyGOSale } from "./services/sync-cash"
 import type { TakeasyGOSalePayload } from "./services/sync-cash"
@@ -67,6 +68,11 @@ function App() {
     }
 
     startConnectivityMonitoring()
+
+    // ── M6: diff-then-put de mesas/órdenes/cajas contra el SaaS ──
+    // Sin esto cada terminal solo ve lo que ella misma escribió (D14).
+    // El primer tick corre adentro de startPosPolling, sin esperar el intervalo.
+    startPosPolling(state.tenantId)
 
     // ── Connect socket at root level (CRITICAL) ──
     connectSocket(state.jwt.accessToken)
@@ -235,6 +241,7 @@ function App() {
       unsubOrderCancelled()
       unsubscribe()
       stopConnectivityMonitoring()
+      stopPosPolling()
       disconnectSocket()
     }
   }, [state.status, state.tenantId, state.jwt])
