@@ -42,7 +42,8 @@
         "VAPID_PUBLIC_KEY",
         "VAPID_PRIVATE_KEY",
         "VITE_SYNC_URL",
-        "VITE_SAAS_URL"
+        "VITE_SAAS_URL",
+        "POS_CORS_ORIGIN"
       ]
     },
     "dev": {
