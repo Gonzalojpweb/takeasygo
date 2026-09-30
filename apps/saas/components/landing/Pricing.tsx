@@ -18,7 +18,7 @@ interface LandingPlan {
     features?: string[]
     featured?: boolean
     anchorPrice?: string   // precio tachado (referencia más alta)
-    anchorSavings?: string // badge de ahorro (ej: "Ahorrás $117.000")
+    anchorSavings?: string // badge de ahorro (ej: "Ahorrás $63.000")
     anchorHint?: string    // texto sutil debajo del precio (mensual)
 }
 
@@ -26,33 +26,33 @@ const mensualPlans: LandingPlan[] = [
     {
         id: 'inicial-mensual',
         name: 'Inicial',
-        price: '65.000',
+        price: '35.000',
         sub: 'Para empezar a vender online',
         planKey: 'try',
         featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
         extraFeatures: PLAN_FEATURES_LANDING.try.extra,
-        anchorHint: 'Con pago anual pagás $55.250/mes · Ahorrás $117.000/año',
+        anchorHint: 'Con pago anual pagás $29.750/mes · Ahorrás $63.000/año',
     },
     {
         id: 'crecimiento-mensual',
         name: 'Crecimiento',
-        price: '75.000',
+        price: '45.000',
         sub: 'Para escalar tu operación',
         planKey: 'buy',
         featured: true,
         featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
         extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
-        anchorHint: 'Con pago anual pagás $63.750/mes · Ahorrás $135.000/año',
+        anchorHint: 'Con pago anual pagás $38.250/mes · Ahorrás $81.000/año',
     },
     {
         id: 'premium-mensual',
         name: 'Premium',
-        price: '90.000',
+        price: '60.000',
         sub: 'Para optimizar con datos',
         planKey: 'full',
         featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
         extraFeatures: PLAN_FEATURES_LANDING.full.extra,
-        anchorHint: 'Con pago anual pagás $76.500/mes · Ahorrás $162.000/año',
+        anchorHint: 'Con pago anual pagás $51.000/mes · Ahorrás $108.000/año',
     },
 ]
 
@@ -60,36 +60,36 @@ const anualPlans: LandingPlan[] = [
     {
         id: 'inicial-anual',
         name: 'Inicial',
-        price: '663.000',
+        price: '357.000',
         sub: 'Pago anual anticipado · 15% OFF',
         planKey: 'try',
         featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
         extraFeatures: PLAN_FEATURES_LANDING.try.extra,
-        anchorPrice: '780.000',
-        anchorSavings: 'Ahorrás $117.000',
+        anchorPrice: '420.000',
+        anchorSavings: 'Ahorrás $63.000',
     },
     {
         id: 'crecimiento-anual',
         name: 'Crecimiento',
-        price: '765.000',
+        price: '459.000',
         sub: 'Pago anual anticipado · 15% OFF',
         planKey: 'buy',
         featured: true,
         featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
         extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
-        anchorPrice: '900.000',
-        anchorSavings: 'Ahorrás $135.000',
+        anchorPrice: '540.000',
+        anchorSavings: 'Ahorrás $81.000',
     },
     {
         id: 'premium-anual',
         name: 'Premium',
-        price: '918.000',
+        price: '612.000',
         sub: 'Pago anual anticipado · 15% OFF',
         planKey: 'full',
         featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
         extraFeatures: PLAN_FEATURES_LANDING.full.extra,
-        anchorPrice: '1.080.000',
-        anchorSavings: 'Ahorrás $162.000',
+        anchorPrice: '720.000',
+        anchorSavings: 'Ahorrás $108.000',
     },
 ]
 

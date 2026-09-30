@@ -181,6 +181,10 @@ export const onboardingRegisterSchema = z.object({
   // El enlace es texto libre: se normaliza con slugify() en el route handler.
   slug: z.string().max(80).trim().default(''),
   email: z.string().email('Email inválido').max(200).trim(),
+  // Plan elegido en el picker. Se valida de nuevo en el server con resolveInitialPlan().
+  selectedPlan: z.enum(['trial', 'try', 'buy', 'full']).default('trial'),
+  // Origen del alta (p.ej. 'demo'). 'demo' fuerza trial del lado server.
+  origen: z.string().max(40).trim().default(''),
 })
 
 export const onboardingVerifySchema = z.object({
