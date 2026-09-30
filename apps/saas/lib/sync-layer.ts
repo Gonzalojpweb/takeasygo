@@ -3,24 +3,6 @@ import mongoose from 'mongoose'
 const SYNC_LAYER_URL = process.env.SYNC_LAYER_URL ?? ""
 const SYNC_LAYER_SECRET = process.env.SYNC_LAYER_SECRET ?? ""
 
-// Todo destino y todo fallo deja URL en el log: con console.error solo no se
-// distingue "variable sin cargar" de "401" de "timeout".
-const target = SYNC_LAYER_URL || "(SYNC_LAYER_URL sin definir)"
-const secretState = SYNC_LAYER_SECRET ? "presente" : "AUSENTE"
-
-/** true = falta env; deja el motivo en el log y el caller aborta. */
-function envMissing(fn: string): boolean {
-  if (SYNC_LAYER_URL && SYNC_LAYER_SECRET) return false
-  const missing = [
-    !SYNC_LAYER_URL ? "SYNC_LAYER_URL" : "",
-    !SYNC_LAYER_SECRET ? "SYNC_LAYER_SECRET" : "",
-  ]
-    .filter(Boolean)
-    .join(" y ")
-  console.warn(`[sync-layer] SKIP ${fn}: falta ${missing}. Nada se envi\u00f3 al Sync Layer.`)
-  return true
-}
-
 interface SyncOrderPayload {
   tenantId: string
   externalOrderId: string
@@ -35,7 +17,10 @@ interface SyncOrderPayload {
 }
 
 export async function pushOrderToSyncLayer(payload: SyncOrderPayload): Promise<void> {
-  if (envMissing("pushOrderToSyncLayer")) return
+  if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) {
+    console.warn("[sync-layer] SYNC_LAYER_URL or SYNC_LAYER_SECRET not configured, skipping")
+    return
+  }
 
   try {
     const res = await fetch(`${SYNC_LAYER_URL}/api/v1/internal/orders`, {
@@ -49,11 +34,11 @@ export async function pushOrderToSyncLayer(payload: SyncOrderPayload): Promise<v
 
     if (!res.ok) {
       const text = await res.text().catch(() => "unknown")
-      console.error(`[sync-layer] push POST ${target}/api/v1/internal/orders -> ${res.status}: ${text}`)
+      console.error(`[sync-layer] push failed (${res.status}): ${text}`)
       return
     }
   } catch (err) {
-    console.error(`[sync-layer] push error -> ${target}/api/v1/internal/orders:`, err)
+    console.error("[sync-layer] push error:", err)
   }
 }
 
@@ -61,7 +46,7 @@ export async function confirmOrderInSyncLayer(
   orderId: string,
   tenantId: string
 ): Promise<boolean> {
-  if (envMissing("confirmOrderInSyncLayer")) return false
+  if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) return false
 
   const MAX_RETRIES = 3
   const DELAYS_MS = [2000, 4000, 8000]
@@ -82,14 +67,9 @@ export async function confirmOrderInSyncLayer(
       }
 
       const text = await res.text().catch(() => "unknown")
-      console.warn(
-        `[sync-layer] confirm attempt ${attempt}/${MAX_RETRIES} -> PATCH ${target}/api/v1/internal/orders/${orderId}/confirm -> ${res.status}: ${text}`
-      )
+      console.warn(`[sync-layer] confirm attempt ${attempt}/${MAX_RETRIES} failed (${res.status}): ${text}`)
     } catch (err) {
-      console.warn(
-        `[sync-layer] confirm attempt ${attempt}/${MAX_RETRIES} -> PATCH ${target}/api/v1/internal/orders/${orderId}/confirm error:`,
-        err
-      )
+      console.warn(`[sync-layer] confirm attempt ${attempt}/${MAX_RETRIES} error:`, err)
     }
 
     if (attempt < MAX_RETRIES) {
@@ -98,7 +78,7 @@ export async function confirmOrderInSyncLayer(
   }
 
   console.error(
-    `[sync-layer] confirm ABORTED - SyncLayer unreachable after ${MAX_RETRIES} retries. target=${target} secret=${secretState}`,
+    `[sync-layer] confirm ABORTED — SyncLayer unreachable after ${MAX_RETRIES} retries`,
     { orderId, tenantId }
   )
   return false
@@ -114,7 +94,7 @@ interface CashSalePayload {
 }
 
 export async function notifyCashSale(payload: CashSalePayload): Promise<void> {
-  if (envMissing("notifyCashSale")) return
+  if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) return
 
   try {
     const res = await fetch(`${SYNC_LAYER_URL}/api/v1/cash-sale`, {
@@ -128,11 +108,11 @@ export async function notifyCashSale(payload: CashSalePayload): Promise<void> {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "unknown")
-      console.error(`[sync-layer] cash-sale notify POST ${target}/api/v1/cash-sale -> ${res.status}: ${text}`)
+      console.error(`[sync-layer] cash-sale notify failed (${res.status}): ${text}`)
       return
     }
   } catch (err) {
-    console.error(`[sync-layer] cash-sale notify error -> ${target}/api/v1/cash-sale:`, err)
+    console.error("[sync-layer] cash-sale notify error:", err)
   }
 }
 
@@ -172,7 +152,7 @@ export async function confirmOrderPayment(
   order: ConfirmableOrder,
   tenant: ConfirmableTenant
 ): Promise<void> {
-  if (envMissing("confirmOrderPayment")) return
+  if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) return
 
   const orderId = order._id.toString()
   const tenantId = tenant._id.toString()
@@ -181,8 +161,8 @@ export async function confirmOrderPayment(
   const confirmed = await confirmOrderInSyncLayer(orderId, tenantId)
   if (!confirmed) {
     console.error(
-      `[confirmOrderPayment] ABORTED - SyncLayer unreachable after retries. ` +
-        `Nothing registered in cash or CIS. Caller can retry. target=${target} secret=${secretState}`,
+      `[confirmOrderPayment] ABORTED — SyncLayer unreachable after retries. ` +
+      `Nothing registered in cash or CIS. Caller can retry.`,
       { orderId, tenantId, paymentMethod: order.payment?.method }
     )
     return
@@ -257,7 +237,7 @@ export async function notifySyncLayerStatus(
   orderId: string,
   status: string
 ): Promise<void> {
-  if (envMissing("notifySyncLayerStatus")) return
+  if (!SYNC_LAYER_URL || !SYNC_LAYER_SECRET) return
 
   try {
     const res = await fetch(`${SYNC_LAYER_URL}/api/v1/internal/orders/${orderId}/status`, {
@@ -271,10 +251,10 @@ export async function notifySyncLayerStatus(
 
     if (!res.ok) {
       const text = await res.text().catch(() => "unknown")
-      console.error(`[sync-layer] notify status POST ${target}/api/v1/internal/orders/${orderId}/status -> ${res.status}: ${text}`)
+      console.error(`[sync-layer] notify status failed (${res.status}): ${text}`)
       return
     }
   } catch (err) {
-    console.error(`[sync-layer] notify status error -> ${target}/api/v1/internal/orders/${orderId}/status:`, err)
+    console.error("[sync-layer] notify status error:", err)
   }
 }
