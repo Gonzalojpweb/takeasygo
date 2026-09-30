@@ -20,7 +20,8 @@ export async function PATCH(
 
     tenant.onboarding.status = 'pending_review'
     tenant.onboarding.submittedAt = new Date()
-    tenant.onboarding.step = 6
+    // 3 plan → 4 sede → 5 identidad → 6 preview → 7 enviado a revisión
+    tenant.onboarding.step = 7
     
     await tenant.save()
 

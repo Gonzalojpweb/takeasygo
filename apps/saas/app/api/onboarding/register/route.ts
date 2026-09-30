@@ -4,6 +4,7 @@ import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import { onboardingRegisterSchema } from '@/lib/schemas'
 import { slugifyOrFallback } from '@/lib/slugify'
+import { resolveInitialPlan } from '@/lib/plans'
 import { sendOnboardingVerifyEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rateLimit'
 import crypto from 'crypto'
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
     }
 
-    const { name, slug, email } = parsed.data
+    const { name, slug, email, selectedPlan, origen } = parsed.data
 
     // Texto libre → slug válido. Cualquier nombre (tildes, mayúsculas, símbolos,
     // no-ASCII, emoji) produce un enlace usable; nunca queda vacío.
@@ -74,6 +75,10 @@ export async function POST(req: Request) {
         step: 1,
         ticketHash: hashedTicket,
         ticketExpiry: ticketExpiry,
+        // Resuelto en server: 'demo' siempre trial, plan desconocido → trial.
+        // Esto NO toca tenant.plan (sigue en 'trial' hasta la aprobación).
+        selectedPlan: resolveInitialPlan(selectedPlan, origen),
+        origen: origen || null,
       },
     })
 

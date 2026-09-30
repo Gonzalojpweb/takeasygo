@@ -71,7 +71,21 @@ export async function POST(
       body.slug = slugifyOrFallback(body.name, body.slug)
     }
 
-    const location = await Location.create({ ...body, tenantId: tenant._id })
+    let location
+    if (request.headers.get('x-onboarding') === '1') {
+      // Reenvío idempotente: un prospecto rechazado que vuelve a editar recae en
+      // este mismo paso y { tenantId, slug } es único → create rompería con 500
+      // y lo dejaría trabado sin poder reenviar la solicitud.
+      const toWrite: Record<string, unknown> = { ...body }
+      delete toWrite.tenantId
+      location = await Location.findOneAndUpdate(
+        { tenantId: tenant._id, slug: body.slug },
+        { $set: toWrite },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      )
+    } else {
+      location = await Location.create({ ...body, tenantId: tenant._id })
+    }
 
     logAudit({ tenantId: tenant._id.toString(), action: 'settings.location.created', entity: 'location', entityId: location._id.toString(), details: { name: body.name }, request })
     return NextResponse.json({ location, geoWarning }, { status: 201 })

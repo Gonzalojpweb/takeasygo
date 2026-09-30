@@ -30,6 +30,12 @@ export async function POST(
       tenant.onboarding.reviewedAt = new Date()
       tenant.onboarding.reviewedBy = reviewer
       tenant.onboarding.rejectionReason = null
+      // Recién acá se materializa lo que eligió el prospecto en el picker.
+      // Hasta la aprobación tenant.plan quedó en 'trial': nadie se autoasigna
+      // un plan pago sin que un superadmin lo revise.
+      if (tenant.onboarding.selectedPlan) {
+        tenant.plan = tenant.onboarding.selectedPlan
+      }
     } else if (action === 'reject') {
       tenant.onboarding.status = 'rejected'
       tenant.onboarding.reviewedAt = new Date()

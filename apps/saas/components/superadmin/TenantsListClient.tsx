@@ -24,6 +24,7 @@ type Tenant = {
   createdAt: string
   onboardingStatus?: string
   menuPhotos?: string[]
+  selectedPlan?: string
 }
 
 type SortKey = 'az' | 'za' | 'newest' | 'oldest'
@@ -331,6 +332,9 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                         <span className="text-xs font-bold text-blue-800">Pendiente de revisión</span>
                       </div>
+                      <p className="text-[10px] font-bold text-blue-700">
+                        Plan solicitado: {PLAN_LABELS[(tenant.selectedPlan || 'trial') as Plan]}
+                      </p>
                       {tenant.menuPhotos && tenant.menuPhotos.length > 0 && (
                         <div className="flex flex-wrap gap-1.5" title="Fotos del menú enviadas">
                           {tenant.menuPhotos.map((url) => (

@@ -22,6 +22,7 @@ export default async function TenantsPage() {
     createdAt:    t.createdAt.toISOString(),
     onboardingStatus: t.onboarding?.status || 'none',
     menuPhotos: t.onboarding?.menuPhotos || [],
+    selectedPlan: t.onboarding?.selectedPlan || 'trial',
   }))
 
   return (

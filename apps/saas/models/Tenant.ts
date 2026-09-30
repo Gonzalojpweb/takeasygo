@@ -65,6 +65,11 @@ export interface ITenant extends Document {
     rejectionReason: string | null
     /** Fotos del menú que subió el prospecto. Internas: viajan con la solicitud a revisión. */
     menuPhotos: string[]
+    /** Plan elegido por el prospecto en el picker. NO toca `tenant.plan` hasta que
+     *  un superadmin aprueba la revisión (ver onboarding/review route). */
+    selectedPlan: 'trial' | 'try' | 'buy' | 'full'
+    /** De dónde vino el alta. 'demo' bloquea la elección de plan pago en el server. */
+    origen: string | null
   }
   subscription: {
     preapprovalId: string | null
@@ -421,6 +426,12 @@ const TenantSchema = new Schema<ITenant>(
           message: 'Menu photos max 6 images',
         },
       },
+      selectedPlan: {
+        type: String,
+        enum: ['trial', 'try', 'buy', 'full'],
+        default: 'trial',
+      },
+      origen: { type: String, default: null },
     },
     subscription: {
       preapprovalId: { type: String, default: null },
