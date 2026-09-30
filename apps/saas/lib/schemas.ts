@@ -176,8 +176,10 @@ export const superadminCreateTenantSchema = z.object({
 // ── Onboarding ──────────────────────────────────────────────────────────────
 
 export const onboardingRegisterSchema = z.object({
-  name: z.string().min(2, 'Ingresá el nombre de tu negocio').max(100).trim(),
-  slug: z.string().regex(/^[a-z0-9-]{2,50}$/, 'El enlace solo puede contener minúsculas, números y guiones').trim(),
+  // El nombre acepta cualquier letra (con/sin tilde), símbolo, mayúscula y espacio.
+  name: z.string().min(2, 'Ingresá el nombre de tu negocio').max(150).trim(),
+  // El enlace es texto libre: se normaliza con slugify() en el route handler.
+  slug: z.string().max(80).trim().default(''),
   email: z.string().email('Email inválido').max(200).trim(),
 })
 

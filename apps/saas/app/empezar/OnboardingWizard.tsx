@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
+import { slugify, slugifyOrFallback } from '@/lib/slugify'
 
 export default function OnboardingWizard() {
   const router = useRouter()
@@ -50,8 +51,9 @@ export default function OnboardingWizard() {
     setLoading(true)
     setError('')
     
-    // Auto-generate slug if empty
-    const finalSlug = slug.trim() || name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+    // El usuario escribe lo que quiera: lo normalizamos en el cliente para que
+    // vea el enlace real, y de nuevo en el server como red de seguridad.
+    const finalSlug = slugifyOrFallback(name, slug)
     
     try {
       const res = await fetch('/api/onboarding/register', {
@@ -151,11 +153,16 @@ export default function OnboardingWizard() {
             <input 
               type="text" 
               value={slug}
-              onChange={(e) => setSlug(e.target.value)}
+              maxLength={80}
+              onChange={(e) => setSlug(slugify(e.target.value))}
               className="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-black focus:ring-black sm:text-sm p-2 border"
               placeholder="mcdonalds"
             />
           </div>
+          <p className="mt-1 text-xs text-gray-500">
+            Lo que escribas se adapta solo (tildes, mayúsculas y símbolos se convierten en guiones).
+            Si lo dejás vacío usamos el nombre del negocio.
+          </p>
         </div>
 
         <div>

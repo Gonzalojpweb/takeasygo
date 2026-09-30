@@ -12,6 +12,7 @@ export default function OnboardingInternalPage() {
   const [step, setStep] = useState(3)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
 
   // Sede
   const [address, setAddress] = useState('')
@@ -56,10 +57,11 @@ export default function OnboardingInternalPage() {
         },
         body: JSON.stringify({ name: 'Sede Principal', address, phone, isActive: true })
       })
+      const dataLoc = await resLoc.json().catch(() => ({}))
       if (!resLoc.ok) {
-        const d = await resLoc.json()
-        throw new Error(d.error || 'Error al crear sede')
+        throw new Error(dataLoc.error || 'Error al crear sede')
       }
+      if (dataLoc.geoWarning) setWarning(dataLoc.geoWarning)
 
       await advanceStep(4, { cuisineTypes: [cuisine] })
     } catch (e) {
@@ -106,6 +108,7 @@ export default function OnboardingInternalPage() {
       <h1 className="text-2xl font-bold mb-6">Completá tu perfil</h1>
       
       {error && <div className="p-4 bg-red-50 text-red-600 rounded-md mb-6">{error}</div>}
+      {warning && <div className="p-4 bg-amber-50 text-amber-800 rounded-md mb-6">{warning}</div>}
 
       {step === 3 && (
         <form onSubmit={handleSede} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-4">
@@ -120,15 +123,36 @@ export default function OnboardingInternalPage() {
             <input type="text" required value={phone} onChange={e => setPhone(e.target.value)} className="mt-1 w-full p-2 border rounded-md" placeholder="1122334455" />
           </div>
           <div>
-            <label className="block text-sm font-medium">Tipo de comida principal</label>
-            <select value={cuisine} onChange={e => setCuisine(e.target.value)} className="mt-1 w-full p-2 border rounded-md">
-              <option value="Cafetería de especialidad">Cafetería de especialidad</option>
-              <option value="Hamburguesas">Hamburguesas</option>
-              <option value="Parrilla">Parrilla</option>
-              <option value="Pizza">Pizza</option>
-              <option value="Sandwich">Sandwich</option>
-              <option value="Ensaladas">Ensaladas</option>
-            </select>
+            <label className="block text-sm font-medium" htmlFor="cuisine">Tipo de comida principal</label>
+            <input
+              id="cuisine"
+              type="text"
+              list="cuisine-options"
+              required
+              value={cuisine}
+              onChange={e => setCuisine(e.target.value)}
+              className="mt-1 w-full p-2 border rounded-md"
+              placeholder="Ej: Parrilla, Sushi, Cafetería de especialidad…"
+            />
+            <datalist id="cuisine-options">
+              <option value="Cafetería de especialidad" />
+              <option value="Hamburguesas" />
+              <option value="Parrilla" />
+              <option value="Pizza" />
+              <option value="Sandwich" />
+              <option value="Ensaladas" />
+              <option value="Sushi" />
+              <option value="Mexicano" />
+              <option value="Pastas" />
+              <option value="Vegetariano / Vegano" />
+              <option value="Panadería" />
+              <option value="Heladería" />
+              <option value="Cocina Árabe" />
+              <option value="Comida casera" />
+            </datalist>
+            <p className="text-xs text-gray-500 mt-1">
+              Escribí el que quieras: si no está en la lista, lo tomamos igual.
+            </p>
           </div>
 
           <button type="submit" disabled={loading} className="bg-black text-white px-4 py-2 rounded-md">Continuar</button>

@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import { onboardingRegisterSchema } from '@/lib/schemas'
+import { slugifyOrFallback } from '@/lib/slugify'
 import { sendOnboardingVerifyEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rateLimit'
 import crypto from 'crypto'
@@ -25,6 +26,10 @@ export async function POST(req: Request) {
 
     const { name, slug, email } = parsed.data
 
+    // Texto libre → slug válido. Cualquier nombre (tildes, mayúsculas, símbolos,
+    // no-ASCII, emoji) produce un enlace usable; nunca queda vacío.
+    const finalSlug = slugifyOrFallback(name, slug)
+
     await connectDB()
 
     // 1. Check if email exists
@@ -34,9 +39,12 @@ export async function POST(req: Request) {
     }
 
     // 2. Check if slug exists
-    const tenantExists = await Tenant.exists({ slug })
+    const tenantExists = await Tenant.exists({ slug: finalSlug })
     if (tenantExists) {
-      return NextResponse.json({ error: 'El enlace ya está en uso' }, { status: 400 })
+      return NextResponse.json(
+        { error: `El enlace "${finalSlug}" ya está en uso. Probá con otro.` },
+        { status: 400 }
+      )
     }
 
     // 3. Rate limit per email (hash to avoid PII in Redis)
@@ -58,7 +66,7 @@ export async function POST(req: Request) {
     // 5. Create Tenant and User
     const tenant = await Tenant.create({
       name,
-      slug,
+      slug: finalSlug,
       plan: 'trial',
       status: 'active', // Required for location endpoints
       onboarding: {
