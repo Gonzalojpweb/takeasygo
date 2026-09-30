@@ -17,11 +17,15 @@ const { sendEmail, sendOnboardingApprovedEmail, sendOnboardingRejectedEmail } = 
   sendOnboardingRejectedEmail: vi.fn(),
 }))
 
-vi.mock('@/lib/email', () => ({
-  sendEmail,
-  sendOnboardingApprovedEmail,
-  sendOnboardingRejectedEmail,
-}))
+vi.mock('@/lib/email', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/email')>()
+  return {
+    ...actual, // escapeHtml / safeHeader se testean reales
+    sendEmail,
+    sendOnboardingApprovedEmail,
+    sendOnboardingRejectedEmail,
+  }
+})
 
 const tenant = { name: 'Pastrami', slug: 'pastrami' }
 const FALLBACK = 'takeasygo.latam@gmail.com'
@@ -152,5 +156,30 @@ describe('notifyReviewSubmission — fotos del menú', () => {
     await notifyReviewSubmission(tenant)
     const html = sendEmail.mock.calls[0][2] as string
     expect(html).not.toContain('Fotos del menú que subió el solicitante')
+  })
+})
+
+// ── Texto libre sin romper el HTML del mail ──────────────────────────────────
+
+describe('notifyReviewSubmission — nombres hostiles', () => {
+  it('escapa el HTML del nombre del negocio', async () => {
+    await notifyReviewSubmission({
+      name: '<script>alert(1)</script> & Cía.',
+      slug: 'cia',
+    })
+    const html = sendEmail.mock.calls[0][2] as string
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('&lt;script&gt;')
+    expect(html).toContain('&amp; Cía.')
+  })
+
+  it('saca saltos de línea del asunto (inyección de headers)', async () => {
+    await notifyReviewSubmission({
+      name: 'Pizzería\r\nBcc: victima@mail.com',
+      slug: 'pizzeria',
+    })
+    const subject = sendEmail.mock.calls[0][1] as string
+    expect(subject).not.toMatch(/[\r\n]/)
+    expect(subject).toContain('Pizzería Bcc: victima@mail.com')
   })
 })

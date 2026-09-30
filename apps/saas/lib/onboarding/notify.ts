@@ -4,7 +4,7 @@
  * Canal 1: email a takeasygo.latam@gmail.com
  * Canal 2: push notification (placeholder para integrar en Fase 2)
  */
-import { sendEmail, sendOnboardingApprovedEmail, sendOnboardingRejectedEmail } from '../email'
+import { sendEmail, sendOnboardingApprovedEmail, sendOnboardingRejectedEmail, escapeHtml, safeHeader } from '../email'
 
 const FALLBACK_ADMIN_EMAIL = 'takeasygo.latam@gmail.com'
 
@@ -27,8 +27,8 @@ function menuPhotosHtml(tenant: NotifyTenant): string {
   const thumbs = photos
     .map(
       (url) => `
-        <a href="${url}" target="_blank" style="display:inline-block;">
-          <img src="${url}" alt="Foto del menú" width="96" height="72"
+        <a href="${escapeHtml(url)}" target="_blank" style="display:inline-block;">
+          <img src="${escapeHtml(url)}" alt="Foto del menú" width="96" height="72"
                style="width:96px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #ede9e5;display:block;" />
         </a>`
     )
@@ -43,7 +43,7 @@ function menuPhotosHtml(tenant: NotifyTenant): string {
 }
 
 export async function notifyReviewSubmission(tenant: NotifyTenant) {
-  const subject = `🔔 Revisión requerida: ${tenant.name}`
+  const subject = `🔔 Revisión requerida: ${safeHeader(tenant.name)}`
   const htmlBody = `
     <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 32px; background: #ffffff; border-radius: 16px; border: 1px solid #ede9e5;">
       <div style="margin-bottom: 24px;">
@@ -53,7 +53,7 @@ export async function notifyReviewSubmission(tenant: NotifyTenant) {
       </div>
       <h1 style="font-size:22px;font-weight:600;color:#0d0b0a;margin:0 0 12px;">Nuevo tenant en revisión</h1>
       <p style="font-size:14px;color:#6b6460;line-height:1.6;margin:0 0 20px;">
-        <strong>${tenant.name}</strong> (slug: <code>${tenant.slug}</code>) envió su menú para revisión y aprobación.
+        <strong>${escapeHtml(tenant.name)}</strong> (slug: <code>${escapeHtml(tenant.slug)}</code>) envió su menú para revisión y aprobación.
       </p>
       ${menuPhotosHtml(tenant)}
       <a href="${APP_BASE()}/superadmin/tenants"

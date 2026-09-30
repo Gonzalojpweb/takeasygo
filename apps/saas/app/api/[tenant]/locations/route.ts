@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
+import { slugifyOrFallback } from '@/lib/slugify'
 
 export async function GET(
   request: NextRequest,
@@ -43,26 +44,37 @@ export async function POST(
 
     const body = await request.json()
 
+    if (!body.name || !String(body.name).trim()) {
+      return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
+    }
+
+    let geoWarning: string | null = null
+
     if (request.headers.get('x-onboarding') === '1') {
       delete body.geo
       if (body.address) {
         const { geocodeText } = await import('@/lib/geocode')
-        const result = await geocodeText(body.address)
-        if (result) {
-          body.geo = { type: 'Point', coordinates: [result.lng, result.lat] }
-        } else {
-          return NextResponse.json({ error: 'No se pudo geocodificar la dirección' }, { status: 422 })
+        try {
+          const result = await geocodeText(body.address)
+          if (result) {
+            body.geo = { type: 'Point', coordinates: [result.lng, result.lat] }
+          } else {
+            // No frenamos el alta: la sede queda sin coordenadas y se corrige después.
+            geoWarning = 'No pudimos ubicar la dirección en el mapa. Se guardó igual.'
+          }
+        } catch {
+          geoWarning = 'No pudimos ubicar la dirección en el mapa. Se guardó igual.'
         }
       }
-      if (body.name && !body.slug) {
-        body.slug = body.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-      }
+
+      // Texto libre → slug válido (el nombre puede traer tildes, mayúsculas, símbolos).
+      body.slug = slugifyOrFallback(body.name, body.slug)
     }
 
     const location = await Location.create({ ...body, tenantId: tenant._id })
 
     logAudit({ tenantId: tenant._id.toString(), action: 'settings.location.created', entity: 'location', entityId: location._id.toString(), details: { name: body.name }, request })
-    return NextResponse.json({ location }, { status: 201 })
+    return NextResponse.json({ location, geoWarning }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

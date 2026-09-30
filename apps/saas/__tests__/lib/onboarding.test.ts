@@ -9,17 +9,10 @@
  */
 
 import { getBrandingForCuisine } from '@/lib/onboarding/branding-defaults'
+import { slugify, slugifyOrFallback } from '@/lib/slugify'
+import { onboardingRegisterSchema } from '@/lib/schemas'
 
 // ── Slug normalization ────────────────────────────────────────────────────────
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // strip accents
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-}
 
 describe('slug normalization', () => {
   it('converts spaces and uppercase to lowercase with dashes', () => {
@@ -42,6 +35,93 @@ describe('slug normalization', () => {
 
   it('handles all-ascii names unchanged', () => {
     expect(slugify('mi-restaurante')).toBe('mi-restaurante')
+  })
+})
+
+// ── Entrada libre: cualquier letra, símbolo, mayúscula, espacio ───────────────
+
+describe('slugify con nombres hostiles', () => {
+  const VALID = /^[a-z0-9-]{1,50}$/
+  const nombres = [
+    "McDonald's",
+    'Ñandú & Hijos',
+    'La Pizzería ¡ÑOÑO!',
+    'CAFÉ & BAR',
+    'Pizzería N°1 (acepta dólares & pesos)',
+    'Sushi Kenji 鮨 鮨',
+    'ÁÉÍÓÚÜÑ',
+    '  El Moro  ',
+    'Casa & Casa — Casa',
+    'Ñ',
+    '🍕 Burger Joint 🍕',
+    'el/otro.local',
+    'RESTAURANT #1 - CABA',
+    'a'.repeat(200),
+  ]
+
+  for (const nombre of nombres) {
+    it(`"${nombre}" → slug válido`, () => {
+      expect(slugify(nombre)).toMatch(VALID)
+    })
+  }
+
+  it('nunca devuelve vacío para texto que tiene letras', () => {
+    expect(slugify('Ñandú & Hijos')).not.toBe('')
+  })
+
+  it('respeta el máximo de 50 caracteres', () => {
+    expect(slugify('palabra muy larga '.repeat(30)).length).toBeLessThanOrEqual(50)
+  })
+})
+
+describe('slugifyOrFallback', () => {
+  it('prefiere el enlace que escribió el usuario', () => {
+    expect(slugifyOrFallback('Ñandú & Hijos', 'Mi Slug')).toBe('mi-slug')
+  })
+
+  it('si el enlace está vacío usa el nombre del negocio', () => {
+    expect(slugifyOrFallback('Ñandú & Hijos', '')).toBe('nandu-hijos')
+  })
+
+  it('si el enlace son solo símbolos cae al nombre', () => {
+    expect(slugifyOrFallback('Ñandú', '!!!')).toBe('nandu')
+  })
+
+  it('nunca devuelve vacío aunque nombre y enlace sean símbolos', () => {
+    expect(slugifyOrFallback('***', '***')).toMatch(/^[a-z0-9-]{2,50}$/)
+  })
+})
+
+describe('onboardingRegisterSchema — acepta texto libre', () => {
+  const base = { email: 'dueno@ejemplo.com' }
+
+  it('nombre con tildes, mayúsculas, símbolos y espacios', () => {
+    const r = onboardingRegisterSchema.safeParse({
+      ...base,
+      name: 'Ñandú & Hijos ¡Cocina Árabe!',
+      slug: 'ñandú & hijos',
+    })
+    expect(r.success).toBe(true)
+  })
+
+  it('slug con espacios y mayúsculas no se rechaza (se normaliza después)', () => {
+    const r = onboardingRegisterSchema.safeParse({ ...base, name: 'La Pampa', slug: 'La Pampa 2' })
+    expect(r.success).toBe(true)
+  })
+
+  it('slug vacío es válido (se deriva del nombre)', () => {
+    const r = onboardingRegisterSchema.safeParse({ ...base, name: 'La Pampa', slug: '' })
+    expect(r.success).toBe(true)
+  })
+
+  it('slug ausente es válido', () => {
+    const r = onboardingRegisterSchema.safeParse({ ...base, name: 'La Pampa' })
+    expect(r.success).toBe(true)
+  })
+
+  it('sigue rechazando email inválido y nombre vacío', () => {
+    expect(onboardingRegisterSchema.safeParse({ email: 'x@y.com', name: '' }).success).toBe(false)
+    expect(onboardingRegisterSchema.safeParse({ email: 'no-es-email', name: 'La Pampa' }).success).toBe(false)
   })
 })
 

@@ -1,5 +1,24 @@
 import nodemailer from 'nodemailer'
 
+/**
+ * Escapa texto para poder interpolarse dentro de un HTML de email.
+ * El formulario de onboarding acepta cualquier símbolo, así que todo lo que
+ * viene del usuario (nombre del negocio, motivo de rechazo) pasa por acá.
+ */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/** Saca saltos de línea para usar en asuntos/header de email. */
+export function safeHeader(value: unknown): string {
+  return String(value ?? '').replace(/[\r\n\t]+/g, ' ').trim()
+}
+
 function createTransport() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -172,7 +191,7 @@ export async function sendOnboardingRejectedEmail(to: string, reason: string, es
 
         <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px 18px;margin:0 0 28px;">
           <p style="font-size:12px;color:#991b1b;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin:0 0 6px;">Motivo</p>
-          <p style="font-size:14px;color:#7f1d1d;line-height:1.6;margin:0;">${reason}</p>
+          <p style="font-size:14px;color:#7f1d1d;line-height:1.6;margin:0;">${escapeHtml(reason)}</p>
         </div>
 
         <a href="${estadoUrl}"
