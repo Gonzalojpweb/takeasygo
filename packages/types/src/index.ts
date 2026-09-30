@@ -274,7 +274,7 @@ export interface Order {
   /** ID del pedido en el SaaS (external reference) */
   externalOrderId?: string
   /** Estado del pedido en el SyncLayer/SaaS */
-  externalStatus?: 'awaiting_payment' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
+  externalStatus?: 'awaiting_payment' | 'confirmed' | 'preparing' | 'ready' | 'en_ruta' | 'arrived' | 'delivered' | 'cancelled'
   /** Método de pago del pedido externo */
   paymentMethod?: PaymentMethod
   /** Origen del pago: pos_charged = cobrado en POS, external_prepaid = pagado online */

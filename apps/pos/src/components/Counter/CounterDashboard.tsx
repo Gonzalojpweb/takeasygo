@@ -18,12 +18,12 @@ import { MesaCard } from "../shared/MesaCard"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { prepareOrder, markReady, deliverOrder, setEnRuta, setArrived } from "../../services/order"
+import { prepareOrder, markReady, deliverOrder } from "../../services/order"
 import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
 import { UtensilsCrossed, Store, Package, Calendar, ClipboardList } from "lucide-react"
 import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
-import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus } from "../../services/external-orders"
+import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus, advanceExternalOrder } from "../../services/external-orders"
 import { OrderCard } from "../IncomingOrders/OrderCard"
 import { OrderValidationPanel } from "../IncomingOrders/OrderValidationPanel"
 import { OrderTransformPanel } from "../IncomingOrders/OrderTransformPanel"
@@ -318,10 +318,13 @@ export function CounterDashboard() {
   // KANBAN HANDLERS (existing)
   // ============================================================================
 
+  // Ciclo de vida de pedidos EXTERNOS: el id del POS es el `_id` del SyncLayer,
+  // por eso van por advanceExternalOrder() (Sync → SaaS con externalOrderId)
+  // y nunca por PATCH /api/[tenant]/pos/orders/:id, que responde 404.
   const handlePrepareExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await prepareOrder(tenantId, orderId, state.jwt?.accessToken)
+      await advanceExternalOrder(orderId, tenantId, "preparing", state.jwt?.accessToken)
       showToast("Pedido en preparación", "success")
     } catch {
       showToast("Error al iniciar preparación", "error")
@@ -331,7 +334,7 @@ export function CounterDashboard() {
   const handleMarkReadyExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await markReady(tenantId, orderId, state.jwt?.accessToken)
+      await advanceExternalOrder(orderId, tenantId, "ready", state.jwt?.accessToken)
       showToast("Pedido listo", "success")
     } catch {
       showToast("Error al marcar listo", "error")
@@ -341,7 +344,7 @@ export function CounterDashboard() {
   const handleDeliverExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await deliverOrder(tenantId, orderId, state.jwt?.accessToken)
+      await advanceExternalOrder(orderId, tenantId, "delivered", state.jwt?.accessToken)
       showToast("Pedido entregado", "success")
     } catch {
       showToast("Error al entregar", "error")
@@ -351,7 +354,7 @@ export function CounterDashboard() {
   const handleSetEnRutaExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await setEnRuta(tenantId, orderId, state.jwt?.accessToken)
+      await advanceExternalOrder(orderId, tenantId, "en_ruta", state.jwt?.accessToken)
       showToast("Pedido en ruta", "success")
     } catch {
       showToast("Error al marcar en ruta", "error")
@@ -361,7 +364,7 @@ export function CounterDashboard() {
   const handleSetArrivedExternal = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      await setArrived(tenantId, orderId, state.jwt?.accessToken)
+      await advanceExternalOrder(orderId, tenantId, "arrived", state.jwt?.accessToken)
       showToast("Pedido llegó", "success")
     } catch {
       showToast("Error al marcar llegó", "error")

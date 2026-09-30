@@ -37,12 +37,15 @@ const PENDING_TTL_MS = 24 * 60 * 60 * 1000 // 24 horas
 // Monotonía: orden de estados para prevenir stale events.
 // Si el nuevo estado es anterior al actual, se descarta.
 const STATUS_ORDER: Record<string, number> = {
+  pending: 0,
   awaiting_payment: 0,
   confirmed: 1,
   preparing: 2,
   ready: 3,
-  delivered: 4,
-  cancelled: 5,
+  en_ruta: 4,
+  arrived: 5,
+  delivered: 6,
+  cancelled: 99,
 }
 
 function isForwardStatus(current: string | undefined, next: string): boolean {
@@ -290,6 +293,55 @@ export async function updateExternalOrderStatus(
     externalStatus,
     createdAt: new Date(),
   })
+}
+
+/**
+ * Avanza el ciclo de vida de un pedido externo (kanban "Operar").
+ *
+ * POR QUÉ NO SE USA `services/order.ts` (PATCH /api/[tenant]/pos/orders/:id):
+ * el `id` que maneja el POS para un pedido externo es el `_id` del SyncLayer,
+ * no un id del SaaS — por eso ese PATCH responde 404. El camino correcto es
+ * `POST /api/v1/orders/:id/status`: el Sync actualiza su documento, emite
+ * `order:status_updated` por socket y reenvía al SaaS usando su
+ * `externalOrderId` (outbox `order_confirm_forward`).
+ *
+ * El estado local (columna del kanban) se escribe acá mismo: el eco por socket
+ * solo mueve `externalStatus` y únicamente replica `status` en estados
+ * terminales, así que sin esta escritura el kanban no avanzaría.
+ *
+ * Monotonía: un estado viejo no pisa uno nuevo (click repetido = no-op);
+ * `cancelled` gana siempre porque es el de mayor rango.
+ */
+export async function advanceExternalOrder(
+  orderId: string,
+  tenantId: string,
+  status: Order["status"],
+  jwt?: string
+): Promise<Order> {
+  const existing = await db.orders.get(orderId)
+  if (!existing) {
+    throw new Error(`[external-orders] Order ${orderId} not found`)
+  }
+  if (existing.tenantId !== tenantId) {
+    throw new Error("[external-orders] Tenant mismatch")
+  }
+
+  if (status !== "cancelled" && !isForwardStatus(existing.status, status)) {
+    return existing
+  }
+
+  await db.orders.update(orderId, {
+    status,
+    externalStatus: status as Order["externalStatus"],
+    updatedAt: new Date(),
+  })
+
+  if (jwt) {
+    notifyStatusToSyncLayer(orderId, status, jwt).catch(() => {})
+  }
+
+  const updated = await db.orders.get(orderId)
+  return updated ?? existing
 }
 
 /**
