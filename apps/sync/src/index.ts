@@ -22,6 +22,13 @@ async function main(): Promise<void> {
 
   const app = express()
 
+  // Detrás de Nginx (EC2). 1 = un solo proxy: Express toma la IP real de
+  // X-Forwarded-For y req.ip deja de ser 127.0.0.1 para todos, que es lo
+  // que agrupaba a todos los usuarios en el mismo contador de rate limit.
+  // No `true`: con true un cliente podría mandar X-Forwarded-For falsificado
+  // y cambiarse de bucket a voluntad. Nginx ya agrega $proxy_add_x_forwarded_for.
+  app.set("trust proxy", 1)
+
   app.use(helmet())
   app.use(cors({ origin: config.corsOrigin }))
   app.use(express.json({ limit: "1mb" }))

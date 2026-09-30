@@ -83,6 +83,12 @@ export function internalRouter(
 
       res.status(201).json({ orderId })
     } catch (err) {
+      // Un payload que Mongoose rechaza es error del caller, no del server.
+      if (err instanceof Error && (err.name === "ValidationError" || err.name === "CastError")) {
+        console.warn("[internal/orders] invalid payload:", err.message)
+        res.status(400).json({ error: "Invalid order payload", detail: err.message })
+        return
+      }
       console.error("[internal/orders] create error:", err)
       res.status(500).json({ error: "Internal server error" })
     }
