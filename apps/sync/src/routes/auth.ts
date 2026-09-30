@@ -4,6 +4,11 @@ import { signJwt, HUB_TOKEN_TTL_MS } from "@takeasygo/business/jwt"
 import { SAAS_TO_POS_ROLE } from "@takeasygo/business"
 import { config } from "../config"
 import { validate, loginSchema } from "../middleware/validation"
+import {
+  loginRateLimiter,
+  recordLoginFailure,
+  clearLoginFailures,
+} from "../middleware/rate-limiter"
 import { UserModel, LocationModel } from "@takeasygo/db"
 import type { Role } from "@takeasygo/types"
 
@@ -41,7 +46,9 @@ async function resolveLocationId(
   return locationId
 }
 
-authRouter.post("/login", validate(loginSchema), async (req, res) => {
+// loginRateLimiter va primero: corta por IP (req.ip, real gracias a trust
+// proxy) antes de validate() y antes de consultar la base.
+authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, res) => {
   try {
     const data = req.body
 
@@ -52,12 +59,14 @@ authRouter.post("/login", validate(loginSchema), async (req, res) => {
       }).select("+password")
 
       if (!user || !user.password) {
+        recordLoginFailure(req)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
 
       const valid = await user.comparePassword(data.password)
       if (!valid) {
+        recordLoginFailure(req)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
@@ -71,6 +80,7 @@ authRouter.post("/login", validate(loginSchema), async (req, res) => {
       const tenantId = user.tenantId?.toString() ?? ""
       const locationId = await resolveLocationId(tenantId, data.locationId, res)
       if (locationId === null) return
+      clearLoginFailures(req)
 
       const token = signJwt(
         {
@@ -101,12 +111,14 @@ authRouter.post("/login", validate(loginSchema), async (req, res) => {
       }).select("+pin")
 
       if (!user || !user.pin) {
+        recordLoginFailure(req)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
 
       const valid = await user.comparePin(data.employeePin)
       if (!valid) {
+        recordLoginFailure(req)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
@@ -120,6 +132,7 @@ authRouter.post("/login", validate(loginSchema), async (req, res) => {
       const tenantId = user.tenantId?.toString() ?? data.tenantId
       const locationId = await resolveLocationId(tenantId, data.locationId, res)
       if (locationId === null) return
+      clearLoginFailures(req)
 
       const token = signJwt(
         {
