@@ -68,6 +68,14 @@ vi.mock("../db/dexie", () => ({
         }),
       }),
     },
+    // transformExternalOrder encola el evento "order.confirmed" (outbox):
+    // sin estas dos tablas el mock de Dexie revienta en event-queue.
+    tenantConfig: {
+      get: () => Promise.resolve({ deviceSecret: "test_device_secret" }),
+    },
+    pendingEvents: {
+      add: (event: any) => Promise.resolve(event.id),
+    },
     transaction: (_mode: string, _tables: any[], callback: () => Promise<void>) => {
       transactionCalled = true
       return callback()
@@ -89,6 +97,7 @@ import {
   transformExternalOrder,
   updateExternalOrderStatus,
   cancelExternalOrder,
+  advanceExternalOrder,
 } from "../services/external-orders"
 
 beforeEach(() => {
@@ -512,5 +521,101 @@ describe("updateExternalOrderStatus", () => {
     await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "cancelled")
     expect(mockOrders[0].externalStatus).toBe("cancelled")
     expect(mockOrders[0].status).toBe("cancelled")
+  })
+})
+
+// ============================================================================
+// advanceExternalOrder — kanban "Operar": Sync, nunca /pos/orders del SaaS
+// ============================================================================
+
+describe("advanceExternalOrder", () => {
+  it("advances local status + externalStatus so the kanban column moves", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    mockOrders[0].status = "confirmed"
+    mockOrders[0].externalStatus = "confirmed"
+
+    const updated = await advanceExternalOrder("sync_order_abc123", "tenant_test", "preparing")
+
+    expect(updated.status).toBe("preparing")
+    expect(updated.externalStatus).toBe("preparing")
+    expect(mockOrders[0].status).toBe("preparing")
+  })
+
+  it("walks the full delivery lifecycle: preparing → ready → en_ruta → arrived → delivered", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    mockOrders[0].status = "confirmed"
+    mockOrders[0].externalStatus = "confirmed"
+
+    for (const next of ["preparing", "ready", "en_ruta", "arrived", "delivered"] as const) {
+      const updated = await advanceExternalOrder("sync_order_abc123", "tenant_test", next)
+      expect(updated.status).toBe(next)
+      expect(updated.externalStatus).toBe(next)
+    }
+  })
+
+  it("ignores a regression (click repetido / evento viejo)", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    mockOrders[0].status = "preparing"
+    mockOrders[0].externalStatus = "preparing"
+
+    const updated = await advanceExternalOrder("sync_order_abc123", "tenant_test", "confirmed")
+
+    expect(updated.status).toBe("preparing")
+    expect(updated.externalStatus).toBe("preparing")
+  })
+
+  it("cancelled wins over any current state", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    mockOrders[0].status = "delivered"
+    mockOrders[0].externalStatus = "delivered"
+
+    const updated = await advanceExternalOrder("sync_order_abc123", "tenant_test", "cancelled")
+
+    expect(updated.status).toBe("cancelled")
+    expect(updated.externalStatus).toBe("cancelled")
+  })
+
+  it("throws on unknown order", async () => {
+    await expect(
+      advanceExternalOrder("nope", "tenant_test", "preparing")
+    ).rejects.toThrow(/not found/)
+  })
+
+  it("throws on tenant mismatch", async () => {
+    await persistExternalOrder(BASE_ORDER)
+
+    await expect(
+      advanceExternalOrder("sync_order_abc123", "otro_tenant", "preparing")
+    ).rejects.toThrow(/Tenant mismatch/)
+  })
+
+  it("notifies the SyncLayer (POST /api/v1/orders/:id/status), not the SaaS /pos/orders", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    try {
+      await persistExternalOrder(BASE_ORDER)
+      mockOrders[0].status = "confirmed"
+
+      await advanceExternalOrder("sync_order_abc123", "tenant_test", "preparing", "jwt_test")
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+      expect(url).toContain("/api/v1/orders/sync_order_abc123/status")
+      expect(url).not.toContain("/pos/orders")
+      expect(init.method).toBe("POST")
+      expect(String(init.body)).toContain("preparing")
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it("keeps the local advance when no jwt (offline): board never blocks", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    mockOrders[0].status = "confirmed"
+
+    const updated = await advanceExternalOrder("sync_order_abc123", "tenant_test", "ready")
+
+    expect(updated.status).toBe("ready")
   })
 })
