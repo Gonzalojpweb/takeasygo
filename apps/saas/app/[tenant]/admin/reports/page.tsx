@@ -8,6 +8,7 @@ import ReportsDashboard from '@/components/admin/ReportsDashboard'
 import ReportsDateRange from '@/components/admin/ReportsDateRange'
 import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 import { buildTransferBreakdown } from '@/lib/reports'
+import { buildPeriodLabel, deltaPct, deltaPoints, fmtDate } from '@/lib/report-range'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 import { Lock } from 'lucide-react'
@@ -68,6 +69,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const lastMonthY = thisM === 1 ? thisY - 1 : thisY
   const { date: startOfLastMonth } = getDayAndMidnightInTimezone(`${lastMonthY}-${String(lastMonthM).padStart(2, '0')}-01`, timezone)
   const endOfLastMonth = new Date(startOfMonth.getTime() - 1000)
+  // Ventana fija SOLO para recompra/frecuencia: esa card está rotulada "90 días"
+  // y no debe moverse con el filtro (el resto del reporte sí usa periodStart/periodEnd).
   const last90days = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
 
   // Rango activo: por defecto el mes actual; si hay from/to se usa el rango custom.
@@ -90,7 +93,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     prevStart = startOfLastMonth
     prevEnd = endOfLastMonth
   }
-  const rangeLabel = hasRange ? `${fromParam} → ${toParam}` : 'Mes actual'
+  const rangeLabel = hasRange ? buildPeriodLabel(fromParam!, toParam!) : 'Mes actual'
+  const prevRangeLabel = hasRange ? buildPeriodLabel(fmtDate(prevStart), fmtDate(prevEnd)) : 'mes anterior'
 
   const [
     ordersThisMonth,
@@ -110,6 +114,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     locationRevenueData,
     upsellAddsData,
     upsellConversionsData,
+    upsellAddsPrevData,
+    upsellConversionsPrevData,
     paymentMethodData,
     transferCommissionData,
     monthlyTrendData,
@@ -277,19 +283,33 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       }},
       { $sort: { revenue: -1 } },
     ]) : Promise.resolve([]),
-    // Upsell adds — solo full (últimos 90 días)
+    // Upsell adds — solo full, rango activo del filtro (sin cancelados ni borrados)
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: last90days } } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' }, deletedAt: null } },
       { $unwind: '$items' },
       { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
       { $group: { _id: { name: '$items.name', source: '$items.addedFrom' }, adds: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
     ]) : Promise.resolve([]),
-    // Upsell conversions (pagadas) — solo full
+    // Upsell conversions (pagadas) — solo full, rango activo
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: last90days }, 'payment.status': 'approved' } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' }, deletedAt: null, 'payment.status': 'approved' } },
       { $unwind: '$items' },
       { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
       { $group: { _id: { name: '$items.name', source: '$items.addedFrom' }, conversions: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
+    ]) : Promise.resolve([]),
+    // Upsell adds del período anterior (para el delta) — solo full
+    isFullPlan ? Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: prevStart, $lte: prevEnd }, status: { $ne: 'cancelled' }, deletedAt: null } },
+      { $unwind: '$items' },
+      { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
+      { $group: { _id: null, adds: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
+    ]) : Promise.resolve([]),
+    // Upsell conversions del período anterior (para el delta) — solo full
+    isFullPlan ? Order.aggregate([
+      { $match: { tenantId, createdAt: { $gte: prevStart, $lte: prevEnd }, status: { $ne: 'cancelled' }, deletedAt: null, 'payment.status': 'approved' } },
+      { $unwind: '$items' },
+      { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
+      { $group: { _id: null, conversions: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
     ]) : Promise.resolve([]),
       // Ventas por método de pago — todos los planes
     Order.aggregate([
@@ -479,6 +499,22 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const upsellTotalRevenue = upsellRows.reduce((s, r) => s + r.revenue, 0)
   const upsellOverallConvRate = upsellTotalAdds > 0 ? Math.round((upsellTotalConversions / upsellTotalAdds) * 100) : 0
 
+  // ── Upsell vs período anterior (deltas) ────────────────────────────
+  type UpsellTotalsRow = { adds?: number; conversions?: number; revenue?: number }
+  const upsellPrevAdds = (upsellAddsPrevData as UpsellTotalsRow[])[0]?.adds ?? 0
+  const upsellPrevConvRaw = (upsellConversionsPrevData as UpsellTotalsRow[])[0] ?? {}
+  const upsellPrevConversions = upsellPrevConvRaw.conversions ?? 0
+  const upsellPrevRevenue = upsellPrevConvRaw.revenue ?? 0
+  const upsellPrevConvRate =
+    upsellPrevAdds > 0 ? Math.round((upsellPrevConversions / upsellPrevAdds) * 100) : null
+
+  const upsellDeltas = {
+    adds: deltaPct(upsellTotalAdds, upsellPrevAdds),
+    conversions: deltaPct(upsellTotalConversions, upsellPrevConversions),
+    revenue: deltaPct(upsellTotalRevenue, upsellPrevRevenue),
+    conversionRate: deltaPoints(upsellOverallConvRate, upsellPrevConvRate),
+  }
+
   // ── Tendencia mensual (últimos 12 meses) ──────────────────────────
   const monthlyTrend = (monthlyTrendData as any[]).map(m => ({
     year: m._id.year as number,
@@ -557,6 +593,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     upsellTotalConversions,
     upsellTotalRevenue,
     upsellOverallConvRate,
+    upsellDeltas,
+    upsellPrevRangeLabel: prevRangeLabel,
     // Tendencia mensual
     monthlyTrend,
     // Upsell vs Menú Común
