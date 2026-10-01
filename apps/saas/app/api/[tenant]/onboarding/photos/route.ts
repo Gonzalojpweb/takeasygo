@@ -9,8 +9,18 @@ import { rateLimit } from '@/lib/rateLimit'
 // solo exporte métodos HTTP y claves de configuración (OmitWithTag → nunca).
 // Un `export const` extra rompe el type check del build con TS2344.
 const MAX_MENU_PHOTOS = 6
-const MAX_BYTES = 5 * 1024 * 1024
-const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif']
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const MAX_PDF_BYTES = 10 * 1024 * 1024
+const ACCEPTED = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/avif',
+  'application/pdf',
+]
+const ACCEPTED_LABEL = 'usá JPG, PNG, WebP o PDF'
 
 export async function GET(
   request: NextRequest,
@@ -60,31 +70,40 @@ export async function POST(
     const current = [...(tenant.onboarding?.menuPhotos ?? [])]
     if (current.length + files.length > MAX_MENU_PHOTOS) {
       return NextResponse.json(
-        { error: `Máximo ${MAX_MENU_PHOTOS} fotos de menú` },
+        { error: `Máximo ${MAX_MENU_PHOTOS} archivos del menú` },
         { status: 400 }
       )
     }
 
     const urls: string[] = []
     for (const file of files) {
-      if (!ACCEPTED.includes(file.type)) {
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+      if (!isPdf && !ACCEPTED.includes(file.type)) {
         return NextResponse.json(
-          { error: 'Formato no soportado (usá JPG, PNG o WebP)' },
+          { error: `Formato no soportado (${ACCEPTED_LABEL})` },
           { status: 400 }
         )
       }
-      if (file.size > MAX_BYTES) {
+
+      const maxBytes = isPdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES
+      if (file.size > maxBytes) {
         return NextResponse.json(
-          { error: 'La imagen supera los 5 MB' },
+          { error: isPdf ? 'El PDF supera los 10 MB' : 'La imagen supera los 5 MB' },
           { status: 400 }
         )
       }
 
       const buffer = Buffer.from(await file.arrayBuffer())
-      const result = await uploadBuffer('tenant', buffer, {
-        folder: `${folderRoot()}/${tenantSlug}/menu-photos`,
-        transformation: [{ width: 1600, crop: 'limit', quality: 'auto' }],
-      })
+      const base = { folder: `${folderRoot()}/${tenantSlug}/menu-photos` }
+      // Los PDF se suben como `raw`: no aplica transformation y Cloudinary
+      // conserva la extensión, así el link se abre como PDF en el navegador.
+      const result = await uploadBuffer(
+        'tenant',
+        buffer,
+        isPdf
+          ? { ...base, resource_type: 'raw' }
+          : { ...base, transformation: [{ width: 1600, crop: 'limit', quality: 'auto' }] }
+      )
       urls.push(result.secure_url)
     }
 
@@ -113,7 +132,7 @@ export async function DELETE(
 
     const { url } = await request.json()
     if (!url || typeof url !== 'string') {
-      return NextResponse.json({ error: 'Falta la foto a eliminar' }, { status: 400 })
+      return NextResponse.json({ error: 'Falta el archivo a eliminar' }, { status: 400 })
     }
 
     const before = tenant.onboarding?.menuPhotos?.length ?? 0
@@ -121,7 +140,7 @@ export async function DELETE(
       (u: string) => u !== url
     )
     if (tenant.onboarding.menuPhotos.length === before) {
-      return NextResponse.json({ error: 'Foto no encontrada' }, { status: 404 })
+      return NextResponse.json({ error: 'Archivo no encontrado' }, { status: 404 })
     }
 
     await tenant.save()

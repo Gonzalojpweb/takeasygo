@@ -142,20 +142,58 @@ describe('notifyReviewSubmission — fotos del menú', () => {
     expect(html).toContain('https://cdn/a.jpg')
     expect(html).toContain('https://cdn/b.jpg')
     expect(html).toContain('<img')
-    expect(html).toContain('Fotos del menú que subió el solicitante (2)')
+    expect(html).toContain('Carta del menú que subió el solicitante (2)')
   })
 
   it('no muestra la sección si no hay fotos', async () => {
     await notifyReviewSubmission(withPhotos())
     const html = sendEmail.mock.calls[0][2] as string
-    expect(html).not.toContain('Fotos del menú que subió el solicitante')
+    expect(html).not.toContain('Carta del menú que subió el solicitante')
     expect(html).not.toContain('<img')
   })
 
   it('no muestra la sección si el campo ni existe (tenant precargado)', async () => {
     await notifyReviewSubmission(tenant)
     const html = sendEmail.mock.calls[0][2] as string
-    expect(html).not.toContain('Fotos del menú que subió el solicitante')
+    expect(html).not.toContain('Carta del menú que subió el solicitante')
+  })
+
+  it('renderiza un chip PDF en lugar de <img> para archivos .pdf', async () => {
+    await notifyReviewSubmission(withPhotos('https://cdn/carta.pdf?v=2'))
+    const html = sendEmail.mock.calls[0][2] as string
+    expect(html).toMatch(/>\s*PDF\s*</)
+    expect(html).not.toContain('<img')
+    expect(html).toContain('href="https://cdn/carta.pdf?v=2"')
+  })
+
+  it('detecta también los PDF subidos como raw de Cloudinary', async () => {
+    await notifyReviewSubmission(
+      withPhotos('https://res.cloudinary.com/demo/raw/upload/v1/menu/carta')
+    )
+    const html = sendEmail.mock.calls[0][2] as string
+    expect(html).toMatch(/>\s*PDF\s*</)
+    expect(html).not.toContain('<img')
+  })
+})
+
+describe('notifyReviewSubmission — plan solicitado', () => {
+  it('incluye el plan que eligió el solicitante', async () => {
+    await notifyReviewSubmission({ ...tenant, selectedPlan: 'buy' })
+    const html = sendEmail.mock.calls[0][2] as string
+    expect(html).toContain('Plan solicitado: <strong>buy</strong>')
+  })
+
+  it('cae a trial si no hay plan cargado', async () => {
+    await notifyReviewSubmission(tenant)
+    const html = sendEmail.mock.calls[0][2] as string
+    expect(html).toContain('Plan solicitado: <strong>trial</strong>')
+  })
+
+  it('escapa el plan si viniera manipulado', async () => {
+    await notifyReviewSubmission({ ...tenant, selectedPlan: '<b>x</b>' })
+    const html = sendEmail.mock.calls[0][2] as string
+    expect(html).toContain('&lt;b&gt;x&lt;/b&gt;')
+    expect(html).not.toContain('<b>x</b>')
   })
 })
 

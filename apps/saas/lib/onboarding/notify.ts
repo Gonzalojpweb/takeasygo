@@ -17,7 +17,12 @@ const APP_BASE = () => process.env.APP_URL || 'http://localhost:3000'
 interface NotifyTenant {
   name: string
   slug: string
+  selectedPlan?: string | null
   onboarding?: { submittedAt?: Date | null; menuPhotos?: string[] | null }
+}
+
+function isPdfUrl(url: string): boolean {
+  return /\.pdf(\?|#|$)/i.test(url) || url.includes('/raw/upload/')
 }
 
 function menuPhotosHtml(tenant: NotifyTenant): string {
@@ -25,18 +30,26 @@ function menuPhotosHtml(tenant: NotifyTenant): string {
   if (photos.length === 0) return ''
 
   const thumbs = photos
-    .map(
-      (url) => `
-        <a href="${escapeHtml(url)}" target="_blank" style="display:inline-block;">
+    .map((url) => {
+      const link = `href="${escapeHtml(url)}" target="_blank" style="display:inline-block;"`
+      if (isPdfUrl(url)) {
+        return `
+        <a ${link} title="Abrir PDF de la carta"
+           style="display:inline-block;width:96px;height:72px;line-height:72px;text-align:center;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;">
+          PDF
+        </a>`
+      }
+      return `
+        <a ${link}>
           <img src="${escapeHtml(url)}" alt="Foto del menú" width="96" height="72"
                style="width:96px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #ede9e5;display:block;" />
         </a>`
-    )
+    })
     .join('')
 
   return `
       <p style="font-size:14px;color:#6b6460;line-height:1.6;margin:0 0 8px;">
-        Fotos del menú que subió el solicitante (${photos.length}):
+        Carta del menú que subió el solicitante (${photos.length}):
       </p>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 24px;">${thumbs}</div>
   `
@@ -52,8 +65,11 @@ export async function notifyReviewSubmission(tenant: NotifyTenant) {
         </div>
       </div>
       <h1 style="font-size:22px;font-weight:600;color:#0d0b0a;margin:0 0 12px;">Nuevo tenant en revisión</h1>
-      <p style="font-size:14px;color:#6b6460;line-height:1.6;margin:0 0 20px;">
+      <p style="font-size:14px;color:#6b6460;line-height:1.6;margin:0 0 8px;">
         <strong>${escapeHtml(tenant.name)}</strong> (slug: <code>${escapeHtml(tenant.slug)}</code>) envió su menú para revisión y aprobación.
+      </p>
+      <p style="font-size:14px;color:#6b6460;line-height:1.6;margin:0 0 20px;">
+        Plan solicitado: <strong>${escapeHtml(tenant.selectedPlan || 'trial')}</strong>
       </p>
       ${menuPhotosHtml(tenant)}
       <a href="${APP_BASE()}/superadmin/tenants"

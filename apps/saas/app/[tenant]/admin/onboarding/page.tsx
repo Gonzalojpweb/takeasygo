@@ -167,45 +167,96 @@ export default function OnboardingInternalPage() {
   }
 
   const planFeatures = PLAN_FEATURES_LANDING[selectedPlan]
+  const isPaidPlan = selectedPlan !== 'trial'
+
+  const steps = [
+    { n: 3, label: 'Plan' },
+    { n: 4, label: 'Sede' },
+    { n: 5, label: 'Identidad' },
+    { n: 6, label: 'Revisión' },
+  ]
 
   return (
     <div className="max-w-3xl mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">Completá tu perfil</h1>
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+        Alta de restaurante
+      </p>
+      <h1 className="text-2xl font-bold mb-5">Completá tu perfil</h1>
+
+      {/* Progreso */}
+      <ol className="mb-7 flex flex-wrap gap-x-2 gap-y-2">
+        {steps.map((s, i) => {
+          const done = step > s.n
+          const active = step === s.n
+          return (
+            <li key={s.n} className="flex items-center gap-2">
+              <span
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  active
+                    ? 'bg-black text-white'
+                    : done
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                <span
+                  className={`h-4 w-4 rounded-full text-[10px] leading-none flex items-center justify-center ${
+                    active ? 'bg-white text-black' : done ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-white'
+                  }`}
+                >
+                  {done ? '✓' : s.n - 2}
+                </span>
+                {s.label}
+              </span>
+              {i < steps.length - 1 && <span className="text-gray-300 text-xs">—</span>}
+            </li>
+          )
+        })}
+      </ol>
 
       {error && <div className="p-4 bg-red-50 text-red-600 rounded-md mb-6">{error}</div>}
       {warning && <div className="p-4 bg-amber-50 text-amber-800 rounded-md mb-6">{warning}</div>}
 
       {step === 3 && (
         <form onSubmit={handlePlan} className="space-y-5">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-4">
             <div>
               <h2 className="text-lg font-medium">¿Con qué plan arrancás?</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Empezás con Trial y podés cambiar cuando quieras. La elección se aplica
-                cuando aprobemos tu cuenta.
+                Arrancás con Trial y podés cambiar cuando quieras. Tu elección queda
+                registrada y se aplica cuando aprobemos tu cuenta.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {SELECTABLE_PLANS.map((p) => {
                 const active = selectedPlan === p
+                const isTrial = p === 'trial'
                 return (
                   <button
                     key={p}
                     type="button"
                     onClick={() => setSelectedPlan(p)}
                     aria-pressed={active}
-                    className={`text-left p-4 rounded-xl border-2 transition-colors ${
-                      active
-                        ? 'border-black bg-black/[0.03]'
-                        : 'border-gray-200 hover:border-gray-300'
+                    className={`relative text-left p-4 rounded-xl border-2 transition-colors ${
+                      isTrial
+                        ? active
+                          ? 'border-violet-600 bg-violet-50/60 ring-1 ring-violet-600'
+                          : 'border-violet-300 bg-violet-50/40 hover:border-violet-500'
+                        : active
+                          ? 'border-black bg-black/[0.03]'
+                          : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-bold text-sm">{PLAN_LABELS[p]}</span>
                       <span
                         className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center ${
-                          active ? 'border-black bg-black' : 'border-gray-300'
+                          active
+                            ? isTrial
+                              ? 'border-violet-600 bg-violet-600'
+                              : 'border-black bg-black'
+                            : 'border-gray-300'
                         }`}
                       >
                         {active && (
@@ -215,11 +266,24 @@ export default function OnboardingInternalPage() {
                         )}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{PLAN_TAGLINES[p]}</p>
-                    {p === 'trial' && (
-                      <span className="mt-2 inline-block text-[10px] font-black uppercase tracking-wider text-violet-600 bg-violet-500/10 px-2 py-0.5 rounded-full">
-                        Preseleccionado
-                      </span>
+
+                    {/* Etiqueta de cargo: la diferencia real entre trial y el resto. */}
+                    <span
+                      className={`mt-2 inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        isTrial
+                          ? 'text-violet-700 bg-violet-600/15 border border-violet-500/30'
+                          : 'text-amber-800 bg-amber-500/15 border border-amber-500/30'
+                      }`}
+                    >
+                      {isTrial ? 'Prueba gratis · 30 días' : 'Plan con cargo'}
+                    </span>
+
+                    <p className="text-xs text-gray-500 mt-2 leading-relaxed">{PLAN_TAGLINES[p]}</p>
+
+                    {isTrial && (
+                      <p className="text-xs font-semibold text-violet-700 mt-2 leading-snug">
+                        30 días de prueba completa. Sin tarjeta y sin cargo.
+                      </p>
                     )}
                   </button>
                 )
@@ -227,7 +291,7 @@ export default function OnboardingInternalPage() {
             </div>
           </div>
 
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
             <h3 className="text-sm font-bold text-gray-900">
               Qué incluye {PLAN_LABELS[selectedPlan]}
             </h3>
@@ -241,14 +305,38 @@ export default function OnboardingInternalPage() {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-[11px] text-gray-500">
-              Sin costos ahora. Cuando tu cuenta esté aprobada vas a poder contratar o
-              cambiar de plan desde el panel.
-            </p>
+
+            {/* Aviso de cargo: trial y planes de pago no se tratan igual. */}
+            {isPaidPlan ? (
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-xs font-bold text-amber-900 mb-1.5">
+                  Este plan genera un cargo desde el día 1
+                </p>
+                <p className="text-xs text-amber-900/90 leading-relaxed">
+                  A diferencia del Trial, {PLAN_LABELS[selectedPlan]} es un plan pago: la
+                  facturación arranca el mismo día que se aprueba tu cuenta. El admin de
+                  TakeasyGO te va a <strong>notificar el costo</strong> y te contacta para
+                  confirmarlo antes de activar la cobranza. No se te cobra nada automático
+                  ni sin ese aviso.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 bg-violet-50 border border-violet-200 rounded-lg p-4">
+                <p className="text-xs font-bold text-violet-900 mb-1.5">
+                  Trial: 30 días de prueba, sin cargo
+                </p>
+                <p className="text-xs text-violet-900/90 leading-relaxed">
+                  Tenés 30 días completos para probar la plataforma con tus primeros
+                  pedidos. Durante ese período no se genera ningún cargo. Terminada la
+                  prueba, si querés seguir, elegís un plan pago y recién ahí se activa la
+                  facturación.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end">
-            <button type="submit" disabled={loading} className="bg-black text-white px-4 py-2 rounded-md disabled:opacity-50">
+            <button type="submit" disabled={loading} className="bg-black text-white px-5 py-2.5 rounded-md text-sm font-medium disabled:opacity-50">
               {loading ? 'Guardando…' : 'Continuar'}
             </button>
           </div>
@@ -256,19 +344,45 @@ export default function OnboardingInternalPage() {
       )}
 
       {step === 4 && (
-        <form onSubmit={handleSede} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-4">
-          <h2 className="text-lg font-medium">Información de la sede</h2>
+        <form onSubmit={handleSede} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-5">
+          <div>
+            <h2 className="text-lg font-medium">Información de la sede</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Con esto armamos tu local y podés empezar a recibir pedidos.
+            </p>
+          </div>
 
           <div>
-            <label className="block text-sm font-medium">Dirección exacta</label>
-            <input type="text" required value={address} onChange={e => setAddress(e.target.value)} className="mt-1 w-full p-2 border rounded-md" placeholder="Av. Corrientes 1234, CABA" />
+            <label className="block text-sm font-medium text-gray-700" htmlFor="onb-address">Dirección exacta</label>
+            <input
+              id="onb-address"
+              type="text"
+              required
+              value={address}
+              onChange={e => setAddress(e.target.value)}
+              className="mt-1 w-full p-2.5 border border-gray-300 rounded-lg shadow-sm focus:border-black focus:ring-black text-sm"
+              placeholder="Av. Corrientes 1234, CABA"
+            />
+            <p className="text-xs text-gray-500 mt-1">Calle, altura y ciudad. Así te encuentran en el mapa.</p>
           </div>
+
           <div>
-            <label className="block text-sm font-medium">Teléfono (WhatsApp)</label>
-            <input type="text" required value={phone} onChange={e => setPhone(e.target.value)} className="mt-1 w-full p-2 border rounded-md" placeholder="1122334455" />
+            <label className="block text-sm font-medium text-gray-700" htmlFor="onb-phone">Teléfono (WhatsApp)</label>
+            <input
+              id="onb-phone"
+              type="tel"
+              required
+              inputMode="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              className="mt-1 w-full p-2.5 border border-gray-300 rounded-lg shadow-sm focus:border-black focus:ring-black text-sm"
+              placeholder="1122334455"
+            />
+            <p className="text-xs text-gray-500 mt-1">Solo números, con código de área y sin espacios.</p>
           </div>
+
           <div>
-            <label className="block text-sm font-medium" htmlFor="cuisine">Tipo de comida principal</label>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="cuisine">Tipo de comida principal</label>
             <input
               id="cuisine"
               type="text"
@@ -276,7 +390,7 @@ export default function OnboardingInternalPage() {
               required
               value={cuisine}
               onChange={e => setCuisine(e.target.value)}
-              className="mt-1 w-full p-2 border rounded-md"
+              className="mt-1 w-full p-2.5 border border-gray-300 rounded-lg shadow-sm focus:border-black focus:ring-black text-sm"
               placeholder="Ej: Parrilla, Sushi, Cafetería de especialidad…"
             />
             <datalist id="cuisine-options">
@@ -300,54 +414,87 @@ export default function OnboardingInternalPage() {
             </p>
           </div>
 
-          <div className="flex justify-between">
-            <button type="button" onClick={() => setStep(3)} className="px-4 py-2 border rounded-md">Atrás</button>
-            <button type="submit" disabled={loading} className="bg-black text-white px-4 py-2 rounded-md disabled:opacity-50">Continuar</button>
+          <div className="flex justify-between pt-1">
+            <button type="button" onClick={() => setStep(3)} className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Atrás</button>
+            <button type="submit" disabled={loading} className="bg-black text-white px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">{loading ? 'Guardando…' : 'Continuar'}</button>
           </div>
         </form>
       )}
 
       {step === 5 && (
-        <form onSubmit={handleBranding} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-4">
-          <h2 className="text-lg font-medium">Identidad visual</h2>
-
+        <form onSubmit={handleBranding} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-5">
           <div>
-            <label className="block text-sm font-medium">Color principal</label>
-            <div className="flex items-center space-x-2 mt-1">
-              <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="h-10 w-10 border rounded-md" />
-              <input type="text" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="p-2 border rounded-md flex-1" />
-            </div>
+            <h2 className="text-lg font-medium">Identidad visual</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Elegí el color con el que se va a ver tu menú. Podés cambiarlo después.
+            </p>
           </div>
 
-          <div className="flex justify-between">
-            <button type="button" onClick={() => setStep(4)} className="px-4 py-2 border rounded-md">Atrás</button>
-            <button type="submit" disabled={loading} className="bg-black text-white px-4 py-2 rounded-md disabled:opacity-50">Ver preview</button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Color principal</label>
+            <div className="flex items-center space-x-2 mt-1">
+              <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="h-11 w-11 border border-gray-300 rounded-lg cursor-pointer" aria-label="Elegir color principal" />
+              <input type="text" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="p-2.5 border border-gray-300 rounded-lg shadow-sm focus:border-black focus:ring-black text-sm flex-1 font-mono" />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Podés escribir el código (ej: #0d0b0a) o usar el selector.</p>
+          </div>
+
+          <div className="flex justify-between pt-1">
+            <button type="button" onClick={() => setStep(4)} className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Atrás</button>
+            <button type="submit" disabled={loading} className="bg-black text-white px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">{loading ? 'Guardando…' : 'Ver preview'}</button>
           </div>
         </form>
       )}
 
       {step === 6 && (
         <div className="space-y-6">
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-md">
-            <h2 className="text-blue-800 font-medium">Vista previa</h2>
-            <p className="text-blue-600 text-sm">Así se verá tu menú (ejemplo de {cuisine}). Los colores se aplicarán a tu menú real.</p>
+          <div className="bg-gray-900 text-white p-5 rounded-xl">
+            <h2 className="font-medium">Vista previa</h2>
+            <p className="text-sm text-white/70 mt-1">
+              Así se verá tu menú (ejemplo de {cuisine}). Los colores se aplicarán a tu menú real.
+            </p>
           </div>
 
-          <div className="border rounded-lg overflow-hidden bg-gray-50 h-[600px] relative">
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 h-[600px] relative shadow-sm">
             {/* Componente seguro de preview */}
             <MenuPreview cuisine={cuisine} primaryColor={primaryColor} />
           </div>
 
           <MenuPhotosUploader tenant={tenant} />
 
-          <div className="flex justify-end space-x-4">
-            <button onClick={() => setStep(5)} className="px-4 py-2 border rounded-md">Atrás</button>
-            <button onClick={handleSubmitReview} disabled={loading} className="bg-black text-white px-4 py-2 rounded-md disabled:opacity-50">
+          <div className="flex justify-between">
+            <button onClick={() => setStep(5)} className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Atrás</button>
+            <button onClick={handleSubmitReview} disabled={loading} className="bg-black text-white px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
               {loading ? 'Enviando...' : 'Enviar a revisión'}
             </button>
           </div>
         </div>
       )}
+
+      {/* Footer de aclaración: aplica a todos los planes, por eso vive a nivel página. */}
+      <footer className="mt-10 border-t border-gray-200 pt-6">
+        <p className="text-[11px] font-black uppercase tracking-widest text-gray-700">
+          Ningún plan incluye instalación
+        </p>
+        <p className="text-xs text-gray-500 mt-2 leading-relaxed max-w-2xl">
+          Todos los planes son de licencia de software y cubren el uso de la plataforma.
+          La puesta en marcha física y la configuración de terceros se cotizan aparte.
+        </p>
+        <p className="text-xs font-semibold text-gray-700 mt-3">La instalación incluye:</p>
+        <ul className="mt-1.5 space-y-1 text-xs text-gray-600 leading-relaxed">
+          <li className="flex gap-2">
+            <span aria-hidden>·</span>
+            <span>Instalación y ajuste de impresoras para impresión de comandas.</span>
+          </li>
+          <li className="flex gap-2">
+            <span aria-hidden>·</span>
+            <span>Configuración y ajustes de cuentas de Mercado Pago.</span>
+          </li>
+        </ul>
+        <p className="text-[11px] text-gray-400 mt-3">
+          Se coordina con el equipo de TakeasyGO después de aprobar tu cuenta.
+        </p>
+      </footer>
     </div>
   )
 }
