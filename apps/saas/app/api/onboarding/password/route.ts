@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import { onboardingPasswordSchema } from '@/lib/schemas'
+import { sanitizePassword, passwordError } from '@/lib/password'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { rateLimit } from '@/lib/rateLimit'
@@ -18,9 +19,17 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
+    // El saneado (NFC + sin caracteres de control) y las reglas de fortaleza
+    // viven en lib/password.ts: el cliente muestra exactamente esta checklist.
+    if (body && typeof body.password === 'string') body.password = sanitizePassword(body.password)
     const parsed = onboardingPasswordSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
+    }
+
+    const ruleError = passwordError(parsed.data.password)
+    if (ruleError) {
+      return NextResponse.json({ error: ruleError }, { status: 400 })
     }
 
     const { ticket, password } = parsed.data

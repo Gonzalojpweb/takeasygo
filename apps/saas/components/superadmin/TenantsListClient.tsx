@@ -4,9 +4,10 @@ import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ExternalLink, MapPin, Settings, Users, Search, ArrowUpAZ, ArrowDownAZ, Clock, Pause, Play, Trash2 } from 'lucide-react'
+import { ExternalLink, MapPin, Settings, Users, Search, ArrowUpAZ, ArrowDownAZ, Clock, Pause, Play, Trash2, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { isPdfUrl } from '@/lib/menu-photos'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 import { toast } from 'sonner'
@@ -336,17 +337,30 @@ export default function TenantsListClient({ tenants }: { tenants: Tenant[] }) {
                         Plan solicitado: {PLAN_LABELS[(tenant.selectedPlan || 'trial') as Plan]}
                       </p>
                       {tenant.menuPhotos && tenant.menuPhotos.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5" title="Fotos del menú enviadas">
-                          {tenant.menuPhotos.map((url) => (
-                            <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={url}
-                                alt="Foto del menú"
-                                className="w-11 h-11 object-cover rounded-md border border-blue-200"
-                              />
-                            </a>
-                          ))}
+                        <div className="flex flex-wrap gap-1.5" title="Carta del menú enviada">
+                          {tenant.menuPhotos.map((url) =>
+                            isPdfUrl(url) ? (
+                              <a
+                                key={url}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Abrir PDF de la carta"
+                                className="w-11 h-11 flex items-center justify-center rounded-md border border-blue-200 bg-red-50 text-red-700"
+                              >
+                                <FileText size={16} />
+                              </a>
+                            ) : (
+                              <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={url}
+                                  alt="Foto del menú"
+                                  className="w-11 h-11 object-cover rounded-md border border-blue-200"
+                                />
+                              </a>
+                            )
+                          )}
                         </div>
                       )}
                       <Button 
