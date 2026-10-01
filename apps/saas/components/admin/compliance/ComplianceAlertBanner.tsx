@@ -46,7 +46,7 @@ const STATUS_LABELS: Record<string, string> = {
 export function ComplianceAlertBanner({ tenantSlug, activeLocationId, onAlertsChange }: Props) {
   const [status, setStatus] = useState<ComplianceStatus | null>(null)
   const [loading, setLoading] = useState(true)
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissing, setDismissing] = useState(false)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -74,20 +74,63 @@ export function ComplianceAlertBanner({ tenantSlug, activeLocationId, onAlertsCh
     }
   }, [tenantSlug, fetchStatus])
 
-  if (loading || !status || status.total === 0 || dismissed) return null
+  /**
+   * "Descartar" persiste en la DB (resolvedAt/resolvedBy: 'admin') y recién
+   * entonces saca las alertas del estado local. Antes sólo hacía
+   * `setDismissed(true)`, por lo que volvía a aparecer en cada recarga.
+   */
+  const handleDismiss = async (alertIds: string[]) => {
+    if (dismissing || alertIds.length === 0) return
+    setDismissing(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/compliance/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alertIds }),
+      })
+      if (!res.ok) return
+
+      setStatus((prev) => {
+        if (!prev) return prev
+        const alerts = prev.alerts.filter((a) => !alertIds.includes(a._id))
+        const next: ComplianceStatus = {
+          ...prev,
+          alerts,
+          total: alerts.length,
+          hasLevel2: alerts.some((a) => a.level === 2),
+          hasLevel3: alerts.some((a) => a.level === 3),
+          blockedLocations: [
+            ...new Set(alerts.filter((a) => a.level === 3).map((a) => a.locationId)),
+          ],
+          warningLocations: [
+            ...new Set(alerts.filter((a) => a.level === 2).map((a) => a.locationId)),
+          ],
+        }
+        onAlertsChange?.(next)
+        return next
+      })
+    } catch {
+      // silent: el banner permanece visible si no se pudo resolver
+    } finally {
+      setDismissing(false)
+    }
+  }
+
+  if (loading || !status || status.total === 0) return null
 
   // Filter alerts for active location if specified
   const relevantAlerts = activeLocationId
     ? status.alerts.filter((a) => a.locationId === activeLocationId)
     : status.alerts
 
-  if (relevantAlerts.length === 0) return null
-
   const l2Alerts = relevantAlerts.filter((a) => a.level === 2)
   const l3Alerts = relevantAlerts.filter((a) => a.level === 3)
 
   // Don't show banner if L3 is present (block modal takes over)
   if (l3Alerts.length > 0) return null
+
+  // El badge cuenta L2: sin L2 no hay nada que mostrar (evita "0 pedidos")
+  if (l2Alerts.length === 0) return null
 
   return (
     <Alert variant="destructive" className="mb-4 border-amber-500/50 bg-amber-500/5">
@@ -137,7 +180,8 @@ export function ComplianceAlertBanner({ tenantSlug, activeLocationId, onAlertsCh
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setDismissed(true)}
+            disabled={dismissing}
+            onClick={() => handleDismiss(l2Alerts.map((a) => a._id))}
           >
             <X className="h-3 w-3 mr-1" />
             Descartar
