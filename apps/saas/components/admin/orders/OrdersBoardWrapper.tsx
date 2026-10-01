@@ -46,8 +46,31 @@ const ORDER_COLUMNS: BoardColumnDef[] = [
 const ACTIVE_STATUSES = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
 const ALERT_STATUSES = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed']
 
-// Config del popup de atención T-lead: dispara al alcanzar printNotBefore
-// (serializado server-side), solo para pedidos programados con hora.
+function paymentLabel(method: string): string {
+  switch (method) {
+    case 'mercadopago': return 'MercadoPago'
+    case 'kripton': return 'Kripton'
+    case 'transfer': return 'Transferencia'
+    case 'cash': return 'Efectivo'
+    default: return method
+  }
+}
+
+/** Descripción del popup para un pedido recién ingresado: programación + pago + total. */
+function buildNewOrderAlertDescription(item: OrderItem): string {
+  const parts: string[] = []
+  if (item.orderTiming === 'scheduled' && item.scheduledPickupAt) {
+    const hora = new Date(item.scheduledPickupAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    parts.push(`Programado ${hora}`)
+  }
+  parts.push(paymentLabel(item.payment?.method ?? ''))
+  if (item.total) parts.push(`$${item.total.toLocaleString('es-AR')}`)
+  return parts.filter(Boolean).join(' · ')
+}
+
+// Config del popup de atención: pedidos nuevos de CUALQUIER tipo (transferencia,
+// MP, efectivo, inmediato o programado) + programados que alcanzan el T-lead
+// (printNotBefore serializado server-side).
 const SCHEDULED_ALERT_CONFIG = {
   getPrintNotBefore: (item: OrderItem) =>
     item.orderTiming === 'scheduled' ? item.printNotBefore ?? null : null,
@@ -57,6 +80,13 @@ const SCHEDULED_ALERT_CONFIG = {
     description: item.scheduledPickupAt
       ? `Retiro ${new Date(item.scheduledPickupAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} — toca preparar e imprimir`
       : 'Toca preparar e imprimir',
+  }),
+  buildNewAlert: (item: OrderItem) => ({
+    id: item._id,
+    title: `Pedido #${item.orderNumber} · ${item.customer.name}`,
+    description: buildNewOrderAlertDescription(item),
+    headline: '¡Nuevo pedido!',
+    subline: 'Acaba de ingresar al workspace',
   }),
 }
 

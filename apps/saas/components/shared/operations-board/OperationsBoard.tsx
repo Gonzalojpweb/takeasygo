@@ -139,18 +139,24 @@ export default function OperationsBoard<T extends BoardItem>({
     soundSrc,
     getNewItemToast,
     onAttend: handleAttend,
+    // Con popup activo, la alerta inicial (sonido+toast) la lleva el popup —
+    // acá queda el tracking de highlight/ringing/escalación.
+    silent: Boolean(enableAttentionPopup),
   })
 
-  // ── Detector de pedidos programados que alcanzan el T-lead ──────────────
-  // exactly-once vía firedIdsRef: los items vencidos que siguen en el board
-  // no re-disparan en cada poll (sin popup-storm).
+  // ── Detector del popup de atención: pedidos nuevos + T-lead ─────────────
+  // exactly-once por evento vía firedIdsRef (`new:${id}` / `tlead:${id}`): los
+  // items en board no re-disparan en cada poll (sin popup-storm).
   const { queue: attentionQueue, attend: attendAttention, dismiss: dismissAttention } =
     useScheduledDueDetector({
       items,
       enabled: Boolean(enableAttentionPopup && scheduledAlertConfig),
       config: scheduledAlertConfig,
       actionableStatuses: effectiveAlertStatuses,
-      onAttend: (item) => setSelectedItem(item),
+      onAttend: (item) => {
+        setSelectedItem(item)
+        markAttended(item._id)
+      },
     })
 
   // Cleanup
@@ -203,7 +209,7 @@ export default function OperationsBoard<T extends BoardItem>({
 
   return (
     <div className="flex h-full min-h-0 gap-0 relative">
-      {/* Popup de atención — pedidos programados que alcanzan el T-lead */}
+      {/* Popup de atención — pedidos nuevos (cualquier tipo) + programados en T-lead */}
       {enableAttentionPopup && (
         <OrderAlertPopup
           queue={attentionQueue}

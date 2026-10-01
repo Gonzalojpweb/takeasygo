@@ -12,6 +12,9 @@ interface UseBoardNewItemDetectorOptions<T extends BoardItem> {
   soundSrc?: string
   getNewItemToast?: (items: T[], onAttend: () => void) => { title: string; description: string }
   onAttend?: () => void
+  /** Delega la alerta inicial (sonido + toast) al popup centrado: solo se
+   *  mantiene el tracking (highlight de card, ringing y escalación). */
+  silent?: boolean
 }
 
 interface EscalationTimers {
@@ -31,6 +34,7 @@ export function useBoardNewItemDetector<T extends BoardItem>({
   soundSrc,
   getNewItemToast,
   onAttend,
+  silent = false,
 }: UseBoardNewItemDetectorOptions<T>) {
   const { play: playSound, stop: stopSound, playOnce } = useNotificationSound(soundSrc)
   const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set())
@@ -104,31 +108,36 @@ export function useBoardNewItemDetector<T extends BoardItem>({
     const newAlertItems = incoming.filter(o => alertStatuses.includes(o.status))
 
     if (newAlertItems.length > 0 && soundEnabled) {
-      playSound(true)
+      // silent: el popup centrado hace de megáfono (knock + LLAMADA loop);
+      // acá queda el tracking de highlight/ringing/escalación como refuerzo
+      // para después de cerrar el popup sin atender.
+      if (!silent) playSound(true)
       newAlertItems.forEach(o => ringingIdsRef.current.add(o._id))
       setNewItemIds(prev => new Set([...prev, ...newAlertItems.map(o => o._id)]))
 
       // Start wave timers (only if no timers active — handles concurrent arrivals)
       startWaveTimers()
 
-      const handleAttend = onAttend ?? (() => {})
+      if (!silent) {
+        const handleAttend = onAttend ?? (() => {})
 
-      const toastContent = getNewItemToast
-        ? getNewItemToast(newAlertItems, handleAttend)
-        : {
-            title: `${newAlertItems.length === 1 ? 'Nuevo item' : `${newAlertItems.length} nuevos items`}`,
-            description: newAlertItems.map(o => `#${o._id.slice(-6)}`).join(' — '),
-          }
+        const toastContent = getNewItemToast
+          ? getNewItemToast(newAlertItems, handleAttend)
+          : {
+              title: `${newAlertItems.length === 1 ? 'Nuevo item' : `${newAlertItems.length} nuevos items`}`,
+              description: newAlertItems.map(o => `#${o._id.slice(-6)}`).join(' — '),
+            }
 
-      toast(toastContent.title, {
-        description: toastContent.description,
-        duration: 8000,
-        position: 'top-center',
-        action: {
-          label: 'Atender',
-          onClick: handleAttend,
-        },
-      })
+        toast(toastContent.title, {
+          description: toastContent.description,
+          duration: 8000,
+          position: 'top-center',
+          action: {
+            label: 'Atender',
+            onClick: handleAttend,
+          },
+        })
+      }
     }
 
     knownIdsRef.current = new Set(items.map(o => o._id))
@@ -158,7 +167,7 @@ export function useBoardNewItemDetector<T extends BoardItem>({
       }
       ringingIdsRef.current = stillRinging
     }
-  }, [items, alertStatuses, soundEnabled, playSound, stopSound, getNewItemToast, onAttend, startWaveTimers, clearTimers, playOnce])
+  }, [items, alertStatuses, soundEnabled, silent, playSound, stopSound, getNewItemToast, onAttend, startWaveTimers, clearTimers, playOnce])
 
   // Cleanup on unmount
   useEffect(() => {
