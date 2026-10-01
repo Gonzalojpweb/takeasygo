@@ -114,6 +114,8 @@ export interface ILocation extends Document {
     slotDurationMinutes: number
     maxOrdersPerSlot: number
     gracePeriodMinutes: number
+    /** Minutos antes del retiro en que se libera la impresión (T-lead). Default 30. */
+    printBeforePickupMinutes?: number
   }
   createdAt: Date
   updatedAt: Date
@@ -299,6 +301,7 @@ settings: {
       slotDurationMinutes: { type: Number, default: 15 },
       maxOrdersPerSlot: { type: Number, default: 10 },
       gracePeriodMinutes: { type: Number, default: 15 },
+      printBeforePickupMinutes: { type: Number, default: 30 },
     },
     deliveryConfig: {
       type: {

@@ -41,6 +41,20 @@ export interface BoardLocationConfig {
 }
 
 // ─── Render Props ───────────────────────────────────────────
+/** Alerta de popup para el detector de pedidos programados (T-lead). */
+export interface OrderAlertItem {
+  id: string
+  title: string
+  description?: string
+}
+
+/** Config del detector de pedidos programados que alcanzan el T-lead. */
+export interface ScheduledAlertConfig<T extends BoardItem> {
+  /** Momento ISO en que el item alcanza el T-lead (printNotBefore). null = no programado. */
+  getPrintNotBefore: (item: T) => string | null | undefined
+  /** Contenido del popup para un item vencido. */
+  buildAlert: (item: T) => OrderAlertItem
+}
 export interface BoardCardRenderProps<T extends BoardItem> {
   item: T
   isSelected: boolean
@@ -96,4 +110,8 @@ export interface OperationsBoardProps<T extends BoardItem> {
   soundSrc?: string
   /** Auto-select an item by _id on mount (e.g. from notification action button). */
   autoSelectId?: string | null
+  /** Habilita el popup centrado de atención para items programados que alcanzan el T-lead. */
+  enableAttentionPopup?: boolean
+  /** Config del detector T-lead (requiere enableAttentionPopup). */
+  scheduledAlertConfig?: ScheduledAlertConfig<T>
 }

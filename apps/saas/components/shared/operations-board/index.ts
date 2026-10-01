@@ -6,10 +6,12 @@ export { default as BoardContextPanelShell } from './BoardContextPanelShell'
 export { default as BoardInsightsShell } from './BoardInsightsShell'
 export { default as BoardSkeleton } from './BoardSkeleton'
 export { default as BoardEmptyState } from './BoardEmptyState'
+export { OrderAlertPopup } from './OrderAlertPopup'
 
 // ─── Hooks ─────────────────────────────────────────────────
 export { useBoardAutoRefresh } from './useBoardAutoRefresh'
 export { useBoardNewItemDetector } from './useBoardNewItemDetector'
+export { useScheduledDueDetector } from './useScheduledDueDetector'
 export { useWorkspaceZoom } from './useWorkspaceZoom'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -22,4 +24,6 @@ export type {
   BoardContextPanelRenderProps,
   BoardInsightsRenderProps,
   OperationsBoardProps,
+  OrderAlertItem,
+  ScheduledAlertConfig,
 } from './types'

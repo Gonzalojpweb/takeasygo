@@ -7,6 +7,8 @@ import BoardColumn from './BoardColumn'
 import BoardToolbar from './BoardToolbar'
 import { useBoardAutoRefresh } from './useBoardAutoRefresh'
 import { useBoardNewItemDetector } from './useBoardNewItemDetector'
+import { useScheduledDueDetector } from './useScheduledDueDetector'
+import { OrderAlertPopup } from './OrderAlertPopup'
 import { useWorkspaceZoom } from './useWorkspaceZoom'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -30,6 +32,8 @@ export default function OperationsBoard<T extends BoardItem>({
   soundSrc,
   onLocationChange,
   autoSelectId,
+  enableAttentionPopup,
+  scheduledAlertConfig,
 }: OperationsBoardProps<T>) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
@@ -137,6 +141,18 @@ export default function OperationsBoard<T extends BoardItem>({
     onAttend: handleAttend,
   })
 
+  // ── Detector de pedidos programados que alcanzan el T-lead ──────────────
+  // exactly-once vía firedIdsRef: los items vencidos que siguen en el board
+  // no re-disparan en cada poll (sin popup-storm).
+  const { queue: attentionQueue, attend: attendAttention, dismiss: dismissAttention } =
+    useScheduledDueDetector({
+      items,
+      enabled: Boolean(enableAttentionPopup && scheduledAlertConfig),
+      config: scheduledAlertConfig,
+      actionableStatuses: effectiveAlertStatuses,
+      onAttend: (item) => setSelectedItem(item),
+    })
+
   // Cleanup
   const handleCleanup = useCallback(async () => {
     if (!onCleanup) return
@@ -187,6 +203,16 @@ export default function OperationsBoard<T extends BoardItem>({
 
   return (
     <div className="flex h-full min-h-0 gap-0 relative">
+      {/* Popup de atención — pedidos programados que alcanzan el T-lead */}
+      {enableAttentionPopup && (
+        <OrderAlertPopup
+          queue={attentionQueue}
+          soundEnabled={soundEnabled}
+          onAttend={attendAttention}
+          onDismiss={dismissAttention}
+        />
+      )}
+
       {/* Main board area */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Toolbar */}

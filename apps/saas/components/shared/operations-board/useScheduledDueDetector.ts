@@ -1,0 +1,156 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { BoardItem, OrderAlertItem, ScheduledAlertConfig } from './types'
+
+interface UseScheduledDueDetectorOptions<T extends BoardItem> {
+  items: T[]
+  enabled: boolean
+  config?: ScheduledAlertConfig<T>
+  /** Estados del item para los cuales la alerta sigue siendo relevante. */
+  actionableStatuses?: string[]
+  /** Callback al atender: recibe el item para seleccionarlo en el board. */
+  onAttend?: (item: T) => void
+}
+
+const MAX_TIMER_DELAY_MS = 24 * 60 * 60_000
+
+/**
+ * useScheduledDueDetector — detecta items programados que alcanzan el T-lead
+ * (printNotBefore) y arma la cola del popup de atención.
+ *
+ * Mecanismo:
+ * - El poll de useBoardAutoRefresh (30s visible / 60s oculto) es la fuente de
+ *   verdad: cada ciclo de items re-evalúa qué está vencido.
+ * - setTimeout solo es optimización para disparar en el instante exacto del
+ *   T-lead (el peor caso sin él es 1 ciclo de poll, ≤60s).
+ * - firedIdsRef garantiza exactly-once: aunque el poll traiga el mismo item
+ *   vencido una y otra vez, jamás se re-dispara (sin popup-storm) y cerrar/
+ *   atender no lo vuelve a disparar.
+ */
+export function useScheduledDueDetector<T extends BoardItem>({
+  items,
+  enabled,
+  config,
+  actionableStatuses,
+  onAttend,
+}: UseScheduledDueDetectorOptions<T>) {
+  const [queue, setQueue] = useState<OrderAlertItem[]>([])
+  const firedIdsRef = useRef<Set<string>>(new Set())
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const itemsRef = useRef(items)
+  const configRef = useRef(config)
+  const actionableRef = useRef(actionableStatuses)
+
+  // Sincroniza refs tras el commit (nunca durante render) — los timers y
+  // callbacks posteriores leen siempre el valor más fresco.
+  useEffect(() => {
+    itemsRef.current = items
+    configRef.current = config
+    actionableRef.current = actionableStatuses
+  })
+
+  const isActionable = useCallback((item: T) => {
+    const statuses = actionableRef.current
+    if (!statuses || statuses.length === 0) return true
+    return statuses.includes(item.status)
+  }, [])
+
+  const getItemDueInfo = useCallback((item: T): { dueAt: number; alert: OrderAlertItem } | null => {
+    const cfg = configRef.current
+    if (!cfg) return null
+    const iso = cfg.getPrintNotBefore(item)
+    if (!iso) return null
+    const dueAt = new Date(iso).getTime()
+    if (Number.isNaN(dueAt)) return null
+    return { dueAt, alert: cfg.buildAlert(item) }
+  }, [])
+
+  const enqueue = useCallback((alert: OrderAlertItem) => {
+    if (firedIdsRef.current.has(alert.id)) return
+    firedIdsRef.current.add(alert.id)
+    setQueue(prev => (prev.some(a => a.id === alert.id) ? prev : [...prev, alert]))
+  }, [])
+
+  // Evalúa items vencidos ahora + programa timers para los futuros
+  useEffect(() => {
+    if (!enabled || !config) return
+
+    const now = Date.now()
+    const liveTimerIds = new Set<string>()
+    const dueAlerts: OrderAlertItem[] = []
+
+    for (const item of items) {
+      const info = getItemDueInfo(item)
+      if (!info) continue
+
+      if (info.dueAt <= now) {
+        // Vencido: se encola vía callback (dedup exactly-once en enqueue)
+        if (isActionable(item)) dueAlerts.push(info.alert)
+        continue
+      }
+
+      // Futuro: timer de optimización para disparo exacto (si no hay ya uno
+      // para este item con el mismo vencimiento)
+      const delay = info.dueAt - now
+      if (delay > MAX_TIMER_DELAY_MS) continue
+      liveTimerIds.add(item._id)
+
+      if (!timersRef.current.has(item._id)) {
+        const timer = setTimeout(() => {
+          timersRef.current.delete(item._id)
+          const latest = itemsRef.current.find(i => i._id === item._id)
+          if (!latest || !isActionable(latest)) return
+          const fresh = getItemDueInfo(latest)
+          if (fresh && fresh.dueAt <= Date.now()) enqueue(fresh.alert)
+        }, delay + 250)
+        timersRef.current.set(item._id, timer)
+      }
+    }
+
+    // Limpia timers de items que ya no existen o salieron del board
+    for (const [id, timer] of timersRef.current) {
+      if (!liveTimerIds.has(id)) {
+        clearTimeout(timer)
+        timersRef.current.delete(id)
+      }
+    }
+
+    // setState diferido a microtask (regla react-hooks/set-state-in-effect)
+    if (dueAlerts.length > 0) {
+      queueMicrotask(() => dueAlerts.forEach(enqueue))
+    }
+  }, [items, enabled, config, enqueue, getItemDueInfo, isActionable])
+
+  // Al desactivar: cola vacía + timers liberados (firedIds se conserva para
+  // no re-disparar si se reactiva en la misma sesión)
+  useEffect(() => {
+    if (enabled) return
+    // setState diferido a microtask (regla react-hooks/set-state-in-effect)
+    queueMicrotask(() => setQueue([]))
+    for (const timer of timersRef.current.values()) clearTimeout(timer)
+    timersRef.current.clear()
+  }, [enabled])
+
+  // Cleanup al desmontar
+  useEffect(() => {
+    const timers = timersRef.current
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer)
+      timers.clear()
+    }
+  }, [])
+
+  const attend = useCallback((alert: OrderAlertItem) => {
+    const item = itemsRef.current.find(i => i._id === alert.id)
+    setQueue(prev => prev.filter(a => a.id !== alert.id))
+    if (item) onAttend?.(item)
+  }, [onAttend])
+
+  const dismiss = useCallback((alert: OrderAlertItem) => {
+    // firedIdsRef conserva el id → no se re-dispara nunca
+    setQueue(prev => prev.filter(a => a.id !== alert.id))
+  }, [])
+
+  return { queue, attend, dismiss }
+}
