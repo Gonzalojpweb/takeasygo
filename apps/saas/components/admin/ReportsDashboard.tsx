@@ -68,6 +68,8 @@ interface Props {
         upsellTotalConversions: number
         upsellTotalRevenue: number
         upsellOverallConvRate: number
+        upsellDeltas: { adds: number | null; conversions: number | null; conversionRate: number | null; revenue: number | null }
+        upsellPrevRangeLabel: string
         // Tendencia mensual
         monthlyTrend: { year: number; month: number; revenue: number; orders: number; avgTicket: number }[]
         // Upsell vs Menú Común
@@ -841,7 +843,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                                 </div>
                                 <div>
                                     <CardTitle className="text-base font-bold tracking-tight">Upselling Inteligente</CardTitle>
-                                    <p className="text-xs text-muted-foreground">Cómo funciona y su impacto en tus ventas</p>
+                                    <p className="text-xs text-muted-foreground">Cómo funciona y su impacto en tus ventas · {stats.rangeLabel}</p>
                                 </div>
                             </div>
                         </CardHeader>
@@ -872,6 +874,14 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                                     {stats.upsellTotalRevenue > 0 && (
                                         <> · <span className="font-bold">${toPesos(stats.upsellTotalRevenue).toLocaleString('es-AR')}</span> de revenue generado</>
                                     )}
+                                    {stats.upsellDeltas.revenue !== null && (
+                                        <span className={cn(
+                                            'ml-1 font-black tabular-nums',
+                                            stats.upsellDeltas.revenue > 0 ? 'text-emerald-700' : stats.upsellDeltas.revenue < 0 ? 'text-red-700' : 'text-green-800'
+                                        )}>
+                                            {stats.upsellDeltas.revenue > 0 ? '+' : ''}{stats.upsellDeltas.revenue}% vs {stats.upsellPrevRangeLabel}
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </CardContent>
@@ -887,14 +897,16 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                             <Zap size={18} className="text-amber-500" />
                             Analytics de Upselling
                         </h2>
-                        <p className="text-xs text-muted-foreground mt-0.5">Productos sugeridos · últimos 90 días</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Productos sugeridos · {stats.rangeLabel}</p>
                     </div>
                     <UpsellAnalytics
                         totalAdds={stats.upsellTotalAdds}
                         totalConversions={stats.upsellTotalConversions}
                         totalRevenue={stats.upsellTotalRevenue}
                         overallConversionRate={stats.upsellOverallConvRate}
-                        windowDays={90}
+                        periodLabel={stats.rangeLabel}
+                        prevLabel={stats.upsellPrevRangeLabel}
+                        deltas={stats.upsellDeltas}
                         rows={stats.upsellRows}
                     />
                 </motion.div>

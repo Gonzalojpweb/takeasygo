@@ -3,27 +3,28 @@
 import { Input } from '@/components/ui/input'
 import { Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { fmtDate, presetRange } from '@/lib/report-range'
+
+/** Preset "últimos N días": de hace N días hasta hoy. */
+function dayPreset(label: string, days: number) {
+  return {
+    label,
+    from: () => presetRange(days).from,
+    to: () => presetRange(days).to,
+  }
+}
 
 const PRESETS = [
-  { label: '7 días', from: () => daysAgo(7), to: () => today() },
-  { label: '30 días', from: () => daysAgo(30), to: () => today() },
-  { label: 'Este mes', from: () => startOfMonth(), to: () => today() },
+  dayPreset('7 días', 7),
+  dayPreset('15 días', 15),
+  dayPreset('30 días', 30),
+  dayPreset('60 días', 60),
+  dayPreset('90 días', 90),
+  { label: 'Este mes', from: () => startOfMonth(), to: () => fmtDate(new Date()) },
   { label: 'Mes anterior', from: () => startOfLastMonth(), to: () => endOfLastMonth() },
-  { label: '3 meses', from: () => daysAgo(90), to: () => today() },
-  { label: '6 meses', from: () => daysAgo(180), to: () => today() },
-  { label: '1 año', from: () => daysAgo(365), to: () => today() },
+  dayPreset('6 meses', 180),
+  dayPreset('1 año', 365),
 ]
-
-function today() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function daysAgo(n: number) {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 function startOfMonth() {
   const d = new Date()
